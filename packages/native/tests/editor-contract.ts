@@ -487,4 +487,49 @@ const ignored=style('p-[20.5px]');`;
       );
     expect(compiled).toEqual(reports);
   });
+
+  test("stylesheet reports use the lint settings of the loader and its session", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(specifier);
+    const css = `@custom-variant wide (@media (width >= 40rem));
+.card { @media (min-width: 640px) { color: red; } }
+`;
+    /**
+     * Loads `css` as a linted source with `options`.
+     * @param options - Loader options, whose lint settings stylesheet reports use.
+     * @returns The completed loader.
+     */
+    const load = (options?: object) => {
+      const loader = new NativeDesignSystemLoader(options);
+      loader.provide(0, "root.css", css, "file:///project/root.css", null, true);
+      return loader;
+    };
+    const directives = (reports: { code: string }[]) =>
+      reports.filter((report) => report.code === "prefer-variant-directive");
+    expect(directives(load().stylesheetReports())).toEqual([]);
+    const loader = load({
+      lint: {
+        preferVariantDirective: {
+          severity: "warn",
+          pxToRem: true,
+        },
+      },
+    });
+    const reports = directives(loader.stylesheetReports());
+    expect(reports).toHaveLength(1);
+    expect(reports[0]).toMatchObject({
+      severity: "warning",
+      actions: [
+        {
+          edits: [
+            {
+              replacement: "@variant wide",
+            },
+          ],
+        },
+      ],
+    });
+    expect(directives(new NativeProjectSession(loader, false).stylesheetReports())).toEqual(
+      reports,
+    );
+  });
 }

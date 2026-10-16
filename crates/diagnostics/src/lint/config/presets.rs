@@ -61,6 +61,7 @@ const STYLISTIC: &[(LintKind, LintSeverity)] = &[
     (LintKind::PreferTypedRelationships, LintSeverity::Warn),
     (LintKind::PreferSortedUtilities, LintSeverity::Warn),
     (LintKind::PreferTypedVariables, LintSeverity::Warn),
+    (LintKind::PreferVariantDirective, LintSeverity::Warn),
 ];
 
 const STRICT_ADDITIONS: &[(LintKind, LintSeverity)] =

@@ -377,6 +377,15 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "prefer-variant-directive": {
+    category: "style",
+    nativeName: "preferVariantDirective",
+    defaults: {
+      severity: "warn",
+      pxToRem: false,
+    },
+    options: ["severity", "pxToRem"],
+  },
   "invalid-lint-suppression": {
     category: "suppression",
     nativeName: "invalidLintSuppression",

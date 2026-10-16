@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 60);
+        assert_eq!(names.len(), 61);
         for name in [
             "custom",
             "",
@@ -174,7 +174,8 @@ mod tests {
                 "no-restricted-theme-tokens": "off",
                 "no-arbitrary-breakpoints": "off",
                 "prefer-typed-relationships": "off",
-                "prefer-sorted-utilities": "off"
+                "prefer-sorted-utilities": "off",
+                "prefer-variant-directive": "off"
             }"#
             )
             .unwrap()

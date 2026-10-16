@@ -379,3 +379,96 @@ test("LSP offers the nesting selector fix at a variant definition", async () => 
     await stop();
   }
 });
+
+test("LSP offers the @variant fix for a header that a variant applies", async () => {
+  const { root, state, send, wait, stop } = await startServer(".test-lsp-css-");
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.tsx"],lint:{rules:{"prefer-variant-directive":"warn"}}}]};',
+    );
+    const head = '@import "stillwind";\n';
+    await writeFile(path.join(root, "root.css"), head);
+    const uri = pathToFileURL(path.join(root, "root.css")).href;
+    send(
+      "initialize",
+      {
+        rootUri: pathToFileURL(root).href,
+        capabilities: {},
+      },
+      1,
+    );
+    expect((await wait((message) => message.id === 1)).error, state.stderr).toBeUndefined();
+    send("initialized", {});
+    send("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version: 1,
+        text: `${head}.card { @media (prefers-color-scheme: dark) { color: red; } }\n`,
+      },
+    });
+    const published = await wait(
+      (message) =>
+        message.method === "textDocument/publishDiagnostics" &&
+        message.params?.uri === uri &&
+        message.params.version === 1 &&
+        Boolean(message.params.diagnostics?.length),
+    );
+    const range = {
+      start: {
+        line: 1,
+        character: 8,
+      },
+      end: {
+        line: 1,
+        character: 43,
+      },
+    };
+    expect(published.params!.diagnostics).toMatchObject([
+      {
+        code: "prefer-variant-directive",
+        range,
+      },
+    ]);
+    send(
+      "textDocument/codeAction",
+      {
+        textDocument: {
+          uri,
+        },
+        range,
+        context: {
+          diagnostics: [],
+          only: ["quickfix"],
+        },
+      },
+      2,
+    );
+    const actions = await wait((message) => message.id === 2);
+    expect(actions.result).toMatchObject([
+      {
+        title: "Write `@variant dark`",
+        edit: {
+          documentChanges: [
+            {
+              textDocument: {
+                uri,
+                version: 1,
+              },
+              edits: [
+                {
+                  range,
+                  newText: "@variant dark",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    expect(state.protocolError).toBeUndefined();
+  } finally {
+    await stop();
+  }
+});

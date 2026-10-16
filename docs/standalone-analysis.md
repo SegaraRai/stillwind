@@ -317,6 +317,46 @@ Other rules check only stylesheets. They check definitions and theme references:
   `--size-4` never resolve `--value(--size-*)`. Uses of that utility still report
   `unknown-utility`.
 
+`prefer-variant-directive` (style, default `off`, enabled by the `stylistic` preset)
+also checks only stylesheets. It reports a nested style rule or a conditional at-rule
+inside a style rule when `@variant <name>` expands to exactly the same header. Its fix
+replaces only the header and keeps the block body:
+
+| Authored CSS                                  | Fix                      |
+| --------------------------------------------- | ------------------------ |
+| `@media (width >= 40rem) { ... }`             | `@variant sm { ... }`    |
+| `&:focus-visible { ... }`                     | `@variant focus-visible` |
+| `@media (hover: hover) { &:hover { ... } }`   | `@variant hover { ... }` |
+| `@media (prefers-color-scheme: dark) { ... }` | `@variant dark { ... }`  |
+
+The rule expands each variant spelling that completion offers and indexes the
+spellings whose expansion is one chain of headers. A two-level variant such as `hover`
+matches only when both levels are written, in either order, and its fix replaces both
+headers. When several spellings expand to the same headers, such as `sm` and `min-sm`,
+the fix uses the shortest one. The output selectors, and therefore their specificity,
+do not change.
+
+The comparison ignores whitespace and comments, ASCII case in `@media` conditions and
+pseudo-class names, and spacing in `@supports` conditions. It reads `(min-width: 40rem)`
+as `(width >= 40rem)` and `(max-width: 40rem)` as `(width <= 40rem)`. The built-in
+`max-*` variants use `width <`, so `max-width` never matches them.
+
+The rule does not report these headers:
+
+- `&:hover` alone, because the built-in `hover` also applies `@media (hover: hover)`.
+- Selector lists such as `&:hover, &:focus`, and variants such as `not-hover` that
+  emit several rules or add declarations.
+- At-rules outside style rules, because `@variant` there defines a variant.
+- Headers inside `@custom-variant`, `@stillwind-variant`, and `@utility` bodies, where
+  the variant could refer to itself, and headers in files that are not linted.
+
+The option `pxToRem` (default `false`) lets a `px` length in a `@media` condition
+match a `rem` length of a variant at 16px = 1rem, so `(min-width: 640px)` becomes
+`@variant sm`. This option is separate from `prefer-canonical-utilities.pxToRem`. A
+`rem` length in a media query follows the browser's default font size, so after the
+fix the breakpoint switches at a different width for users who changed that size. The
+message of such a finding says so.
+
 The rule catalog records whether each rule checks scripts, stylesheets, or both. Macro
 rules, such as `mutating-macro-argument` and the ref and view-transition rules, never
 check stylesheets. One severity setting applies to every source that a rule checks.

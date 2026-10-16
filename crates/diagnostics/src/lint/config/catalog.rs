@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig,
     RestrictedDeclarationsConfig, RestrictedLengthUnitsConfig, RestrictedThemeTokensConfig,
-    RestrictedUtilitiesConfig,
+    RestrictedUtilitiesConfig, VariantDirectiveConfig,
 };
 
 /// Configured reporting level of a lint finding.
@@ -155,6 +155,9 @@ macro_rules! lint_config_type {
     (PreferCanonicalUtilities) => {
         CanonicalUtilitiesConfig
     };
+    (PreferVariantDirective) => {
+        VariantDirectiveConfig
+    };
     ($variant:ident) => {
         LintSeverity
     };
@@ -203,6 +206,12 @@ macro_rules! lint_config_value {
             px_to_rem: true,
         }
     };
+    (PreferVariantDirective, $severity:expr) => {
+        VariantDirectiveConfig {
+            severity: $severity,
+            px_to_rem: false,
+        }
+    };
     ($variant:ident, $severity:expr) => {
         $severity
     };
@@ -228,6 +237,9 @@ macro_rules! lint_config_severity {
         $config.severity
     };
     (PreferCanonicalUtilities, $config:expr) => {
+        $config.severity
+    };
+    (PreferVariantDirective, $config:expr) => {
         $config.severity
     };
     ($variant:ident, $config:expr) => {
@@ -303,6 +315,7 @@ define_lint_rules! {
         RedundantVariant => "redundant-variant",
         PreferTypedVariables => "prefer-typed-variables",
         ImplicitNestingSelector => "implicit-nesting-selector",
+        PreferVariantDirective => "prefer-variant-directive",
     }
     Suppression {
         InvalidLintSuppression => "invalid-lint-suppression",
@@ -332,6 +345,7 @@ impl LintKind {
                     | Self::DuplicateDefinition
                     | Self::InvalidThemeValue
                     | Self::ImplicitNestingSelector
+                    | Self::PreferVariantDirective
             ),
             LintSurface::Stylesheet => matches!(
                 self,
@@ -354,6 +368,7 @@ impl LintKind {
                     | Self::DuplicateDefinition
                     | Self::InvalidThemeValue
                     | Self::ImplicitNestingSelector
+                    | Self::PreferVariantDirective
                     | Self::InvalidLintSuppression
                     | Self::UnusedLintSuppression
             ),

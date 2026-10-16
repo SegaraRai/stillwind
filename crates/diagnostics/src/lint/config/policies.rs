@@ -34,6 +34,38 @@ pub struct CanonicalUtilitiesOverride {
     pub px_to_rem: Option<bool>,
 }
 
+/// Effective policy for `prefer-variant-directive` after compiler defaults and project
+/// settings.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariantDirectiveConfig {
+    /// Off skips detection and reporting; deny reports an error with the same fixes.
+    pub severity: LintSeverity,
+    /// Lets a `px` length in a `@media` condition match a `rem` length of a variant at
+    /// 16px = 1rem.
+    pub px_to_rem: bool,
+}
+
+impl Default for VariantDirectiveConfig {
+    fn default() -> Self {
+        Self {
+            severity: LintSeverity::Warn,
+            px_to_rem: false,
+        }
+    }
+}
+
+/// Project fields that override only the explicitly supplied parts of the
+/// `prefer-variant-directive` policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct VariantDirectiveOverride {
+    /// Omission uses the rule default.
+    pub severity: Option<LintSeverity>,
+    /// Omission keeps the default, which compares lengths without unit conversion.
+    pub px_to_rem: Option<bool>,
+}
+
 /// Effective policy for declarations that compete within a style call.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

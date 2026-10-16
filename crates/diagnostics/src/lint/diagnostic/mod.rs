@@ -5,8 +5,9 @@
 //!
 //! `cause` defines [`LintDiagnostic`] and selects its rule, `candidate` formats the
 //! optional parts of messages about utility candidates, `variables` formats messages
-//! about variables of known types, `variants` formats messages about variant stacks,
-//! and `rule_group` names the inputs that a rule group cannot contain.
+//! about variables of known types, `variants` formats messages about variant stacks and
+//! about CSS that a variant can replace, and `rule_group` names the inputs that a rule
+//! group cannot contain.
 
 mod candidate;
 mod cause;

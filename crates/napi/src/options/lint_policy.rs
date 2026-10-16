@@ -7,7 +7,7 @@ use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
     LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsOverride, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, VariantDirectiveOverride,
 };
 
 /// Canonical utility options. All omitted fields preserve the previous setting.
@@ -23,6 +23,31 @@ impl TryFrom<NativeCanonicalUtilitiesOptions> for CanonicalUtilitiesOverride {
     type Error = Error;
 
     fn try_from(value: NativeCanonicalUtilitiesOptions) -> napi::Result<Self> {
+        Ok(Self {
+            severity: value
+                .severity
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            px_to_rem: value.px_to_rem,
+        })
+    }
+}
+
+/// Options of `prefer-variant-directive`. All omitted fields preserve the previous
+/// setting.
+#[napi(object)]
+pub struct NativeVariantDirectiveOptions {
+    /// Reporting severity: warn, deny, or off.
+    pub severity: Option<String>,
+    /// Lets `px` lengths of `@media` conditions match `rem` variants at 16px = 1rem.
+    /// Defaults to false.
+    pub px_to_rem: Option<bool>,
+}
+
+impl TryFrom<NativeVariantDirectiveOptions> for VariantDirectiveOverride {
+    type Error = Error;
+
+    fn try_from(value: NativeVariantDirectiveOptions) -> napi::Result<Self> {
         Ok(Self {
             severity: value
                 .severity

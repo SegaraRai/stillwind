@@ -45,6 +45,7 @@ export {
   type RestrictedDeclarationsOptions,
   type RestrictedThemeTokensOptions,
   type RestrictedUtilitiesOptions,
+  type VariantDirectiveOptions,
 } from "./lint.ts";
 export { mergeConfig } from "./merge.ts";
 export { configurationFiles } from "./resolution.ts";

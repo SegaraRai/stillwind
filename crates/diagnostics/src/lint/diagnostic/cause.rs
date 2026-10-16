@@ -9,7 +9,7 @@ use super::super::LintKind;
 use super::RuleGroupInputErrorKind;
 use super::candidate::{DidYouMean, DocumentScopedMessage, PropertyValueMessage};
 use super::variables::VariableTypeMessage;
-use super::variants::{RedundantVariantMessage, UnsatisfiableMessage};
+use super::variants::{RedundantVariantMessage, UnsatisfiableMessage, VariantDirectiveMessage};
 
 /// Concrete values and message templates for a detected lint.
 ///
@@ -597,6 +597,19 @@ pub enum LintDiagnostic {
         /// Selector with `&` inserted, which the variant applies.
         nested: LeanStr,
     },
+    /// The header of a nested style rule or conditional at-rule applies the same CSS
+    /// as `@variant <variant>` (`prefer-variant-directive`).
+    #[error("{}", VariantDirectiveMessage { header, variant, px_to_rem: *px_to_rem })]
+    PreferVariantDirective {
+        /// Header text as written, such as `@media (width >= 40rem)`. Two nested headers
+        /// are joined with ` { `.
+        header: LeanStr,
+        /// Variant spelling that the fix writes, such as `sm`.
+        variant: LeanStr,
+        /// Whether the match reads `px` lengths of a `@media` condition as `rem` at
+        /// 16px = 1rem.
+        px_to_rem: bool,
+    },
     /// A later definition with the same name hides an earlier `@utility` or variant
     /// definition, so the earlier one is never used (`duplicate-definition`).
     #[error(
@@ -749,6 +762,7 @@ impl LintDiagnostic {
             Self::ClampedValue { .. } => LintKind::ClampedValue,
             Self::UntypedVariable { .. } => LintKind::PreferTypedVariables,
             Self::ImplicitNestingSelector { .. } => LintKind::ImplicitNestingSelector,
+            Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
             Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,
             Self::UnresolvedThemeReference { .. } | Self::EmptyThemeNamespace { .. } => {

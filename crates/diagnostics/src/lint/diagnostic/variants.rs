@@ -1,4 +1,5 @@
-//! Messages about relations between the variants of one candidate.
+//! Messages about relations between the variants of one candidate and about CSS that a
+//! variant can replace.
 
 use std::fmt;
 
@@ -58,6 +59,34 @@ impl fmt::Display for UnsatisfiableMessage<'_> {
                 "variants `{variants}` never match because `{first}` and `{second}` exclude each other"
             )
         }
+    }
+}
+
+/// Message of [`super::LintDiagnostic::PreferVariantDirective`].
+pub(super) struct VariantDirectiveMessage<'a> {
+    pub(super) header: &'a str,
+    pub(super) variant: &'a str,
+    pub(super) px_to_rem: bool,
+}
+
+impl fmt::Display for VariantDirectiveMessage<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            header,
+            variant,
+            px_to_rem,
+        } = self;
+        write!(
+            formatter,
+            "`{header}` applies the same condition as variant `{variant}`; write `@variant {variant}`"
+        )?;
+        if *px_to_rem {
+            write!(
+                formatter,
+                ". The match reads `px` as `rem` at 16px = 1rem, but `rem` in a media query follows the browser's default font size, so the breakpoint switches at a different width for users who changed that size"
+            )?;
+        }
+        Ok(())
     }
 }
 

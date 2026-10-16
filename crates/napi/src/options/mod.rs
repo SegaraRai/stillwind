@@ -15,5 +15,6 @@ use lint::NativeLintOptions;
 use lint_policy::{
     NativeArbitrarySpacingOptions, NativeConflictingUtilitiesOptions,
     NativeRestrictedDeclarationsOptions, NativeRestrictedLengthUnitsOptions,
-    NativeRestrictedThemeTokensOptions, NativeRestrictedUtilitiesOptions, lint_severity,
+    NativeRestrictedThemeTokensOptions, NativeRestrictedUtilitiesOptions,
+    NativeVariantDirectiveOptions, lint_severity,
 };

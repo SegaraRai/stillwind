@@ -249,6 +249,68 @@ test("lint reports stylesheet definitions and fixes implicit nesting selectors",
   }
 });
 
+test("lint --fix replaces variant headers in stylesheets with @variant", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-css-"));
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{rules:{"prefer-variant-directive":{severity:"warn",pxToRem:true}}}}]}',
+    );
+    const entry = path.join(root, "root.css");
+    await writeFile(
+      entry,
+      `@import "stillwind";
+.card {
+  @media (prefers-color-scheme: dark) { color: red; }
+  @media (hover: hover) {
+    &:hover { color: blue; }
+  }
+  &:hover { color: green; }
+  @media (min-width: 640px) { color: gray; }
+}
+`,
+    );
+    await writeFile(
+      path.join(root, "entry.tsx"),
+      'import {style} from "stillwind/react";export const value=style("");',
+    );
+    /**
+     * Lists the code and variant of each finding in JSON output.
+     * @param stdout - JSON printed by the CLI.
+     * @returns Finding codes with the variant that each message names.
+     */
+    const findings = (stdout: string) =>
+      JSON.parse(stdout).diagnostics.map(
+        ({ report }: { report: { code: string; message: string } }) => [
+          report.code,
+          report.message.match(/variant `([^`]+)`/)?.[1],
+        ],
+      );
+    const report = await run(root, ["lint", "--format", "json"]);
+    expect(report.code, report.stderr).toBe(0);
+    expect(findings(report.stdout)).toEqual([
+      ["prefer-variant-directive", "dark"],
+      ["prefer-variant-directive", "hover"],
+      ["prefer-variant-directive", "sm"],
+    ]);
+    const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
+    expect(fixed.code, fixed.stderr).toBe(0);
+    expect(findings(fixed.stdout)).toEqual([]);
+    expect(await readFile(entry, "utf8")).toBe(
+      `@import "stillwind";
+.card {
+  @variant dark { color: red; }
+  @variant hover { color: blue; }
+  &:hover { color: green; }
+  @variant sm { color: gray; }
+}
+`,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI checks unused files, keeps overlapping project results, and isolates config logs from JSON", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-"));
   try {

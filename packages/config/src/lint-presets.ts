@@ -119,6 +119,7 @@ export const lintPresets = {
       "prefer-typed-relationships": "warn",
       "prefer-sorted-utilities": "warn",
       "prefer-typed-variables": "warn",
+      "prefer-variant-directive": "warn",
     },
   },
 } as const;

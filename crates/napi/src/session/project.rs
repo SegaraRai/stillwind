@@ -241,7 +241,8 @@ impl NativeProjectSession {
 
     /// Returns lint reports for the marked stylesheets of the current design-system
     /// revision, as [`NativeDesignSystemLoader::stylesheet_reports`] does, using the
-    /// options of this session.
+    /// options of this session. The method takes no arguments, and the session keeps
+    /// the options of the loader that created it.
     ///
     /// # Errors
     ///

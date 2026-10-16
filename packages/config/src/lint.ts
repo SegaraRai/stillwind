@@ -25,6 +25,8 @@ export type LintRules = Partial<Record<SimpleLintRule, LintSeverity>> & {
   "no-restricted-theme-tokens"?: LintSeverity | RestrictedThemeTokensOptions;
   /** Severity or spacing-conversion settings for canonical utility replacements. */
   "prefer-canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
+  /** Severity or length-conversion settings for `@variant` replacements in stylesheets. */
+  "prefer-variant-directive"?: LintSeverity | VariantDirectiveOptions;
 };
 
 /** A named, shareable lint configuration. Extended presets apply in order before rules. */
@@ -120,6 +122,17 @@ export type CanonicalUtilitiesOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
   /** Converts pixel spacing to rem when the active spacing scale uses rem. Defaults to true. */
+  pxToRem?: boolean;
+};
+
+/** Controls replacement of nested rules and conditional at-rules with `@variant`. */
+export type VariantDirectiveOptions = {
+  /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
+  severity?: LintSeverity;
+  /**
+   * Lets `px` lengths in `@media` conditions match `rem` variants at 16px = 1rem. Defaults to false.
+   * `rem` in a media query follows the browser's default font size, so the replacement can switch at another width.
+   */
   pxToRem?: boolean;
 };
 
@@ -272,6 +285,10 @@ const ruleOptions = {
     tokens: v.optional(v.array(tokenGlob)),
   }),
   "prefer-canonical-utilities": strictObject({
+    severity: v.optional(severitySchema),
+    pxToRem: v.optional(v.boolean()),
+  }),
+  "prefer-variant-directive": strictObject({
     severity: v.optional(severitySchema),
     pxToRem: v.optional(v.boolean()),
   }),

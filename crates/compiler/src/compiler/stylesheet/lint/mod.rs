@@ -13,16 +13,21 @@
 //! variant selectors without `&`, and [`shadowing`] finds definitions that later
 //! definitions hide. [`theme_values`] checks `@theme` token values, and
 //! [`theme_references`] checks `theme()` and `--theme()` calls and the theme namespaces
-//! that `@utility` definitions read.
+//! that `@utility` definitions read. [`variant_directive`] finds nested rules and
+//! conditional at-rules that `@variant` can replace, using the reverse index of
+//! [`variant_index`] and the comparable header forms of [`headers`].
 
 mod analysis;
 mod application;
 mod definitions;
+mod headers;
 mod nesting;
 mod shadowing;
 mod theme_references;
 mod theme_values;
 mod variant;
+mod variant_directive;
+mod variant_index;
 
 pub use analysis::{StylesheetLint, lint_stylesheets};
 

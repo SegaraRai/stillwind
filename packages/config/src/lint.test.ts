@@ -423,3 +423,39 @@ test("source restrictions accept typed options and reject malformed restrictions
     ).toThrow();
   }
 });
+
+test("variant directive replacements keep px lengths separate unless enabled", () => {
+  const resolved = resolveLintConfig({
+    extends: [lintPresets.stylistic],
+  });
+  expect(resolved.rules["prefer-variant-directive"]).toEqual({
+    severity: "warn",
+    pxToRem: false,
+  });
+  expect(resolveLintConfig().rules["prefer-variant-directive"]).toEqual({
+    severity: "off",
+    pxToRem: false,
+  });
+  expect(
+    resolveLintConfig({
+      rules: {
+        "prefer-variant-directive": {
+          pxToRem: true,
+        },
+      },
+    }).rules["prefer-variant-directive"],
+  ).toEqual({ severity: "warn", pxToRem: true });
+  expect(() =>
+    validateLintConfig(
+      {
+        rules: {
+          "prefer-variant-directive": {
+            pxToRem: "yes",
+          },
+        },
+      },
+      "config.lint",
+      false,
+    ),
+  ).toThrow();
+});

@@ -302,7 +302,10 @@ impl DesignSystemQuery {
         vocabulary
     }
 
-    fn variant_vocabulary(&self) -> BTreeSet<LeanStr> {
+    /// Returns every variant spelling that completion offers without a compound
+    /// argument: names without a capture, wildcard names with each matching theme
+    /// value, and breakpoint names.
+    pub(crate) fn variant_vocabulary(&self) -> BTreeSet<LeanStr> {
         let theme = self.context.design_system.theme();
         let mut variant_names: BTreeSet<_> = self
             .context

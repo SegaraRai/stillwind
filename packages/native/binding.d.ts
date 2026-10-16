@@ -37,6 +37,9 @@ export declare class NativeDesignSystemLoader {
    * Returns lint reports for the sources marked with `lint`, using the lint settings
    * of this loader's options and the stylesheet's own lint configuration.
    *
+   * The method takes no arguments. Lint settings come only from the options passed
+   * to the constructor, so a host that needs other settings creates another loader.
+   *
    * Reports and fixes address the marked CSS documents. The analysis runs once for
    * each design-system revision and compiler options, and later calls reuse it.
    *
@@ -202,7 +205,8 @@ export declare class NativeProjectSession {
   /**
    * Returns lint reports for the marked stylesheets of the current design-system
    * revision, as [`NativeDesignSystemLoader::stylesheet_reports`] does, using the
-   * options of this session.
+   * options of this session. The method takes no arguments, and the session keeps
+   * the options of the loader that created it.
    *
    * # Errors
    *
@@ -1176,6 +1180,8 @@ export interface NativeLintOptions {
   preferTypedVariables?: string
   /** Settings for `implicit-nesting-selector`. */
   implicitNestingSelector?: string
+  /** Settings for `prefer-variant-directive`. */
+  preferVariantDirective?: NativeVariantDirectiveOptions
   /** Settings for `invalid-lint-suppression`. */
   invalidLintSuppression?: string
   /** Settings for `unused-lint-suppression`. */
@@ -1635,6 +1641,20 @@ export interface NativeTypeProbe {
   start: number
   /** Exclusive original UTF-8 byte offset of the expression. */
   end: number
+}
+
+/**
+ * Options of `prefer-variant-directive`. All omitted fields preserve the previous
+ * setting.
+ */
+export interface NativeVariantDirectiveOptions {
+  /** Reporting severity: warn, deny, or off. */
+  severity?: string
+  /**
+   * Lets `px` lengths of `@media` conditions match `rem` variants at 16px = 1rem.
+   * Defaults to false.
+   */
+  pxToRem?: boolean
 }
 
 /** One Volar mapping entry; the four arrays are parallel. */

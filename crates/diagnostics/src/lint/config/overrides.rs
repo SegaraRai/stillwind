@@ -8,7 +8,7 @@ use super::{
     LintConfig, LintKind, LintSettings, LintSeverity, RestrictedDeclarationsConfig,
     RestrictedDeclarationsOverride, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride,
+    RestrictedUtilitiesOverride, VariantDirectiveConfig, VariantDirectiveOverride,
 };
 
 /// Project lint settings applied to compiler defaults.
@@ -135,6 +135,8 @@ pub struct LintOverrides {
     pub invalid_theme_value: Option<LintSeverity>,
     /// Reporting level for `implicit-nesting-selector`.
     pub implicit_nesting_selector: Option<LintSeverity>,
+    /// Field-wise `prefer-variant-directive` policy overrides.
+    pub prefer_variant_directive: Option<VariantDirectiveOverride>,
 }
 
 impl LintOverrides {
@@ -188,6 +190,14 @@ impl LintOverrides {
             }
             settings.insert(LintConfig::NoRestrictedThemeTokens(config));
         }
+        self.resolve_spelling_policies(&mut settings);
+        if let Some(severity) = self.prefer_sorted_utilities {
+            settings.insert(LintConfig::PreferSortedUtilities(severity));
+        }
+        settings
+    }
+
+    fn resolve_spelling_policies(&self, settings: &mut LintSettings) {
         if let Some(overrides) = &self.prefer_canonical_utilities {
             let mut config = match settings.get(LintKind::PreferCanonicalUtilities) {
                 Some(LintConfig::PreferCanonicalUtilities(config)) => config.clone(),
@@ -201,10 +211,19 @@ impl LintOverrides {
             }
             settings.insert(LintConfig::PreferCanonicalUtilities(config));
         }
-        if let Some(severity) = self.prefer_sorted_utilities {
-            settings.insert(LintConfig::PreferSortedUtilities(severity));
+        if let Some(overrides) = &self.prefer_variant_directive {
+            let mut config = match settings.get(LintKind::PreferVariantDirective) {
+                Some(LintConfig::PreferVariantDirective(config)) => config.clone(),
+                _ => VariantDirectiveConfig::default(),
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = overrides.px_to_rem {
+                config.px_to_rem = value;
+            }
+            settings.insert(LintConfig::PreferVariantDirective(config));
         }
-        settings
     }
 
     fn resolve_reporting_levels(&self, settings: &mut LintSettings) {

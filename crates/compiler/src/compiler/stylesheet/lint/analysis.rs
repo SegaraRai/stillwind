@@ -19,6 +19,7 @@ use super::shadowing::{addresses, shadowed_definitions};
 use super::theme_references::{check_theme_references, check_utility_namespaces};
 use super::theme_values::check_theme_values;
 use super::variant::check_variant_block;
+use super::variant_directive::{check_variant_directives, variant_directive_index};
 use crate::{CompilerOptions, DesignSystemQuery};
 
 /// Lint findings in the stylesheets that the host marked for linting.
@@ -58,6 +59,7 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
         } else {
             Vec::new()
         };
+        let variant_index = variant_directive_index(&query, snapshot.theme(), &lint_settings);
         for source in snapshot
             .sources()
             .sources
@@ -79,6 +81,9 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
             }
             check_theme_values(&mut checker, &nodes);
             check_theme_references(&mut checker, &nodes, false);
+            if let Some(index) = &variant_index {
+                check_variant_directives(&mut checker, index, &nodes);
+            }
             checker.report_all(
                 shadowed
                     .iter()

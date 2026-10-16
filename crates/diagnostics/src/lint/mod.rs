@@ -21,6 +21,7 @@ pub use config::{
     RestrictedDeclarationsOverride, RestrictedLengthUnitRule, RestrictedLengthUnitsConfig,
     RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
     RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule,
+    VariantDirectiveConfig, VariantDirectiveOverride,
 };
 pub use diagnostic::{LintDiagnostic, RuleGroupInputErrorKind};
 pub use finding::LintFinding;

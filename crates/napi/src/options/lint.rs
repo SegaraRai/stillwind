@@ -9,7 +9,7 @@ use super::{
     NativeArbitrarySpacingOptions, NativeCanonicalUtilitiesOptions,
     NativeConflictingUtilitiesOptions, NativeRestrictedDeclarationsOptions,
     NativeRestrictedLengthUnitsOptions, NativeRestrictedThemeTokensOptions,
-    NativeRestrictedUtilitiesOptions, lint_severity,
+    NativeRestrictedUtilitiesOptions, NativeVariantDirectiveOptions, lint_severity,
 };
 
 /// Lint settings applied to compiler defaults.
@@ -131,6 +131,8 @@ pub struct NativeLintOptions {
     pub prefer_typed_variables: Option<String>,
     /// Settings for `implicit-nesting-selector`.
     pub implicit_nesting_selector: Option<String>,
+    /// Settings for `prefer-variant-directive`.
+    pub prefer_variant_directive: Option<NativeVariantDirectiveOptions>,
     /// Settings for `invalid-lint-suppression`.
     pub invalid_lint_suppression: Option<String>,
     /// Settings for `unused-lint-suppression`.
@@ -374,6 +376,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
             implicit_nesting_selector: input
                 .implicit_nesting_selector
                 .map(|value| lint_severity(&value))
+                .transpose()?,
+            prefer_variant_directive: input
+                .prefer_variant_directive
+                .map(TryInto::try_into)
                 .transpose()?,
             invalid_lint_suppression: input
                 .invalid_lint_suppression

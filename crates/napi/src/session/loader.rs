@@ -187,6 +187,9 @@ impl NativeDesignSystemLoader {
     /// Returns lint reports for the sources marked with `lint`, using the lint settings
     /// of this loader's options and the stylesheet's own lint configuration.
     ///
+    /// The method takes no arguments. Lint settings come only from the options passed
+    /// to the constructor, so a host that needs other settings creates another loader.
+    ///
     /// Reports and fixes address the marked CSS documents. The analysis runs once for
     /// each design-system revision and compiler options, and later calls reuse it.
     ///
