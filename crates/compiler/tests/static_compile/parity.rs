@@ -218,6 +218,7 @@ fn matches_tailwind_variant_generation_order_from_markdown_fixtures() {
         "variant-order.states",
         "variant-order.conditions",
         "variant-order.mixed",
+        "variant-order.arbitrary-selectors",
     ] {
         let section = case_named(fixture, case_name);
         let candidates =

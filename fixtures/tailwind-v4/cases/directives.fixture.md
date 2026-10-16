@@ -382,6 +382,117 @@
 }
 ```
 
+## `directives.apply-arbitrary-order-anchor-last`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply [.dark_&]:block [:hover]:flex;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  .card:is(:hover) {
+    display: flex;
+  }
+  .dark .card {
+    display: block;
+  }
+}
+```
+
+## `directives.apply-arbitrary-order-child`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply [&>svg]:size-4 [:hover]:flex;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities;
+@layer components {
+  .card:is(:hover) {
+    display: flex;
+  }
+  .card > svg {
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+  }
+}
+```
+
+## `directives.apply-arbitrary-order-attribute`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply [[data-x]]:block [.a_&]:flex;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  .card:is([data-x]) {
+    display: block;
+  }
+  .a .card {
+    display: flex;
+  }
+}
+```
+
 ## `directives.apply-not-variant`
 
 ### Input CSS

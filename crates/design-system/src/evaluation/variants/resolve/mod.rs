@@ -16,7 +16,9 @@ mod variant;
 
 pub use variant::{ConditionContext, VariantFailure, VariantFailureReason, resolve_variant};
 
-pub(in crate::evaluation) use arbitrary::{parse_nested_variant, relative_selector};
+pub(in crate::evaluation) use arbitrary::{
+    decode_variant_template, parse_nested_variant, relative_selector,
+};
 pub(in crate::evaluation) use definition::{
     resolve_named_variant_with, resolve_registered_variant_candidate, split_typed_capture,
     split_variant_modifier,

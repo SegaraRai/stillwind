@@ -77,7 +77,7 @@ pub(super) fn shorthand_variant_application(
 }
 
 /// Decodes candidate whitespace while preserving CSS escapes used by selector parsing.
-pub(super) fn decode_variant_template(value: &str) -> LeanString {
+pub(in crate::evaluation) fn decode_variant_template(value: &str) -> LeanString {
     let mut output = LeanString::new();
     let mut characters = value.chars();
     while let Some(character) = characters.next() {

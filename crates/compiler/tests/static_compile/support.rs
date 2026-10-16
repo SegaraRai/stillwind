@@ -195,7 +195,9 @@ pub(super) fn tailwind_class_selector(candidate: &str) -> String {
     candidate
         .chars()
         .flat_map(|character| match character {
-            '/' | '[' | ']' | ':' | '!' | '(' | ')' | '\'' | '"' | '=' | '@' => ['\\', character],
+            '/' | '[' | ']' | ':' | '!' | '(' | ')' | '\'' | '"' | '=' | '@' | '&' | '>' | '.' => {
+                ['\\', character]
+            }
             character => ['\0', character],
         })
         .filter(|character| *character != '\0')

@@ -131,6 +131,15 @@ Rule:
   on how the utility string was spelled.
 - The canonical order reproduces Tailwind CSS v4's variant order; that
   compatibility is a requirement rather than a preference.
+- Arbitrary variants follow every registered variant. Two arbitrary variants
+  compare by their selector after `&` insertion, as in Tailwind 4.3.3: `[:hover]`
+  compares as `&:is(:hover)`, `[.dark_&]` as `.dark &`, and an at-rule such as
+  `[@media_print]` as its text. The comparison uses code-point order, so
+  `&:is(:hover)` comes before `&>svg`, `.dark &`, and `@media print`.
+- A document-level style has no anchor, and it emits a selector without `&` as
+  written. Its arbitrary variants still compare by the selector after `&`
+  insertion, so a document-level style orders its blocks as `style()` and
+  `@apply` do.
 
 Why: at equal specificity the later block wins, so a canonical variant order is
 what makes state precedence deterministic: the state that follows another in

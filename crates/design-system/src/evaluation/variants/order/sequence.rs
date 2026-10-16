@@ -9,7 +9,9 @@ use lean_string::LeanStr;
 use stillwind_syntax::Variant;
 
 use super::position::{builtin_variant_for_order, compound_inner_variant, variant_order};
-use super::sort_value::{compare_sort_values, compare_variants_in_group, variant_sort_value};
+use super::sort_value::{
+    compare_sort_values, compare_variants_in_group, variant_sort_value, variant_tie_text,
+};
 use crate::{BuiltinVariantSortDirection, ThemeIndex};
 
 /// Compares variant stacks using first registration positions in the expanded CSS.
@@ -103,8 +105,8 @@ impl VariantSequenceOrder {
 /// Stores the resolved inputs for a tie within one registry group.
 #[derive(Clone, Debug)]
 struct VariantGroupOrder {
-    /// Fallback spelling for groups without comparable sort values.
-    raw: LeanStr,
+    /// [`variant_tie_text`] for groups without comparable sort values.
+    tie: LeanStr,
     inner: Option<Box<VariantSequenceOrder>>,
     direction: Option<BuiltinVariantSortDirection>,
     /// Theme token text or a decoded arbitrary capture.
@@ -114,7 +116,7 @@ struct VariantGroupOrder {
 impl VariantGroupOrder {
     fn new(variant: &Variant, theme: &ThemeIndex) -> Self {
         Self {
-            raw: variant.raw.clone(),
+            tie: variant_tie_text(variant),
             inner: compound_inner_variant(variant, theme)
                 .map(|inner| Box::new(VariantSequenceOrder::new(&[inner], theme))),
             direction: builtin_variant_for_order(variant, theme)
@@ -136,7 +138,7 @@ impl VariantGroupOrder {
         {
             return compare_sort_values(left, right, direction).then_with(|| left.cmp(right));
         }
-        self.raw.cmp(&other.raw)
+        self.tie.cmp(&other.tie)
     }
 }
 

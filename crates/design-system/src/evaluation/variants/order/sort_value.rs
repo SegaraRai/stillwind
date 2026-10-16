@@ -2,12 +2,13 @@
 
 use std::cmp::Ordering;
 
-use lean_string::LeanString;
+use lean_string::{LeanStr, LeanString, ToLeanStr};
 
+use stillwind_css::selector_uses_subject;
 use stillwind_syntax::{Variant, VariantKind};
 
 use super::super::super::values::{decode_arbitrary, theme_arbitrary_types};
-use super::super::resolve::split_variant_modifier;
+use super::super::resolve::{decode_variant_template, split_variant_modifier};
 use super::compare_variant_sequences;
 use super::position::{builtin_variant_for_order, compound_inner_variant, variant_sort_namespace};
 use crate::{BuiltinVariantSortDirection, ThemeIndex};
@@ -85,12 +86,32 @@ pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
     .map(Into::into)
 }
 
+/// Returns the text that breaks a tie between two variants of one ordering position.
+///
+/// An arbitrary variant uses its selector after `&` insertion, as Tailwind 4.3.3 does:
+/// `[:hover]` uses `&:is(:hover)`, and `[.dark_&]` uses `.dark &`. An at-rule such as
+/// `[@media_print]` and a selector that contains `&` use their decoded text. The text
+/// does not depend on whether an anchor exists, so a document-level style orders its
+/// variants as `style()` does, although it emits a selector without `&` as written.
+/// Any other variant uses its authored text.
+pub(super) fn variant_tie_text(variant: &Variant) -> LeanStr {
+    let VariantKind::Arbitrary(value) = &variant.kind else {
+        return variant.raw.clone();
+    };
+    let value = decode_variant_template(value);
+    if value.starts_with('@') || selector_uses_subject(&value) {
+        value.into()
+    } else {
+        format_args!("&:is({value})").to_lean_str()
+    }
+}
+
 /// Compares two variants that share an ordering position.
 ///
 /// A compound variant (one whose capture is itself a variant stack) is compared by its
 /// inner sequence first, so `group-hover` and `group-focus` order by their inner
-/// variants rather than by their raw text. The final tie-breaker is the authored text,
-/// which keeps the comparison deterministic.
+/// variants rather than by their raw text. The final tie-breaker is
+/// [`variant_tie_text`], which keeps the comparison deterministic.
 pub(super) fn compare_variants_in_group(
     left: &Variant,
     right: &Variant,
@@ -117,12 +138,50 @@ pub(super) fn compare_variants_in_group(
         return compare_sort_values(&left_value, &right_value, direction)
             .then_with(|| left_value.cmp(&right_value));
     }
-    left.raw.cmp(&right.raw)
+    variant_tie_text(left).cmp(&variant_tie_text(right))
 }
 
 #[cfg(test)]
 mod tests {
+    use stillwind_syntax::parse_candidate;
+
+    use super::super::VariantSequenceOrder;
     use super::*;
+    use crate::theme::ThemeBuilder;
+
+    /// Arbitrary variants of one position order by their selector after `&` insertion,
+    /// as in Tailwind 4.3.3, in both comparisons.
+    #[test]
+    fn arbitrary_variants_order_by_the_selector_after_nesting_insertion() {
+        let theme = ThemeBuilder::default().finish();
+        let variants = |raw: &str| parse_candidate(raw).unwrap().variants;
+        let expected = [
+            "[:hover]:flex",
+            "[[data-x]]:flex",
+            "[&>svg]:flex",
+            "[.a_&]:flex",
+            "[.dark_&]:flex",
+            "[@media_print]:flex",
+        ];
+        let mut sorted = expected;
+        sorted.reverse();
+        sorted.sort_by(|left, right| {
+            compare_variant_sequences(&variants(left), &variants(right), &theme)
+        });
+        assert_eq!(sorted, expected);
+        sorted.reverse();
+        sorted.sort_by(|left, right| {
+            VariantSequenceOrder::new(&variants(left), &theme)
+                .compare(&VariantSequenceOrder::new(&variants(right), &theme))
+        });
+        assert_eq!(sorted, expected);
+        assert_eq!(variant_tie_text(&variants("[.dark_&]:flex")[0]), ".dark &");
+        assert_eq!(
+            variant_tie_text(&variants("[:root]:flex")[0]),
+            "&:is(:root)"
+        );
+        assert_eq!(variant_tie_text(&variants("hover:flex")[0]), "hover");
+    }
 
     #[test]
     fn sorting_compares_magnitudes_only_within_the_same_unit() {

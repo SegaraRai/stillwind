@@ -67,15 +67,3 @@ complete path before assigning application latency guarantees.
 
 Sources: [architecture benchmarks](../benchmarks/research/architecture.bench.ts),
 [host benchmarks](../benchmarks/compiler/host.bench.ts).
-
-## Order of arbitrary variants
-
-When two arbitrary variants have the same registry position, Stillwind orders them by
-their written text, such as `&>svg` and `:hover`. Tailwind 4.3.3 orders them by the
-selector after `&` insertion, such as `&>svg` and `&:is(:hover)`. The two orders differ
-for `.card { @apply [&>svg]:size-4 [:hover]:flex; }`: Tailwind emits the `:hover` rule
-first, and Stillwind emits the `> svg` rule first. The order changes the cascade when
-both rules set the same property. Decide whether the comparison should use the
-selector after `&` insertion, and check the effect on `style()` output.
-
-Source: [variant ordering](../crates/design-system/src/evaluation/variants/order/sort_value.rs).

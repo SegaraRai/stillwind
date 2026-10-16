@@ -279,3 +279,46 @@ md:block peer-focus:block hover:block data-[state=open]:block first:block dark:b
   }
 }
 ```
+
+## `variant-order.arbitrary-selectors`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+```
+
+### Candidates
+
+```text
+[.dark_&]:block [:hover]:block [&>svg]:block [[data-x]]:block [.a_&]:block [@media_print]:block
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities {
+  .\[\:hover\]\:block:is(:hover) {
+    display: block;
+  }
+  .\[\[data-x\]\]\:block:is([data-x]) {
+    display: block;
+  }
+  .\[\&\>svg\]\:block > svg {
+    display: block;
+  }
+  .a .\[\.a_\&\]\:block {
+    display: block;
+  }
+  .dark .\[\.dark_\&\]\:block {
+    display: block;
+  }
+  @media print {
+    .\[\@media_print\]\:block {
+      display: block;
+    }
+  }
+}
+```
