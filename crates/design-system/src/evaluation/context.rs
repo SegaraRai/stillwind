@@ -86,6 +86,16 @@ impl<'a> EvaluationContext<'a> {
         }
     }
 
+    /// Records an alpha percentage outside `0%` to `100%` that the declaration emits.
+    pub(in crate::evaluation) fn record_out_of_range_alpha(&self, value: &str) {
+        if let Some(selections) = &self.selections {
+            selections
+                .borrow_mut()
+                .out_of_range_alpha
+                .get_or_insert_with(|| value.to_lean_str());
+        }
+    }
+
     /// Removes the current selections and transfers ownership to the caller.
     pub(in crate::evaluation) fn take_selections(&self) -> ValueSelections {
         self.selections
@@ -108,6 +118,8 @@ impl Deref for EvaluationContext<'_> {
 pub(in crate::evaluation) struct ValueSelections {
     pub(in crate::evaluation) tokens: BTreeSet<LeanStr>,
     pub(in crate::evaluation) values: Vec<ArbitraryValueSelection>,
+    /// The first alpha percentage outside `0%` to `100%`, as emitted.
+    pub(in crate::evaluation) out_of_range_alpha: Option<LeanStr>,
 }
 
 /// An accepted arbitrary capture before theme expansion and declaration formatting.

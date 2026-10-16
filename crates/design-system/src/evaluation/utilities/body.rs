@@ -13,7 +13,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{PropertyRequirementError, take_property_requirements};
+use stillwind_css::{PropertyRequirementError, ValueType, take_property_requirements};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
@@ -25,6 +25,7 @@ use super::nested::{
     split_utility_selector,
 };
 use super::resolve::{ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse};
+use super::variables::VariableMismatch;
 use crate::{CustomUtility, ThemeIndex, ThemeNamespace, UtilityOrderMode};
 
 /// A failed utility resolution caused by a malformed requirement in the matched definition.
@@ -67,6 +68,18 @@ pub(in crate::evaluation) struct UtilityResolution {
     /// Type hints of the value types that the utility accepts, when `invalid_value`
     /// received a property chosen as a fallback between them; otherwise empty.
     pub(in crate::evaluation) fallback_type_hints: Vec<LeanStr>,
+    /// A declaration that mixes a color with an alpha percentage outside `0%` to
+    /// `100%`, with that percentage as its value.
+    pub(in crate::evaluation) out_of_range_alpha: Option<UtilityArbitraryUse>,
+    /// Value types that a definition selected for a `var()` value names in `[type]`
+    /// hints or, without hints, declares for its theme namespaces.
+    pub(in crate::evaluation) variable_value_types: Vec<ValueType>,
+    /// Type hint of the selected definition, when the value is one `var()` reference
+    /// without a type hint and the utility accepts values of several types.
+    pub(in crate::evaluation) untyped_variable_hint: Option<LeanStr>,
+    /// The known type of the `var()` value that `invalid_value` records, when the
+    /// receiving property rejects that type.
+    pub(in crate::evaluation) variable_mismatch: Option<VariableMismatch>,
 }
 
 impl UtilityResolution {
@@ -84,6 +97,10 @@ impl UtilityResolution {
             tw_sort: None,
             invalid_value: None,
             fallback_type_hints: Vec::new(),
+            out_of_range_alpha: None,
+            variable_value_types: Vec::new(),
+            untyped_variable_hint: None,
+            variable_mismatch: None,
         }
     }
 }
@@ -202,6 +219,7 @@ fn resolve_valid_utility_body(
         return None;
     }
     let declarations = resolve(body, true)?;
+    let mut out_of_range_alpha = declarations.out_of_range_alpha;
     let mut token_uses = declarations.token_uses;
     let mut arbitrary_uses = declarations.arbitrary_uses;
     let declaration = declarations.base;
@@ -235,6 +253,12 @@ fn resolve_valid_utility_body(
                 continue;
             };
             let declaration = declarations.base;
+            if out_of_range_alpha.is_none() {
+                out_of_range_alpha = declarations.out_of_range_alpha.map(|mut usage| {
+                    usage.base = false;
+                    usage
+                });
+            }
             arbitrary_uses.extend(declarations.arbitrary_uses.into_iter().map(|mut usage| {
                 usage.base = false;
                 usage
@@ -278,6 +302,10 @@ fn resolve_valid_utility_body(
             usage.base = false;
         }
         arbitrary_uses.extend(parent.arbitrary_uses);
+        if let Some(usage) = &mut out_of_range_alpha {
+            usage.base = false;
+        }
+        out_of_range_alpha = parent.out_of_range_alpha.or(out_of_range_alpha);
         token_uses.extend(parent.token_uses);
         let parent_declaration = parent.base;
         let parent_nested = parent
@@ -317,6 +345,10 @@ fn resolve_valid_utility_body(
             tw_sort: utility.tw_sort.clone(),
             invalid_value: None,
             fallback_type_hints: Vec::new(),
+            out_of_range_alpha: out_of_range_alpha.clone(),
+            variable_value_types: Vec::new(),
+            untyped_variable_hint: None,
+            variable_mismatch: None,
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
@@ -337,6 +369,10 @@ fn resolve_valid_utility_body(
             tw_sort: utility.tw_sort.clone(),
             invalid_value: None,
             fallback_type_hints: Vec::new(),
+            out_of_range_alpha: out_of_range_alpha.clone(),
+            variable_value_types: Vec::new(),
+            untyped_variable_hint: None,
+            variable_mismatch: None,
         })
     }
 }

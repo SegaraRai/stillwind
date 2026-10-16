@@ -41,6 +41,9 @@ const recommended = {
     "invalid-variant": "deny",
     "unknown-variant": "warn",
     "prefer-canonical-utilities": "warn",
+    "redundant-variant": "warn",
+    "unsatisfiable-variants": "warn",
+    "clamped-value": "warn",
   },
 } as const;
 
@@ -92,6 +95,9 @@ export const lintPresets = {
       "invalid-variant": "deny",
       "unknown-variant": "deny",
       "prefer-canonical-utilities": "deny",
+      "redundant-variant": "deny",
+      "unsatisfiable-variants": "deny",
+      "clamped-value": "deny",
       "unused-lint-suppression": "deny",
     },
   },
@@ -102,6 +108,7 @@ export const lintPresets = {
       "prefer-logical-properties": "warn",
       "prefer-typed-relationships": "warn",
       "prefer-sorted-utilities": "warn",
+      "prefer-typed-variables": "warn",
     },
   },
 } as const;

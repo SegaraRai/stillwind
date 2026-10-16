@@ -276,6 +276,8 @@ define_lint_rules! {
         SplitViewTransitionClass => "split-view-transition-class",
         IneffectiveAnchorScope => "ineffective-anchor-scope",
         InvalidPropertyValue => "invalid-property-value",
+        UnsatisfiableVariants => "unsatisfiable-variants",
+        ClampedValue => "clamped-value",
     }
     Restriction {
         NoArbitraryColors => "no-arbitrary-colors",
@@ -294,6 +296,8 @@ define_lint_rules! {
         PreferTypedRelationships => "prefer-typed-relationships",
         PreferCanonicalUtilities => "prefer-canonical-utilities",
         PreferSortedUtilities => "prefer-sorted-utilities",
+        RedundantVariant => "redundant-variant",
+        PreferTypedVariables => "prefer-typed-variables",
     }
     Suppression {
         InvalidLintSuppression => "invalid-lint-suppression",

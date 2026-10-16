@@ -8,9 +8,10 @@
 //!
 //! Authored `@property` rules are a separate, read-only concern:
 //! `extract_authored_property_names` reports their names so that compiler-owned
-//! registrations never shadow them.
+//! registrations never shadow them, and `extract_authored_property_syntaxes` reports
+//! their `syntax` descriptors for lint rules that check variable types.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use lean_string::{LeanStr, ToLeanStr};
 
@@ -144,6 +145,37 @@ pub fn extract_authored_property_names(css: &str) -> BTreeSet<LeanStr> {
         .collect()
 }
 
+/// Collects the `syntax` descriptor of each authored `@property` rule, keyed by
+/// property name.
+///
+/// The value is the descriptor's string content without quotes, such as `<length>`. A
+/// rule without a quoted `syntax` descriptor is absent. A later rule for the same name
+/// replaces an earlier one.
+pub fn extract_authored_property_syntaxes(css: &str) -> BTreeMap<LeanStr, LeanStr> {
+    extract_named_blocks(&strip_css_comments(css), "@property")
+        .into_iter()
+        .filter_map(|(header, body)| {
+            let name = header.split_whitespace().next()?;
+            if !name.starts_with("--") {
+                return None;
+            }
+            let syntax = body.split(';').find_map(|descriptor| {
+                let (descriptor, value) = descriptor.split_once(':')?;
+                if !descriptor.trim().eq_ignore_ascii_case("syntax") {
+                    return None;
+                }
+                let value = value.trim();
+                let quote = value
+                    .chars()
+                    .next()
+                    .filter(|quote| matches!(quote, '"' | '\''))?;
+                value[1..].strip_suffix(quote).map(str::trim)
+            })?;
+            Some((name.to_lean_str(), syntax.to_lean_str()))
+        })
+        .collect()
+}
+
 /// Parses compiler-owned custom-property registrations (`@stillwind-property`).
 #[must_use]
 pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
@@ -153,6 +185,23 @@ pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn authored_property_syntaxes_are_read_from_quoted_descriptors() {
+        let syntaxes = extract_authored_property_syntaxes(
+            "@property --len { syntax: \"<length>\"; inherits: false; }
+             @property --any { syntax: '*'; }
+             @property --none { inherits: true; }
+             /* @property --comment { syntax: \"<color>\"; } */",
+        );
+        assert_eq!(
+            syntaxes,
+            BTreeMap::from([
+                ("--any".into(), "*".into()),
+                ("--len".into(), "<length>".into()),
+            ])
+        );
+    }
 
     #[test]
     fn parses_property_activation_and_dependency_metadata() {

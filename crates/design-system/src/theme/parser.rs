@@ -18,7 +18,8 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
     CssOutputTemplate, MAX_VALUE_NESTING, extract_authored_property_names,
-    extract_property_definitions, unterminated_block, value_nesting_overflow,
+    extract_authored_property_syntaxes, extract_property_definitions, unterminated_block,
+    value_nesting_overflow,
 };
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
@@ -106,6 +107,7 @@ fn parse_theme_contents(
     theme.declaration_formats = extract_declaration_formats(source.text());
     theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
+    theme.authored_property_syntaxes = extract_authored_property_syntaxes(source.text());
     theme.variant_positions = registration_positions(
         source.text(),
         &["@stillwind-variant", "@custom-variant", "@variant"],
@@ -196,6 +198,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         declaration_formats: BTreeMap::new(),
         relationship_patterns: BTreeSet::new(),
         authored_properties: BTreeSet::new(),
+        authored_property_syntaxes: BTreeMap::new(),
         utility_order: UtilityOrderMode::default(),
         target: BrowserTargets::default(),
     })

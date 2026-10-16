@@ -1,5 +1,6 @@
-//! Source lint detection for canonical utility spelling.
-//! Findings retain original source snapshots; Reporter applies severity and suppression.
+//! Source lint detection for canonical utility spelling, redundant variants, and
+//! untyped variables. Findings retain original source snapshots; Reporter applies
+//! severity and suppression.
 
 use std::sync::Arc;
 
@@ -13,17 +14,31 @@ use stillwind_ir::{
 };
 use stillwind_source::{ReplaceText, SourceFile, Span, Spanned};
 
-use crate::DesignSystemQuery;
+use stillwind_design_system::ThemeIndex;
 
+use crate::DesignSystemQuery;
+use crate::candidate_fixes::{WrittenSource, detect as detect_fixes};
+use crate::compiler::check_candidate_name;
+
+/// Returns the source lint findings of the utility literals in `module`'s style inputs.
+/// `theme` must belong to the snapshot of `query`.
 pub(crate) fn detect(
     source: &SourceFile,
     module: &ModuleAnalysis,
     query: &DesignSystemQuery,
+    theme: &ThemeIndex,
 ) -> Vec<LintFinding> {
     let settings = query.lint_settings();
     let canonical_enabled = settings.enabled_for_detection(LintKind::PreferCanonicalUtilities);
-    let restricted_enabled = settings.enabled_for_detection(LintKind::NoRestrictedUtilities);
-    if !canonical_enabled && !restricted_enabled {
+    if ![
+        LintKind::PreferCanonicalUtilities,
+        LintKind::NoRestrictedUtilities,
+        LintKind::RedundantVariant,
+        LintKind::PreferTypedVariables,
+    ]
+    .into_iter()
+    .any(|kind| settings.enabled_for_detection(kind))
+    {
         return Vec::new();
     }
     let mut literals = Vec::new();
@@ -44,8 +59,26 @@ pub(crate) fn detect(
             let span = boundaries.as_ref().map_or(literal.span, |boundaries| {
                 Span::new(literal.span.file, boundaries[start], boundaries[end])
             });
-            findings.extend(crate::compiler::check_candidate_name(
-                token, &settings, span,
+            findings.extend(check_candidate_name(token, &settings, span));
+            let part = |range: std::ops::Range<usize>| {
+                let boundaries = boundaries.as_ref()?;
+                Some(Span::new(
+                    literal.span.file,
+                    *boundaries.get(start + range.start)?,
+                    *boundaries.get(start + range.end)?,
+                ))
+            };
+            let range = |span| SourceRange::from_source(Arc::clone(&module.source), span).ok();
+            findings.extend(detect_fixes(
+                token,
+                &prefix,
+                theme,
+                &settings,
+                &WrittenSource {
+                    span,
+                    part: &part,
+                    range: &range,
+                },
             ));
             if !canonical_enabled || boundaries.is_none() {
                 continue;

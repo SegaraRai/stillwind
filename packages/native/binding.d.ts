@@ -1100,6 +1100,10 @@ export interface NativeLintOptions {
   ineffectiveAnchorScope?: string
   /** Settings for `invalid-property-value`. */
   invalidPropertyValue?: string
+  /** Settings for `unsatisfiable-variants`. */
+  unsatisfiableVariants?: string
+  /** Settings for `clamped-value`. */
+  clampedValue?: string
   /** Settings for `no-arbitrary-colors`. */
   noArbitraryColors?: string
   /** Settings for `no-arbitrary-spacing`. */
@@ -1128,6 +1132,10 @@ export interface NativeLintOptions {
   preferCanonicalUtilities?: NativeCanonicalUtilitiesOptions
   /** Settings for `prefer-sorted-utilities`. */
   preferSortedUtilities?: string
+  /** Settings for `redundant-variant`. */
+  redundantVariant?: string
+  /** Settings for `prefer-typed-variables`. */
+  preferTypedVariables?: string
   /** Settings for `invalid-lint-suppression`. */
   invalidLintSuppression?: string
   /** Settings for `unused-lint-suppression`. */

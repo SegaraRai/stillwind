@@ -85,6 +85,10 @@ pub struct NativeLintOptions {
     pub ineffective_anchor_scope: Option<String>,
     /// Settings for `invalid-property-value`.
     pub invalid_property_value: Option<String>,
+    /// Settings for `unsatisfiable-variants`.
+    pub unsatisfiable_variants: Option<String>,
+    /// Settings for `clamped-value`.
+    pub clamped_value: Option<String>,
     /// Settings for `no-arbitrary-colors`.
     pub no_arbitrary_colors: Option<String>,
     /// Settings for `no-arbitrary-spacing`.
@@ -113,6 +117,10 @@ pub struct NativeLintOptions {
     pub prefer_canonical_utilities: Option<NativeCanonicalUtilitiesOptions>,
     /// Settings for `prefer-sorted-utilities`.
     pub prefer_sorted_utilities: Option<String>,
+    /// Settings for `redundant-variant`.
+    pub redundant_variant: Option<String>,
+    /// Settings for `prefer-typed-variables`.
+    pub prefer_typed_variables: Option<String>,
     /// Settings for `invalid-lint-suppression`.
     pub invalid_lint_suppression: Option<String>,
     /// Settings for `unused-lint-suppression`.
@@ -265,6 +273,14 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .invalid_property_value
                 .map(|value| lint_severity(&value))
                 .transpose()?,
+            unsatisfiable_variants: input
+                .unsatisfiable_variants
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            clamped_value: input
+                .clamped_value
+                .map(|value| lint_severity(&value))
+                .transpose()?,
             no_arbitrary_colors: input
                 .no_arbitrary_colors
                 .map(|value| lint_severity(&value))
@@ -319,6 +335,14 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             prefer_sorted_utilities: input
                 .prefer_sorted_utilities
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            redundant_variant: input
+                .redundant_variant
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            prefer_typed_variables: input
+                .prefer_typed_variables
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_lint_suppression: input

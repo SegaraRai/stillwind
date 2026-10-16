@@ -204,21 +204,47 @@ impl CandidateLayout {
     }
 }
 
-/// Returns the byte range of the arbitrary value of `candidate`: the last bracketed
-/// value in a utility name, such as `[1/2]` in `md:w-[1/2]`, or the text after the
-/// colon of an arbitrary property, such as `1/2` in `[width:1/2]`. Returns the range of
-/// the whole utility when it has no such value. `raw` is the text that `candidate` was
-/// parsed from.
+/// Returns the byte range of the arbitrary value of `candidate`: the last bracketed or
+/// parenthesized value in a utility name, such as `[1/2]` in `md:w-[1/2]` or `(--x)`
+/// in `bg-(--x)`, or the text after the colon of an arbitrary property, such as `1/2`
+/// in `[width:1/2]`. Returns the range of the whole utility when it has no such value.
+/// `raw` is the text that `candidate` was parsed from.
 pub(super) fn arbitrary_value_range(raw: &str, candidate: &Candidate) -> Range<usize> {
     let name = CandidateLayout::new(raw, candidate).name;
     let text = &raw[name.clone()];
     let start = match candidate.utility {
         Utility::ArbitraryProperty { .. } => text.find(':').map(|colon| (colon + 1, 1)),
+        Utility::Named { .. } if text.ends_with(')') => text.rfind("-(").map(|dash| (dash + 1, 0)),
         Utility::Named { .. } => text.rfind("-[").map(|dash| (dash + 1, 0)),
     };
     start.map_or(name.clone(), |(start, trailing)| {
         name.start + start..name.end - trailing
     })
+}
+
+/// Returns the byte range of the value of the utility in `raw`: the value that
+/// [`arbitrary_value_range`] finds, or the text after the last `-` of a named utility
+/// without a bracketed or parenthesized value, such as `150` in `opacity-150`. Returns
+/// `None` when `raw` is not candidate syntax or a named utility has no `-`.
+#[must_use]
+pub fn utility_value_range(raw: &str) -> Option<Range<usize>> {
+    let candidate = parse_candidate(raw)?;
+    let name = CandidateLayout::new(raw, &candidate).name;
+    let text = &raw[name.clone()];
+    match candidate.utility {
+        Utility::Named { .. } if !text.ends_with([']', ')']) => {
+            let dash = text.rfind('-')?;
+            Some(name.start + dash + 1..name.end)
+        }
+        _ => Some(arbitrary_value_range(raw, &candidate)),
+    }
+}
+
+/// Returns the byte range of the modifier of `candidate` after its `/`, or `None` when
+/// it has no modifier. `raw` is the text that `candidate` was parsed from.
+pub(super) fn modifier_value_range(raw: &str, candidate: &Candidate) -> Option<Range<usize>> {
+    let modifier = CandidateLayout::new(raw, candidate).modifier?;
+    Some(modifier.start + 1..modifier.end)
 }
 
 /// Resolves every variant of `candidate` in order.
@@ -418,7 +444,7 @@ mod tests {
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
-    use crate::evaluation::utilities::resolve_utility;
+    use crate::evaluation::utilities::{InvalidValueReason, resolve_utility};
     use crate::test_support::parse_fixture_theme;
 
     fn theme() -> ThemeIndex {
@@ -544,7 +570,13 @@ mod tests {
                 "{raw}"
             );
             assert_eq!(&raw[invalid.range], text, "{raw}");
-            assert_eq!(invalid.fallback_type_hints, hints, "{raw}");
+            assert_eq!(
+                invalid.reason,
+                InvalidValueReason::Grammar {
+                    fallback_type_hints: hints.iter().map(|&hint| hint.into()).collect(),
+                },
+                "{raw}"
+            );
         }
         for root in [
             "bg",
@@ -558,8 +590,11 @@ mod tests {
         ] {
             let raw = format_args!("{root}-[12px_foo]").to_lean_string();
             let resolved = resolve_utility(&raw, &theme).unwrap().unwrap();
-            let hints = resolved.invalid_value.unwrap().fallback_type_hints;
-            assert!(hints.len() > 1, "{raw}: {hints:?}");
+            let reason = resolved.invalid_value.unwrap().reason;
+            assert!(
+                matches!(&reason, InvalidValueReason::Grammar { fallback_type_hints } if fallback_type_hints.len() > 1),
+                "{raw}: {reason:?}"
+            );
         }
         for raw in [
             "w-[2px]",

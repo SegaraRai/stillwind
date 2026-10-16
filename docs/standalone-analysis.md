@@ -422,9 +422,9 @@ export default defineConfig({
 });
 ```
 
-Omitting `lint` selects `recommended`. An explicit `lint: false` or `lint: {}` disables every lint
-rule. An explicit object with only `rules` enables only those rules. Compiler errors
-are reported independently of lint settings.
+Omitting `lint` selects `recommended`. An explicit `lint: false` or `lint: {}` disables
+every lint rule. An explicit object with only `rules` enables only those rules. Compiler
+errors are reported independently of lint settings.
 
 Each rule has a category in `lintRules`: `input` reports input that lowers as empty or
 false, `contract` reports a violation of the macro contract, `hazard` reports valid output
@@ -432,11 +432,12 @@ that is probably unintended, `restriction` reports a project-specific prohibitio
 reports a preferred spelling, and `suppression` checks `swlint-*` directives.
 
 `recommended` enables every `input`, `contract`, and `hazard` rule, invalid suppression
-directives, and canonical suggestions. `strict` reports all recommended checks as errors
-and also checks unused lint suppressions. `stylistic` enables `prefer-direct-styling`,
-`prefer-logical-properties`, `prefer-typed-relationships`, and `prefer-sorted-utilities`
-as warnings. The stylistic preset adds no recommended checks. Project-specific
-restrictions remain off in these presets.
+directives, canonical suggestions, and `redundant-variant`. `strict` reports all
+recommended checks as errors and also checks unused lint suppressions. `stylistic`
+enables `prefer-direct-styling`, `prefer-logical-properties`,
+`prefer-typed-relationships`, `prefer-sorted-utilities`, and `prefer-typed-variables` as
+warnings. The stylistic preset adds no recommended checks. Project-specific restrictions
+remain off in these presets.
 
 A severity-only override preserves inherited rule options. An option object changes
 only supplied fields; undefined fields preserve previous values. Arrays replace the
@@ -472,8 +473,8 @@ part of a shorthand. Two different values for the same property still conflict.
 Logical and physical longhands still conflict when their relationship depends on
 writing mode.
 
-The other utility policies default to off. Supplying a policy object enables it at `warn`
-unless it inherits a severity from a preset or specifies one in that object.
+The other utility policies default to off. Supplying a policy object enables it at
+`warn` unless it inherits a severity from a preset or specifies one in that object.
 
 ```ts
 lint: {
@@ -502,8 +503,8 @@ lint: {
 ```
 
 The arbitrary-value, class, utility, declaration, and important restrictions default
-to off. Object options enable a rule at `warn` unless a preset or the object supplies its
-severity.
+to off. Object options enable a rule at `warn` unless a preset or the object supplies
+its severity.
 
 ```ts
 lint: {

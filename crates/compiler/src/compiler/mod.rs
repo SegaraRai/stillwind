@@ -55,6 +55,7 @@ pub(crate) use stylesheet::{render_mapped, render_module_stylesheet, render_styl
 pub(crate) use symbols::detached_symbol;
 pub(crate) use utilities::{
     candidate_allowed, check_candidate_name, emit_utility_rules, resolve_utility_targets,
+    with_type_hint,
 };
 pub(crate) use variants::{condition_paths, wrap_conditions};
 

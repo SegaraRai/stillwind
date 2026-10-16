@@ -25,6 +25,7 @@ use super::super::values::{
 use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
+use super::variables::{single_variable, variable_mismatch};
 use crate::evaluation::ArbitraryValueCheck;
 use crate::{CustomUtility, ThemeIndex};
 
@@ -51,10 +52,11 @@ pub(in crate::evaluation) fn resolve_named_utility(
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let check = ArbitraryValueCheck::Grammar;
-    if let Some(resolution) = resolve_registry_layers(name, modifier, negative, theme, check)? {
+    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
+    if let Some(mut resolution) = resolve_registry_layers(name, modifier, negative, theme, check)? {
+        check_variable(&mut resolution, lookup.as_deref().unwrap_or(name), theme);
         return Ok(Some(resolution));
     }
-    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     let Some(value) = unhinted_arbitrary_value(lookup.as_deref().unwrap_or(name)) else {
         return Ok(None);
     };
@@ -77,6 +79,37 @@ pub(in crate::evaluation) fn resolve_named_utility(
         .cloned();
     resolution.fallback_type_hints = fallback_type_hints(lookup.as_deref().unwrap_or(name), theme);
     Ok(Some(resolution))
+}
+
+/// Records the type hint of the selected definition and a type mismatch when the value
+/// of `lookup` is one `var()` reference without a type hint.
+///
+/// A mismatch is recorded only when no other invalid value is recorded. The hint is
+/// recorded only when the utility accepts values of several types and no mismatch is
+/// recorded, because the hint of the selected definition would state the type that the
+/// property rejects.
+fn check_variable(resolution: &mut UtilityResolution, lookup: &str, theme: &ThemeIndex) {
+    let Some(value) = unhinted_arbitrary_value(lookup) else {
+        return;
+    };
+    let Some(variable) = single_variable(&value) else {
+        return;
+    };
+    let hints = fallback_type_hints(lookup, theme);
+    if resolution.invalid_value.is_none()
+        && let Some((usage, mismatch)) =
+            variable_mismatch(variable, &resolution.token_uses, &hints, theme)
+    {
+        resolution.invalid_value = Some(usage);
+        resolution.variable_mismatch = Some(mismatch);
+        return;
+    }
+    if !hints.is_empty() {
+        resolution.untyped_variable_hint = resolution
+            .variable_value_types
+            .first()
+            .map(|value_type| value_type.hint().to_lean_str());
+    }
 }
 
 /// Resolves a named candidate through project CSS and then the built-ins.
@@ -164,12 +197,16 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     arbitrary_check: ArbitraryValueCheck,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let mut branches = Vec::new();
+    let variable = unhinted_arbitrary_value(name).is_some_and(|value| value.contains("var("));
     // Registries list matching definitions newest first, so a project definition
     // without a built-in position registers earlier the later it appears here.
     for (index, utility) in utilities.enumerate() {
-        if let Some(resolution) =
+        if let Some(mut resolution) =
             resolve_css_utility_body(utility, name, modifier, theme, arbitrary_check)?
         {
+            if variable {
+                resolution.variable_value_types = declared_value_types(utility, theme);
+            }
             branches.push((
                 utility_branch_specificity(utility, name),
                 utility.name == name,
@@ -227,6 +264,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
         if resolution.tw_sort.is_none() {
             resolution.tw_sort.clone_from(&branch.tw_sort);
         }
+        merge_out_of_range_alpha(&mut resolution, &branch);
         resolution
             .required_properties
             .extend(branch.required_properties);
@@ -292,6 +330,42 @@ fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
         }
         rest = &rest[end + 1..];
     }
+    types
+}
+
+/// Takes the out-of-range alpha of `branch` when `resolution` has none. The use stays
+/// in the base list only when the branch shares the selector of `resolution`.
+fn merge_out_of_range_alpha(resolution: &mut UtilityResolution, branch: &UtilityResolution) {
+    if resolution.out_of_range_alpha.is_none() {
+        resolution.out_of_range_alpha = branch.out_of_range_alpha.clone().map(|mut usage| {
+            usage.base &= branch.selector == resolution.selector;
+            usage
+        });
+    }
+}
+
+/// The value types that `utility` names in `[type]` hints or, without hints, the types
+/// declared for the theme namespaces of its `--value(--namespace-*)` domains.
+fn declared_value_types(utility: &CustomUtility, theme: &ThemeIndex) -> Vec<ValueType> {
+    let types = utility_value_types(utility);
+    if !types.is_empty() {
+        return types;
+    }
+    let mut types = Vec::new();
+    let mut body = utility.body.to_lean_string();
+    let _ = expand_placeholder(&mut body, "--value", |domains| {
+        for (namespace, _) in split_domains(domains)
+            .into_iter()
+            .filter_map(|domain| theme_domain_pattern(domain.trim()))
+        {
+            for &value_type in theme_arbitrary_types(namespace, theme) {
+                if !types.contains(&value_type) {
+                    types.push(value_type);
+                }
+            }
+        }
+        Some(LeanStr::new())
+    });
     types
 }
 

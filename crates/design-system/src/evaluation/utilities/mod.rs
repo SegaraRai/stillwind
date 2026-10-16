@@ -7,13 +7,16 @@
 //! conditional rules, [`declarations`] resolves placeholders per declaration,
 //! [`formatting`] applies the registry's serialization metadata, and [`resolve`] is the
 //! public entry point that ties them together. [`diagnosis`] explains a candidate that
-//! resolution rejects. [`order`] retains pre-emission Tailwind property/count keys and
-//! authored precedence. [`tailwind_property_order`] supplies its generated property
-//! indices.
+//! resolution rejects, and [`variables`] checks a `var()` value without a type hint
+//! against the known type of its variable. [`order`] retains pre-emission Tailwind
+//! property/count keys and authored precedence. [`tailwind_property_order`] supplies
+//! its generated property indices.
 //!
 //! Value-domain mismatches are non-matches, allowing another overload to apply. When
 //! every definition rejects an arbitrary value without a type hint, the value is
-//! emitted as written and recorded as an [`InvalidPropertyValue`]. Malformed matched
+//! emitted as written and recorded as an [`InvalidPropertyValue`], as are a variable of
+//! a known type that the property rejects and an opacity modifier outside `0%` to
+//! `100%`. Malformed matched
 //! definitions return a typed error.
 
 mod body;
@@ -25,15 +28,20 @@ mod nested;
 mod order;
 mod resolve;
 mod tailwind_property_order;
+mod variables;
 
 pub use body::UtilityResolutionError;
-pub use diagnosis::{UtilityFailure, UtilityFailureReason, check_candidate_variants};
+pub use diagnosis::{
+    UtilityFailure, UtilityFailureReason, check_candidate_variants, utility_value_range,
+};
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use resolve::{
-    InvalidPropertyValue, ResolvedUtility, ResolvedUtilityTarget, UtilityArbitraryUse,
-    UtilityTokenUse, resolve_animation_option, resolve_utility,
+    InvalidPropertyValue, InvalidValueReason, ResolvedUtility, ResolvedUtilityTarget,
+    UntypedVariable, UtilityArbitraryUse, UtilityTokenUse, resolve_animation_option,
+    resolve_utility,
 };
+pub use variables::{VariableMismatch, VariableTypeSource};
 
 pub(super) use body::PreparedUtilityBody;
 pub(super) use declarations::PreparedDeclarations;

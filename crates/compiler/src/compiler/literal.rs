@@ -7,7 +7,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compatibility_marker_class, is_tailwind_relationship_candidate,
-    repeated_subject_selector, resolve_variant,
+    repeated_subject_selector, resolve_variant, unsatisfiable_variants, utility_value_range,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -19,8 +19,8 @@ use super::conditionals::{UnsupportedCondition, check_candidate};
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
 use super::utilities::{
-    CompiledUtility, invalid_property_value_finding, resolve_utility_targets, unresolved_lint_kind,
-    unresolved_utility_finding,
+    CompiledUtility, clamped_value, invalid_property_value_finding, resolve_utility_targets,
+    unresolved_lint_kind, unresolved_utility_finding, written_span,
 };
 use super::variants::document_scoped_selector;
 
@@ -134,18 +134,14 @@ impl LiteralContribution {
                         lint_settings,
                         utility.span,
                     ));
-                    if lint_settings.enabled_for_detection(LintKind::InvalidPropertyValue)
-                        && let Some(value) = resolved
-                            .first()
-                            .and_then(|first| first.source.invalid_value.as_ref())
-                    {
-                        lint_findings.push(invalid_property_value_finding(
-                            &raw,
-                            utility.value.raw.len(),
-                            value,
-                            utility.span,
-                        ));
-                    }
+                    lint_findings.extend(resolved_candidate_lints(
+                        &raw,
+                        utility.value.raw.len(),
+                        &resolved,
+                        theme,
+                        lint_settings,
+                        utility.span,
+                    ));
                     for resolved_utility in &mut resolved {
                         resolved_utility.source.span = Some(source_span);
                         resolved_utility.source.variant_spans =
@@ -239,6 +235,66 @@ fn variant_selector_lints(
             },
             span,
         ));
+    }
+    findings
+}
+
+/// Returns the enabled findings for the resolved candidate `raw`, whose last `written`
+/// bytes the author wrote at `span`.
+///
+/// `invalid-property-value` reports a value that its property rejects.
+/// `unsatisfiable-variants` reports variants whose combined condition never holds, at
+/// the range from the first to the last contradicting variant. `clamped-value` reports
+/// the first literal value that browsers clamp, and `invalid-property-value` reports a
+/// negative filter amount, at the value of the utility. `resolved` holds every rule of
+/// the candidate.
+fn resolved_candidate_lints(
+    raw: &str,
+    written: usize,
+    resolved: &[CompiledUtility],
+    theme: &ThemeIndex,
+    lint_settings: &LintSettings,
+    span: Span,
+) -> Vec<LintFinding> {
+    let mut findings = Vec::new();
+    if lint_settings.enabled_for_detection(LintKind::InvalidPropertyValue)
+        && let Some(value) = resolved
+            .first()
+            .and_then(|first| first.source.invalid_value.as_ref())
+    {
+        findings.push(invalid_property_value_finding(raw, written, value, span));
+    }
+    if lint_settings.enabled_for_detection(LintKind::UnsatisfiableVariants)
+        && let Some(candidate) = parse_candidate(raw)
+        && let Some(found) = unsatisfiable_variants(&candidate, theme)
+    {
+        let [first, second] = found.conditions;
+        findings.push(LintFinding::new(
+            LintDiagnostic::UnsatisfiableVariants {
+                variants: raw.get(found.range.clone()).unwrap_or(raw).to_lean_str(),
+                first,
+                second,
+                branches: u32::try_from(found.branches).unwrap_or(u32::MAX),
+            },
+            written_span(raw.len(), written, &found.range, span),
+        ));
+    }
+    if [LintKind::ClampedValue, LintKind::InvalidPropertyValue]
+        .into_iter()
+        .any(|kind| lint_settings.enabled_for_detection(kind))
+    {
+        let declarations = resolved.iter().flat_map(|utility| {
+            std::iter::once(utility.declaration.as_str())
+                .chain(utility.nested.iter().map(|rule| rule.declaration.as_str()))
+        });
+        let utility = raw.get(raw.len().saturating_sub(written)..).unwrap_or(raw);
+        if let Some(diagnostic) = clamped_value(declarations, utility)
+            && lint_settings.enabled_for_detection(diagnostic.kind())
+        {
+            let span = utility_value_range(raw)
+                .map_or(span, |range| written_span(raw.len(), written, &range, span));
+            findings.push(LintFinding::new(diagnostic, span));
+        }
     }
     findings
 }

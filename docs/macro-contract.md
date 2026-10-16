@@ -75,6 +75,62 @@ does not change the output. A value with a type hint that the utility rejects, s
 `p-[color:red]`, and a value that is not well formed, such as `p-[calc(1rem+)]`, are
 invalid utilities and are omitted.
 
+`invalid-property-value` also reports these emitted values:
+
+- A `var()` value without a type hint whose variable has a known type that the
+  receiving property rejects. The type is known for an active theme token of a
+  namespace with declared types and for a property that an authored `@property` rule
+  registers with a simple `syntax`, such as `"<length>"`. `bg-(--text-sm)` sets
+  `background-color` to a font size, `w-(--color-red-500)` sets `width` to a color, and
+  `bg-(--my-len)` sets `background-color` to a `<length>`. The utility keeps the
+  definition that Tailwind selects, and the finding suggests type hints that accept the
+  variable. A variable of unknown type is not reported.
+- An opacity modifier outside `0%` to `100%`, such as `bg-red-500/150` or
+  `bg-red-500/[150%]`. Both emit the percentage unchanged in `color-mix()`, as Tailwind
+  4.3.3 does, but `color-mix()` rejects it.
+- A negative amount of `opacity()`, `grayscale()`, `sepia()`, or `invert()`, such as
+  `grayscale-[-50%]`. Filter Effects forbids it, so the browser discards the whole
+  filter.
+
+The finding covers the value, or the modifier after `/`.
+
+Other rules report emitted values and variants without changing the output:
+
+- `clamped-value` (hazard, default `warn`) reports a literal value that browsers clamp
+  into its range. `opacity-150` emits `opacity: 150%`, which browsers use as `100%`. The
+  rule checks `opacity`, `fill-opacity`, `stroke-opacity`, `flood-opacity`, and
+  `stop-opacity` below `0` and above `1`, and the amounts of `opacity()`,
+  `grayscale()`, `sepia()`, and `invert()` above `1`, including their backdrop-filter
+  forms. These ranges come from specification prose, so the compiler keeps them in a
+  curated table.
+- `unsatisfiable-variants` (hazard, default `warn`) reports a variant stack whose
+  condition can never hold. After `not-*` negation, the condition is an OR of
+  alternatives, and the rule reports only when every alternative contains conditions
+  that exclude each other: disjoint ranges such as `max-sm:sm`, different values of a
+  media feature with one value at a time such as `portrait:landscape`, and a condition
+  with its negation such as `hover:not-hover`, `dark:not-dark`, or
+  `supports-grid:not-supports-grid`. It compares ranges only in the same unit, compares
+  selector conditions only when every selector adds conditions to the styled element,
+  and compares other conditions by their text. The finding covers the variants from the
+  first to the last contradicting one.
+- `redundant-variant` (style, default `warn`) reports a variant that has no effect.
+  A duplicate resolves to the same application as an earlier variant, such as
+  `hover:hover` or `hover:focus:hover`, when no variant between them selects another
+  element. An implied variant compares the same feature in the same unit as a stricter
+  variant: `md` implies `sm` in `md:sm` and `sm:md`, and the same holds for `max-*`,
+  `@min-*`, and `@max-*`. The finding covers the redundant variant, and its fix removes
+  it. This rule is separate from `prefer-canonical-utilities`.
+- `prefer-typed-variables` (style, default `off`, enabled by `stylistic`) reports a
+  `var()` value without a type hint for a utility whose definitions accept several
+  types, such as `text-(--x)`, `bg-(--x)`, `border-(--x)`, `shadow-(--x)`, or
+  `text-[var(--x)]`. The finding covers the value, and its fix adds the type hint of the
+  definition that receives the value: `text-(--x)` becomes `text-(color:--x)`.
+
+The fixes edit only the utility literal. A variant in an enclosing variant key is
+therefore never reported as the redundant variant, although it can make a variant of
+the literal redundant. Editors offer each fix as a quick fix, and
+`source.fixAll.stillwind` and `lint --fix` apply them.
+
 An invalid CSS variant discards its complete conditioned subtree. Removing only the
 condition would apply its rules to elements that the author did not select. An empty
 style or CVA value contributes no styles. An empty keyframes or view-transition
@@ -737,9 +793,9 @@ CSS requires around binary operators, as Tailwind does: `p-[calc(1rem+2px)]` set
 `padding: calc(1rem + 2px)`. An operator that starts an argument or follows another
 operator is a sign and stays unchanged.
 
-An arbitrary opacity modifier can be a percentage from `0%` to `100%`, so
-`bg-red-500/[50%]` is the same as `bg-red-500/50`. Other percentages are unresolved,
-because `color-mix()` rejects them.
+An arbitrary opacity modifier is a percentage, so `bg-red-500/[50%]` is the same as
+`bg-red-500/50`. A percentage outside `0%` to `100%` is emitted unchanged and reported
+by `invalid-property-value`, because `color-mix()` rejects it.
 
 An arbitrary gradient value, such as `bg-linear-[to_right]` or `bg-radial-(--x)`, sets
 `--tw-gradient-position`. The color stop utilities insert that position before their

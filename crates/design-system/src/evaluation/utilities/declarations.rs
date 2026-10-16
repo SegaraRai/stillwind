@@ -32,6 +32,9 @@ pub(in crate::evaluation) struct ResolvedCssDeclarations {
     /// Modern-color variants of the base declarations that differ from the legacy text,
     /// to be emitted inside the capability query.
     pub(in crate::evaluation) compat_modern: Vec<LeanStr>,
+    /// The first declaration that mixes a color with an alpha percentage outside `0%`
+    /// to `100%`, with that percentage as its value.
+    pub(in crate::evaluation) out_of_range_alpha: Option<UtilityArbitraryUse>,
 }
 
 /// Parsed declaration boundaries and branch requirements shared by snapshot evaluation.
@@ -239,6 +242,16 @@ fn record_tokens(
     declaration: &str,
 ) {
     if let Some((property, _)) = declaration.split_once(':') {
+        if output.out_of_range_alpha.is_none()
+            && let Some(value) = selections.out_of_range_alpha
+        {
+            output.out_of_range_alpha = Some(UtilityArbitraryUse {
+                base: true,
+                property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
+                value,
+                color: true,
+            });
+        }
         output
             .arbitrary_uses
             .extend(

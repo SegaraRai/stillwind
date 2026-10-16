@@ -6,12 +6,14 @@
 //! system's explanation, and [`unresolved_utility_finding`] turns it into the lint
 //! finding for the failing part of the candidate.
 
+use std::ops::Range;
+
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    InvalidPropertyValue, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex,
+    InvalidPropertyValue, InvalidValueReason, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex,
     UtilityArbitraryUse, UtilityFailure, UtilityOrder, UtilityResolutionError, UtilityTokenUse,
-    VariantApplication, check_candidate_variants,
+    VariableTypeSource, VariantApplication, check_candidate_variants,
 };
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_source::Span;
@@ -62,8 +64,7 @@ pub(in crate::compiler) struct UtilitySource {
     pub(in crate::compiler) variant_spans: Vec<Span>,
     /// Leading variants already checked at their wrapper source locations.
     pub(in crate::compiler) wrapper_variant_count: usize,
-    /// Arbitrary value that the grammar of its property rejects; the declarations emit
-    /// it as written.
+    /// Value that its property rejects; the declarations emit it as written.
     pub(in crate::compiler) invalid_value: Option<InvalidPropertyValue>,
 }
 
@@ -206,8 +207,8 @@ pub(crate) const fn unresolved_lint_kind(failure: &UtilityFailure) -> LintKind {
 ///
 /// `candidate`, `written`, and `span` have the meanings that
 /// [`unresolved_utility_finding`] describes. When the property was chosen as a fallback
-/// between value types, the finding lists the written text with each type hint added to
-/// the bracketed value.
+/// between value types, or when it rejects the known type of a variable, the finding
+/// lists the written text with each applicable type hint added to the value.
 pub(crate) fn invalid_property_value_finding(
     candidate: &str,
     written: usize,
@@ -215,37 +216,80 @@ pub(crate) fn invalid_property_value_finding(
     span: Span,
 ) -> LintFinding {
     let prefix = candidate.len().saturating_sub(written);
-    let span = value
-        .range
-        .start
-        .checked_sub(prefix)
-        .zip(value.range.end.checked_sub(prefix))
-        .map_or(span, |(start, end)| sub_span(span, written, start, end));
-    let written_text = candidate.get(prefix..).unwrap_or(candidate);
-    let alternatives = candidate
-        .get(value.range.clone())
-        .and_then(|bracketed| bracketed.strip_prefix('[')?.strip_suffix(']'))
-        .map(|inner| {
-            value
-                .fallback_type_hints
-                .iter()
-                .filter_map(|hint| {
-                    let before = candidate.get(prefix..value.range.start)?;
-                    let after = candidate.get(value.range.end..)?;
-                    Some(format_args!("{before}[{hint}:{inner}]{after}").to_lean_str())
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    LintFinding::new(
-        LintDiagnostic::InvalidPropertyValue {
-            utility: written_text.to_lean_str(),
+    let span = written_span(candidate.len(), written, &value.range, span);
+    let utility = candidate.get(prefix..).unwrap_or(candidate).to_lean_str();
+    let hinted = |hints: &[LeanStr]| {
+        hints
+            .iter()
+            .filter_map(|hint| with_type_hint(candidate, prefix, &value.range, hint))
+            .collect()
+    };
+    let diagnostic = match &value.reason {
+        InvalidValueReason::Grammar {
+            fallback_type_hints,
+        } => LintDiagnostic::InvalidPropertyValue {
+            alternatives: hinted(fallback_type_hints),
+            utility,
             property: value.property.clone(),
             value: value.value.clone(),
-            alternatives,
         },
-        span,
-    )
+        InvalidValueReason::VariableType(mismatch) => LintDiagnostic::VariableTypeMismatch {
+            alternatives: hinted(&mismatch.type_hints),
+            utility,
+            property: value.property.clone(),
+            variable: mismatch.variable.clone(),
+            value_type: mismatch.value_type.clone(),
+            namespace: match &mismatch.source {
+                VariableTypeSource::Theme(namespace) => Some(namespace.clone()),
+                VariableTypeSource::Registration => None,
+            },
+        },
+        InvalidValueReason::OpacityModifier => LintDiagnostic::OpacityModifierOutOfRange {
+            modifier: candidate
+                .get(value.range.clone())
+                .unwrap_or_default()
+                .to_lean_str(),
+            percentage: value.value.clone(),
+        },
+    };
+    LintFinding::new(diagnostic, span)
+}
+
+/// Returns `candidate` from byte `prefix` with `hint` added to the bracketed or
+/// parenthesized value at `range`, such as `bg-(color:--x)` for `bg-(--x)`. Returns
+/// `None` when the value is not delimited.
+pub(crate) fn with_type_hint(
+    candidate: &str,
+    prefix: usize,
+    range: &Range<usize>,
+    hint: &str,
+) -> Option<LeanStr> {
+    let value = candidate.get(range.clone())?;
+    let (open, inner, close) = if let Some(inner) = value.strip_prefix('[') {
+        ('[', inner.strip_suffix(']')?, ']')
+    } else {
+        ('(', value.strip_prefix('(')?.strip_suffix(')')?, ')')
+    };
+    let before = candidate.get(prefix..range.start)?;
+    let after = candidate.get(range.end..)?;
+    Some(format_args!("{before}{open}{hint}:{inner}{close}{after}").to_lean_str())
+}
+
+/// Returns the part of `span` that covers `range` of a candidate whose last `written`
+/// of `length` bytes the author wrote at `span`. A range that starts in the earlier
+/// bytes is cut at the written text, and a range that lies wholly in them returns
+/// `span`. See [`sub_span`] for escaped text.
+pub(crate) fn written_span(
+    length: usize,
+    written: usize,
+    range: &Range<usize>,
+    span: Span,
+) -> Span {
+    let prefix = length.saturating_sub(written);
+    match range.end.checked_sub(prefix) {
+        Some(end) if end > 0 => sub_span(span, written, range.start.saturating_sub(prefix), end),
+        _ => span,
+    }
 }
 
 /// Returns the part of `span` from byte `start` to byte `end` of its `written` bytes of

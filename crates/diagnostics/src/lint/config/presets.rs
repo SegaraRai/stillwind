@@ -45,6 +45,9 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidVariant, LintSeverity::Deny),
     (LintKind::UnknownVariant, LintSeverity::Warn),
     (LintKind::PreferCanonicalUtilities, LintSeverity::Warn),
+    (LintKind::RedundantVariant, LintSeverity::Warn),
+    (LintKind::UnsatisfiableVariants, LintSeverity::Warn),
+    (LintKind::ClampedValue, LintSeverity::Warn),
 ];
 
 const STYLISTIC: &[(LintKind, LintSeverity)] = &[
@@ -52,6 +55,7 @@ const STYLISTIC: &[(LintKind, LintSeverity)] = &[
     (LintKind::PreferLogicalProperties, LintSeverity::Warn),
     (LintKind::PreferTypedRelationships, LintSeverity::Warn),
     (LintKind::PreferSortedUtilities, LintSeverity::Warn),
+    (LintKind::PreferTypedVariables, LintSeverity::Warn),
 ];
 
 const STRICT_ADDITIONS: &[(LintKind, LintSeverity)] =
@@ -66,12 +70,14 @@ pub enum LintPreset {
     Recommended,
     /// Recommended checks and unused suppression checks, reported as errors.
     Strict,
-    /// Optional conventions for relationships, declarations, and utility ordering.
+    /// Optional conventions for relationships, declarations, utility ordering, and
+    /// variable type hints.
     Stylistic,
 }
 
 impl LintPreset {
-    /// Returns the configured rules. Rules outside this preset remain unconfigured and report off.
+    /// Returns the configured rules. Rules outside this preset remain unconfigured and
+    /// report off.
     pub fn settings(self) -> LintSettings {
         let mut settings = LintSettings::default();
         let entries = match self {

@@ -112,6 +112,39 @@ test("lint fixes report final findings and conflicting projects cannot write", a
   }
 });
 
+test("lint fixes remove redundant variants and add variable type hints", async () => {
+  const root = await mkdtemp(
+    path.resolve(import.meta.dirname, "../../host/.test-cli-candidate-fixes-"),
+  );
+  try {
+    const file = path.join(root, "entry.tsx");
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"prefer-typed-variables":"deny"}}}]}',
+    );
+    await writeFile(
+      path.join(root, "root.css"),
+      "@custom-variant hover (&:hover); @custom-variant sm (@media (width >= 40rem)); @custom-variant md (@media (width >= 48rem)); @utility flex { display: flex; } @utility tone-* { color: --value([color]); } @utility tone-* { font-size: --value([length]); } @stillwind-slot utilities;",
+    );
+    await writeFile(
+      file,
+      'import {style} from "stillwind/react";export const value=style("hover:hover:flex md:sm:tone-(--x)");',
+    );
+    const report = await run(root, ["lint", "--format", "json"]);
+    expect(
+      JSON.parse(report.stdout).diagnostics.map(
+        ({ report }: { report: { code: string } }) => report.code,
+      ),
+    ).toEqual(["redundant-variant", "redundant-variant", "prefer-typed-variables"]);
+    const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
+    expect(fixed.code, fixed.stderr).toBe(0);
+    expect(JSON.parse(fixed.stdout).diagnostics).toEqual([]);
+    expect(await readFile(file, "utf8")).toContain('style("hover:flex md:tone-(color:--x)")');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI checks unused files, keeps overlapping project results, and isolates config logs from JSON", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-"));
   try {

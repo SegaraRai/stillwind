@@ -345,6 +345,7 @@ impl CssTemplate {
             arbitrary_uses: _,
             candidate: _,
             invalid_value: _,
+            untyped_variable: _,
             order,
             required_properties,
             builtin_order,

@@ -22,11 +22,14 @@ use super::super::builtins::{
 };
 use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
-use super::diagnosis::{UtilityFailure, arbitrary_value_range, diagnose_utility};
+use super::diagnosis::{
+    UtilityFailure, arbitrary_value_range, diagnose_utility, modifier_value_range,
+};
 use super::formatting::finalize_declaration;
 use super::matching::{resolve_css_utility_branches, resolve_named_utility};
 use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
+use super::variables::VariableMismatch;
 use crate::evaluation::ArbitraryValueCheck;
 use crate::{ThemeIndex, UtilityOrderMode};
 
@@ -58,33 +61,65 @@ pub struct ResolvedUtility {
     /// fallbacks and selector-bearing branches must never be discarded merely because
     /// they share one candidate spelling.
     pub additional: Vec<ResolvedUtilityTarget>,
-    /// An arbitrary value that the grammar of its property rejects: a value without a
-    /// type hint that no definition accepts, or the value of an arbitrary property. The
-    /// declarations contain it as written.
+    /// A value that its property rejects; the declarations contain it as written. See
+    /// [`InvalidValueReason`] for the kinds of values.
     pub invalid_value: Option<InvalidPropertyValue>,
+    /// A `var()` value without a type hint for a utility that accepts values of several
+    /// types. `None` when `invalid_value` records the variable's type as rejected.
+    pub untyped_variable: Option<UntypedVariable>,
 }
 
-/// An arbitrary value that a utility emits although the grammar of its property rejects
-/// it, such as `1/2` for `width` in `w-[1/2]` or `[width:1/2]`.
+/// A value that a utility emits although its property rejects it, such as `1/2` for
+/// `width` in `w-[1/2]` or `[width:1/2]`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidPropertyValue {
     /// Lowercase CSS property name receiving the value.
     pub property: LeanStr,
     /// Decoded value text as the declaration emits it.
     pub value: LeanStr,
-    /// Byte range of the value within the candidate text: the bracketed value of a
-    /// named utility, or the text after the colon of an arbitrary property.
+    /// Byte range of the value within the candidate text: the bracketed or
+    /// parenthesized value of a named utility, the text after the colon of an arbitrary
+    /// property, or the text after the `/` of a modifier.
     pub range: Range<usize>,
-    /// Type hints of the value types that a named utility accepts, in registration
-    /// order, when the utility accepts several types and `property` was chosen because
-    /// the value's type could not be inferred. Empty otherwise.
-    pub fallback_type_hints: Vec<LeanStr>,
+    /// Why the property rejects the value.
+    pub reason: InvalidValueReason,
+}
+
+/// Why the property of an [`InvalidPropertyValue`] rejects its value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InvalidValueReason {
+    /// The grammar of the property rejects an arbitrary value: a value without a type
+    /// hint that no definition accepts, or the value of an arbitrary property.
+    Grammar {
+        /// Type hints of the value types that a named utility accepts, in registration
+        /// order, when the utility accepts several types and the property was chosen
+        /// because the value's type could not be inferred. Empty otherwise.
+        fallback_type_hints: Vec<LeanStr>,
+    },
+    /// The value is one `var()` reference without a type hint, and the property
+    /// rejects the variable's known type.
+    VariableType(VariableMismatch),
+    /// An opacity modifier gives `color-mix()` a percentage outside `0%` to `100%`.
+    /// The value is that percentage, and the range covers the modifier.
+    OpacityModifier,
+}
+
+/// A `var()` value written without a type hint for a utility whose definitions accept
+/// values of several types.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UntypedVariable {
+    /// Byte range of the value within the candidate text, such as `(--x)` or
+    /// `[var(--x)]`.
+    pub range: Range<usize>,
+    /// Type hint of the definition that receives the value, such as `color`.
+    pub hint: LeanStr,
 }
 
 /// Theme tokens selected by one emitted declaration before their values expand.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityTokenUse {
-    /// True when the declaration belongs to the utility's base list; false for nested or additional targets.
+    /// True when the declaration belongs to the utility's base list; false for nested
+    /// or additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the selected tokens.
     pub property: LeanStr,
@@ -233,12 +268,36 @@ fn resolve_candidate(
         })
         .collect();
     let selector = resolution.selector;
-    let invalid_value = resolution.invalid_value.map(|usage| InvalidPropertyValue {
-        property: usage.property,
-        value: usage.value,
-        range: arbitrary_value_range(raw, &candidate),
-        fallback_type_hints: resolution.fallback_type_hints,
-    });
+    let value_range = arbitrary_value_range(raw, &candidate);
+    let reason = match resolution.variable_mismatch {
+        Some(mismatch) => InvalidValueReason::VariableType(mismatch),
+        None => InvalidValueReason::Grammar {
+            fallback_type_hints: resolution.fallback_type_hints,
+        },
+    };
+    let invalid_value = resolution
+        .invalid_value
+        .map(|usage| InvalidPropertyValue {
+            property: usage.property,
+            value: usage.value,
+            range: value_range.clone(),
+            reason,
+        })
+        .or_else(|| {
+            let usage = resolution.out_of_range_alpha?;
+            Some(InvalidPropertyValue {
+                property: usage.property,
+                value: usage.value,
+                range: modifier_value_range(raw, &candidate)?,
+                reason: InvalidValueReason::OpacityModifier,
+            })
+        });
+    let untyped_variable = resolution
+        .untyped_variable_hint
+        .map(|hint| UntypedVariable {
+            range: value_range,
+            hint,
+        });
     Ok(Some(ResolvedUtility {
         token_uses: resolution.token_uses,
         arbitrary_uses: resolution.arbitrary_uses,
@@ -251,6 +310,7 @@ fn resolve_candidate(
         nested,
         additional,
         invalid_value,
+        untyped_variable,
     }))
 }
 

@@ -221,6 +221,18 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "unsatisfiable-variants": {
+    category: "hazard",
+    nativeName: "unsatisfiableVariants",
+    defaults: null,
+    options: null,
+  },
+  "clamped-value": {
+    category: "hazard",
+    nativeName: "clampedValue",
+    defaults: null,
+    options: null,
+  },
   "no-arbitrary-colors": {
     category: "restriction",
     nativeName: "noArbitraryColors",
@@ -320,6 +332,18 @@ export const lintRules = {
   "prefer-sorted-utilities": {
     category: "style",
     nativeName: "preferSortedUtilities",
+    defaults: null,
+    options: null,
+  },
+  "redundant-variant": {
+    category: "style",
+    nativeName: "redundantVariant",
+    defaults: null,
+    options: null,
+  },
+  "prefer-typed-variables": {
+    category: "style",
+    nativeName: "preferTypedVariables",
     defaults: null,
     options: null,
   },

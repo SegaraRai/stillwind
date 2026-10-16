@@ -191,7 +191,12 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
         &mut body,
         &PLACEHOLDERS[6..],
         |function, arguments| match function {
-            "--alpha" => alpha(arguments).map(Into::into),
+            "--alpha" => alpha(arguments).map(|alpha| {
+                if alpha.out_of_range {
+                    theme.record_out_of_range_alpha(&alpha.value);
+                }
+                alpha.value.into()
+            }),
             "--compat-color" => resolve_compat_color(arguments).map(Into::into),
             "--stillwind-builtin-shadow-color" => {
                 resolve_shadow_color(arguments, capture, theme).map(Into::into)

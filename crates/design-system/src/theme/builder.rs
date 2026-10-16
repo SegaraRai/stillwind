@@ -39,6 +39,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) relationship_patterns: BTreeSet<LeanStr>,
     /// Property names declared by authored `@property` rules.
     pub(crate) authored_properties: BTreeSet<LeanStr>,
+    /// `syntax` descriptors of authored `@property` rules, keyed by property name.
+    pub(crate) authored_property_syntaxes: BTreeMap<LeanStr, LeanStr>,
     /// Host-selected ordering strategy for resolved utilities.
     pub(crate) utility_order: UtilityOrderMode,
     /// Minimum browser versions used to remove generated color compatibility branches.

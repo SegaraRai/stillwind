@@ -64,8 +64,8 @@ pub use colors::{
 pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
     custom_property_references, custom_property_usage, extract_authored_property_names,
-    extract_property_definitions, parse_property_definitions, referenced_custom_properties,
-    used_custom_properties,
+    extract_authored_property_syntaxes, extract_property_definitions, parse_property_definitions,
+    referenced_custom_properties, used_custom_properties,
 };
 pub use declarations::{declaration_ranges, important_declarations};
 pub use emission::{CssRule, Declaration, optimize_rules, stylesheet_fragments};

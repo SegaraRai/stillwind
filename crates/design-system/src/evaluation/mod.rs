@@ -26,17 +26,19 @@ pub use builtins::{
     builtin_property_definitions, builtin_theme_order, builtin_utility_token_prefixes,
 };
 pub use utilities::{
-    InvalidPropertyValue, NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility,
-    ResolvedUtilityTarget, UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
-    UtilityPropertySort, UtilityResolutionError, UtilityTokenUse, check_candidate_variants,
-    resolve_animation_option, resolve_utility,
+    InvalidPropertyValue, InvalidValueReason, NestedUtilityAtRule, NestedUtilityRule,
+    ResolvedUtility, ResolvedUtilityTarget, UntypedVariable, UtilityArbitraryUse, UtilityFailure,
+    UtilityFailureReason, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
+    UtilityTokenUse, VariableMismatch, VariableTypeSource, check_candidate_variants,
+    resolve_animation_option, resolve_utility, utility_value_range,
 };
 pub use variants::{
-    ConditionContext, ResolvedVariant, VariantApplication, VariantDeclaration, VariantFailure,
-    VariantFailureReason, VariantMediaValue, VariantObstacle, VariantSequenceOrder,
-    VariantValueSource, compare_variant_sequences, compatibility_marker_class,
-    document_scoped_selector, is_tailwind_relationship_candidate, repeated_subject_selector,
-    resolve_variant, resolve_variant_with_usage,
+    ConditionContext, RedundantVariant, ResolvedVariant, UnsatisfiableVariants, VariantApplication,
+    VariantDeclaration, VariantFailure, VariantFailureReason, VariantMediaValue, VariantObstacle,
+    VariantRedundancy, VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
+    compatibility_marker_class, document_scoped_selector, is_tailwind_relationship_candidate,
+    redundant_variants, repeated_subject_selector, resolve_variant, resolve_variant_with_usage,
+    unsatisfiable_variants,
 };
 
 pub(crate) use programs::UtilityPrograms;

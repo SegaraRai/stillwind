@@ -117,6 +117,14 @@ pub struct LintOverrides {
     pub unknown_variant: Option<LintSeverity>,
     /// Reporting level for `invalid-property-value`.
     pub invalid_property_value: Option<LintSeverity>,
+    /// Reporting level for `redundant-variant`.
+    pub redundant_variant: Option<LintSeverity>,
+    /// Reporting level for `unsatisfiable-variants`.
+    pub unsatisfiable_variants: Option<LintSeverity>,
+    /// Reporting level for `clamped-value`.
+    pub clamped_value: Option<LintSeverity>,
+    /// Reporting level for `prefer-typed-variables`.
+    pub prefer_typed_variables: Option<LintSeverity>,
 }
 
 impl LintOverrides {
@@ -250,6 +258,10 @@ impl LintOverrides {
             (LintKind::InvalidVariant, self.invalid_variant),
             (LintKind::UnknownVariant, self.unknown_variant),
             (LintKind::InvalidPropertyValue, self.invalid_property_value),
+            (LintKind::RedundantVariant, self.redundant_variant),
+            (LintKind::UnsatisfiableVariants, self.unsatisfiable_variants),
+            (LintKind::ClampedValue, self.clamped_value),
+            (LintKind::PreferTypedVariables, self.prefer_typed_variables),
             (LintKind::NoArbitraryColors, self.no_arbitrary_colors),
             (LintKind::NoClassProperty, self.no_class_property),
             (LintKind::NoImportant, self.no_important),

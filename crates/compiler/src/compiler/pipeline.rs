@@ -151,7 +151,9 @@ impl Compiler {
             return result;
         }
         let query = DesignSystemQuery::new(snapshot.clone(), compiler_options.clone());
-        result.lint_findings.extend(detect(source, parsed, &query));
+        result
+            .lint_findings
+            .extend(detect(source, parsed, &query, theme));
         result
             .diagnostics
             .extend(validate_composition(&[parsed], source.full_span(), false));

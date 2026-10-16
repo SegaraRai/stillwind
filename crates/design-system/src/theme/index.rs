@@ -37,6 +37,7 @@ struct ThemeDeclarations {
     declaration_formats: BTreeMap<LeanStr, LeanStr>,
     relationship_patterns: BTreeSet<LeanStr>,
     authored_properties: BTreeSet<LeanStr>,
+    authored_property_syntaxes: BTreeMap<LeanStr, LeanStr>,
     utility_order: UtilityOrderMode,
     target: BrowserTargets,
 }
@@ -86,6 +87,7 @@ impl ThemeIndex {
             declaration_formats: builder.declaration_formats,
             relationship_patterns: builder.relationship_patterns,
             authored_properties: builder.authored_properties,
+            authored_property_syntaxes: builder.authored_property_syntaxes,
             utility_order: builder.utility_order,
             target: builder.target,
         };
@@ -179,6 +181,17 @@ impl ThemeIndex {
     /// Property names declared by authored `@property` rules.
     pub fn authored_properties(&self) -> &BTreeSet<LeanStr> {
         &self.inner.declarations.authored_properties
+    }
+
+    /// The `syntax` descriptor of the authored `@property` rule for `name`, without
+    /// quotes, such as `<length>`.
+    #[must_use]
+    pub fn authored_property_syntax(&self, name: &str) -> Option<&str> {
+        self.inner
+            .declarations
+            .authored_property_syntaxes
+            .get(name)
+            .map(LeanStr::as_str)
     }
 
     /// Host-selected ordering strategy for resolved utilities.

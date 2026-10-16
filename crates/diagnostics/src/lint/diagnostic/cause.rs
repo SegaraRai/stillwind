@@ -8,6 +8,8 @@ use stillwind_source::ModuleId;
 use super::super::LintKind;
 use super::RuleGroupInputErrorKind;
 use super::candidate::{DidYouMean, DocumentScopedMessage, PropertyValueMessage};
+use super::variables::VariableTypeMessage;
+use super::variants::{RedundantVariantMessage, UnsatisfiableMessage};
 
 /// Concrete values and message templates for a detected lint.
 ///
@@ -490,6 +492,89 @@ pub enum LintDiagnostic {
         /// inferred; empty otherwise.
         alternatives: Vec<LeanStr>,
     },
+    /// A `var()` value without a type hint refers to a variable of a known type that
+    /// the receiving property rejects (`invalid-property-value`).
+    #[error("{}", VariableTypeMessage {
+        utility,
+        property,
+        variable,
+        value_type,
+        namespace,
+        alternatives,
+    })]
+    VariableTypeMismatch {
+        /// Utility text as authored, without enclosing variant wrappers.
+        utility: LeanStr,
+        /// Lowercase CSS property receiving the variable.
+        property: LeanStr,
+        /// Custom-property name, including its leading `--`.
+        variable: LeanStr,
+        /// The variable's type as declared, such as `font-size` or `<length>`.
+        value_type: LeanStr,
+        /// Theme namespace that declares the type, such as `text`, or `None` when an
+        /// `@property` rule registers it.
+        namespace: Option<LeanStr>,
+        /// The utility with each type hint that accepts the variable's type.
+        alternatives: Vec<LeanStr>,
+    },
+    /// An opacity modifier gives `color-mix()` a percentage outside `0%` to `100%`; the
+    /// declaration emits it as written (`invalid-property-value`).
+    #[error(
+        "the opacity modifier `{modifier}` gives `color-mix()` `{percentage}`, but `color-mix()` accepts only percentages from 0% to 100%"
+    )]
+    OpacityModifierOutOfRange {
+        /// Modifier text after the `/`, as written.
+        modifier: LeanStr,
+        /// Percentage that the declaration emits.
+        percentage: LeanStr,
+    },
+    /// A variant has no effect because another variant of the candidate already requires
+    /// its condition (`redundant-variant`).
+    #[error("{}", RedundantVariantMessage { variant, kept, implied: *implied })]
+    RedundantVariant {
+        /// Text of the redundant variant, without its `:`.
+        variant: LeanStr,
+        /// Text of the variant that makes it redundant.
+        kept: LeanStr,
+        /// True when `kept` implies a weaker range; false when it repeats the variant.
+        implied: bool,
+    },
+    /// Every branch of a variant stack's combined condition contains conditions that
+    /// exclude each other, so the rule never matches (`unsatisfiable-variants`).
+    #[error("{}", UnsatisfiableMessage { variants, first, second, branches: *branches })]
+    UnsatisfiableVariants {
+        /// Variant text from the first to the last contradicting variant.
+        variants: LeanStr,
+        /// Earlier of two conditions that exclude each other, as CSS text.
+        first: LeanStr,
+        /// Later of the two conditions, as CSS text.
+        second: LeanStr,
+        /// Number of alternative branches of the combined condition.
+        branches: u32,
+    },
+    /// A literal value lies outside the range of its property or filter function, so
+    /// browsers clamp it (`clamped-value`).
+    #[error("browsers clamp `{value}` to `{clamped}`")]
+    ClampedValue {
+        /// The declaration or filter function with the written value, such as
+        /// `opacity: 150%` or `grayscale(150%)`.
+        value: LeanStr,
+        /// The same text with the value that browsers use.
+        clamped: LeanStr,
+    },
+    /// A `var()` value has no type hint although the utility accepts values of several
+    /// types (`prefer-typed-variables`).
+    #[error(
+        "`{utility}` has no type hint, so it uses the `{hint}` definition; write `{replacement}` to state the type"
+    )]
+    UntypedVariable {
+        /// Utility text as authored, without enclosing variant wrappers.
+        utility: LeanStr,
+        /// Type hint of the definition that receives the value.
+        hint: LeanStr,
+        /// The utility with the type hint added.
+        replacement: LeanStr,
+    },
 }
 
 impl LintDiagnostic {
@@ -586,7 +671,13 @@ impl LintDiagnostic {
             Self::InterferingImportedStyleBase { .. } => LintKind::InterferingImportedStyleBase,
             Self::UnknownUtility { .. } => LintKind::UnknownUtility,
             Self::InvalidUtility { .. } => LintKind::InvalidUtility,
-            Self::InvalidPropertyValue { .. } => LintKind::InvalidPropertyValue,
+            Self::InvalidPropertyValue { .. }
+            | Self::VariableTypeMismatch { .. }
+            | Self::OpacityModifierOutOfRange { .. } => LintKind::InvalidPropertyValue,
+            Self::RedundantVariant { .. } => LintKind::RedundantVariant,
+            Self::UnsatisfiableVariants { .. } => LintKind::UnsatisfiableVariants,
+            Self::ClampedValue { .. } => LintKind::ClampedValue,
+            Self::UntypedVariable { .. } => LintKind::PreferTypedVariables,
         }
     }
 
