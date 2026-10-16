@@ -86,3 +86,56 @@ test("workspace validates the result of an asynchronous JavaScript configuration
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("workspace lints the CSS entry and imported user stylesheets with unsaved buffers", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-config-"));
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    const config = path.join(root, "stillwind.config.json");
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [{ css: "root.css", files: ["*.tsx"], typeFacts: false }],
+      }),
+    );
+    await writeFile(
+      path.join(root, "root.css"),
+      '@import "./local.css"; @custom-variant hover (&:hover); @utility flex { display: flex; } @stillwind-slot utilities;',
+    );
+    const local = path.join(root, "local.css");
+    await writeFile(local, ".card { @apply hover:hover:flex; }");
+    workspace = await AnalysisWorkspace.open(config);
+    const project = workspace.projects[0];
+    expect(
+      (await workspace.targets(project, undefined, { stylesheets: true })).map(path.normalize),
+    ).toEqual([path.join(root, "local.css"), path.join(root, "root.css")]);
+    expect(await workspace.targets(project)).toEqual([]);
+    const results = await workspace.lint();
+    expect(
+      results.map(({ result }) => [
+        path.basename(result.entry),
+        result.status,
+        result.reports.map((report) => report.code),
+      ]),
+    ).toEqual([
+      ["local.css", "complete", ["redundant-variant"]],
+      ["root.css", "complete", []],
+    ]);
+    const [answer] = await workspace.query(local, {
+      kind: "fixes",
+    });
+    expect(answer.result.edits).toEqual([
+      {
+        start: 21,
+        end: 27,
+        newText: "",
+      },
+    ]);
+    workspace.update(local, ".card { @apply nope; }", 1);
+    const [unsaved] = await workspace.analyze(local);
+    expect(unsaved.result.reports.map((report) => report.code)).toEqual(["unknown-utility"]);
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

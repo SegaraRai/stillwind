@@ -3,17 +3,17 @@
 use napi::{Env, Error};
 use napi_derive::napi;
 
-use stillwind_compiler::{CompilerOptions, prepare_canonical_index};
+use stillwind_compiler::{CompilerOptions, lint_stylesheets, prepare_canonical_index};
 use stillwind_design_system::{
     CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
-use stillwind_diagnostics::{LintSettings, Reporter};
+use stillwind_diagnostics::{LintSettings, LintSurface, LocatedDiagnostic, Reporter};
 use stillwind_source::{SourceRegistry, SourceUri};
 
 use super::NativeSessionError;
 use crate::editor::NativeEditorQuery;
 use crate::options::{NativeCompilerOptions, compiler_options};
-use crate::output::report_error;
+use crate::output::{BindingReport, report_error};
 use crate::stylesheet::{NativeCssLoadStep, NativeCssRequest, NativeCssResource};
 
 /// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`]
@@ -31,6 +31,9 @@ pub struct NativeCssFileInput {
     pub source_map_source: Option<String>,
     /// Full text of the source.
     pub content: String,
+    /// Whether stylesheet lint checks this source. Mark the user's own CSS and leave
+    /// package CSS unmarked. Absent means false.
+    pub lint: Option<bool>,
 }
 
 /// Loads CSS files supplied by the caller into a design-system snapshot.
@@ -55,7 +58,9 @@ impl NativeDesignSystemLoader {
 
     /// Answers one pending request by calling [`Self::provide_many`] with one file.
     /// An absent URI marks the CSS as an internal buffer without a reportable location.
+    /// `lint` marks the source for stylesheet lint, and an absent value means false.
     #[napi]
+    #[allow(clippy::too_many_arguments)] // Node-API exposes the file fields as positional arguments.
     pub fn provide(
         &mut self,
         env: Env,
@@ -64,6 +69,7 @@ impl NativeDesignSystemLoader {
         content: String,
         uri: Option<String>,
         source_map_source: Option<String>,
+        lint: Option<bool>,
     ) -> napi::Result<NativeCssLoadStep> {
         self.provide_many(
             env,
@@ -73,6 +79,7 @@ impl NativeDesignSystemLoader {
                 uri,
                 source_map_source,
                 content,
+                lint,
             }],
         )
     }
@@ -102,6 +109,7 @@ impl NativeDesignSystemLoader {
                     uri,
                     source_map_source: file.source_map_source.map(Into::into),
                     content: file.content.into(),
+                    lint: file.lint.unwrap_or(false),
                 })
             })
             .collect::<napi::Result<Vec<_>>>()?;
@@ -138,6 +146,13 @@ impl NativeDesignSystemLoader {
                         .iter()
                         .map(|source| source.name.as_str().to_owned())
                         .collect(),
+                    lint_sources: snapshot
+                        .sources()
+                        .sources
+                        .iter()
+                        .filter(|source| source.lint)
+                        .map(|source| source.name.as_str().to_owned())
+                        .collect(),
                 };
                 self.snapshot = Some(snapshot);
                 Ok(output)
@@ -169,8 +184,23 @@ impl NativeDesignSystemLoader {
         }
     }
 
-    /// Creates editor queries pinned to this completed design system and its compiler options.
-    /// Returns an error while CSS loading is incomplete.
+    /// Returns lint reports for the sources marked with `lint`, using the lint settings
+    /// of this loader's options and the stylesheet's own lint configuration.
+    ///
+    /// Reports and fixes address the marked CSS documents. The analysis runs once for
+    /// each design-system revision and compiler options, and later calls reuse it.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error while CSS loading is incomplete or when a report range is
+    /// invalid.
+    #[napi]
+    pub fn stylesheet_reports(&self) -> napi::Result<Vec<BindingReport>> {
+        stylesheet_reports(&self.completed()?, &self.options, self.loader.sources())
+    }
+
+    /// Creates editor queries pinned to this completed design system and its compiler
+    /// options. Returns an error while CSS loading is incomplete.
     #[napi]
     pub fn editor_query(&self) -> napi::Result<NativeEditorQuery> {
         Ok(NativeEditorQuery::new(
@@ -207,4 +237,42 @@ impl NativeDesignSystemLoader {
             .clone()
             .ok_or(NativeSessionError::IncompleteCssLoad)
     }
+}
+
+/// Resolves the stylesheet lint of `snapshot` under `options` into reports.
+///
+/// `sources` must use the file identities of `snapshot`'s sources. Suppression
+/// comments are read with stylesheet syntax.
+///
+/// # Errors
+///
+/// Returns an error when a source cannot be registered or a report range is invalid.
+pub(super) fn stylesheet_reports(
+    snapshot: &DesignSystemSnapshot,
+    options: &CompilerOptions,
+    sources: &SourceRegistry,
+) -> napi::Result<Vec<BindingReport>> {
+    let failure = |error: &dyn std::fmt::Display| Error::from_reason(error.to_string());
+    let lint = lint_stylesheets(snapshot, options);
+    let mut registry = sources.fork_empty();
+    for source in &snapshot.sources().sources {
+        if source.lint && source.source.uri().is_some() {
+            registry
+                .retain(source.source.clone())
+                .map_err(|error| failure(&error))?;
+        }
+    }
+    let mut reporter =
+        Reporter::new(lint.lint_settings.clone()).with_surface(LintSurface::Stylesheet);
+    for finding in &lint.findings {
+        let located =
+            LocatedDiagnostic::from_lint(finding, &registry).map_err(|error| failure(&error))?;
+        reporter.report(&located).map_err(|error| failure(&error))?;
+    }
+    Ok(reporter
+        .finish()
+        .diagnostics
+        .into_iter()
+        .map(Into::into)
+        .collect())
 }

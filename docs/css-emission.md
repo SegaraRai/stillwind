@@ -137,6 +137,24 @@ contributions. Renderers do not reconstruct them from serialized CSS.
 retain that metadata. Renderers with string inputs accept authored CSS; `module_css` and
 `to_css` are inspection outputs rather than reconstruction inputs.
 
+## Authored directives
+
+The compiler expands `@apply` and `@variant` in authored CSS before it resolves theme
+references. It finds them in the rule tree of the stylesheet, so text in comments and
+strings is never a directive. [Stylesheet lint](standalone-analysis.md#stylesheet-lint)
+reads the same tree.
+
+`@apply` replaces the statement with the declarations of its candidates in utility
+order. Whitespace and comments separate candidates. A candidate that does not resolve
+contributes nothing: `.btn { @apply unknown-x; }` becomes `.btn {}`.
+
+`@variant` wraps its block in the rules of each comma-separated variant sequence, and
+each sequence receives its own copy of the block. A sequence that does not resolve is
+a false condition, so it contributes nothing: `.card { @variant nope { color: red; } }`
+becomes `.card {}`, and `@variant nope, print { ... }` keeps only the `print` copy.
+Nested blocks expand inside the rules of the enclosing sequences. A `@variant`
+statement without a block stays in the output unchanged.
+
 ## Browser targets
 
 Set `target` in `stillwind.config.ts` to minimum browser versions:

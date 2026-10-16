@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, finish_lint_findings};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSurface, finish_lint_findings};
 use stillwind_ir::{
     IncompatibleComposition, ModuleAnalysis, composition_dependencies, ordered_style_calls,
     validate_composition,
@@ -144,6 +144,7 @@ impl Compiler {
                 .push(CompileError::new(kind, source.full_span()));
             finish_lint_findings(
                 source,
+                LintSurface::Script,
                 &result.lint_settings,
                 &mut result.lint_findings,
                 false,
@@ -161,6 +162,7 @@ impl Compiler {
         if !result.diagnostics.is_empty() {
             finish_lint_findings(
                 source,
+                LintSurface::Script,
                 &result.lint_settings,
                 &mut result.lint_findings,
                 false,
@@ -487,6 +489,7 @@ impl Compiler {
         }
         finish_lint_findings(
             source,
+            LintSurface::Script,
             &result.lint_settings,
             &mut result.lint_findings,
             result.diagnostics.is_empty(),

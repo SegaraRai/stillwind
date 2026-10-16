@@ -10,7 +10,7 @@ use stillwind_compiler::{
     is_style_analysis_lint,
 };
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::filter_lint_findings;
+use stillwind_diagnostics::{LintSurface, filter_lint_findings};
 use stillwind_ir::SourceAnalyzer;
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::{AssetMetadata, IdentityId, TypeFacts};
@@ -106,7 +106,7 @@ pub fn compile_project_input(
                     .filter_map(|effects| resolver.resolve(effects.identity()))
                     .flat_map(|style| check_style(&style))
                     .collect::<Vec<_>>();
-                filter_lint_findings(&scan.source, &mut findings);
+                filter_lint_findings(&scan.source, LintSurface::Script, &mut findings);
                 findings
             })
             .collect::<Vec<_>>();

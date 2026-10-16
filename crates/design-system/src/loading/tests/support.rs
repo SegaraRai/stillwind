@@ -11,6 +11,7 @@ pub(super) fn input(id: u32, name: &str, content: &str) -> CssFileInput {
         uri: None,
         source_map_source: None,
         content: content.into(),
+        lint: false,
     }
 }
 

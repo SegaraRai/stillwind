@@ -14,7 +14,7 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
 };
 use stillwind_source::{ReplaceText, Span, Spanned};
-use stillwind_syntax::{Utility, parse_candidate};
+use stillwind_syntax::{Utility, Variant, parse_candidate};
 
 use super::conditionals::{UnsupportedCondition, check_candidate};
 use super::lexer::lex_utilities;
@@ -194,11 +194,9 @@ pub(super) struct TransitionContribution {
 
 /// Returns the enabled findings for variant selectors of the candidate `raw`.
 ///
-/// Each rule reports at most one finding at the span of the responsible variant within
-/// `span`: a selector that does not depend on the styled element, and a selector that
-/// uses `&` more than once in one complex selector. The first `unchecked` variants are
-/// not checked; a document-level style passes the variants up to the one that selects
-/// its element. An unparsable candidate returns no findings.
+/// The first `unchecked` variants are not checked; a document-level style passes the
+/// variants up to the one that selects its element. An unparsable candidate returns no
+/// findings. See [`variant_list_lints`] for the reported rules.
 pub(super) fn variant_selector_lints(
     raw: &str,
     theme: &ThemeIndex,
@@ -216,23 +214,39 @@ pub(super) fn variant_selector_lints(
     } else {
         vec![span; candidate.variants.len()]
     };
+    variant_list_lints(
+        &candidate.variants[unchecked.min(candidate.variants.len())..],
+        &spans[unchecked.min(spans.len())..],
+        theme,
+        lint_settings,
+    )
+}
+
+/// Returns the enabled findings for the selectors of `variants`, each written at the
+/// span with the same index in `spans`.
+///
+/// Each rule reports at most one finding at the span of the responsible variant: a
+/// selector that does not depend on the styled element, and a selector that uses `&`
+/// more than once in one complex selector.
+pub(super) fn variant_list_lints(
+    variants: &[Variant],
+    spans: &[Span],
+    theme: &ThemeIndex,
+    lint_settings: &LintSettings,
+) -> Vec<LintFinding> {
     let mut findings = Vec::new();
     if lint_settings.enabled_for_detection(LintKind::DocumentScopedSelector)
-        && let Some((diagnostic, span)) = candidate
-            .variants
+        && let Some((diagnostic, span)) = variants
             .iter()
-            .zip(&spans)
-            .skip(unchecked)
+            .zip(spans)
             .find_map(|(variant, span)| Some((document_scoped_selector(variant, theme)?, *span)))
     {
         findings.push(LintFinding::new(diagnostic, span));
     }
     if lint_settings.enabled_for_detection(LintKind::RepeatedNestingSelector)
-        && let Some((selector, span)) = candidate
-            .variants
+        && let Some((selector, span)) = variants
             .iter()
-            .zip(&spans)
-            .skip(unchecked)
+            .zip(spans)
             .find_map(|(variant, span)| Some((repeated_subject_selector(variant, theme)?, *span)))
     {
         findings.push(LintFinding::new(

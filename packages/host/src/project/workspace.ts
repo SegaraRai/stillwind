@@ -7,7 +7,7 @@ import { minimatch } from "minimatch";
 import { glob } from "tinyglobby";
 
 import type { EditorRequest, EditorResult } from "../editor/index.ts";
-import { AnalysisProject, type AnalysisResult } from "./analysis.ts";
+import { AnalysisProject, isStylesheet, sameFile, type AnalysisResult } from "./analysis.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
 
 /** A project's configuration and results, retained independently when scopes overlap. */
@@ -101,15 +101,40 @@ export class AnalysisWorkspace {
   }
 
   /**
+   * Checks whether the project lints a stylesheet. Loading the project's CSS graph decides it.
+   *
+   * @param project - Project whose CSS graph lists its linted stylesheets.
+   * @param file - Absolute file path to test.
+   * @returns Whether the file is the CSS entry or an imported file that the CSS host marks for
+   * lint. When the CSS graph cannot load, no stylesheet is linted, and script analysis reports
+   * the failure.
+   */
+  async lintsStylesheet(project: WorkspaceProject, file: string): Promise<boolean> {
+    if (!isStylesheet(file)) {
+      return false;
+    }
+    const sources = await project.analysis.stylesheets().catch(() => []);
+    return sources.some((source) => sameFile(source, file));
+  }
+
+  /**
    * Enumerates existing target files independently of dependency traversal.
    *
    * @param project - Project whose files and excludes globs are relative to its host root.
    * @param patterns - Optional additional include globs relative to the same root. An empty list
    * adds no filtering. These patterns cannot expand the configured scope.
+   * @param options - Target kinds to add to the configured script targets.
    * @returns Sorted absolute target paths. Unsaved files absent from disk are not enumerated.
    * @throws If filesystem enumeration fails.
    */
-  async targets(project: WorkspaceProject, patterns?: string[]): Promise<string[]> {
+  async targets(
+    project: WorkspaceProject,
+    patterns?: string[],
+    options: {
+      /** Adds the stylesheets that the project lints, as {@link lintsStylesheet} selects them. */
+      stylesheets?: boolean;
+    } = {},
+  ): Promise<string[]> {
     const filters = patterns?.map((pattern) => {
       if (path.isAbsolute(pattern)) {
         return {
@@ -127,21 +152,25 @@ export class AnalysisWorkspace {
       dot: true,
       ignore: ["**/node_modules/**", "**/.git/**", ...(project.config.exclude ?? [])],
     });
+    if (options.stylesheets) {
+      files.push(...(await project.analysis.stylesheets().catch(() => [])));
+    }
     return files
       .filter(
-        (file) =>
-          !filters?.length ||
-          filters.some((filter) =>
-            filter.file !== undefined
-              ? path.normalize(file) === filter.file
-              : minimatch(
-                  path.relative(project.analysis.host.root, file).replaceAll("\\", "/"),
-                  filter.pattern!,
-                  {
-                    dot: true,
-                  },
-                ),
-          ),
+        (file, index) =>
+          files.findIndex((other) => sameFile(other, file)) === index &&
+          (!filters?.length ||
+            filters.some((filter) =>
+              filter.file !== undefined
+                ? path.normalize(file) === filter.file
+                : minimatch(
+                    path.relative(project.analysis.host.root, file).replaceAll("\\", "/"),
+                    filter.pattern!,
+                    {
+                      dot: true,
+                    },
+                  ),
+            )),
       )
       .sort();
   }
@@ -176,7 +205,7 @@ export class AnalysisWorkspace {
       result: EditorResult;
     }[] = [];
     for (const [index, project] of this.projects.entries()) {
-      if (!this.includes(project, file)) {
+      if (!this.includes(project, file) && !(await this.lintsStylesheet(project, file))) {
         continue;
       }
       const result = await project.analysis.query(file, request, signal);
@@ -225,6 +254,7 @@ export class AnalysisWorkspace {
 
   /**
    * Analyzes a target separately in every matching project and filters reports to each scope.
+   * A project matches a script target in its configured scope and a stylesheet that it lints.
    *
    * @param file - Absolute target path. The file need not exist on disk when an open buffer supplies it.
    * @param signal - Optional cancellation checked by each project's queued analysis.
@@ -234,7 +264,7 @@ export class AnalysisWorkspace {
   async analyze(file: string, signal?: AbortSignal): Promise<WorkspaceResult[]> {
     const results: WorkspaceResult[] = [];
     for (const [index, project] of this.projects.entries()) {
-      if (this.includes(project, file)) {
+      if (this.includes(project, file) || (await this.lintsStylesheet(project, file))) {
         results.push({
           project: index,
           config: project.configFile,
@@ -246,7 +276,8 @@ export class AnalysisWorkspace {
   }
 
   /**
-   * Analyzes every selected target, including files unreachable from an application entry.
+   * Analyzes every selected target, including files unreachable from an application entry, and
+   * every stylesheet that a project lints.
    *
    * @param patterns - Optional additional globs relative to each project's root. Empty or omitted
    * filters check every configured target.
@@ -256,7 +287,7 @@ export class AnalysisWorkspace {
   async lint(patterns?: string[]): Promise<WorkspaceResult[]> {
     const results: WorkspaceResult[] = [];
     for (const [index, project] of this.projects.entries()) {
-      for (const file of await this.targets(project, patterns)) {
+      for (const file of await this.targets(project, patterns, { stylesheets: true })) {
         results.push({
           project: index,
           config: project.configFile,

@@ -16,7 +16,7 @@ use super::{
 use crate::lint::suppressing_directive;
 use crate::{
     CompileError, FixAction, LabelScope, LintDirective, LintFinding, LintSettings, LintSeverity,
-    SourceRange, collect_lint_directives,
+    LintSurface, SourceRange, collect_lint_directives,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
@@ -53,6 +53,8 @@ pub enum AggregateError {
 /// Temporary reporter for a single analysis or update.
 pub struct Reporter {
     lint_settings: LintSettings,
+    /// Comment syntax of the sources whose suppression directives apply.
+    surface: LintSurface,
     revisions: BTreeMap<SourceUri, LeanStr>,
     diagnostics: Vec<ResolvedDiagnostic>,
     sources: BTreeMap<usize, ReportSource>,
@@ -80,14 +82,27 @@ impl Reporter {
         Ok(reporter.finish())
     }
 
-    /// Starts a report with the lint policy in effect for this analysis.
+    /// Starts a report with the lint policy in effect for this analysis. Suppression
+    /// directives are read with script comment syntax until [`Self::with_surface`]
+    /// selects another.
     pub fn new(lint_settings: LintSettings) -> Self {
         Self {
             lint_settings,
+            surface: LintSurface::Script,
             revisions: BTreeMap::new(),
             diagnostics: Vec::new(),
             sources: BTreeMap::new(),
         }
+    }
+
+    /// Reads suppression directives of every source with the comment syntax of
+    /// `surface`.
+    ///
+    /// Call it before reporting, because each source's directives are read once.
+    #[must_use]
+    pub const fn with_surface(mut self, surface: LintSurface) -> Self {
+        self.surface = surface;
+        self
     }
 
     /// Validates and records one completed error or lint finding.
@@ -232,9 +247,10 @@ impl Reporter {
     }
     fn source_info(&mut self, range: &SourceRange) -> &mut ReportSource {
         let source = range.shared_source();
+        let surface = self.surface;
         self.sources
             .entry(Arc::as_ptr(source) as usize)
-            .or_insert_with(|| ReportSource::new(Arc::clone(source)))
+            .or_insert_with(|| ReportSource::new(Arc::clone(source), surface))
     }
 }
 
@@ -247,10 +263,10 @@ struct ReportSource {
 }
 
 impl ReportSource {
-    fn new(source: Arc<SourceFile>) -> Self {
+    fn new(source: Arc<SourceFile>, surface: LintSurface) -> Self {
         Self {
             revision: Fingerprint::of(source.text()).0,
-            directives: collect_lint_directives(source.text()),
+            directives: collect_lint_directives(source.text(), surface),
             source,
             locations: BTreeMap::new(),
         }

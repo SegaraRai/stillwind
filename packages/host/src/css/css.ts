@@ -47,6 +47,58 @@ export interface CssHost {
    * @param id - Root or dependency identity accepted by the host reader.
    */
   watch(id: string): void;
+  /**
+   * Decides whether stylesheet lint checks a file. Omission selects {@link lintsStylesheet}.
+   *
+   * @param id - Resolved CSS file identity.
+   * @param importer - Identity of the importing file and whether lint checks it, or undefined for
+   * the root.
+   * @param specifier - Import request text, or undefined for the root.
+   * @returns Whether to mark the file for stylesheet lint. Lint never changes compiled output.
+   */
+  lint?(
+    id: string,
+    importer?: {
+      /** Resolved identity of the importing file. */
+      id: string;
+      /** Whether lint checks the importing file. */
+      lint: boolean;
+    },
+    specifier?: string,
+  ): boolean;
+}
+
+/**
+ * Selects the user's own CSS for stylesheet lint. The root is linted unless it lies under
+ * `node_modules`. An import is linted when lint checks its importer, its specifier is a relative
+ * or absolute path, and its file does not lie under `node_modules`. A package specifier such as
+ * `stillwind` or `tailwindcss` therefore excludes the package and everything it imports, even when
+ * the package resolves outside `node_modules`.
+ *
+ * @param id - Resolved CSS file identity.
+ * @param importer - Importing file and its lint mark, or undefined for the root.
+ * @param specifier - Import request text, or undefined for the root.
+ * @returns Whether stylesheet lint checks the file.
+ */
+export function lintsStylesheet(
+  id: string,
+  importer?: {
+    /** Resolved identity of the importing file. */
+    id: string;
+    /** Whether lint checks the importing file. */
+    lint: boolean;
+  },
+  specifier?: string,
+): boolean {
+  if (/[\\/]node_modules[\\/]/.test(id)) {
+    return false;
+  }
+  return (
+    !importer ||
+    (importer.lint &&
+      specifier !== undefined &&
+      /^(?:\.{1,2}[\\/]|[\\/]|[a-z]:[\\/]|file:)/i.test(specifier))
+  );
 }
 
 /** Completed design-system loader and resource references discovered in its CSS graph. */
@@ -55,6 +107,8 @@ export interface LoadedCssGraph {
   loader: NativeDesignSystemLoader;
   /** Authored resource references that the adapter must resolve and replace in emitted CSS. */
   resources: NativeCssResource[];
+  /** Identities of the files marked for stylesheet lint, in the order the loader accepted them. */
+  lintSources: string[];
 }
 
 /**
@@ -63,7 +117,8 @@ export interface LoadedCssGraph {
  * `options` configures a new loader. If `suppliedLoader` is given, it must not have
  * received any input yet, and this function uses its existing configuration.
  * `rootContent` skips reading the root file. The function still watches that file
- * and all resolved dependencies.
+ * and all resolved dependencies. Each file is marked for stylesheet lint as `host.lint` decides,
+ * or as {@link lintsStylesheet} decides when the host omits it.
  *
  * Reads run concurrently, and each request ID is read only once. Responses ready
  * in the same event-loop turn are sent together to reduce native calls. Faster reads
@@ -90,21 +145,28 @@ export async function loadCssGraph(
 
   host.watch(root);
 
+  const lints = new Map<string, boolean>();
+  const lint: typeof lintsStylesheet = (id, importer, specifier) =>
+    host.lint ? host.lint(id, importer, specifier) : lintsStylesheet(id, importer, specifier);
+  lints.set(root, lint(root));
   const initial = loader.provide(
     0,
     root,
     rootContent ?? (await host.read(root)),
     host.documentUri(root),
     host.sourceMapSource(root),
+    lints.get(root),
   );
 
-  let resourceReferences: Extract<
-    NativeCssLoadStep,
-    {
-      /** Native loading-step discriminator whose resources are available after graph completion. */
-      kind: "complete";
-    }
-  >["resources"] = [];
+  let completion:
+    | Extract<
+        NativeCssLoadStep,
+        {
+          /** Native loading-step discriminator whose resources are available after graph completion. */
+          kind: "complete";
+        }
+      >
+    | undefined;
   await new Promise<void>((resolveLoad, rejectLoad) => {
     const started = new Set<number>();
     let stopped = false;
@@ -124,7 +186,7 @@ export async function loadCssGraph(
      */
     const advance = (step: NativeCssLoadStep) => {
       if (step.kind === "complete") {
-        resourceReferences = step.resources;
+        completion = step;
         stopped = true;
         resolveLoad();
         return;
@@ -150,12 +212,19 @@ export async function loadCssGraph(
           if (stopped) {
             return;
           }
+          const marked = lint(
+            name,
+            { id: request.importer, lint: lints.get(request.importer) ?? false },
+            request.specifier,
+          );
+          lints.set(name, (lints.get(name) ?? false) || marked);
           ready.push({
             id: request.id,
             name,
             content,
             uri: host.documentUri(name),
             sourceMapSource: host.sourceMapSource(name),
+            lint: marked,
           });
           if (!queued) {
             queued = true;
@@ -183,6 +252,7 @@ export async function loadCssGraph(
 
   return {
     loader,
-    resources: resourceReferences,
+    resources: completion?.resources ?? [],
+    lintSources: completion?.lintSources ?? [],
   };
 }

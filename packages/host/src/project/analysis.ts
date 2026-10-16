@@ -1,4 +1,5 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { BaseConfig, PreviewOptions } from "@stillwind/config";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../semantics/index.ts";
 import { mapAnalysisReports } from "./diagnostic-map.ts";
 import { compilerOptions, cssEntrypoint } from "./options.ts";
+import { StylesheetEditor } from "./stylesheet-editor.ts";
 
 /**
  * Loads compiler inputs and CSS for one Node analysis project. AnalysisProject serializes calls
@@ -110,8 +112,8 @@ export class AnalysisProject {
     {
       /** Project change counter represented by this snapshot. */
       revision: number;
-      /** Immutable source and design-system view used for editor queries. */
-      snapshot: EditorSnapshot;
+      /** Immutable view used for editor queries: a script graph or one linted stylesheet. */
+      snapshot: EditorSnapshot | StylesheetEditor;
     }
   >();
 
@@ -125,6 +127,8 @@ export class AnalysisProject {
   #facts?: TypeScriptFactsService;
   /** CSS loader retained until a CSS update or explicit invalidation. */
   #loader?: NativeDesignSystemLoader;
+  /** Identities that the retained loader marked for stylesheet lint, in load order. */
+  #lintSources: string[] = [];
   /** Requests backend invalidation before the next transaction. */
   #dirty = true;
   /** Requests replacement of the cached CSS loader. */
@@ -205,10 +209,35 @@ export class AnalysisProject {
   }
 
   /**
+   * Lists the stylesheets that this project lints, using the document contents captured when this
+   * method is called.
+   *
+   * @returns Identities of the CSS entry and the imported files that the CSS host marks for lint,
+   * in load order. Package CSS is excluded unless the host marks it.
+   * @throws If the project is closed or resolving or reading the CSS graph fails.
+   */
+  stylesheets(): Promise<string[]> {
+    const documents = new Map([...this.#documents].map(([id, document]) => [id, document.source]));
+    const task = this.#queue.then(async () => {
+      if (this.#closed) {
+        throw new Error("Analysis project is closed");
+      }
+      await this.host.setDocuments(documents);
+      await this.#resetCaches();
+      await this.#designSystem();
+      return [...this.#lintSources];
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
+  /**
    * Queues analysis using the document contents and revision captured when this method is called.
    *
-   * @param entry - Full resolver identity of a supported target. Membership filtering is performed
-   * by AnalysisWorkspace, not by this project.
+   * @param entry - Full resolver identity of a supported target, or of a stylesheet that
+   * {@link stylesheets} lists. A stylesheet's reports are its stylesheet lint findings, and its
+   * result has no graph. Membership filtering is performed by AnalysisWorkspace, not by this
+   * project.
    * @param signal - Optional cancellation checked before and after queued work. Cancellation
    * discards results without interrupting a checker query that has already started.
    * @returns Reports for the entry and demanded semantic dependencies. Host failures appear as
@@ -325,6 +354,9 @@ export class AnalysisProject {
       }
       await this.host.setDocuments(documents);
       await this.#resetCaches();
+      if (isStylesheet(entry)) {
+        return await this.#analyzeStylesheet(entry, revision, result);
+      }
       if (!this.host.supports?.(entry)) {
         throw new Error(`The ${this.host.constructor.name} host cannot analyze ${entry}`);
       }
@@ -361,6 +393,34 @@ export class AnalysisProject {
   }
 
   /**
+   * Reports stylesheet lint for one stylesheet of the current CSS graph and retains its fixes.
+   * @param entry - Resolver identity of the stylesheet.
+   * @param revision - Change counter associated with the installed documents.
+   * @param result - Result to complete. Its reports are replaced.
+   * @returns The completed result with reports whose primary location is the stylesheet.
+   * @throws If resolving, reading, or loading the CSS graph fails.
+   */
+  async #analyzeStylesheet(
+    entry: string,
+    revision: number,
+    result: AnalysisResult,
+  ): Promise<AnalysisResult> {
+    const loader = await this.#designSystem();
+    result.reports = loader.stylesheetReports().filter((report) => {
+      const uri = report.primary.location.uri;
+      return uri.startsWith("file:")
+        ? sameFile(fileURLToPath(uri), entry)
+        : uri === this.host.css.documentUri(entry);
+    });
+    this.#editors.set(entry, {
+      revision,
+      snapshot: new StylesheetEditor(entry, await this.host.css.read(entry), result.reports),
+    });
+    result.status = "complete";
+    return result;
+  }
+
+  /**
    * Consumes dirty flags and invalidates semantic, CSS, and host caches as requested.
    * @returns Completion of required invalidation, or no work when the project is clean.
    * @throws If semantic or host invalidation fails.
@@ -389,9 +449,9 @@ export class AnalysisProject {
   async #designSystem(): Promise<NativeDesignSystemLoader> {
     if (!this.#loader) {
       const css = path.resolve(this.host.root, cssEntrypoint(this.host.config));
-      this.#loader = (
-        await loadCssGraph(css, compilerOptions(this.host.config), this.host.css)
-      ).loader;
+      const loaded = await loadCssGraph(css, compilerOptions(this.host.config), this.host.css);
+      this.#loader = loaded.loader;
+      this.#lintSources = loaded.lintSources;
     }
     return this.#loader;
   }
@@ -416,6 +476,27 @@ export class AnalysisProject {
     }
     return this.#semantics;
   }
+}
+
+/**
+ * Checks whether an identity names a stylesheet.
+ * @param id - Resolver identity or file path.
+ * @returns Whether the identity ends in `.css`, ignoring case.
+ */
+export function isStylesheet(id: string): boolean {
+  return /\.css$/i.test(id);
+}
+
+/**
+ * Compares file paths as the host filesystem does.
+ * @param a - File path resolved against the process working directory when relative.
+ * @param b - File path resolved in the same way.
+ * @returns Whether both paths name the same file, ignoring case on Windows.
+ */
+export function sameFile(a: string, b: string): boolean {
+  const key = (file: string) =>
+    process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
+  return key(a) === key(b);
 }
 
 /**

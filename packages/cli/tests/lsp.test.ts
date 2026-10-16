@@ -5,8 +5,36 @@ import { pathToFileURL } from "node:url";
 
 import { expect, test } from "vite-plus/test";
 
-test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered errors, and keeps stdout framed", async () => {
-  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-lsp-"));
+/** One JSON-RPC message from the language server. */
+interface Message {
+  id?: number;
+  method?: string;
+  params?: {
+    uri?: string;
+    version?: number;
+    diagnostics?: {
+      code?: string;
+      severity?: number;
+      range: {
+        start: {
+          line: number;
+          character: number;
+        };
+      };
+    }[];
+  };
+  result?: unknown;
+  error?: unknown;
+}
+
+/**
+ * Starts the language server over stdio in a new temporary project directory.
+ * @param prefix - Name prefix of the temporary directory.
+ * @returns The directory, the received messages, and operations to send requests, wait for a
+ * message, and stop the server. `stop` waits for the process and removes the directory.
+ */
+async function startServer(prefix: string) {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, `../../host/${prefix}`));
   const child = spawn(
     process.execPath,
     [path.resolve(import.meta.dirname, "../dist/main.js"), "lsp", "--stdio"],
@@ -15,32 +43,12 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
   const closed = new Promise<number | null>((resolve) => {
     child.on("close", resolve);
   });
-  let stderr = "";
+  const state = { stderr: "", protocolError: undefined as string | undefined };
   child.stderr.on("data", (data: Buffer) => {
-    stderr += data.toString();
+    state.stderr += data.toString();
   });
-  const messages: {
-    id?: number;
-    method?: string;
-    params?: {
-      uri?: string;
-      version?: number;
-      diagnostics?: {
-        code?: string;
-        severity?: number;
-        range: {
-          start: {
-            line: number;
-            character: number;
-          };
-        };
-      }[];
-    };
-    result?: unknown;
-    error?: unknown;
-  }[] = [];
+  const messages: Message[] = [];
   let buffer = Buffer.alloc(0);
-  let protocolError: string | undefined;
   child.stdout.on("data", (data: Buffer) => {
     buffer = Buffer.concat([buffer, data]);
     for (;;) {
@@ -51,7 +59,7 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
       const header = buffer.subarray(0, boundary).toString();
       const length = /^Content-Length: (\d+)$/im.exec(header);
       if (!length || !header.startsWith("Content-Length:")) {
-        protocolError = header;
+        state.protocolError = header;
         return;
       }
       const end = boundary + 4 + Number(length[1]);
@@ -71,12 +79,27 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
     });
     child.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
   };
-  const wait = async (predicate: (message: (typeof messages)[number]) => boolean) => {
+  const wait = async (predicate: (message: Message) => boolean) => {
     await expect
-      .poll(() => protocolError ?? messages.some(predicate), { timeout: 15000, interval: 20 })
+      .poll(() => state.protocolError ?? messages.some(predicate), {
+        timeout: 15000,
+        interval: 20,
+      })
       .toBe(true);
     return messages.find(predicate)!;
   };
+  const stop = async () => {
+    if (child.exitCode === null) {
+      child.kill();
+    }
+    await closed;
+    await rm(root, { recursive: true, force: true });
+  };
+  return { root, state, messages, send, wait, closed, stop };
+}
+
+test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered errors, and keeps stdout framed", async () => {
+  const { root, state, send, wait, closed, stop } = await startServer(".test-lsp-");
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
@@ -89,7 +112,7 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
     const uri = pathToFileURL(path.join(root, "entry.tsx")).href;
     send("initialize", { rootUri: pathToFileURL(root).href, capabilities: {} }, 1);
     const initialized = await wait((message) => message.id === 1);
-    expect(initialized.error, stderr).toBeUndefined();
+    expect(initialized.error, state.stderr).toBeUndefined();
     send("initialized", {});
     const source =
       'import {style} from "stillwind/react";\nconst 日本語="🧭"; export const props=style("missing");';
@@ -165,17 +188,107 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
       partial.params!.diagnostics!.find((diagnostic) => diagnostic.code === "SW_UNVERIFIED")
         ?.severity,
     ).toBe(3);
-    expect(stderr).toContain("LSP config log");
-    expect(protocolError).toBeUndefined();
+    expect(state.stderr).toContain("LSP config log");
+    expect(state.protocolError).toBeUndefined();
     send("shutdown", null, 2);
     await wait((message) => message.id === 2);
     send("exit", null);
     expect(await closed).toBe(0);
   } finally {
-    if (child.exitCode === null) {
-      child.kill();
-    }
-    await closed;
-    await rm(root, { recursive: true, force: true });
+    await stop();
+  }
+});
+
+test("LSP publishes stylesheet diagnostics for unsaved CSS buffers and offers their fixes", async () => {
+  const { root, state, send, wait, stop } = await startServer(".test-lsp-css-");
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.tsx"]}]};',
+    );
+    const head =
+      "@custom-variant hover (&:hover); @utility red{color:red} @stillwind-slot utilities;\n";
+    await writeFile(path.join(root, "root.css"), head);
+    const uri = pathToFileURL(path.join(root, "root.css")).href;
+    send("initialize", { rootUri: pathToFileURL(root).href, capabilities: {} }, 1);
+    expect((await wait((message) => message.id === 1)).error, state.stderr).toBeUndefined();
+    send("initialized", {});
+    send("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version: 1,
+        text: `${head}.card { @apply hover:hover:red; }\n`,
+      },
+    });
+    const published = await wait(
+      (message) =>
+        message.method === "textDocument/publishDiagnostics" &&
+        message.params?.uri === uri &&
+        message.params.version === 1 &&
+        Boolean(message.params.diagnostics?.length),
+    );
+    expect(published.params!.diagnostics).toMatchObject([
+      {
+        code: "redundant-variant",
+        range: {
+          start: {
+            line: 1,
+            character: 21,
+          },
+        },
+      },
+    ]);
+    send(
+      "textDocument/codeAction",
+      {
+        textDocument: { uri },
+        range: {
+          start: {
+            line: 1,
+            character: 0,
+          },
+          end: {
+            line: 1,
+            character: 30,
+          },
+        },
+        context: {
+          diagnostics: [],
+          only: ["quickfix"],
+        },
+      },
+      2,
+    );
+    const actions = await wait((message) => message.id === 2);
+    expect(actions.result).toMatchObject([
+      {
+        title: "Remove the redundant variant",
+        edit: {
+          documentChanges: [
+            {
+              textDocument: {
+                uri,
+                version: 1,
+              },
+              edits: [
+                {
+                  range: {
+                    start: {
+                      line: 1,
+                      character: 21,
+                    },
+                  },
+                  newText: "",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    expect(state.protocolError).toBeUndefined();
+  } finally {
+    await stop();
   }
 });

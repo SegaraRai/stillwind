@@ -14,8 +14,8 @@ use stillwind_compiler::{
 use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
-    FixAction, LintDiagnostic, LintFinding, LintKind, Reporter, SourceEdit, SourceRange,
-    filter_lint_findings,
+    FixAction, LintDiagnostic, LintFinding, LintKind, LintSurface, Reporter, SourceEdit,
+    SourceRange, filter_lint_findings,
 };
 use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
@@ -233,7 +233,7 @@ impl NativeEditorQuery {
             diagnostic,
             Span::new(FileId(0), start, end),
         )];
-        filter_lint_findings(&source, &mut findings);
+        filter_lint_findings(&source, LintSurface::Script, &mut findings);
         Ok(findings.is_empty())
     }
 

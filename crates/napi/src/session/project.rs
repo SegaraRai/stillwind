@@ -34,6 +34,7 @@ use crate::stylesheet::{
     NativeStylesheetPlan, NativeStylesheetSelection, stylesheet_error, stylesheet_locations,
 };
 
+use super::loader::stylesheet_reports;
 use super::{NativeDesignSystemLoader, ProvidedTypeScriptFacts};
 
 /// Failures specific to the stateful bindings.
@@ -236,6 +237,22 @@ impl NativeProjectSession {
             .reject_source_attempt(module.clone(), source, diagnostics);
         self.session.publish_diagnostic_batch(module, batch);
         Ok(result)
+    }
+
+    /// Returns lint reports for the marked stylesheets of the current design-system
+    /// revision, as [`NativeDesignSystemLoader::stylesheet_reports`] does, using the
+    /// options of this session.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a report range is invalid.
+    #[napi]
+    pub fn stylesheet_reports(&self) -> napi::Result<Vec<BindingReport>> {
+        stylesheet_reports(
+            &self.session.snapshot(),
+            self.session.options(),
+            self.session.sources(),
+        )
     }
 
     /// Returns the latest attempted diagnostics for every retained module.

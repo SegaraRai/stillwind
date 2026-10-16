@@ -305,3 +305,82 @@ define_lint_rules! {
         UnusedLintSuppression => "unused-lint-suppression",
     }
 }
+
+/// Kind of source that a lint rule checks.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum LintSurface {
+    /// Script and framework modules that call Stillwind macros.
+    Script,
+    /// Stylesheets that the host marks for linting.
+    Stylesheet,
+}
+
+impl LintKind {
+    /// Returns whether this rule checks sources of `surface`.
+    ///
+    /// One severity setting configures a rule on every surface that it checks. A
+    /// suppression comment that names a rule that does not check its source is invalid.
+    pub const fn checks(self, surface: LintSurface) -> bool {
+        match surface {
+            LintSurface::Script => true,
+            LintSurface::Stylesheet => match self {
+                Self::InvalidUtility
+                | Self::UnknownUtility
+                | Self::InvalidVariant
+                | Self::UnknownVariant
+                | Self::DuplicateUtility
+                | Self::ConflictingUtilities
+                | Self::DocumentScopedSelector
+                | Self::RepeatedNestingSelector
+                | Self::InvalidPropertyValue
+                | Self::UnsatisfiableVariants
+                | Self::ClampedValue
+                | Self::PreferCanonicalUtilities
+                | Self::PreferSortedUtilities
+                | Self::RedundantVariant
+                | Self::PreferTypedVariables
+                | Self::InvalidLintSuppression
+                | Self::UnusedLintSuppression => true,
+                Self::InvalidRuleGroupInput
+                | Self::InvalidStyleInput
+                | Self::InvalidCvaConfig
+                | Self::InvalidCvaInput
+                | Self::InvalidKeyframesUse
+                | Self::InvalidKeyframesDefinition
+                | Self::InvalidKeyframesVariant
+                | Self::InvalidViewTransitionUse
+                | Self::InvalidViewTransitionDefinition
+                | Self::InvalidViewTransitionVariant
+                | Self::InvalidRefInput
+                | Self::InvalidAnimationOption
+                | Self::InvalidStyleComposition
+                | Self::RuntimeConditionRequiresCssIf
+                | Self::MissingDocumentTarget
+                | Self::MutatingMacroArgument
+                | Self::SuspendingMacroArgument
+                | Self::MismatchedFrameworkImport
+                | Self::ConflictingProviderProperties
+                | Self::UnverifiedStyleBase
+                | Self::AmbiguousStyleBaseOrder
+                | Self::InterferingImportedStyleBase
+                | Self::MissingRefAttachment
+                | Self::MissingViewTransitionName
+                | Self::DuplicateViewTransitionName
+                | Self::SplitViewTransitionClass
+                | Self::IneffectiveAnchorScope
+                | Self::NoArbitraryColors
+                | Self::NoArbitrarySpacing
+                | Self::NoClassProperty
+                | Self::NoRestrictedUtilities
+                | Self::NoRestrictedDeclarations
+                | Self::NoImportant
+                | Self::NoRestrictedLengthUnits
+                | Self::NoRestrictedThemeTokens
+                | Self::NoArbitraryBreakpoints
+                | Self::PreferDirectStyling
+                | Self::PreferLogicalProperties
+                | Self::PreferTypedRelationships => false,
+            },
+        }
+    }
+}

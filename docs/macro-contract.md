@@ -391,8 +391,9 @@ user inline styles are outside their view.
 If a composition base and the current call declare separate transition classes,
 the compiler reports `SplitViewTransitionClasses` (`split-view-transition-class`,
 default `warn`). `view-transition-class` is one property: the lists do not merge,
-and the derived list replaces the base list. Build hosts fail when findings with
-an effective `deny` policy remain.
+and the derived list replaces the base list. Build, development, and watch sessions
+skip lint detection and reporting, so `deny` findings never fail a build. Run
+`stillwind lint` to enforce the project's lint settings.
 
 Suppression does not guarantee preservation of the order or count of effects that
 violate this contract. The compiler does not prove
@@ -770,7 +771,9 @@ covers the variant that refers to `&` before an earlier variant selects an eleme
 the whole candidate when no variant selects one. When a variant with a selector list
 sets the anchor, later selectors apply to every branch through `:is()`.
 `document-scoped-selector` checks only the variants after the anchor, so
-`host:[:root]:flex` reports `[:root]`.
+`host:[:root]:flex` reports `[:root]`. [Stylesheet lint](standalone-analysis.md#stylesheet-lint)
+applies these rules to `@apply` candidates and `@variant` sequences, whose anchor is the
+selector of the enclosing rule.
 
 ## Variant negation
 

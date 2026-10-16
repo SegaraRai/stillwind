@@ -36,11 +36,15 @@ for (const backend of ["webpack", "rspack"] as const) {
     }
   });
 
-  test(`${backend} skips denied lint findings while rejecting compiler errors`, async () => {
+  test(`${backend} skips denied lint findings in scripts and stylesheets while rejecting compiler errors`, async () => {
     const { root, build } = await compilerFixture(backend, "config");
     await writeFile(
       path.join(root, "stillwind.config.ts"),
       'export default {projects:[{css:"root.css",files:["*.js"],automatic:false,lint:{rules:{"unknown-utility":"deny"}}}]};',
+    );
+    await writeFile(
+      path.join(root, "root.css"),
+      "@utility red{color:red}@utility blue{color:blue}@stillwind-slot utilities;.card{@apply missing;}",
     );
     await writeFile(
       path.join(root, "main.js"),

@@ -2,6 +2,7 @@ import { captureProjectConfig, type AnalysisProjectConfig } from "@stillwind/con
 import {
   NativeProjectSession,
   type BindingRejectedIdentifier,
+  type BindingReport,
   type NativeCssResource,
   type NativeDesignSystemLoader,
 } from "@stillwind/native";
@@ -77,6 +78,8 @@ export class BrowserProject {
   #closed = false;
   /** Resource placeholders supplied by the loaded CSS graph. */
   #resources: NativeCssResource[] = [];
+  /** Paths that the loaded CSS graph marks for stylesheet lint, in load order. */
+  #lintSources: string[] = [];
   /** Analysis graphs keyed by full entry identity, invalidated when native artifacts are removed. */
   readonly #cache = new Map<string, BrowserModuleAnalysis>();
 
@@ -92,6 +95,89 @@ export class BrowserProject {
       files: this.#files,
       tsconfig: options.config.tsconfig,
     });
+  }
+
+  /**
+   * Selects the document identity shared by compiler reports and CSS maps.
+   * @param file - Absolute path in the virtual filesystem.
+   * @returns The configured URI, or the path prefixed with `file://`.
+   */
+  #documentUri(file: string): string {
+    return this.#options.documentUri?.(file) ?? `file://${file}`;
+  }
+
+  /**
+   * Reads captured text without accessing the physical filesystem.
+   * @param file - Exact path key in the virtual filesystem.
+   * @returns The text currently stored under that key.
+   * @throws If the virtual file is absent.
+   */
+  async #read(file: string): Promise<string> {
+    const text = this.#files.get(file);
+    if (text === undefined) {
+      throw new Error(`Virtual file does not exist: ${file}`);
+    }
+    return text;
+  }
+
+  /**
+   * Loads the configured CSS graph once and creates the native session that uses it.
+   * @returns The retained loader.
+   * @throws If resolving, reading, or loading the CSS graph fails.
+   */
+  async #designSystem(): Promise<NativeDesignSystemLoader> {
+    if (!this.#loader) {
+      const { config, root } = this.#options;
+      const uri = (file: string) => this.#documentUri(file);
+      const loaded = await loadCssGraph(
+        resolve(root, cssEntrypoint(config)),
+        compilerOptions(config),
+        {
+          resolve: async (specifier, importer) => {
+            const resolved = resolveVirtualModule(this.#files, specifier, importer, "style");
+            if (!resolved) {
+              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+            }
+            return resolved;
+          },
+          read: (file) => this.#read(file),
+          documentUri: uri,
+          sourceMapSource: uri,
+          watch: () => {},
+        },
+      );
+      this.#loader = loaded.loader;
+      this.#resources = loaded.resources;
+      this.#lintSources = loaded.lintSources;
+      this.#session = new NativeProjectSession(this.#loader, false, "development", config.naming);
+    }
+    return this.#loader;
+  }
+
+  /**
+   * Reports stylesheet lint for the CSS files that this project lints.
+   * @returns Linted virtual paths in load order, and the reports whose primary location is one of
+   * them.
+   * @throws If the project is closed or the CSS graph cannot be loaded.
+   */
+  stylesheetLint(): Promise<{
+    /** Virtual paths of the CSS entry and the imported files marked for lint. */
+    sources: string[];
+    /** Stylesheet lint reports with original document locations. */
+    reports: BindingReport[];
+  }> {
+    if (this.#closed) {
+      return Promise.reject(new Error("Browser project is closed"));
+    }
+    const task = this.#queue.then(async () => {
+      const loader = await this.#designSystem();
+      return {
+        sources: [...this.#lintSources],
+        reports: loader.stylesheetReports(),
+      };
+    });
+    this.#queue = task.catch(() => {});
+    return task;
   }
 
   /**
@@ -113,45 +199,10 @@ export class BrowserProject {
 
       const { config, root } = this.#options;
 
-      /**
-       * Selects the document identity shared by compiler reports and CSS maps.
-       * @param file - Absolute path in the virtual filesystem.
-       * @returns The configured URI, or the path prefixed with `file://`.
-       */
-      const uri = (file: string) => this.#options.documentUri?.(file) ?? `file://${file}`;
-      /**
-       * Reads captured text without accessing the physical filesystem.
-       * @param file - Exact path key in the virtual filesystem.
-       * @returns The text currently stored under that key.
-       * @throws If the virtual file is absent.
-       */
-      const read = async (file: string) => {
-        const text = this.#files.get(file);
-        if (text === undefined) {
-          throw new Error(`Virtual file does not exist: ${file}`);
-        }
-        return text;
-      };
+      const uri = (file: string) => this.#documentUri(file);
+      const read = (file: string) => this.#read(file);
 
-      if (!this.#loader) {
-        const css = resolve(root, cssEntrypoint(config));
-        const loaded = await loadCssGraph(css, compilerOptions(config), {
-          resolve: async (specifier, importer) => {
-            const resolved = resolveVirtualModule(this.#files, specifier, importer, "style");
-            if (!resolved) {
-              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
-            }
-            return resolved;
-          },
-          read,
-          documentUri: uri,
-          sourceMapSource: uri,
-          watch: () => {},
-        });
-        this.#loader = loaded.loader;
-        this.#resources = loaded.resources;
-        this.#session = new NativeProjectSession(this.#loader, false, "development", config.naming);
-      }
+      await this.#designSystem();
 
       /**
        * Describes a virtual file for compilation and checker preparation.

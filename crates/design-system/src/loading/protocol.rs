@@ -47,6 +47,9 @@ pub struct CssSource {
     /// Parsed buffer. Its file ID was allocated in acceptance order and is the identity
     /// used by every pre-expansion span for this source.
     pub source: Arc<SourceFile>,
+    /// Whether stylesheet lint checks this source. It is true when any response that
+    /// supplied this name set [`CssFileInput::lint`].
+    pub lint: bool,
 }
 
 /// A resolved import edge. `target` is the name the host supplied for the request,
@@ -137,4 +140,8 @@ pub struct CssFileInput {
     pub source_map_source: Option<Arc<str>>,
     /// Full text of the source.
     pub content: Arc<str>,
+    /// Whether stylesheet lint checks this source. Hosts set it for the user's own CSS
+    /// and leave it false for package CSS, such as the `stillwind` package and files
+    /// under `node_modules`. It does not change the snapshot's definitions or output.
+    pub lint: bool,
 }

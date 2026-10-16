@@ -67,7 +67,9 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     case "targets": {
       const files = await Promise.all(
         workspace.projects.map((project) =>
-          workspace!.targets(project, request.patterns ? [...request.patterns] : undefined),
+          workspace!.targets(project, request.patterns ? [...request.patterns] : undefined, {
+            stylesheets: request.stylesheets,
+          }),
         ),
       );
       return [...new Set(files.flat())].sort();

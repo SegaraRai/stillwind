@@ -2,12 +2,15 @@
 //!
 //! Directives are parsed out of the raw source text by scanning comments while skipping
 //! string literals, so directive-shaped text inside a string or template is not a
-//! directive. A parsed directive carries the kind, the byte offset and zero-based line
-//! of its keyword, and its selected rules. An omitted list or `*` selects every rule;
-//! unknown names in an explicit list select no additional rules and remain available for validation.
+//! directive. [`LintSurface`] selects the comment syntax: scripts have line and block
+//! comments, and stylesheets have only block comments. A parsed directive carries the
+//! kind, the byte offset and zero-based line of its keyword, and its selected rules. An
+//! omitted list or `*` selects every rule; unknown names in an explicit list select no
+//! additional rules and remain available for validation.
 //!
-//! The compiler validates directives and filters findings after all producers have run. A finding is judged by its first label, and a finding without
-//! labels is treated as covering the whole file.
+//! The compiler validates directives and filters findings after all producers have run.
+//! A finding is judged by its first label, and a finding without labels is treated as
+//! covering the whole file.
 
 use std::collections::BTreeSet;
 
@@ -15,7 +18,7 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_source::{SourceFile, Span};
 
-use super::{LintDiagnostic, LintFinding, LintKind, LintSettings, LintSeverity};
+use super::{LintDiagnostic, LintFinding, LintKind, LintSettings, LintSeverity, LintSurface};
 
 /// What a directive switches off, as determined by its keyword.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -80,12 +83,17 @@ impl LintDirectiveRules {
 /// backwards, findings not named by a rule list are kept, and this function can only
 /// remove findings, never add them. Retained findings keep their original order.
 ///
-/// Primary spans must refer to `source`; file identities and bounds are not validated.
-/// A directive cannot suppress validation or unused findings about itself.
-/// Only the first label's start offset participates. A missing label uses offset zero;
-/// secondary labels and messages do not affect suppression.
-pub fn filter_lint_findings(source: &SourceFile, findings: &mut Vec<LintFinding>) {
-    let directives = collect_lint_directives(source.text());
+/// Primary spans must refer to `source`, and `surface` selects its comment syntax. File
+/// identities and bounds are not validated. A directive cannot suppress validation or
+/// unused findings about itself. Only the first label's start offset participates. A
+/// missing label uses offset zero. Secondary labels and messages do not affect
+/// suppression.
+pub fn filter_lint_findings(
+    source: &SourceFile,
+    surface: LintSurface,
+    findings: &mut Vec<LintFinding>,
+) {
+    let directives = collect_lint_directives(source.text(), surface);
     findings.retain(|finding| suppressing_directive(source, finding, &directives).is_none());
 }
 
@@ -141,12 +149,17 @@ pub(crate) fn suppressing_directive(
     active.or(local)
 }
 
-/// Validates suppression comments, detects unused disables after complete analysis, and filters findings.
-/// `complete` must be false when analysis stopped before all producers ran. Only enabled
-/// rules or rules with reported findings participate in unused checks. Validation findings
-/// do not make their own suppression directives count as used.
+/// Validates suppression comments, detects unused disables after complete analysis, and
+/// filters findings. `complete` must be false when analysis stopped before all
+/// producers ran. Only enabled rules or rules with reported findings participate in
+/// unused checks. Validation findings do not make their own suppression directives
+/// count as used.
+///
+/// `surface` selects the comment syntax of `source`. A rule name that does not check
+/// `surface` is invalid, and only rules that check it participate in unused checks.
 pub fn finish_lint_findings(
     source: &SourceFile,
+    surface: LintSurface,
     settings: &LintSettings,
     findings: &mut Vec<LintFinding>,
     complete: bool,
@@ -155,7 +168,7 @@ pub fn finish_lint_findings(
         findings.clear();
         return;
     }
-    let directives = collect_lint_directives(source.text());
+    let directives = collect_lint_directives(source.text(), surface);
     let mut additional = Vec::new();
     if settings.enabled_for_detection(LintKind::InvalidLintSuppression) {
         for directive in &directives {
@@ -172,14 +185,19 @@ pub fn finish_lint_findings(
                 ));
             }
             for (name, offset) in &directive.names {
-                if name != "*" && LintKind::from_name(name).is_none() {
-                    additional.push(LintFinding::new(
-                        LintDiagnostic::InvalidLintSuppression {
-                            detail: format_args!("unknown rule `{name}`").to_lean_str(),
-                        },
-                        directive_span(source, *offset, *offset + name.len()),
-                    ));
-                }
+                let detail = match LintKind::from_name(name) {
+                    _ if name == "*" => continue,
+                    None => format_args!("unknown rule `{name}`").to_lean_str(),
+                    Some(kind) if !kind.checks(surface) => {
+                        format_args!("rule `{name}` does not check {}", surface_noun(surface))
+                            .to_lean_str()
+                    }
+                    Some(_) => continue,
+                };
+                additional.push(LintFinding::new(
+                    LintDiagnostic::InvalidLintSuppression { detail },
+                    directive_span(source, *offset, *offset + name.len()),
+                ));
             }
         }
     }
@@ -208,7 +226,8 @@ pub fn finish_lint_findings(
                     LintKind::InvalidLintSuppression
                         | LintKind::UnusedLintSuppression
                         | LintKind::PreferSortedUtilities
-                ) && settings.reporting_severity(kind) != LintSeverity::Off
+                ) && kind.checks(surface)
+                    && settings.reporting_severity(kind) != LintSeverity::Off
                     && (settings.enabled_for_detection(kind) || executed.contains(&kind))
             };
             match &directive.rules {
@@ -244,7 +263,15 @@ pub fn finish_lint_findings(
         }
     }
     findings.extend(additional);
-    filter_lint_findings(source, findings);
+    filter_lint_findings(source, surface, findings);
+}
+
+/// Returns the plural noun for sources of `surface`, as used in finding details.
+const fn surface_noun(surface: LintSurface) -> &'static str {
+    match surface {
+        LintSurface::Script => "scripts",
+        LintSurface::Stylesheet => "stylesheets",
+    }
 }
 
 fn directive_span(source: &SourceFile, start: usize, end: usize) -> Span {
@@ -256,15 +283,19 @@ fn directive_span(source: &SourceFile, start: usize, end: usize) -> Span {
 
 /// Parses the `swlint-*` directives in `source`, in source order.
 ///
-/// Comment bodies are scanned with string and template literals skipped, so directive
-/// text inside a literal is ignored. A rule list ends at `--`, which lets the directive
-/// carry a trailing human explanation; rules are separated by whitespace or commas.
+/// Comment bodies are scanned with string literals skipped, so directive text inside a
+/// literal is ignored. For [`LintSurface::Script`], `//` starts a line comment and a
+/// backtick starts a template literal. For [`LintSurface::Stylesheet`], only `/* */`
+/// encloses comments and only quotes enclose strings. A rule list ends at `--`, which
+/// lets the directive carry a trailing human explanation; rules are separated by
+/// whitespace or commas.
 ///
 /// A comment yields at most one directive, and only from its first `swlint-`
-/// occurrence. Unrecognized keywords are retained as invalid directives without changing
-/// reporting. There is no requirement that the keyword start the comment:
+/// occurrence. Unrecognized keywords are retained as invalid directives without
+/// changing reporting. There is no requirement that the keyword start the comment:
 /// prose containing a recognized directive spelling is parsed too.
-pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
+pub fn collect_lint_directives(source: &str, surface: LintSurface) -> Vec<LintDirective> {
+    let script = surface == LintSurface::Script;
     let bytes = source.as_bytes();
     let mut comments = Vec::new();
     let mut cursor = 0;
@@ -281,12 +312,12 @@ pub fn collect_lint_directives(source: &str) -> Vec<LintDirective> {
             }
             continue;
         }
-        if matches!(bytes[cursor], b'\'' | b'"' | b'`') {
+        if matches!(bytes[cursor], b'\'' | b'"') || script && bytes[cursor] == b'`' {
             quote = Some(bytes[cursor]);
             cursor += 1;
             continue;
         }
-        if bytes[cursor] == b'/' && bytes[cursor + 1] == b'/' {
+        if script && bytes[cursor] == b'/' && bytes[cursor + 1] == b'/' {
             let start = cursor + 2;
             cursor = source[cursor..]
                 .find('\n')
@@ -376,6 +407,7 @@ mod tests {
     fn directives_ignore_strings_and_retain_rule_and_line_information() {
         let directives = collect_lint_directives(
             "'// swlint-disable fake'\n// swlint-disable-next-line missing-ref-attachment,ineffective-anchor-scope -- reason\nx\n/* swlint-enable missing-ref-attachment */",
+            LintSurface::Script,
         );
         assert_eq!(directives.len(), 2);
         assert_eq!(directives[0].kind, LintDirectiveKind::DisableNextLine);
@@ -408,16 +440,17 @@ mod tests {
                 LintDiagnostic::MissingRefAttachment { name: "x".into() },
                 span,
             )];
-            let directives = collect_lint_directives(source.text());
+            let directives = collect_lint_directives(source.text(), LintSurface::Script);
             assert_eq!(
                 directives[0].rules,
                 LintDirectiveRules::Named(BTreeSet::new())
             );
-            filter_lint_findings(&source, &mut findings);
+            filter_lint_findings(&source, LintSurface::Script, &mut findings);
             assert_eq!(findings.len(), 1);
         }
         let directives = collect_lint_directives(
             "// swlint-disable unknown-rule,missing-ref-attachment\n// swlint-enable unknown-rule,*",
+            LintSurface::Script,
         );
         assert_eq!(
             directives[0].rules,
@@ -450,7 +483,7 @@ mod tests {
                 Span::new(FileId(1), x + 2, x + 3),
             ),
         ];
-        filter_lint_findings(&source, &mut findings);
+        filter_lint_findings(&source, LintSurface::Script, &mut findings);
         assert_eq!(
             findings.iter().map(LintFinding::code).collect::<Vec<_>>(),
             vec!["ineffective-anchor-scope", "missing-ref-attachment"]
@@ -498,7 +531,7 @@ mod tests {
                     })
                 })
                 .collect();
-            filter_lint_findings(&source, &mut findings);
+            filter_lint_findings(&source, LintSurface::Script, &mut findings);
             assert_eq!(
                 findings.iter().map(LintFinding::code).collect::<Vec<_>>(),
                 expected,
@@ -535,7 +568,7 @@ mod tests {
             primary,
         );
         let mut findings = vec![suppressed, retained.clone()];
-        filter_lint_findings(&source, &mut findings);
+        filter_lint_findings(&source, LintSurface::Script, &mut findings);
         assert_eq!(findings, vec![retained]);
     }
 
@@ -544,7 +577,13 @@ mod tests {
         let source = SourceFile::new(FileId(1), None, None,
             "'// swlint-disable typo'\n// swlint-disable-line *,typo -- allowed explanation\n// swlint-disabled no-important\nx").unwrap();
         let mut findings = Vec::new();
-        finish_lint_findings(&source, &LintSettings::with_defaults(), &mut findings, true);
+        finish_lint_findings(
+            &source,
+            LintSurface::Script,
+            &LintSettings::with_defaults(),
+            &mut findings,
+            true,
+        );
         let text = findings
             .iter()
             .map(|finding| source.slice(finding.labels[0].span).unwrap())
@@ -572,7 +611,7 @@ mod tests {
             ),
             LintFinding::new(LintDiagnostic::ClassProperty, span),
         ];
-        filter_lint_findings(&source, &mut findings);
+        filter_lint_findings(&source, LintSurface::Script, &mut findings);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].kind(), LintKind::NoImportant);
     }
@@ -597,7 +636,7 @@ mod tests {
             },
             Span::new(source.id(), offset, offset + 1),
         )];
-        finish_lint_findings(&source, &settings, &mut findings, true);
+        finish_lint_findings(&source, LintSurface::Script, &settings, &mut findings, true);
         let rules = findings
             .iter()
             .filter_map(|finding| match &finding.diagnostic {
@@ -607,7 +646,56 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(rules, ["no-class-property", "*"]);
         let mut partial = Vec::new();
-        finish_lint_findings(&source, &settings, &mut partial, false);
+        finish_lint_findings(&source, LintSurface::Script, &settings, &mut partial, false);
         assert_eq!(partial, [] as [LintFinding; 0]);
+    }
+
+    #[test]
+    fn stylesheets_have_only_block_comments_and_quoted_strings() {
+        let css = ".a { background: url(//x/swlint-disable); content: '/* swlint-enable */'; }
+                   /* swlint-disable-next-line unknown-utility -- reason */
+.b{}";
+        let directives = collect_lint_directives(css, LintSurface::Stylesheet);
+        assert_eq!(directives.len(), 1);
+        assert_eq!(directives[0].kind, LintDirectiveKind::DisableNextLine);
+        assert_eq!(directives[0].line, 1);
+        let directives = collect_lint_directives("`/* swlint-disable */`", LintSurface::Stylesheet);
+        assert_eq!(directives.len(), 1);
+        assert!(collect_lint_directives("`/* swlint-disable */`", LintSurface::Script).is_empty());
+    }
+
+    #[test]
+    fn stylesheet_directives_reject_rules_that_do_not_check_stylesheets() {
+        let text = "/* swlint-disable missing-ref-attachment unknown-utility */
+.a{}";
+        let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+        let mut settings = LintSettings::with_defaults();
+        settings.insert(LintConfig::MissingRefAttachment(LintSeverity::Warn));
+        settings.insert(LintConfig::UnusedLintSuppression(LintSeverity::Warn));
+        let mut findings = Vec::new();
+        finish_lint_findings(
+            &source,
+            LintSurface::Stylesheet,
+            &settings,
+            &mut findings,
+            true,
+        );
+        let details = findings
+            .iter()
+            .map(|finding| match &finding.diagnostic {
+                LintDiagnostic::InvalidLintSuppression { detail } => detail.to_lean_string(),
+                LintDiagnostic::UnusedLintSuppression { rule } => {
+                    format_args!("unused {rule}").to_lean_string()
+                }
+                diagnostic => panic!("{diagnostic:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            details,
+            [
+                "rule `missing-ref-attachment` does not check stylesheets",
+                "unused unknown-utility"
+            ]
+        );
     }
 }

@@ -22,8 +22,9 @@ export declare class NativeDesignSystemLoader {
   /**
    * Answers one pending request by calling [`Self::provide_many`] with one file.
    * An absent URI marks the CSS as an internal buffer without a reportable location.
+   * `lint` marks the source for stylesheet lint, and an absent value means false.
    */
-  provide(id: number, name: string, content: string, uri?: string | undefined | null, sourceMapSource?: string | undefined | null): NativeCssLoadStep
+  provide(id: number, name: string, content: string, uri?: string | undefined | null, sourceMapSource?: string | undefined | null, lint?: boolean | undefined | null): NativeCssLoadStep
   /**
    * Answers any subset of the outstanding requests, in any order.
    *
@@ -33,8 +34,21 @@ export declare class NativeDesignSystemLoader {
    */
   provideMany(files: Array<NativeCssFileInput>): NativeCssLoadStep
   /**
-   * Creates editor queries pinned to this completed design system and its compiler options.
-   * Returns an error while CSS loading is incomplete.
+   * Returns lint reports for the sources marked with `lint`, using the lint settings
+   * of this loader's options and the stylesheet's own lint configuration.
+   *
+   * Reports and fixes address the marked CSS documents. The analysis runs once for
+   * each design-system revision and compiler options, and later calls reuse it.
+   *
+   * # Errors
+   *
+   * Returns an error while CSS loading is incomplete or when a report range is
+   * invalid.
+   */
+  stylesheetReports(): Array<BindingReport>
+  /**
+   * Creates editor queries pinned to this completed design system and its compiler
+   * options. Returns an error while CSS loading is incomplete.
    */
   editorQuery(): NativeEditorQuery
 }
@@ -185,6 +199,16 @@ export declare class NativeProjectSession {
    * Rejects malformed document identities or original coordinates.
    */
   reportSourceFailure(failure: NativeSourceFailure): NativeDiagnosticBatch
+  /**
+   * Returns lint reports for the marked stylesheets of the current design-system
+   * revision, as [`NativeDesignSystemLoader::stylesheet_reports`] does, using the
+   * options of this session.
+   *
+   * # Errors
+   *
+   * Returns an error when a report range is invalid.
+   */
+  stylesheetReports(): Array<BindingReport>
   /** Returns the latest attempted diagnostics for every retained module. */
   diagnosticBatches(): Array<NativeDiagnosticBatch>
   /**
@@ -737,6 +761,11 @@ export interface NativeCssFileInput {
   sourceMapSource?: string
   /** Full text of the source. */
   content: string
+  /**
+   * Whether stylesheet lint checks this source. Mark the user's own CSS and leave
+   * package CSS unmarked. Absent means false.
+   */
+  lint?: boolean
 }
 
 /**
@@ -752,7 +781,8 @@ export type NativeCssLoadStep =
   | { kind: 'complete'; /** Revision of the completed snapshot. */
     revision: string; /** Resource references the CSS declares. */
     resources: Array<NativeCssResource>; /** Names of every source the loader received, for watch registration. */
-  sources: Array<string> }
+    sources: Array<string>; /** Names of the sources marked for stylesheet lint, in acceptance order. */
+  lintSources: Array<string> }
 
 /** Final asset processing settings. Omitted fields use the Rust API defaults. */
 export interface NativeCssMinifyOptions {

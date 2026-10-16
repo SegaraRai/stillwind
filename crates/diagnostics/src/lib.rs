@@ -56,7 +56,7 @@ pub use lint::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
     LintCategory, LintConfig, LintDiagnostic, LintDirective, LintDirectiveKind, LintDirectiveRules,
-    LintFinding, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity,
+    LintFinding, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity, LintSurface,
     RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,

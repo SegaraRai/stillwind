@@ -180,8 +180,9 @@ impl DesignSystemLoader {
 
     /// Answers one request; equivalent to a one-element [`Self::provide_many`].
     ///
-    /// The first call must carry exactly one file and becomes the root source.
-    /// `None` for `uri` identifies an internal buffer without a reportable document.
+    /// The first call must carry exactly one file and becomes the root source. `None`
+    /// for `uri` identifies an internal buffer without a reportable document. The
+    /// source is not marked for stylesheet lint. [`Self::provide_many`] can mark it.
     pub fn provide(
         &mut self,
         id: u32,
@@ -196,6 +197,7 @@ impl DesignSystemLoader {
             uri,
             source_map_source,
             content,
+            lint: false,
         }])
     }
 
@@ -257,6 +259,9 @@ impl DesignSystemLoader {
                 file.source_map_source,
                 file.content,
             )?;
+            if let Some(source) = self.graph.sources.get_mut(index) {
+                source.lint |= file.lint;
+            }
             if let Some((source, import)) = parent {
                 *self
                     .nodes
@@ -398,7 +403,11 @@ impl DesignSystemLoader {
             requests,
         });
         self.known.insert(name.clone(), index);
-        self.graph.sources.push(CssSource { name, source });
+        self.graph.sources.push(CssSource {
+            name,
+            source,
+            lint: false,
+        });
         Ok(index)
     }
 
@@ -537,6 +546,7 @@ mod tests {
             loader.graph.sources.push(CssSource {
                 name: "node.css".into(),
                 source,
+                lint: false,
             });
         }
         loader

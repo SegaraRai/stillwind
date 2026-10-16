@@ -18,7 +18,8 @@ use std::sync::Arc;
 use lean_string::ToLeanStr;
 
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, collect_lint_directives,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSurface,
+    collect_lint_directives,
 };
 use stillwind_ir::{
     CheckerProjection, ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe,
@@ -116,7 +117,7 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                             summary: ModuleSummary::new(input.module_id.clone()),
                             type_probes: Vec::new(),
                             lint_directives: if self.lint {
-                                collect_lint_directives(source.text())
+                                collect_lint_directives(source.text(), LintSurface::Script)
                             } else {
                                 Vec::new()
                             },
@@ -165,7 +166,7 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                 }))
                 .collect(),
             lint_directives: if self.lint {
-                collect_lint_directives(source.text())
+                collect_lint_directives(source.text(), LintSurface::Script)
             } else {
                 Vec::new()
             },

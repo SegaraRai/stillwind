@@ -62,6 +62,8 @@ pub enum NativeCssLoadStep {
         resources: Vec<NativeCssResource>,
         /// Names of every source the loader received, for watch registration.
         sources: Vec<String>,
+        /// Names of the sources marked for stylesheet lint, in acceptance order.
+        lint_sources: Vec<String>,
     },
 }
 

@@ -156,6 +156,8 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Serializes analysis of a captured inventory using a temporary project for each matching scope.
+   * A stylesheet that a project lints matches that project, and its reports are its stylesheet
+   * lint findings.
    * @param uri - Original target URI or virtual path.
    * @param signal - Optional cancellation checked before and after compiler work.
    * @returns Results in project order. Compiler failures produce incomplete results, and obsolete
@@ -184,8 +186,9 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
             : undefined;
 
       const results: WorkspaceResult[] = [];
+      const stylesheet = /\.css$/i.test(id);
       for (const [index, config] of this.#options.projects.entries()) {
-        if (!includes(config, id)) {
+        if (!includes(config, id) && !stylesheet) {
           continue;
         }
 
@@ -202,7 +205,19 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
           reports: [],
         };
         try {
-          if (!obsolete()) {
+          if (stylesheet) {
+            const lint = await project.stylesheetLint().catch(() => undefined);
+            if (!lint?.sources.includes(id)) {
+              continue;
+            }
+            result = {
+              ...result,
+              status: "complete",
+              reports: lint.reports.filter(
+                (report) => virtualPath(report.primary.location.uri) === id,
+              ),
+            };
+          } else if (!obsolete()) {
             const graph = await project.analyze(id);
             const observations = structuredClone({
               reports: graph.batches

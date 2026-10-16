@@ -13,7 +13,7 @@
 //! [`output`] defines compilation results and structured CSS contributions. [`editor`]
 //! captures source occurrences and reuses emission for isolated CSS previews.
 //! [`document`] resolves document-level styles, whose variants select the element to
-//! style.
+//! style. [`stylesheet`] also checks the stylesheets that a host marks for lint.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's
@@ -47,6 +47,7 @@ pub use api::Compiler;
 pub use editor::{EditorSite, EditorSiteKind, ModuleEditor};
 pub use output::{CompileResult, CssContribution};
 pub use props::{GeneratedClass, GuardStep};
+pub use stylesheet::{StylesheetLint, lint_stylesheets};
 pub use symbols::{GeneratedSymbol, GeneratedSymbolKind, SymbolOrigin};
 
 pub(crate) use animation_options::{OptionVariants, resolve_options};

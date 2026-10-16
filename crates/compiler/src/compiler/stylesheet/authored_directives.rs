@@ -5,111 +5,165 @@
 //! declaration-ordering rules. It appends registration requirements to a separate
 //! accumulator; it does not select registrations or place output slots.
 //!
-//! Expansion uses textual directive discovery. Unresolved application candidates
-//! contribute nothing. An unterminated application or an unresolvable variant ends
-//! its expansion loop, leaving that directive and later occurrences unchanged.
+//! Directives are found through [`parse_structure`], which stylesheet lint also uses,
+//! so expansion and lint agree on which text is a directive. An unresolved application
+//! candidate contributes nothing. A variant sequence that does not parse or resolve is
+//! a false condition and contributes nothing, so a block whose sequences all fail is
+//! removed with its contents.
+
+use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_diagnostics::CompileDiagnostic;
-use stillwind_syntax::parse_candidate;
+use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
 use super::super::utilities::resolve_utility;
 use super::super::utilities::{order_utilities, prepend_missing_declarations};
 use super::super::variants::{VariantStep, variant_paths};
-use super::blocks::find_at_rule_block;
 use crate::identifiers::IdentifierContext;
 
-/// Rewrites every `@apply` and `@variant` in `css` that can be expanded.
+/// Rewrites every `@apply` statement and `@variant` block in `css`.
 ///
 /// Returns a new string; `css` and `theme` are not modified. Resolved applications
 /// append registration names to `required_properties` in utility emission order,
 /// retaining existing entries and duplicates. Applications are expanded before
 /// variants. Within an application, unconditional declarations precede runtime-guarded
 /// rules; builtin ordering is retained within each group. Runtime guards remain
-/// unresolved `--if` expressions for the later options-aware lowering pass. A directive
-/// that cannot be expanded remains in the returned text, so this function is not a CSS
-/// validator.
+/// unresolved `--if` expressions for the later options-aware lowering pass. A
+/// `@variant` statement without a block remains in the returned text, so this function
+/// is not a CSS validator.
+///
+/// # Errors
+///
+/// Returns a malformed requirement of a matching utility definition, or the host
+/// generator's failure for a conditional helper's name.
 pub(in crate::compiler) fn expand_authored_directives(
     css: &str,
     theme: &ThemeIndex,
     required_properties: &mut Vec<LeanStr>,
     identifiers: &IdentifierContext,
 ) -> Result<LeanString, CompileDiagnostic> {
-    let mut output = css.to_lean_string();
-    while let Some(start) = output.find("@apply ") {
-        let Some(end_rel) = output[start..].find(';') else {
-            break;
-        };
-        let end = start + end_rel;
-        let candidates = output[start + 7..end].split_whitespace();
-        let mut utilities = Vec::new();
-        for candidate in candidates {
-            match resolve_utility(candidate, theme) {
-                Ok(Ok(utility)) => utilities.push(utility),
-                Ok(Err(_)) => {}
-                Err(error) => {
-                    return Err(CompileDiagnostic::MalformedUtilityRequirement {
-                        utility: error.name,
-                        offset: error.source.offset,
-                    });
-                }
-            }
-        }
-        let mut ordered = order_utilities(utilities.iter().collect());
-        ordered.sort_by_key(|utility| {
-            utility.variants.iter().any(|variant| {
-                matches!(
-                    resolve_variant(variant, theme).ok(),
-                    Some(VariantApplication::Conditional(_))
-                )
-            })
-        });
-        let mut declarations = LeanString::new();
-        for utility in ordered {
-            required_properties.extend(utility.required_properties.iter().cloned());
-            if utility.variants.iter().any(|variant| {
-                matches!(
-                    resolve_variant(variant, theme).ok(),
-                    Some(VariantApplication::Conditional(_))
-                )
-            }) {
-                let applications = utility
-                    .variants
-                    .iter()
-                    .filter_map(|variant| resolve_variant(variant, theme).ok())
-                    .collect::<Vec<_>>();
-                declarations.push_str(&render_authored_variant_path(
-                    &utility.declaration,
-                    &applications,
-                    identifiers,
-                )?);
-            } else {
-                declarations.push_str(&utility.declaration);
-            }
-        }
-        output.replace_range(start..=end, &declarations);
+    let mut applications = Vec::new();
+    collect_applications(&parse_structure(css), &mut applications);
+    let mut output = LeanString::new();
+    let mut cursor = 0;
+    for (range, candidates) in applications {
+        output.push_str(&css[cursor..range.start]);
+        output.push_str(&expand_application(
+            candidates.iter().map(|candidate| &css[candidate.clone()]),
+            theme,
+            required_properties,
+            identifiers,
+        )?);
+        cursor = range.end;
     }
-    while let Some((start, prelude, open, close)) = find_at_rule_block(&output, "variant") {
+    output.push_str(&css[cursor..]);
+    // Each pass replaces the first remaining block, and an expansion adds no variant
+    // block of its own, so the loop ends. Inner blocks are expanded after the outer
+    // ones, inside the rules that the outer variants produce.
+    while let Some((range, prelude, body)) = first_variant_block(&parse_structure(&output)) {
         let replacement =
-            expand_authored_variant(&prelude, &output[open + 1..close], theme, identifiers)?;
-        let Some(replacement) = replacement else {
-            break;
-        };
-        output.replace_range(start..=close, &replacement);
+            expand_authored_variant(&output[prelude], &output[body], theme, identifiers)?;
+        output.replace_range(range, &replacement);
     }
     Ok(output)
 }
 
+/// Appends the range and candidate ranges of every `@apply` statement in `nodes`, in
+/// authored order.
+fn collect_applications(
+    nodes: &[CssNode],
+    applications: &mut Vec<(Range<usize>, Vec<Range<usize>>)>,
+) {
+    for node in nodes {
+        if let CssNodeKind::Apply { candidates } = &node.kind {
+            applications.push((node.range.clone(), candidates.clone()));
+        }
+        collect_applications(node.children(), applications);
+    }
+}
+
+/// Returns the range, prelude, and contents of the first `@variant` block in authored
+/// order. An enclosing block comes before the blocks it contains.
+fn first_variant_block(nodes: &[CssNode]) -> Option<(Range<usize>, Range<usize>, Range<usize>)> {
+    nodes.iter().find_map(|node| match &node.kind {
+        CssNodeKind::AtRule {
+            name,
+            prelude,
+            block: Some(block),
+        } if name == "variant" => {
+            Some((node.range.clone(), prelude.clone(), block.contents.clone()))
+        }
+        _ => first_variant_block(node.children()),
+    })
+}
+
+/// Returns the declarations of one `@apply` statement with `candidates`.
+///
+/// # Errors
+///
+/// Returns a malformed requirement of a matching utility definition, or the host
+/// generator's failure for a conditional helper's name.
+fn expand_application<'a>(
+    candidates: impl Iterator<Item = &'a str>,
+    theme: &ThemeIndex,
+    required_properties: &mut Vec<LeanStr>,
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    let mut utilities = Vec::new();
+    for candidate in candidates {
+        match resolve_utility(candidate, theme) {
+            Ok(Ok(utility)) => utilities.push(utility),
+            Ok(Err(_)) => {}
+            Err(error) => {
+                return Err(CompileDiagnostic::MalformedUtilityRequirement {
+                    utility: error.name,
+                    offset: error.source.offset,
+                });
+            }
+        }
+    }
+    let conditional = |variants: &[Variant]| {
+        variants.iter().any(|variant| {
+            matches!(
+                resolve_variant(variant, theme).ok(),
+                Some(VariantApplication::Conditional(_))
+            )
+        })
+    };
+    let mut ordered = order_utilities(utilities.iter().collect());
+    ordered.sort_by_key(|utility| conditional(&utility.variants));
+    let mut declarations = LeanString::new();
+    for utility in ordered {
+        required_properties.extend(utility.required_properties.iter().cloned());
+        if conditional(&utility.variants) {
+            let applications = utility
+                .variants
+                .iter()
+                .filter_map(|variant| resolve_variant(variant, theme).ok())
+                .collect::<Vec<_>>();
+            declarations.push_str(&render_authored_variant_path(
+                &utility.declaration,
+                &applications,
+                identifiers,
+            )?);
+        } else {
+            declarations.push_str(&utility.declaration);
+        }
+    }
+    Ok(declarations)
+}
+
 /// Expands one `@variant <prelude> { body }` block.
 ///
-/// The prelude is a comma-separated list of variant sequences, and each sequence
-/// expands to its own copy of the body. Returns `None` when a sequence is empty or an
-/// unknown variant appears, so the caller can leave the block unexpanded instead of
-/// emitting partial rules.
+/// Each sequence of [`variant_sequences`] expands to its own copy of the body. A
+/// sequence that [`parse_variant_sequence`] rejects or whose variants do not resolve
+/// contributes nothing.
 ///
 /// # Errors
 ///
@@ -119,22 +173,19 @@ fn expand_authored_variant(
     body: &str,
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
-) -> Result<Option<LeanString>, CompileDiagnostic> {
+) -> Result<LeanString, CompileDiagnostic> {
     let mut output = LeanString::new();
-    for variant_sequence in split_css_top_level(prelude, ',') {
-        let Some(candidate) =
-            parse_candidate(&format_args!("{}:flex", variant_sequence.trim()).to_lean_string())
-        else {
-            return Ok(None);
+    for sequence in variant_sequences(prelude) {
+        let Some(applications) = parse_variant_sequence(&prelude[sequence]).and_then(|variants| {
+            variants
+                .iter()
+                .map(|variant| resolve_variant(variant, theme).ok())
+                .collect::<Option<Vec<_>>>()
+        }) else {
+            continue;
         };
-        if candidate.variants.is_empty() {
-            return Ok(None);
-        }
         let mut paths = vec![Vec::new()];
-        for variant in &candidate.variants {
-            let Ok(application) = resolve_variant(variant, theme) else {
-                return Ok(None);
-            };
+        for application in applications {
             let alternatives = match application {
                 VariantApplication::Compound(applications) => applications,
                 application => vec![application],
@@ -158,20 +209,26 @@ fn expand_authored_variant(
             )?);
         }
     }
-    Ok(Some(output))
+    Ok(output)
 }
 
-/// Splits `value` on `separator` at the top level only.
+/// Returns the range of each comma-separated sequence of a `@variant` prelude, without
+/// surrounding whitespace.
 ///
-/// Separators inside quotes, parentheses, brackets, or braces stay part of the item
-/// they belong to, which is what allows a variant prelude to contain `:is(a, b)`.
-fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
-    let mut parts = Vec::new();
+/// Commas inside quotes, parentheses, brackets, or braces stay part of the sequence
+/// that contains them, which allows a sequence such as `[&:is(a,b)]`.
+pub(super) fn variant_sequences(prelude: &str) -> Vec<Range<usize>> {
+    let mut sequences = Vec::new();
+    let mut push = |range: Range<usize>| {
+        let text = &prelude[range.clone()];
+        let start = range.start + (text.len() - text.trim_start().len());
+        sequences.push(start..start + text.trim().len());
+    };
     let mut start = 0;
-    let mut stack = Vec::new();
+    let mut depth = 0_usize;
     let mut quote = None;
     let mut escaped = false;
-    for (index, character) in value.char_indices() {
+    for (index, character) in prelude.char_indices() {
         if let Some(active_quote) = quote {
             if escaped {
                 escaped = false;
@@ -184,19 +241,30 @@ fn split_css_top_level(value: &str, separator: char) -> Vec<&str> {
         }
         match character {
             '\'' | '"' => quote = Some(character),
-            '(' | '[' | '{' => stack.push(character),
-            ')' | ']' | '}' => {
-                stack.pop();
-            }
-            _ if character == separator && stack.is_empty() => {
-                parts.push(&value[start..index]);
-                start = index + character.len_utf8();
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                push(start..index);
+                start = index + 1;
             }
             _ => {}
         }
     }
-    parts.push(&value[start..]);
-    parts
+    push(start..prelude.len());
+    sequences
+}
+
+/// Parses one `@variant` sequence, such as `hover:focus`, into its variants.
+///
+/// Returns `None` when the text is empty or is not a complete variant list.
+pub(super) fn parse_variant_sequence(sequence: &str) -> Option<Vec<Variant>> {
+    let candidate = parse_candidate(&format_args!("{sequence}:flex").to_lean_string())?;
+    (!candidate.variants.is_empty()
+        && candidate
+            .variants
+            .iter()
+            .all(|variant| !variant.raw.is_empty()))
+    .then_some(candidate.variants)
 }
 
 /// Wraps `body` in every application of one variant path.
@@ -385,19 +453,75 @@ mod tests {
             "display:inline-flex;background-color:var(--color-red-500);padding-inline:calc(var(--spacing)*4);"
         ), "actual output: {compact}");
     }
-}
 
-#[cfg(test)]
-mod boundary_tests {
-    use super::*;
+    /// Expands `body` under the package registry and returns its expansion without the
+    /// package CSS and without whitespace.
+    fn compact_expansion(body: &str) -> LeanString {
+        let expanded = |body: &str| {
+            let source = css_source(
+                FileId(1),
+                format_args!("@import \"stillwind\"; {body}").to_lean_string(),
+            )
+            .unwrap();
+            let theme =
+                Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
+            expand(theme.custom_css(), &theme, &mut Vec::new())
+                .unwrap()
+                .chars()
+                .filter(|character| !character.is_whitespace())
+                .collect::<LeanString>()
+        };
+        let package = expanded("");
+        expanded(body)
+            .strip_prefix(package.as_str())
+            .unwrap()
+            .to_lean_string()
+    }
 
     #[test]
-    fn top_level_list_splitting_keeps_quoted_and_nested_separators() {
+    fn unresolved_variant_sequences_discard_their_copy_of_the_body() {
         assert_eq!(
-            split_css_top_level("a,[b,c],f(x,y),'z,w'", ','),
-            vec!["a", "[b,c]", "f(x,y)", "'z,w'"]
+            compact_expansion(".card { @variant nope { color: red; } }"),
+            ".card{}"
         );
-        assert_eq!(split_css_top_level("", ','), vec![""]);
-        assert_eq!(split_css_top_level("a,", ','), vec!["a", ""]);
+        assert_eq!(
+            compact_expansion(".card { @variant nope, print { color: red; } }"),
+            ".card{@mediaprint{color:red;}}"
+        );
+        assert_eq!(
+            compact_expansion(".card { @variant print { @variant nope { color: red; } } }"),
+            ".card{@mediaprint{}}"
+        );
+    }
+
+    #[test]
+    fn applications_end_at_their_statement() {
+        assert_eq!(compact_expansion(".btn { @apply unknown-x; }"), ".btn{}");
+        assert_eq!(
+            compact_expansion(".btn { @apply flex } .next { color: red; }"),
+            ".btn{display:flex;}.next{color:red;}"
+        );
+        assert_eq!(
+            compact_expansion(".btn { content: '@apply flex;'; /* @apply grid; */ }"),
+            ".btn{content:'@applyflex;';/*@applygrid;*/}"
+        );
+    }
+
+    #[test]
+    fn variant_sequences_keep_quoted_and_nested_commas() {
+        let prelude = " a ,[b,c],f(x,y),'z,w'";
+        assert_eq!(
+            variant_sequences(prelude)
+                .into_iter()
+                .map(|range| &prelude[range])
+                .collect::<Vec<_>>(),
+            ["a", "[b,c]", "f(x,y)", "'z,w'"]
+        );
+        assert_eq!(variant_sequences(""), vec![0..0]);
+        assert_eq!(parse_variant_sequence("hover:"), None);
+        assert_eq!(
+            parse_variant_sequence("").map(|variants| variants.len()),
+            None
+        );
     }
 }

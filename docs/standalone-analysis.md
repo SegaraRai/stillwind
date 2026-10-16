@@ -256,6 +256,48 @@ provided by the compiler; it does not invent replacements for findings without
 actions. Initialization failures produce `SW_HOST` errors. Unavailable semantic checks produce
 `SW_UNVERIFIED` information diagnostics, alongside the verified source findings.
 
+## Stylesheet lint
+
+Stylesheet lint checks the project's CSS entry and the CSS files that it imports by a
+relative or absolute path. A file under `node_modules`, a file imported by a package
+specifier such as `stillwind`, and every file that such a file imports are package
+CSS, and lint skips them. `loadCssGraph` marks each file when it supplies the file to
+the native loader. A host can replace this choice with `CssHost.lint`. Lint never
+changes the compiled CSS.
+
+The rules check `@apply` candidates and `@variant` sequences inside style rules:
+`unknown-utility`, `unknown-variant`, `invalid-utility`, `invalid-variant`,
+`invalid-property-value`, `clamped-value`, `redundant-variant`,
+`unsatisfiable-variants`, `prefer-typed-variables`, `prefer-canonical-utilities`,
+`prefer-sorted-utilities`, `document-scoped-selector`, and `repeated-nesting-selector`.
+Each finding covers the candidate or the part of it that causes the finding, and fixes
+edit the stylesheet. The selector of the enclosing rule is the anchor of a candidate,
+as [Variant targets](macro-contract.md#variant-targets) describes. `duplicate-utility`
+and `conflicting-utilities` compare the candidates of one `@apply` statement.
+`redundant-variant` and `unsatisfiable-variants` check a `@variant` sequence or an
+`@apply` candidate together with the sequences of the enclosing `@variant` blocks. A
+nested style rule starts a new stack, because it selects another element. Definitions
+such as `@utility` and `@custom-variant` are not checked.
+
+The rule catalog records whether each rule checks scripts, stylesheets, or both. Macro
+rules, such as `mutating-macro-argument` and the ref and view-transition rules, never
+check stylesheets. One severity setting applies to every source that a rule checks.
+In a stylesheet, only `/* ... */` comments carry `swlint-*` directives. A directive
+that names a rule that does not check stylesheets reports `invalid-lint-suppression`.
+
+`stillwind lint` and `lint --fix` add the linted stylesheets of each project to the
+script targets. `fmt` does not change stylesheets. The language server publishes
+diagnostics and quick fixes for open CSS documents and uses unsaved CSS buffers when
+it loads the design system. When the CSS graph cannot load, script analysis reports
+the failure, and no stylesheet is linted.
+
+Build, development, and watch sessions of bundler integrations skip stylesheet lint,
+as they skip module lint, so lint never changes whether a build succeeds or what it
+emits. Hosts that load CSS themselves call `NativeDesignSystemLoader.stylesheetReports()`
+or `NativeProjectSession.stylesheetReports()`, which use the lint settings of the
+loader or session. The analysis runs once for each design-system revision and set of
+options.
+
 ## Embedding the language server
 
 `createLanguageServer` from `@stillwind/language-server` registers handlers on a

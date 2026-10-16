@@ -14,7 +14,7 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, DiagnosticBatch, finish_lint_findings,
+    CompileDiagnostic, CompileError, DiagnosticBatch, LintSurface, finish_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
@@ -565,6 +565,7 @@ impl ProjectSession {
                 );
                 finish_lint_findings(
                     source,
+                    LintSurface::Script,
                     &artifact.lint_settings,
                     &mut findings,
                     artifact.diagnostics.is_empty(),

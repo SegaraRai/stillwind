@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -145,6 +145,54 @@ test("lint fixes remove redundant variants and add variable type hints", async (
   }
 });
 
+test("lint checks the CSS entry and imported user CSS, and lint fixes edit them", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-css-"));
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"unknown-utility":"deny"}}}]}',
+    );
+    await writeFile(
+      path.join(root, "root.css"),
+      '@import "./local.css"; @import "pkg"; @custom-variant hover (&:hover); @utility flex { display: flex; } @stillwind-slot utilities;\n.btn { @apply missing; }\n',
+    );
+    const local = path.join(root, "local.css");
+    await writeFile(local, ".card { @apply hover:hover:flex; }\n");
+    const pkg = path.join(root, "node_modules", "pkg");
+    await mkdir(pkg, { recursive: true });
+    await writeFile(path.join(pkg, "package.json"), '{"name":"pkg","style":"index.css"}');
+    await writeFile(path.join(pkg, "index.css"), ".pkg { @apply missing-too; }\n");
+    await writeFile(
+      path.join(root, "entry.tsx"),
+      'import {style} from "stillwind/react";export const value=style("flex");',
+    );
+    /**
+     * Lists the code and document of each finding in JSON output.
+     * @param stdout - JSON printed by the CLI.
+     * @returns Finding codes with the file names of their primary locations.
+     */
+    const findings = (stdout: string) =>
+      JSON.parse(stdout).diagnostics.map(
+        ({ report }: { report: { code: string; primary: { location: { uri: string } } } }) => [
+          report.code,
+          path.basename(fileURLToPath(report.primary.location.uri)),
+        ],
+      );
+    const report = await run(root, ["lint", "--format", "json"]);
+    expect(report.code, report.stderr).toBe(1);
+    expect(findings(report.stdout)).toEqual([
+      ["redundant-variant", "local.css"],
+      ["unknown-utility", "root.css"],
+    ]);
+    const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
+    expect(fixed.code, fixed.stderr).toBe(1);
+    expect(findings(fixed.stdout)).toEqual([["unknown-utility", "root.css"]]);
+    expect(await readFile(local, "utf8")).toBe(".card { @apply hover:flex; }\n");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI checks unused files, keeps overlapping project results, and isolates config logs from JSON", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-"));
   try {
@@ -168,7 +216,8 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
     expect(result.code, result.stderr).toBe(1);
     expect(result.stderr).toContain("configuration log");
     const json = JSON.parse(result.stdout) as CliResult;
-    expect(json.summary.files).toBe(2);
+    // entry.tsx, unused.tsx, and the CSS entry root.css.
+    expect(json.summary.files).toBe(3);
     expect(
       json.diagnostics.map(({ project, report }) => [
         project,

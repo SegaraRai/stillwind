@@ -17,12 +17,13 @@
 //! source maps independently of Stillwind compilation.
 //!
 //! `functions` finds CSS calls, and `declarations` preserves declaration boundaries.
-//! `selectors` instantiates nesting templates. `colors` converts concrete colors and
-//! rewrites shadow colors. `math` folds compatible numeric expressions, and `values`
-//! validates grammars and inspects property effects. `custom_properties` discovers
-//! references and registrations. `emission` preserves rule occurrences and optimizes
-//! declaration order. `format` formats editor previews, while the optional `minify`
-//! module processes final assets.
+//! `selectors` instantiates nesting templates. `structure` parses the rule tree of
+//! authored stylesheets, including `@apply` candidates, with byte ranges. `colors`
+//! converts concrete colors and rewrites shadow colors. `math` folds compatible numeric
+//! expressions, and `values` validates grammars and inspects property effects.
+//! `custom_properties` discovers references and registrations. `emission` preserves
+//! rule occurrences and optimizes declaration order. `format` formats editor previews,
+//! while the optional `minify` module processes final assets.
 
 #![cfg_attr(
     not(test),
@@ -47,6 +48,7 @@ mod math;
 mod output;
 mod resources;
 mod selectors;
+mod structure;
 mod values;
 
 #[cfg(feature = "minify")]
@@ -86,6 +88,7 @@ pub use selectors::{
     selector_list_branches, selector_repeats_subject, selector_target, selector_uses_subject,
     subject_as_universal,
 };
+pub use structure::{CssBlock, CssNode, CssNodeKind, parse_structure};
 pub use values::{
     CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,
     declaration_is_physical, inspect_css_value, is_length_unit, media_has_size_comparison,

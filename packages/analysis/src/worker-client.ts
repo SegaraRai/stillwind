@@ -24,6 +24,8 @@ export type WorkerRequest =
       method: "targets";
       /** Additional project-relative globs. An empty or omitted list keeps every configured target. */
       patterns?: readonly string[];
+      /** Adds the stylesheets that each project lints. */
+      stylesheets?: boolean;
     }
   | {
       /** Serialized discriminator for computing source replacements. */
@@ -223,13 +225,15 @@ export class AnalysisWorker {
   /**
    * Enumerates distinct targets in the opened workspace.
    * @param patterns - Additional project-relative globs. Omission or an empty list retains all targets.
+   * @param stylesheets - Adds the stylesheets that each project lints.
    * @returns Sorted absolute paths, deduplicated across projects.
    * @throws If the workspace has not opened, enumeration fails, or transport fails.
    */
-  targets(patterns?: readonly string[]): Promise<string[]> {
+  targets(patterns?: readonly string[], stylesheets?: boolean): Promise<string[]> {
     return this.request({
       method: "targets",
       patterns,
+      stylesheets,
     });
   }
 
