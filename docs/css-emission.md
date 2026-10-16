@@ -144,15 +144,24 @@ references. It finds them in the rule tree of the stylesheet, so text in comment
 strings is never a directive. [Stylesheet lint](standalone-analysis.md#stylesheet-lint)
 reads the same tree.
 
-`@apply` replaces the statement with the declarations of its candidates in utility
-order. Whitespace and comments separate candidates. A candidate that does not resolve
-contributes nothing: `.btn { @apply unknown-x; }` becomes `.btn {}`.
+`@apply` replaces the statement with the declarations of its candidates. Whitespace and
+comments separate candidates. A candidate that does not resolve contributes nothing:
+`.btn { @apply unknown-x; }` becomes `.btn {}`.
+
+A candidate with variants becomes nested rules for those variants, and the selector of
+the authored rule is the anchor, as [Variant targets](macro-contract.md#variant-targets)
+describes. `.btn { @apply hover:flex; }` becomes
+`.btn { &:hover { @media (hover: hover) { display: flex; } } }`. As in Tailwind,
+candidates without variants come first in utility order. Candidates with variants
+follow in variant order, and candidates with the same variants keep utility order.
 
 `@variant` wraps its block in the rules of each comma-separated variant sequence, and
 each sequence receives its own copy of the block. A sequence that does not resolve is
 a false condition, so it contributes nothing: `.card { @variant nope { color: red; } }`
 becomes `.card {}`, and `@variant nope, print { ... }` keeps only the `print` copy.
-Nested blocks expand inside the rules of the enclosing sequences. A `@variant`
+The leftmost variant of a sequence is the outermost one, so `@variant dark:hover`
+puts the `dark` media query around the `:hover` rule. Nested blocks expand inside the
+rules of the enclosing sequences. A `@variant`
 statement without a block stays in the output unchanged.
 
 ## Browser targets

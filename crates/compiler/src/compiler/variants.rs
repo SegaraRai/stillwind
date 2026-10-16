@@ -354,7 +354,7 @@ mod tests {
         ];
         assert_eq!(
             render_variant_path("color:red;", &applications),
-            "@media print{&:hover{color:red;}}@media print{&:focus{color:red;}}"
+            "&:hover{@media print{color:red;}}&:focus{@media print{color:red;}}"
         );
         let utility = CompiledUtility {
             source: UtilitySource::default(),

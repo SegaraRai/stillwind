@@ -115,6 +115,18 @@ fn package_css_and_definitions_are_not_checked() {
 }
 
 #[test]
+fn application_variants_are_checked() {
+    assert_eq!(
+        default_findings(".a { @apply hover:hover:flex; }"),
+        [fixed(
+            LintKind::RedundantVariant,
+            "hover",
+            ".a { @apply hover:flex; }"
+        )]
+    );
+}
+
+#[test]
 fn nested_variant_blocks_form_one_condition_stack() {
     assert_eq!(
         default_findings(".a { @variant hover { @variant focus:hover { color: red; } } }"),

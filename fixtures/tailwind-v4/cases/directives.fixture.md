@@ -161,6 +161,402 @@
 }
 ```
 
+## `directives.apply-hover-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply hover:flex;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  @media (hover: hover) {
+    .card:hover {
+      display: flex;
+    }
+  }
+}
+```
+
+## `directives.apply-responsive-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply sm:flex max-md:hidden;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  @media (width < 48rem) {
+    .card {
+      display: none;
+    }
+  }
+  @media (width >= 40rem) {
+    .card {
+      display: flex;
+    }
+  }
+}
+```
+
+## `directives.apply-stacked-variants`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply dark:hover:bg-red-500;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --color-red-500: oklch(63.7% 0.237 25.331);
+  }
+}
+@layer utilities;
+@layer components {
+  @media (prefers-color-scheme: dark) {
+    @media (hover: hover) {
+      .card:hover {
+        background-color: var(--color-red-500);
+      }
+    }
+  }
+}
+```
+
+## `directives.apply-group-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply group-hover:flex peer-focus:underline;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  @media (hover: hover) {
+    .card:is(:where(.group):hover *) {
+      display: flex;
+    }
+  }
+  .card:is(:where(.peer):focus ~ *) {
+    text-decoration-line: underline;
+  }
+}
+```
+
+## `directives.apply-arbitrary-nesting-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply [&>svg]:size-4;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities;
+@layer components {
+  .card > svg {
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+  }
+}
+```
+
+## `directives.apply-arbitrary-element-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply [:hover]:flex;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  .card:is(:hover) {
+    display: flex;
+  }
+}
+```
+
+## `directives.apply-not-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply not-hover:flex;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  .card:not(:hover) {
+    display: flex;
+  }
+  @media not (hover: hover) {
+    .card {
+      display: flex;
+    }
+  }
+}
+```
+
+## `directives.apply-pseudo-element-variant`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply before:content-['x'];
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer properties;
+@layer utilities;
+@layer components {
+  .card::before {
+    --tw-content: 'x';
+    content: var(--tw-content);
+  }
+}
+@property --tw-content {
+  syntax: "*";
+  initial-value: "";
+  inherits: false;
+}
+@layer properties {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+    *, ::before, ::after, ::backdrop {
+      --tw-content: "";
+    }
+  }
+}
+```
+
+## `directives.apply-mixed-variant-order`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @apply hover:flex grid p-4 hover:p-2 sm:hidden focus:underline;
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --spacing: 0.25rem;
+  }
+}
+@layer utilities;
+@layer components {
+  .card {
+    display: grid;
+    padding: calc(var(--spacing) * 4);
+    &:hover {
+      @media (hover: hover) {
+        display: flex;
+      }
+    }
+    &:hover {
+      @media (hover: hover) {
+        padding: calc(var(--spacing) * 2);
+      }
+    }
+    &:focus {
+      text-decoration-line: underline;
+    }
+    @media (width >= 40rem) {
+      display: none;
+    }
+  }
+}
+```
+
+## `directives.variant-stacked`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@layer components {
+  .card {
+    @variant dark:hover {
+      color: red;
+    }
+  }
+}
+```
+
+### Candidates
+
+```text
+
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer utilities;
+@layer components {
+  @media (prefers-color-scheme: dark) {
+    @media (hover: hover) {
+      .card:hover {
+        color: red;
+      }
+    }
+  }
+}
+```
+
 ## `directives.inline-source-brace-expansion-and-negation`
 
 ### Input CSS

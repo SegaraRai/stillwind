@@ -68,13 +68,14 @@ complete path before assigning application latency guarantees.
 Sources: [architecture benchmarks](../benchmarks/research/architecture.bench.ts),
 [host benchmarks](../benchmarks/compiler/host.bench.ts).
 
-## Variants in `@apply`
+## Order of arbitrary variants
 
-`@apply` expansion keeps the variants of a candidate only when one of them is a
-runtime condition. Other variants are dropped, so `.x { @apply hover:flex; }`
-emits `display: flex` without the hover condition. Define the rules that `@apply`
-writes for selector and at-rule variants relative to the rule selector, as
-[Variant targets](macro-contract.md#variant-targets) describes, and compare them
-with Tailwind's output.
+When two arbitrary variants have the same registry position, Stillwind orders them by
+their written text, such as `&>svg` and `:hover`. Tailwind 4.3.3 orders them by the
+selector after `&` insertion, such as `&>svg` and `&:is(:hover)`. The two orders differ
+for `.card { @apply [&>svg]:size-4 [:hover]:flex; }`: Tailwind emits the `:hover` rule
+first, and Stillwind emits the `> svg` rule first. The order changes the cascade when
+both rules set the same property. Decide whether the comparison should use the
+selector after `&` insertion, and check the effect on `style()` output.
 
-Source: [authored directives](../crates/compiler/src/compiler/stylesheet/authored_directives.rs).
+Source: [variant ordering](../crates/design-system/src/evaluation/variants/order/sort_value.rs).

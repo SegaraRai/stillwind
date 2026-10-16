@@ -16,7 +16,9 @@ use std::ops::Range;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{CssNode, CssNodeKind, parse_structure};
-use stillwind_design_system::{ThemeIndex, VariantApplication, resolve_variant};
+use stillwind_design_system::{
+    ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
+};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_syntax::{Variant, parse_candidate};
 
@@ -32,11 +34,12 @@ use crate::identifiers::IdentifierContext;
 /// Returns a new string; `css` and `theme` are not modified. Resolved applications
 /// append registration names to `required_properties` in utility emission order,
 /// retaining existing entries and duplicates. Applications are expanded before
-/// variants. Within an application, unconditional declarations precede runtime-guarded
-/// rules; builtin ordering is retained within each group. Runtime guards remain
-/// unresolved `--if` expressions for the later options-aware lowering pass. A
-/// `@variant` statement without a block remains in the returned text, so this function
-/// is not a CSS validator.
+/// variants. Within an application, each candidate with variants becomes nested rules
+/// whose anchor is the enclosing rule, and its declarations follow those of candidates
+/// without variants. Candidates are ordered by variants and then by utility order.
+/// Runtime guards remain unresolved `--if` expressions for the later options-aware
+/// lowering pass. A `@variant` statement without a block remains in the returned text,
+/// so this function is not a CSS validator.
 ///
 /// # Errors
 ///
@@ -103,7 +106,8 @@ fn first_variant_block(nodes: &[CssNode]) -> Option<(Range<usize>, Range<usize>,
     })
 }
 
-/// Returns the declarations of one `@apply` statement with `candidates`.
+/// Returns the declarations and nested variant rules of one `@apply` statement with
+/// `candidates`.
 ///
 /// # Errors
 ///
@@ -128,33 +132,28 @@ fn expand_application<'a>(
             }
         }
     }
-    let conditional = |variants: &[Variant]| {
-        variants.iter().any(|variant| {
-            matches!(
-                resolve_variant(variant, theme).ok(),
-                Some(VariantApplication::Conditional(_))
-            )
-        })
-    };
+    // Tailwind orders applied candidates by their variant stacks before their properties,
+    // so candidates without variants come first.
     let mut ordered = order_utilities(utilities.iter().collect());
-    ordered.sort_by_key(|utility| conditional(&utility.variants));
+    ordered
+        .sort_by(|left, right| compare_variant_sequences(&left.variants, &right.variants, theme));
     let mut declarations = LeanString::new();
     for utility in ordered {
         required_properties.extend(utility.required_properties.iter().cloned());
-        if conditional(&utility.variants) {
-            let applications = utility
-                .variants
-                .iter()
-                .filter_map(|variant| resolve_variant(variant, theme).ok())
-                .collect::<Vec<_>>();
-            declarations.push_str(&render_authored_variant_path(
-                &utility.declaration,
-                &applications,
-                identifiers,
-            )?);
-        } else {
+        if utility.variants.is_empty() {
             declarations.push_str(&utility.declaration);
+            continue;
         }
+        let applications = utility
+            .variants
+            .iter()
+            .filter_map(|variant| resolve_variant(variant, theme).ok())
+            .collect::<Vec<_>>();
+        declarations.push_str(&render_authored_variant_path(
+            &utility.declaration,
+            &applications,
+            identifiers,
+        )?);
     }
     Ok(declarations)
 }
@@ -269,15 +268,16 @@ pub(super) fn parse_variant_sequence(sequence: &str) -> Option<Vec<Variant>> {
 
 /// Wraps `body` in every application of one variant path.
 ///
-/// The innermost step is applied first, so the outermost at-rule of the path ends up
-/// containing the whole rule. Declarations a variant contributes are prepended only
-/// when the body does not already set that property, which keeps an explicit authored
-/// value authoritative. Runtime conditions guard declarations recursively. Callers must
+/// `applications` are in authored order, and the first one is the outermost, as in
+/// Tailwind: `dark:hover` puts the `dark` condition around the `:hover` rule. The last
+/// step wraps `body` first. Declarations a variant contributes are prepended only when
+/// the body does not already set that property, which keeps an explicit authored value
+/// authoritative. Runtime conditions guard declarations recursively. Callers must
 /// finalize the retained rule boundaries after all directives are expanded and lower
 /// `--if` expressions using the selected compiler strategy.
 ///
-/// One path's conditional steps share one list of gate names, so a later step leaves
-/// the gate declarations an earlier one wrote alone. Those declarations are already
+/// One path's conditional steps share one list of gate names, so an outer step leaves
+/// the gate declarations of an inner step alone. Those declarations are already
 /// part of the returned text, and no caller guards that text again, so the list ends
 /// with the path.
 pub(in crate::compiler) fn render_authored_variant_path(
@@ -289,6 +289,7 @@ pub(in crate::compiler) fn render_authored_variant_path(
         .iter()
         .map(|path| {
             path.iter()
+                .rev()
                 .try_fold(
                     (body.to_lean_string(), Vec::new()),
                     |(body, mut gates), application| match *application {
@@ -504,6 +505,75 @@ mod tests {
         assert_eq!(
             compact_expansion(".btn { content: '@apply flex;'; /* @apply grid; */ }"),
             ".btn{content:'@applyflex;';/*@applygrid;*/}"
+        );
+    }
+
+    #[test]
+    fn applications_keep_the_variants_of_their_candidates() {
+        for (body, expected) in [
+            (
+                ".btn { @apply hover:flex; }",
+                ".btn{&:hover{@media(hover:hover){display:flex;}}}",
+            ),
+            (
+                ".btn { @apply sm:flex; }",
+                ".btn{@media(width>=40rem){display:flex;}}",
+            ),
+            (
+                ".btn { @apply dark:hover:flex; }",
+                ".btn{@media(prefers-color-scheme:dark){&:hover{@media(hover:hover){display:flex;}}}}",
+            ),
+            (
+                ".btn { @apply group-hover:flex; }",
+                ".btn{&:is(:where(.group):hover*){@media(hover:hover){display:flex;}}}",
+            ),
+            (
+                ".btn { @apply [&>svg]:flex; }",
+                ".btn{&>svg{display:flex;}}",
+            ),
+            (
+                ".btn { @apply [:hover]:flex; }",
+                ".btn{&:is(:hover){display:flex;}}",
+            ),
+            (
+                ".btn { @apply not-hover:flex; }",
+                ".btn{&:not(:hover){display:flex;}@medianot(hover:hover){display:flex;}}",
+            ),
+            (
+                ".btn { @apply before:content-['x']; }",
+                ".btn{&::before{--tw-content:'x';content:var(--tw-content);}}",
+            ),
+        ] {
+            assert_eq!(compact_expansion(body), expected, "{body}");
+        }
+    }
+
+    #[test]
+    fn applications_order_candidates_by_variants_before_properties() {
+        assert_eq!(
+            compact_expansion(".btn { @apply sm:hidden hover:p-2 p-4 hover:flex grid; }"),
+            concat!(
+                ".btn{display:grid;padding:calc(var(--spacing)*4);",
+                "&:hover{@media(hover:hover){display:flex;}}",
+                "&:hover{@media(hover:hover){padding:calc(var(--spacing)*2);}}",
+                "@media(width>=40rem){display:none;}}",
+            )
+        );
+    }
+
+    #[test]
+    fn applications_guard_declarations_under_ordinary_variants() {
+        assert_eq!(
+            compact_expansion(".btn { @apply hover:if(--a):flex; }"),
+            ".btn{&:hover{@media(hover:hover){@-stillwind-rule-boundary{&{display:--if(--a,{flex},revert-rule);}}}}}"
+        );
+    }
+
+    #[test]
+    fn stacked_variant_blocks_nest_the_first_variant_outermost() {
+        assert_eq!(
+            compact_expansion(".card { @variant dark:hover { color: red; } }"),
+            ".card{@media(prefers-color-scheme:dark){&:hover{@media(hover:hover){color:red;}}}}"
         );
     }
 
