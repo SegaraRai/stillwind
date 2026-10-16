@@ -6,11 +6,16 @@
 //! "looks plausible". Some helpers still use lexical shape checks, so acceptance is not
 //! proof that a browser will accept the whole value.
 
+use cssparser::{ParseError, Parser, Token};
 use lean_string::ToLeanString;
 use lightningcss::properties::{Property, PropertyId};
 use lightningcss::stylesheet::ParserOptions;
 use lightningcss::traits::Parse;
+use lightningcss::values::angle::AnglePercentage;
 use lightningcss::values::image::Image;
+use lightningcss::values::length::LengthPercentage;
+use lightningcss::values::number::CSSNumber;
+use lightningcss::values::time::Time;
 
 use super::properties::CssProperty;
 use crate::colors::is_css_string;
@@ -31,6 +36,82 @@ pub(super) fn contains_custom_property_reference(value: &str) -> bool {
         cursor = after_function;
     }
     false
+}
+
+/// Math functions whose arguments [`value_is_well_formed`] parses.
+const MATH_FUNCTIONS: &[&str] = &[
+    "calc", "min", "max", "clamp", "round", "mod", "rem", "abs", "sign", "sin", "cos", "tan",
+    "asin", "acos", "atan", "atan2", "pow", "sqrt", "hypot", "log", "exp",
+];
+
+/// Whether `value` is a nonempty sequence of CSS component values whose math functions
+/// parse, regardless of the value's type.
+///
+/// `1/2` and `12px foo` are well formed. A value is rejected when it is blank, contains a
+/// bad string or URL token, or closes a block that it did not open. It is also rejected
+/// when a math function such as `calc()` does not parse as a number, length, percentage,
+/// angle, or time calculation, as in `calc(1rem + )`. A math function that contains
+/// `var()` is accepted, because its type is known only after substitution.
+pub fn value_is_well_formed(value: &str) -> bool {
+    !value.trim().is_empty() && component_values_are_well_formed(&mut Parser::new(value), value)
+}
+
+/// Checks the component values that `parser` reads from `source`, including nested
+/// blocks.
+fn component_values_are_well_formed(parser: &mut Parser<'_>, source: &str) -> bool {
+    loop {
+        let start = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            return true;
+        };
+        match token {
+            Token::BadString(_)
+            | Token::BadUrl(_)
+            | Token::CloseParenthesis
+            | Token::CloseSquareBracket
+            | Token::CloseCurlyBracket => return false,
+            Token::Function(name) => {
+                let math = MATH_FUNCTIONS
+                    .iter()
+                    .any(|function| name.eq_ignore_ascii_case(function));
+                let mut nested = true;
+                let result: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    nested = component_values_are_well_formed(inner, source);
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    Ok(())
+                });
+                let end = parser.position().byte_index();
+                if !nested || result.is_err() {
+                    return false;
+                }
+                if math && !math_function_parses(&source[start..end]) {
+                    return false;
+                }
+            }
+            Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {
+                let mut nested = true;
+                let result: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    nested = component_values_are_well_formed(inner, source);
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    Ok(())
+                });
+                if !nested || result.is_err() {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Whether one complete math function, such as `calc(1rem + 2px)`, parses as a
+/// calculation of a number, length, percentage, angle, or time.
+fn math_function_parses(function: &str) -> bool {
+    function.contains("var(")
+        || CSSNumber::parse_string(function).is_ok()
+        || LengthPercentage::parse_string(function).is_ok()
+        || AnglePercentage::parse_string(function).is_ok()
+        || Time::parse_string(function).is_ok()
 }
 
 /// True when `value` parses as the argument list of the gradient `function`.
@@ -115,5 +196,29 @@ mod tests {
         assert!(!transform_function_arguments("skew", "red"));
         assert!(property_value("width", "2px"));
         assert!(!property_value("width", "red"));
+    }
+
+    #[test]
+    fn well_formed_values_have_any_type_but_parsable_math() {
+        for value in [
+            "1/2",
+            "red",
+            "12px foo",
+            "calc(1rem + 2px)",
+            "f(calc(var(--x) + ))",
+        ] {
+            assert!(value_is_well_formed(value), "{value}");
+        }
+        for value in [
+            "",
+            " ",
+            "calc(1rem + )",
+            "f(min(1px, ))",
+            "a)",
+            "\"a
+b\"",
+        ] {
+            assert!(!value_is_well_formed(value), "{value}");
+        }
     }
 }

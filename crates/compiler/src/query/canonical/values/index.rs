@@ -192,10 +192,9 @@ impl<'a> ValuePreparation<'a> {
             if !labels.contains(&label) || index.covers(&label) {
                 continue;
             }
-            let actual = self
-                .resolved
-                .entry(label.clone())
-                .or_insert_with(|| resolve_utility(&label, query.design_system.theme()));
+            let actual = self.resolved.entry(label.clone()).or_insert_with(|| {
+                resolve_utility(&label, query.design_system.theme()).map(Result::ok)
+            });
             let Ok(Some(actual)) = actual else {
                 continue;
             };
@@ -345,6 +344,7 @@ impl CssTemplate {
             token_uses: _,
             arbitrary_uses: _,
             candidate: _,
+            invalid_value: _,
             order,
             required_properties,
             builtin_order,

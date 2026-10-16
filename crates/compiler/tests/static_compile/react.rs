@@ -1,12 +1,13 @@
 //! React adapter behavior.
 //!
-//! Pins the shape of the generated call site and of the runtime imports: helper names avoid the
-//! bindings a module already uses, imports come from the framework-specific runtime module, a
-//! residual macro reference fails the whole compilation, and diagnostics, lint directives,
-//! conditional branches, and explicit `class` entries behave as documented.
+//! Pins the shape of the generated call site and of the runtime imports: helper names
+//! avoid the bindings a module already uses, imports come from the framework-specific
+//! runtime module, a residual macro reference fails the whole compilation, and
+//! diagnostics, lint directives, conditional branches, and explicit `class` entries
+//! behave as documented.
 
 use stillwind_compiler::{CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform};
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
@@ -188,15 +189,9 @@ const props = style("bg-accnet");"#,
 
     assert!(matches!(
         finding.diagnostic,
-        LintDiagnostic::UnresolvedUtility {
-            classification: UtilityFailure::Unknown,
-            ..
-        }
+        LintDiagnostic::UnknownUtility { .. }
     ));
-    assert_eq!(
-        component.slice(finding.labels[0].span).unwrap(),
-        "bg-accnet"
-    );
+    assert_eq!(component.slice(finding.labels[0].span).unwrap(), "accnet");
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("bg-accnet"), "{transformed}");
     assert_ne!(result.css, "");
@@ -226,10 +221,7 @@ const props = style("bg-[color:red");"#,
     );
     assert!(matches!(
         result.lint_findings[0].diagnostic,
-        LintDiagnostic::UnresolvedUtility {
-            classification: UtilityFailure::Invalid,
-            ..
-        }
+        LintDiagnostic::InvalidUtility { .. }
     ));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("bg-[color:red"), "{transformed}");
@@ -266,10 +258,7 @@ const fourth = style("m-accnet");"#,
     assert_eq!(result.lint_findings.len(), 1);
     assert!(matches!(
         result.lint_findings[0].diagnostic,
-        LintDiagnostic::UnresolvedUtility {
-            classification: UtilityFailure::Unknown,
-            ..
-        }
+        LintDiagnostic::UnknownUtility { .. }
     ));
     let transformed = result.apply_to_source(&component).unwrap();
     assert_eq!(result.classes, [] as [GeneratedClass; 0]);

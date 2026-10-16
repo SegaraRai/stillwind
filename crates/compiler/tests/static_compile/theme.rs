@@ -5,7 +5,7 @@
 //! framework imports gate the baseline layers.
 
 use stillwind_compiler::CompilerOptions;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -155,13 +155,7 @@ fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
         result
             .lint_findings
             .iter()
-            .filter(|finding| matches!(
-                finding.diagnostic,
-                LintDiagnostic::UnresolvedUtility {
-                    classification: UtilityFailure::Unknown,
-                    ..
-                }
-            ))
+            .filter(|finding| matches!(finding.diagnostic, LintDiagnostic::UnknownUtility { .. }))
             .count(),
         6
     );
@@ -196,13 +190,7 @@ fn framework_imports_gate_baseline_layers() {
         individual_without_builtins
             .lint_findings
             .iter()
-            .any(|finding| matches!(
-                finding.diagnostic,
-                LintDiagnostic::UnresolvedUtility {
-                    classification: UtilityFailure::Unknown,
-                    ..
-                }
-            ))
+            .any(|finding| matches!(finding.diagnostic, LintDiagnostic::UnknownUtility { .. }))
     );
 
     let utilities_only = compiler(

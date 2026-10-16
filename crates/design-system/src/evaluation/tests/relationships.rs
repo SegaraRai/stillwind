@@ -67,7 +67,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &parse_candidate("group-hover:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorMedia {
+        Ok(VariantApplication::SelectorMedia {
             selector: "&:is(:where(.group):hover *)".to_lean_str(),
             condition: "(hover: hover)".to_lean_str(),
         })
@@ -77,7 +77,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &parse_candidate("peer-checked:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate(
+        Ok(VariantApplication::SelectorTemplate(
             "&:is(:where(.peer):checked ~ *)".to_lean_str()
         ))
     );
@@ -88,7 +88,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
                 .variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate(
+        Ok(VariantApplication::SelectorTemplate(
             "&:is(:where(.group)[data-open] *)".to_lean_str()
         ))
     );
@@ -99,14 +99,14 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
                 .variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorMedia {
+        Ok(VariantApplication::SelectorMedia {
             selector: r"&:is(:where(.group\/menu\:open):hover *)".to_lean_str(),
             condition: "(hover: hover)".to_lean_str(),
         })
     );
     assert_eq!(
         resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Container(
+        Ok(VariantApplication::Container(
             "(width >= 24rem)".to_lean_str()
         ))
     );

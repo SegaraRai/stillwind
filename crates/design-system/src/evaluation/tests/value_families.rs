@@ -209,14 +209,19 @@ fn validates_unhinted_and_hint_checked_arbitrary_css_values() {
         "p-[length:bogus]",
         "border-[time:1ms]",
         "border-[length:bogus]",
-        "border-[50%]",
-        "z-[1.5]",
         "z-[integer:1.5]",
         "z-[number:1]",
     ] {
         assert!(
             resolve_utility(candidate, &theme).is_none(),
             "expected `{candidate}` to be rejected"
+        );
+    }
+    for candidate in ["border-[50%]", "z-[1.5]"] {
+        assert!(
+            resolve_utility(candidate, &theme)
+                .is_some_and(|resolved| resolved.invalid_value.is_some()),
+            "expected `{candidate}` to be emitted as an invalid property value"
         );
     }
 }
@@ -246,8 +251,9 @@ fn validates_arbitrary_utilities_against_property_grammars() {
         "mask-linear-[red_/_blue]",
     ] {
         assert!(
-            resolve_utility(candidate, &theme).is_none(),
-            "expected `{candidate}` to be rejected"
+            resolve_utility(candidate, &theme)
+                .is_some_and(|resolved| resolved.invalid_value.is_some()),
+            "expected `{candidate}` to be emitted as an invalid property value"
         );
     }
 }

@@ -29,8 +29,8 @@ use crate::runtime::RuntimeHelper;
 impl CallEmitter<'_> {
     /// Reports source policies once per authored variant wrapper, even when that
     /// wrapper covers several literals. Container queries have no viewport policy.
-    fn report_wrapper_lints(&mut self, variant: &StyleVariant) {
-        let prefixes = match variant {
+    fn report_wrapper_lints(&mut self, variant_wrapper: &StyleVariant) {
+        let prefixes = match variant_wrapper {
             StyleVariant::Prefix(prefix) => vec![prefix],
             StyleVariant::Ref { condition, scopes } => std::iter::once(&condition.prefix)
                 .chain(scopes.iter().map(|scope| &scope.prefix))
@@ -71,33 +71,17 @@ impl CallEmitter<'_> {
                             span,
                         ));
                     }
+                    if matches!(variant_wrapper, StyleVariant::Prefix(_))
+                        && self
+                            .lint_settings
+                            .enabled_for_detection(LintKind::DocumentScopedSelector)
+                        && let Some(diagnostic) = document_scoped_selector(&variant, self.theme)
+                    {
+                        self.lint_findings.push(LintFinding::new(diagnostic, span));
+                    }
                     offset = end + 1;
                 }
             }
-        }
-        let StyleVariant::Prefix(prefix) = variant else {
-            return;
-        };
-        if !self
-            .lint_settings
-            .enabled_for_detection(LintKind::DocumentScopedSelector)
-        {
-            return;
-        }
-        let Some(variants) = parse_prefix(prefix) else {
-            return;
-        };
-        let theme = self.theme;
-        if let Some(selector) = variants
-            .iter()
-            .find_map(|variant| document_scoped_selector(variant, theme))
-        {
-            self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::DocumentScopedSelector {
-                    selector: (selector).into(),
-                },
-                prefix.span,
-            ));
         }
     }
 

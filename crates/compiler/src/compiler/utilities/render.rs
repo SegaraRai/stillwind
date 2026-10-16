@@ -57,7 +57,7 @@ pub(in crate::compiler) fn render_utility_rule(
     }
     let mut paths = vec![Vec::new()];
     for variant in &utility.variants {
-        let Some(application) = resolve_variant(variant, theme) else {
+        let Ok(application) = resolve_variant(variant, theme) else {
             continue;
         };
         let alternatives = match application {

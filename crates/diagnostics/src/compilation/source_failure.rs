@@ -110,9 +110,12 @@ impl CompileDiagnostic {
 
 #[cfg(test)]
 mod tests {
+    use lean_string::ToLeanString;
+
     use stillwind_source::{BytePos, FileId, Span};
 
     use super::*;
+    use crate::CompileErrorCode;
 
     #[test]
     fn projection_detection_preserves_source_context_for_every_source_failure() {
@@ -148,5 +151,30 @@ mod tests {
                 .is_projection_failure()
         );
         assert!(!CompileDiagnostic::JavaScriptParse.is_projection_failure());
+    }
+
+    /// Source context preserves the operation that failed.
+    #[test]
+    fn source_failures_keep_their_context() {
+        for context in [
+            SourceFailureContext::Utility,
+            SourceFailureContext::Projection,
+            SourceFailureContext::Stylesheet,
+        ] {
+            let error = CompileDiagnostic::source_failure(
+                &SourceError::InvalidRange { start: 9, end: 2 },
+                context,
+            );
+            assert_eq!(error.code(), CompileErrorCode::SourceInvalidRange);
+            assert_eq!(
+                error,
+                CompileDiagnostic::SourceInvalidRange {
+                    start: 9,
+                    end: 2,
+                    context
+                }
+            );
+            assert_eq!(error.to_lean_string(), "invalid source byte range 9..2");
+        }
     }
 }

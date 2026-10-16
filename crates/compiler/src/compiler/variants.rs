@@ -9,9 +9,11 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_css::{selector_is_subject_condition, selector_list_branches};
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantDeclaration, resolve_variant,
 };
+use stillwind_diagnostics::LintDiagnostic;
 use stillwind_syntax::Variant;
 
 /// One non-compound effect of a variant.
@@ -163,18 +165,33 @@ fn conditions_only(paths: &[Vec<VariantStep<'_>>]) -> bool {
         .all(|step| matches!(step, VariantStep::Media(_) | VariantStep::Supports(_)))
 }
 
-/// Returns the selector of `variant` when the rule it produces would apply to the document
-/// instead of to the styled element.
+/// Returns the `document-scoped-selector` diagnostic for `variant` when the rule it
+/// produces would apply to the document instead of to the styled element.
 ///
-/// A selector without the nesting subject is live wherever the stylesheet loads, which a
-/// `style()` call must not author; document-wide CSS belongs in a stylesheet. Conditions and
-/// selectors that keep the subject are unaffected.
+/// A selector without the nesting subject is live wherever the stylesheet loads, which
+/// a `style()` call must not author; document-wide CSS belongs in a stylesheet.
+/// Conditions and selectors that keep the subject are unaffected. When some branches of
+/// the selector list could test the styled element on their own, as `:hover` in
+/// `[:hover,:root]`, the diagnostic names the first other branch, which keeps the whole
+/// list document-wide.
 pub(super) fn document_scoped_selector(
     variant: &Variant,
     theme: &ThemeIndex,
-) -> Option<LeanString> {
-    let application = resolve_variant(variant, theme)?;
-    stillwind_design_system::document_scoped_selector(&application).map(LeanString::from)
+) -> Option<LintDiagnostic> {
+    let application = resolve_variant(variant, theme).ok()?;
+    let selector = stillwind_design_system::document_scoped_selector(&application)?;
+    let branches = selector_list_branches(selector);
+    let mut scoped = branches
+        .iter()
+        .filter(|branch| !selector_is_subject_condition(branch));
+    let branch = scoped
+        .next()
+        .filter(|_| scoped.count() + 1 < branches.len())
+        .map(|branch| (*branch).to_lean_str());
+    Some(LintDiagnostic::DocumentScopedSelector {
+        selector: selector.to_lean_str(),
+        branch,
+    })
 }
 
 /// One condition wrapper a rule is nested under.
@@ -250,7 +267,7 @@ fn condition_applications(
 ) -> Option<Vec<VariantApplication>> {
     let mut applications = Vec::new();
     for variant in variants {
-        match resolve_variant(variant, theme)? {
+        match resolve_variant(variant, theme).ok()? {
             VariantApplication::Compound(children) => applications.extend(children),
             application => applications.push(application),
         }

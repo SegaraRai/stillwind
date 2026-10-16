@@ -158,7 +158,7 @@ export const conditions = style("motion-reduce:block", "[@media_(hover:hover)]:f
         .lint_findings
         .iter()
         .filter_map(|finding| match &finding.diagnostic {
-            LintDiagnostic::DocumentScopedSelector { selector } => Some(selector.as_str()),
+            LintDiagnostic::DocumentScopedSelector { selector, .. } => Some(selector.as_str()),
             _ => None,
         })
         .collect::<Vec<_>>();

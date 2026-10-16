@@ -18,7 +18,7 @@ use std::error::Error;
 
 use stillwind_compiler::{CompilerOptions, IdentifierKind, RejectedIdentifier};
 use stillwind_diagnostics::{
-    CompileDiagnostic, LintOverrides, LintSeverity, VariantInputErrorKind,
+    CompileDiagnostic, LintOverrides, LintSeverity, RuleGroupInputErrorKind,
 };
 use stillwind_ir::{AdapterKind, ScriptLanguage, ScriptModuleKind};
 use stillwind_napi::{

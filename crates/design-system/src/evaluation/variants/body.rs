@@ -18,7 +18,7 @@ use lean_string::{LeanStr, ToLeanStr};
 use stillwind_css::{absolutize_nested_selector, selector_is_valid};
 
 use super::super::syntax::closing_brace;
-use super::resolve::{VariantApplication, VariantDeclaration};
+use super::application::{VariantApplication, VariantDeclaration};
 
 /// Classifies one variant body.
 ///

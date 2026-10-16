@@ -1,7 +1,7 @@
 //! CVA extraction, style lowering, and runtime imports through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
-use stillwind_diagnostics::{LintDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{LintDiagnostic, RuleGroupInputErrorKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -149,8 +149,8 @@ fn cva_omits_invalid_rule_groups_and_keeps_other_entries() {
         ));
         assert!(result.diagnostics.is_empty(), "{result:#?}");
         assert!(result.lint_findings.iter().any(|finding| finding.diagnostic
-            == LintDiagnostic::InvalidVariantInput {
-                reason: VariantInputErrorKind::CustomProperty,
+            == LintDiagnostic::InvalidRuleGroupInput {
+                reason: RuleGroupInputErrorKind::CustomProperty,
             }));
         assert!(
             result.module_css.contains("display:block"),

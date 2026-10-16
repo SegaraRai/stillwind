@@ -15,8 +15,8 @@ use super::{
 /// Lint settings applied to compiler defaults.
 #[napi(object)]
 pub struct NativeLintOptions {
-    /// Settings for `invalid-variant-input`.
-    pub invalid_variant_input: Option<String>,
+    /// Settings for `invalid-rule-group-input`.
+    pub invalid_rule_group_input: Option<String>,
     /// Settings for `invalid-style-input`.
     pub invalid_style_input: Option<String>,
     /// Settings for `invalid-cva-config`.
@@ -47,6 +47,10 @@ pub struct NativeLintOptions {
     pub invalid_utility: Option<String>,
     /// Settings for `unknown-utility`.
     pub unknown_utility: Option<String>,
+    /// Settings for `invalid-variant`.
+    pub invalid_variant: Option<String>,
+    /// Settings for `unknown-variant`.
+    pub unknown_variant: Option<String>,
     /// Settings for `mutating-macro-argument`.
     pub mutating_macro_argument: Option<String>,
     /// Settings for `suspending-macro-argument`.
@@ -79,6 +83,8 @@ pub struct NativeLintOptions {
     pub split_view_transition_class: Option<String>,
     /// Settings for `ineffective-anchor-scope`.
     pub ineffective_anchor_scope: Option<String>,
+    /// Settings for `invalid-property-value`.
+    pub invalid_property_value: Option<String>,
     /// Settings for `no-arbitrary-colors`.
     pub no_arbitrary_colors: Option<String>,
     /// Settings for `no-arbitrary-spacing`.
@@ -119,8 +125,8 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
     #[allow(clippy::too_many_lines)]
     fn try_from(input: NativeLintOptions) -> napi::Result<Self> {
         Ok(Self {
-            invalid_variant_input: input
-                .invalid_variant_input
+            invalid_rule_group_input: input
+                .invalid_rule_group_input
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_style_input: input
@@ -181,6 +187,14 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             unknown_utility: input
                 .unknown_utility
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_variant: input
+                .invalid_variant
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            unknown_variant: input
+                .unknown_variant
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             mutating_macro_argument: input
@@ -245,6 +259,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             ineffective_anchor_scope: input
                 .ineffective_anchor_scope
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_property_value: input
+                .invalid_property_value
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             no_arbitrary_colors: input

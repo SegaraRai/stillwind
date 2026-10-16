@@ -83,13 +83,14 @@ pub use resources::{CssUrl, relative_css_urls};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition, instantiate_selector,
     selector_is_element_condition, selector_is_subject_condition, selector_is_valid,
-    selector_repeats_subject, selector_target, selector_uses_subject, subject_as_universal,
+    selector_list_branches, selector_repeats_subject, selector_target, selector_uses_subject,
+    subject_as_universal,
 };
 pub use values::{
     CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,
     declaration_is_physical, inspect_css_value, is_length_unit, media_has_size_comparison,
     media_size_comparisons, policy_glob_matches, properties_interfere, property_covers,
-    property_value_domains,
+    property_value_domains, value_is_well_formed,
 };
 
 #[cfg(feature = "minify")]

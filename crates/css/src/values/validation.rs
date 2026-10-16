@@ -208,6 +208,64 @@ impl ValueType {
         }
     }
 
+    /// Returns the hint spelling that [`Self::from_hint`] parses to this type. Types with
+    /// several spellings return the first one, such as `font-family`.
+    #[must_use]
+    pub const fn hint(self) -> &'static str {
+        match self {
+            Self::Any => "*",
+            Self::Integer => "integer",
+            Self::Number => "number",
+            Self::Percentage => "percentage",
+            Self::NumberPercentage => "number-percentage",
+            Self::Length => "length",
+            Self::LengthPercentage => "length-percentage",
+            Self::Angle => "angle",
+            Self::AnglePercentage => "angle-percentage",
+            Self::Time => "time",
+            Self::Ratio => "ratio",
+            Self::Easing => "easing",
+            Self::LineWidth => "line-width",
+            Self::ZIndex => "z-index",
+            Self::Color => "color",
+            Self::Image => "image",
+            Self::Url => "url",
+            Self::Position => "position",
+            Self::BackgroundSize => "bg-size",
+            Self::Shadow => "shadow",
+            Self::Content => "content",
+            Self::LinearGradientArguments => "linear-gradient-arguments",
+            Self::LinearGradientPosition => "linear-gradient-position",
+            Self::RadialGradientArguments => "radial-gradient-arguments",
+            Self::RadialGradientPosition => "radial-gradient-position",
+            Self::ConicGradientArguments => "conic-gradient-arguments",
+            Self::ConicGradientPosition => "conic-gradient-position",
+            Self::SkewArguments => "skew-arguments",
+            Self::SkewXArguments => "skew-x-arguments",
+            Self::SkewYArguments => "skew-y-arguments",
+            Self::Animation => "animation",
+            Self::FontFamily => "font-family",
+            Self::FontSize => "font-size",
+            Self::FontWeight => "font-weight",
+            Self::VerticalAlign => "vertical-align",
+            Self::GridTrackSize => "grid-track-size",
+            Self::GridLine => "grid-line",
+            Self::Columns => "columns",
+            Self::Contain => "contain",
+            Self::Cursor => "cursor",
+            Self::FontFeatureSettings => "font-feature-settings",
+            Self::FontStretch => "font-stretch",
+            Self::GridTrackList => "grid-track-list",
+            Self::Flex => "flex",
+            Self::ListStyleType => "list-style-type",
+            Self::ListStyleImage => "list-style-image",
+            Self::TabSize => "tab-size",
+            Self::TransitionProperty => "transition-property",
+            Self::WillChange => "will-change",
+            Self::Zoom => "zoom",
+        }
+    }
+
     /// Returns the CSSWG formal-syntax productions used to audit this simple value
     /// domain. `None` denotes a compound domain whose grammar is validated by Lightning
     /// CSS (or a focused parser) instead.
@@ -387,6 +445,17 @@ impl ValueType {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hints_round_trip_through_their_value_types() {
+        for hint in ["*", "length", "color", "line-width", "font-family", "zoom"] {
+            assert_eq!(ValueType::from_hint(hint).unwrap().hint(), hint);
+        }
+        assert_eq!(
+            ValueType::from_hint("family-name").unwrap().hint(),
+            "font-family"
+        );
+    }
 
     #[test]
     fn validates_arbitrary_values_with_lightningcss_value_parsers() {

@@ -1,45 +1,19 @@
-//! Detected lint causes and their mapping to named rules.
-//!
-//! [`LintDiagnostic`] retains the concrete values used in its message template.
-//! [`UtilityFailure`] classifies utility syntax and selects the corresponding rule.
-//! Source locations and reporting settings are supplied by the caller.
+//! Detected lint causes, their message templates, and the rule each cause selects.
 
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
 use stillwind_source::ModuleId;
 
-use super::LintKind;
-
-/// The reason a style input cannot be placed in a rule group.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
-#[serde(rename_all = "camelCase")]
-pub enum VariantInputErrorKind {
-    /// Element attribute supplied by an object entry.
-    #[error("element attribute")]
-    Attribute,
-    /// Inline custom property supplied by an object entry.
-    #[error("inline custom property")]
-    CustomProperty,
-    /// Runtime class value without a CSS rule.
-    #[error("external class value")]
-    ExternalClass,
-    /// A composed style value.
-    #[error("style composition")]
-    Composition,
-    /// A ref attachment.
-    #[error("ref attachment")]
-    RefAttachment,
-    /// A dynamic ref attachment.
-    #[error("dynamic ref attachment")]
-    DynamicRefAttachment,
-}
+use super::super::LintKind;
+use super::RuleGroupInputErrorKind;
+use super::candidate::{DidYouMean, DocumentScopedMessage, PropertyValueMessage};
 
 /// Concrete values and message templates for a detected lint.
 ///
-/// Distinct diagnostic variants may select the same rule. Utility classification can
-/// select different rules for one variant.
-/// Producers select the cause; hosts decide its presentation and configured severity.
+/// Distinct diagnostic variants may select the same rule, and each variant selects one
+/// rule. Producers select the cause; hosts decide its presentation and configured
+/// severity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum LintDiagnostic {
@@ -218,12 +192,29 @@ pub enum LintDiagnostic {
     /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.
     #[error("view transition utilities accept only media and supports condition variants")]
     InvalidViewTransitionVariant,
-    /// A variant prefix is syntactically malformed (`invalid-utility`).
-    #[error("invalid variant prefix")]
+    /// A variant prefix of an object key or ref condition is not a list of complete
+    /// `name:` segments (`invalid-variant`).
+    #[error("variant prefixes must be complete `name:` segments")]
     InvalidVariantPrefix,
-    /// A syntactically valid variant prefix cannot be resolved in the theme (`unknown-utility`).
-    #[error("unknown or unavailable variant prefix")]
-    UnavailableVariantPrefix,
+    /// No variant definition or theme token has the written name (`unknown-variant`).
+    #[error("{detail}{}", DidYouMean(.suggestion))]
+    UnknownVariant {
+        /// Variant text that the finding's range covers.
+        variant: LeanStr,
+        /// Explanation that names the unknown text.
+        detail: LeanStr,
+        /// Complete spelling of the utility or variant prefix with the likely correction.
+        suggestion: Option<LeanStr>,
+    },
+    /// A variant exists, but it rejects its value, its modifier, or its inner variant,
+    /// or arbitrary variant text is not a valid selector (`invalid-variant`).
+    #[error("{detail}")]
+    InvalidVariant {
+        /// Variant text that the finding's range covers.
+        variant: LeanStr,
+        /// Explanation that names the rejected part and the reason.
+        detail: LeanStr,
+    },
     /// An animation option token is not recognized by the option resolver.
     #[error("unknown animation option `{option}`")]
     UnknownAnimationOption {
@@ -232,9 +223,9 @@ pub enum LintDiagnostic {
     },
     /// A rule group is omitted because it contains an unsupported input.
     #[error("style() rule groups cannot contain {reason}")]
-    InvalidVariantInput {
+    InvalidRuleGroupInput {
         /// First incompatible input in source order.
-        reason: VariantInputErrorKind,
+        reason: RuleGroupInputErrorKind,
     },
     /// An explicitly supplied value contains a literal color.
     #[error(
@@ -406,12 +397,13 @@ pub enum LintDiagnostic {
         utility: LeanStr,
     },
     /// A style rule would apply to the document instead of to the styled element.
-    #[error(
-        "`{selector}` does not depend on the styled element; declare document-wide CSS in a global stylesheet"
-    )]
+    #[error("{}", DocumentScopedMessage { selector, branch: branch.as_deref() })]
     DocumentScopedSelector {
         /// Resolved selector that references neither the element nor a declaration identity.
         selector: LeanStr,
+        /// The branch of a selector list that keeps the list document-wide, when the
+        /// other branches could select the styled element on their own.
+        branch: Option<LeanStr>,
     },
     /// A variant selector uses `&` more than once in one complex selector. Each `&`
     /// stands for a generated class, so the selector compares class identities instead
@@ -458,18 +450,50 @@ pub enum LintDiagnostic {
         /// The competing declarations, as `property` or `property and property`.
         properties: LeanStr,
     },
-    /// A utility literal cannot be resolved and contributes nothing.
-    #[error("unknown or unavailable utility `{utility}`")]
-    UnresolvedUtility {
+    /// No utility definition or theme token has the written name, so the utility
+    /// contributes nothing (`unknown-utility`).
+    #[error("{detail}{}", DidYouMean(.suggestion))]
+    UnknownUtility {
         /// Utility text as authored, including variants.
         utility: LeanStr,
-        /// Whether the candidate syntax is valid; determines the lint code.
-        classification: UtilityFailure,
+        /// Explanation that names the unknown text.
+        detail: LeanStr,
+        /// Utility text as authored with the likely correction applied.
+        suggestion: Option<LeanStr>,
+    },
+    /// A utility is malformed, or an existing utility rejects its value form, modifier,
+    /// or negative sign, so it contributes nothing (`invalid-utility`).
+    #[error("{detail}")]
+    InvalidUtility {
+        /// Utility text as authored, including variants.
+        utility: LeanStr,
+        /// Explanation that names the rejected part and the reason.
+        detail: LeanStr,
+    },
+    /// An arbitrary value that the grammar of its property rejects is emitted as written
+    /// (`invalid-property-value`).
+    #[error("{}", PropertyValueMessage {
+        utility,
+        property,
+        value,
+        alternatives,
+    })]
+    InvalidPropertyValue {
+        /// Utility text as authored, without enclosing variant wrappers.
+        utility: LeanStr,
+        /// Lowercase CSS property receiving the value.
+        property: LeanStr,
+        /// Decoded value text as emitted.
+        value: LeanStr,
+        /// The utility with a type hint for each value type it accepts, when `property`
+        /// was chosen as a fallback because the value has no hint and its type cannot be
+        /// inferred; empty otherwise.
+        alternatives: Vec<LeanStr>,
     },
 }
 
 impl LintDiagnostic {
-    /// Returns the rule selected by the diagnostic and its utility classification.
+    /// Returns the rule selected by the diagnostic.
     pub const fn kind(&self) -> LintKind {
         match self {
             Self::EmptyRefCondition
@@ -520,15 +544,15 @@ impl LintDiagnostic {
             | Self::InvalidViewTransitionValue
             | Self::InvalidViewTransitionLabel => LintKind::InvalidViewTransitionDefinition,
             Self::InvalidViewTransitionVariant => LintKind::InvalidViewTransitionVariant,
-            Self::InvalidVariantPrefix => LintKind::InvalidUtility,
-            Self::UnavailableVariantPrefix => LintKind::UnknownUtility,
+            Self::InvalidVariantPrefix | Self::InvalidVariant { .. } => LintKind::InvalidVariant,
+            Self::UnknownVariant { .. } => LintKind::UnknownVariant,
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
             Self::RuntimeConditionRequiresCssIf { .. } => LintKind::RuntimeConditionRequiresCssIf,
             Self::UnverifiedStyleBase => LintKind::UnverifiedStyleBase,
             Self::StyleBaseWithProps | Self::StyleBaseFrameworkMismatch => {
                 LintKind::InvalidStyleComposition
             }
-            Self::InvalidVariantInput { .. } => LintKind::InvalidVariantInput,
+            Self::InvalidRuleGroupInput { .. } => LintKind::InvalidRuleGroupInput,
             Self::ArbitraryColor { .. } => LintKind::NoArbitraryColors,
             Self::ArbitrarySpacing { .. } => LintKind::NoArbitrarySpacing,
             Self::ClassProperty => LintKind::NoClassProperty,
@@ -560,81 +584,14 @@ impl LintDiagnostic {
             Self::SplitViewTransitionClass => LintKind::SplitViewTransitionClass,
             Self::AmbiguousStyleBaseOrder { .. } => LintKind::AmbiguousStyleBaseOrder,
             Self::InterferingImportedStyleBase { .. } => LintKind::InterferingImportedStyleBase,
-            Self::UnresolvedUtility { classification, .. } => classification.lint_kind(),
+            Self::UnknownUtility { .. } => LintKind::UnknownUtility,
+            Self::InvalidUtility { .. } => LintKind::InvalidUtility,
+            Self::InvalidPropertyValue { .. } => LintKind::InvalidPropertyValue,
         }
     }
 
     /// Returns the stable lint name used in reports and suppression directives.
     pub const fn code(&self) -> &'static str {
         self.kind().name()
-    }
-}
-
-/// Syntax classification of an unresolved utility or candidate.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum UtilityFailure {
-    /// Candidate syntax is malformed (`invalid-utility`).
-    Invalid,
-    /// Syntax is valid, but no available utility resolves it (`unknown-utility`).
-    Unknown,
-}
-
-impl UtilityFailure {
-    /// Returns the lint rule for this syntax classification.
-    pub const fn lint_kind(self) -> LintKind {
-        match self {
-            Self::Invalid => LintKind::InvalidUtility,
-            Self::Unknown => LintKind::UnknownUtility,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use lean_string::ToLeanString;
-
-    use stillwind_source::SourceError;
-
-    use super::*;
-    use crate::{CompileDiagnostic, CompileErrorCode, SourceFailureContext};
-
-    /// Utility classification chooses the lint rule while source context preserves the operation.
-    #[test]
-    fn one_message_template_can_report_multiple_codes() {
-        let findings = [UtilityFailure::Invalid, UtilityFailure::Unknown].map(|classification| {
-            LintDiagnostic::UnresolvedUtility {
-                utility: "hover:[".into(),
-                classification,
-            }
-        });
-        assert_eq!(findings[0].code(), "invalid-utility");
-        assert_eq!(findings[1].code(), "unknown-utility");
-        assert_eq!(findings[0].to_lean_string(), findings[1].to_lean_string());
-        assert_eq!(
-            findings[0].to_lean_string(),
-            "unknown or unavailable utility `hover:[`"
-        );
-
-        for context in [
-            SourceFailureContext::Utility,
-            SourceFailureContext::Projection,
-            SourceFailureContext::Stylesheet,
-        ] {
-            let error = CompileDiagnostic::source_failure(
-                &SourceError::InvalidRange { start: 9, end: 2 },
-                context,
-            );
-            assert_eq!(error.code(), CompileErrorCode::SourceInvalidRange);
-            assert_eq!(
-                error,
-                CompileDiagnostic::SourceInvalidRange {
-                    start: 9,
-                    end: 2,
-                    context
-                }
-            );
-            assert_eq!(error.to_lean_string(), "invalid source byte range 9..2");
-        }
     }
 }

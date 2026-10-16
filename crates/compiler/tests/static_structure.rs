@@ -2,7 +2,8 @@
 
 use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, SourceTransform};
 use stillwind_diagnostics::{
-    CompileDiagnostic, LintDiagnostic, LintKind, LintOverrides, LintSeverity, VariantInputErrorKind,
+    CompileDiagnostic, LintDiagnostic, LintKind, LintOverrides, LintSeverity,
+    RuleGroupInputErrorKind,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -116,8 +117,8 @@ fn inline_custom_properties_combine_with_variant_utilities() {
         );
         assert!(
             result.lint_findings.iter().any(|finding| finding.diagnostic
-                == LintDiagnostic::InvalidVariantInput {
-                    reason: VariantInputErrorKind::CustomProperty,
+                == LintDiagnostic::InvalidRuleGroupInput {
+                    reason: RuleGroupInputErrorKind::CustomProperty,
                 }),
             "{result:#?}"
         );
@@ -160,12 +161,12 @@ fn nested_variant_failure_labels_the_first_incompatible_leaf() {
     for (input, reason, label) in [
         (
             "const x = style({'hover:': [flag && {'aria-busy': true}]});",
-            VariantInputErrorKind::Attribute,
+            RuleGroupInputErrorKind::Attribute,
             "aria-busy",
         ),
         (
             "const x = style({'hover:': [{class: external}]});",
-            VariantInputErrorKind::ExternalClass,
+            RuleGroupInputErrorKind::ExternalClass,
             "external",
         ),
     ] {
@@ -173,7 +174,7 @@ fn nested_variant_failure_labels_the_first_incompatible_leaf() {
         let failure = result
             .lint_findings
             .iter()
-            .find(|finding| finding.diagnostic == LintDiagnostic::InvalidVariantInput { reason })
+            .find(|finding| finding.diagnostic == LintDiagnostic::InvalidRuleGroupInput { reason })
             .unwrap();
         assert_eq!(source.slice(failure.labels[0].span).unwrap(), label);
         assert!(result.diagnostics.is_empty(), "{result:#?}");
@@ -193,7 +194,7 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
         for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
             let options = CompilerOptions {
                 lint: LintOverrides {
-                    invalid_variant_input: Some(severity),
+                    invalid_rule_group_input: Some(severity),
                     ..LintOverrides::default()
                 },
                 ..CompilerOptions::default()
@@ -204,7 +205,7 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
             assert_eq!(
                 result
                     .lint_settings
-                    .reporting_severity(LintKind::InvalidVariantInput),
+                    .reporting_severity(LintKind::InvalidRuleGroupInput),
                 severity
             );
             assert!(result.css.contains("color:blue;"), "{}", result.css);
@@ -217,7 +218,7 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
             );
         }
         let (_, suppressed) = compile(
-            &format!("\n// swlint-disable-next-line invalid-variant-input\n{code}"),
+            &format!("\n// swlint-disable-next-line invalid-rule-group-input\n{code}"),
             css,
         );
         assert!(suppressed.diagnostics.is_empty(), "{suppressed:#?}");

@@ -49,8 +49,8 @@ pub(in crate::compiler) fn expand_authored_directives(
         let mut utilities = Vec::new();
         for candidate in candidates {
             match resolve_utility(candidate, theme) {
-                Ok(Some(utility)) => utilities.push(utility),
-                Ok(None) => {}
+                Ok(Ok(utility)) => utilities.push(utility),
+                Ok(Err(_)) => {}
                 Err(error) => {
                     return Err(CompileDiagnostic::MalformedUtilityRequirement {
                         utility: error.name,
@@ -63,7 +63,7 @@ pub(in crate::compiler) fn expand_authored_directives(
         ordered.sort_by_key(|utility| {
             utility.variants.iter().any(|variant| {
                 matches!(
-                    resolve_variant(variant, theme),
+                    resolve_variant(variant, theme).ok(),
                     Some(VariantApplication::Conditional(_))
                 )
             })
@@ -73,14 +73,14 @@ pub(in crate::compiler) fn expand_authored_directives(
             required_properties.extend(utility.required_properties.iter().cloned());
             if utility.variants.iter().any(|variant| {
                 matches!(
-                    resolve_variant(variant, theme),
+                    resolve_variant(variant, theme).ok(),
                     Some(VariantApplication::Conditional(_))
                 )
             }) {
                 let applications = utility
                     .variants
                     .iter()
-                    .filter_map(|variant| resolve_variant(variant, theme))
+                    .filter_map(|variant| resolve_variant(variant, theme).ok())
                     .collect::<Vec<_>>();
                 declarations.push_str(&render_authored_variant_path(
                     &utility.declaration,
@@ -132,7 +132,7 @@ fn expand_authored_variant(
         }
         let mut paths = vec![Vec::new()];
         for variant in &candidate.variants {
-            let Some(application) = resolve_variant(variant, theme) else {
+            let Ok(application) = resolve_variant(variant, theme) else {
                 return Ok(None);
             };
             let alternatives = match application {

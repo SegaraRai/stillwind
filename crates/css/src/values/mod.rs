@@ -26,5 +26,6 @@ pub use policy::{
     media_has_size_comparison, media_size_comparisons, policy_glob_matches, property_value_domains,
 };
 pub use properties::CssProperty;
+pub use syntax::value_is_well_formed;
 pub use validation::ValueType;
 pub use webref::{csswg_formal_syntax, properties_interfere, property_covers};

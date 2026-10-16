@@ -6,15 +6,19 @@
 //! [`body`] and [`nested`] split a CSS body into its selector, declarations, and
 //! conditional rules, [`declarations`] resolves placeholders per declaration,
 //! [`formatting`] applies the registry's serialization metadata, and [`resolve`] is the
-//! public entry point that ties them together. [`order`] retains pre-emission Tailwind
-//! property/count keys and authored precedence. [`tailwind_property_order`] supplies
-//! its generated property indices.
+//! public entry point that ties them together. [`diagnosis`] explains a candidate that
+//! resolution rejects. [`order`] retains pre-emission Tailwind property/count keys and
+//! authored precedence. [`tailwind_property_order`] supplies its generated property
+//! indices.
 //!
-//! Value-domain mismatches are non-matches, allowing another overload to apply.
-//! Malformed matched definitions return a typed error.
+//! Value-domain mismatches are non-matches, allowing another overload to apply. When
+//! every definition rejects an arbitrary value without a type hint, the value is
+//! emitted as written and recorded as an [`InvalidPropertyValue`]. Malformed matched
+//! definitions return a typed error.
 
 mod body;
 mod declarations;
+mod diagnosis;
 mod formatting;
 mod matching;
 mod nested;
@@ -23,11 +27,12 @@ mod resolve;
 mod tailwind_property_order;
 
 pub use body::UtilityResolutionError;
+pub use diagnosis::{UtilityFailure, UtilityFailureReason, check_candidate_variants};
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use resolve::{
-    ResolvedUtility, ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse,
-    resolve_animation_option, resolve_utility,
+    InvalidPropertyValue, ResolvedUtility, ResolvedUtilityTarget, UtilityArbitraryUse,
+    UtilityTokenUse, resolve_animation_option, resolve_utility,
 };
 
 pub(super) use body::PreparedUtilityBody;

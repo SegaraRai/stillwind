@@ -3,7 +3,7 @@
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, LintDiagnostic, LintOverrides, LintSeverity, UtilityFailure,
+    CompileDiagnostic, CompileError, LintDiagnostic, LintOverrides, LintSeverity,
 };
 
 use super::compile;
@@ -44,7 +44,8 @@ fn unresolved_utilities_are_omitted_independently_of_reporting_and_class_identit
                     .iter()
                     .filter(|finding| matches!(
                         finding.diagnostic,
-                        LintDiagnostic::UnresolvedUtility { .. }
+                        LintDiagnostic::UnknownUtility { .. }
+                            | LintDiagnostic::InvalidUtility { .. }
                     ))
                     .count(),
                 if severity == LintSeverity::Off { 0 } else { 2 },
@@ -65,6 +66,65 @@ fn unresolved_utilities_are_omitted_independently_of_reporting_and_class_identit
                 "{input}"
             );
         }
+    }
+}
+
+/// An arbitrary value that the property grammar rejects is emitted as written at every
+/// reporting level, and only the finding depends on the severity. The finding covers
+/// the value, and a property chosen as a fallback between value types gets hinted
+/// spellings.
+#[test]
+fn invalid_property_values_are_emitted_independently_of_reporting() {
+    let css = "@utility pad-* { padding: --value([length-percentage]); } @utility tone-* { color: --value([color]); } @utility tone-* { font-size: --value([length]); }";
+    let code = "export const x = style('pad-[1/2] pad-[2px] [width:1/2] tone-[12px_foo]');";
+    let expected = compile(code, css).1;
+    for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
+        let options = CompilerOptions {
+            lint: LintOverrides {
+                invalid_property_value: Some(severity),
+                ..LintOverrides::default()
+            },
+            ..CompilerOptions::default()
+        };
+        let (source, result) = CompilationFixture::new(css, &options).compile(code);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        for declaration in ["padding: 1/2;", "width:1/2;", "color: 12px foo;"] {
+            assert!(result.css.contains(declaration), "{}", result.css);
+        }
+        assert_eq!(result.css, expected.css);
+        let findings = result
+            .lint_findings
+            .iter()
+            .filter(|finding| {
+                matches!(
+                    finding.diagnostic,
+                    LintDiagnostic::InvalidPropertyValue { .. }
+                )
+            })
+            .map(|finding| {
+                (
+                    source.slice(finding.labels[0].span).unwrap(),
+                    finding.diagnostic.to_string(),
+                    result.lint_settings.reporting_severity(finding.kind()),
+                )
+            })
+            .collect::<Vec<_>>();
+        if severity == LintSeverity::Off {
+            assert_eq!(findings, [], "{result:#?}");
+            continue;
+        }
+        assert_eq!(
+            findings,
+            [
+                ("[1/2]", "`padding` does not accept `1/2`".into(), severity),
+                ("1/2", "`width` does not accept `1/2`".into(), severity),
+                (
+                    "[12px_foo]",
+                    "`tone-[12px_foo]` sets `color` because `12px foo` has no type hint and its type cannot be inferred, but `color` does not accept it; add a type hint, such as `tone-[color:12px_foo]` or `tone-[length:12px_foo]`".into(),
+                    severity,
+                ),
+            ]
+        );
     }
 }
 
@@ -138,13 +198,10 @@ fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
             ),
         );
         assert!(
-            result.lint_findings.iter().any(|finding| matches!(
-                finding.diagnostic,
-                LintDiagnostic::UnresolvedUtility {
-                    classification: UtilityFailure::Unknown,
-                    ..
-                }
-            )),
+            result
+                .lint_findings
+                .iter()
+                .any(|finding| matches!(finding.diagnostic, LintDiagnostic::UnknownUtility { .. })),
             "{result:#?}"
         );
         assert_eq!(result.css, "");

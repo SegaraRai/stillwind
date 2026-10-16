@@ -8,11 +8,12 @@
 //! read the diagnostics of the layer above.
 
 use std::fmt::Write;
+use std::ops::Range;
 use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::inspect_css_value;
+use stillwind_css::{CssProperty, inspect_css_value};
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
 use super::super::builtins::{
@@ -21,10 +22,12 @@ use super::super::builtins::{
 };
 use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
+use super::diagnosis::{UtilityFailure, arbitrary_value_range, diagnose_utility};
 use super::formatting::finalize_declaration;
 use super::matching::{resolve_css_utility_branches, resolve_named_utility};
 use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
+use crate::evaluation::ArbitraryValueCheck;
 use crate::{ThemeIndex, UtilityOrderMode};
 
 /// One candidate resolved to the declarations and selectors it emits.
@@ -55,6 +58,27 @@ pub struct ResolvedUtility {
     /// fallbacks and selector-bearing branches must never be discarded merely because
     /// they share one candidate spelling.
     pub additional: Vec<ResolvedUtilityTarget>,
+    /// An arbitrary value that the grammar of its property rejects: a value without a
+    /// type hint that no definition accepts, or the value of an arbitrary property. The
+    /// declarations contain it as written.
+    pub invalid_value: Option<InvalidPropertyValue>,
+}
+
+/// An arbitrary value that a utility emits although the grammar of its property rejects
+/// it, such as `1/2` for `width` in `w-[1/2]` or `[width:1/2]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvalidPropertyValue {
+    /// Lowercase CSS property name receiving the value.
+    pub property: LeanStr,
+    /// Decoded value text as the declaration emits it.
+    pub value: LeanStr,
+    /// Byte range of the value within the candidate text: the bracketed value of a
+    /// named utility, or the text after the colon of an arbitrary property.
+    pub range: Range<usize>,
+    /// Type hints of the value types that a named utility accepts, in registration
+    /// order, when the utility accepts several types and `property` was chosen because
+    /// the value's type could not be inferred. Empty otherwise.
+    pub fallback_type_hints: Vec<LeanStr>,
 }
 
 /// Theme tokens selected by one emitted declaration before their values expand.
@@ -92,19 +116,16 @@ pub struct ResolvedUtilityTarget {
     pub nested: Vec<NestedUtilityRule>,
 }
 
-/// Resolves a candidate using only the Tailwind-compatible registry.
+/// Resolves the utility part of a candidate, or returns `None` when no definition
+/// accepts it.
 ///
 /// An arbitrary property (`[color:red]`) becomes a plain declaration positioned by the
 /// registry's arbitrary-property order; a named utility is resolved through the project
 /// registry and then the selected built-ins. Importance is applied to every emitted
 /// declaration, including conditional and additional targets, so the flag cannot be
 /// lost by a branch that emits several rules.
-///
-/// # Errors
-///
-/// Returns a malformed requirement from a matching utility definition.
 #[allow(clippy::too_many_lines)]
-pub fn resolve_utility(
+fn resolve_candidate(
     raw: &str,
     theme: &ThemeIndex,
 ) -> Result<Option<ResolvedUtility>, UtilityResolutionError> {
@@ -145,6 +166,9 @@ pub fn resolve_utility(
                 });
             }
             resolution.builtin_order = Some(arbitrary_property_order(property, theme));
+            if property_rejects(property, value) {
+                resolution.invalid_value = resolution.arbitrary_uses.first().cloned();
+            }
             resolution
         }
         Utility::Named { name, modifier } => {
@@ -209,6 +233,12 @@ pub fn resolve_utility(
         })
         .collect();
     let selector = resolution.selector;
+    let invalid_value = resolution.invalid_value.map(|usage| InvalidPropertyValue {
+        property: usage.property,
+        value: usage.value,
+        range: arbitrary_value_range(raw, &candidate),
+        fallback_type_hints: resolution.fallback_type_hints,
+    });
     Ok(Some(ResolvedUtility {
         token_uses: resolution.token_uses,
         arbitrary_uses: resolution.arbitrary_uses,
@@ -220,7 +250,52 @@ pub fn resolve_utility(
         selector,
         nested,
         additional,
+        invalid_value,
     }))
+}
+
+/// Whether the grammar of `property` rejects the arbitrary property value `value`.
+///
+/// Custom properties accept every value. A property that the Webref data does not
+/// define, and a value that contains `var()`, `env()`, or `attr()`, cannot be checked
+/// and count as accepted.
+fn property_rejects(property: &str, value: &str) -> bool {
+    if property.starts_with("--") {
+        return false;
+    }
+    let lowercase = value.to_ascii_lowercase();
+    if ["var(", "env(", "attr("]
+        .iter()
+        .any(|function| lowercase.contains(function))
+    {
+        return false;
+    }
+    CssProperty::from_name(&property.to_ascii_lowercase())
+        .is_some_and(|property| !property.accepts(value))
+}
+
+/// Resolves a candidate using only the Tailwind-compatible registry, as
+/// [`resolve_candidate`] describes, and explains a failure.
+///
+/// Variants are not resolved; [`super::check_candidate_variants`] checks them. The
+/// inner result is the resolution, or a [`UtilityFailure`] whose range lies within
+/// `raw`.
+///
+/// # Errors
+///
+/// Returns a malformed requirement from a matching utility definition.
+pub fn resolve_utility(
+    raw: &str,
+    theme: &ThemeIndex,
+) -> Result<Result<ResolvedUtility, UtilityFailure>, UtilityResolutionError> {
+    match resolve_candidate(raw, theme)? {
+        Some(resolved) => Ok(Ok(resolved)),
+        None => Ok(Err(diagnose_utility(
+            raw,
+            parse_candidate(raw).as_ref(),
+            theme,
+        ))),
+    }
 }
 
 /// Resolves one animation option from the CSS-authored option registry. As a
@@ -263,6 +338,7 @@ pub fn resolve_animation_option(
         name,
         modifier.as_ref(),
         theme,
+        ArbitraryValueCheck::Grammar,
     )? {
         return Ok(((resolution.selector.is_none()
             && resolution.nested.is_empty()
@@ -282,7 +358,7 @@ fn project_animation_option_utility(
     raw: &str,
     theme: &ThemeIndex,
 ) -> Result<Option<LeanString>, UtilityResolutionError> {
-    let Some(utility) = resolve_utility(raw, theme)? else {
+    let Ok(utility) = resolve_utility(raw, theme)? else {
         return Ok(None);
     };
     if !utility.candidate.variants.is_empty()
@@ -321,7 +397,7 @@ mod tests {
     use crate::{BuiltinDefinitions, parse_theme};
 
     fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
-        super::resolve_utility(raw, theme).unwrap()
+        super::resolve_utility(raw, theme).unwrap().ok()
     }
 
     fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {

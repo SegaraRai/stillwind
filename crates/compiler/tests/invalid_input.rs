@@ -48,7 +48,7 @@ fn options(severity: LintSeverity) -> CompilerOptions {
     CompilerOptions {
         lint: LintOverrides {
             invalid_style_input: Some(severity),
-            invalid_variant_input: Some(severity),
+            invalid_rule_group_input: Some(severity),
             invalid_ref_input: Some(severity),
             invalid_keyframes_definition: Some(severity),
             invalid_keyframes_use: Some(severity),
@@ -62,6 +62,8 @@ fn options(severity: LintSeverity) -> CompilerOptions {
             invalid_style_composition: Some(severity),
             invalid_utility: Some(severity),
             unknown_utility: Some(severity),
+            invalid_variant: Some(severity),
+            unknown_variant: Some(severity),
             ..LintOverrides::default()
         },
         ..CompilerOptions::default()
@@ -502,7 +504,7 @@ fn invalid_options_lower_as_omitted_arguments() {
 }
 
 #[test]
-fn unknown_variants_share_the_utility_rules_wherever_they_appear() {
+fn unknown_variants_share_one_rule_wherever_they_appear() {
     for input in ["'unknown:a'", "{'unknown:': 'a'}"] {
         let (_, result) = compile(
             &format!("const x=style('b',{input});"),
@@ -514,7 +516,7 @@ fn unknown_variants_share_the_utility_rules_wherever_they_appear() {
             result
                 .lint_findings
                 .iter()
-                .any(|finding| finding.kind() == LintKind::UnknownUtility),
+                .any(|finding| finding.kind() == LintKind::UnknownVariant),
             "{input}: {result:#?}"
         );
         assert!(!result.css.contains("color:red"), "{input}: {}", result.css);

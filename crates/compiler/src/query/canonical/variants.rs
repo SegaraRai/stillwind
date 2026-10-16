@@ -33,7 +33,7 @@ impl VariantIndex {
                 && parsed
                     .variants
                     .first()
-                    .and_then(|variant| resolve_variant(variant, query.design_system.theme()))
+                    .and_then(|variant| resolve_variant(variant, query.design_system.theme()).ok())
                     .is_some_and(|application| contextual(&application))
             {
                 index.contextual.push(name.to_lean_str());
@@ -59,7 +59,7 @@ impl VariantIndex {
         if parsed.variants.len() > 1
             || resolve_utility(raw, query.design_system.theme())
                 .ok()
-                .flatten()
+                .and_then(Result::ok)
                 .is_some_and(|utility| {
                     utility.selector.is_some()
                         || !utility.nested.is_empty()

@@ -12,7 +12,8 @@ use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    combine_declarations_for_theme, resolve_utility, unresolved_utility_kind,
+    combine_declarations_for_theme, invalid_property_value_finding, resolve_utility,
+    unresolved_utility_finding,
 };
 use super::super::variants::{OptionCondition, application_condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
@@ -182,18 +183,29 @@ pub(crate) fn resolve_frame(
 ) -> (LeanString, Vec<LeanStr>) {
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
-        match resolve_utility(&utility.value.raw, theme) {
-            Ok(Some(utility)) if utility.variants.is_empty() => utilities.push(utility),
-            Ok(Some(_)) => lint_findings.push(LintFinding::new(
+        let raw = &utility.value.raw;
+        match resolve_utility(raw, theme) {
+            Ok(Ok(resolved)) if resolved.variants.is_empty() => {
+                if let Some(value) = &resolved.source.invalid_value {
+                    lint_findings.push(invalid_property_value_finding(
+                        raw,
+                        raw.len(),
+                        value,
+                        utility.span,
+                    ));
+                }
+                utilities.push(resolved);
+            }
+            Ok(Ok(_)) => lint_findings.push(LintFinding::new(
                 LintDiagnostic::KeyframesFrameVariants,
                 utility.span,
             )),
-            Ok(None) => lint_findings.push(LintFinding::new(
-                LintDiagnostic::UnresolvedUtility {
-                    utility: (utility.value.raw.clone()),
-                    classification: unresolved_utility_kind(&utility.value.raw),
-                },
+            Ok(Err(failure)) => lint_findings.push(unresolved_utility_finding(
+                raw,
+                raw.len(),
+                &failure,
                 utility.span,
+                theme,
             )),
             Err(error) => diagnostics.push(CompileError::new(
                 CompileDiagnostic::MalformedUtilityRequirement {

@@ -9,11 +9,13 @@
 //! typed value domains and placeholders, and [`variants`] produces selector
 //! applications and their ordering. [`context`] records direct selections for one
 //! evaluation. [`programs`] prepares utility syntax and declaration branches.
-//! [`syntax`] matches delimiters while reading definition expressions.
+//! [`syntax`] matches delimiters while reading definition expressions. [`suggestions`]
+//! proposes spellings for unknown utility and variant names.
 
 mod builtins;
 mod context;
 mod programs;
+mod suggestions;
 mod syntax;
 mod utilities;
 mod values;
@@ -24,22 +26,23 @@ pub use builtins::{
     builtin_property_definitions, builtin_theme_order, builtin_utility_token_prefixes,
 };
 pub use utilities::{
-    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget,
-    UtilityArbitraryUse, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
-    UtilityTokenUse, resolve_animation_option, resolve_utility,
+    InvalidPropertyValue, NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility,
+    ResolvedUtilityTarget, UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
+    UtilityPropertySort, UtilityResolutionError, UtilityTokenUse, check_candidate_variants,
+    resolve_animation_option, resolve_utility,
 };
 pub use variants::{
-    ResolvedVariant, VariantApplication, VariantDeclaration, VariantMediaValue,
-    VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
-    compatibility_marker_class, document_scoped_selector, is_condition_variant,
-    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_variant,
-    resolve_variant_with_usage,
+    ConditionContext, ResolvedVariant, VariantApplication, VariantDeclaration, VariantFailure,
+    VariantFailureReason, VariantMediaValue, VariantObstacle, VariantSequenceOrder,
+    VariantValueSource, compare_variant_sequences, compatibility_marker_class,
+    document_scoped_selector, is_tailwind_relationship_candidate, repeated_subject_selector,
+    resolve_variant, resolve_variant_with_usage,
 };
 
 pub(crate) use programs::UtilityPrograms;
 pub(crate) use values::color_fallback;
 
-use context::{EvaluationContext, ValueSelections};
+use context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 
 #[cfg(test)]
 mod tests;

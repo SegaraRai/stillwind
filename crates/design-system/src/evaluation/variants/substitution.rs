@@ -16,8 +16,8 @@ use stillwind_source::ReplaceText;
 
 use super::super::values::expand_placeholder;
 use super::super::values::{resolve_value_domains, split_domains, theme_domain_pattern};
+use super::application::{VariantApplication, VariantDeclaration, VariantObstacle};
 use super::body::resolve_variant_body;
-use super::resolve::{VariantApplication, VariantDeclaration};
 use super::usage::VariantValueSource;
 use crate::evaluation::EvaluationContext;
 use crate::{BuiltinVariantModifierType, CustomVariant, ThemeNamespace};
@@ -124,6 +124,47 @@ pub(in crate::evaluation) fn apply_nested_variant(
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
         | VariantApplication::StartingStyle => None,
+    }
+}
+
+/// Returns the part of `inner` that [`apply_nested_variant`] cannot place in a
+/// selector.
+///
+/// The first such part is reported, in the order the application lists its parts. A
+/// sequence that styles more than one element reports the second one.
+pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> VariantObstacle {
+    match inner {
+        VariantApplication::Compound(applications) => applications
+            .iter()
+            .map(nesting_obstacle)
+            .find(|obstacle| *obstacle != VariantObstacle::Unsupported)
+            .unwrap_or(VariantObstacle::Unsupported),
+        VariantApplication::Sequence(applications) => {
+            let mut subjects = applications
+                .iter()
+                .filter(|application| application.uses_subject());
+            match (subjects.next(), subjects.next()) {
+                (Some(application), None) => nesting_obstacle(application),
+                (Some(_), Some(_)) => VariantObstacle::OtherElement,
+                (None, _) => VariantObstacle::AtRule,
+            }
+        }
+        VariantApplication::SelectorSuffix(suffix) => {
+            VariantObstacle::of_selector(&format_args!("&{suffix}").to_lean_string())
+                .unwrap_or(VariantObstacle::Unsupported)
+        }
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::SelectorMedia { selector, .. }
+        | VariantApplication::SelectorRule { selector, .. }
+        | VariantApplication::SelectorMediaRule { selector, .. } => {
+            VariantObstacle::of_selector(selector).unwrap_or(VariantObstacle::Unsupported)
+        }
+        VariantApplication::Conditional(_) => VariantObstacle::RuntimeCondition,
+        VariantApplication::SelectorCondition(_) => VariantObstacle::Unsupported,
+        VariantApplication::Media(_)
+        | VariantApplication::Container(_)
+        | VariantApplication::Supports(_)
+        | VariantApplication::StartingStyle => VariantObstacle::AtRule,
     }
 }
 

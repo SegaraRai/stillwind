@@ -7,24 +7,27 @@
 //! built-ins, and theme namespace patterns such as `--color-*`.
 
 use cssparser::{Parser, Token};
-use lean_string::{LeanStr, ToLeanStr};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::ValueDomain;
+use stillwind_css::{ValueDomain, value_is_well_formed};
 
-use super::super::EvaluationContext;
+use super::super::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
+use super::expansion::expand_placeholder;
 use super::theme::{ViewportAxis, axis_size_value, fraction_value, theme_value};
-use crate::ThemeNamespace;
 use crate::conditionals::accepts_runtime_value;
+use crate::{ThemeIndex, ThemeNamespace, ThemeTokenKind};
 
 /// Resolves the first matching domain in a comma-separated domain list.
 ///
 /// A theme namespace domain looks the capture up in that namespace and may append an
 /// authored suffix; a CSS grammar domain accepts either a parenthesized variable (whose
-/// optional hint must fit) or an arbitrary value (whose value and hint must fit).
-/// Whole `--if` values must have two branches accepted by the same domain; nested
-/// expressions use deferred-variable validation after their conditional syntax is checked.
-/// [`None`] means no domain matched, including malformed conditional captures.
+/// optional hint must fit) or an arbitrary value (whose value and hint must fit). When
+/// `theme` checks [`ArbitraryValueCheck::WellFormed`] values, every well-formed
+/// arbitrary value without a hint fits a CSS grammar domain. Whole `--if` values must
+/// have two branches accepted by the same domain; nested expressions use
+/// deferred-variable validation after their conditional syntax is checked. [`None`]
+/// means no domain matched, including malformed conditional captures.
 pub(in crate::evaluation) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
@@ -91,7 +94,11 @@ pub(in crate::evaluation) fn resolve_value_domains(
         let (hint, value) = arbitrary_hint(arbitrary);
         let value = theme.inline_theme_functions(&decode_arbitrary(value))?;
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
-        (hint_is_compatible && accepts_runtime_value(expected, &value)).then(|| {
+        let accepted = accepts_runtime_value(expected, &value)
+            || (hint.is_empty()
+                && theme.arbitrary_check() == ArbitraryValueCheck::WellFormed
+                && value_is_well_formed(&value));
+        (hint_is_compatible && accepted).then(|| {
             theme.record_value_tokens(&value);
             theme.record_arbitrary_value(&value, Some(expected) == ValueDomain::from_hint("color"));
             value.into()
@@ -146,6 +153,42 @@ pub(in crate::evaluation) fn theme_domain_pattern(domain: &str) -> Option<(Theme
     let domain = domain.strip_prefix("--")?;
     let (namespace, suffix) = domain.split_once("-*")?;
     Some((ThemeNamespace::parse(namespace)?, suffix))
+}
+
+/// Returns the captures written without brackets that the `--value(...)` placeholders
+/// of `body` accept by name.
+///
+/// A theme namespace domain contributes the names of its active tokens, without the
+/// domain's suffix, and a keyword domain contributes the keyword. Other domains accept
+/// computed or arbitrary values and contribute nothing. Names can repeat.
+pub(in crate::evaluation) fn named_domain_values(
+    body: &str,
+    theme: &ThemeIndex,
+) -> Vec<LeanString> {
+    let mut names = Vec::new();
+    let mut body = body.to_lean_string();
+    let _ = expand_placeholder(&mut body, "--value", |domains| {
+        for domain in split_domains(domains) {
+            let domain = domain.trim();
+            if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
+                names.extend(theme.tokens_in(namespace).into_iter().filter_map(|token| {
+                    let ThemeTokenKind::Token { name, .. } = &token.kind else {
+                        return None;
+                    };
+                    name.strip_suffix(suffix).map(ToLeanString::to_lean_string)
+                }));
+            } else if !domain.is_empty()
+                && !domain.starts_with(['[', '-'])
+                && domain
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '-')
+            {
+                names.push(domain.to_lean_string());
+            }
+        }
+        Some(LeanStr::new())
+    });
+    names
 }
 
 #[cfg(test)]

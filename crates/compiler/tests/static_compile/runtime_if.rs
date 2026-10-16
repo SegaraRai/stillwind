@@ -1,7 +1,7 @@
 //! Experimental computed-value conditions through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions};
-use stillwind_diagnostics::{CompileError, LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::{CompileError, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -9,17 +9,16 @@ use stillwind_test_support::css_source;
 
 use super::*;
 
-/// Asserts that a malformed runtime condition capture lowers `candidate` as an omitted
-/// invalid utility.
+/// Asserts that a malformed runtime condition lowers `candidate` as omitted. A
+/// malformed `if()` variant capture reports `invalid-variant`, and a malformed `--if()`
+/// function reports `invalid-utility`.
 fn assert_invalid_capture(result: &CompileResult, candidate: &str) {
     assert_eq!(result.diagnostics, [] as [CompileError; 0], "{candidate}");
     assert!(
         result.lint_findings.iter().any(|finding| matches!(
-            &finding.diagnostic,
-            LintDiagnostic::UnresolvedUtility {
-                classification: UtilityFailure::Invalid,
-                ..
-            }
+            (&finding.diagnostic, candidate.starts_with("if(")),
+            (LintDiagnostic::InvalidVariant { .. }, true)
+                | (LintDiagnostic::InvalidUtility { .. }, false)
         )),
         "{candidate}: {:?}",
         result.lint_findings

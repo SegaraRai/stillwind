@@ -30,7 +30,7 @@ fn tailwind_resolved_property_sort_matches_upstream() {
     let mut candidates = Vec::new();
     for expected in fixture["keys"].as_array().unwrap() {
         let candidate = expected["candidate"].as_str().unwrap();
-        let Some(resolved) = resolve_utility(candidate, snapshot.theme()).unwrap() else {
+        let Ok(resolved) = resolve_utility(candidate, snapshot.theme()).unwrap() else {
             unresolved.push(candidate);
             continue;
         };

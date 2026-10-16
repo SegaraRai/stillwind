@@ -11,10 +11,10 @@
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
-use stillwind_css::ValueType;
+use stillwind_css::{ValueType, value_is_well_formed};
 
-use super::super::EvaluationContext;
 use super::super::builtins::builtin_theme_namespace_types;
+use super::super::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use crate::{ThemeIndex, ThemeNamespace, ThemeTokenMode};
 
@@ -94,7 +94,9 @@ pub(in crate::evaluation) fn theme_value_literal(
 ///
 /// A namespace without declared types accepts any spelling; a hint is checked before
 /// the value itself, so `[time:2s]` is rejected for a length-only namespace even though
-/// `2s` is a valid value of some other type.
+/// `2s` is a valid value of some other type. When `theme` checks
+/// [`ArbitraryValueCheck::WellFormed`] values, every well-formed value without a hint is
+/// accepted.
 fn typed_theme_arbitrary(
     namespace: ThemeNamespace,
     value: &str,
@@ -108,13 +110,16 @@ fn typed_theme_arbitrary(
         || types.is_empty()
         || ValueType::from_hint(hint)
             .is_some_and(|hint| types.iter().any(|expected| expected.accepts_hint(hint)));
-    ((hint_is_compatible && (types.is_empty() || types.iter().any(|kind| kind.accepts(&value))))
-        .then(|| {
-            theme.record_value_tokens(&value);
-            theme.record_arbitrary_value(&value, types.contains(&ValueType::Color));
-            value
-        }))
-    .map(Into::into)
+    let accepted = types.is_empty()
+        || types.iter().any(|kind| kind.accepts(&value))
+        || (hint.is_empty()
+            && theme.arbitrary_check() == ArbitraryValueCheck::WellFormed
+            && value_is_well_formed(&value));
+    (hint_is_compatible && accepted).then(|| {
+        theme.record_value_tokens(&value);
+        theme.record_arbitrary_value(&value, types.contains(&ValueType::Color));
+        value.into()
+    })
 }
 
 /// The value types declared for a namespace by the selected built-ins.

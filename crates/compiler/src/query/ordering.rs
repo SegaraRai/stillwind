@@ -86,12 +86,13 @@ impl CandidateOrdering {
             return Ok(key.clone());
         }
         let key = CandidateResolver::resolve(raw, theme)?
+            .ok()
             .filter(|resolved| {
                 resolved
                     .candidate
                     .variants
                     .iter()
-                    .all(|variant| resolve_variant(variant, theme).is_some())
+                    .all(|variant| resolve_variant(variant, theme).is_ok())
             })
             .map(|resolved| {
                 Arc::new(CandidateOrder {

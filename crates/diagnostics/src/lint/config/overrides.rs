@@ -56,7 +56,7 @@ pub struct LintOverrides {
     /// Reporting level for `suspending-macro-argument`.
     pub suspending_macro_argument: Option<LintSeverity>,
     /// Reporting level for omitted rule groups with incompatible inputs.
-    pub invalid_variant_input: Option<LintSeverity>,
+    pub invalid_rule_group_input: Option<LintSeverity>,
     /// Reporting level for `invalid-style-input`.
     pub invalid_style_input: Option<LintSeverity>,
     /// Reporting level for `invalid-cva-config`.
@@ -111,6 +111,12 @@ pub struct LintOverrides {
     pub invalid_utility: Option<LintSeverity>,
     /// Reporting level for `unknown-utility`.
     pub unknown_utility: Option<LintSeverity>,
+    /// Reporting level for `invalid-variant`.
+    pub invalid_variant: Option<LintSeverity>,
+    /// Reporting level for `unknown-variant`.
+    pub unknown_variant: Option<LintSeverity>,
+    /// Reporting level for `invalid-property-value`.
+    pub invalid_property_value: Option<LintSeverity>,
 }
 
 impl LintOverrides {
@@ -241,6 +247,9 @@ impl LintOverrides {
             ),
             (LintKind::InvalidUtility, self.invalid_utility),
             (LintKind::UnknownUtility, self.unknown_utility),
+            (LintKind::InvalidVariant, self.invalid_variant),
+            (LintKind::UnknownVariant, self.unknown_variant),
+            (LintKind::InvalidPropertyValue, self.invalid_property_value),
             (LintKind::NoArbitraryColors, self.no_arbitrary_colors),
             (LintKind::NoClassProperty, self.no_class_property),
             (LintKind::NoImportant, self.no_important),
@@ -271,7 +280,10 @@ impl LintOverrides {
 
     fn resolve_input_reporting_levels(&self, settings: &mut LintSettings) {
         for (kind, severity) in [
-            (LintKind::InvalidVariantInput, self.invalid_variant_input),
+            (
+                LintKind::InvalidRuleGroupInput,
+                self.invalid_rule_group_input,
+            ),
             (LintKind::InvalidStyleInput, self.invalid_style_input),
             (LintKind::InvalidCvaConfig, self.invalid_cva_config),
             (LintKind::InvalidCvaInput, self.invalid_cva_input),

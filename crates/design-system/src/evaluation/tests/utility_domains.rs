@@ -60,7 +60,7 @@ fn resolves_every_upstream_static_variant_from_the_css_registry() {
         .filter(|name| {
             let candidate = parse_candidate(&format_args!("{name}:flex").to_lean_string())
                 .expect("catalog variants must parse");
-            resolve_variant(&candidate.variants[0], &theme).is_none()
+            resolve_variant(&candidate.variants[0], &theme).is_err()
         })
         .collect::<Vec<_>>();
 

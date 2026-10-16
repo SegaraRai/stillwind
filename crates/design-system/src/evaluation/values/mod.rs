@@ -21,7 +21,9 @@ mod theme;
 
 pub(super) use arbitrary::decode_arbitrary;
 pub(crate) use colors::color_fallback;
-pub(super) use domains::{resolve_value_domains, split_domains, theme_domain_pattern};
+pub(super) use domains::{
+    named_domain_values, resolve_value_domains, split_domains, theme_domain_pattern,
+};
 pub(super) use expansion::expand_placeholder;
 pub(super) use placeholders::{PreparedValues, resolve_css_placeholders};
 pub(super) use theme::theme_arbitrary_types;

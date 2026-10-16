@@ -11,7 +11,7 @@ use super::*;
 use crate::test_support::parse_fixture_theme;
 
 pub(super) fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
-    super::super::resolve_utility(raw, theme).unwrap()
+    super::super::resolve_utility(raw, theme).unwrap().ok()
 }
 
 pub(super) fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {

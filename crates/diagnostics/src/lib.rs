@@ -60,7 +60,7 @@ pub use lint::{
     RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, UtilityFailure, VariantInputErrorKind,
+    RestrictedUtilitiesOverride, RestrictedUtilityRule, RuleGroupInputErrorKind,
     collect_lint_directives, filter_lint_findings, finish_lint_findings,
 };
 pub use report::{

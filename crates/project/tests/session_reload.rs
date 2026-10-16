@@ -89,7 +89,7 @@ fn watch_reload_publishes_recovered_motion_and_keeps_other_modules() {
         session.artifacts()[&ModuleId::from("motion.tsx")]
             .lint_findings
             .iter()
-            .any(|error| matches!(error.diagnostic, LintDiagnostic::UnresolvedUtility { .. }))
+            .any(|error| matches!(error.diagnostic, LintDiagnostic::UnknownUtility { .. }))
     );
     assert!(update.css_changed);
     assert_ne!(session.snapshot().revision(), revision);

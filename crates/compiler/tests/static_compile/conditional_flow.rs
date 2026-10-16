@@ -7,7 +7,7 @@
 
 use stillwind_compiler::{CompileResult, CompilerOptions, SourceTransform};
 use stillwind_diagnostics::{
-    CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, VariantInputErrorKind,
+    CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, RuleGroupInputErrorKind,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -44,7 +44,10 @@ export const two = style({ "hover:": base });"#,
         result
             .lint_findings
             .iter()
-            .filter(|error| matches!(error.diagnostic, LintDiagnostic::InvalidVariantInput { .. }))
+            .filter(|error| matches!(
+                error.diagnostic,
+                LintDiagnostic::InvalidRuleGroupInput { .. }
+            ))
             .count(),
         2,
         "{:#?}",
@@ -54,7 +57,7 @@ export const two = style({ "hover:": base });"#,
         .lint_findings
         .iter()
         .filter_map(|error| match error.diagnostic {
-            LintDiagnostic::InvalidVariantInput { reason } => Some((
+            LintDiagnostic::InvalidRuleGroupInput { reason } => Some((
                 reason,
                 component.slice(error.labels[0].span).unwrap().to_owned(),
             )),
@@ -64,8 +67,8 @@ export const two = style({ "hover:": base });"#,
     assert_eq!(
         failures,
         [
-            (VariantInputErrorKind::RefAttachment, "ref".to_owned()),
-            (VariantInputErrorKind::Composition, "base".to_owned()),
+            (RuleGroupInputErrorKind::RefAttachment, "ref".to_owned()),
+            (RuleGroupInputErrorKind::Composition, "base".to_owned()),
         ]
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");

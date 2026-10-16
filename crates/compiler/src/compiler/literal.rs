@@ -6,12 +6,11 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, compatibility_marker_class, is_condition_variant,
-    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_variant,
+    ThemeIndex, VariantApplication, compatibility_marker_class, is_tailwind_relationship_candidate,
+    repeated_subject_selector, resolve_variant,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
-    UtilityFailure,
 };
 use stillwind_source::{ReplaceText, Span, Spanned};
 use stillwind_syntax::{Utility, parse_candidate};
@@ -19,7 +18,10 @@ use stillwind_syntax::{Utility, parse_candidate};
 use super::conditionals::{UnsupportedCondition, check_candidate};
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
-use super::utilities::{CompiledUtility, resolve_utility_targets, unresolved_utility_kind};
+use super::utilities::{
+    CompiledUtility, invalid_property_value_finding, resolve_utility_targets, unresolved_lint_kind,
+    unresolved_utility_finding,
+};
 use super::variants::document_scoped_selector;
 
 /// Rules and class names collected before they are assigned to a class unit.
@@ -121,7 +123,7 @@ impl LiteralContribution {
                 continue;
             }
             match resolve_utility_targets(&raw, theme) {
-                Ok(Some(mut resolved)) => {
+                Ok(Ok(mut resolved)) => {
                     let canonical_candidate =
                         format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
                     contribution.canonical.push_str(&canonical_candidate);
@@ -132,6 +134,18 @@ impl LiteralContribution {
                         lint_settings,
                         utility.span,
                     ));
+                    if lint_settings.enabled_for_detection(LintKind::InvalidPropertyValue)
+                        && let Some(value) = resolved
+                            .first()
+                            .and_then(|first| first.source.invalid_value.as_ref())
+                    {
+                        lint_findings.push(invalid_property_value_finding(
+                            &raw,
+                            utility.value.raw.len(),
+                            value,
+                            utility.span,
+                        ));
+                    }
                     for resolved_utility in &mut resolved {
                         resolved_utility.source.span = Some(source_span);
                         resolved_utility.source.variant_spans =
@@ -140,18 +154,15 @@ impl LiteralContribution {
                     }
                     contribution.utilities.append(&mut resolved);
                 }
-                Ok(None) => {
-                    if lint_settings.has_enabled_rules() {
-                        let classification = unresolved_utility_kind(&utility.value.raw);
-                        if lint_settings.enabled_for_detection(classification.lint_kind()) {
-                            lint_findings.push(LintFinding::new(
-                                LintDiagnostic::UnresolvedUtility {
-                                    utility: (utility.value.raw.clone()),
-                                    classification,
-                                },
-                                utility.span,
-                            ));
-                        }
+                Ok(Err(failure)) => {
+                    if lint_settings.enabled_for_detection(unresolved_lint_kind(&failure)) {
+                        lint_findings.push(unresolved_utility_finding(
+                            &raw,
+                            utility.value.raw.len(),
+                            &failure,
+                            utility.span,
+                            theme,
+                        ));
                     }
                 }
                 Err(error) => diagnostics.push(CompileError::new(
@@ -185,9 +196,10 @@ pub(super) struct TransitionContribution {
 
 /// Returns the enabled findings for variant selectors of the candidate `raw`.
 ///
-/// Each rule reports at most one finding at `span`: a selector that does not depend on
-/// the styled element, and a selector that uses `&` more than once in one complex
-/// selector. An unparsable candidate returns no findings.
+/// Each rule reports at most one finding at the span of the responsible variant within
+/// `span`: a selector that does not depend on the styled element, and a selector that
+/// uses `&` more than once in one complex selector. An unparsable candidate returns no
+/// findings.
 fn variant_selector_lints(
     raw: &str,
     theme: &ThemeIndex,
@@ -197,25 +209,29 @@ fn variant_selector_lints(
     let Some(candidate) = parse_candidate(raw) else {
         return Vec::new();
     };
+    // Escaped source text has no byte-for-byte mapping to `raw`; its variants share
+    // `span`.
+    let spans = if span.len() == u32::try_from(raw.len()).ok() {
+        variant_spans(raw, span)
+    } else {
+        vec![span; candidate.variants.len()]
+    };
     let mut findings = Vec::new();
     if lint_settings.enabled_for_detection(LintKind::DocumentScopedSelector)
-        && let Some(selector) = candidate
+        && let Some((diagnostic, span)) = candidate
             .variants
             .iter()
-            .find_map(|variant| document_scoped_selector(variant, theme))
+            .zip(&spans)
+            .find_map(|(variant, span)| Some((document_scoped_selector(variant, theme)?, *span)))
     {
-        findings.push(LintFinding::new(
-            LintDiagnostic::DocumentScopedSelector {
-                selector: selector.into(),
-            },
-            span,
-        ));
+        findings.push(LintFinding::new(diagnostic, span));
     }
     if lint_settings.enabled_for_detection(LintKind::RepeatedNestingSelector)
-        && let Some(selector) = candidate
+        && let Some((selector, span)) = candidate
             .variants
             .iter()
-            .find_map(|variant| repeated_subject_selector(variant, theme))
+            .zip(&spans)
+            .find_map(|(variant, span)| Some((repeated_subject_selector(variant, theme)?, *span)))
     {
         findings.push(LintFinding::new(
             LintDiagnostic::RepeatedNestingSelector {
@@ -246,11 +262,11 @@ fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {
 
 /// Returns the lint for a runtime condition that omits the candidate `raw`.
 ///
-/// `utility` is the authored spelling reported by the lint. A conditional variant whose
-/// capture is malformed and an invalid `--if()` function select `invalid-utility`. With
-/// `use_css_if` false, a condition that the fallback strategy cannot represent selects
-/// `runtime-condition-requires-css-if`. Returns `None` when the candidate can be
-/// lowered or does not parse.
+/// `utility` is the authored spelling reported by the lint. An invalid `--if()`
+/// function selects `invalid-utility`. With `use_css_if` false, a condition that the
+/// fallback strategy cannot represent selects `runtime-condition-requires-css-if`.
+/// Returns `None` when the candidate can be lowered or does not parse. A conditional
+/// variant with a malformed capture does not resolve, so utility resolution reports it.
 fn runtime_condition_lint(
     raw: &str,
     utility: &str,
@@ -258,15 +274,6 @@ fn runtime_condition_lint(
     use_css_if: bool,
 ) -> Option<LintDiagnostic> {
     let candidate = parse_candidate(raw)?;
-    let invalid = || LintDiagnostic::UnresolvedUtility {
-        utility: utility.to_lean_str(),
-        classification: UtilityFailure::Invalid,
-    };
-    if candidate.variants.iter().any(|variant| {
-        resolve_variant(variant, theme).is_none() && is_condition_variant(&variant.raw, theme)
-    }) {
-        return Some(invalid());
-    }
     let value = match &candidate.utility {
         Utility::Named { name, .. } => name
             .find('[')
@@ -277,7 +284,7 @@ fn runtime_condition_lint(
     let conditions = candidate
         .variants
         .iter()
-        .filter_map(|variant| match resolve_variant(variant, theme) {
+        .filter_map(|variant| match resolve_variant(variant, theme).ok() {
             Some(VariantApplication::Conditional(condition)) => Some(condition),
             _ => None,
         })
@@ -288,7 +295,10 @@ fn runtime_condition_lint(
         use_css_if,
     ) {
         Ok(()) => None,
-        Err(UnsupportedCondition::Syntax) => Some(invalid()),
+        Err(UnsupportedCondition::Syntax) => Some(LintDiagnostic::InvalidUtility {
+            utility: utility.to_lean_str(),
+            detail: "an `--if()` function requires a condition and two values".into(),
+        }),
         Err(UnsupportedCondition::RequiresNative(detail)) => {
             Some(LintDiagnostic::RuntimeConditionRequiresCssIf {
                 utility: utility.to_lean_str(),

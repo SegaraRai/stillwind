@@ -486,7 +486,7 @@ fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option
             utility
                 .variants
                 .iter()
-                .filter_map(|variant| resolve_variant(variant, theme))
+                .filter_map(|variant| resolve_variant(variant, theme).ok())
                 .collect(),
         ]
     } else {
@@ -540,7 +540,7 @@ pub(crate) fn candidate_allowed(raw: &str, theme: &ThemeIndex, settings: &LintSe
     {
         return true;
     }
-    let Ok(Some(utilities)) = resolve_utility_targets(raw, theme) else {
+    let Ok(Ok(utilities)) = resolve_utility_targets(raw, theme) else {
         return false;
     };
     utilities.iter().all(|utility| {

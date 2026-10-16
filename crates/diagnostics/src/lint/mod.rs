@@ -4,10 +4,9 @@
 //! detect findings, and reporters apply the configured severity and suppression.
 //!
 //! `config` defines named rules, setting variants, and severity lookup. `diagnostic`
-//! defines detected causes, message templates, and utility syntax classifications.
-//! `finding` attaches source labels, notes, and actions to a detected cause.
-//! `suppression` parses `swlint-*` comments and filters findings by their primary
-//! spans.
+//! defines detected causes and their message templates. `finding` attaches source
+//! labels, notes, and actions to a detected cause. `suppression` parses `swlint-*`
+//! comments and filters findings by their primary spans.
 
 mod config;
 mod diagnostic;
@@ -23,7 +22,7 @@ pub use config::{
     RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
     RestrictedUtilitiesOverride, RestrictedUtilityRule,
 };
-pub use diagnostic::{LintDiagnostic, UtilityFailure, VariantInputErrorKind};
+pub use diagnostic::{LintDiagnostic, RuleGroupInputErrorKind};
 pub use finding::LintFinding;
 pub use suppression::{
     LintDirective, LintDirectiveKind, LintDirectiveRules, collect_lint_directives,

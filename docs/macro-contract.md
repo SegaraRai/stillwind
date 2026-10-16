@@ -17,9 +17,9 @@ declaration identities. `packages/core/src/runtime/` combines compiled props.
 
 Utility literals contribute only candidates resolved by the CSS snapshot. Unresolved
 candidates are omitted from generated classes, CSS, and canonical class inputs.
-The `unknown-utility` and `invalid-utility` rules report these candidates. Severity
-settings and suppression affect reporting without changing omission. Supply external
-class values through `{ class: expression }`.
+The `unknown-utility`, `invalid-utility`, `unknown-variant`, and `invalid-variant`
+rules report these candidates. Severity settings and suppression affect reporting
+without changing omission. Supply external class values through `{ class: expression }`.
 
 ## Unsupported input
 
@@ -34,23 +34,46 @@ severity and `swlint-*` suppression change reporting without changing output.
 
 The compiler classifies each problem by what it can still determine:
 
-| Problem                                                                                                                                                  | Result                     |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| The source cannot be read: parse, source-map, or projection failures                                                                                     | Compilation error          |
-| The runtime form cannot be chosen: missing or invalid checker facts, a macro use outside a supported input position, or inconsistent framework selection | Compilation error          |
-| The runtime form is known and its meaning is empty or false: unknown or invalid utilities and variants, invalid entries and options                      | Omission and an input lint |
-| Output is valid but probably unintended or violates project rules: overlaps, constraints, canonical spelling, or `document-scoped-selector`              | Policy lint only           |
-| A constraint outside the one-to-one lowering fails: composition cycles, CSS ordering, generated-name collisions, or missing required slots               | Compilation error          |
-| The environment or configuration is invalid                                                                                                              | Compilation error          |
+| Problem                                                                                                                                                              | Result                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| The source cannot be read: parse, source-map, or projection failures                                                                                                 | Compilation error          |
+| The runtime form cannot be chosen: missing or invalid checker facts, a macro use outside a supported input position, or inconsistent framework selection             | Compilation error          |
+| The runtime form is known and its meaning is empty or false: unknown or invalid utilities and variants, invalid entries and options                                  | Omission and an input lint |
+| Output is kept but probably unintended or violates project rules: overlaps, constraints, canonical spelling, `invalid-property-value`, or `document-scoped-selector` | Policy lint only           |
+| A constraint outside the one-to-one lowering fails: composition cycles, CSS ordering, generated-name collisions, or missing required slots                           | Compilation error          |
+| The environment or configuration is invalid                                                                                                                          | Compilation error          |
 
 CSS ordering of composition bases is an explicit exception to one-to-one lowering,
 because a derived call must follow its bases in the stylesheet.
 
-Input lints have the `input` category. Unknown and malformed utilities and variants use
-`unknown-utility` and `invalid-utility`, wherever they appear. Valid runtime conditions
-that the selected `useCssIf` mode cannot lower use `runtime-condition-requires-css-if`.
-Other input lints use `invalid-*` rules. Input lints other than the two utility rules
-default to `deny`.
+Input lints have the `input` category. The rules for candidates apply wherever a
+candidate appears:
+
+- `unknown-utility` reports a utility name or theme value that does not exist, such as
+  `unknown-x` or `bg-red-999`.
+- `unknown-variant` reports a variant name or theme value that does not exist, such as
+  `foo:` or `group-foo:`.
+- `invalid-utility` reports malformed candidate syntax, and an existing utility that
+  rejects its value form, modifier, or negative sign, such as `p-[calc(1rem+)]`,
+  `bg-[url(x.png)]/50`, or `-flex`.
+- `invalid-variant` reports an existing variant that rejects its value, its modifier,
+  or its inner variant, and arbitrary variant text that is not a valid selector, such
+  as `min-[foo]:`, `min-(--x):`, `not-before:`, `group-sm:`, or `[color:red;]:`.
+
+Each finding covers the failing part of the candidate, such as the value `red-999` or
+the inner variant `sm`. An unknown name gets a spelling suggestion when a close
+spelling resolves: `bg-red-999` suggests `bg-red-900`. Valid runtime conditions that
+the selected `useCssIf` mode cannot lower use `runtime-condition-requires-css-if`.
+Other input lints use `invalid-*` rules. Input lints other than `unknown-utility` and
+`unknown-variant` default to `deny`.
+
+An arbitrary value without a type hint is emitted as written when the grammar of
+every matching utility definition rejects it, as in Tailwind: `w-[1/2]` emits
+`width: 1/2`, and `text-[12px_foo]` emits `color: 12px foo`. The hazard rule
+`invalid-property-value` reports these values and defaults to `deny`. Its severity
+does not change the output. A value with a type hint that the utility rejects, such as
+`p-[color:red]`, and a value that is not well formed, such as `p-[calc(1rem+)]`, are
+invalid utilities and are omitted.
 
 An invalid CSS variant discards its complete conditioned subtree. Removing only the
 condition would apply its rules to elements that the author did not select. An empty
@@ -238,7 +261,7 @@ Nested groups retain their enclosing variants. These keys also work in CVA value
 which retain the CVA input restrictions. Attributes, custom properties, and external
 classes can be supplied beside the rule groups in a `style()` object.
 
-An incompatible input in a rule group produces `invalid-variant-input`, which
+An incompatible input in a rule group produces `invalid-rule-group-input`, which
 defaults to `deny`. The compiler omits the whole property and retains other object
 entries. Suppression and severity settings affect reporting; the property is omitted
 even when the rule is disabled.
@@ -278,7 +301,10 @@ compound of a branch contains `:root`, `:scope`, `:host`, `:host()`, or
 `:host-context()`. Selectors that stay document-wide, such as `[:host]:`, `[:root]:`,
 and `[::view-transition-old(*)]:`, produce `DocumentScopedSelector`
 (`document-scoped-selector`) findings. Their CSS applies whether the element exists
-or not; place document-wide rules in a stylesheet.
+or not; place document-wide rules in a stylesheet. When other branches of the list
+could test the styled element on their own, the finding names the branch that keeps
+the list document-wide: `[:hover,:root]:` names `:root`, and `[:hover]:` styles the
+element without it.
 
 These rules default to `deny` (error). CSS `@stillwind` settings can select `warn`
 or `off`, and `swlint-disable*` directives can suppress individual findings.
@@ -537,8 +563,9 @@ the styled element (or pseudo-element), not a referenced ancestor. A condition
 inside a `ref` wrapper is rejected; put `if(...)` outside that wrapper to test
 the target instead.
 
-A candidate with an invalid runtime condition is omitted. Malformed conditions and
-`--if()` functions without three arguments report `invalid-utility`. With
+A candidate with an invalid runtime condition is omitted. Malformed `if()` variant
+conditions report `invalid-variant`, and `--if()` functions without three arguments
+report `invalid-utility`. With
 `useCssIf: false`, value comparisons, negated variants, and CSS-wide keywords stored
 in fallback helpers report `runtime-condition-requires-css-if`, which defaults to
 `deny`. Malformed conditions in authored CSS remain compilation errors.

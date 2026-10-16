@@ -65,11 +65,11 @@ templates have different diagnostic variants.
 
 `LintKind` identifies one lint rule and corresponds to one stable name accepted by project
 configuration and `swlint-*` directives. `LintDiagnostic::kind()` selects that rule;
-multiple diagnostic variants can select the same rule, and utility classification can
-select different rules for one diagnostic variant. `LintConfig` has one setting variant
-for each `LintKind`. `LintSettings` stores at most one setting for each rule and prevents
-keys from disagreeing with their setting variants. Unconfigured rules do not enable
-configured detection, but a producer can still detect them; reporting then uses `warn`.
+multiple diagnostic variants can select the same rule, and each variant selects exactly
+one rule. `LintConfig` has one setting variant for each `LintKind`. `LintSettings` stores
+at most one setting for each rule and prevents keys from disagreeing with their setting
+variants. Unconfigured rules do not enable configured detection, but a producer can still
+detect them; reporting then uses `warn`.
 
 Project configuration validates rule names and settings before loading resources.
 Effective settings serialize to the host protocol as a map of rule names to severities.

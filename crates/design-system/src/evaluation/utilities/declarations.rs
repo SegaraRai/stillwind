@@ -20,7 +20,7 @@ use super::super::values::{PreparedValues, color_fallback, resolve_css_placehold
 use super::formatting::resolve_declaration_value;
 use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
 use crate::ThemeIndex;
-use crate::evaluation::{EvaluationContext, ValueSelections};
+use crate::evaluation::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
@@ -115,13 +115,15 @@ impl PreparedDeclaration {
 }
 
 /// Resolves each declaration independently. `body` contains a registered declaration
-/// group or a group produced by expanding theme wildcards. `@utility` overloads are often
-/// intentionally broad: a single body can expose both color and length forms. A failed
-/// typed placeholder must remove only the incompatible declaration, never the
+/// group or a group produced by expanding theme wildcards. `@utility` overloads are
+/// often intentionally broad: a single body can expose both color and length forms. A
+/// failed typed placeholder must remove only the incompatible declaration, never the
 /// compatible siblings.
 ///
-/// Returns [`None`] when no declaration resolved or when a dependency of the body stayed
-/// unresolved, so the caller can try another overload.
+/// `arbitrary_check` selects how typed domains check arbitrary values without a type
+/// hint. Returns [`None`] when no declaration resolved or when a dependency of the body
+/// stayed unresolved, so the caller can try another overload.
+#[allow(clippy::too_many_arguments)] // One flag per evaluation policy of the caller.
 pub(in crate::evaluation) fn resolve_css_declarations(
     body: &str,
     utility_name: &str,
@@ -130,6 +132,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     theme: &ThemeIndex,
     builtin: bool,
     color_compatibility: bool,
+    arbitrary_check: ArbitraryValueCheck,
 ) -> Option<ResolvedCssDeclarations> {
     let expanded;
     let prepared = if let Some(prepared) = theme.programs().declarations(body) {
@@ -154,7 +157,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     let mut output = ResolvedCssDeclarations::default();
 
     for authored in declarations {
-        let tracked = EvaluationContext::tracked(theme);
+        let tracked = EvaluationContext::tracked(theme, arbitrary_check);
         let theme = &tracked;
         let authored_declaration = &authored.text;
         let contains_placeholder = authored_declaration.contains("--value(")
@@ -336,6 +339,7 @@ mod tests {
                 &theme,
                 false,
                 true,
+                ArbitraryValueCheck::Grammar,
             )
             .is_none()
         );
@@ -347,6 +351,7 @@ mod tests {
             &theme,
             false,
             true,
+            ArbitraryValueCheck::Grammar,
         )
         .unwrap();
         assert_eq!(resolved.base, "color:red;");

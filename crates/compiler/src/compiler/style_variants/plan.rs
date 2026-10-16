@@ -1,47 +1,32 @@
-//! Source variants keep ref identity until they are lowered to CSS applications.
-//!
-//! A [`StyleVariantPlan`] walks the wrappers around one rule contribution. Ordinary
-//! prefixes around utility literals are collected into a string and handed to the
-//! candidate resolver, which is what makes a utility prefixed by `hover:` behave
-//! exactly like the same candidate written as one token. A ref wrapper cannot be
-//! spelled as a string: the selector depends on which element declares the ref and
-//! where it sits relative to the target, so the wrapper is lowered into
-//! [`VariantApplication`] alternatives that carry the generated markers and shared
-//! scope conditions.
-//!
-//! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
-//! records the ref's generated identifiers and the authored prefix, independent of how
-//! the source spelled them. This is one part of class identity; module, callsite, and
-//! branch information also participate, so equivalent wrappers alone do not guarantee
-//! equal class names.
+//! The plan that lowers the variant wrappers around one rule contribution.
 
 use std::fmt::Write as _;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{instantiate_selector, selector_is_element_condition, selector_uses_subject};
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{RefCondition, RefDefinition, StyleVariant};
 use stillwind_source::Spanned;
-use stillwind_syntax::{Variant, parse_candidate};
+use stillwind_syntax::Variant;
 
-use super::symbols::{ref_container_name, ref_marker_name};
-use super::utilities::CompiledUtility;
-use super::variants::{VariantStep, variant_paths};
-use crate::identifiers::{IdentifierContext, RefMarker};
+use super::super::symbols::ref_container_name;
+use super::super::utilities::CompiledUtility;
+use super::prefix::{collect_variant_and_applications, parse_prefix};
+use super::reference::element_conditions;
+use crate::identifiers::IdentifierContext;
 
 /// The lowered form of the variant wrappers around one rule contribution.
-pub(super) struct StyleVariantPlan {
+pub(in crate::compiler) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
-    pub(super) prefix: LeanString,
+    pub(in crate::compiler) prefix: LeanString,
     /// Identity-aware spelling for class hashing; independent of source syntax.
-    pub(super) canonical: LeanString,
+    pub(in crate::compiler) canonical: LeanString,
     /// Whether any wrapper uses ref identity and requires lowered selector
     /// applications.
-    pub(super) has_refs: bool,
+    pub(in crate::compiler) has_refs: bool,
     /// Parsed wrapper variants in traversal order, retained for utility ordering.
     variants: Vec<Variant>,
     /// Alternative application paths in expansion order; each inner vector preserves
@@ -303,7 +288,7 @@ impl StyleVariantPlan {
             .collect::<Vec<_>>();
         let applications = suffix
             .iter()
-            .filter_map(|variant| resolve_variant(variant, theme))
+            .filter_map(|variant| resolve_variant(variant, theme).ok())
             .collect::<Vec<_>>();
         let paths: Vec<Vec<_>> = self
             .paths
@@ -385,244 +370,18 @@ fn ref_keys(refs: &[RefDefinition]) -> Vec<LeanStr> {
     identities
 }
 
-/// Parses a wrapper prefix and resolves each of its variants.
-///
-/// Returns `None` after pushing the diagnostic for a prefix that is not a complete
-/// `name:` list and for a variant the registry does not know.
-fn collect_variant_and_applications(
-    theme: &ThemeIndex,
-    prefix: &Spanned<LeanStr>,
-    lint_findings: &mut Vec<LintFinding>,
-) -> Option<(Vec<Variant>, Vec<VariantApplication>)> {
-    let Some(variants) = parse_prefix(prefix) else {
-        lint_findings.push(LintFinding::new(
-            LintDiagnostic::InvalidVariantPrefix,
-            prefix.span,
-        ));
-        return None;
-    };
-    let Some(applications) = variants
-        .iter()
-        .map(|variant| resolve_variant(variant, theme))
-        .collect::<Option<Vec<_>>>()
-    else {
-        lint_findings.push(LintFinding::new(
-            LintDiagnostic::UnavailableVariantPrefix,
-            prefix.span,
-        ));
-        return None;
-    };
-    Some((variants, applications))
-}
-
-/// Parses a wrapper prefix into its variants, requiring complete `name:` segments.
-///
-/// The prefix is parsed as a candidate followed by a placeholder utility, which reuses
-/// the candidate grammar instead of duplicating it here. A prefix that does not end in
-/// `:` or that yields an empty variant is rejected, so a malformed wrapper cannot
-/// silently shift the meaning of the utility it wraps.
-pub(super) fn parse_prefix(prefix: &Spanned<LeanStr>) -> Option<Vec<Variant>> {
-    if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
-        return None;
-    }
-    let candidate = parse_candidate(&format_args!("{}utility", prefix.value).to_lean_string())?;
-    if candidate
-        .variants
-        .iter()
-        .any(|variant| variant.raw.is_empty())
-    {
-        return None;
-    }
-    Some(candidate.variants)
-}
-
-/// One resolved element predicate and its subject-independent environment guards.
-struct ElementCondition {
-    selector: LeanStr,
-    conditions: Vec<VariantApplication>,
-}
-
-/// Resolves all identity and prefix alternatives of one element condition. The caller
-/// supplies whether the selector will be inserted into `:has()`. Global media and
-/// support conditions remain guards.
-///
-/// Returns `None` when the condition is false. An empty ref set adds
-/// `EmptyRefCondition`. Target-only conditions, declaration effects, selectors that
-/// omit their subject, pseudo-elements, and nested `:has()` selectors add
-/// `UnsupportedRefVariant`. A ref marker naming failure adds a fatal diagnostic.
-fn element_conditions(
-    context: &IdentifierContext,
-    theme: &ThemeIndex,
-    condition: &RefCondition,
-    inside_has: bool,
-    diagnostics: &mut Vec<CompileError>,
-    lint_findings: &mut Vec<LintFinding>,
-) -> Option<Vec<ElementCondition>> {
-    let (_, applications) =
-        collect_variant_and_applications(theme, &condition.prefix, lint_findings)?;
-    if condition.refs.is_empty() {
-        lint_findings.push(LintFinding::new(
-            LintDiagnostic::EmptyRefCondition,
-            condition.prefix.span,
-        ));
-        return None;
-    }
-    let paths = variant_paths(&applications);
-    let mut alternatives = Vec::new();
-    for definition in &condition.refs {
-        let marker = match ref_marker_name(context, definition) {
-            Ok(marker) => marker,
-            Err(error) => {
-                diagnostics.push(CompileError::new(error, definition.call_span));
-                return None;
-            }
-        };
-        for path in &paths {
-            let Some(predicate) = reference_path(&marker, path, inside_has) else {
-                lint_findings.push(LintFinding::new(
-                    LintDiagnostic::UnsupportedRefVariant,
-                    condition.prefix.span,
-                ));
-                return None;
-            };
-            alternatives.push(predicate);
-        }
-    }
-    alternatives.sort_by(|a, b| {
-        a.selector.cmp(&b.selector).then_with(|| {
-            format_args!("{:?}", a.conditions)
-                .to_lean_string()
-                .cmp(&format_args!("{:?}", b.conditions).to_lean_string())
-        })
-    });
-    Some(alternatives)
-}
-
-/// Builds an element selector from a marker and a resolved variant path. Returns
-/// `None` for steps whose meaning requires a styled target or declaration effects.
-fn reference_path(
-    marker: &RefMarker,
-    path: &[VariantStep<'_>],
-    inside_has: bool,
-) -> Option<ElementCondition> {
-    let mut reference = format_args!(":where({})", marker.selector()).to_lean_string();
-    let mut conditions = Vec::new();
-    for step in path {
-        match step {
-            VariantStep::SelectorSuffix(suffix) => reference.push_str(suffix),
-            VariantStep::SelectorTemplate(template) if selector_uses_subject(template) => {
-                reference = instantiate_selector(template, &reference);
-            }
-            VariantStep::SelectorRule {
-                selector,
-                declarations,
-            } if declarations.is_empty() && selector_uses_subject(selector) => {
-                reference = instantiate_selector(selector, &reference);
-            }
-            VariantStep::SelectorMedia {
-                selector,
-                condition,
-            } if selector_uses_subject(selector) => {
-                reference = instantiate_selector(selector, &reference);
-                conditions.push(VariantApplication::Media((*condition).to_lean_str()));
-            }
-            VariantStep::SelectorMediaRule {
-                selector,
-                declarations,
-                condition,
-            } if declarations.is_empty() && selector_uses_subject(selector) => {
-                reference = instantiate_selector(selector, &reference);
-                conditions.push(VariantApplication::Media((*condition).to_lean_str()));
-            }
-            VariantStep::Media(condition) => {
-                conditions.push(VariantApplication::Media((*condition).to_lean_str()));
-            }
-            VariantStep::Supports(condition) => {
-                conditions.push(VariantApplication::Supports((*condition).to_lean_str()));
-            }
-            _ => return None,
-        }
-    }
-    if !selector_is_element_condition(&reference, inside_has) {
-        return None;
-    }
-    // `:is` binds the full selector to one element before an ancestor or containment
-    // relation is added. Its ancestors may lie outside the containing scope.
-    Some(ElementCondition {
-        selector: format_args!(":is({reference})").to_lean_str(),
-        conditions,
-    })
-}
-
-#[cfg(test)]
-mod reference_path_tests {
-    use super::*;
-
-    #[test]
-    fn element_conditions_keep_global_guards_and_reject_target_conditions() {
-        let marker = RefMarker::new("menu").unwrap();
-        let path = [
-            VariantStep::Media("(min-width: 40rem)"),
-            VariantStep::Supports("(display:grid)"),
-        ];
-        let predicate = reference_path(&marker, &path, false).unwrap();
-        assert_eq!(
-            predicate.conditions,
-            [
-                VariantApplication::Media("(min-width: 40rem)".into()),
-                VariantApplication::Supports("(display:grid)".into())
-            ]
-        );
-        assert!(
-            reference_path(&marker, &[VariantStep::Container("(width > 10px)")], false).is_none()
-        );
-        assert!(reference_path(&marker, &[VariantStep::StartingStyle], false).is_none());
-    }
-
-    #[test]
-    fn element_predicates_preserve_complex_selectors_and_check_has_placement() {
-        let marker = RefMarker::new("menu").unwrap();
-        let predicate = reference_path(
-            &marker,
-            &[VariantStep::SelectorTemplate(".a &, .b &")],
-            true,
-        )
-        .unwrap();
-        assert_eq!(
-            predicate.selector,
-            ":is(.a :where(.menu), .b :where(.menu))"
-        );
-        assert!(
-            reference_path(&marker, &[VariantStep::SelectorSuffix(":has(.x)")], true).is_none()
-        );
-        assert!(
-            reference_path(&marker, &[VariantStep::SelectorSuffix(":has(.x)")], false).is_some()
-        );
-        assert!(
-            reference_path(&marker, &[VariantStep::SelectorSuffix("::before")], false).is_none()
-        );
-        assert!(
-            reference_path(
-                &marker,
-                &[VariantStep::SelectorTemplate(".document")],
-                false
-            )
-            .is_none()
-        );
-    }
-}
-
 #[cfg(test)]
 mod add_ref_tests {
     use std::rc::Rc;
-    use stillwind_diagnostics::CompileDiagnostic;
 
+    use stillwind_diagnostics::CompileDiagnostic;
     use stillwind_source::{FileId, Span};
 
+    use super::super::super::symbols::ref_marker_name;
     use super::*;
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, DeclarationContext, GeneratedName, GeneratorSet, IdentifierGenerator,
-        IdentifierHash, IdentifierMode,
+        IdentifierHash, IdentifierMode, RefMarker,
     };
 
     fn identifiers() -> IdentifierContext {

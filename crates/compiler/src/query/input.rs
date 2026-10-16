@@ -192,7 +192,7 @@ impl DesignSystemQuery {
 
         if context == CandidateContext::Utility {
             return candidate.variants.iter().all(|variant| {
-                resolve_variant(variant, self.context.design_system.theme()).is_some()
+                resolve_variant(variant, self.context.design_system.theme()).is_ok()
             });
         }
 

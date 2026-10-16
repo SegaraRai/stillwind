@@ -19,7 +19,7 @@ use stillwind_css::{
     SelectorTarget, selector_is_element_condition, selector_target, subject_as_universal,
 };
 
-use super::resolve::VariantApplication;
+use super::application::{VariantApplication, VariantObstacle};
 
 /// Maximum number of alternatives in a negated application.
 ///
@@ -42,6 +42,47 @@ pub(super) fn negate(application: &VariantApplication) -> Option<VariantApplicat
         1 => alternatives.pop(),
         _ => Some(VariantApplication::Compound(alternatives)),
     }
+}
+
+/// Returns the part of `application` that [`negate`] cannot negate.
+///
+/// The first part without a negated form is reported, in the order the application
+/// lists its parts. When every part has a negated form, the negation failed because it
+/// needs more than [`MAX_BRANCHES`] alternatives.
+pub(super) fn negation_obstacle(application: &VariantApplication) -> VariantObstacle {
+    part_obstacle(application).unwrap_or(VariantObstacle::TooManyAlternatives)
+}
+
+/// Returns the obstacle of the first part of `application` without a negated form.
+fn part_obstacle(application: &VariantApplication) -> Option<VariantObstacle> {
+    match application {
+        VariantApplication::Compound(children) | VariantApplication::Sequence(children) => {
+            children.iter().find_map(part_obstacle)
+        }
+        VariantApplication::SelectorSuffix(suffix) => {
+            selector_obstacle(&format_args!("&{suffix}").to_lean_string())
+        }
+        VariantApplication::SelectorTemplate(selector)
+        | VariantApplication::SelectorMedia { selector, .. } => selector_obstacle(selector),
+        VariantApplication::SelectorRule { selector, .. }
+        | VariantApplication::SelectorMediaRule { selector, .. } => {
+            Some(selector_obstacle(selector).unwrap_or(VariantObstacle::Declarations))
+        }
+        VariantApplication::StartingStyle => Some(VariantObstacle::StartingStyle),
+        VariantApplication::SelectorCondition(_) => Some(VariantObstacle::Unsupported),
+        VariantApplication::Media(_)
+        | VariantApplication::Container(_)
+        | VariantApplication::Supports(_)
+        | VariantApplication::Conditional(_) => None,
+    }
+}
+
+/// Returns why [`negate_selector`] rejects `template`, or `None` when it accepts it.
+fn selector_obstacle(template: &str) -> Option<VariantObstacle> {
+    if negated_selector_list(template).is_some() {
+        return None;
+    }
+    VariantObstacle::of_selector(template)
 }
 
 /// One condition of a negated branch.

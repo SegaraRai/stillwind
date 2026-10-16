@@ -3,7 +3,7 @@
 use oxc::ast::ast::Expression;
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{LintDiagnostic, LintFinding, VariantInputErrorKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding, RuleGroupInputErrorKind};
 use stillwind_ir::{
     GroupEntry, RuleExpression, RuleExpressionError, RuleExpressionErrorKind, StyleInput,
     StyleVariant,
@@ -15,16 +15,16 @@ use crate::state::MacroExtractor;
 /// A failed variant input conversion with the first incompatible input's kind and span.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct VariantInputError {
-    reason: VariantInputErrorKind,
+    reason: RuleGroupInputErrorKind,
     span: Span,
 }
 
 impl From<RuleExpressionError> for VariantInputError {
     fn from(failure: RuleExpressionError) -> Self {
         let reason = match failure.reason {
-            RuleExpressionErrorKind::Attribute => VariantInputErrorKind::Attribute,
-            RuleExpressionErrorKind::CustomProperty => VariantInputErrorKind::CustomProperty,
-            RuleExpressionErrorKind::ExternalClass => VariantInputErrorKind::ExternalClass,
+            RuleExpressionErrorKind::Attribute => RuleGroupInputErrorKind::Attribute,
+            RuleExpressionErrorKind::CustomProperty => RuleGroupInputErrorKind::CustomProperty,
+            RuleExpressionErrorKind::ExternalClass => RuleGroupInputErrorKind::ExternalClass,
         };
         Self {
             reason,
@@ -57,7 +57,7 @@ impl<'a> MacroExtractor<'a> {
             Err(failure) => {
                 self.omit_input(value.span());
                 self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidVariantInput {
+                    LintDiagnostic::InvalidRuleGroupInput {
                         reason: failure.reason,
                     },
                     failure.span,
@@ -109,15 +109,15 @@ fn rule_class_input(input: &StyleInput) -> Result<RuleExpression, VariantInputEr
             name: name.clone(),
         }),
         StyleInput::Composition { value, .. } => Err(VariantInputError {
-            reason: VariantInputErrorKind::Composition,
+            reason: RuleGroupInputErrorKind::Composition,
             span: *value,
         }),
         StyleInput::RefAttachment { value, .. } => Err(VariantInputError {
-            reason: VariantInputErrorKind::RefAttachment,
+            reason: RuleGroupInputErrorKind::RefAttachment,
             span: *value,
         }),
         StyleInput::DynamicRefAttachment { value, .. } => Err(VariantInputError {
-            reason: VariantInputErrorKind::DynamicRefAttachment,
+            reason: RuleGroupInputErrorKind::DynamicRefAttachment,
             span: *value,
         }),
     }

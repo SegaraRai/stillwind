@@ -27,20 +27,20 @@ fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
             &parse_candidate("pressed:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate(
+        Ok(VariantApplication::SelectorTemplate(
             "&:active".to_lean_str()
         ))
     );
     assert_eq!(
         resolve_variant(&parse_candidate("narrow:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Media("(width < 40rem)".to_lean_str()))
+        Ok(VariantApplication::Media("(width < 40rem)".to_lean_str()))
     );
     assert_eq!(
         resolve_variant(
             &parse_candidate("decorated:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorRule {
+        Ok(VariantApplication::SelectorRule {
             selector: "&::before".to_lean_str(),
             declarations: vec![VariantDeclaration {
                 property: "content".to_lean_str(),
@@ -66,7 +66,7 @@ fn resolves_wildcard_selector_variants_from_application_css() {
             &parse_candidate("state-open:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate(
+        Ok(VariantApplication::SelectorTemplate(
             "&[data-state=open]".to_lean_str()
         ))
     );
@@ -75,7 +75,7 @@ fn resolves_wildcard_selector_variants_from_application_css() {
             &parse_candidate("aria-expanded:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate(
+        Ok(VariantApplication::SelectorTemplate(
             "&[aria-expanded=\"true\"]".to_lean_str()
         ))
     );
@@ -155,7 +155,7 @@ fn resolves_container_at_variants_from_css_registry() {
     let candidate = parse_candidate("@min-md:flex").unwrap();
     assert_eq!(
         resolve_variant(&candidate.variants[0], &theme),
-        Some(VariantApplication::Container(
+        Ok(VariantApplication::Container(
             "(width >= 40rem)".to_lean_str()
         ))
     );
@@ -167,7 +167,7 @@ fn resolves_container_at_variants_from_css_registry() {
         let candidate = parse_candidate(candidate).unwrap();
         assert_eq!(
             resolve_variant(&candidate.variants[0], &theme),
-            Some(VariantApplication::Container(condition.to_lean_str()))
+            Ok(VariantApplication::Container(condition.to_lean_str()))
         );
     }
 }
@@ -187,7 +187,7 @@ fn resolves_formal_variant_modifier_placeholder() {
             &parse_candidate("rel-checked/field:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::SelectorTemplate(
+        Ok(VariantApplication::SelectorTemplate(
             r":where(.peer\/field) ~ &".to_lean_str()
         ))
     );
@@ -203,11 +203,11 @@ fn resolves_wildcard_conditional_variants_from_css() {
 
     assert_eq!(
         resolve_variant(&parse_candidate("min-md:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Media("(width >= 48rem)".to_lean_str()))
+        Ok(VariantApplication::Media("(width >= 48rem)".to_lean_str()))
     );
     assert_eq!(
         resolve_variant(&parse_candidate("@sm:flex").unwrap().variants[0], &theme),
-        Some(VariantApplication::Container(
+        Ok(VariantApplication::Container(
             "(width >= 24rem)".to_lean_str()
         ))
     );
@@ -216,7 +216,7 @@ fn resolves_wildcard_conditional_variants_from_css() {
             &parse_candidate("narrow-narrow:flex").unwrap().variants[0],
             &theme
         ),
-        Some(VariantApplication::Media("(width < 40rem)".to_lean_str()))
+        Ok(VariantApplication::Media("(width < 40rem)".to_lean_str()))
     );
 }
 
@@ -252,7 +252,7 @@ fn shorthand_variants_resolve_at_rules_and_selectors() {
             VariantApplication::SelectorTemplate("&:not(:where(.dark, .dark *))".to_lean_str()),
         ),
     ] {
-        assert_eq!(resolve(candidate), Some(expected), "{candidate}");
+        assert_eq!(resolve(candidate), Ok(expected), "{candidate}");
     }
 }
 
@@ -267,7 +267,7 @@ fn selectors_without_nesting_selector_style_descendants() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
     let variant = |candidate: &str| parse_candidate(candidate).unwrap().variants[0].clone();
-    let resolve = |candidate: &str| resolve_variant(&variant(candidate), &theme);
+    let resolve = |candidate: &str| resolve_variant(&variant(candidate), &theme).ok();
 
     for (candidate, expected) in [
         ("hv:flex", "& :hover"),

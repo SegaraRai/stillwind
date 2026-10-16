@@ -1,0 +1,20 @@
+//! Expansion of nesting selector templates at rule construction time.
+//!
+//! `list` validates selector lists and splits them into branches, `target` classifies
+//! the element that each branch styles, `subject` finds, inserts, and replaces the
+//! nesting selector `&`, and `element` handles conditions on the selected element.
+
+mod element;
+mod list;
+mod subject;
+mod target;
+
+pub use element::{
+    append_element_condition, selector_is_element_condition, selector_is_subject_condition,
+};
+pub use list::{selector_is_valid, selector_list_branches};
+pub use subject::{
+    absolutize_nested_selector, instantiate_selector, selector_repeats_subject,
+    selector_uses_subject, subject_as_universal,
+};
+pub use target::{SelectorTarget, selector_target};

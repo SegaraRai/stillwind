@@ -54,15 +54,16 @@ mod theme;
 
 pub use conditionals::{RuntimeCondition, is_runtime_condition, runtime_if_arguments};
 pub use evaluation::{
-    NestedUtilityAtRule, NestedUtilityRule, ResolvedUtility, ResolvedUtilityTarget,
-    ResolvedVariant, UtilityArbitraryUse, UtilityOrder, UtilityPropertySort,
-    UtilityResolutionError, UtilityTokenUse, VariantApplication, VariantDeclaration,
-    VariantMediaValue, VariantSequenceOrder, VariantValueSource, builtin_declaration_formats,
-    builtin_definitions, builtin_omit_token_prefixes, builtin_property_definitions,
-    builtin_theme_order, builtin_utility_token_prefixes, compare_variant_sequences,
-    compatibility_marker_class, document_scoped_selector, is_condition_variant,
-    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_animation_option,
-    resolve_utility, resolve_variant, resolve_variant_with_usage,
+    ConditionContext, InvalidPropertyValue, NestedUtilityAtRule, NestedUtilityRule,
+    ResolvedUtility, ResolvedUtilityTarget, ResolvedVariant, UtilityArbitraryUse, UtilityFailure,
+    UtilityFailureReason, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
+    UtilityTokenUse, VariantApplication, VariantDeclaration, VariantFailure, VariantFailureReason,
+    VariantMediaValue, VariantObstacle, VariantSequenceOrder, VariantValueSource,
+    builtin_declaration_formats, builtin_definitions, builtin_omit_token_prefixes,
+    builtin_property_definitions, builtin_theme_order, builtin_utility_token_prefixes,
+    check_candidate_variants, compare_variant_sequences, compatibility_marker_class,
+    document_scoped_selector, is_tailwind_relationship_candidate, repeated_subject_selector,
+    resolve_animation_option, resolve_utility, resolve_variant, resolve_variant_with_usage,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,

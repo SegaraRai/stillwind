@@ -7,16 +7,16 @@ use std::rc::Rc;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    DesignSystemRevision, UtilityResolutionError, builtin_property_definitions, resolve_variant,
+    DesignSystemRevision, UtilityFailure, UtilityResolutionError, builtin_property_definitions,
 };
-use stillwind_diagnostics::{CompileDiagnostic, UtilityFailure};
+use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::ModuleId;
 use stillwind_syntax::{Candidate, parse_candidate};
 
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{
     RuleBoundaries, emit_utility_rules, lower_conditionals, preview_resource_urls,
-    resolve_utility_targets, unresolved_utility_kind,
+    resolve_utility_targets,
 };
 use crate::identifiers::{ClassContext, DEFAULT_HASH_LENGTH, IdentifierContext, PreviewNames};
 use crate::{CssContribution, GeneratedRule, GeneratorSet, IdentifierMode, ModuleCssArtifact};
@@ -24,8 +24,8 @@ use crate::{CssContribution, GeneratedRule, GeneratorSet, IdentifierMode, Module
 /// Reason a candidate query produced no usable preview.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CandidateFailure {
-    /// The candidate or one of its variants does not resolve. The field classifies the
-    /// candidate syntax.
+    /// The candidate or one of its variants does not resolve. The field explains why
+    /// and locates the failing part of the candidate.
     Unresolved(UtilityFailure),
     /// The candidate resolves, but its preview CSS cannot be rendered. Conditional
     /// lowering under the configured `useCssIf` mode, identifier generation, and rule
@@ -171,33 +171,25 @@ impl QueryContext {
         let selector = selector.as_str();
         let parsed = parse_candidate(candidate);
         let theme = self.design_system.theme();
-        let targets = resolve_utility_targets(candidate, theme)?.filter(|_| {
-            parsed.as_ref().is_some_and(|parsed| {
-                parsed
-                    .variants
-                    .iter()
-                    .all(|variant| resolve_variant(variant, theme).is_some())
-            })
-        });
+        let targets = resolve_utility_targets(candidate, theme)?;
         let mut contributions = Vec::new();
-        let mut failures = if let Some(targets) = targets {
-            let identifiers = candidate_identifiers(preview_selector.is_some());
-            let emission =
-                emit_utility_rules(&mut contributions, selector, &targets, theme, &identifiers);
-            let mut failures = self.finalize_rules(
-                candidate,
-                &mut contributions,
-                &identifiers,
-                preview_selector.is_some(),
-            );
-            if let Err(error) = emission {
-                failures.push(CandidateFailure::Rendering(error));
+        let mut failures = match targets {
+            Ok(targets) => {
+                let identifiers = candidate_identifiers(preview_selector.is_some());
+                let emission =
+                    emit_utility_rules(&mut contributions, selector, &targets, theme, &identifiers);
+                let mut failures = self.finalize_rules(
+                    candidate,
+                    &mut contributions,
+                    &identifiers,
+                    preview_selector.is_some(),
+                );
+                if let Err(error) = emission {
+                    failures.push(CandidateFailure::Rendering(error));
+                }
+                failures
             }
-            failures
-        } else {
-            vec![CandidateFailure::Unresolved(unresolved_utility_kind(
-                candidate,
-            ))]
+            Err(failure) => vec![CandidateFailure::Unresolved(failure)],
         };
         let css: LeanString = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = if include_referenced_tokens {
@@ -292,7 +284,6 @@ mod tests {
     use std::sync::Arc;
 
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
-    use stillwind_diagnostics::UtilityFailure;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
     use stillwind_source::{CssSourceName, FileId, ReplaceText, SourceFile};
@@ -371,13 +362,14 @@ mod tests {
                 .failures,
             []
         );
-        for (candidate, classification) in [
-            ("hover:[", UtilityFailure::Invalid),
-            ("不存在", UtilityFailure::Unknown),
-        ] {
-            assert_eq!(
-                query.resolve_candidate(candidate).unwrap().failures,
-                [CandidateFailure::Unresolved(classification)]
+        for (candidate, unknown) in [("hover:[", false), ("不存在", true)] {
+            let failures = query.resolve_candidate(candidate).unwrap().failures;
+            assert!(
+                matches!(
+                    &failures[..],
+                    [CandidateFailure::Unresolved(failure)] if failure.reason.is_unknown() == unknown
+                ),
+                "{candidate}: {failures:?}"
             );
         }
         assert!(

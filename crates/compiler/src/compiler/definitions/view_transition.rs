@@ -12,7 +12,8 @@ use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_o
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    combine_declarations_for_theme, resolve_utility, unresolved_utility_kind,
+    combine_declarations_for_theme, invalid_property_value_finding, resolve_utility,
+    unresolved_utility_finding,
 };
 use super::super::variants::{condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
@@ -96,15 +97,16 @@ pub(crate) fn emit_view_transition_utilities(
     let mut plain = Vec::new();
     let mut conditional = LeanString::new();
     for utility in lex_utilities(input, diagnostics) {
-        let resolved = match resolve_utility(&utility.value.raw, theme) {
-            Ok(Some(resolved)) => resolved,
-            Ok(None) => {
-                lint_findings.push(LintFinding::new(
-                    LintDiagnostic::UnresolvedUtility {
-                        utility: (utility.value.raw.clone()),
-                        classification: unresolved_utility_kind(&utility.value.raw),
-                    },
+        let raw = &utility.value.raw;
+        let resolved = match resolve_utility(raw, theme) {
+            Ok(Ok(resolved)) => resolved,
+            Ok(Err(failure)) => {
+                lint_findings.push(unresolved_utility_finding(
+                    raw,
+                    raw.len(),
+                    &failure,
                     utility.span,
+                    theme,
                 ));
                 continue;
             }
@@ -119,6 +121,14 @@ pub(crate) fn emit_view_transition_utilities(
                 continue;
             }
         };
+        if let Some(value) = &resolved.source.invalid_value {
+            lint_findings.push(invalid_property_value_finding(
+                raw,
+                raw.len(),
+                value,
+                utility.span,
+            ));
+        }
         if resolved.variants.is_empty() {
             plain.push(resolved);
             continue;

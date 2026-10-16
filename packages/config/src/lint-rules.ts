@@ -8,9 +8,9 @@
  * Treat these shared catalog entries as readonly.
  */
 export const lintRules = {
-  "invalid-variant-input": {
+  "invalid-rule-group-input": {
     category: "input",
-    nativeName: "invalidVariantInput",
+    nativeName: "invalidRuleGroupInput",
     defaults: null,
     options: null,
   },
@@ -101,6 +101,18 @@ export const lintRules = {
   "unknown-utility": {
     category: "input",
     nativeName: "unknownUtility",
+    defaults: null,
+    options: null,
+  },
+  "invalid-variant": {
+    category: "input",
+    nativeName: "invalidVariant",
+    defaults: null,
+    options: null,
+  },
+  "unknown-variant": {
+    category: "input",
+    nativeName: "unknownVariant",
     defaults: null,
     options: null,
   },
@@ -200,6 +212,12 @@ export const lintRules = {
   "ineffective-anchor-scope": {
     category: "hazard",
     nativeName: "ineffectiveAnchorScope",
+    defaults: null,
+    options: null,
+  },
+  "invalid-property-value": {
+    category: "hazard",
+    nativeName: "invalidPropertyValue",
     defaults: null,
     options: null,
   },

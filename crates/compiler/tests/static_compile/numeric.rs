@@ -1,10 +1,11 @@
 //! Property tests over numeric candidates.
 //!
-//! Deliberately independent of the Tailwind fixtures: these check the grammar and registry contract
-//! across a wide numeric domain and assert on the CSS the whole pipeline generates, including typed
-//! arbitrary values and the property families that must reject them.
+//! Deliberately independent of the Tailwind fixtures: these check the grammar and
+//! registry contract across a wide numeric domain and assert on the CSS the whole
+//! pipeline generates, including typed arbitrary values and the property families that
+//! must reject them.
 
-use stillwind_diagnostics::{LintDiagnostic, UtilityFailure};
+use stillwind_diagnostics::LintDiagnostic;
 use stillwind_test_support::CssAssertions as _;
 
 use super::*;
@@ -55,12 +56,12 @@ proptest! {
         let result = compile_one_utility(&format!(
             "p-[color:rgb({n}_0_0)] border-[time:{n}ms] z-[length:{n}px] z-[number:{n}]"
         ));
-        let unknown = result
+        let invalid = result
             .lint_findings
             .iter()
-            .filter(|finding| matches!(finding.diagnostic, LintDiagnostic::UnresolvedUtility { classification: UtilityFailure::Unknown, .. }))
+            .filter(|finding| matches!(finding.diagnostic, LintDiagnostic::InvalidUtility { .. }))
             .count();
-        prop_assert_eq!(unknown, 4, "{:#?}", result.diagnostics);
+        prop_assert_eq!(invalid, 4, "{:#?}", result.lint_findings);
     }
 
     #[test]

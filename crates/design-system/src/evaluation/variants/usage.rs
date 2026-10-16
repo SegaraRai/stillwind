@@ -12,16 +12,17 @@ use stillwind_css::{inspect_css_value, media_size_comparisons};
 use stillwind_syntax::{Variant, VariantKind};
 
 use super::super::values::expand_placeholder;
+use super::application::VariantApplication;
 use super::body::resolve_variant_body;
 use super::resolve::{
-    VariantApplication, parse_nested_variant, relative_selector, resolve_named_variant_with,
+    parse_nested_variant, relative_selector, resolve_named_variant_with,
     resolve_registered_variant_candidate, resolve_variant, split_typed_capture,
 };
 use super::substitution::{
     resolve_variant_css_placeholders, resolve_variant_value_with_source,
     substitute_variant_capture, variant_value_capture,
 };
-use crate::evaluation::EvaluationContext;
+use crate::evaluation::{ArbitraryValueCheck, EvaluationContext};
 use crate::{BuiltinVariantValueType, ThemeIndex};
 
 /// One resolved variant and the direct values its selected definition uses.
@@ -67,7 +68,7 @@ pub fn resolve_variant_with_usage(
     theme: &ThemeIndex,
 ) -> Option<ResolvedVariant> {
     if matches!(variant.kind, VariantKind::Arbitrary(_)) {
-        let application = resolve_variant(variant, theme)?;
+        let application = resolve_variant(variant, theme).ok()?;
         let tokens = application_tokens(&application);
         let media_values = media_conditions(&application)
             .into_iter()
@@ -87,7 +88,8 @@ pub fn resolve_variant_with_usage(
         return None;
     };
     resolve_named_variant_with(value, theme, |custom, capture, concrete| {
-        let application = resolve_registered_variant_candidate(custom, capture, concrete, theme)?;
+        let application =
+            resolve_registered_variant_candidate(custom, capture, concrete, 0, theme).ok()?;
         let mut tokens = BTreeSet::new();
         let mut media_values = Vec::new();
         if custom.value_type == Some(BuiltinVariantValueType::Variant) {
@@ -101,7 +103,7 @@ pub fn resolve_variant_with_usage(
         }
         if custom.value_type.is_none() {
             let authored = substitute_variant_capture(&custom.body, capture)?;
-            let tracked = EvaluationContext::tracked(theme);
+            let tracked = EvaluationContext::tracked(theme, ArbitraryValueCheck::Grammar);
             let expanded =
                 resolve_variant_css_placeholders(&authored, &custom.name, concrete, &tracked)?;
             if resolve_variant_body(&expanded).is_some() {
@@ -268,7 +270,7 @@ mod tests {
         assert_eq!(gap.media_values, [] as [VariantMediaValue; 0]);
         assert_eq!(
             resolve_variant(&parse_nested_variant("pick-md"), &theme),
-            Some(pick.application)
+            Ok(pick.application)
         );
     }
 }

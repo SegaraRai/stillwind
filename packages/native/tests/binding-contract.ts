@@ -1101,7 +1101,7 @@ const d=style('supports-[padding:var(--spacing-gutter)]:flex');`,
     expect(variables.diagnostics).toEqual([]);
     expect(variables.reports.map((report: { code: string }) => report.code)).toEqual([
       "no-restricted-theme-tokens",
-      "unknown-utility",
+      "invalid-variant",
       "no-restricted-theme-tokens",
     ]);
     const spacing = compileSource(

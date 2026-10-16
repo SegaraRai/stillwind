@@ -13,15 +13,19 @@
 
 use std::collections::HashSet;
 
-use lean_string::{LeanString, ToLeanString};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueType, declaration_ranges};
 use stillwind_syntax::Value;
 
-use super::super::values::decode_arbitrary;
+use super::super::values::{
+    decode_arbitrary, expand_placeholder, split_domains, theme_arbitrary_types,
+    theme_domain_pattern,
+};
 use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
+use crate::evaluation::ArbitraryValueCheck;
 use crate::{CustomUtility, ThemeIndex};
 
 /// Resolves a named candidate through the registry layers.
@@ -30,26 +34,67 @@ use crate::{CustomUtility, ThemeIndex};
 /// no project branch resolves, built-in definitions are tried. There is deliberately no
 /// property-prefix fallback: a definition that rejects the candidate's value type is a
 /// non-match, not an invitation to reinterpret the candidate.
+///
+/// An arbitrary value without a type hint that no definition accepts by grammar is
+/// emitted as written, as Tailwind emits it, and the resolution records it in
+/// `invalid_value`. When the matching definitions accept values of several types, the
+/// resolution also records their type hints, because the receiving property is then a
+/// fallback rather than the type of the value. Branch selection then follows the rules
+/// for an unhinted value whose type cannot be inferred. This fallback does not apply to
+/// a `var()` reference, to a value that is not well formed, or when the candidate
+/// resolves without its modifier, because then the modifier, not the value, is
+/// rejected.
 pub(in crate::evaluation) fn resolve_named_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
+    let check = ArbitraryValueCheck::Grammar;
+    if let Some(resolution) = resolve_registry_layers(name, modifier, negative, theme, check)? {
+        return Ok(Some(resolution));
+    }
+    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
+    let Some(value) = unhinted_arbitrary_value(lookup.as_deref().unwrap_or(name)) else {
+        return Ok(None);
+    };
+    if stands_for_any_type(&value)
+        || (modifier.is_some()
+            && resolve_registry_layers(name, None, negative, theme, check)?.is_some())
+    {
+        return Ok(None);
+    }
+    let check = ArbitraryValueCheck::WellFormed;
+    let Some(mut resolution) = resolve_registry_layers(name, modifier, negative, theme, check)?
+    else {
+        return Ok(None);
+    };
+    resolution.invalid_value = resolution
+        .arbitrary_uses
+        .iter()
+        .find(|usage| usage.base)
+        .or_else(|| resolution.arbitrary_uses.first())
+        .cloned();
+    resolution.fallback_type_hints = fallback_type_hints(lookup.as_deref().unwrap_or(name), theme);
+    Ok(Some(resolution))
+}
+
+/// Resolves a named candidate through project CSS and then the built-ins.
+fn resolve_registry_layers(
+    name: &str,
+    modifier: Option<&Value>,
+    negative: bool,
+    theme: &ThemeIndex,
+    arbitrary_check: ArbitraryValueCheck,
+) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     // Application CSS is the authoritative registry layer. It must be able to replace
     // every built-in name.
-    if let Some(declaration) = resolve_user_css_utility(name, modifier, negative, theme)? {
-        return Ok(Some(declaration));
+    if let Some(resolution) =
+        resolve_user_css_utility(name, modifier, negative, theme, arbitrary_check)?
+    {
+        return Ok(Some(resolution));
     }
-    if let Some(declaration) = resolve_builtin_css_utility(name, modifier, negative, theme)? {
-        return Ok(Some(declaration));
-    }
-    // A failed `@utility` branch is a type error, not an invitation to use a legacy
-    // property-prefix fallback. Keeping that fallback here made `p-[color:red]` and
-    // `border-[time:1ms]` appear valid after the typed registry correctly rejected
-    // them. Arbitrary properties (`[x:y]`) are handled explicitly by the candidate
-    // grammar above; named utilities are defined solely by CSS registry entries.
-    Ok(None)
+    resolve_builtin_css_utility(name, modifier, negative, theme, arbitrary_check)
 }
 
 /// Resolves the same `@utility` body language for user CSS and vendored built-ins.
@@ -59,6 +104,7 @@ fn resolve_user_css_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
+    arbitrary_check: ArbitraryValueCheck,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     let lookup = lookup.as_deref().unwrap_or(name);
@@ -67,6 +113,7 @@ fn resolve_user_css_utility(
         lookup,
         modifier,
         theme,
+        arbitrary_check,
     )
 }
 
@@ -80,6 +127,7 @@ fn resolve_builtin_css_utility(
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
+    arbitrary_check: ArbitraryValueCheck,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     let lookup = lookup.as_deref().unwrap_or(name);
@@ -88,6 +136,7 @@ fn resolve_builtin_css_utility(
         lookup,
         modifier,
         theme,
+        arbitrary_check,
     )
 }
 
@@ -104,18 +153,23 @@ fn resolve_builtin_css_utility(
 ///
 /// Without an exact definition, an unhinted arbitrary value keeps only the branches
 /// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand
-/// for any type, so only the earliest registered branch that accepts it is kept.
+/// for any type, so only the earliest registered branch that accepts it is kept. The
+/// same rule applies when `arbitrary_check` accepts every well-formed value, because
+/// such a value has no type to infer.
 pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
+    arbitrary_check: ArbitraryValueCheck,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let mut branches = Vec::new();
     // Registries list matching definitions newest first, so a project definition
     // without a built-in position registers earlier the later it appears here.
     for (index, utility) in utilities.enumerate() {
-        if let Some(resolution) = resolve_css_utility_body(utility, name, modifier, theme)? {
+        if let Some(resolution) =
+            resolve_css_utility_body(utility, name, modifier, theme, arbitrary_check)?
+        {
             branches.push((
                 utility_branch_specificity(utility, name),
                 utility.name == name,
@@ -137,7 +191,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             .iter()
             .flat_map(|(_, _, domains, _, _)| domains.iter().copied())
             .collect::<Vec<_>>();
-        if stands_for_any_type(&arbitrary) {
+        if stands_for_any_type(&arbitrary) || arbitrary_check == ArbitraryValueCheck::WellFormed {
             // A `var()` reference or CSS-wide keyword selects one definition instead
             // of setting every property that accepts it: `border-(--x)` must not set
             // both border-width and border-color. Emission order can give every
@@ -239,6 +293,69 @@ fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
         rest = &rest[end + 1..];
     }
     types
+}
+
+/// Returns the type hints of the value types that the definitions matching `lookup`
+/// accept in brackets, when there are at least two of them. Project definitions come
+/// first in authored order, followed by built-ins in registry order.
+/// The `[type]` hints anywhere in the definitions come first. A type declared for the
+/// theme namespace of a `--value(--namespace-*)` domain follows when no hinted
+/// definition sets any property of its definition: the color namespace of `shadow-*`
+/// adds `color`, but the font-size namespace of `text-*` adds nothing beside
+/// `[length]`. An empty list means the utility accepts values of one type, so the
+/// property that receives an untyped value is not a fallback between types.
+fn fallback_type_hints(lookup: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
+    // Registries list matching definitions newest first.
+    let mut definitions = theme.matching_utilities(lookup);
+    definitions.reverse();
+    let mut builtins = theme.registry().matching_utilities(lookup);
+    builtins.sort_by_key(|definition| definition.builtin_order);
+    definitions.extend(builtins);
+    let mut hinted = Vec::new();
+    let mut hinted_properties = HashSet::new();
+    let mut namespaced = Vec::new();
+    for definition in definitions {
+        let properties = declaration_property_names(&definition.body);
+        let value_types = utility_value_types(definition);
+        if !value_types.is_empty() {
+            hinted.extend(value_types);
+            hinted_properties.extend(properties.iter().copied());
+        }
+        let mut body = definition.body.to_lean_string();
+        let _ = expand_placeholder(&mut body, "--value", |domains| {
+            for (namespace, _) in split_domains(domains)
+                .into_iter()
+                .filter_map(|domain| theme_domain_pattern(domain.trim()))
+            {
+                for &value_type in theme_arbitrary_types(namespace, theme) {
+                    namespaced.push((value_type, properties.clone()));
+                }
+            }
+            Some(LeanStr::new())
+        });
+    }
+    let mut types = Vec::new();
+    for value_type in hinted {
+        if value_type != ValueType::Any && !types.contains(&value_type) {
+            types.push(value_type);
+        }
+    }
+    for (value_type, properties) in namespaced {
+        if !types.contains(&value_type)
+            && !properties
+                .iter()
+                .any(|property| hinted_properties.contains(property))
+        {
+            types.push(value_type);
+        }
+    }
+    if types.len() < 2 {
+        return Vec::new();
+    }
+    types
+        .into_iter()
+        .map(|value_type| value_type.hint().to_lean_str())
+        .collect()
 }
 
 /// The value of an arbitrary capture that carries no type hint, decoded, or the `var()`

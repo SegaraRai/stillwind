@@ -17,6 +17,7 @@ use stillwind_css::{PropertyRequirementError, take_property_requirements};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
+use super::super::ArbitraryValueCheck;
 use super::super::builtins::COMPAT_COLOR_SUPPORT;
 use super::declarations::resolve_css_declarations;
 use super::nested::{
@@ -60,6 +61,12 @@ pub(in crate::evaluation) struct UtilityResolution {
     /// `(tw-sort: property)` value authored on the definition header, which replaces
     /// the resolved property indices when the snapshot selects Tailwind ordering.
     pub(in crate::evaluation) tw_sort: Option<LeanStr>,
+    /// An unhinted arbitrary value that no definition accepted by grammar, emitted as
+    /// written.
+    pub(in crate::evaluation) invalid_value: Option<UtilityArbitraryUse>,
+    /// Type hints of the value types that the utility accepts, when `invalid_value`
+    /// received a property chosen as a fallback between them; otherwise empty.
+    pub(in crate::evaluation) fallback_type_hints: Vec<LeanStr>,
 }
 
 impl UtilityResolution {
@@ -75,6 +82,8 @@ impl UtilityResolution {
             additional: Vec::new(),
             builtin_order: None,
             tw_sort: None,
+            invalid_value: None,
+            fallback_type_hints: Vec::new(),
         }
     }
 }
@@ -82,7 +91,8 @@ impl UtilityResolution {
 /// Resolves one definition body against a candidate name and modifier.
 /// `utility` must belong to `theme` or its selected built-in registry.
 ///
-/// Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
+/// `arbitrary_check` selects how typed domains check arbitrary values without a type
+/// hint. Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
 /// the candidate carries a modifier no branch consumes, or when no declaration group
 /// matches.
 ///
@@ -95,6 +105,7 @@ pub(in crate::evaluation) fn resolve_css_utility_body(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
+    arbitrary_check: ArbitraryValueCheck,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let Some(prepared) = theme.programs().body(&utility.body) else {
         return Ok(None);
@@ -103,9 +114,9 @@ pub(in crate::evaluation) fn resolve_css_utility_body(
         name: utility.name.to_lean_str(),
         source: *source,
     })?;
-    Ok(body
-        .as_ref()
-        .and_then(|body| resolve_valid_utility_body(utility, name, modifier, theme, body)))
+    Ok(body.as_ref().and_then(|body| {
+        resolve_valid_utility_body(utility, name, modifier, theme, body, arbitrary_check)
+    }))
 }
 
 /// Structural utility syntax retained by the immutable evaluator.
@@ -162,6 +173,7 @@ fn resolve_valid_utility_body(
     modifier: Option<&Value>,
     theme: &ThemeIndex,
     prepared: &PreparedUtilityBody,
+    arbitrary_check: ArbitraryValueCheck,
 ) -> Option<UtilityResolution> {
     let body = &prepared.body;
     let nested = &prepared.nested;
@@ -177,6 +189,7 @@ fn resolve_valid_utility_body(
             theme,
             utility.builtin_order.is_some(),
             color_compatibility,
+            arbitrary_check,
         )
     };
     // A slash modifier is meaningful only when a branch explicitly consumes it. This
@@ -302,6 +315,8 @@ fn resolve_valid_utility_body(
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
+            invalid_value: None,
+            fallback_type_hints: Vec::new(),
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
@@ -320,6 +335,8 @@ fn resolve_valid_utility_body(
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
+            invalid_value: None,
+            fallback_type_hints: Vec::new(),
         })
     }
 }

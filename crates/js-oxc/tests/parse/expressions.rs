@@ -1,6 +1,6 @@
 //! Checks class, object, array, and variant expression lowering.
 
-use stillwind_diagnostics::{LintDiagnostic, VariantInputErrorKind};
+use stillwind_diagnostics::{LintDiagnostic, RuleGroupInputErrorKind};
 
 use super::*;
 
@@ -148,11 +148,11 @@ fn invalid_object_entries_report_errors_or_omit_variant_values_with_lints() {
         (r#"{ "&:hover": "flex" }"#, None),
         (
             r#"{ "hover:": { "aria-busy": true } }"#,
-            Some(VariantInputErrorKind::Attribute),
+            Some(RuleGroupInputErrorKind::Attribute),
         ),
         (
             r#"{ "hover:": { class: "external" } }"#,
-            Some(VariantInputErrorKind::ExternalClass),
+            Some(RuleGroupInputErrorKind::ExternalClass),
         ),
     ] {
         let source = SourceFile::new(
@@ -177,7 +177,7 @@ fn invalid_object_entries_report_errors_or_omit_variant_values_with_lints() {
             assert_eq!(parsed.lint_findings.len(), 1);
             assert_eq!(
                 parsed.lint_findings[0].diagnostic,
-                LintDiagnostic::InvalidVariantInput { reason }
+                LintDiagnostic::InvalidRuleGroupInput { reason }
             );
             assert_eq!(parsed.module.style_calls[0].inputs, []);
         } else {

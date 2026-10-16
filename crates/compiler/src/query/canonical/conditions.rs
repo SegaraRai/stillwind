@@ -21,7 +21,7 @@ pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<Lean
     let candidate = parse_candidate(raw)?;
     let mut rewritten = raw.to_lean_string();
     for variant in &candidate.variants {
-        let Some(VariantApplication::Conditional(canonical)) = resolve_variant(variant, theme)
+        let Some(VariantApplication::Conditional(canonical)) = resolve_variant(variant, theme).ok()
         else {
             continue;
         };

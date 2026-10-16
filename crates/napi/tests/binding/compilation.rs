@@ -31,7 +31,7 @@ fn json_options_use_camel_case_and_enum_cases_follow_their_contracts() {
     );
     assert_eq!(serde_json::to_value(AdapterKind::Vue).unwrap(), "vue");
     assert_eq!(
-        serde_json::to_value(VariantInputErrorKind::CustomProperty).unwrap(),
+        serde_json::to_value(RuleGroupInputErrorKind::CustomProperty).unwrap(),
         "customProperty"
     );
     assert_eq!(

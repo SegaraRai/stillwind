@@ -10,10 +10,23 @@ use stillwind_css::inspect_css_value;
 
 use crate::ThemeIndex;
 
+/// How a typed value domain checks an arbitrary value written without a type hint.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(in crate::evaluation) enum ArbitraryValueCheck {
+    /// The value must match the domain's CSS grammar.
+    #[default]
+    Grammar,
+    /// Every well-formed value is accepted, as Tailwind emits it. Utility resolution
+    /// uses this check only after no definition accepted the value by grammar, and it
+    /// reports the accepted value as invalid for its property.
+    WellFormed,
+}
+
 /// Borrows immutable definitions and optionally records direct source selections.
 pub(in crate::evaluation) struct EvaluationContext<'a> {
     theme: &'a ThemeIndex,
     selections: Option<RefCell<ValueSelections>>,
+    arbitrary_check: ArbitraryValueCheck,
 }
 
 impl<'a> EvaluationContext<'a> {
@@ -21,14 +34,24 @@ impl<'a> EvaluationContext<'a> {
         Self {
             theme,
             selections: None,
+            arbitrary_check: ArbitraryValueCheck::Grammar,
         }
     }
 
-    pub(in crate::evaluation) fn tracked(theme: &'a ThemeIndex) -> Self {
+    pub(in crate::evaluation) fn tracked(
+        theme: &'a ThemeIndex,
+        arbitrary_check: ArbitraryValueCheck,
+    ) -> Self {
         Self {
             theme,
             selections: Some(RefCell::new(ValueSelections::default())),
+            arbitrary_check,
         }
+    }
+
+    /// Returns how typed domains check unhinted arbitrary values in this evaluation.
+    pub(in crate::evaluation) const fn arbitrary_check(&self) -> ArbitraryValueCheck {
+        self.arbitrary_check
     }
 
     pub(in crate::evaluation) fn record_token(&self, name: &str) {

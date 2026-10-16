@@ -1030,8 +1030,8 @@ export interface NativeLayerContext {
 
 /** Lint settings applied to compiler defaults. */
 export interface NativeLintOptions {
-  /** Settings for `invalid-variant-input`. */
-  invalidVariantInput?: string
+  /** Settings for `invalid-rule-group-input`. */
+  invalidRuleGroupInput?: string
   /** Settings for `invalid-style-input`. */
   invalidStyleInput?: string
   /** Settings for `invalid-cva-config`. */
@@ -1062,6 +1062,10 @@ export interface NativeLintOptions {
   invalidUtility?: string
   /** Settings for `unknown-utility`. */
   unknownUtility?: string
+  /** Settings for `invalid-variant`. */
+  invalidVariant?: string
+  /** Settings for `unknown-variant`. */
+  unknownVariant?: string
   /** Settings for `mutating-macro-argument`. */
   mutatingMacroArgument?: string
   /** Settings for `suspending-macro-argument`. */
@@ -1094,6 +1098,8 @@ export interface NativeLintOptions {
   splitViewTransitionClass?: string
   /** Settings for `ineffective-anchor-scope`. */
   ineffectiveAnchorScope?: string
+  /** Settings for `invalid-property-value`. */
+  invalidPropertyValue?: string
   /** Settings for `no-arbitrary-colors`. */
   noArbitraryColors?: string
   /** Settings for `no-arbitrary-spacing`. */

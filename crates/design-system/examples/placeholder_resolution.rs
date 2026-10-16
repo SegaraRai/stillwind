@@ -30,7 +30,7 @@ fn main() {
         )
         .unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-        assert!(resolve_utility(candidate, &theme).unwrap().is_some());
+        assert!(resolve_utility(candidate, &theme).unwrap().is_ok());
         let mut samples = Vec::new();
         for _ in 0..5 {
             let start = Instant::now();

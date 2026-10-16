@@ -237,7 +237,7 @@ macro_rules! lint_config_severity {
 
 define_lint_rules! {
     Input {
-        InvalidVariantInput => "invalid-variant-input",
+        InvalidRuleGroupInput => "invalid-rule-group-input",
         InvalidStyleInput => "invalid-style-input",
         InvalidCvaConfig => "invalid-cva-config",
         InvalidCvaInput => "invalid-cva-input",
@@ -253,6 +253,8 @@ define_lint_rules! {
         RuntimeConditionRequiresCssIf => "runtime-condition-requires-css-if",
         InvalidUtility => "invalid-utility",
         UnknownUtility => "unknown-utility",
+        InvalidVariant => "invalid-variant",
+        UnknownVariant => "unknown-variant",
     }
     Contract {
         MutatingMacroArgument => "mutating-macro-argument",
@@ -273,6 +275,7 @@ define_lint_rules! {
         DuplicateViewTransitionName => "duplicate-view-transition-name",
         SplitViewTransitionClass => "split-view-transition-class",
         IneffectiveAnchorScope => "ineffective-anchor-scope",
+        InvalidPropertyValue => "invalid-property-value",
     }
     Restriction {
         NoArbitraryColors => "no-arbitrary-colors",

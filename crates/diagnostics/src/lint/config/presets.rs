@@ -11,7 +11,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::MismatchedFrameworkImport, LintSeverity::Warn),
     (LintKind::MutatingMacroArgument, LintSeverity::Deny),
     (LintKind::SuspendingMacroArgument, LintSeverity::Deny),
-    (LintKind::InvalidVariantInput, LintSeverity::Deny),
+    (LintKind::InvalidRuleGroupInput, LintSeverity::Deny),
     (LintKind::InvalidStyleInput, LintSeverity::Deny),
     (LintKind::InvalidCvaConfig, LintSeverity::Deny),
     (LintKind::InvalidCvaInput, LintSeverity::Deny),
@@ -39,8 +39,11 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::SplitViewTransitionClass, LintSeverity::Warn),
     (LintKind::AmbiguousStyleBaseOrder, LintSeverity::Warn),
     (LintKind::InterferingImportedStyleBase, LintSeverity::Warn),
-    (LintKind::InvalidUtility, LintSeverity::Warn),
+    (LintKind::InvalidPropertyValue, LintSeverity::Deny),
+    (LintKind::InvalidUtility, LintSeverity::Deny),
     (LintKind::UnknownUtility, LintSeverity::Warn),
+    (LintKind::InvalidVariant, LintSeverity::Deny),
+    (LintKind::UnknownVariant, LintSeverity::Warn),
     (LintKind::PreferCanonicalUtilities, LintSeverity::Warn),
 ];
 

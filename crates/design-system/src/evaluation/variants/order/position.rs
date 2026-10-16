@@ -1,0 +1,138 @@
+//! Registry positions of variants and the groups that sort as one unit.
+
+use std::sync::Arc;
+
+use lean_string::LeanString;
+
+use stillwind_syntax::{Variant, VariantKind};
+
+use super::super::super::builtins::builtin_variants;
+use super::super::resolve::{parse_nested_variant, split_typed_capture};
+use super::super::substitution::registered_variant_candidates;
+use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex, ThemeNamespace};
+
+/// The single built-in definition that captures this variant text, if any.
+///
+/// An exact name wins outright; otherwise the matching pattern with the most literal
+/// prefix-plus-suffix bytes wins. Equal specificity selects the last definition.
+pub(super) fn direct_builtin_variant<'a>(
+    value: &str,
+    theme: &'a ThemeIndex,
+) -> Option<&'a CustomVariant> {
+    builtin_variants(theme)
+        .iter()
+        .filter_map(|variant| {
+            if variant.wildcard.is_none() && variant.name == value {
+                return Some((usize::MAX, variant));
+            }
+            variant
+                .capture(value)
+                .map(|_| (variant.name.len() - 1, variant))
+        })
+        .max_by_key(|(specificity, _)| *specificity)
+        .map(|(_, variant)| variant.as_ref())
+}
+
+/// The theme namespace named by a sort key such as `--breakpoint-*`.
+pub(in crate::evaluation) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
+    ThemeNamespace::parse(key.strip_prefix("--")?.strip_suffix("-*")?)
+}
+
+/// A variant that names a theme token without its prefix, as a bare breakpoint variant
+/// does.
+pub(super) fn bare_builtin_variant<'a>(
+    value: &str,
+    theme: &'a ThemeIndex,
+) -> Option<&'a CustomVariant> {
+    builtin_variants(theme)
+        .iter()
+        .map(Arc::as_ref)
+        .find(|variant| {
+            let Some(sort) = variant.sort.as_ref().filter(|sort| sort.bare) else {
+                return false;
+            };
+            let Some(namespace) = sort.key.as_deref().and_then(variant_sort_namespace) else {
+                return false;
+            };
+            theme.token_in(namespace, value).is_some()
+        })
+}
+
+/// Resolves a parsed variant to the definition that orders it.
+///
+/// A definition without sort metadata is still a definition; the sort is only consulted
+/// when two variants share a group.
+pub(super) fn builtin_variant_for_order<'a>(
+    variant: &Variant,
+    theme: &'a ThemeIndex,
+) -> Option<&'a CustomVariant> {
+    let VariantKind::Named(value) = &variant.kind else {
+        return None;
+    };
+    direct_builtin_variant(value, theme).or_else(|| bare_builtin_variant(value, theme))
+}
+
+/// The ordering group of a variant definition, which defaults to its own name.
+pub(super) fn variant_group(variant: &CustomVariant) -> &str {
+    variant
+        .sort
+        .as_ref()
+        .and_then(|sort| sort.group.as_deref())
+        .unwrap_or(&variant.name)
+}
+
+/// The position of a variant in the registry's ordering space.
+///
+/// Every variant of one group reports the same position, so a group moves as a unit.
+/// [`usize::MAX`] means the variant is not registered and therefore sorts after
+/// everything registered.
+pub(super) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
+    let custom = if let VariantKind::Named(value) = &variant.kind {
+        registered_variant_candidates(theme.variants(), value)
+            .first()
+            .map(|(definition, _)| *definition)
+    } else {
+        None
+    };
+    let Some(variant) = builtin_variant_for_order(variant, theme).or(custom) else {
+        return usize::MAX;
+    };
+    let group = variant_group(variant);
+    builtin_variants(theme)
+        .iter()
+        .chain(theme.variants())
+        .filter(|candidate| variant_group(candidate) == group)
+        .filter_map(|candidate| {
+            theme
+                .variant_positions()
+                .get(candidate.name.as_str())
+                .copied()
+                .or(candidate.builtin_order)
+        })
+        .min()
+        .unwrap_or(usize::MAX)
+}
+
+/// The inner variant of a compound variant definition, when it has one.
+pub(super) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> Option<Variant> {
+    let VariantKind::Named(value) = &variant.kind else {
+        return None;
+    };
+    let capture = compound_variant_capture(theme.variants(), value)
+        .or_else(|| compound_variant_capture(builtin_variants(theme), value))?;
+    Some(parse_nested_variant(&capture))
+}
+
+/// The inner variant text of the first definition whose declared value type is a variant
+/// stack, without that definition's own modifier.
+pub(super) fn compound_variant_capture(
+    variants: &[Arc<CustomVariant>],
+    value: &str,
+) -> Option<LeanString> {
+    registered_variant_candidates(variants, value)
+        .into_iter()
+        .find_map(|(variant, capture)| {
+            (variant.value_type == Some(BuiltinVariantValueType::Variant))
+                .then(|| capture.map(|capture| split_typed_capture(variant, capture).0.into()))?
+        })
+}
