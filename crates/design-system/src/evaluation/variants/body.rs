@@ -129,12 +129,12 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
 fn block_open(body: &str) -> Option<usize> {
     let mut parser = Parser::new(body);
     loop {
-        let offset = parser.position().byte_index();
         if matches!(
             parser.next_including_whitespace_and_comments().ok()?,
             Token::CurlyBracketBlock
         ) {
-            return Some(offset);
+            // Reading the token can skip a preceding nested block before consuming `{`.
+            return Some(parser.position().byte_index() - 1);
         }
     }
 }
@@ -243,6 +243,37 @@ fn selector_rule_from_variant_body(body: &str, scope: VariantScope) -> Option<Va
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolves_blocks_adjacent_to_parentheses_and_brackets() {
+        for (body, expected) in [
+            (
+                "@media (hover:hover){&:hover{@slot;}}",
+                VariantApplication::SelectorMedia {
+                    selector: "&:hover".into(),
+                    condition: "(hover:hover)".into(),
+                },
+            ),
+            (
+                "@supports (display:grid){@slot;}",
+                VariantApplication::Supports("(display:grid)".into()),
+            ),
+            (
+                "@container panel (width>1px){@slot;}",
+                VariantApplication::Container("panel (width>1px)".into()),
+            ),
+            (
+                "&:is(:hover,:focus){@slot;}",
+                VariantApplication::SelectorTemplate("&:is(:hover,:focus)".into()),
+            ),
+            (
+                r#"&[data-value="{"]{@slot;}"#,
+                VariantApplication::SelectorTemplate(r#"&[data-value="{"]"#.into()),
+            ),
+        ] {
+            assert_eq!(resolve_variant_body(body), Some(expected), "{body}");
+        }
+    }
 
     #[test]
     fn subject_dependency_comes_from_selector_tokens_inside_retained_wrappers() {

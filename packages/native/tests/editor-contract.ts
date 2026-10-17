@@ -188,6 +188,28 @@ export function registerEditorContract(specifier: string): void {
     ).toContain("local");
   });
 
+  test("recovered CSS keeps built-in variant completions in incomplete buffers", async () => {
+    const { NativeDesignSystemLoader, editorCssSource } = await import(specifier);
+    const definitions = await readFile(
+      new URL("../../core/css/builtin-variants/tw-state.css", import.meta.url),
+      "utf8",
+    );
+    for (const tail of [".a { @variant ho", ".a { @variant ho {} } .b {"]) {
+      const source = `${definitions}\n${tail}`;
+      const offset = new TextEncoder().encode(
+        source.slice(0, source.lastIndexOf("@variant ho") + "@variant ho".length),
+      ).length;
+      const loader = new NativeDesignSystemLoader();
+      loader.provide(0, "incomplete.css", editorCssSource(source));
+      expect(
+        loader
+          .editorQuery()
+          .completeStylesheet(source, offset)
+          .map((item: { label: string }) => item.label),
+      ).toEqual(["hover"]);
+    }
+  });
+
   test("editor input roles share compiler registries, declaration mapping, and variant restrictions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const motion = await readFile(
