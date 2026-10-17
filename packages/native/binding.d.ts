@@ -161,8 +161,8 @@ export declare class NativeEditorQuery {
   /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */
   colorRgba(value: string): Array<number> | null
   /**
-   * Returns a concrete candidate color in RGBA, or null for contextual or ambiguous
-   * colors.
+   * Returns RGBA for a utility that sets one concrete color, or null for composite
+   * utilities and unresolved or ambiguous colors.
    */
   candidateColor(candidate: string): Array<number> | null
 }

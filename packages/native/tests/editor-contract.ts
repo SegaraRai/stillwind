@@ -4,6 +4,27 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("candidate colors require color utilities and keep stylesheet reference colors", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `@theme { --color-brand: red; }
+@utility card { background-color: red; padding: 1rem; }
+@utility ring-brand { --ring-color: var(--color-brand); }
+@utility faded { color: rgb(255 0 0 / 0); outline-color: red; }`,
+    );
+    const query = loader.editorQuery();
+    expect(query.candidateColor("card")).toBeNull();
+    expect(query.candidateColor("ring-brand")).toEqual([1, 0, 0, 1]);
+    expect(query.candidateColor("faded")).toEqual([1, 0, 0, 1]);
+    const css = ".card { @apply card; color: var(--color-brand); }";
+    const colors = query.stylesheetColors(css);
+    expect(colors).toHaveLength(1);
+    expect(css.slice(colors[0].start, colors[0].end)).toBe("var(--color-brand)");
+  });
+
   test("CSS directive discovery separates registry settings, local syntax, and hover", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const loader = new NativeDesignSystemLoader();

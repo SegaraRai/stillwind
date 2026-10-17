@@ -12,6 +12,7 @@ import {
   loadCssGraph,
   TypeScriptFactsService,
 } from "@stillwind/host";
+import { BrowserProject } from "@stillwind/host/browser";
 import { NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
@@ -26,6 +27,9 @@ const demo: IconifyJSON = {
   icons: {
     close: {
       body: '<path fill="currentColor" d="M0 0h24v24z"/>',
+    },
+    flag: {
+      body: '<path fill="#f00" d="M0 0h24v24z"/>',
     },
   },
 };
@@ -135,4 +139,56 @@ export const named = style("icon-demo--close");
 
   expect(bracket.css).toContain("mask-image: var(--icon-demo--close)");
   expect(named.css).not.toContain("--icon-demo--close");
+});
+
+test("editor colors omit icon utilities while keeping their hover previews", async () => {
+  const code = `import { style } from "stillwind/react";
+export const icons = style("icon-demo--close hover:icon-[demo--flag] bg-brand");`;
+  const project = new BrowserProject({
+    root: "/workspace",
+    files: new Map([
+      ["/workspace/entry.tsx", code],
+      [
+        "/workspace/design.css",
+        `@theme { --color-brand: red; }
+@utility bg-* { background-color: --value(--color-*); }
+@variant hover { &:hover { @slot; } }
+@plugin "@stillwind/plugin-iconify";
+:root { @stillwind-slot theme; }
+@stillwind-slot utilities;`,
+      ],
+    ]),
+    config: {
+      css: "design.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+      plugins: [
+        iconify({
+          collections: {
+            demo,
+          },
+        }),
+      ],
+    },
+  });
+  try {
+    const result = await project.query("/workspace/entry.tsx", {
+      kind: "colors",
+    });
+    expect(result!.colors!.map((color) => code.slice(color.start, color.end))).toEqual([
+      "bg-brand",
+    ]);
+    for (const [candidate, declaration] of [
+      ["icon-demo--close", "mask-image:"],
+      ["hover:icon-[demo--flag]", "background-image:"],
+    ]) {
+      const result = await project.query("/workspace/entry.tsx", {
+        kind: "hover",
+        offset: code.indexOf(candidate),
+      });
+      expect(result?.hover?.css).toContain(declaration);
+    }
+  } finally {
+    await project.close();
+  }
 });

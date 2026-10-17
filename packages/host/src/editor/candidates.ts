@@ -92,11 +92,11 @@ export class CandidateQueries {
   }
 
   /**
-   * Resolves a candidate's concrete color against this query's theme.
+   * Resolves a color utility's concrete color against this query's theme.
    *
    * @param candidate - Full decoded ordinary utility candidate, including variants and modifiers.
    * @returns sRGB red, green, blue, and effective alpha components in 0..1, or undefined when
-   * the native query cannot determine one unambiguous concrete color.
+   * the candidate is not a color utility or has no unambiguous concrete color.
    * @throws If a matching utility definition has a malformed requirement.
    */
   color(candidate: string): number[] | undefined {

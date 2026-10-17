@@ -601,8 +601,8 @@ impl NativeEditorQuery {
         color_rgba(&value).map(|components| components.to_vec())
     }
 
-    /// Returns a concrete candidate color in RGBA, or null for contextual or ambiguous
-    /// colors.
+    /// Returns RGBA for a utility that sets one concrete color, or null for composite
+    /// utilities and unresolved or ambiguous colors.
     #[napi]
     pub fn candidate_color(&self, candidate: String) -> napi::Result<Option<Vec<f64>>> {
         self.query
