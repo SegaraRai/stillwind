@@ -552,6 +552,56 @@ mod tests {
     }
 
     #[test]
+    fn canonical_color_modifiers_match_with_the_default_registry() {
+        let query = make_query(
+            "@import 'stillwind'; @theme { --color-brand:red; --color-b:blue; }",
+            CompilerOptions::default(),
+        );
+        for (raw, expected) in [
+            ("bg-[#f00]/50", "bg-brand/50"),
+            ("hover:!bg-[#f00]/50", "hover:!bg-brand/50"),
+            ("bg-[#f00]/100", "bg-brand/100"),
+            ("bg-[#f00]/0", "bg-b/0"),
+        ] {
+            assert_eq!(
+                query.canonical_candidate(raw).unwrap().as_deref(),
+                Some(expected),
+                "{raw}"
+            );
+        }
+        assert!(
+            query
+                .canonical_candidate("bg-[#123456]/50")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            query
+                .hover_candidate("bg-brand/50")
+                .unwrap()
+                .unwrap()
+                .css
+                .contains("@supports")
+        );
+    }
+
+    #[test]
+    fn canonical_color_compatibility_keeps_authored_conditions() {
+        let query = make_query(
+            "@theme { --*:initial; --color-brand:red; } \
+             @utility tone-* { @media print { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier())); } } \
+             @utility paint-* { color:--value(--color-*, [color]); } \
+             @utility paint-brand { color:red; @supports (color:color-mix(in lab, red, red)) { color:blue; } }",
+            CompilerOptions::default(),
+        );
+        assert_eq!(
+            query.canonical_candidate("tone-[#f00]/50").unwrap(),
+            Some("tone-brand/50".into())
+        );
+        assert!(query.canonical_candidate("paint-[#f00]").unwrap().is_none());
+    }
+
+    #[test]
     fn canonical_overloads_search_tokens_for_the_emitted_properties() {
         let query = make_query(
             "@import 'stillwind'; @theme { --spacing:.25rem; }",
@@ -830,6 +880,25 @@ mod tests {
             query.canonical_candidate("tone-[rgb(255_0_0)]/50").unwrap(),
             Some("tone-special-a/50".into())
         );
+    }
+
+    #[test]
+    fn canonical_color_modifiers_search_all_values_when_alpha_erases_the_color() {
+        let query = make_query(
+            "@theme { --*:initial; --color-a:red; --color-b:blue; } @theme inline { --opacity-50:0; } \
+             @utility fixed-* { color:--compat-color(--value(--color-*, [color]), 0%); opacity:--modifier(number); } \
+             @utility token-* { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier(--opacity-*))); } \
+             @utility extra-* { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier()), 0%); }",
+            CompilerOptions::default(),
+        );
+        for root in ["fixed", "token", "extra"] {
+            let raw = format!("{root}-[#00f]/50");
+            assert_eq!(
+                query.canonical_candidate(&raw).unwrap().as_deref(),
+                Some(format!("{root}-a/50").as_str()),
+                "{root}"
+            );
+        }
     }
 
     #[test]

@@ -83,7 +83,8 @@ impl DesignSystemQuery {
         &self,
         candidate: &str,
     ) -> Result<CandidateResolution, UtilityResolutionError> {
-        self.context.resolve_with_selector(candidate, None, true)
+        self.context
+            .resolve_with_selector::<0>(candidate, None, true)
     }
 
     /// CSS for a candidate that resolves, `None` otherwise.
@@ -100,7 +101,7 @@ impl DesignSystemQuery {
     ) -> Result<Option<CandidateHover>, UtilityResolutionError> {
         let result = self
             .context
-            .resolve_with_selector(candidate, Some("&"), false)?;
+            .resolve_with_selector::<0>(candidate, Some("&"), false)?;
         Ok(result.failures.is_empty().then(|| CandidateHover {
             candidate: candidate.into(),
             css: result
@@ -161,7 +162,14 @@ impl QueryContext {
         failures
     }
 
-    pub(super) fn resolve_with_selector(
+    /// Resolves `candidate` and renders it under `preview_selector`, or its generated
+    /// class when no selector is supplied. `include_referenced_tokens` enables token
+    /// collection. `FLAGS` passes emission flags to [`emit_utility_rules`].
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub(super) fn resolve_with_selector<const FLAGS: u8>(
         &self,
         candidate: &str,
         preview_selector: Option<&str>,
@@ -177,8 +185,13 @@ impl QueryContext {
         let mut failures = match targets {
             Ok(targets) => {
                 let identifiers = candidate_identifiers(preview_selector.is_some());
-                let emission =
-                    emit_utility_rules(&mut contributions, selector, &targets, theme, &identifiers);
+                let emission = emit_utility_rules::<FLAGS>(
+                    &mut contributions,
+                    selector,
+                    &targets,
+                    theme,
+                    &identifiers,
+                );
                 let mut failures = self.finalize_rules(
                     candidate,
                     &mut contributions,

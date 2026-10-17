@@ -8,7 +8,7 @@
 //! same rule are inserted after the property they override, so a nested at-rule cannot
 //! win by appearing before the value it is meant to replace.
 
-use lean_string::LeanString;
+use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
@@ -22,13 +22,20 @@ use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
 use crate::identifiers::IdentifierContext;
 
+/// Emits modern color declarations without their generated `@supports` guards.
+/// Authored conditions remain present.
+pub(crate) const FLATTEN_COLOR_COMPATIBILITY: u8 = 1 << 0;
+
 /// Writes the blocks of one class unit for `class_selector`.
 ///
 /// The unit's class selector is rendered by the family that owns the class token, so
 /// this function never escapes a name. The class is generated from the unit's canonical
 /// content, so this function never has to deduplicate: two equal units were already
 /// merged by the caller.
-pub(crate) fn emit_utility_rules(
+///
+/// `FLAGS` is a bitmask. Use zero for normal CSS or [`FLATTEN_COLOR_COMPATIBILITY`]
+/// when comparing canonical candidates.
+pub(crate) fn emit_utility_rules<const FLAGS: u8>(
     contributions: &mut Vec<CssContribution>,
     class_selector: &str,
     utilities: &[CompiledUtility],
@@ -36,7 +43,7 @@ pub(crate) fn emit_utility_rules(
     identifiers: &IdentifierContext,
 ) -> Result<(), CompileDiagnostic> {
     let mut css = LeanString::new();
-    emit_utility_css(&mut css, class_selector, utilities, theme, identifiers)?;
+    emit_utility_css::<FLAGS>(&mut css, class_selector, utilities, theme, identifiers)?;
     contributions.push(CssContribution {
         css: (css).into(),
         required_properties: utilities
@@ -48,7 +55,7 @@ pub(crate) fn emit_utility_rules(
     Ok(())
 }
 
-fn emit_utility_css(
+fn emit_utility_css<const FLAGS: u8>(
     output: &mut LeanString,
     class_selector: &str,
     utilities: &[CompiledUtility],
@@ -69,14 +76,14 @@ fn emit_utility_css(
     let mut plain = Vec::new();
     for utility in base {
         if utility.nested.iter().any(|nested| nested.inside) {
-            emit_base_utility_group(output, class_selector, &plain, theme);
+            emit_base_utility_group::<FLAGS>(output, class_selector, &plain, theme);
             plain.clear();
-            emit_base_utility_group(output, class_selector, &[utility], theme);
+            emit_base_utility_group::<FLAGS>(output, class_selector, &[utility], theme);
         } else {
             plain.push(utility);
         }
     }
-    emit_base_utility_group(output, class_selector, &plain, theme);
+    emit_base_utility_group::<FLAGS>(output, class_selector, &plain, theme);
     let mut variant_utilities = utilities
         .iter()
         .copied()
@@ -94,7 +101,7 @@ fn emit_utility_css(
         })
     });
     for utility in variant_utilities {
-        let declaration = assemble_nested_declarations(
+        let declaration = assemble_nested_declarations::<FLAGS>(
             &combine_declarations_for_theme(&[utility], theme),
             &utility
                 .nested
@@ -135,7 +142,7 @@ fn emit_utility_css(
 /// Nested rules whose property is present in the combined declarations are inlined right after that
 /// property; the rest follow the declarations in their own order. Utilities with no declarations at
 /// all produce no block, which is why a marker-only unit still costs nothing in the CSS.
-fn emit_base_utility_group(
+fn emit_base_utility_group<const FLAGS: u8>(
     output: &mut LeanString,
     class_selector: &str,
     utilities: &[&CompiledUtility],
@@ -150,28 +157,37 @@ fn emit_base_utility_group(
     if !base.is_empty() || !nested.is_empty() {
         output.push_str(class_selector);
         output.push('{');
-        output.push_str(&assemble_nested_declarations(&base, &nested));
+        output.push_str(&assemble_nested_declarations::<FLAGS>(&base, &nested));
         output.push('}');
     }
 }
 
 /// Arranges conditional rules at declaration boundaries before emitting the body.
 /// Each conditional is emitted once, in source order, including unmatched properties.
-fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> LeanString {
+fn assemble_nested_declarations<const FLAGS: u8>(
+    base: &str,
+    nested: &[&NestedUtilityRule],
+) -> LeanString {
     let declarations = declaration_ranges(base)
         .into_iter()
         .map(|range| &base[range])
         .collect::<Vec<_>>();
+    let comparison_rules;
+    let comparison_refs;
+    let nested = if FLAGS & FLATTEN_COLOR_COMPATIBILITY != 0
+        && nested
+            .iter()
+            .any(|rule| rule.compatibility && rule.parent.is_some())
+    {
+        comparison_rules = merge_compatibility_parents(nested, &declarations);
+        comparison_refs = comparison_rules.iter().collect::<Vec<_>>();
+        &comparison_refs
+    } else {
+        nested
+    };
     let anchors = nested
         .iter()
-        .map(|rule| {
-            let property = rule.declaration.split_once(':')?.0.trim();
-            declarations.iter().position(|declaration| {
-                declaration
-                    .split_once(':')
-                    .is_some_and(|(name, _)| name.trim() == property)
-            })
-        })
+        .map(|rule| nested_anchor(rule, &declarations))
         .collect::<Vec<_>>();
     let mut output = LeanString::new();
     for (index, declaration) in declarations.iter().enumerate() {
@@ -179,25 +195,71 @@ fn assemble_nested_declarations(base: &str, nested: &[&NestedUtilityRule]) -> Le
         output.push(';');
         for (rule, anchor) in nested.iter().zip(&anchors) {
             if *anchor == Some(index) {
-                emit_nested_rule(&mut output, rule);
+                emit_nested_rule::<FLAGS>(&mut output, rule);
             }
         }
     }
     for (rule, anchor) in nested.iter().zip(&anchors) {
         if anchor.is_none() {
-            emit_nested_rule(&mut output, rule);
+            emit_nested_rule::<FLAGS>(&mut output, rule);
         }
     }
     output
 }
 
-fn emit_nested_rule(output: &mut LeanString, nested: &NestedUtilityRule) {
+/// Joins a generated compatibility declaration to the preceding authored condition
+/// when both are emitted at the same declaration boundary. Sharing their declaration
+/// list lets canonical minification remove the overridden fallback in one pass.
+fn merge_compatibility_parents(
+    nested: &[&NestedUtilityRule],
+    declarations: &[&str],
+) -> Vec<NestedUtilityRule> {
+    let mut rules: Vec<NestedUtilityRule> = Vec::with_capacity(nested.len());
+    for rule in nested {
+        if rule.compatibility
+            && let Some((at_rule, condition)) = &rule.parent
+            && let Some(parent) = rules.last_mut()
+            && !parent.compatibility
+            && parent.parent.is_none()
+            && parent.at_rule == *at_rule
+            && parent.condition == *condition
+            && nested_anchor(parent, declarations) == nested_anchor(rule, declarations)
+        {
+            parent.declaration = format_args!("{};{}", parent.declaration, rule.declaration)
+                .to_lean_string()
+                .into();
+        } else {
+            rules.push((*rule).clone());
+        }
+    }
+    rules
+}
+
+/// Returns the first base declaration whose property anchors this conditional rule.
+/// A rule without a matching property follows the entire base declaration list.
+fn nested_anchor(rule: &NestedUtilityRule, declarations: &[&str]) -> Option<usize> {
+    let property = rule.declaration.split_once(':')?.0.trim();
+    declarations.iter().position(|declaration| {
+        declaration
+            .split_once(':')
+            .is_some_and(|(name, _)| name.trim() == property)
+    })
+}
+
+fn emit_nested_rule<const FLAGS: u8>(output: &mut LeanString, nested: &NestedUtilityRule) {
     if let Some((at_rule, condition)) = &nested.parent {
         emit_condition(output, *at_rule, condition);
     }
-    emit_condition(output, nested.at_rule, &nested.condition);
+    let guarded = FLAGS & FLATTEN_COLOR_COMPATIBILITY == 0 || !nested.compatibility;
+    if guarded {
+        emit_condition(output, nested.at_rule, &nested.condition);
+    }
     output.push_str(&nested.declaration);
-    output.push('}');
+    if guarded {
+        output.push('}');
+    } else {
+        output.push(';');
+    }
     if nested.parent.is_some() {
         output.push('}');
     }
@@ -233,8 +295,33 @@ mod tests {
             declaration: "color:blue;".into(),
             inside: false,
         };
-        let declaration = assemble_nested_declarations(declaration, &[&rule]);
+        let declaration = assemble_nested_declarations::<0>(declaration, &[&rule]);
         assert_eq!(declaration, "color:red;@media print{color:blue;}width:1px;");
+    }
+
+    #[test]
+    fn canonical_compatibility_keeps_distinct_declaration_boundaries() {
+        let parent = NestedUtilityRule {
+            compatibility: false,
+            at_rule: NestedUtilityAtRule::Media,
+            condition: "print".into(),
+            parent: None,
+            declaration: "outline-color:yellow;color:gray;".into(),
+            inside: true,
+        };
+        let modern = NestedUtilityRule {
+            compatibility: true,
+            parent: Some((parent.at_rule, parent.condition.clone())),
+            declaration: "color:blue;".into(),
+            ..parent.clone()
+        };
+        let declaration = assemble_nested_declarations::<FLATTEN_COLOR_COMPATIBILITY>(
+            "outline-color:green;color:black;",
+            &[&parent, &modern],
+        );
+        assert!(
+            declaration.find("color:blue;").unwrap() > declaration.find("color:black;").unwrap()
+        );
     }
 
     #[test]
@@ -256,14 +343,14 @@ mod tests {
             ..first.clone()
         };
         assert_eq!(
-            assemble_nested_declarations(
+            assemble_nested_declarations::<0>(
                 "border-color:red;content:'color:;';color:red;color:black;",
                 &[&first, &second, &unmatched]
             ),
             "border-color:red;content:'color:;';color:red;@media print{color:blue;}@media print{color:green;}color:black;@media print{opacity:0.5;}"
         );
         assert_eq!(
-            assemble_nested_declarations("", &[&unmatched]),
+            assemble_nested_declarations::<0>("", &[&unmatched]),
             "@media print{opacity:0.5;}"
         );
     }

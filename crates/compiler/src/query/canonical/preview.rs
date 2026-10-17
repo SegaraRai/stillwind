@@ -10,6 +10,7 @@ use stillwind_css::{CssMinifyOptions, CssRule, Declaration, fold_calc_expression
 use stillwind_design_system::UtilityResolutionError;
 use stillwind_source::ReplaceText;
 
+use crate::compiler::FLATTEN_COLOR_COMPATIBILITY;
 use crate::query::QueryContext;
 use crate::{GeneratedRule, RootFontSize};
 
@@ -31,7 +32,8 @@ pub(super) struct Normalization {
 /// Rendered candidate data reused while this query compares canonical spellings.
 #[derive(Debug)]
 pub(in crate::query) struct CanonicalPreview {
-    /// Generated candidate CSS before known theme variables are substituted.
+    /// Candidate CSS with generated compatibility guards flattened, before known theme
+    /// variables are substituted. Authored conditions remain present.
     pub(super) css: LeanStr,
     /// CSS with known theme variables substituted. Unknown variables keep their
     /// spelling. `None` when substitution exceeds the query's expansion limits.
@@ -118,7 +120,8 @@ impl QueryContext {
         if let Some(cached) = self.canonical_previews.borrow().get(raw) {
             return Ok(cached.clone());
         }
-        let result = self.resolve_with_selector(raw, Some("&"), false)?;
+        let result =
+            self.resolve_with_selector::<FLATTEN_COLOR_COMPATIBILITY>(raw, Some("&"), false)?;
         let preview = result.failures.is_empty().then(|| {
             let css: LeanString = result
                 .generated_rules

@@ -91,7 +91,7 @@ pub(crate) fn emit_document_style(
         }
     }
     let mut contributions = Vec::new();
-    emit_utility_rules(&mut contributions, "&", &utilities, theme, identifiers)?;
+    emit_utility_rules::<0>(&mut contributions, "&", &utilities, theme, identifiers)?;
     Ok(contributions
         .iter()
         .map(|contribution| contribution.css.as_str())
@@ -180,7 +180,8 @@ mod tests {
             .unwrap()
             .unwrap();
         let mut contributions = Vec::new();
-        emit_utility_rules(&mut contributions, ".c", &utilities, theme, &identifiers()).unwrap();
+        emit_utility_rules::<0>(&mut contributions, ".c", &utilities, theme, &identifiers())
+            .unwrap();
         contributions
             .iter()
             .map(|contribution| contribution.css.as_str())

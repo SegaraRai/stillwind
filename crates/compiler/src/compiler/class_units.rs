@@ -428,7 +428,7 @@ impl<'a> ClassUnits<'a> {
             .emitted_utility_classes
             .insert((name.as_str().to_lean_str(), (identity.clone()).into()))
         {
-            emit_utility_rules(
+            emit_utility_rules::<0>(
                 &mut contributions,
                 &self.selector(name.as_str()),
                 definitions,

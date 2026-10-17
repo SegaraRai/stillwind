@@ -9,7 +9,7 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
-    take_property_requirements,
+    split_css_function_arguments, take_property_requirements,
 };
 use stillwind_design_system::SPACING_VALUE_DOMAIN;
 
@@ -281,6 +281,7 @@ fn modifier_preserves_value(body: &str) -> bool {
             return false;
         };
         let value = value.trim().trim_end_matches(';').trim();
+        let value = compat_color_value(value).unwrap_or(value);
         let calls = find_css_functions(value, &["--value"], 0);
         if calls.is_empty() {
             continue;
@@ -291,6 +292,23 @@ fn modifier_preserves_value(body: &str) -> bool {
         preserves = true;
     }
     preserves
+}
+
+/// Extracts the color operand when its alpha comes directly from the slash modifier.
+/// Only positive numeric modifiers use this proof. Theme-based modifier
+/// domains and a second alpha can erase color differences, so they remain unproven.
+fn compat_color_value(value: &str) -> Option<&str> {
+    let arguments = single_function_arguments(value, "--compat-color")?;
+    let (color, alpha) = split_css_function_arguments(arguments);
+    let alpha = single_function_arguments(alpha?.trim(), "--alpha")?;
+    let modifier = single_function_arguments(alpha.trim(), "--modifier")?;
+    modifier.trim().is_empty().then_some(color.trim())
+}
+
+/// Returns the arguments when `value` consists of one complete call to `name`.
+fn single_function_arguments<'a>(value: &'a str, name: &str) -> Option<&'a str> {
+    let call = find_css_functions(value, &[name], 0).into_iter().next()?;
+    (call.start == 0 && call.end == Some(value.len())).then(|| &value[call.arguments])
 }
 
 fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> bool {
