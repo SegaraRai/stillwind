@@ -27,6 +27,7 @@ struct ThemeDeclarations {
     variant_positions: BTreeMap<LeanStr, usize>,
     utility_positions: BTreeMap<LeanStr, usize>,
     output_template: CssOutputTemplate,
+    css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
     registry: Arc<BuiltinDefinitions>,
     tokens: Vec<Arc<ThemeToken>>,
     custom_css: LeanStr,
@@ -77,6 +78,7 @@ impl ThemeIndex {
             variant_positions: builder.variant_positions,
             utility_positions: builder.utility_positions,
             output_template: builder.output_template,
+            css_templates: builder.css_templates,
             registry: builder.registry,
             tokens: builder.tokens.into_iter().map(Arc::new).collect(),
             custom_css: builder.custom_css,
@@ -123,12 +125,14 @@ impl ThemeIndex {
             .map(|index| &self.inner.declarations.tokens[*index])
     }
 
-    /// First declaration offsets after imports are expanded, shared by user and built-in variants.
+    /// First declaration offsets after imports are expanded, shared by user and
+    /// built-in variants.
     pub fn variant_positions(&self) -> &BTreeMap<LeanStr, usize> {
         &self.inner.declarations.variant_positions
     }
 
-    /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
+    /// First declaration offsets after imports are expanded, shared by user and
+    /// built-in utilities.
     pub fn utility_positions(&self) -> &BTreeMap<LeanStr, usize> {
         &self.inner.declarations.utility_positions
     }
@@ -136,6 +140,12 @@ impl ThemeIndex {
     /// Structured output positions from the authored entry CSS.
     pub fn output_template(&self) -> &CssOutputTemplate {
         &self.inner.declarations.output_template
+    }
+
+    /// Named output templates for `style.css()`, keyed by name. A later definition of a
+    /// name replaced earlier ones.
+    pub fn css_templates(&self) -> &BTreeMap<LeanStr, CssOutputTemplate> {
+        &self.inner.declarations.css_templates
     }
 
     /// Built-in definitions selected by this CSS; empty when it imports none.

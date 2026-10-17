@@ -79,6 +79,18 @@ impl ModuleIr {
                 map_value(argument, &mut map)?;
             }
         }
+        for css in &mut result.css_calls {
+            css.span = map(css.span)?;
+            for input in &mut css.inputs {
+                for variant in &mut input.variants {
+                    map_value(variant, &mut map)?;
+                }
+                map_value(&mut input.utilities, &mut map)?;
+            }
+            for option in [&mut css.template, &mut css.selector].into_iter().flatten() {
+                map_value(option, &mut map)?;
+            }
+        }
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }

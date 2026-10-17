@@ -12,9 +12,10 @@
 //! values while retaining guards for selected contributions.
 //!
 //! [`module`] groups declarations and calls extracted from one source, including
-//! `style.media()` calls. [`assets`] describes named declarations and their uses.
-//! [`style`] describes call inputs and variants. [`expression`] stores recursive class
-//! and rule contributions and validates conversion to the rule-only subset.
+//! `style.media()` and `style.css()` calls. [`assets`] describes named declarations and
+//! their uses. [`style`] describes call inputs and variants. [`expression`] stores
+//! recursive class and rule contributions and validates conversion to the rule-only
+//! subset.
 
 mod assets;
 mod expression;
@@ -30,7 +31,8 @@ pub use expression::{
     RuleExpression, RuleExpressionError, RuleExpressionErrorKind,
 };
 pub use module::{
-    CvaCall, CvaReplacement, MacroImport, MacroImportSpecifier, MediaCall, ModuleImports, ModuleIr,
+    CssCall, CssInput, CvaCall, CvaReplacement, MacroImport, MacroImportSpecifier, MediaCall,
+    ModuleImports, ModuleIr,
 };
 pub use style::{
     AnchorScope, ContainerType, RefCondition, RefProjection, StyleCall, StyleInput, StyleVariant,

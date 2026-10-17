@@ -7,19 +7,19 @@
 //! `missing-document-target`. `document-scoped-selector` checks only the variants after
 //! the one that selects the element.
 //!
-//! The planned `style.css()` API will use [`emit_document_style`]. Until that API is
-//! finalized, only tests and the editor query role `CandidateContext::Document` reach
-//! it.
+//! `style.css()` calls use [`emit_document_rules`], and the editor query role
+//! [`crate::CandidateContext::Document`] uses [`emit_document_style`].
 
-use lean_string::{LeanStr, LeanString};
+use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::{ThemeIndex, VariantContext, document_target, resolve_variant};
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding, LintSettings};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding, LintKind, LintSettings};
 use stillwind_source::Spanned;
 use stillwind_syntax::parse_candidate;
 
 use super::lexer::lex_utilities;
 use super::literal::{resolved_candidate_lints, variant_selector_lints};
+use super::output::CssContribution;
 use super::utilities::{
     emit_utility_rules, resolve_utility_targets, unresolved_lint_kind, unresolved_utility_finding,
 };
@@ -45,61 +45,131 @@ pub(crate) fn emit_document_style(
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> Result<LeanString, CompileDiagnostic> {
+    Ok(emit_document_rules(
+        &[DocumentInput {
+            prefix: "",
+            utilities: input,
+        }],
+        None,
+        theme,
+        lint_settings,
+        identifiers,
+        diagnostics,
+        lint_findings,
+    )?
+    .iter()
+    .map(|contribution| contribution.css.as_str())
+    .collect())
+}
+
+/// One utility literal of a document-level style.
+pub(crate) struct DocumentInput<'a> {
+    /// Variants of enclosing groups, each ending in `:`, prepended to every candidate.
+    /// The author did not write them at the literal's span.
+    pub(crate) prefix: &'a str,
+    /// Whitespace-separated candidates at their source span.
+    pub(crate) utilities: &'a Spanned<LeanStr>,
+}
+
+/// Resolves the candidates of `inputs` as one document-level style and returns their
+/// rules in emission order, as [`emit_document_style`] describes.
+///
+/// `selector` is the element that a candidate styles when its own variants select
+/// none. Such a candidate resolves as if it started with the arbitrary variant
+/// `[selector]:`. Without `selector`, it is omitted and reported as
+/// `missing-document-target`.
+///
+/// # Errors
+///
+/// Returns the diagnostic of a runtime condition that cannot be rendered.
+pub(crate) fn emit_document_rules(
+    inputs: &[DocumentInput<'_>],
+    selector: Option<&str>,
+    theme: &ThemeIndex,
+    lint_settings: &LintSettings,
+    identifiers: &IdentifierContext,
+    diagnostics: &mut Vec<CompileError>,
+    lint_findings: &mut Vec<LintFinding>,
+) -> Result<Vec<CssContribution>, CompileDiagnostic> {
+    let target =
+        selector.map(|selector| format_args!("[{}]:", encode_variant(selector)).to_lean_string());
     let mut utilities = Vec::new();
-    for token in lex_utilities(input, diagnostics) {
-        let raw = &token.value.raw;
-        match resolve_utility_targets(raw, theme, VariantContext::Document) {
-            Ok(Ok(mut resolved)) => {
-                lint_findings.extend(variant_selector_lints(
-                    raw,
-                    theme,
-                    lint_settings,
-                    token.span,
-                    target_variant(raw, theme).map_or(0, |index| index + 1),
-                ));
-                lint_findings.extend(resolved_candidate_lints(
-                    raw,
-                    raw.len(),
-                    &resolved,
-                    theme,
-                    lint_settings,
-                    token.span,
-                ));
-                for utility in &mut resolved {
-                    utility.diagnostic_data.span = Some(token.span);
-                }
-                utilities.append(&mut resolved);
+    for input in inputs {
+        for token in lex_utilities(input.utilities, diagnostics) {
+            let written = &token.value.raw;
+            let mut raw = format_args!("{}{written}", input.prefix).to_lean_string();
+            let mut result = resolve_utility_targets(&raw, theme, VariantContext::Document);
+            if let (Some(target), Ok(Err(failure))) = (&target, &result)
+                && unresolved_lint_kind(failure) == LintKind::MissingDocumentTarget
+            {
+                raw = format_args!("{target}{raw}").to_lean_string();
+                result = resolve_utility_targets(&raw, theme, VariantContext::Document);
             }
-            Ok(Err(failure)) => {
-                if lint_settings.enabled_for_detection(unresolved_lint_kind(&failure)) {
-                    lint_findings.push(unresolved_utility_finding(
-                        raw,
-                        raw.len(),
-                        &failure,
-                        token.span,
+            match result {
+                Ok(Ok(mut resolved)) => {
+                    lint_findings.extend(variant_selector_lints(
+                        &raw,
                         theme,
+                        lint_settings,
+                        token.span,
+                        target_variant(&raw, theme).map_or(0, |index| index + 1),
                     ));
+                    lint_findings.extend(resolved_candidate_lints(
+                        &raw,
+                        written.len(),
+                        &resolved,
+                        theme,
+                        lint_settings,
+                        token.span,
+                    ));
+                    for utility in &mut resolved {
+                        utility.diagnostic_data.span = Some(token.span);
+                    }
+                    utilities.append(&mut resolved);
                 }
+                Ok(Err(failure)) => {
+                    if lint_settings.enabled_for_detection(unresolved_lint_kind(&failure)) {
+                        lint_findings.push(unresolved_utility_finding(
+                            &raw,
+                            written.len(),
+                            &failure,
+                            token.span,
+                            theme,
+                        ));
+                    }
+                }
+                Err(error) => diagnostics.push(CompileError::new(
+                    CompileDiagnostic::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
+                    },
+                    token.span,
+                )),
             }
-            Err(error) => diagnostics.push(CompileError::new(
-                CompileDiagnostic::MalformedUtilityRequirement {
-                    utility: error.name,
-                    offset: error.source.offset,
-                },
-                token.span,
-            )),
         }
     }
     let mut contributions = Vec::new();
     emit_utility_rules::<0>(&mut contributions, "&", &utilities, theme, identifiers)?;
-    Ok(contributions
-        .iter()
-        .map(|contribution| contribution.css.as_str())
-        .collect())
+    Ok(contributions)
 }
 
-/// Returns the index of the variant of `raw` that selects the element of a document-level
-/// style, or `None` when `raw` does not parse or its variants do not resolve.
+/// Spells `selector` as the value of an arbitrary variant: a space becomes `_`, and a
+/// literal `_` is escaped.
+fn encode_variant(selector: &str) -> LeanString {
+    let mut output = LeanString::new();
+    for character in selector.trim().chars() {
+        match character {
+            '_' => output.push_str(r"\_"),
+            character if character.is_whitespace() => output.push('_'),
+            character => output.push(character),
+        }
+    }
+    output
+}
+
+/// Returns the index of the variant of `raw` that selects the element of a
+/// document-level style, or `None` when `raw` does not parse or its variants do not
+/// resolve.
 fn target_variant(raw: &str, theme: &ThemeIndex) -> Option<usize> {
     let applications = parse_candidate(raw)?
         .variants

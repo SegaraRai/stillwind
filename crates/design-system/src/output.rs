@@ -13,10 +13,15 @@
 //! nested inside a conditional is rejected, because emitting it would make the registry
 //! depend on runtime conditions. `@stillwind-slot` is the exception and may be nested.
 
-use cssparser::{ParseError, Parser, Token};
-use lean_string::{LeanString, ToLeanString};
+use std::collections::BTreeMap;
 
-use stillwind_css::{CssOutputNode, CssOutputTemplate};
+use cssparser::{ParseError, Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+
+use stillwind_css::{
+    CssOutputNode, CssOutputTemplate, PropertyInheritance, extract_named_blocks_with_offsets,
+    extract_named_statements, matching_brace,
+};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, Span};
 
@@ -50,6 +55,110 @@ pub fn parse_output_template(
     Ok(CssOutputTemplate {
         source_identity: CssSourceName::default(),
         nodes,
+    })
+}
+
+/// Parses every `@stillwind-css-template <name> { ... }` rule in one CSS buffer.
+///
+/// Each body uses the slot syntax of the output template and describes where the
+/// output of one `style.css()` call goes. A later rule with the same name replaces an
+/// earlier one, so a project can redefine a built-in template. Origins use `FileId(0)`
+/// and UTF-8 byte offsets into `css`, as [`parse_output_template`] describes.
+///
+/// # Errors
+///
+/// Returns [`CompileDiagnostic::InvalidCssTemplate`] for a rule without one name and a
+/// block, [`CompileDiagnostic::DefinitionInCssTemplate`] for a definition such as
+/// `@theme` inside a body, and [`CompileDiagnostic::CssTemplateWithoutUtilities`] for a
+/// body without a utilities slot. Body syntax fails as [`parse_output_template`] does.
+pub fn parse_css_templates(
+    css: &str,
+) -> Result<BTreeMap<LeanStr, CssOutputTemplate>, CompileDiagnostic> {
+    if let Some((offset, _)) = extract_named_statements(css, CSS_TEMPLATE).first() {
+        return Err(CompileDiagnostic::InvalidCssTemplate { offset: *offset });
+    }
+    let mut templates = BTreeMap::new();
+    for (offset, header, _) in extract_named_blocks_with_offsets(css, CSS_TEMPLATE) {
+        let mut parser = Parser::new(&header);
+        let name = match parser.next() {
+            Ok(Token::Ident(name)) => name.to_lean_str(),
+            _ => return Err(CompileDiagnostic::InvalidCssTemplate { offset }),
+        };
+        if !parser.is_exhausted() {
+            return Err(CompileDiagnostic::InvalidCssTemplate { offset });
+        }
+        let open = css[offset..]
+            .find('{')
+            .map(|position| offset + position)
+            .ok_or(CompileDiagnostic::InvalidCssTemplate { offset })?;
+        let close = matching_brace(css, open)
+            .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: open })?;
+        let body = &css[open + 1..close];
+        if let Some((position, directive)) = first_definition(body) {
+            return Err(CompileDiagnostic::DefinitionInCssTemplate {
+                offset: open + 1 + position,
+                directive,
+            });
+        }
+        let nodes = parse_nodes(body, open + 1, &[], &mut Vec::new(), false, 0)?;
+        validate_slots(&nodes, false)?;
+        if !contains_utilities(&nodes) {
+            return Err(CompileDiagnostic::CssTemplateWithoutUtilities { name });
+        }
+        templates.insert(
+            name,
+            CssOutputTemplate {
+                source_identity: CssSourceName::default(),
+                nodes,
+            },
+        );
+    }
+    Ok(templates)
+}
+
+/// At-rule that defines a named template for `style.css()`.
+const CSS_TEMPLATE: &str = "@stillwind-css-template";
+
+/// Returns the byte offset and name of the first definition at-rule in `css`, searching
+/// nested blocks. Output slots are not definitions.
+fn first_definition(css: &str) -> Option<(usize, LeanStr)> {
+    // Positions of a nested parser index the same input as the outer parser.
+    fn scan(parser: &mut Parser<'_>) -> Option<(usize, LeanStr)> {
+        loop {
+            let start = parser.position().byte_index();
+            match parser.next_including_whitespace_and_comments().ok()? {
+                Token::AtKeyword(name) if is_definition(name) && &**name != "stillwind-slot" => {
+                    return Some((start, name.to_lean_str()));
+                }
+                Token::CurlyBracketBlock => {
+                    // A nested block must be consumed entirely, or its result is lost.
+                    if let Some(found) = parser
+                        .parse_nested_block(|nested| {
+                            let found = scan(nested);
+                            while nested.next_including_whitespace_and_comments().is_ok() {}
+                            Ok::<_, ParseError<()>>(found)
+                        })
+                        .ok()
+                        .flatten()
+                    {
+                        return Some(found);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    scan(&mut Parser::new(css))
+}
+
+/// Whether `nodes` contain a utilities slot at any depth.
+fn contains_utilities(nodes: &[CssOutputNode]) -> bool {
+    nodes.iter().any(|node| match node {
+        CssOutputNode::Utilities => true,
+        CssOutputNode::Group { children, .. } | CssOutputNode::Style { children, .. } => {
+            contains_utilities(children)
+        }
+        _ => false,
     })
 }
 
@@ -184,12 +293,22 @@ fn parse_nodes(
             }
             (Some("stillwind-slot"), None) => {
                 let value = css[header_end..end].trim().trim_end_matches(';').trim();
-                let node = match value {
+                // Arguments may be separated by any CSS whitespace.
+                let words = value.split_whitespace().collect::<Vec<_>>().join(" ");
+                let node = match words.as_str() {
                     "utilities" => CssOutputNode::Utilities,
                     "theme" => CssOutputNode::ThemeVariables,
                     "keyframes" => CssOutputNode::Keyframes,
                     "properties" => CssOutputNode::Properties,
-                    "property-initials" => CssOutputNode::PropertyInitials,
+                    "property-initials" => {
+                        CssOutputNode::PropertyInitials(PropertyInheritance::All)
+                    }
+                    "property-initials inherited" => {
+                        CssOutputNode::PropertyInitials(PropertyInheritance::Inherited)
+                    }
+                    "property-initials non-inherited" => {
+                        CssOutputNode::PropertyInitials(PropertyInheritance::NonInherited)
+                    }
                     _ => {
                         return Err(CompileDiagnostic::UnsupportedOutputSlot {
                             offset: base + start,
@@ -247,7 +366,7 @@ fn parse_nodes(
                     matches!(
                         node,
                         CssOutputNode::ThemeVariables
-                            | CssOutputNode::PropertyInitials
+                            | CssOutputNode::PropertyInitials(_)
                             | CssOutputNode::Utilities
                             | CssOutputNode::Keyframes
                             | CssOutputNode::Properties
@@ -259,7 +378,7 @@ fn parse_nodes(
                             node,
                             CssOutputNode::Authored { .. }
                                 | CssOutputNode::ThemeVariables
-                                | CssOutputNode::PropertyInitials
+                                | CssOutputNode::PropertyInitials(_)
                         )
                     }) {
                         return Err(CompileDiagnostic::InvalidSlotStyleRule {
@@ -300,7 +419,7 @@ fn validate_slots(nodes: &[CssOutputNode], declarations: bool) -> Result<(), Com
     for node in nodes {
         let (name, needs_declarations) = match node {
             CssOutputNode::ThemeVariables => ("theme", true),
-            CssOutputNode::PropertyInitials => ("property-initials", true),
+            CssOutputNode::PropertyInitials(_) => ("property-initials", true),
             CssOutputNode::Utilities => ("utilities", false),
             CssOutputNode::Keyframes => ("keyframes", false),
             CssOutputNode::Properties => ("properties", false),
@@ -512,5 +631,84 @@ mod tests {
                 Err(CompileDiagnostic::ConditionalDefinition { .. })
             ));
         }
+    }
+
+    #[test]
+    fn css_templates_are_named_and_later_definitions_win() {
+        let css = ".page{color:red} \
+            @stillwind-css-template shadow { :host { @stillwind-slot theme; } @stillwind-slot utilities; } \
+            @layer x { @stillwind-css-template plain { @stillwind-slot utilities; } } \
+            @stillwind-css-template shadow { @layer a { @stillwind-slot utilities; } \
+              :where(*) { @stillwind-slot property-initials   non-inherited; } }";
+        let templates = parse_css_templates(css).unwrap();
+        assert_eq!(
+            templates.keys().map(LeanStr::as_str).collect::<Vec<_>>(),
+            ["plain", "shadow"]
+        );
+        let shadow = &templates["shadow"].nodes;
+        assert!(matches!(&shadow[0], CssOutputNode::Group { header, .. } if header == "@layer a"));
+        assert!(matches!(
+            &shadow[1],
+            CssOutputNode::Style { children, .. }
+                if children == &[CssOutputNode::PropertyInitials(PropertyInheritance::NonInherited)]
+        ));
+        let CssOutputNode::Group {
+            origin: Some(origin),
+            ..
+        } = &shadow[0]
+        else {
+            panic!("{shadow:?}");
+        };
+        assert_eq!(
+            css[origin.start.0 as usize..origin.end.0 as usize].trim(),
+            "@layer a { @stillwind-slot utilities; }"
+        );
+        // The entry template ignores template definitions.
+        assert_eq!(
+            parse_output_template(css, &[]).unwrap().authored_css(),
+            ".page{color:red}@layer x{}"
+        );
+    }
+
+    #[test]
+    fn css_templates_reject_definitions_missing_utilities_and_malformed_rules() {
+        for (css, expected) in [
+            (
+                "@stillwind-css-template a { @theme { --x: 1; } @stillwind-slot utilities; }",
+                "DefinitionInCssTemplate",
+            ),
+            (
+                "@stillwind-css-template a { @layer b { @utility u { color: red; } } @stillwind-slot utilities; }",
+                "DefinitionInCssTemplate",
+            ),
+            (
+                "@stillwind-css-template a { :host { @stillwind-slot theme; } }",
+                "CssTemplateWithoutUtilities",
+            ),
+            (
+                "@stillwind-css-template { @stillwind-slot utilities; }",
+                "InvalidCssTemplate",
+            ),
+            (
+                "@stillwind-css-template a b { @stillwind-slot utilities; }",
+                "InvalidCssTemplate",
+            ),
+            ("@stillwind-css-template a;", "InvalidCssTemplate"),
+        ] {
+            let error = parse_css_templates(css).expect_err(css);
+            assert!(
+                format!("{error:?}").starts_with(expected),
+                "{css}: {error:?}"
+            );
+        }
+        let error =
+            parse_css_templates("@stillwind-css-template a { @theme { --x: 1; } }").unwrap_err();
+        assert_eq!(
+            error,
+            CompileDiagnostic::DefinitionInCssTemplate {
+                offset: 28,
+                directive: "theme".into()
+            }
+        );
     }
 }

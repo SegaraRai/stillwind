@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 62);
+        assert_eq!(names.len(), 63);
         for name in [
             "custom",
             "",
@@ -134,6 +134,7 @@ mod tests {
                 "invalid-view-transition-use": "deny",
                 "invalid-view-transition-variant": "deny",
                 "invalid-media-query": "deny",
+                "invalid-css-input": "deny",
                 "document-scoped-selector": "deny",
                 "repeated-nesting-selector": "warn",
                 "missing-view-transition-name": "warn",

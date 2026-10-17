@@ -86,6 +86,12 @@ pub enum NativeCandidateContext {
     /// Serialized as `mediaVariants` for one `style.media()` argument, whose variants
     /// contain only media conditions.
     MediaVariants,
+    /// Serialized as `document` for `style.css()` inputs, whose variants select the
+    /// element to style.
+    Document,
+    /// Serialized as `anchoredDocument` for `style.css()` inputs of a call with a
+    /// `selector` option.
+    AnchoredDocument,
 }
 
 impl From<NativeCandidateContext> for CandidateContext {
@@ -98,6 +104,8 @@ impl From<NativeCandidateContext> for CandidateContext {
             NativeCandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             NativeCandidateContext::DefinitionVariants => Self::DefinitionVariants,
             NativeCandidateContext::MediaVariants => Self::MediaVariants,
+            NativeCandidateContext::Document => Self::Document,
+            NativeCandidateContext::AnchoredDocument => Self::AnchoredDocument,
         }
     }
 }
@@ -105,8 +113,9 @@ impl From<NativeCandidateContext> for CandidateContext {
 impl From<CandidateContext> for NativeCandidateContext {
     fn from(value: CandidateContext) -> Self {
         match value {
-            // No source syntax produces a document-level site yet.
-            CandidateContext::Utility | CandidateContext::Document => Self::Utility,
+            CandidateContext::Utility => Self::Utility,
+            CandidateContext::Document => Self::Document,
+            CandidateContext::AnchoredDocument => Self::AnchoredDocument,
             CandidateContext::KeyframesFrame => Self::KeyframesFrame,
             CandidateContext::AnimationOptions => Self::AnimationOptions,
             CandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,

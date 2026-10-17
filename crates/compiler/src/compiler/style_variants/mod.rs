@@ -24,4 +24,4 @@ mod prefix;
 mod reference;
 
 pub(in crate::compiler) use plan::StyleVariantPlan;
-pub(in crate::compiler) use prefix::parse_prefix;
+pub(in crate::compiler) use prefix::{collect_variant_and_applications, parse_prefix};

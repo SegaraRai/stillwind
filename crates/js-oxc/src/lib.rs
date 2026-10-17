@@ -22,12 +22,12 @@
 //! `visit` collects module structure and macro uses. `bindings` recognizes imported
 //! macro symbols, and `style_bindings` seeds local producers. `imports` records
 //! bindings and their reads. `cva` validates factory configurations and extracts their
-//! values. `media` records `style.media()` arguments. `expressions` lowers style
-//! inputs, and `templates` preserves ref substitutions. `resolution` distinguishes
-//! unsupported values from missing facts. `refs`, `keyframes`, and `view_transition`
-//! extract their declarations and uses. `demand` finds the imports needed by unresolved
-//! values. `ast` tags Oxc ranges with their analysis buffer identity before coordinate
-//! mapping.
+//! values. `media` records `style.media()` arguments, and `stylesheet` records
+//! `style.css()` inputs and options. `expressions` lowers style inputs, and `templates`
+//! preserves ref substitutions. `resolution` distinguishes unsupported values from
+//! missing facts. `refs`, `keyframes`, and `view_transition` extract their declarations
+//! and uses. `demand` finds the imports needed by unresolved values. `ast` tags Oxc
+//! ranges with their analysis buffer identity before coordinate mapping.
 
 #![cfg_attr(
     not(test),
@@ -59,6 +59,7 @@ mod refs;
 mod resolution;
 mod state;
 mod style_bindings;
+mod stylesheet;
 mod templates;
 mod uses;
 mod view_transition;

@@ -284,5 +284,17 @@ function explicitRefUses(flag: boolean) {
   void query;
   // @ts-expect-error media requires at least one variant list
   react.media();
+  const sheet: string = react.css(
+    "host:block",
+    ["[button]:px-4", false],
+    { "[button]:": ["hover:bg-red-500", { "": "p-2" }] },
+    { template: "default", selector: ":host" },
+  );
+  void sheet;
+  react.css("p-4", { selector: ":host" });
+  // @ts-expect-error style.css() inputs cannot contain attributes
+  react.css({ "data-state": "open" });
+  // @ts-expect-error style.css() inputs cannot contain custom properties
+  react.css({ "--size": "1px" });
 }
 void explicitRefUses;

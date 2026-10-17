@@ -317,9 +317,7 @@ impl DesignSystemLoader {
         })?;
         theme.utility_order = self.options.utility_order;
         theme.target = self.options.target.clone();
-        theme
-            .output_template
-            .map_origins(|span| output.original_span(span));
+        theme.map_template_origins(|span| output.original_span(span));
         for token in &mut theme.tokens {
             if token.name.span.file == source.id() {
                 if let Some(span) = output.original_span(token.name.span) {

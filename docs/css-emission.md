@@ -110,6 +110,10 @@ This also suppresses document loading from shared style modules that do not impo
 `stillwind/module-css` themselves. Explicit CSS projections remain opt-in document
 dependencies. The default is automatic loading for ordinary application modules.
 
+For a stylesheet of a few utilities without preflight or the project's other rules,
+`style.css()` returns the string directly; see
+[Stylesheets](macro-contract.md#stylesheets).
+
 `styleSheets` returns ordered constructed stylesheets without adopting them.
 Equal payloads share a sheet within the same Document. Different Documents use
 different caches and constructors. Consumers must treat returned sheets as
@@ -125,11 +129,13 @@ order, empty fallbacks, and selector tokens; it does not repair arbitrary genera
 strings to match an oracle's spelling.
 
 `@stillwind-slot theme` and `property-initials` insert declarations inside an
-authored style rule. The stylesheet supplies their selectors. `utilities`,
-`keyframes`, and `properties` insert rules. A slot in the wrong syntactic position
-is an error, as is a missing slot for a selected contribution. Repeated slots
-repeat their selected contributions at every position; the application owns the
-resulting cascade across conditions and layers.
+authored style rule. `property-initials inherited` and `property-initials non-inherited`
+insert only the initial values of registrations with `inherits: true` and
+`inherits: false`, respectively, and `property-initials` inserts both. The stylesheet
+supplies their selectors. `utilities`, `keyframes`, and `properties` insert rules. A
+slot in the wrong syntactic position is an error, as is a missing slot for a selected
+contribution. Repeated slots repeat their selected contributions at every position; the
+application owns the resulting cascade across conditions and layers.
 
 Generated keyframes and property requirements travel as metadata with CSS
 contributions. Renderers do not reconstruct them from serialized CSS.

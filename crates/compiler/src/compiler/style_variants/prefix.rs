@@ -17,7 +17,7 @@ use super::super::utilities::unresolved_utility_finding;
 /// Returns `None` after pushing the diagnostic for a prefix that is not a complete
 /// `name:` list, or for the first variant that does not resolve. The second finding
 /// covers the failing part of that variant.
-pub(super) fn collect_variant_and_applications(
+pub(in crate::compiler) fn collect_variant_and_applications(
     theme: &ThemeIndex,
     prefix: &Spanned<LeanStr>,
     lint_findings: &mut Vec<LintFinding>,

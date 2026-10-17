@@ -25,6 +25,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     ),
     (LintKind::InvalidViewTransitionVariant, LintSeverity::Deny),
     (LintKind::InvalidMediaQuery, LintSeverity::Deny),
+    (LintKind::InvalidCssInput, LintSeverity::Deny),
     (LintKind::InvalidRefInput, LintSeverity::Deny),
     (LintKind::InvalidAnimationOption, LintSeverity::Deny),
     (LintKind::InvalidStyleComposition, LintSeverity::Deny),

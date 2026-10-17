@@ -1,6 +1,7 @@
 //! Coordinates template assembly and validates destinations for generated output.
 //!
 //! [`render_mapped`] selects support, checks its slots, and emits the template;
+//! [`render_css_template`] emits a named template without requiring every slot;
 //! [`render`] adapts raw CSS without contribution metadata. This module owns error
 //! precedence and destination checks; dependency selection and node traversal belong
 //! to `support` and `emit`, respectively.
@@ -96,9 +97,11 @@ pub(crate) fn render_mapped(
             slot: "properties".into(),
         });
     }
-    if !properties.initials.is_empty()
-        && !has_slot(&template.nodes, &CssOutputNode::PropertyInitials)
-    {
+    if properties.initials.iter().any(|initial| {
+        !has_slot_where(&template.nodes, &|node| {
+            matches!(node, CssOutputNode::PropertyInitials(inheritance) if inheritance.includes(initial.inherits))
+        })
+    }) {
         return Err(CompileDiagnostic::MissingSupportSlot {
             slot: "property-initials".into(),
         });
@@ -136,13 +139,63 @@ pub(crate) fn render_mapped(
     Ok(css)
 }
 
+/// Places one `style.css()` call's rules and their support into a named template.
+///
+/// `placement` is the named template, and `theme` supplies the theme blocks of the
+/// entry template that define the tokens and keyframes. The output contains the
+/// placement's authored CSS, `utility_css` at its utilities slots, and the theme
+/// declarations, keyframes, registrations, and initial values that `utility_css`
+/// requires at their slots. A slot that `placement` lacks drops its output, so a
+/// template chooses which support it includes. The project's other authored CSS and
+/// preflight are never included. `utility_css` must already be lowered and rewritten.
+///
+/// # Errors
+///
+/// Returns the selection and emission errors of [`render_mapped`]. Missing slots are
+/// not errors.
+pub(crate) fn render_css_template(
+    placement: &CssOutputTemplate,
+    theme: &ThemeIndex,
+    utility_css: &MappedStylesheet,
+    options: &CompilerOptions,
+    identifiers: &IdentifierContext,
+) -> Result<MappedStylesheet, CompileDiagnostic> {
+    let selection = SupportSelection::select(
+        theme.output_template(),
+        theme,
+        utility_css,
+        options,
+        false,
+        None,
+        identifiers,
+    )?;
+    let support = selection.render(utility_css)?;
+    let (css, _) = emit(
+        placement,
+        theme,
+        utility_css,
+        options,
+        true,
+        None,
+        &support,
+        identifiers,
+    )?;
+    Ok(css)
+}
+
 /// Tests for `slot` anywhere in the node list, including style and group children.
 fn has_slot(nodes: &[CssOutputNode], slot: &CssOutputNode) -> bool {
+    has_slot_where(nodes, &|node| node == slot)
+}
+
+/// Tests for a node that `matches` accepts anywhere in the node list, including style
+/// and group children.
+fn has_slot_where(nodes: &[CssOutputNode], matches: &impl Fn(&CssOutputNode) -> bool) -> bool {
     nodes.iter().any(|node| {
-        node == slot
+        matches(node)
             || matches!(node,
                 CssOutputNode::Group { children, .. } | CssOutputNode::Style { children, .. }
-                if has_slot(children, slot)
+                if has_slot_where(children, matches)
             )
     })
 }

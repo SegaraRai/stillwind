@@ -96,11 +96,12 @@ impl<'a> MacroExtractor<'a> {
         self.media_calls.push(MediaCall { span, arguments });
     }
 
-    /// Whether `span` lies inside a style call, CVA factory, or declaration call that
-    /// this extraction has already recorded.
-    fn inside_macro_call(&self, span: Span) -> bool {
+    /// Whether `span` lies inside a style call, CVA factory, `style.css()` call, or
+    /// declaration call that this extraction has already recorded.
+    pub(crate) fn inside_macro_call(&self, span: Span) -> bool {
         let contains = |outer: Span| outer.start <= span.start && span.end <= outer.end;
         self.style_calls.iter().any(|call| contains(call.span))
+            || self.css_calls.iter().any(|call| contains(call.span))
             || self.cva_calls.iter().any(|call| contains(call.span))
             || self
                 .ref_definitions

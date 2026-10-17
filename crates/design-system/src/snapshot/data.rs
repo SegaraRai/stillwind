@@ -320,12 +320,17 @@ impl DesignSystemSnapshot {
             theme.authored_properties(),
             theme.custom_css()
         ).to_lean_string());
+        let mut css_templates = theme.css_templates().clone();
+        for template in css_templates.values_mut() {
+            template.map_origins(|_| None);
+        }
         let content = Fingerprint::of(
             format_args!(
-                "{}\0{}\0{:?}\0",
+                "{}\0{}\0{:?}\0{:?}\0",
                 content.0,
                 builtins.source(),
                 semantic_template,
+                css_templates,
             )
             .to_lean_string(),
         );

@@ -190,8 +190,8 @@ impl Context<'_> {
                 CssOutputNode::Properties => {
                     output.text(&self.support.properties.registrations, None);
                 }
-                CssOutputNode::PropertyInitials => {
-                    output.text(&self.support.properties.initials, None);
+                CssOutputNode::PropertyInitials(inheritance) => {
+                    output.text(&self.support.properties.initials(*inheritance), None);
                 }
                 CssOutputNode::Style {
                     header,

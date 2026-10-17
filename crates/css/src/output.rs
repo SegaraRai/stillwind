@@ -78,7 +78,39 @@ pub enum CssOutputNode {
     /// Emits required custom-property registrations.
     Properties,
     /// Emits fallback initialization declarations inside an authored style rule.
-    PropertyInitials,
+    PropertyInitials(
+        /// Registrations whose initial values the slot emits.
+        PropertyInheritance,
+    ),
+}
+
+/// Selects registered custom properties by their `inherits` descriptor.
+///
+/// A property that inherits needs its initial value only on the root of a tree, because
+/// descendants inherit it. A property that does not inherit needs it on every element,
+/// so that a value set on an ancestor does not reach descendants.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum PropertyInheritance {
+    /// Every property. Serialized as no slot argument.
+    #[default]
+    All,
+    /// Properties registered with `inherits: true`. Serialized as `inherited`.
+    Inherited,
+    /// Properties registered with `inherits: false`. Serialized as `non-inherited`.
+    NonInherited,
+}
+
+impl PropertyInheritance {
+    /// Whether a property with the given `inherits` descriptor belongs to this
+    /// selection.
+    #[must_use]
+    pub const fn includes(self, inherits: bool) -> bool {
+        match self {
+            Self::All => true,
+            Self::Inherited => inherits,
+            Self::NonInherited => !inherits,
+        }
+    }
 }
 
 /// The ordered output plan for one entry.
@@ -129,7 +161,7 @@ fn authored_css(nodes: &[CssOutputNode]) -> LeanString {
             | CssOutputNode::ThemeVariables
             | CssOutputNode::Keyframes
             | CssOutputNode::Properties
-            | CssOutputNode::PropertyInitials => LeanStr::new(),
+            | CssOutputNode::PropertyInitials(_) => LeanStr::new(),
         })
         .collect()
 }
@@ -155,7 +187,7 @@ fn visit_nodes(nodes: &mut [CssOutputNode], map: &mut impl FnMut(Span) -> Option
             | CssOutputNode::ThemeVariables
             | CssOutputNode::Keyframes
             | CssOutputNode::Properties
-            | CssOutputNode::PropertyInitials => {}
+            | CssOutputNode::PropertyInitials(_) => {}
         }
     }
 }

@@ -1,9 +1,9 @@
 //! The main AST visit that turns a program into [`stillwind_ir::ModuleIr`] and a
 //! summary.
 //!
-//! The visit records module structure (imports, re-exports,
-//! specifier literals, exported bindings), declarations of assets (`style.ref()`,
-//! keyframes, view transitions), `style()` call sites, and `style.media()` calls.
+//! The visit records module structure (imports, re-exports, specifier literals,
+//! exported bindings), declarations of assets (`style.ref()`, keyframes, view
+//! transitions), `style()` call sites, and `style.media()` and `style.css()` calls.
 //!
 //! Recognition always goes through resolved symbols. The one place spelling is used is
 //! [`ImportBinding`], because an import declaration is the only construct that can
@@ -201,6 +201,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         }
         if self.is_style_member(call.callee.get_inner_expression(), "media") {
             self.collect_media(call);
+            walk::walk_call_expression(self, call);
+            return;
+        }
+        if self.is_style_member(call.callee.get_inner_expression(), "css") {
+            self.collect_css(call);
             walk::walk_call_expression(self, call);
             return;
         }

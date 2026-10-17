@@ -27,7 +27,7 @@ use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 use super::builder::ThemeBuilder;
 use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
-use crate::output::{parse_output_template, theme_blocks};
+use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
     extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
     extract_marker_utilities, extract_relationship_patterns, registration_positions,
@@ -99,6 +99,11 @@ fn parse_theme_contents(
         }
     })?;
     theme.output_template = template;
+    theme.css_templates = parse_css_templates(source.text())?;
+    for template in theme.css_templates.values_mut() {
+        template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
+        template.source_identity = source_identity.clone();
+    }
     theme.registry = Arc::new(BuiltinDefinitions::from_css(source.text()));
     theme.utilities = extract_custom_utilities(source.text());
     theme.variants = extract_custom_variants(source.text());
@@ -188,6 +193,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         variant_positions: BTreeMap::new(),
         utility_positions: BTreeMap::new(),
         output_template: CssOutputTemplate::default(),
+        css_templates: BTreeMap::new(),
         registry: Arc::default(),
         tokens,
         custom_css: (LeanString::new()).into(),

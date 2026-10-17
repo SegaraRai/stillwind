@@ -74,6 +74,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-css-input": {
+    category: "input",
+    nativeName: "invalidCssInput",
+    defaults: null,
+    options: null,
+  },
   "invalid-ref-input": {
     category: "input",
     nativeName: "invalidRefInput",

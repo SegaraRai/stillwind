@@ -362,6 +362,36 @@ test("style.media arguments complete and preview only media variants", async () 
   }
 });
 
+test("style.css inputs preview their selected element and complete by selector option", async () => {
+  const source =
+    'import {style} from "stillwind/react"; const sheet = style.css("[:host]:flex", { "[button]:": "block" }); const anchored = style.css("p-4", { selector: ":host" }); const plain = style.css("");';
+  const current = project(
+    source,
+    {},
+    `${theme}
+@custom-variant shell scope(document) (:host);`,
+  );
+  try {
+    const hover = async (offset: number) =>
+      (await current.query("/workspace/entry.tsx", { kind: "hover", offset }))!.hover?.css;
+    expect(await hover(source.indexOf("flex"))).toMatch(/:host \{\n\s+display: flex;/);
+    expect(await hover(source.indexOf("block"))).toMatch(/button \{\n\s+display: block;/);
+    expect(await hover(source.indexOf("p-4"))).toMatch(/& \{\n\s+padding:/);
+    const labels = async (offset: number) =>
+      (await current.query("/workspace/entry.tsx", {
+        kind: "completion",
+        offset,
+      }))!.completions!.map((item) => item.label);
+    const plain = await labels(source.lastIndexOf('("') + 2);
+    expect(plain).toContain("shell:");
+    expect(plain).not.toContain("hover:");
+    expect(plain).not.toContain("block");
+    expect(await labels(source.indexOf("p-4"))).toContain("block");
+  } finally {
+    await current.close();
+  }
+});
+
 test("color queries display concrete colors and picker edits preserve variants", async () => {
   const source =
     'import {style} from "stillwind/react"; const card = style("hover:bg-brand bg-[currentColor]");';

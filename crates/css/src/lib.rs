@@ -83,7 +83,7 @@ pub use math::{
     MAX_VALUE_NESTING, evaluate_numeric, fold_calc_expressions, format_numeric_zero,
     value_nesting_overflow,
 };
-pub use output::{CssOutputNode, CssOutputTemplate};
+pub use output::{CssOutputNode, CssOutputTemplate, PropertyInheritance};
 pub use resources::{CssUrl, relative_css_urls};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition,

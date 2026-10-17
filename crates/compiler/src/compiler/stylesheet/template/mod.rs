@@ -24,7 +24,7 @@ mod emit;
 mod support;
 
 pub(super) use assemble::render;
-pub(crate) use assemble::render_mapped;
+pub(crate) use assemble::{render_css_template, render_mapped};
 
 #[cfg(test)]
 mod tests;

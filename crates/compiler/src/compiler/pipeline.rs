@@ -27,6 +27,7 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
+use super::css_call::css_call_text;
 use super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
@@ -45,7 +46,7 @@ use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
 use crate::options::validate_lint_settings;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
-use crate::transforms::SourceTransform;
+use crate::transforms::{ExpressionMapping, SourceTransform};
 use crate::{
     CompilerOptions, DesignSystemQuery, GeneratedSymbol, GeneratedSymbolKind, StyleResolver,
     SymbolOrigin, check_style,
@@ -306,6 +307,31 @@ impl Compiler {
                 call_span: media.span,
                 replacement: js_string(&query),
                 expressions: Vec::new(),
+            });
+        }
+        for css in &module.css_calls {
+            let text = css_call_text(
+                css,
+                theme,
+                options,
+                &result.lint_settings,
+                identifiers,
+                &mut diagnostics,
+                &mut result.lint_findings,
+            );
+            let replacement = js_string(&text);
+            // The text already uses rewritten names. An anchored mapping keeps the final
+            // rewrite of synthetic text from applying a second time.
+            let expressions = vec![ExpressionMapping {
+                start: 0,
+                end: replacement.len(),
+                original: css.span,
+                exact: false,
+            }];
+            result.transforms.push(SourceTransform {
+                call_span: css.span,
+                replacement,
+                expressions,
             });
         }
         let mut definition_css = Vec::new();

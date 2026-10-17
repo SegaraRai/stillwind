@@ -212,6 +212,22 @@ pub enum LintDiagnostic {
         /// What the argument or call supplies instead.
         reason: LeanStr,
     },
+    /// A `style.css()` input is not a static utility string, array, or variant group.
+    /// The input contributes no rules.
+    #[error(
+        "style.css() accepts only static utility strings, arrays, and variant groups: {reason}"
+    )]
+    InvalidCssInput {
+        /// What the input supplies instead.
+        reason: LeanStr,
+    },
+    /// A `style.css()` option is not a supported static value, or names a template that
+    /// the stylesheet does not define. The option lowers as if it were omitted.
+    #[error("invalid style.css() option: {reason}")]
+    InvalidCssOption {
+        /// The rejected option and the reason.
+        reason: LeanStr,
+    },
     /// A `style.media()` argument contains a variant that adds a condition other than a
     /// media query. The whole argument matches no environment.
     #[error("`{variant}` adds a condition that is not a media query")]
@@ -739,6 +755,9 @@ impl LintDiagnostic {
             Self::InvalidViewTransitionVariant => LintKind::InvalidViewTransitionVariant,
             Self::InvalidMediaArgument { .. } | Self::NonMediaVariant { .. } => {
                 LintKind::InvalidMediaQuery
+            }
+            Self::InvalidCssInput { .. } | Self::InvalidCssOption { .. } => {
+                LintKind::InvalidCssInput
             }
             Self::InvalidVariantPrefix | Self::InvalidVariant { .. } => LintKind::InvalidVariant,
             Self::UnknownVariant { .. } => LintKind::UnknownVariant,

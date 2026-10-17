@@ -6,6 +6,7 @@ use std::sync::Arc;
 use lean_string::LeanStr;
 
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
+use stillwind_source::Span;
 
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
@@ -13,12 +14,16 @@ use crate::{BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, Ut
 
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {
-    /// First declaration offsets after imports are expanded, shared by user and built-in variants.
+    /// First declaration offsets after imports are expanded, shared by user and
+    /// built-in variants.
     pub(crate) variant_positions: BTreeMap<LeanStr, usize>,
-    /// First declaration offsets after imports are expanded, shared by user and built-in utilities.
+    /// First declaration offsets after imports are expanded, shared by user and
+    /// built-in utilities.
     pub(crate) utility_positions: BTreeMap<LeanStr, usize>,
     /// Structured output positions from the authored entry CSS.
     pub(crate) output_template: CssOutputTemplate,
+    /// Named `style.css()` output templates; the last definition of each name.
+    pub(crate) css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
     /// Built-in definitions selected by this CSS; empty when it imports none.
     pub(crate) registry: Arc<BuiltinDefinitions>,
     /// Every token in authored order, including resets and superseded values.
@@ -48,6 +53,15 @@ pub(crate) struct ThemeBuilder {
 }
 
 impl ThemeBuilder {
+    /// Rewrites the origins of the entry template and every named template through
+    /// `map`, as [`CssOutputTemplate::map_origins`] describes.
+    pub(crate) fn map_template_origins(&mut self, mut map: impl FnMut(Span) -> Option<Span>) {
+        self.output_template.map_origins(&mut map);
+        for template in self.css_templates.values_mut() {
+            template.map_origins(&mut map);
+        }
+    }
+
     /// Freezes authored declarations and prepares shared lookup and utility syntax.
     /// Invalid utility requirements remain deferred until a matching candidate is used.
     pub(crate) fn finish(self) -> ThemeIndex {

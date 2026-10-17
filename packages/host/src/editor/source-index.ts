@@ -199,6 +199,7 @@ export class SourceIndex {
         if (!ts.isCallExpression(node)) {
           return;
         }
+
         const asset = this.asset(source, node);
         if (asset?.identity.kind === "style" || this.#styleImport(node.expression)) {
           if (node.arguments.length > 1) {
@@ -210,12 +211,13 @@ export class SourceIndex {
           for (const argument of node.arguments) {
             this.#input(source, argument);
           }
-        } else if (
-          asset?.identity.kind === "keyframes" ||
-          this.#producer(node.expression, "keyframes")
-        ) {
+          return;
+        }
+        if (asset?.identity.kind === "keyframes" || this.#producer(node.expression, "keyframes")) {
           this.#keyframes(source, node.arguments[0]);
-        } else if (
+          return;
+        }
+        if (
           asset?.identity.kind === "viewTransition" ||
           this.#producer(node.expression, "viewTransition")
         ) {
@@ -241,19 +243,42 @@ export class SourceIndex {
               }
             }
           }
-        } else if (this.#producer(node.expression, "media")) {
+          return;
+        }
+        if (this.#producer(node.expression, "css")) {
+          const inputs = [...node.arguments];
+          const options = inputs.at(-1);
+          const anchored =
+            options !== undefined &&
+            isCssOptions(options) &&
+            options.properties.some(
+              (property) =>
+                ts.isPropertyAssignment(property) && propertyName(property) === "selector",
+            );
+          if (options !== undefined && isCssOptions(options)) {
+            inputs.pop();
+          }
+          for (const input of inputs) {
+            this.#cssInput(source, input, "", anchored ? "anchoredDocument" : "document");
+          }
+          return;
+        }
+        if (this.#producer(node.expression, "media")) {
           for (const argument of node.arguments) {
             if (ts.isStringLiteralLike(argument)) {
               this.#literal(source, argument, "", "mediaVariants");
             }
           }
-        } else if (this.asset(source, node.expression)?.identity.kind === "keyframes") {
+          return;
+        }
+        if (this.asset(source, node.expression)?.identity.kind === "keyframes") {
           const options = node.arguments[0];
           if (options && ts.isStringLiteralLike(options)) {
             this.#literal(source, options, "", "animationOptions");
           }
         }
       });
+
       walk(ast, (node) => {
         if (!ts.isStringLiteralLike(node) && !ts.isTemplateLiteralToken(node)) {
           return;
@@ -265,6 +290,7 @@ export class SourceIndex {
         }
       });
     }
+
     this.literals = this.#literals;
     this.containers = this.#containers;
   }
@@ -630,6 +656,58 @@ export class SourceIndex {
   }
 
   /**
+   * Indexes the static utility literals of one `style.css()` input with their group keys.
+   * Runtime values, attributes, and computed keys add no literals.
+   *
+   * @param source - Prepared source stored in this index.
+   * @param node - Input in that source's checker AST.
+   * @param prefix - Variants of the enclosing groups, each ending in `:`.
+   * @param context - Input role of the call: `anchoredDocument` when it has a `selector`
+   * option, and `document` otherwise.
+   */
+  #cssInput(
+    source: PreparedSource,
+    node: ts.Node,
+    prefix: string,
+    context: "document" | "anchoredDocument",
+  ): void {
+    if (ts.isStringLiteralLike(node)) {
+      this.#literal(source, node, prefix, context);
+      return;
+    }
+    if (ts.isArrayLiteralExpression(node)) {
+      for (const element of node.elements) {
+        this.#cssInput(source, element, prefix, context);
+      }
+      return;
+    }
+    if (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isSatisfiesExpression(node)
+    ) {
+      this.#cssInput(source, node.expression, prefix, context);
+      return;
+    }
+    if (ts.isObjectLiteralExpression(node)) {
+      for (const property of node.properties) {
+        if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+          continue;
+        }
+        const name = propertyName(property);
+        if (name === "" || name.endsWith(":")) {
+          this.#cssInput(
+            source,
+            property.initializer,
+            name === ":" ? prefix : prefix + name,
+            context,
+          );
+        }
+      }
+    }
+  }
+
+  /**
    * Records literals and sortable containers in recognized direct style input syntax.
    * Arrays and both conditional branches are traversed. Logical `&&`, `||`, and `??`
    * expressions contribute only their right operand, and unrecognized syntax adds nothing.
@@ -643,12 +721,16 @@ export class SourceIndex {
   #input(source: PreparedSource, node: ts.Node, prefix = ""): void {
     if (ts.isStringLiteralLike(node)) {
       this.#literal(source, node, prefix);
-    } else if (ts.isTemplateExpression(node)) {
+      return;
+    }
+    if (ts.isTemplateExpression(node)) {
       this.#literal(source, node.head, prefix);
       for (const span of node.templateSpans) {
         this.#literal(source, span.literal, prefix);
       }
-    } else if (ts.isArrayLiteralExpression(node)) {
+      return;
+    }
+    if (ts.isArrayLiteralExpression(node)) {
       this.#containers.push({
         source,
         node,
@@ -656,10 +738,14 @@ export class SourceIndex {
       for (const element of node.elements) {
         this.#input(source, element, prefix);
       }
-    } else if (ts.isConditionalExpression(node)) {
+      return;
+    }
+    if (ts.isConditionalExpression(node)) {
       this.#input(source, node.whenTrue, prefix);
       this.#input(source, node.whenFalse, prefix);
-    } else if (
+      return;
+    }
+    if (
       ts.isBinaryExpression(node) &&
       [
         ts.SyntaxKind.AmpersandAmpersandToken,
@@ -668,13 +754,17 @@ export class SourceIndex {
       ].includes(node.operatorToken.kind)
     ) {
       this.#input(source, node.right, prefix);
-    } else if (
+      return;
+    }
+    if (
       ts.isParenthesizedExpression(node) ||
       ts.isAsExpression(node) ||
       ts.isSatisfiesExpression(node)
     ) {
       this.#input(source, node.expression, prefix);
-    } else if (ts.isObjectLiteralExpression(node)) {
+      return;
+    }
+    if (ts.isObjectLiteralExpression(node)) {
       this.#containers.push({
         source,
         node,
@@ -885,4 +975,34 @@ function decodeLiteral(
     text,
     boundaries,
   };
+}
+
+/**
+ * Returns the written name of a property with a literal or identifier key.
+ *
+ * @param property - Property assignment whose key is not computed.
+ * @returns The decoded key text.
+ */
+function propertyName(property: ts.PropertyAssignment): string {
+  return ts.isStringLiteralLike(property.name) ? property.name.text : property.name.getText();
+}
+
+/**
+ * Recognizes the options object of `style.css()`: an object literal whose properties
+ * all have the name `template` or `selector`.
+ *
+ * @param node - Last argument of a `style.css()` call.
+ * @returns Whether the compiler reads the argument as options rather than an input.
+ */
+function isCssOptions(node: ts.Node): node is ts.ObjectLiteralExpression {
+  return (
+    ts.isObjectLiteralExpression(node) &&
+    node.properties.length > 0 &&
+    node.properties.every(
+      (property) =>
+        ts.isPropertyAssignment(property) &&
+        !ts.isComputedPropertyName(property.name) &&
+        ["template", "selector"].includes(propertyName(property)),
+    )
+  );
 }

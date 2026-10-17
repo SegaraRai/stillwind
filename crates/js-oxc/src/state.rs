@@ -19,8 +19,8 @@ use oxc::span::Span as OxcSpan;
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, RefDefinition, StyleCall,
-    ViewTransitionDefinition,
+    AdapterKind, CssCall, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, RefDefinition,
+    StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, ExportedValue, IdentityId, ImportBinding,
@@ -75,6 +75,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) cva_calls: Vec<CvaCall>,
     /// `style.media()` calls in source order.
     pub(crate) media_calls: Vec<MediaCall>,
+    /// `style.css()` calls in source order.
+    pub(crate) css_calls: Vec<CssCall>,
     /// Allows boolean literals as empty contributions while parsing CVA values.
     pub(crate) in_cva: bool,
     /// Diagnostics raised during extraction, in visit order.
@@ -150,6 +152,7 @@ impl<'a> MacroExtractor<'a> {
             style_calls: Vec::new(),
             cva_calls: Vec::new(),
             media_calls: Vec::new(),
+            css_calls: Vec::new(),
             in_cva: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),

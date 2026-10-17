@@ -13,8 +13,9 @@
 //! [`output`] defines compilation results and structured CSS contributions. [`editor`]
 //! captures source occurrences and reuses emission for isolated CSS previews.
 //! [`document`] resolves document-level styles, whose variants select the element to
-//! style. [`media`] lowers `style.media()` calls into media query strings.
-//! [`stylesheet`] also checks the stylesheets that a host marks for lint.
+//! style. [`media`] lowers `style.media()` calls into media query strings, and
+//! [`css_call`] lowers `style.css()` calls into stylesheet strings. [`stylesheet`] also
+//! checks the stylesheets that a host marks for lint.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's
@@ -25,6 +26,7 @@ mod animation_options;
 mod api;
 mod class_units;
 mod conditionals;
+mod css_call;
 mod definitions;
 mod document;
 mod editor;

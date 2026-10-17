@@ -20,7 +20,7 @@ use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding};
-use stillwind_ir::{AdapterKind, ModuleIr, ScriptLanguage, ScriptModuleKind};
+use stillwind_ir::{AdapterKind, ModuleImports, ModuleIr, ScriptLanguage, ScriptModuleKind};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{ModuleId, SourceFile, Span};
 
@@ -174,27 +174,15 @@ pub(crate) fn parse_with_coordinates(
 
     let mut imports = collect_imports(&result.program, semantic.scoping(), source.id());
     imports.consumed_uses = extractor.consumed_macro_uses;
-    imports.consumed_uses.extend(
-        imports
-            .macros
-            .iter()
-            .flat_map(|import| &import.specifiers)
-            .flat_map(|specifier| &specifier.references)
-            .filter(|reference| {
-                extractor.omitted_inputs.iter().any(|span| {
-                    span.file == reference.file
-                        && span.start <= reference.start
-                        && reference.end <= span.end
-                })
-            })
-            .copied(),
-    );
+    let erased = reads_in_omitted_inputs(&imports, &extractor.omitted_inputs);
+    imports.consumed_uses.extend(erased);
     let module = ModuleIr {
         adapter: extractor.adapter.unwrap_or(AdapterKind::React),
         imports,
         style_calls: extractor.style_calls,
         cva_calls: extractor.cva_calls,
         media_calls: extractor.media_calls,
+        css_calls: extractor.css_calls,
         ref_definitions: extractor.ref_definitions,
         keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
@@ -222,6 +210,24 @@ pub(crate) fn parse_with_coordinates(
         summary,
         module,
     }
+}
+
+/// Returns the macro reads inside `omitted` inputs, whose source is erased with them.
+fn reads_in_omitted_inputs(imports: &ModuleImports, omitted: &[Span]) -> Vec<Span> {
+    imports
+        .macros
+        .iter()
+        .flat_map(|import| &import.specifiers)
+        .flat_map(|specifier| &specifier.references)
+        .filter(|reference| {
+            omitted.iter().any(|span| {
+                span.file == reference.file
+                    && span.start <= reference.start
+                    && reference.end <= span.end
+            })
+        })
+        .copied()
+        .collect()
 }
 
 /// Chooses the Oxc source type from host-supplied language and module metadata.

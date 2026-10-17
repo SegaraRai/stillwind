@@ -1,0 +1,40 @@
+/*
+Defines the output templates of `style.css()`. A call selects a template by name and
+uses `default` when it names none. A later definition with the same name replaces an
+earlier one, so a project stylesheet can redefine `default` after importing Stillwind.
+A template places only the output of its call: it never contains preflight or the
+project's other rules, and a slot that a template omits drops that output.
+*/
+
+/*
+Place theme values and the initial values of inherited registered properties on the
+root of the tree that adopts the CSS: the document root or a shadow host. `:where()`
+keeps their specificity at zero, so an author's own `:host` rule overrides them.
+
+Initialize properties that do not inherit on every element and pseudo-element. A
+value on the root alone would reach descendants through inheritance, which `@property`
+with `inherits: false` prevents. These declarations are unconditional, because a
+registration inside a shadow root has no effect and its fallback must not depend on
+detecting one.
+
+The utilities follow, so their rules win over the initial values in source order and
+by specificity. No rule is layered: the string joins the cascade of the tree that
+adopts it like any other unlayered stylesheet.
+*/
+
+@stillwind-css-template default {
+  :where(:root, :host) {
+    @stillwind-slot theme;
+    @stillwind-slot property-initials inherited;
+  }
+
+  :where(*, :host),
+  ::before,
+  ::after,
+  ::backdrop {
+    @stillwind-slot property-initials non-inherited;
+  }
+
+  @stillwind-slot keyframes;
+  @stillwind-slot utilities;
+}

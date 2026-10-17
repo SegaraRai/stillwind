@@ -14,9 +14,8 @@ use std::fmt::Write;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::CustomPropertyUsage;
+use stillwind_css::{CustomPropertyUsage, PropertyInheritance};
 use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
-use stillwind_source::JoinText;
 
 use crate::CompilerOptions;
 
@@ -26,7 +25,28 @@ pub(super) struct PropertyOutput {
     /// Complete `@property` rules in registry order after duplicate-name selection.
     pub(super) registrations: LeanStr,
     /// Builtin fallback declarations in the same selected order, without a selector.
-    pub(super) initials: LeanStr,
+    pub(super) initials: Vec<PropertyInitial>,
+}
+
+impl PropertyOutput {
+    /// Concatenates the fallback declarations that `inheritance` selects, in registry
+    /// order.
+    pub(super) fn initials(&self, inheritance: PropertyInheritance) -> LeanString {
+        self.initials
+            .iter()
+            .filter(|initial| inheritance.includes(initial.inherits))
+            .map(|initial| initial.declaration.as_str())
+            .collect()
+    }
+}
+
+/// The fallback declaration of one selected builtin registration.
+pub(super) struct PropertyInitial {
+    /// `name:value;`, where the value is the registered initial value or `initial`.
+    pub(super) declaration: LeanStr,
+    /// The registered `inherits` descriptor. A registration without one does not
+    /// inherit, as CSS requires the descriptor and Stillwind's builtins state it.
+    pub(super) inherits: bool,
 }
 
 /// Selects registration rules and builtin fallback declarations required by `usage`.
@@ -116,13 +136,20 @@ pub(super) fn render_used_properties(
             let initial = body
                 .lines()
                 .find_map(|line| line.trim().strip_prefix("initial-value:"))
-                .map(str::trim)
+                .map(|value| value.trim().trim_end_matches(';').trim_end())
                 .filter(|value| !value.is_empty())
                 .unwrap_or("initial");
-            builtin_initials.push(format_args!("{name}:{initial};").to_lean_string());
+            let inherits = body.lines().any(|line| {
+                line.trim()
+                    .strip_prefix("inherits:")
+                    .is_some_and(|value| value.trim().trim_end_matches(';').trim() == "true")
+            });
+            builtin_initials.push(PropertyInitial {
+                declaration: format_args!("{name}:{initial};").to_lean_string().into(),
+                inherits,
+            });
         }
     }
-    let initials = builtin_initials.join_text("");
     for (name, body, _) in properties {
         if !output.is_empty() {
             output.push('\n');
@@ -135,6 +162,6 @@ pub(super) fn render_used_properties(
     }
     PropertyOutput {
         registrations: (output).into(),
-        initials: (initials).into(),
+        initials: builtin_initials,
     }
 }

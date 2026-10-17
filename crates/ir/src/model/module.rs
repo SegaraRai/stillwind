@@ -30,6 +30,9 @@ pub struct ModuleIr {
     /// `style.media()` calls in source order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub media_calls: Vec<MediaCall>,
+    /// `style.css()` calls in source order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub css_calls: Vec<CssCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
     pub ref_definitions: Vec<RefDefinition>,
     /// In source order. Each entry is a `style.keyframes()` declaration.
@@ -60,6 +63,7 @@ impl ModuleIr {
             style_calls: Vec::new(),
             cva_calls: Vec::new(),
             media_calls: Vec::new(),
+            css_calls: Vec::new(),
             ref_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
@@ -105,6 +109,34 @@ pub struct MediaCall {
     /// `:`. The span covers the literal content without its delimiters. Unsupported
     /// arguments are absent because they match no environment.
     pub arguments: Vec<Spanned<LeanStr>>,
+}
+
+/// A `style.css()` call that lowering replaces with a stylesheet string.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CssCall {
+    /// Whole call in the original source.
+    pub span: Span,
+    /// Utility literals in source order. Unsupported inputs are absent because they
+    /// contribute no rules.
+    pub inputs: Vec<CssInput>,
+    /// Name of the output template, without quotes. `None` selects `default`.
+    pub template: Option<Spanned<LeanStr>>,
+    /// Selector of the element that a utility styles when its own variants select no
+    /// element. `None` omits such utilities.
+    pub selector: Option<Spanned<LeanStr>>,
+}
+
+/// One utility literal of a `style.css()` call with its enclosing group keys.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CssInput {
+    /// Keys of the enclosing groups, outermost first. Each key is a variant prefix that
+    /// ends in `:` as written; the keys `""` and `":"` add no variants and are absent.
+    pub variants: Vec<Spanned<LeanStr>>,
+    /// Whitespace-separated candidates. The span covers the literal content without
+    /// its delimiters.
+    pub utilities: Spanned<LeanStr>,
 }
 
 /// Binding-aware import information. All spans belong to the editable source.

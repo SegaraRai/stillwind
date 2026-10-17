@@ -20,6 +20,7 @@ use support::*;
 
 mod acceptance;
 mod conditional_flow;
+mod css_call;
 mod cva;
 mod definitions;
 mod folding;

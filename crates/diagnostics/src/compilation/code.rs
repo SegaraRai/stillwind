@@ -142,6 +142,9 @@ define_compile_codes! {
         PropertyUsageParse { .. } => "SW14010",
         InvalidThemeReference { .. } => "SW14012",
         InvalidRuntimeConditional { .. } => "SW14013",
+        InvalidCssTemplate { .. } => "SW14014",
+        DefinitionInCssTemplate { .. } => "SW14015",
+        CssTemplateWithoutUtilities { .. } => "SW14016",
     }
     Host {
         // 30: TypeScript checker facts

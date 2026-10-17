@@ -41,11 +41,14 @@ pub enum CandidateContext {
     /// One `style.media()` argument: variants whose definitions contain only media
     /// conditions, with an optional final `:`.
     MediaVariants,
-    /// Utilities of a document-level style, which has no generated class. The first
-    /// variant that selects an element, such as `host:` or `[:root]:`, must come before
-    /// any variant that refers to `&`. Only tests use this role until the
-    /// document-level API is finalized.
+    /// Utilities of a document-level style, such as a `style.css()` input, which has no
+    /// generated class. The first variant that selects an element, such as `host:` or
+    /// `[:root]:`, must come before any variant that refers to `&`.
     Document,
+    /// Utilities of a document-level style with a default element, such as a
+    /// `style.css()` input with a `selector` option. A candidate whose variants select
+    /// no element styles the default element, which previews show as `&`.
+    AnchoredDocument,
 }
 
 impl CandidateContext {
@@ -93,6 +96,14 @@ impl DesignSystemQuery {
         }
         if context.variants_only() {
             return Ok(self.preview_variants(candidate, context));
+        }
+        if context == CandidateContext::AnchoredDocument {
+            let document = self.preview_candidate(candidate, CandidateContext::Document)?;
+            return if document.is_some() {
+                Ok(document)
+            } else {
+                self.preview_candidate(candidate, CandidateContext::Utility)
+            };
         }
 
         let theme = self.context.design_system.theme();
@@ -168,6 +179,7 @@ impl DesignSystemQuery {
                 css
             }
             CandidateContext::Utility
+            | CandidateContext::AnchoredDocument
             | CandidateContext::DefinitionVariants
             | CandidateContext::MediaVariants => return Ok(None),
         };
@@ -238,7 +250,9 @@ impl DesignSystemQuery {
         let theme = self.context.design_system.theme();
         if matches!(
             context,
-            CandidateContext::Utility | CandidateContext::Document
+            CandidateContext::Utility
+                | CandidateContext::Document
+                | CandidateContext::AnchoredDocument
         ) {
             let Some(applications) = candidate
                 .variants
@@ -248,7 +262,7 @@ impl DesignSystemQuery {
             else {
                 return false;
             };
-            return context == CandidateContext::Utility
+            return context != CandidateContext::Document
                 || !matches!(
                     document_target(&applications),
                     Err(DocumentTargetFailure::BeforeTarget(_))

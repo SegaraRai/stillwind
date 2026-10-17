@@ -263,6 +263,27 @@ pub enum CompileDiagnostic {
         /// Syntax or output-strategy limitation preventing compilation.
         detail: LeanStr,
     },
+    /// A `@stillwind-css-template` rule lacks one name followed by a block.
+    #[error("@stillwind-css-template at byte {offset} requires one name and a block")]
+    InvalidCssTemplate {
+        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
+        offset: usize,
+    },
+    /// A definition appears inside a `@stillwind-css-template` block, which describes
+    /// only output placement.
+    #[error("@{directive} at byte {offset} cannot appear inside @stillwind-css-template")]
+    DefinitionInCssTemplate {
+        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
+        offset: usize,
+        /// At-rule name without the leading `@`.
+        directive: LeanStr,
+    },
+    /// A `@stillwind-css-template` block has no utilities slot.
+    #[error("@stillwind-css-template {name} requires an @stillwind-slot utilities;")]
+    CssTemplateWithoutUtilities {
+        /// Template name as written.
+        name: LeanStr,
+    },
     /// A value cannot be resolved locally without host checker facts.
     #[error("{subject} require TypeScript checker facts")]
     CheckerFactsRequired {

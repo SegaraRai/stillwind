@@ -194,12 +194,13 @@ independently. Place declarations in binding initializers, and compose completed
 props through variables.
 
 A call of `style()`, `style.cva()`, `style.ref()`, `style.keyframes()`,
-`style.viewTransition()`, or `style.media()` inside a `style()` or CVA input is
-unsupported input. The enclosing lowering would keep the call in JavaScript without its
-own lowering. It therefore omits the smallest input that contains the call: the input
-itself, the whole conditional for a call in its test, or the object property for a call
-in its key or in a `class`, attribute, or custom-property value. A call inside a function
-in the input is also omitted, because the copied source contains it. A nested `style()` call reports `NestedStyleCall`, and the other macros report
+`style.viewTransition()`, `style.media()`, or `style.css()` inside a `style()` or CVA
+input is unsupported input. The enclosing lowering would keep the call in JavaScript
+without its own lowering. It therefore omits the smallest input that contains the call:
+the input itself, the whole conditional for a call in its test, or the object property
+for a call in its key or in a `class`, attribute, or custom-property value. A call
+inside a function in the input is also omitted, because the copied source contains it. A
+nested `style()` call reports `NestedStyleCall`, and the other macros report
 `NestedMacroCall`. Both belong to `invalid-style-input`. Declaration macros accept only
 literals, so their own input rules report a nested call.
 
@@ -572,6 +573,99 @@ describes. Store the result in a binding outside the call.
 Editors complete only media variants inside the arguments and preview each argument's
 query.
 
+## Stylesheets
+
+`style.css(...inputs, options?)` returns a stylesheet built from utilities, such as for a
+shadow root or a scoped style element:
+
+```ts
+const sheet = new CSSStyleSheet();
+sheet.replaceSync(
+  style.css(
+    "host:block [:host]:p-4",
+    { "[button]:": ["px-2", { "hover:": "bg-red-500" }] },
+    { selector: ":host" },
+  ),
+);
+shadowRoot.adoptedStyleSheets = [sheet];
+```
+
+The compiler replaces the call with a string literal, and the call adds nothing to the
+document stylesheet. Store, export, and pass the result like any string. A change to the
+stylesheet transforms the module again.
+
+Inputs are compiled into CSS text, so every input must be static: utility string
+literals, interpolation-free template literals, arrays, and variant groups. A group key
+that ends in `:` applies its variants to the nested inputs, and the keys `""` and `":"`
+add none. `false`, `null`, and `undefined` contribute nothing. Attributes, custom
+properties, `class`, refs, conditions, spreads of non-literal values, and other runtime
+values are unsupported. They contribute nothing and report `invalid-css-input`, which
+defaults to `deny`.
+
+The utilities form one document-level style, as [Variant targets](#variant-targets)
+describes, so a variant such as `host:`, `[:host]:`, or `[button]:` selects the element
+that a utility styles. A utility whose variants select no element is omitted and reported
+as `missing-document-target`. The `selector` option names a default element instead: such
+a utility resolves as if it started with `[selector]:`. A utility that selects its own
+element keeps it.
+
+The last argument is the options object when it is an object literal whose keys are all
+`template` or `selector`. Each value must be a string literal.
+
+- `template` names the `@stillwind-css-template` that places the output. It defaults to
+  `default`.
+- `selector` is the default element described above.
+
+An unsupported value, or a template name that the stylesheet does not define, reports
+`invalid-css-input`, and the option lowers as if it were omitted. Without any template,
+the string contains only the rules.
+
+A template defines where the output of a call goes, with the slots of the CSS entry
+template:
+
+```css
+@stillwind-css-template default {
+  :where(:root, :host) {
+    @stillwind-slot theme;
+    @stillwind-slot property-initials inherited;
+  }
+
+  :where(*, :host),
+  ::before,
+  ::after,
+  ::backdrop {
+    @stillwind-slot property-initials non-inherited;
+  }
+
+  @stillwind-slot keyframes;
+  @stillwind-slot utilities;
+}
+```
+
+The string contains the template's authored CSS, the rules at `utilities`, and the support
+that the rules require at the other slots: the theme values and keyframes that they use
+together with `@theme static` values, `@property` registrations at `properties`, and
+initial values of registered properties at `property-initials`. A slot that the template
+omits drops its output, so a template chooses which support it includes. The string never
+contains preflight or the project's other rules.
+
+The built-in `default` template above, from `stillwind/templates.css`, places theme values
+and inherited initial values on the root of the adopting tree, and initial values of
+properties that do not inherit on every element. It emits no `@property` rules, because a
+registration inside a shadow root has no effect, and its initial values are unconditional
+for the same reason. Nothing is layered, so the string joins the cascade of the tree that
+adopts it like any other unlayered stylesheet. A later `@stillwind-css-template` with the
+same name replaces an earlier one, so a project can redefine `default` after importing
+Stillwind, or add templates with other names.
+
+A template must contain a utilities slot and cannot contain definitions such as `@theme`
+or `@utility`; either problem is a compilation error. A call inside a `style()` or CVA
+input is omitted with that input, as
+[Materialization and consumption sites](#materialization-and-consumption-sites) describes.
+
+Editors complete and preview each input as a document-level style. In a call with a
+`selector` option, a utility that selects no element previews with `&` as its element.
+
 ## Custom properties
 
 `style()` accepts quoted `--*` fields alongside utility strings, attributes,
@@ -803,9 +897,9 @@ Variants apply from left to right, and the leftmost variant is the outermost one
 CSS Nesting: `host:hover:flex` selects `:host:hover`. While variants apply, `&` refers
 to the element that is selected so far. This element is the anchor. In `style()`, the
 anchor starts as the generated class. In `@apply`, it starts as the selector of the
-authored rule. A document-level style, which the planned `style.css()` API creates,
-starts without an anchor. The first variant that selects an element sets the anchor,
-and every later variant applies relative to it.
+authored rule. A document-level style, which `style.css()` creates, starts without an
+anchor. The first variant that selects an element sets the anchor, and every later
+variant applies relative to it.
 
 | Variant                                                     | With an anchor                                        | Without an anchor               |
 | ----------------------------------------------------------- | ----------------------------------------------------- | ------------------------------- |

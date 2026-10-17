@@ -4,3 +4,4 @@
 @import "./css/preflight.css" layer(base);
 @import "./css/utilities.css" layer(utilities);
 @import "./css/builtins.css";
+@import "./css/templates.css";

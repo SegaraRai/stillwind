@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{CssOutputNode, CssOutputTemplate};
+use stillwind_css::{CssOutputNode, CssOutputTemplate, PropertyInheritance};
 use stillwind_design_system::{CssSourceGraph, CustomUtility, ThemeIndex, ThemeToken, parse_theme};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, SourceFile};
@@ -464,9 +464,10 @@ fn registration_destinations_are_checked_before_theme_lowering() {
         &CompilerOptions::default(), false),
         Err(CompileDiagnostic::MissingSupportSlot { slot }) if slot == "properties"));
     let mut template = theme.output_template().clone();
-    template
-        .nodes
-        .extend([CssOutputNode::Properties, CssOutputNode::PropertyInitials]);
+    template.nodes.extend([
+        CssOutputNode::Properties,
+        CssOutputNode::PropertyInitials(PropertyInheritance::All),
+    ]);
     assert!(matches!(
         render(
             &template,

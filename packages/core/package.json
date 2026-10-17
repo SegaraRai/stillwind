@@ -16,6 +16,7 @@
     ".": "./index.css",
     "./builtins.css": "./css/builtins.css",
     "./preflight.css": "./css/preflight.css",
+    "./templates.css": "./css/templates.css",
     "./theme.css": "./css/theme.css",
     "./utilities.css": "./css/utilities.css",
     "./config": {

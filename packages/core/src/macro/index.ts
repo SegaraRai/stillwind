@@ -9,6 +9,7 @@
  * @packageDocumentation
  */
 
+import type { StyleCssInput, StyleCssOptions } from "./css.ts";
 import type {
   CvaClassProps,
   CvaConfig,
@@ -19,6 +20,7 @@ import type {
 } from "./cva.ts";
 import type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
 
+export type * from "./css.ts";
 export type * from "./cva.ts";
 export type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
 
@@ -976,6 +978,34 @@ export type StyleMacro<Props = object> = {
   media(...variants: [string, ...string[]]): string;
 
   /**
+   * Returns a stylesheet built from utilities, such as for a shadow root.
+   *
+   * The compiler replaces the call with a string, so the result can be stored,
+   * exported, and passed, for example to `CSSStyleSheet.replaceSync()`. The call adds
+   * nothing to the document stylesheet. The string contains the rules and the theme
+   * values, keyframes, and custom-property support that they need, placed by the
+   * selected `@stillwind-css-template`. It never contains preflight.
+   *
+   * A selector-replacing variant, such as `host:`, `[:host]:`, or `[button]:`, selects
+   * the element that a utility styles. Utilities without one need the `selector`
+   * option, or are omitted with a lint finding. Write the call outside other macro
+   * calls.
+   *
+   * @param inputs - Static utility strings, arrays, and variant groups. A final
+   * object whose keys are only `template` and `selector` is the options.
+   * @returns Stylesheet text.
+   */
+  css(...inputs: StyleCssInput[]): string;
+
+  /**
+   * Returns a stylesheet built from utilities, with the options in the last argument.
+   *
+   * @param inputs - Static utility inputs followed by the options object.
+   * @returns Stylesheet text.
+   */
+  css(...inputs: [...StyleCssInput[], StyleCssOptions]): string;
+
+  /**
    * Compiles a CVA definition and returns a function that selects element props.
    * Write the configuration and utility inputs directly in the call. Custom properties
    * remain inline and value expressions obey this macro's purity contract.
@@ -1026,6 +1056,9 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       },
       media(): never {
         throw new Error("Stillwind style.media() is a compile-time macro.");
+      },
+      css(): never {
+        throw new Error("Stillwind style.css() is a compile-time macro.");
       },
     },
   );
