@@ -16,7 +16,8 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    SelectorTarget, selector_is_element_condition, selector_target, subject_as_universal,
+    SelectorTarget, selector_is_element_condition, selector_target, split_top_level,
+    subject_as_universal,
 };
 
 use super::application::{VariantApplication, VariantObstacle};
@@ -369,22 +370,7 @@ fn negate_condition(condition: &str) -> Option<LeanString> {
 
 /// Splits a query list at commas outside blocks and functions.
 fn split_top_level_commas(list: &str) -> Vec<&str> {
-    let mut parser = Parser::new(list);
-    let mut items = Vec::new();
-    let mut start = 0;
-    loop {
-        let position = parser.position().byte_index();
-        match parser.next_including_whitespace_and_comments() {
-            Ok(Token::Comma) => {
-                items.push(&list[start..position]);
-                start = parser.position().byte_index();
-            }
-            Ok(_) => {}
-            Err(_) => break,
-        }
-    }
-    items.push(&list[start..]);
-    items
+    split_top_level(list, |token| matches!(token, Token::Comma))
 }
 
 #[cfg(test)]
@@ -465,6 +451,13 @@ mod tests {
             negate(&media("print, (color)")),
             Some(VariantApplication::Sequence(vec![
                 media("not print"),
+                media("not (color)")
+            ]))
+        );
+        assert_eq!(
+            negate(&media("(width >= 40rem), (color)")),
+            Some(VariantApplication::Sequence(vec![
+                media("not (width >= 40rem)"),
                 media("not (color)")
             ]))
         );

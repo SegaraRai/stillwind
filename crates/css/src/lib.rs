@@ -16,14 +16,15 @@
 //! With the `minify` feature, `minify_css` processes complete assets and composes
 //! source maps independently of Stillwind compilation.
 //!
-//! `functions` finds CSS calls, and `declarations` preserves declaration boundaries.
-//! `selectors` instantiates nesting templates. `structure` parses the rule tree of
-//! authored stylesheets, including `@apply` candidates, with byte ranges. `colors`
-//! converts concrete colors and rewrites shadow colors. `math` folds compatible numeric
-//! expressions, and `values` validates grammars and inspects property effects.
-//! `custom_properties` discovers references and registrations. `emission` preserves
-//! rule occurrences and optimizes declaration order. `format` formats editor previews,
-//! while the optional `minify` module processes final assets.
+//! `functions` finds CSS calls, `lists` splits component value lists, and
+//! `declarations` preserves declaration boundaries. `selectors` instantiates nesting
+//! templates. `structure` parses the rule tree of authored stylesheets, including
+//! `@apply` candidates, with byte ranges. `colors` converts concrete colors and
+//! rewrites shadow colors. `math` folds compatible numeric expressions, and `values`
+//! validates grammars and inspects property effects. `custom_properties` discovers
+//! references and registrations. `emission` preserves rule occurrences and optimizes
+//! declaration order. `format` formats editor previews, while the optional `minify`
+//! module processes final assets.
 
 #![cfg_attr(
     not(test),
@@ -44,6 +45,7 @@ mod declarations;
 mod emission;
 mod format;
 mod functions;
+mod lists;
 mod math;
 mod output;
 mod resources;
@@ -76,6 +78,7 @@ pub use functions::{
     CssFunctionMatch, find_css_function, find_css_functions, matching_css_delimiter,
     split_css_function_arguments,
 };
+pub use lists::split_top_level;
 pub use math::{
     MAX_VALUE_NESTING, evaluate_numeric, fold_calc_expressions, format_numeric_zero,
     value_nesting_overflow,
