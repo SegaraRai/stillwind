@@ -190,8 +190,18 @@ established before the compiler can produce output.
 
 Completed `style(...inputs)` results and declarations from `style.ref(...)`,
 `style.keyframes(...)`, and `style.viewTransition(...)` can be stored and passed
-independently. Place declarations in binding initializers. Directly nested
-`style()` calls are forbidden; compose completed props through variables.
+independently. Place declarations in binding initializers, and compose completed
+props through variables.
+
+A call of `style()`, `style.cva()`, `style.ref()`, `style.keyframes()`,
+`style.viewTransition()`, or `style.media()` inside a `style()` or CVA input is
+unsupported input. The enclosing lowering would keep the call in JavaScript without its
+own lowering. It therefore omits the smallest input that contains the call: the input
+itself, the whole conditional for a call in its test, or the object property for a call
+in its key or in a `class`, attribute, or custom-property value. A call inside a function
+in the input is also omitted, because the copied source contains it. A nested `style()` call reports `NestedStyleCall`, and the other macros report
+`NestedMacroCall`. Both belong to `invalid-style-input`. Declaration macros accept only
+literals, so their own input rules report a nested call.
 
 Consume the following syntax directly at its supported input position in `style()`:
 
@@ -555,12 +565,9 @@ because an empty media query list matches every environment. Unresolved variants
 arguments, report `invalid-media-query`, which defaults to `deny`. Severity settings and
 suppression do not change the string.
 
-A call inside the arguments of another macro call is unsupported input of that call.
-The enclosing lowering would keep the call in JavaScript, so it omits the smallest input
-that contains the call: a style input, the whole conditional for its test, or an object
-property for its key or value. `style()` and CVA inputs report `invalid-style-input`.
-Declaration macros accept only literals, so their own input rules report the call.
-Store the result in a binding outside the call.
+A call inside a `style()` or CVA input is omitted with that input, as
+[Materialization and consumption sites](#materialization-and-consumption-sites)
+describes. Store the result in a binding outside the call.
 
 Editors complete only media variants inside the arguments and preview each argument's
 query.

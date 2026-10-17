@@ -162,7 +162,7 @@ fn calls_inside_other_macro_calls_omit_the_input_that_contains_them() {
             result
                 .lint_findings
                 .iter()
-                .filter(|finding| finding.diagnostic == LintDiagnostic::NestedMediaQuery)
+                .filter(|finding| matches!(&finding.diagnostic, LintDiagnostic::NestedMacroCall { syntax } if syntax == "style.media()"))
                 .count(),
             1,
             "{input}: {:?}",
@@ -188,7 +188,7 @@ fn calls_inside_other_macro_calls_omit_the_input_that_contains_them() {
         result
             .lint_findings
             .iter()
-            .any(|finding| finding.diagnostic == LintDiagnostic::NestedMediaQuery),
+            .any(|finding| matches!(&finding.diagnostic, LintDiagnostic::NestedMacroCall { syntax } if syntax == "style.media()")),
         "{:?}",
         result.lint_findings
     );

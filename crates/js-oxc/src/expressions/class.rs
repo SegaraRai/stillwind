@@ -34,7 +34,7 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<ClassExpression> {
-        if self.omit_kept_media(expression) {
+        if self.omit_kept_macros(expression) {
             return None;
         }
         match expression {
@@ -226,7 +226,7 @@ impl<'a> MacroExtractor<'a> {
             let name = self.static_property_name(&property.key);
             if property.computed
                 && let Some(key) = property.key.as_expression()
-                && self.omit_nested_media(key, property.span)
+                && self.omit_nested_macro(key, property.span)
             {
                 continue;
             }
@@ -237,7 +237,7 @@ impl<'a> MacroExtractor<'a> {
                     || name.value.starts_with("--")
                     || (!name.value.ends_with(':')
                         && (name.value.starts_with("aria-") || name.value.starts_with("data-")))
-            }) && self.omit_nested_media(&property.value, property.span)
+            }) && self.omit_nested_macro(&property.value, property.span)
             {
                 continue;
             }

@@ -74,30 +74,17 @@ impl<'a> MacroExtractor<'a> {
 
     /// Lowers one `style()` argument into zero or more IR inputs.
     ///
-    /// The order of the attempts is the precedence order of the accepted forms: nested
-    /// `style()` calls are reported, then style candidates, then ref attachments,
-    /// projections, view transitions, utility templates and finally plain class
-    /// expressions.
+    /// The order of the attempts is the precedence order of the accepted forms: inputs
+    /// that would keep a nested macro call are omitted, then style candidates, ref
+    /// attachments, projections, view transitions, utility templates, and finally plain
+    /// class expressions.
     pub(crate) fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
         inputs: &mut Vec<StyleInput>,
     ) {
         let expression = expression.get_inner_expression();
-        if let Expression::CallExpression(call) = expression
-            && self.is_style_call(call)
-        {
-            self.omit_input(call.span);
-            self.consumed_use_spans.insert(LocalSpan::from(call.span));
-            self.consumed_macro_uses
-                .push(self.source_span(call.callee.span()));
-            self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::NestedStyleCall,
-                self.source_span(call.span),
-            ));
-            return;
-        }
-        if self.omit_kept_media(expression) {
+        if self.omit_kept_macros(expression) {
             return;
         }
         match expression {
@@ -182,26 +169,6 @@ impl<'a> MacroExtractor<'a> {
         if let Some(class) = self.class_expression(expression) {
             inputs.push(StyleInput::Class(class));
         }
-    }
-
-    /// Omits `expression` when a part that lowering keeps as JavaScript contains a
-    /// `style.media()` call. Returns whether it did.
-    ///
-    /// Arrays, objects, and conditional branches are lowered separately, so only the
-    /// test of a conditional is checked for them. Any other expression is kept whole.
-    pub(super) fn omit_kept_media(&mut self, expression: &Expression<'a>) -> bool {
-        let kept = match expression {
-            Expression::ArrayExpression(_)
-            | Expression::ObjectExpression(_)
-            | Expression::StringLiteral(_)
-            | Expression::ParenthesizedExpression(_) => return false,
-            Expression::ConditionalExpression(conditional) => &conditional.test,
-            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
-                &logical.left
-            }
-            _ => expression,
-        };
-        self.omit_nested_media(kept, expression.span())
     }
 
     /// Appends a mixed-channel array to `inputs`, keeping class-only arrays in the

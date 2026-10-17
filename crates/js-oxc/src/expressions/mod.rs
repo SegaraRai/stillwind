@@ -12,7 +12,9 @@
 //!
 //! `input` dispatches style arguments and checker probes. `class` lowers class and
 //! object expressions. `variant` validates inputs allowed beneath CSS variants.
+//! `nested` omits inputs that would keep another macro call in JavaScript.
 
 mod class;
 mod input;
+mod nested;
 mod variant;

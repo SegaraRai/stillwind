@@ -342,7 +342,7 @@ globalThis.result = { a, b, props };
   }
 });
 
-test("omits unsupported bases and retains fatal macro uses outside supported inputs", async () => {
+test("omits unsupported bases and attributes that contain nested macro calls", async () => {
   await expect(
     compile({
       "entry.ts":
@@ -354,15 +354,18 @@ test("omits unsupported bases and retains fatal macro uses outside supported inp
       expect.objectContaining({ rule: "invalid-style-input" }),
     ]),
   });
-  for (const [body, error] of [
-    ['const props = style({ "data-x": style("red") });', /SW10005/],
-  ] as const) {
-    await expect(
-      compile({
-        "entry.ts": `import { style } from "stillwind/react";\n${body}\n`,
-      }),
-    ).rejects.toThrow(error);
-  }
+  await expect(
+    compile({
+      "entry.ts":
+        'import { style } from "stillwind/react";\nconst props = style({ "data-x": style("red") });\n',
+    }),
+  ).resolves.toMatchObject({
+    diagnostics: [],
+    code: expect.not.stringContaining("style"),
+    lintFindings: expect.arrayContaining([
+      expect.objectContaining({ rule: "invalid-style-input" }),
+    ]),
+  });
   await expect(
     compile({
       "entry.ts":

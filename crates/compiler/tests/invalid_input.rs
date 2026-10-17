@@ -98,6 +98,19 @@ fn unsupported_operands_preserve_supported_siblings_at_every_reporting_level() {
             "{...style('b')}",
             "[1 + style('b')]",
             "{'hover:': {'data-ignored':style('b')} }",
+            "{'data-state':style('b')}",
+            "{'--value':style('b')}",
+            "{class:style('b')}",
+            "{class:style.cva('b')}",
+            "{'--value':style.ref()}",
+            "{[style.media('sm')]:'b'}",
+            "style.ref()",
+            "style.keyframes({from:'b'})",
+            "style.viewTransition({old:'b'})",
+            "style.cva('b')",
+            "style.media('sm')",
+            "matches(style.media('sm')) && 'b'",
+            "check(() => style('b')) ? 'b' : 'b'",
         ] {
             let (_, result) = compile(
                 &format!(

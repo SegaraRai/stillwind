@@ -39,13 +39,16 @@ pub enum LintDiagnostic {
     /// A composition base is an inline macro call instead of a bound style value.
     #[error("nested style() calls are not supported; bind the base to a variable")]
     NestedStyleCall,
-    /// A `style.media()` call appears in the arguments of another macro call. The
-    /// enclosing lowering would keep the call in JavaScript, so the smallest input that
-    /// contains it is omitted.
+    /// A macro call other than `style()` appears in a style input. The enclosing
+    /// lowering would keep the call in JavaScript, so the smallest input that contains
+    /// it is omitted.
     #[error(
-        "style.media() is not supported in the arguments of another macro call; bind its result to a variable"
+        "{syntax} is not supported in the arguments of another macro call; bind its result to a variable"
     )]
-    NestedMediaQuery,
+    NestedMacroCall {
+        /// Display spelling of the nested macro, such as `style.media()`.
+        syntax: LeanStr,
+    },
     /// A style input array contains a spread that cannot be statically expanded.
     #[error("style() array spreads require a literal array")]
     StyleArraySpread,
@@ -700,7 +703,7 @@ impl LintDiagnostic {
             | Self::InvalidAnchorScope
             | Self::InvalidPositionAnchorArguments => LintKind::InvalidRefInput,
             Self::NestedStyleCall
-            | Self::NestedMediaQuery
+            | Self::NestedMacroCall { .. }
             | Self::StyleArraySpread
             | Self::InvalidStyleInput
             | Self::AttributeSpread
