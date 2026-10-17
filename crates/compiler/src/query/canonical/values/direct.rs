@@ -1,7 +1,7 @@
 //! Shares value indexes across families that copy theme values into declarations.
 //!
-//! The lookup deliberately permits extra candidates. The caller verifies their full
-//! CSS and registration requirements before returning a replacement.
+//! The lookup deliberately permits extra candidates. The caller verifies their full CSS
+//! and registration requirements before returning a replacement.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -11,6 +11,7 @@ use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
     take_property_requirements,
 };
+use stillwind_design_system::SPACING_VALUE_DOMAIN;
 
 use super::super::preview::{SpacingUnit, convert_pixel_dimensions, dimension};
 use crate::query::QueryContext;
@@ -323,7 +324,7 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
                     return false;
                 }
                 match argument {
-                    "number" | "integer" | "percentage" | "--spacing()" => {
+                    "number" | "integer" | "percentage" | SPACING_VALUE_DOMAIN => {
                         capture != "px" && capture.trim_end_matches('%').parse::<f64>().is_err()
                     }
                     "--fraction()" => !capture.contains('/'),
@@ -339,6 +340,11 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
         })
 }
 
+/// Builds candidate lookup keys by minifying `value` in several declaration contexts.
+///
+/// Adds a pixel-to-rem form when the query permits it and its spacing scale uses rem.
+/// These keys can admit extra candidates, so callers must compare complete CSS and
+/// registration requirements before accepting a replacement.
 fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
     let options = query.canonical_options();
     let mut values = vec![fold_calc_expressions(value, None)];
@@ -357,6 +363,8 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
     values
         .into_iter()
         .flat_map(|value| {
+            // Minification depends on the receiving property. These declarations
+            // provide comparison keys for colors, lengths, and untyped token values.
             ["color", "width", "--sw-value"]
                 .into_iter()
                 .filter_map(move |property| {

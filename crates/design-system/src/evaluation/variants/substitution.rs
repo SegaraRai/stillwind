@@ -21,7 +21,7 @@ use super::super::values::{
 use super::application::{VariantApplication, VariantDeclaration, VariantObstacle};
 use super::body::resolve_variant_body;
 use super::usage::VariantValueSource;
-use crate::{BuiltinVariantModifierType, CustomVariant, ThemeNamespace};
+use crate::{BuiltinVariantModifierType, CustomVariant, SPACING_VALUE_DOMAIN, ThemeNamespace};
 
 /// Substitutes a typed modifier into a definition's quoted macro.
 ///
@@ -410,7 +410,7 @@ pub(super) fn resolve_variant_value_with_source(
         if find_css_function(&value, "var", 0).is_some() {
             return None;
         }
-        let source = if domain == "--spacing()"
+        let source = if domain == SPACING_VALUE_DOMAIN
             && let Some(token) =
                 capture.and_then(|name| theme.token_in(ThemeNamespace::Spacing, name))
         {

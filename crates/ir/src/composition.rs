@@ -69,8 +69,7 @@ fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
 /// `modules` contains the complete composition graph.
 ///
 /// Local compilation passes `require_complete: false` because imported producers may
-/// arrive later. Recoverable composition inputs are removed by
-/// [`lower_composition_operands`].
+/// arrive later.
 pub fn validate_composition(
     modules: &[&ModuleAnalysis],
     at: Span,

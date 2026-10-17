@@ -238,7 +238,7 @@ fn check_source_policies(
     findings: &mut Vec<LintFinding>,
 ) {
     let mut reported = BTreeSet::new();
-    for usage in &utility.source.arbitrary_uses {
+    for usage in &utility.diagnostic_data.arbitrary_uses {
         let (color, spacing) = arbitrary_value_flags(&usage.property, &usage.value, usage.color);
         if color
             && settings.enabled_for_detection(LintKind::NoArbitraryColors)
@@ -280,7 +280,7 @@ fn check_source_policies(
     }
     check_tokens(
         utility
-            .source
+            .diagnostic_data
             .token_uses
             .iter()
             .flat_map(|usage| usage.tokens.iter().map(LeanStr::as_str)),
@@ -292,7 +292,7 @@ fn check_source_policies(
     for (index, variant) in utility
         .variants
         .iter()
-        .skip(utility.source.wrapper_variant_count)
+        .skip(utility.diagnostic_data.wrapper_variant_count)
         .enumerate()
     {
         findings.extend(check_variant(
@@ -300,7 +300,7 @@ fn check_source_policies(
             theme,
             settings,
             utility
-                .source
+                .diagnostic_data
                 .variant_spans
                 .get(index)
                 .copied()
@@ -429,7 +429,7 @@ pub(in crate::compiler) fn check_variant(
     };
     let mut findings = Vec::new();
     check_tokens(
-        resolved.tokens.iter().map(LeanStr::as_str),
+        resolved.diagnostic_data.tokens.iter().map(LeanStr::as_str),
         theme,
         settings,
         span,
@@ -437,6 +437,7 @@ pub(in crate::compiler) fn check_variant(
     );
     if settings.enabled_for_detection(LintKind::NoArbitraryBreakpoints) {
         let conditions: BTreeSet<_> = resolved
+            .diagnostic_data
             .media_values
             .iter()
             .filter(|query| {

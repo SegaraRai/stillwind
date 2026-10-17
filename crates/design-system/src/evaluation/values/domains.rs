@@ -16,7 +16,7 @@ use super::arbitrary::{decode_arbitrary, parse_css_variable};
 use super::expansion::expand_placeholder;
 use super::theme::{PatternNamespace, ViewportAxis, axis_size_value, fraction_value, theme_value};
 use crate::conditionals::accepts_runtime_value;
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::{SPACING_VALUE_DOMAIN, ThemeIndex, ThemeNamespace};
 
 /// Resolves the first matching domain in a comma-separated domain list.
 ///
@@ -51,7 +51,7 @@ pub(in crate::evaluation) fn resolve_value_domains(
                 .filter(|value| value.parse::<f64>().is_ok())
                 .map(|value| format_args!("{value}%").to_lean_str());
         }
-        if domain == "--spacing()" {
+        if domain == SPACING_VALUE_DOMAIN {
             return capture
                 .and_then(|capture| theme_value(ThemeNamespace::Spacing, capture, theme));
         }

@@ -38,8 +38,8 @@ pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use resolve::{
     InvalidPropertyValue, InvalidValueReason, ResolvedUtility, ResolvedUtilityTarget,
-    UntypedVariable, UtilityArbitraryUse, UtilityTokenUse, resolve_animation_option,
-    resolve_utility,
+    UntypedVariable, UtilityArbitraryUse, UtilityDiagnosticData, UtilityTokenUse,
+    resolve_animation_option, resolve_utility,
 };
 pub use variables::{VariableMismatch, VariableTypeSource};
 

@@ -299,11 +299,11 @@ fn condition_applications(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_design_system::UtilityOrder;
+    use stillwind_design_system::{UtilityOrder, VariantContext};
 
     use super::super::stylesheet::render_authored_variant_path;
     use super::super::utilities::render_utility_rule_path;
-    use super::super::utilities::{CompiledUtility, UtilitySource};
+    use super::super::utilities::{CompiledUtility, CompiledUtilityDiagnosticData};
     use super::*;
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
@@ -357,7 +357,8 @@ mod tests {
             "&:hover{@media print{color:red;}}&:focus{@media print{color:red;}}"
         );
         let utility = CompiledUtility {
-            source: UtilitySource::default(),
+            diagnostic_data: CompiledUtilityDiagnosticData::default(),
+            context: VariantContext::Element,
             required_properties: Vec::new(),
             variants: Vec::new(),
             variant_applications: Vec::new(),

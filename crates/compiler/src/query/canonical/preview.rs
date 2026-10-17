@@ -13,6 +13,12 @@ use stillwind_source::ReplaceText;
 use crate::query::QueryContext;
 use crate::{GeneratedRule, RootFontSize};
 
+/// Complete CSS reference replaced when a query normalizes numeric spacing.
+pub(super) const SPACING_SCALE_REFERENCE: &str = "var(--spacing)";
+
+/// Prefix used to recognize references to named tokens in the spacing namespace.
+pub(super) const SPACING_TOKEN_REFERENCE_PREFIX: &str = "var(--spacing-";
+
 /// Spacing transformations that affect equality within one query's fixed lint policy.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(super) struct Normalization {
@@ -25,16 +31,24 @@ pub(super) struct Normalization {
 /// Rendered candidate data reused while this query compares canonical spellings.
 #[derive(Debug)]
 pub(in crate::query) struct CanonicalPreview {
+    /// Generated candidate CSS before known theme variables are substituted.
     pub(super) css: LeanStr,
+    /// CSS with known theme variables substituted. Unknown variables keep their
+    /// spelling. `None` when substitution exceeds the query's expansion limits.
     pub(super) resolved_css: Option<LeanStr>,
+    /// Registration dependencies compared alongside CSS before accepting a replacement.
     pub(super) required_properties: Vec<LeanStr>,
-    // Query clones can move to different threads while sharing these previews.
+    /// Successful and failed normalizations keyed by their spacing transformations.
+    /// Query clones share this cache across threads.
     pub(super) signatures: Mutex<BTreeMap<Normalization, Option<LeanStr>>>,
 }
 
 impl CanonicalPreview {
-    /// Normalizes this preview using its owning query's fixed scale and root font size.
-    /// Only `properties` and the presence of `scale` may vary between calls.
+    /// Returns cached normalized CSS under the owning query's spacing policy.
+    ///
+    /// `scale`, when present, and `root_font_size` must match the owning query's
+    /// values. Only `properties` and the presence of `scale` may vary between calls.
+    /// Caches `None` when theme substitution or CSS normalization fails.
     pub(super) fn signature(
         &self,
         scale: Option<&str>,
@@ -65,7 +79,11 @@ impl CanonicalPreview {
     }
 }
 
-/// Normalizes resolved CSS using the query's spacing policy without retaining a cache.
+/// Normalizes CSS whose known theme variables have already been substituted.
+///
+/// Replaces spacing scale references with `scale` when supplied, and converts pixel
+/// dimensions in `properties` using `root_font_size`. Folds calculations and minifies
+/// the result. Returns `None` when the normalized CSS cannot be minified.
 pub(super) fn normalized_signature(
     css: &str,
     scale: Option<&str>,
@@ -74,7 +92,7 @@ pub(super) fn normalized_signature(
 ) -> Option<LeanStr> {
     let mut normalized = css.to_lean_string();
     if let Some(scale) = scale {
-        normalized = normalized.replace_text("var(--spacing)", scale);
+        normalized = normalized.replace_text(SPACING_SCALE_REFERENCE, scale);
     }
     if !properties.is_empty() {
         normalized = convert_spacing_declarations(&normalized, properties, root_font_size.get(), 0);
@@ -86,6 +104,13 @@ pub(super) fn normalized_signature(
 }
 
 impl QueryContext {
+    /// Renders `raw` with `&` as its subject and caches the preview within this query.
+    /// Returns `None` when candidate resolution records a failure. A preview can still
+    /// lack `resolved_css` when theme substitution exceeds its expansion limits.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed property requirement from a matching utility definition.
     pub(in crate::query) fn canonical_preview(
         &self,
         raw: &str,
@@ -152,8 +177,8 @@ pub(super) fn spacing_properties(css: &str, properties: &mut BTreeSet<LeanStr>, 
             declarations
                 .into_iter()
                 .filter(|declaration| {
-                    declaration.css.contains("var(--spacing)")
-                        || declaration.css.contains("var(--spacing-")
+                    declaration.css.contains(SPACING_SCALE_REFERENCE)
+                        || declaration.css.contains(SPACING_TOKEN_REFERENCE_PREFIX)
                 })
                 .map(|declaration| declaration.property),
         );
@@ -248,4 +273,21 @@ pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> LeanString {
         result.replace_range(range, &replacement);
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_design_system::ThemeNamespace;
+
+    use super::*;
+
+    #[test]
+    fn spacing_references_use_the_spacing_namespace() {
+        let namespace = ThemeNamespace::Spacing.css_name();
+        assert_eq!(SPACING_SCALE_REFERENCE, format!("var(--{namespace})"));
+        assert_eq!(
+            SPACING_TOKEN_REFERENCE_PREFIX,
+            format!("var(--{namespace}-")
+        );
+    }
 }

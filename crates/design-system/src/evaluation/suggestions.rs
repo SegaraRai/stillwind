@@ -44,8 +44,8 @@ pub(in crate::evaluation) fn closest_spelling(
         .find(|candidate| resolves(candidate))
 }
 
-/// Returns the name of the active theme token of `theme` that is closest to `name`, as
-/// [`closest_spelling`] compares spellings, or `None` when no token name is close.
+/// Returns the active token name in `theme` closest to `name` by edit distance.
+/// Returns `None` when no token name is within the allowed distance.
 #[must_use]
 pub fn suggested_theme_token(name: &str, theme: &ThemeIndex) -> Option<LeanString> {
     closest_spelling(

@@ -60,7 +60,9 @@ pub(super) fn collect_variant_and_applications(
 /// The prefix is parsed as a candidate followed by a placeholder utility, which reuses
 /// the candidate grammar instead of duplicating it here. A prefix that does not end in
 /// `:` or that yields an empty variant is rejected, so a malformed wrapper cannot
-/// silently shift the meaning of the utility it wraps.
+/// silently shift the meaning of the utility it wraps. An empty prefix returns an
+/// empty variant list. The utility suffix is discarded before resolution and needs no
+/// registry definition.
 pub(in crate::compiler) fn parse_prefix(prefix: &Spanned<LeanStr>) -> Option<Vec<Variant>> {
     if !prefix.value.is_empty() && !prefix.value.ends_with(':') {
         return None;

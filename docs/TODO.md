@@ -53,6 +53,15 @@ Source: [view-transition analysis](../crates/compiler/src/style_analysis/view_tr
 
 ## Measurement coverage
 
+With the default registry, canonical queries do not replace `bg-[#f00]/50` with
+`bg-brand/50` when the theme defines `--color-brand: red`. Restore canonical color
+replacements with opacity modifiers. Keep queries for unmatched colors with
+modifiers within the existing canonical-query budget. Verify both cases with
+`vp run test:performance`.
+
+Sources: [canonical queries](../crates/compiler/src/query/canonical/candidate.rs),
+[canonical cases](../benchmarks/compiler/canonical-cases.ts).
+
 `TypeScriptFactsService` enables checker timing collection but exposes only
 process, snapshot, and filesystem counters. Expose round trips, transferred bytes,
 and server time in host debug telemetry so checker work can be distinguished

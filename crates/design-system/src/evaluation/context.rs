@@ -30,6 +30,8 @@ pub(in crate::evaluation) struct EvaluationContext<'a> {
 }
 
 impl<'a> EvaluationContext<'a> {
+    /// Creates a context that checks arbitrary values by grammar and discards
+    /// selections.
     pub(in crate::evaluation) fn untracked(theme: &'a ThemeIndex) -> Self {
         Self {
             theme,
@@ -38,6 +40,7 @@ impl<'a> EvaluationContext<'a> {
         }
     }
 
+    /// Creates an empty selection recorder using `arbitrary_check` for unhinted values.
     pub(in crate::evaluation) fn tracked(
         theme: &'a ThemeIndex,
         arbitrary_check: ArbitraryValueCheck,
@@ -54,12 +57,16 @@ impl<'a> EvaluationContext<'a> {
         self.arbitrary_check
     }
 
+    /// Records a complete custom-property name without following aliases.
+    /// Untracked contexts discard the record.
     pub(in crate::evaluation) fn record_token(&self, name: &str) {
         if let Some(selections) = &self.selections {
             selections.borrow_mut().tokens.insert(name.to_lean_str());
         }
     }
 
+    /// Records direct custom-property references in a CSS value when tracking is
+    /// enabled.
     pub(in crate::evaluation) fn record_value_tokens(&self, value: &str) {
         if self.selections.is_some() {
             for name in inspect_css_value(value).1 {
@@ -68,12 +75,18 @@ impl<'a> EvaluationContext<'a> {
         }
     }
 
+    /// Records references in a variable capture when tracking is enabled.
+    /// `name` is a `var()` argument list and may include a fallback.
     pub(in crate::evaluation) fn record_variable_token(&self, name: &str) {
         if self.selections.is_some() {
+            // Wrapping the capture lets CSS inspection include references in variable
+            // fallbacks, such as `--a, var(--b)`.
             self.record_value_tokens(&format_args!("var({name})").to_lean_string());
         }
     }
 
+    /// Appends a decoded capture before expansion when tracking is enabled.
+    /// `color` identifies a capture accepted by a color value domain.
     pub(in crate::evaluation) fn record_arbitrary_value(&self, value: &str, color: bool) {
         if let Some(selections) = &self.selections {
             selections
@@ -86,7 +99,8 @@ impl<'a> EvaluationContext<'a> {
         }
     }
 
-    /// Records an alpha percentage outside `0%` to `100%` that the declaration emits.
+    /// Retains the first emitted alpha percentage outside `0%` to `100%` when tracking
+    /// is enabled.
     pub(in crate::evaluation) fn record_out_of_range_alpha(&self, value: &str) {
         if let Some(selections) = &self.selections {
             selections
@@ -97,6 +111,7 @@ impl<'a> EvaluationContext<'a> {
     }
 
     /// Removes the current selections and transfers ownership to the caller.
+    /// Returns empty selections when tracking is disabled.
     pub(in crate::evaluation) fn take_selections(&self) -> ValueSelections {
         self.selections
             .as_ref()
@@ -116,7 +131,9 @@ impl Deref for EvaluationContext<'_> {
 /// Direct source selections before expansion and declaration formatting.
 #[derive(Default)]
 pub(in crate::evaluation) struct ValueSelections {
+    /// Complete custom-property names, sorted and deduplicated without alias traversal.
     pub(in crate::evaluation) tokens: BTreeSet<LeanStr>,
+    /// Accepted arbitrary captures in evaluation order, including repeated values.
     pub(in crate::evaluation) values: Vec<ArbitraryValueSelection>,
     /// The first alpha percentage outside `0%` to `100%`, as emitted.
     pub(in crate::evaluation) out_of_range_alpha: Option<LeanStr>,
@@ -124,6 +141,8 @@ pub(in crate::evaluation) struct ValueSelections {
 
 /// An accepted arbitrary capture before theme expansion and declaration formatting.
 pub(in crate::evaluation) struct ArbitraryValueSelection {
+    /// Decoded CSS text before theme expansion and declaration formatting.
     pub(in crate::evaluation) value: LeanStr,
+    /// Whether a color value domain accepted the capture.
     pub(in crate::evaluation) color: bool,
 }

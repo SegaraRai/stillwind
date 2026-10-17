@@ -58,7 +58,7 @@ impl CallEmitter<'_> {
             let span = if provider {
                 span
             } else {
-                utility.source.span.unwrap_or(span)
+                utility.diagnostic_data.span.unwrap_or(span)
             };
             let mut supplies = Vec::new();
             let rendered = render_utility_rule(
@@ -86,7 +86,7 @@ impl CallEmitter<'_> {
                     Err(kind) => self.reject_name(kind, span),
                 }
             }
-            if !provider && utility.source.span.is_some() {
+            if !provider && utility.diagnostic_data.span.is_some() {
                 let contexts = supplies
                     .iter()
                     .filter_map(|supply| match supply {
@@ -114,7 +114,7 @@ impl CallEmitter<'_> {
                 guard,
                 supplies,
                 choice,
-                if utility.source.span.is_some() {
+                if utility.diagnostic_data.span.is_some() {
                     0
                 } else {
                     ordinal
@@ -142,7 +142,7 @@ impl CallEmitter<'_> {
             return Vec::new();
         }
         let mut findings = Vec::new();
-        for usage in &utility.source.token_uses {
+        for usage in &utility.diagnostic_data.token_uses {
             let mut pending = usage
                 .tokens
                 .iter()

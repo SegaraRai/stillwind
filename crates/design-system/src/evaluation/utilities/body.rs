@@ -42,8 +42,8 @@ pub struct UtilityResolutionError {
 /// The resolved outcome of one matched utility definition.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(in crate::evaluation) struct UtilityResolution {
-    pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
-    pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
+    /// Source selections and value checks collected across the selected branches.
+    pub(in crate::evaluation) diagnostic_data: UtilityResolutionDiagnosticData,
     /// Declarations for the matched selector, or for the utility itself.
     pub(in crate::evaluation) declaration: LeanStr,
     /// Explicit custom-property registration dependencies collected from requirement
@@ -62,6 +62,32 @@ pub(in crate::evaluation) struct UtilityResolution {
     /// `(tw-sort: property)` value authored on the definition header, which replaces
     /// the resolved property indices when the snapshot selects Tailwind ordering.
     pub(in crate::evaluation) tw_sort: Option<LeanStr>,
+}
+
+impl UtilityResolution {
+    /// Wraps `declaration`, a serialized declaration list without outer braces.
+    /// The result has no selector, conditional rules, source selections, or ordering.
+    pub(in crate::evaluation) fn plain(declaration: LeanString) -> Self {
+        Self {
+            diagnostic_data: UtilityResolutionDiagnosticData::default(),
+            declaration: (declaration).into(),
+            required_properties: Vec::new(),
+            selector: None,
+            nested: Vec::new(),
+            additional: Vec::new(),
+            builtin_order: None,
+            tw_sort: None,
+        }
+    }
+}
+
+/// Selections and value checks retained while utility branches are resolved and merged.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(in crate::evaluation) struct UtilityResolutionDiagnosticData {
+    /// Direct token names grouped by their receiving declaration across all targets.
+    pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
+    /// Accepted arbitrary captures grouped by their receiving declaration across all targets.
+    pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// An unhinted arbitrary value that no definition accepted by grammar, emitted as
     /// written.
     pub(in crate::evaluation) invalid_value: Option<UtilityArbitraryUse>,
@@ -82,26 +108,21 @@ pub(in crate::evaluation) struct UtilityResolution {
     pub(in crate::evaluation) variable_mismatch: Option<VariableMismatch>,
 }
 
-impl UtilityResolution {
-    /// A declaration with no selector, conditionals, or ordering.
-    pub(in crate::evaluation) fn plain(declaration: LeanString) -> Self {
-        Self {
-            token_uses: Vec::new(),
-            arbitrary_uses: Vec::new(),
-            declaration: (declaration).into(),
-            required_properties: Vec::new(),
-            selector: None,
-            nested: Vec::new(),
-            additional: Vec::new(),
-            builtin_order: None,
-            tw_sort: None,
-            invalid_value: None,
-            fallback_type_hints: Vec::new(),
-            out_of_range_alpha: None,
-            variable_value_types: Vec::new(),
-            untyped_variable_hint: None,
-            variable_mismatch: None,
-        }
+impl UtilityResolutionDiagnosticData {
+    /// Appends token and arbitrary uses from a branch with a different selector and
+    /// marks each use as outside the base declaration list. Other checks in `branch`
+    /// must be merged separately when the caller needs to retain them.
+    pub(super) fn extend_non_base_uses(&mut self, branch: Self) {
+        self.arbitrary_uses
+            .extend(branch.arbitrary_uses.into_iter().map(|mut usage| {
+                usage.base = false;
+                usage
+            }));
+        self.token_uses
+            .extend(branch.token_uses.into_iter().map(|mut usage| {
+                usage.base = false;
+                usage
+            }));
     }
 }
 
@@ -219,9 +240,9 @@ fn resolve_valid_utility_body(
         return None;
     }
     let declarations = resolve(body, true)?;
-    let mut out_of_range_alpha = declarations.out_of_range_alpha;
-    let mut token_uses = declarations.token_uses;
-    let mut arbitrary_uses = declarations.arbitrary_uses;
+    let mut out_of_range_alpha = declarations.diagnostic_data.out_of_range_alpha;
+    let mut token_uses = declarations.diagnostic_data.token_uses;
+    let mut arbitrary_uses = declarations.diagnostic_data.arbitrary_uses;
     let declaration = declarations.base;
     let mut modifier_resolved = body.contains("--modifier(")
         || body.contains("--modifier-map(")
@@ -254,19 +275,27 @@ fn resolve_valid_utility_body(
             };
             let declaration = declarations.base;
             if out_of_range_alpha.is_none() {
-                out_of_range_alpha = declarations.out_of_range_alpha.map(|mut usage| {
+                out_of_range_alpha =
+                    declarations
+                        .diagnostic_data
+                        .out_of_range_alpha
+                        .map(|mut usage| {
+                            usage.base = false;
+                            usage
+                        });
+            }
+            arbitrary_uses.extend(declarations.diagnostic_data.arbitrary_uses.into_iter().map(
+                |mut usage| {
                     usage.base = false;
                     usage
-                });
-            }
-            arbitrary_uses.extend(declarations.arbitrary_uses.into_iter().map(|mut usage| {
-                usage.base = false;
-                usage
-            }));
-            token_uses.extend(declarations.token_uses.into_iter().map(|mut usage| {
-                usage.base = false;
-                usage
-            }));
+                },
+            ));
+            token_uses.extend(declarations.diagnostic_data.token_uses.into_iter().map(
+                |mut usage| {
+                    usage.base = false;
+                    usage
+                },
+            ));
             if !declaration.is_empty() {
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
@@ -301,12 +330,15 @@ fn resolve_valid_utility_body(
         for usage in &mut arbitrary_uses {
             usage.base = false;
         }
-        arbitrary_uses.extend(parent.arbitrary_uses);
+        arbitrary_uses.extend(parent.diagnostic_data.arbitrary_uses);
         if let Some(usage) = &mut out_of_range_alpha {
             usage.base = false;
         }
-        out_of_range_alpha = parent.out_of_range_alpha.or(out_of_range_alpha);
-        token_uses.extend(parent.token_uses);
+        out_of_range_alpha = parent
+            .diagnostic_data
+            .out_of_range_alpha
+            .or(out_of_range_alpha);
+        token_uses.extend(parent.diagnostic_data.token_uses);
         let parent_declaration = parent.base;
         let parent_nested = parent
             .compat_modern
@@ -328,8 +360,12 @@ fn resolve_valid_utility_body(
             }]
         })?;
         (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
-            token_uses,
-            arbitrary_uses,
+            diagnostic_data: UtilityResolutionDiagnosticData {
+                token_uses,
+                arbitrary_uses,
+                out_of_range_alpha,
+                ..UtilityResolutionDiagnosticData::default()
+            },
             required_properties,
             declaration: (parent_declaration).into(),
             selector: None,
@@ -343,17 +379,15 @@ fn resolve_valid_utility_body(
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
-            invalid_value: None,
-            fallback_type_hints: Vec::new(),
-            out_of_range_alpha: out_of_range_alpha.clone(),
-            variable_value_types: Vec::new(),
-            untyped_variable_hint: None,
-            variable_mismatch: None,
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
-            token_uses,
-            arbitrary_uses,
+            diagnostic_data: UtilityResolutionDiagnosticData {
+                token_uses,
+                arbitrary_uses,
+                out_of_range_alpha,
+                ..UtilityResolutionDiagnosticData::default()
+            },
             required_properties,
             declaration: (declaration).into(),
             selector,
@@ -367,12 +401,6 @@ fn resolve_valid_utility_body(
                 UtilityOrderMode::Tailwind => utility.builtin_order,
             },
             tw_sort: utility.tw_sort.clone(),
-            invalid_value: None,
-            fallback_type_hints: Vec::new(),
-            out_of_range_alpha: out_of_range_alpha.clone(),
-            variable_value_types: Vec::new(),
-            untyped_variable_hint: None,
-            variable_mismatch: None,
         })
     }
 }

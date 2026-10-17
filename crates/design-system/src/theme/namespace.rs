@@ -18,6 +18,9 @@ use lean_string::{LeanString, ToLeanString};
 use stillwind_css::ValueType;
 use stillwind_source::ReplaceText;
 
+/// CSS value domain for named spacing tokens and numeric multiples of the spacing scale.
+pub const SPACING_VALUE_DOMAIN: &str = "--spacing()";
+
 /// Parses the CSS-authored type set for each Tailwind theme namespace.
 ///
 /// Each statement names one namespace pattern and the value types it accepts; unknown
@@ -263,6 +266,14 @@ pub(super) fn excluded_from_namespace(namespace: &str, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spacing_value_domain_uses_the_spacing_namespace() {
+        assert_eq!(
+            SPACING_VALUE_DOMAIN,
+            format!("--{}()", ThemeNamespace::Spacing.css_name())
+        );
+    }
 
     #[test]
     fn parses_multiple_namespace_value_types() {

@@ -145,8 +145,8 @@ impl LiteralContribution {
                         utility.span,
                     ));
                     for resolved_utility in &mut resolved {
-                        resolved_utility.source.span = Some(source_span);
-                        resolved_utility.source.variant_spans =
+                        resolved_utility.diagnostic_data.span = Some(source_span);
+                        resolved_utility.diagnostic_data.variant_spans =
                             variant_spans(&utility.value.raw, source_span);
                         plan.apply(resolved_utility, theme);
                     }
@@ -280,7 +280,7 @@ pub(super) fn resolved_candidate_lints(
     if lint_settings.enabled_for_detection(LintKind::InvalidPropertyValue)
         && let Some(value) = resolved
             .first()
-            .and_then(|first| first.source.invalid_value.as_ref())
+            .and_then(|first| first.diagnostic_data.invalid_value.as_ref())
     {
         findings.push(invalid_property_value_finding(raw, written, value, span));
     }

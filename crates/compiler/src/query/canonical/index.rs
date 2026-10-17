@@ -11,7 +11,10 @@ use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
 use super::super::completion::value_namespaces;
-use super::preview::{CanonicalPreview, Normalization, SpacingUnit, dimension, spacing_properties};
+use super::preview::{
+    CanonicalPreview, Normalization, SPACING_SCALE_REFERENCE, SPACING_TOKEN_REFERENCE_PREFIX,
+    SpacingUnit, dimension, spacing_properties,
+};
 use super::values::ThemeValueIndex;
 use super::variants::VariantIndex;
 use crate::query::QueryContext;
@@ -187,7 +190,7 @@ pub(super) fn policy(
         && scale
             .and_then(dimension)
             .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
-        && (css.contains("var(--spacing)") || css.contains("var(--spacing-"))
+        && (css.contains(SPACING_SCALE_REFERENCE) || css.contains(SPACING_TOKEN_REFERENCE_PREFIX))
     {
         spacing_properties(css, &mut properties, 0);
     }

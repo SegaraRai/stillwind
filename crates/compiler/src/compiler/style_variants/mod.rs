@@ -6,8 +6,8 @@
 //! exactly like the same candidate written as one token. A ref wrapper cannot be
 //! spelled as a string: the selector depends on which element declares the ref and
 //! where it sits relative to the target, so the wrapper is lowered into
-//! [`VariantApplication`] alternatives that carry the generated markers and shared
-//! scope conditions.
+//! [`VariantApplication`](stillwind_design_system::VariantApplication) alternatives
+//! that carry the generated markers and shared scope conditions.
 //!
 //! [`StyleVariantPlan::canonical`] is the identity spelling used for class hashing. It
 //! records the ref's generated identifiers and the authored prefix, independent of how
@@ -16,8 +16,8 @@
 //! equal class names.
 //!
 //! [`plan`] builds a [`StyleVariantPlan`] and applies it to compiled utilities,
-//! [`prefix`] parses and resolves ordinary variant prefixes, and [`reference`] lowers
-//! ref conditions into selector conditions on the declaring element.
+//! [`prefix`] parses and resolves ordinary variant prefixes, and [`mod@reference`]
+//! lowers ref conditions into selector conditions on the declaring element.
 
 mod plan;
 mod prefix;

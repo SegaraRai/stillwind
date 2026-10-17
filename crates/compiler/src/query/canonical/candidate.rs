@@ -12,7 +12,10 @@ use stillwind_syntax::{Utility, parse_candidate};
 
 use super::conditions::canonical_conditions;
 use super::index;
-use super::preview::{CanonicalPreview, SpacingUnit, dimension, spacing_properties};
+use super::preview::{
+    CanonicalPreview, SPACING_SCALE_REFERENCE, SPACING_TOKEN_REFERENCE_PREFIX, SpacingUnit,
+    dimension, spacing_properties,
+};
 use crate::compiler::candidate_allowed;
 use crate::query::{DesignSystemQuery, QueryContext, last_top_level};
 
@@ -142,8 +145,8 @@ impl DesignSystemQuery {
             }
             let conversion = options.px_to_rem
                 && scale_dimension.is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
-                && (preview.css.contains("var(--spacing)")
-                    || preview.css.contains("var(--spacing-"));
+                && (preview.css.contains(SPACING_SCALE_REFERENCE)
+                    || preview.css.contains(SPACING_TOKEN_REFERENCE_PREFIX));
             let mut properties = BTreeSet::new();
             if conversion {
                 spacing_properties(&preview.css, &mut properties, 0);

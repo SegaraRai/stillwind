@@ -66,7 +66,7 @@ pub(crate) fn emit_document_style(
                     token.span,
                 ));
                 for utility in &mut resolved {
-                    utility.source.span = Some(token.span);
+                    utility.diagnostic_data.span = Some(token.span);
                 }
                 utilities.append(&mut resolved);
             }

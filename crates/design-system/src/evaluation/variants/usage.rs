@@ -30,7 +30,16 @@ use crate::{BuiltinVariantValueType, ThemeIndex};
 pub struct ResolvedVariant {
     /// The application produced by ordinary variant resolution.
     pub application: VariantApplication,
-    /// Direct custom-property names, before inline expansion and alias traversal.
+    /// Direct selections and media value origins retained for source policy
+    /// diagnostics.
+    pub diagnostic_data: VariantDiagnosticData,
+}
+
+/// Direct values used to check the source policies of a resolved variant.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct VariantDiagnosticData {
+    /// Direct custom-property names, before inline expansion and alias traversal. Names
+    /// are sorted and deduplicated across the selected definition and its children.
     pub tokens: Vec<LeanStr>,
     /// Viewport size comparisons and the origins of their supplied values.
     pub media_values: Vec<VariantMediaValue>,
@@ -41,7 +50,7 @@ pub struct ResolvedVariant {
 pub struct VariantMediaValue {
     /// Expanded comparison, including parentheses.
     pub condition: LeanStr,
-    /// Origins of substitutions in this condition; a fixed prelude uses `Definition`.
+    /// Origins of substitutions in this condition. A fixed prelude uses `Definition`.
     pub sources: Vec<VariantValueSource>,
 }
 
@@ -59,9 +68,12 @@ pub enum VariantValueSource {
     Definition,
 }
 
-/// Resolves a variant and records only the definition that ordinary resolution selects.
-/// Direct token names survive inline expansion. Alias values are not traversed for
-/// these records. Invalid or unavailable variants return `None`.
+/// Resolves `variant` against `theme` and records the values its selected definition
+/// uses.
+///
+/// The returned application matches ordinary variant resolution. Diagnostic records
+/// include selected child variants and keep direct token names before inline
+/// expansion and alias traversal. Invalid or unavailable variants return `None`.
 #[must_use]
 pub fn resolve_variant_with_usage(
     variant: &Variant,
@@ -80,8 +92,10 @@ pub fn resolve_variant_with_usage(
             .collect();
         return Some(ResolvedVariant {
             application,
-            tokens: tokens.into_iter().collect(),
-            media_values,
+            diagnostic_data: VariantDiagnosticData {
+                tokens: tokens.into_iter().collect(),
+                media_values,
+            },
         });
     }
     let VariantKind::Named(value) = &variant.kind else {
@@ -97,8 +111,8 @@ pub fn resolve_variant_with_usage(
             // A relative selector resolves only inside its definition and uses no tokens.
             if relative_selector(&inner).is_none() {
                 let resolved = resolve_variant_with_usage(&inner, theme)?;
-                tokens.extend(resolved.tokens);
-                media_values.extend(resolved.media_values);
+                tokens.extend(resolved.diagnostic_data.tokens);
+                media_values.extend(resolved.diagnostic_data.media_values);
             }
         }
         if custom.value_type.is_none() {
@@ -146,8 +160,10 @@ pub fn resolve_variant_with_usage(
         }
         Some(ResolvedVariant {
             application,
-            tokens: tokens.into_iter().collect(),
-            media_values,
+            diagnostic_data: VariantDiagnosticData {
+                tokens: tokens.into_iter().collect(),
+                media_values,
+            },
         })
     })
 }
@@ -232,8 +248,12 @@ mod tests {
                 &theme,
             )
             .unwrap();
-            assert_eq!(resolved.tokens, tokens, "{capture}");
-            assert_eq!(resolved.media_values[0].sources, [origin], "{capture}");
+            assert_eq!(resolved.diagnostic_data.tokens, tokens, "{capture}");
+            assert_eq!(
+                resolved.diagnostic_data.media_values[0].sources,
+                [origin],
+                "{capture}"
+            );
         }
         // A media query cannot evaluate `var()`, including the one in a numeric
         // spacing value.
@@ -257,17 +277,20 @@ mod tests {
         @variant gap-* { & {padding:--value(--spacing-*); @slot;} }").unwrap();
         let theme = crate::test_support::parse_fixture_theme(&source).unwrap();
         let pick = resolve_variant_with_usage(&parse_nested_variant("pick-md"), &theme).unwrap();
-        assert_eq!(pick.tokens, ["--breakpoint-md"]);
+        assert_eq!(pick.diagnostic_data.tokens, ["--breakpoint-md"]);
         assert_eq!(
-            pick.media_values,
+            pick.diagnostic_data.media_values,
             [VariantMediaValue {
                 condition: "(width>=48rem)".into(),
                 sources: vec![VariantValueSource::ThemeToken("--breakpoint-md".into())]
             }]
         );
         let gap = resolve_variant_with_usage(&parse_nested_variant("gap-gutter"), &theme).unwrap();
-        assert_eq!(gap.tokens, ["--spacing-gutter"]);
-        assert_eq!(gap.media_values, [] as [VariantMediaValue; 0]);
+        assert_eq!(gap.diagnostic_data.tokens, ["--spacing-gutter"]);
+        assert_eq!(
+            gap.diagnostic_data.media_values,
+            [] as [VariantMediaValue; 0]
+        );
         assert_eq!(
             resolve_variant(&parse_nested_variant("pick-md"), &theme),
             Ok(pick.application)

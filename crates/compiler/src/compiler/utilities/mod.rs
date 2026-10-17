@@ -17,19 +17,20 @@ mod policy;
 mod render;
 mod resolve;
 
-pub(super) use clamping::clamped_value;
-pub(super) use declaration_order::{
-    combine_declarations_for_theme, order_utilities, prepend_missing_declarations,
-};
 pub(crate) use emission::emit_utility_rules;
 pub(crate) use policy::{candidate_allowed, check_candidate_name};
-pub(super) use policy::{check, check_variant, spacing_property};
-pub(super) use render::render_utility_rule;
 pub(crate) use resolve::{
     CompiledUtility, invalid_property_value_finding, resolve_utility_targets, unresolved_lint_kind,
     unresolved_utility_finding, with_type_hint, written_span,
 };
-pub(super) use resolve::{UtilitySource, resolve_utility};
+
+pub(super) use clamping::clamped_value;
+pub(super) use declaration_order::{
+    combine_declarations_for_theme, order_utilities, prepend_missing_declarations,
+};
+pub(super) use policy::{check, check_variant, spacing_property};
+pub(super) use render::render_utility_rule;
+pub(super) use resolve::{CompiledUtilityDiagnosticData, resolve_utility};
 
 #[cfg(test)]
 pub(super) use render::render_utility_rule_path;

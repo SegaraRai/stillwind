@@ -195,16 +195,17 @@ fn combine_declarations(utilities: &[&CompiledUtility]) -> LeanString {
 mod tests {
     use lean_string::ToLeanStr;
 
-    use stillwind_design_system::UtilityOrder;
+    use stillwind_design_system::{UtilityOrder, VariantContext};
 
-    use super::super::resolve::UtilitySource;
+    use super::super::resolve::CompiledUtilityDiagnosticData;
     use super::*;
 
     #[test]
     fn orders_conflicting_shorthands_like_tailwind() {
         let declarations = [
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -216,7 +217,8 @@ mod tests {
                 candidate: "ml-2".to_lean_str(),
             },
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -228,7 +230,8 @@ mod tests {
                 candidate: "mx-3".to_lean_str(),
             },
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -252,7 +255,8 @@ mod tests {
     fn keeps_composed_properties_at_their_cascade_position() {
         let declarations = [
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -264,7 +268,8 @@ mod tests {
                 candidate: "[all:unset]".to_lean_str(),
             },
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -288,7 +293,8 @@ mod tests {
     fn keeps_unrelated_declarations_stable() {
         let declarations = [
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -300,7 +306,8 @@ mod tests {
                 candidate: (LeanString::new()).into(),
             },
             CompiledUtility {
-                source: UtilitySource::default(),
+                diagnostic_data: CompiledUtilityDiagnosticData::default(),
+                context: VariantContext::Element,
                 required_properties: Vec::new(),
                 variants: Vec::new(),
                 variant_applications: Vec::new(),
@@ -339,7 +346,8 @@ mod tests {
     #[test]
     fn composed_values_emit_priority_once_after_all_components() {
         let make = |declaration: &str| CompiledUtility {
-            source: UtilitySource::default(),
+            diagnostic_data: CompiledUtilityDiagnosticData::default(),
+            context: VariantContext::Element,
             required_properties: Vec::new(),
             variants: Vec::new(),
             variant_applications: Vec::new(),

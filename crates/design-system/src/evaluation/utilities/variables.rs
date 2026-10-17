@@ -229,7 +229,7 @@ mod tests {
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
             assert_eq!(resolved.declaration, declaration, "{raw}");
-            let invalid = resolved.invalid_value.unwrap();
+            let invalid = resolved.diagnostic_data.invalid_value.unwrap();
             let InvalidValueReason::VariableType(mismatch) = invalid.reason else {
                 panic!("{raw}: {:?}", invalid.reason);
             };
@@ -248,7 +248,7 @@ mod tests {
             "shadow-(--text-sm)",
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
-            assert_eq!(resolved.invalid_value, None, "{raw}");
+            assert_eq!(resolved.diagnostic_data.invalid_value, None, "{raw}");
         }
     }
 
@@ -264,7 +264,7 @@ mod tests {
             ("md:text-(--x)/50", "(--x)", "color"),
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
-            let untyped = resolved.untyped_variable.expect(raw);
+            let untyped = resolved.diagnostic_data.untyped_variable.expect(raw);
             assert_eq!((&raw[untyped.range], untyped.hint.as_str()), (value, hint));
         }
         for raw in [
@@ -274,7 +274,7 @@ mod tests {
             "bg-red-500",
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
-            assert_eq!(resolved.untyped_variable, None, "{raw}");
+            assert_eq!(resolved.diagnostic_data.untyped_variable, None, "{raw}");
         }
     }
 
@@ -291,13 +291,19 @@ mod tests {
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
             assert_eq!(
-                resolved.untyped_variable.map(|untyped| untyped.hint),
+                resolved
+                    .diagnostic_data
+                    .untyped_variable
+                    .map(|untyped| untyped.hint),
                 hint.map(LeanStr::from),
                 "{raw}"
             );
             assert_eq!(
                 matches!(
-                    resolved.invalid_value.map(|invalid| invalid.reason),
+                    resolved
+                        .diagnostic_data
+                        .invalid_value
+                        .map(|invalid| invalid.reason),
                     Some(InvalidValueReason::VariableType(_))
                 ),
                 mismatch,
@@ -324,7 +330,7 @@ mod tests {
                 "{raw}: {}",
                 resolved.declaration
             );
-            let invalid = resolved.invalid_value.unwrap();
+            let invalid = resolved.diagnostic_data.invalid_value.unwrap();
             assert_eq!(invalid.reason, InvalidValueReason::OpacityModifier, "{raw}");
             assert_eq!(
                 (invalid.value.as_str(), &raw[invalid.range]),
@@ -332,7 +338,7 @@ mod tests {
             );
         }
         let resolved = resolve_utility("bg-red-500/50", &theme).unwrap().unwrap();
-        assert_eq!(resolved.invalid_value, None);
+        assert_eq!(resolved.diagnostic_data.invalid_value, None);
     }
 
     #[test]

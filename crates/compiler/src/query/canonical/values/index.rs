@@ -341,11 +341,8 @@ impl CssTemplate {
     /// Candidate spelling and source-use records remain specific to each resolution.
     fn matches(&self, actual: &ResolvedUtility, value: &str) -> bool {
         let ResolvedUtility {
-            token_uses: _,
-            arbitrary_uses: _,
+            diagnostic_data: _,
             candidate: _,
-            invalid_value: _,
-            untyped_variable: _,
             order,
             required_properties,
             builtin_order,

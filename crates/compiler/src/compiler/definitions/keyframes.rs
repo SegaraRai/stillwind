@@ -186,7 +186,7 @@ pub(crate) fn resolve_frame(
         let raw = &utility.value.raw;
         match resolve_utility(raw, theme) {
             Ok(Ok(resolved)) if resolved.variants.is_empty() => {
-                if let Some(value) = &resolved.source.invalid_value {
+                if let Some(value) = &resolved.diagnostic_data.invalid_value {
                     lint_findings.push(invalid_property_value_finding(
                         raw,
                         raw.len(),

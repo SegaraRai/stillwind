@@ -42,5 +42,6 @@ pub use resolve::{
     resolve_variant,
 };
 pub use usage::{
-    ResolvedVariant, VariantMediaValue, VariantValueSource, resolve_variant_with_usage,
+    ResolvedVariant, VariantDiagnosticData, VariantMediaValue, VariantValueSource,
+    resolve_variant_with_usage,
 };

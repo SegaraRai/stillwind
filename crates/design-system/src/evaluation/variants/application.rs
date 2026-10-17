@@ -28,8 +28,8 @@ use crate::{BuiltinVariantValueType, ThemeIndex};
 pub enum VariantApplication {
     /// Tests custom-property presence or equality at computed-value time.
     Conditional(
-        /// Canonical [`RuntimeCondition`] text: a presence test or `--name:value`
-        /// comparison, optionally prefixed by one `!`.
+        /// Canonical [`RuntimeCondition`](crate::RuntimeCondition) text: a presence
+        /// test or `--name:value` comparison, optionally prefixed by one `!`.
         /// Refers to the styled element or pseudo-element, never a ref ancestor.
         LeanStr,
     ),

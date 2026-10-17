@@ -40,9 +40,9 @@ pub(super) struct Import {
 ///
 /// # Errors
 ///
-/// Returns [`CompileDiagnostic::InvalidImportBlock`] for an unbalanced block, and the
-/// [`CompileDiagnostic::InvalidCssImportSpecifier`] for an invalid import target, and
-/// modifier errors from [`import_wrappers`]. Offsets refer to `css`; this layer does
+/// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block,
+/// [`CompileDiagnostic::InvalidCssImportSpecifier`] for an invalid import target, or
+/// modifier errors from [`import_wrappers`]. Offsets refer to `css`. This layer does
 /// not attach source labels or names.
 pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
     let mut parser = Parser::new(css);

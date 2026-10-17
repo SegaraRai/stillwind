@@ -2,10 +2,14 @@
 //!
 //! Resolution is stateless: the same candidate and theme always produce the same
 //! result. An immutable provider can reuse token lookups and parsed programs between
-//! calls. Candidates that fail to parse, match
-//! no definition, or match a branch that rejects their value all produce [`None`]; a
-//! caller that needs to distinguish "unknown utility" from "wrong value type" should
-//! read the diagnostics of the layer above.
+//! calls. [`ResolvedUtility`] carries the declarations and selectors needed for
+//! emission. Its [`UtilityDiagnosticData`] retains source selections and value checks
+//! for diagnostics and fixes. Resolution can retain a well-formed arbitrary value that
+//! its property rejects, and it records that mismatch in the diagnostic data.
+//!
+//! [`resolve_utility`] explains candidates that fail to parse or resolve through
+//! [`UtilityFailure`]. Malformed property requirements return
+//! [`UtilityResolutionError`].
 
 use std::fmt::Write;
 use std::ops::Range;
@@ -36,10 +40,8 @@ use crate::{ThemeIndex, UtilityOrderMode};
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
-    /// Direct token selections before inline values and compatibility fallbacks expand.
-    pub token_uses: Vec<UtilityTokenUse>,
-    /// Accepted arbitrary captures associated with their receiving declarations.
-    pub arbitrary_uses: Vec<UtilityArbitraryUse>,
+    /// Source selections and value checks retained for diagnostics and fixes.
+    pub diagnostic_data: UtilityDiagnosticData,
     /// Ordering key of this resolution in the snapshot's configured mode, computed
     /// before variant application.
     pub order: UtilityOrder,
@@ -61,7 +63,16 @@ pub struct ResolvedUtility {
     /// fallbacks and selector-bearing branches must never be discarded merely because
     /// they share one candidate spelling.
     pub additional: Vec<ResolvedUtilityTarget>,
-    /// A value that its property rejects; the declarations contain it as written. See
+}
+
+/// Source selections and value checks used to diagnose a resolved utility.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct UtilityDiagnosticData {
+    /// Direct token selections before inline values and compatibility fallbacks expand.
+    pub token_uses: Vec<UtilityTokenUse>,
+    /// Accepted arbitrary captures associated with their receiving declarations.
+    pub arbitrary_uses: Vec<UtilityArbitraryUse>,
+    /// A value that its property rejects. The declarations contain it as written. See
     /// [`InvalidValueReason`] for the kinds of values.
     pub invalid_value: Option<InvalidPropertyValue>,
     /// A `var()` value without a type hint for a utility that accepts values of several
@@ -118,19 +129,19 @@ pub struct UntypedVariable {
 /// Theme tokens selected by one emitted declaration before their values expand.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityTokenUse {
-    /// True when the declaration belongs to the utility's base list; false for nested
+    /// True when the declaration belongs to the utility's base list. False for nested
     /// or additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the selected tokens.
     pub property: LeanStr,
-    /// Complete custom-property names; aliases retain the directly selected name.
+    /// Complete custom-property names. Aliases retain the directly selected name.
     pub tokens: Vec<LeanStr>,
 }
 
 /// One arbitrary source capture accepted by a utility declaration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityArbitraryUse {
-    /// True for the base declaration list; false for nested and additional targets.
+    /// True for the base declaration list. False for nested and additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the capture.
     pub property: LeanStr,
@@ -159,6 +170,10 @@ pub struct ResolvedUtilityTarget {
 /// registry and then the selected built-ins. Importance is applied to every emitted
 /// declaration, including conditional and additional targets, so the flag cannot be
 /// lost by a branch that emits several rules.
+///
+/// # Errors
+///
+/// Returns a malformed property requirement from a matching utility definition.
 #[allow(clippy::too_many_lines)]
 fn resolve_candidate(
     raw: &str,
@@ -186,15 +201,18 @@ fn resolve_candidate(
                 });
                 resolution.declaration = fallback.into();
             }
-            resolution.arbitrary_uses.push(UtilityArbitraryUse {
-                base: true,
-                property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
-                value: value.to_lean_str(),
-                color: false,
-            });
+            resolution
+                .diagnostic_data
+                .arbitrary_uses
+                .push(UtilityArbitraryUse {
+                    base: true,
+                    property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
+                    value: value.to_lean_str(),
+                    color: false,
+                });
             let tokens = inspect_css_value(value).1;
             if !tokens.is_empty() {
-                resolution.token_uses.push(UtilityTokenUse {
+                resolution.diagnostic_data.token_uses.push(UtilityTokenUse {
                     base: true,
                     property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
                     tokens: tokens.into_iter().collect(),
@@ -202,7 +220,8 @@ fn resolve_candidate(
             }
             resolution.builtin_order = Some(arbitrary_property_order(property, theme));
             if property_rejects(property, value) {
-                resolution.invalid_value = resolution.arbitrary_uses.first().cloned();
+                resolution.diagnostic_data.invalid_value =
+                    resolution.diagnostic_data.arbitrary_uses.first().cloned();
             }
             resolution
         }
@@ -269,13 +288,14 @@ fn resolve_candidate(
         .collect();
     let selector = resolution.selector;
     let value_range = arbitrary_value_range(raw, &candidate);
-    let reason = match resolution.variable_mismatch {
+    let reason = match resolution.diagnostic_data.variable_mismatch {
         Some(mismatch) => InvalidValueReason::VariableType(mismatch),
         None => InvalidValueReason::Grammar {
-            fallback_type_hints: resolution.fallback_type_hints,
+            fallback_type_hints: resolution.diagnostic_data.fallback_type_hints,
         },
     };
     let invalid_value = resolution
+        .diagnostic_data
         .invalid_value
         .map(|usage| InvalidPropertyValue {
             property: usage.property,
@@ -284,7 +304,7 @@ fn resolve_candidate(
             reason,
         })
         .or_else(|| {
-            let usage = resolution.out_of_range_alpha?;
+            let usage = resolution.diagnostic_data.out_of_range_alpha?;
             Some(InvalidPropertyValue {
                 property: usage.property,
                 value: usage.value,
@@ -293,14 +313,19 @@ fn resolve_candidate(
             })
         });
     let untyped_variable = resolution
+        .diagnostic_data
         .untyped_variable_hint
         .map(|hint| UntypedVariable {
             range: value_range,
             hint,
         });
     Ok(Some(ResolvedUtility {
-        token_uses: resolution.token_uses,
-        arbitrary_uses: resolution.arbitrary_uses,
+        diagnostic_data: UtilityDiagnosticData {
+            token_uses: resolution.diagnostic_data.token_uses,
+            arbitrary_uses: resolution.diagnostic_data.arbitrary_uses,
+            invalid_value,
+            untyped_variable,
+        },
         order,
         required_properties: resolution.required_properties,
         candidate,
@@ -309,8 +334,6 @@ fn resolve_candidate(
         selector,
         nested,
         additional,
-        invalid_value,
-        untyped_variable,
     }))
 }
 
@@ -334,12 +357,11 @@ fn property_rejects(property: &str, value: &str) -> bool {
         .is_some_and(|property| !property.accepts(value))
 }
 
-/// Resolves a candidate using only the Tailwind-compatible registry, as
-/// [`resolve_candidate`] describes, and explains a failure.
+/// Resolves a candidate through the project registry and then the selected built-ins.
+/// Explains a candidate that cannot be resolved.
 ///
-/// Variants are not resolved; [`super::check_candidate_variants`] checks them. The
-/// inner result is the resolution, or a [`UtilityFailure`] whose range lies within
-/// `raw`.
+/// [`super::check_candidate_variants`] checks the parsed variants separately. The inner
+/// result is the resolution, or a [`UtilityFailure`] whose range lies within `raw`.
 ///
 /// # Errors
 ///

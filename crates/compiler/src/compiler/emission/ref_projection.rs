@@ -2,7 +2,7 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_design_system::UtilityOrder;
+use stillwind_design_system::{UtilityOrder, VariantContext};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{AnchorScope, RefDefinition, RefProjection, StyleVariant};
 use stillwind_source::{JoinText, ModuleId, Span};
@@ -15,7 +15,7 @@ use super::super::symbols::{
     anchor_name, identity_input_parts, projection_symbol, ref_container_name, ref_context,
     ref_identity, ref_marker_name, ref_projection_name,
 };
-use super::super::utilities::{CompiledUtility, UtilitySource};
+use super::super::utilities::{CompiledUtility, CompiledUtilityDiagnosticData};
 use super::{CLASS_KEY, CallEmitter};
 use crate::generated::Code;
 use crate::style_analysis::SupplyKind;
@@ -207,7 +207,8 @@ pub(super) fn rule_contribution(
     )
     .to_lean_string();
     let mut utility = CompiledUtility {
-        source: UtilitySource::default(),
+        diagnostic_data: CompiledUtilityDiagnosticData::default(),
+        context: VariantContext::Element,
         required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),

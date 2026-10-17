@@ -164,11 +164,13 @@ impl BuiltinVariantValueType {
     /// Tailwind registry instead, so those types report `false` here rather than
     /// accepting anything.
     ///
-    /// A support capture is tested as the condition `(<value>)`. The condition is
-    /// rejected when a part of it can never be true, as [`supports_condition_can_match`]
-    /// describes.
+    /// A support capture is tested as the condition `(<value>)`. Parts parsed as
+    /// `<general-enclosed>` are accepted only when negated or when they use
+    /// `font-format()`, `font-tech()`, or `at-rule()`.
     #[must_use]
     pub fn accepts_css(self, value: &str) -> bool {
+        // The selector and declaration complete the stylesheet that the CSS parser
+        // requires to validate the capture. No theme or utility definitions are read.
         let stylesheet = match self {
             Self::IfCondition => return is_runtime_condition(value),
             Self::Nth => format_args!(".x:nth-child({value}) {{ color: red; }}").to_lean_string(),

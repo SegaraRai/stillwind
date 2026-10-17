@@ -85,8 +85,9 @@ impl DesignSystemQuery {
 
         let theme = self.context.design_system.theme();
         if context == CandidateContext::DefinitionVariants {
-            let text =
-                format_args!("{}:[color:red]", candidate.trim_end_matches(':')).to_lean_string();
+            // Only the parsed variants contribute to the preview. The required utility
+            // suffix is discarded without resolving it.
+            let text = format_args!("{}:utility", candidate.trim_end_matches(':')).to_lean_string();
             let Some(parsed) = parse_candidate(&text) else {
                 return Ok(None);
             };
@@ -209,7 +210,9 @@ impl DesignSystemQuery {
             return false;
         }
 
-        let Some(candidate) = parse_candidate(&format_args!("{text}:[color:red]").to_lean_string())
+        // The candidate grammar requires a utility suffix. Validation below resolves
+        // only its variants.
+        let Some(candidate) = parse_candidate(&format_args!("{text}:utility").to_lean_string())
         else {
             return false;
         };
@@ -235,5 +238,51 @@ impl DesignSystemQuery {
         }
 
         condition_paths(&candidate.variants, self.context.design_system.theme()).is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
+
+    use super::*;
+    use crate::CompilerOptions;
+
+    #[test]
+    fn variant_inputs_resolve_without_evaluating_utility_definitions() {
+        for utilities in [
+            "",
+            "@utility utility { @stillwind-require-properties invalid; display:none; }",
+        ] {
+            let source = SourceFile::new(
+                FileId(1),
+                None,
+                None,
+                format!(
+                    "@custom-variant hovered (&:hover); \
+                     @custom-variant wide {{ @media (width >= 40rem) {{ @slot; }} }} \
+                     {utilities}"
+                ),
+            )
+            .unwrap();
+            let snapshot = DesignSystemSnapshot::from_source(
+                &source,
+                CssSourceName::from("test.css"),
+                DesignSystemOptions::default(),
+            )
+            .unwrap();
+            let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+
+            assert!(query.valid_input_variant("hovered", CandidateContext::Utility));
+            assert!(query.valid_input_variant("wide", CandidateContext::DefinitionVariants));
+            assert_eq!(
+                query
+                    .preview_candidate("wide:", CandidateContext::DefinitionVariants)
+                    .unwrap()
+                    .as_deref(),
+                Some("@media (width >= 40rem){}")
+            );
+        }
     }
 }

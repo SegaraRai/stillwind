@@ -28,20 +28,21 @@ pub use builtins::{
 pub use suggestions::suggested_theme_token;
 pub use utilities::{
     InvalidPropertyValue, InvalidValueReason, NestedUtilityAtRule, NestedUtilityRule,
-    ResolvedUtility, ResolvedUtilityTarget, UntypedVariable, UtilityArbitraryUse, UtilityFailure,
-    UtilityFailureReason, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
-    UtilityTokenUse, VariableMismatch, VariableTypeSource, check_candidate_variants,
-    resolve_animation_option, resolve_utility, utility_value_range,
+    ResolvedUtility, ResolvedUtilityTarget, UntypedVariable, UtilityArbitraryUse,
+    UtilityDiagnosticData, UtilityFailure, UtilityFailureReason, UtilityOrder, UtilityPropertySort,
+    UtilityResolutionError, UtilityTokenUse, VariableMismatch, VariableTypeSource,
+    check_candidate_variants, resolve_animation_option, resolve_utility, utility_value_range,
 };
 pub use values::{ThemeValueMismatch, theme_value_mismatch, unresolvable_value_namespaces};
 pub use variants::{
     ConditionContext, DocumentTargetFailure, RedundantVariant, ResolvedVariant,
-    UnsatisfiableVariants, VariantApplication, VariantContext, VariantDeclaration, VariantFailure,
-    VariantFailureReason, VariantMediaValue, VariantObstacle, VariantRedundancy,
-    VariantSequenceOrder, VariantValueSource, compare_variant_sequences,
-    compatibility_marker_class, document_scoped_selector, document_target,
-    exact_variant_definition_resolves, is_tailwind_relationship_candidate, redundant_variants,
-    repeated_subject_selector, resolve_variant, resolve_variant_with_usage, unsatisfiable_variants,
+    UnsatisfiableVariants, VariantApplication, VariantContext, VariantDeclaration,
+    VariantDiagnosticData, VariantFailure, VariantFailureReason, VariantMediaValue,
+    VariantObstacle, VariantRedundancy, VariantSequenceOrder, VariantValueSource,
+    compare_variant_sequences, compatibility_marker_class, document_scoped_selector,
+    document_target, exact_variant_definition_resolves, is_tailwind_relationship_candidate,
+    redundant_variants, repeated_subject_selector, resolve_variant, resolve_variant_with_usage,
+    unsatisfiable_variants,
 };
 
 pub(crate) use programs::UtilityPrograms;

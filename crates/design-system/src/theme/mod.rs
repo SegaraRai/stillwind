@@ -25,7 +25,7 @@ mod tokens;
 
 pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode};
 pub use index::ThemeIndex;
-pub use namespace::{ThemeNamespace, parse_theme_namespace_types};
+pub use namespace::{SPACING_VALUE_DOMAIN, ThemeNamespace, parse_theme_namespace_types};
 pub use parser::parse_theme;
 pub use references::ThemeReferenceError;
 

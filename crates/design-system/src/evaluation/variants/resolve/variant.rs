@@ -277,10 +277,11 @@ impl fmt::Display for NestingMessage<'_> {
 
 /// Resolves one variant against the theme.
 ///
-/// Arbitrary selectors become selector templates as described by
-/// [`arbitrary_variant_application`]; arbitrary at-rules use the same structural body
-/// resolver as named definitions. A relative selector such as `[>img]` fails, because
-/// only a `:has()` slot gives it an anchor element. A named variant is matched against
+/// Arbitrary selectors containing `&` produce [`VariantApplication::SelectorTemplate`].
+/// Other arbitrary selectors produce [`VariantApplication::BareSelector`]. Arbitrary
+/// at-rules use the same structural body resolver as named definitions. A relative
+/// selector such as `[>img]` fails, because only a `:has()` slot gives it an anchor
+/// element. A named variant is matched against
 /// project definitions first and built-ins second, and the first definition that
 /// resolves it is used. A CSS definition with `[if-condition]` and the
 /// `builtin-if-variant` intrinsic produces a `Conditional` application; its public

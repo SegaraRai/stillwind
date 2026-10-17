@@ -251,10 +251,12 @@ pub(super) fn arbitrary_value_range(raw: &str, candidate: &Candidate) -> Range<u
     })
 }
 
-/// Returns the byte range of the value of the utility in `raw`: the value that
-/// [`arbitrary_value_range`] finds, or the text after the last `-` of a named utility
-/// without a bracketed or parenthesized value, such as `150` in `opacity-150`. Returns
-/// `None` when `raw` is not candidate syntax or a named utility has no `-`.
+/// Returns the byte range of a utility's value within `raw`.
+///
+/// A named arbitrary value includes its brackets or parentheses. An arbitrary property
+/// returns the text after its colon, without the closing bracket. Other named utilities
+/// return the text after the last `-`, such as `150` in `opacity-150`. Returns `None`
+/// when `raw` is not candidate syntax or a plain named utility has no `-`.
 #[must_use]
 pub fn utility_value_range(raw: &str) -> Option<Range<usize>> {
     let candidate = parse_candidate(raw)?;
@@ -680,7 +682,7 @@ mod tests {
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
             assert_eq!(resolved.declaration, declaration, "{raw}");
-            let invalid = resolved.invalid_value.unwrap();
+            let invalid = resolved.diagnostic_data.invalid_value.unwrap();
             assert_eq!(
                 (invalid.property.as_str(), invalid.value.as_str()),
                 (property, value),
@@ -707,7 +709,7 @@ mod tests {
         ] {
             let raw = format_args!("{root}-[12px_foo]").to_lean_string();
             let resolved = resolve_utility(&raw, &theme).unwrap().unwrap();
-            let reason = resolved.invalid_value.unwrap().reason;
+            let reason = resolved.diagnostic_data.invalid_value.unwrap().reason;
             assert!(
                 matches!(&reason, InvalidValueReason::Grammar { fallback_type_hints } if fallback_type_hints.len() > 1),
                 "{raw}: {reason:?}"
@@ -722,7 +724,7 @@ mod tests {
             "[width:var(--x)]",
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();
-            assert_eq!(resolved.invalid_value, None, "{raw}");
+            assert_eq!(resolved.diagnostic_data.invalid_value, None, "{raw}");
         }
     }
 }

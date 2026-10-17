@@ -25,13 +25,22 @@ use crate::ThemeIndex;
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
 pub(in crate::evaluation) struct ResolvedCssDeclarations {
-    pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
-    pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
+    /// Source selections and checks retained before color compatibility fallbacks are added.
+    pub(in crate::evaluation) diagnostic_data: DeclarationDiagnosticData,
     /// Declarations for the base branch, joined in authored order.
     pub(in crate::evaluation) base: LeanString,
     /// Modern-color variants of the base declarations that differ from the legacy text,
     /// to be emitted inside the capability query.
     pub(in crate::evaluation) compat_modern: Vec<LeanStr>,
+}
+
+/// Direct source selections and alpha checks retained for one declaration group.
+#[derive(Clone, Debug, Default)]
+pub(in crate::evaluation) struct DeclarationDiagnosticData {
+    /// Direct token names grouped by receiving declaration, in authored order.
+    pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
+    /// Accepted arbitrary captures before theme expansion and declaration formatting.
+    pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// The first declaration that mixes a color with an alpha percentage outside `0%`
     /// to `100%`, with that percentage as its value.
     pub(in crate::evaluation) out_of_range_alpha: Option<UtilityArbitraryUse>,
@@ -195,7 +204,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
             };
             resolved_placeholder |= contains_placeholder;
             record_tokens(
-                &mut output,
+                &mut output.diagnostic_data,
                 theme.take_selections(),
                 authored_declaration,
                 &declaration,
@@ -235,24 +244,29 @@ pub(in crate::evaluation) fn resolve_css_declarations(
         .map(|()| output)
 }
 
+/// Adds the selections of one resolved declaration to `diagnostic_data`.
+///
+/// `authored` contains the declaration before placeholder substitution, and
+/// `declaration` contains its resolved CSS before color compatibility fallbacks are
+/// added. Direct token names take precedence over references introduced by expansion.
 fn record_tokens(
-    output: &mut ResolvedCssDeclarations,
+    diagnostic_data: &mut DeclarationDiagnosticData,
     selections: ValueSelections,
     authored: &str,
     declaration: &str,
 ) {
     if let Some((property, _)) = declaration.split_once(':') {
-        if output.out_of_range_alpha.is_none()
+        if diagnostic_data.out_of_range_alpha.is_none()
             && let Some(value) = selections.out_of_range_alpha
         {
-            output.out_of_range_alpha = Some(UtilityArbitraryUse {
+            diagnostic_data.out_of_range_alpha = Some(UtilityArbitraryUse {
                 base: true,
                 property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
                 value,
                 color: true,
             });
         }
-        output
+        diagnostic_data
             .arbitrary_uses
             .extend(
                 selections
@@ -274,7 +288,7 @@ fn record_tokens(
     if let Some((property, _)) = declaration.split_once(':')
         && !tokens.is_empty()
     {
-        output.token_uses.push(UtilityTokenUse {
+        diagnostic_data.token_uses.push(UtilityTokenUse {
             base: true,
             property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
             tokens: tokens.into_iter().collect(),

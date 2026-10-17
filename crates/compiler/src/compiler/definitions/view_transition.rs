@@ -121,7 +121,7 @@ pub(crate) fn emit_view_transition_utilities(
                 continue;
             }
         };
-        if let Some(value) = &resolved.source.invalid_value {
+        if let Some(value) = &resolved.diagnostic_data.invalid_value {
             lint_findings.push(invalid_property_value_finding(
                 raw,
                 raw.len(),

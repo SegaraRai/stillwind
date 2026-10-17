@@ -25,13 +25,16 @@ use crate::candidate::CandidateResolver;
 /// One resolved utility rule, ready to be ordered and rendered.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledUtility {
-    /// Candidate source occurrence and token selections before values expand.
-    pub(in crate::compiler) source: UtilitySource,
+    /// Source occurrences and value selections retained for diagnostics.
+    pub(in crate::compiler) diagnostic_data: CompiledUtilityDiagnosticData,
+    /// Whether the rule starts from its class selector or an element selected by a
+    /// variant.
+    pub(in crate::compiler) context: VariantContext,
     /// Parsed variants in candidate order, resolved through the registry unless lowered
     /// applications are present.
     pub(in crate::compiler) variants: Vec<Variant>,
-    /// Prelowered alternative paths, used instead of registry resolution when nonempty;
-    /// steps retain application order.
+    /// Prelowered alternative paths, used instead of registry resolution when nonempty.
+    /// Steps retain application order.
     pub(in crate::compiler) variant_applications: Vec<Vec<VariantApplication>>,
     /// Serialized declaration-list content without the outer rule braces.
     pub(in crate::compiler) declaration: LeanStr,
@@ -46,30 +49,29 @@ pub(crate) struct CompiledUtility {
     pub(in crate::compiler) nested: Vec<NestedUtilityRule>,
     /// Snapshot-selected declaration metadata or authored registration position.
     pub(in crate::compiler) order: UtilityOrder,
-    /// Original candidate spelling for ordering and diagnostics; empty for synthetic
+    /// Original candidate spelling for ordering and diagnostics. Empty for synthetic
     /// utility rules.
     pub(in crate::compiler) candidate: LeanStr,
 }
 
-/// Origin shared by all rules that expand from one utility candidate.
+/// Source occurrences and value checks shared by the rules of one utility candidate.
 #[derive(Clone, Debug, Default)]
-pub(in crate::compiler) struct UtilitySource {
-    /// Candidate range with decoded offsets until the emitter maps it to original
-    /// source.
+pub(in crate::compiler) struct CompiledUtilityDiagnosticData {
+    /// Candidate range, or `None` when no source occurrence is attached. Literal
+    /// lowering initially uses decoded byte offsets, which the emitter maps to the
+    /// original source.
     pub(in crate::compiler) span: Option<Span>,
     /// Direct selections preserved before inline theme values expand.
     pub(in crate::compiler) token_uses: Vec<UtilityTokenUse>,
     /// Accepted captures before source values expand into declaration text.
     pub(in crate::compiler) arbitrary_uses: Vec<UtilityArbitraryUse>,
-    /// Ranges of variants written in the utility literal, in candidate order.
+    /// Ranges of variants written in the utility literal, in candidate order after
+    /// skipping `wrapper_variant_count`. They use the same offset basis as `span`.
     pub(in crate::compiler) variant_spans: Vec<Span>,
     /// Leading variants already checked at their wrapper source locations.
     pub(in crate::compiler) wrapper_variant_count: usize,
-    /// Value that its property rejects; the declarations emit it as written.
+    /// Value that its property rejects. The declarations emit it as written.
     pub(in crate::compiler) invalid_value: Option<InvalidPropertyValue>,
-    /// Whether the rule selector starts from the class selector or from the element
-    /// that a variant selects.
-    pub(in crate::compiler) context: VariantContext,
 }
 
 /// Resolves a candidate and returns its first target, for callers that render a single
@@ -97,6 +99,9 @@ pub(in crate::compiler) fn resolve_utility(
 /// does not resolve; the caller decides whether that is a lint finding, an external
 /// class name, or a diagnostic. A failing variant is reported before a failing utility
 /// name, because it comes first in the candidate text.
+///
+/// Each target retains the complete candidate's diagnostic selections. Source ranges
+/// remain unset until source lowering attaches an occurrence.
 ///
 /// # Errors
 ///
@@ -127,14 +132,14 @@ pub(crate) fn resolve_utility_targets(
     Ok(Ok(targets
         .into_iter()
         .map(|target| CompiledUtility {
-            source: UtilitySource {
+            diagnostic_data: CompiledUtilityDiagnosticData {
                 span: None,
-                token_uses: resolved.token_uses.clone(),
-                arbitrary_uses: resolved.arbitrary_uses.clone(),
-                invalid_value: resolved.invalid_value.clone(),
-                context,
-                ..UtilitySource::default()
+                token_uses: resolved.diagnostic_data.token_uses.clone(),
+                arbitrary_uses: resolved.diagnostic_data.arbitrary_uses.clone(),
+                invalid_value: resolved.diagnostic_data.invalid_value.clone(),
+                ..CompiledUtilityDiagnosticData::default()
             },
+            context,
             variants: resolved.candidate.variants.clone(),
             variant_applications: Vec::new(),
             declaration: target.declaration,

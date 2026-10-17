@@ -76,7 +76,7 @@ pub(crate) fn detect(
     }
     if untyped
         && let Ok(Ok(resolved)) = resolve_utility(&raw, theme)
-        && let Some(variable) = resolved.untyped_variable
+        && let Some(variable) = resolved.diagnostic_data.untyped_variable
         && let Some(range) = written_range(&variable.range, prefix.len())
         && let Some(replacement) =
             with_type_hint(&raw, prefix.len(), &variable.range, &variable.hint)

@@ -22,7 +22,10 @@ use super::super::context::ArbitraryValueCheck;
 use super::super::values::{
     decode_arbitrary, expand_placeholder, split_domains, theme_domain_pattern,
 };
-use super::body::{UtilityResolution, UtilityResolutionError, resolve_css_utility_body};
+use super::body::{
+    UtilityResolution, UtilityResolutionDiagnosticData, UtilityResolutionError,
+    resolve_css_utility_body,
+};
 use super::nested::NestedUtilityRule;
 use super::resolve::ResolvedUtilityTarget;
 use super::variables::{single_variable, variable_mismatch};
@@ -53,7 +56,11 @@ pub(in crate::evaluation) fn resolve_named_utility(
     let check = ArbitraryValueCheck::Grammar;
     let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     if let Some(mut resolution) = resolve_registry_layers(name, modifier, negative, theme, check)? {
-        check_variable(&mut resolution, lookup.as_deref().unwrap_or(name), theme);
+        check_variable(
+            &mut resolution.diagnostic_data,
+            lookup.as_deref().unwrap_or(name),
+            theme,
+        );
         return Ok(Some(resolution));
     }
     let Some(value) = unhinted_arbitrary_value(lookup.as_deref().unwrap_or(name)) else {
@@ -70,13 +77,15 @@ pub(in crate::evaluation) fn resolve_named_utility(
     else {
         return Ok(None);
     };
-    resolution.invalid_value = resolution
+    resolution.diagnostic_data.invalid_value = resolution
+        .diagnostic_data
         .arbitrary_uses
         .iter()
         .find(|usage| usage.base)
-        .or_else(|| resolution.arbitrary_uses.first())
+        .or_else(|| resolution.diagnostic_data.arbitrary_uses.first())
         .cloned();
-    resolution.fallback_type_hints = fallback_type_hints(lookup.as_deref().unwrap_or(name), theme);
+    resolution.diagnostic_data.fallback_type_hints =
+        fallback_type_hints(lookup.as_deref().unwrap_or(name), theme);
     Ok(Some(resolution))
 }
 
@@ -87,7 +96,11 @@ pub(in crate::evaluation) fn resolve_named_utility(
 /// recorded only when the utility accepts values of several types and no mismatch is
 /// recorded, because the hint of the selected definition would state the type that the
 /// property rejects.
-fn check_variable(resolution: &mut UtilityResolution, lookup: &str, theme: &ThemeIndex) {
+fn check_variable(
+    diagnostic_data: &mut UtilityResolutionDiagnosticData,
+    lookup: &str,
+    theme: &ThemeIndex,
+) {
     let Some(value) = unhinted_arbitrary_value(lookup) else {
         return;
     };
@@ -95,16 +108,16 @@ fn check_variable(resolution: &mut UtilityResolution, lookup: &str, theme: &Them
         return;
     };
     let hints = fallback_type_hints(lookup, theme);
-    if resolution.invalid_value.is_none()
+    if diagnostic_data.invalid_value.is_none()
         && let Some((usage, mismatch)) =
-            variable_mismatch(variable, &resolution.token_uses, &hints, theme)
+            variable_mismatch(variable, &diagnostic_data.token_uses, &hints, theme)
     {
-        resolution.invalid_value = Some(usage);
-        resolution.variable_mismatch = Some(mismatch);
+        diagnostic_data.invalid_value = Some(usage);
+        diagnostic_data.variable_mismatch = Some(mismatch);
         return;
     }
     if !hints.is_empty() {
-        resolution.untyped_variable_hint = resolution
+        diagnostic_data.untyped_variable_hint = diagnostic_data
             .variable_value_types
             .first()
             .map(|value_type| value_type.hint().to_lean_str());
@@ -204,7 +217,8 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             resolve_css_utility_body(utility, name, modifier, theme, arbitrary_check)?
         {
             if variable {
-                resolution.variable_value_types = declared_value_types(utility, theme);
+                resolution.diagnostic_data.variable_value_types =
+                    declared_value_types(utility, theme);
             }
             branches.push((
                 utility_branch_specificity(utility, name),
@@ -264,19 +278,21 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             resolution.tw_sort.clone_from(&branch.tw_sort);
         }
         merge_out_of_range_alpha(&mut resolution, &branch);
+        let diagnostic_data = &mut resolution.diagnostic_data;
+        let branch_data = branch.diagnostic_data;
         resolution
             .required_properties
             .extend(branch.required_properties);
         if branch.selector == resolution.selector {
             let existing = declaration_property_names(&resolution.declaration);
-            resolution.arbitrary_uses.extend(
-                branch
+            diagnostic_data.arbitrary_uses.extend(
+                branch_data
                     .arbitrary_uses
                     .into_iter()
                     .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
             );
-            resolution.token_uses.extend(
-                branch
+            diagnostic_data.token_uses.extend(
+                branch_data
                     .token_uses
                     .into_iter()
                     .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
@@ -286,18 +302,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             merge_nested_rules(&mut resolution.nested, branch.nested);
             resolution.additional.extend(branch.additional);
         } else {
-            resolution
-                .arbitrary_uses
-                .extend(branch.arbitrary_uses.into_iter().map(|mut usage| {
-                    usage.base = false;
-                    usage
-                }));
-            resolution
-                .token_uses
-                .extend(branch.token_uses.into_iter().map(|mut usage| {
-                    usage.base = false;
-                    usage
-                }));
+            diagnostic_data.extend_non_base_uses(branch_data);
             resolution.additional.push(ResolvedUtilityTarget {
                 declaration: branch.declaration,
                 selector: branch.selector,
@@ -335,11 +340,15 @@ fn utility_value_types(utility: &CustomUtility) -> Vec<ValueType> {
 /// Takes the out-of-range alpha of `branch` when `resolution` has none. The use stays
 /// in the base list only when the branch shares the selector of `resolution`.
 fn merge_out_of_range_alpha(resolution: &mut UtilityResolution, branch: &UtilityResolution) {
-    if resolution.out_of_range_alpha.is_none() {
-        resolution.out_of_range_alpha = branch.out_of_range_alpha.clone().map(|mut usage| {
-            usage.base &= branch.selector == resolution.selector;
-            usage
-        });
+    if resolution.diagnostic_data.out_of_range_alpha.is_none() {
+        resolution.diagnostic_data.out_of_range_alpha = branch
+            .diagnostic_data
+            .out_of_range_alpha
+            .clone()
+            .map(|mut usage| {
+                usage.base &= branch.selector == resolution.selector;
+                usage
+            });
     }
 }
 

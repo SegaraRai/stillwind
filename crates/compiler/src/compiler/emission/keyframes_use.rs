@@ -2,7 +2,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_design_system::{ThemeIndex, UtilityOrder};
+use stillwind_design_system::{ThemeIndex, UtilityOrder, VariantContext};
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{AssetReference, StyleVariant};
 use stillwind_semantic::AssetKind;
@@ -14,7 +14,7 @@ use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::identity_declaration;
-use super::super::utilities::{CompiledUtility, UtilitySource};
+use super::super::utilities::{CompiledUtility, CompiledUtilityDiagnosticData};
 use super::{CallEmitter, KEYFRAMES_KEY};
 use crate::identifiers::IdentifierContext;
 
@@ -164,7 +164,8 @@ fn resolve_keyframes_use(
         .declaration,
     );
     CompiledUtility {
-        source: UtilitySource::default(),
+        diagnostic_data: CompiledUtilityDiagnosticData::default(),
+        context: VariantContext::Element,
         required_properties: Vec::new(),
         variants: Vec::new(),
         variant_applications: Vec::new(),

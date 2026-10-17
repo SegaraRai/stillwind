@@ -1,4 +1,5 @@
-//! Indexes named variant wrappers using a declaration that stays independent of theme values.
+//! Indexes named variant wrappers using a declaration that stays independent of theme
+//! values.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -9,6 +10,8 @@ use stillwind_syntax::parse_candidate;
 
 use crate::query::QueryContext;
 
+// Canonical comparison renders this declaration, so it must resolve even when the
+// stylesheet defines no named utilities.
 const PROBE: &str = "[--sw-canonical-probe:initial]";
 
 #[derive(Debug, Default)]

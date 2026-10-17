@@ -219,7 +219,7 @@ fn validates_unhinted_and_hint_checked_arbitrary_css_values() {
     for candidate in ["border-[50%]", "z-[1.5]"] {
         assert!(
             resolve_utility(candidate, &theme)
-                .is_some_and(|resolved| resolved.invalid_value.is_some()),
+                .is_some_and(|resolved| resolved.diagnostic_data.invalid_value.is_some()),
             "expected `{candidate}` to be emitted as an invalid property value"
         );
     }
@@ -251,7 +251,7 @@ fn validates_arbitrary_utilities_against_property_grammars() {
     ] {
         assert!(
             resolve_utility(candidate, &theme)
-                .is_some_and(|resolved| resolved.invalid_value.is_some()),
+                .is_some_and(|resolved| resolved.diagnostic_data.invalid_value.is_some()),
             "expected `{candidate}` to be emitted as an invalid property value"
         );
     }

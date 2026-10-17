@@ -57,11 +57,12 @@ pub use evaluation::{
     ConditionContext, DocumentTargetFailure, InvalidPropertyValue, InvalidValueReason,
     NestedUtilityAtRule, NestedUtilityRule, RedundantVariant, ResolvedUtility,
     ResolvedUtilityTarget, ResolvedVariant, ThemeValueMismatch, UnsatisfiableVariants,
-    UntypedVariable, UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
-    UtilityPropertySort, UtilityResolutionError, UtilityTokenUse, VariableMismatch,
-    VariableTypeSource, VariantApplication, VariantContext, VariantDeclaration, VariantFailure,
-    VariantFailureReason, VariantMediaValue, VariantObstacle, VariantRedundancy,
-    VariantSequenceOrder, VariantValueSource, builtin_declaration_formats, builtin_definitions,
+    UntypedVariable, UtilityArbitraryUse, UtilityDiagnosticData, UtilityFailure,
+    UtilityFailureReason, UtilityOrder, UtilityPropertySort, UtilityResolutionError,
+    UtilityTokenUse, VariableMismatch, VariableTypeSource, VariantApplication, VariantContext,
+    VariantDeclaration, VariantDiagnosticData, VariantFailure, VariantFailureReason,
+    VariantMediaValue, VariantObstacle, VariantRedundancy, VariantSequenceOrder,
+    VariantValueSource, builtin_declaration_formats, builtin_definitions,
     builtin_omit_token_prefixes, builtin_property_definitions, builtin_theme_order,
     builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
     compatibility_marker_class, document_scoped_selector, document_target,
@@ -94,8 +95,8 @@ pub use snapshot::{
 };
 pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{
-    ThemeIndex, ThemeNamespace, ThemeReferenceError, ThemeToken, ThemeTokenKind, ThemeTokenMode,
-    parse_theme, parse_theme_namespace_types,
+    SPACING_VALUE_DOMAIN, ThemeIndex, ThemeNamespace, ThemeReferenceError, ThemeToken,
+    ThemeTokenKind, ThemeTokenMode, parse_theme, parse_theme_namespace_types,
 };
 
 #[cfg(test)]

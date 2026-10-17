@@ -308,7 +308,7 @@ impl StyleVariantPlan {
             paths
         };
         utility.variants = self.variants.iter().cloned().chain(suffix).collect();
-        utility.source.wrapper_variant_count = self.variants.len();
+        utility.diagnostic_data.wrapper_variant_count = self.variants.len();
     }
 
     /// Replaces `utility`'s variants and applications with this plan's resolved wrappers.

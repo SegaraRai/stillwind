@@ -280,7 +280,7 @@ impl CallEmitter<'_> {
                 );
                 if let Some(boundaries) = literal_boundaries(self.source, value) {
                     for utility in &mut contribution.utilities {
-                        for span in &mut utility.source.variant_spans {
+                        for span in &mut utility.diagnostic_data.variant_spans {
                             let start = (span.start.0 - value.span.start.0) as usize;
                             let end = (span.end.0 - value.span.start.0) as usize;
                             if let (Some(&start), Some(&end)) =
@@ -289,13 +289,14 @@ impl CallEmitter<'_> {
                                 *span = Span::new(value.span.file, start, end);
                             }
                         }
-                        if let Some(span) = utility.source.span {
+                        if let Some(span) = utility.diagnostic_data.span {
                             let start = (span.start.0 - value.span.start.0) as usize;
                             let end = (span.end.0 - value.span.start.0) as usize;
                             if let (Some(&start), Some(&end)) =
                                 (boundaries.get(start), boundaries.get(end))
                             {
-                                utility.source.span = Some(Span::new(value.span.file, start, end));
+                                utility.diagnostic_data.span =
+                                    Some(Span::new(value.span.file, start, end));
                             }
                         }
                     }

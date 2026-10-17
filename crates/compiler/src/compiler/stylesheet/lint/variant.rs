@@ -126,7 +126,9 @@ fn check_stack(checker: &mut Checker<'_>, prefix: &str, range: Range<usize>) {
         return;
     }
     let written = &checker.source.text()[range.clone()];
-    let stack = format_args!("{prefix}{written}:flex").to_lean_string();
+    // Both checks resolve only the variants of the candidate. The grammar requires
+    // a utility suffix, whose name is never looked up.
+    let stack = format_args!("{prefix}{written}:utility").to_lean_string();
     let Some(candidate) = parse_candidate(&stack) else {
         return;
     };

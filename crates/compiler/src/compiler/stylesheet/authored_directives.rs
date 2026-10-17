@@ -256,8 +256,11 @@ pub(super) fn variant_sequences(prelude: &str) -> Vec<Range<usize>> {
 /// Parses one `@variant` sequence, such as `hover:focus`, into its variants.
 ///
 /// Returns `None` when the text is empty or is not a complete variant list.
+/// The returned variants have not been resolved against theme definitions.
 pub(super) fn parse_variant_sequence(sequence: &str) -> Option<Vec<Variant>> {
-    let candidate = parse_candidate(&format_args!("{sequence}:flex").to_lean_string())?;
+    // The grammar requires a utility suffix. Only the variants are used, so the suffix
+    // needs no utility definition.
+    let candidate = parse_candidate(&format_args!("{sequence}:utility").to_lean_string())?;
     (!candidate.variants.is_empty()
         && candidate
             .variants
