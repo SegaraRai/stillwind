@@ -16,7 +16,7 @@ import {
   loadEditorCssGraph,
   type CssHost,
   type EditorCssGraph,
-} from "../css/index.ts";
+} from "../css/css.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
 import { StylesheetEditor } from "../project/stylesheet-editor.ts";
@@ -79,7 +79,7 @@ export class BrowserProject {
   readonly #facts: BrowserTypeFactsService;
   /** Lazily loaded CSS graph shared by all entry analyses. */
   #loader?: NativeDesignSystemLoader;
-  /** Original or recovered CSS graph retained for editor queries. Fixes use original CSS only. */
+  /** Original or recovered CSS graph retained for queries. Sorting and fixes require original CSS. */
   #editorCss?: EditorCssGraph;
   /** Native session retaining successful compiler artifacts across entry analyses. */
   #session?: NativeProjectSession;
@@ -382,8 +382,9 @@ export class BrowserProject {
 
   /**
    * Queries a captured source graph or a stylesheet in the project's CSS graph.
-   * CSS queries retry failed graph loads with recovered definitions for incomplete input.
-   * Recovered graphs provide no lint fixes. Script queries first analyze their entry.
+   * CSS completion, hover, resolution, and colors retry failed graph loads with recovered
+   * definitions. CSS sorting and lint fixes require the original graph to load successfully.
+   * Script queries first analyze their entry.
    * @param id - Absolute virtual entry path, including a query that selects distinct source.
    * @param request - Operation with original UTF-16 offsets for that source.
    * @returns The editor answer, or undefined when no snapshot is available, the CSS graph
@@ -396,6 +397,17 @@ export class BrowserProject {
       const task = this.#queue.then(async () => {
         if (this.#closed) {
           return undefined;
+        }
+        if (request.kind === "sort" || request.kind === "fixes") {
+          await this.#designSystem();
+          if (this.#editorCss?.recovered) {
+            this.#editorCss = undefined;
+            for (const [source, editor] of this.#editors) {
+              if (editor instanceof StylesheetEditor) {
+                this.#editors.delete(source);
+              }
+            }
+          }
         }
         if (!this.#editorCss) {
           this.#editorCss = this.#loader

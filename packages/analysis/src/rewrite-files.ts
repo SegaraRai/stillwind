@@ -45,8 +45,7 @@ export async function rewriteFiles(
   const worker = new AnalysisWorker();
   try {
     await worker.open(config);
-    // Lint fixes also edit the stylesheets that each project lints.
-    const files = await worker.targets(options.patterns, operation === "fixes");
+    const files = await worker.targets(options.patterns, true);
     if (!files.length) {
       throw new Error("No analysis targets matched the configured scopes");
     }

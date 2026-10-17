@@ -29,6 +29,47 @@ test("the root browser entry compiles and minifies CSS with WASI", () => {
   expect(() => minifyCss(".a { color red }")).toThrow(/CSS parse failed/);
 });
 
+test("browser CSS colors, picker edits, and statement sorting use WASI queries", async () => {
+  const id = "/workspace/theme.css";
+  const source =
+    "@theme { --color-brand:red; } @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);}\n/* 日本語 🦀 */ .a { @apply b; @apply a; @apply bg-brand; color:var(--color-brand); }";
+  const project = new BrowserProject({
+    root: "/workspace",
+    files: new Map([[id, source]]),
+    config: {
+      css: "theme.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+      lint: false,
+      sort: { applyStatements: true },
+    },
+  });
+  try {
+    const colors = (await project.query(id, { kind: "colors" }))!.colors!;
+    expect(colors.map((color) => source.slice(color.start, color.end))).toEqual([
+      "bg-brand",
+      "var(--color-brand)",
+    ]);
+    const picker = await project.query(id, {
+      kind: "colorPresentation",
+      ...colors[0],
+      color: { red: 0, green: 0, blue: 1, alpha: 1 },
+    });
+    expect(picker!.edits![0].newText).toBe("bg-[#0000ff]");
+    const reference = await project.query(id, {
+      kind: "colorPresentation",
+      ...colors[1],
+      color: { red: 0, green: 1, blue: 0, alpha: 1 },
+    });
+    expect(reference!.edits![0].newText).toBe("#00ff00");
+    const sorted = (await project.query(id, { kind: "sort" }))!.edits!;
+    expect(sorted).toHaveLength(1);
+    expect(sorted[0].newText).toBe("@apply a; @apply b; @apply bg-brand;");
+  } finally {
+    await project.close();
+  }
+});
+
 test("browser editor sorting groups inputs and orders utility and attribute names independently", async () => {
   const source = `import {style} from "stillwind/react";
 // 日本語 🦀

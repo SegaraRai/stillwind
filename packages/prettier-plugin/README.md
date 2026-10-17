@@ -18,8 +18,10 @@ export default {
 };
 ```
 
-JavaScript, JSX, TypeScript, and TSX use Prettier's existing parsers and printers. Vue uses its
-built-in parser. Svelte and Astro require their language plugins to be installed and loaded
+JavaScript, JSX, TypeScript, TSX, and CSS use Prettier's existing parsers and printers. CSS sorting
+uses `sort.applyUtilities` (true by default), `sort.applyStatements`, and `sort.variantBlocks`
+(both false by default). Vue uses its built-in parser. Svelte and Astro require their language
+plugins to be installed and loaded
 before the Stillwind plugin:
 
 ```js
@@ -35,7 +37,8 @@ Prettier formatting. Invalid explicit configuration and incomplete or conflictin
 the formatting request. The plugin runs in Node.js and does not provide a browser entry point.
 
 `prettier-ignore` protects the following syntax node from sorting. Range formatting protects
-source outside the supplied range. Sorting preserves token spellings and source length, and
+source outside the supplied range. CSS statement and variant movement also preserves the relative
+order of competing property writes. Sorting preserves token spellings and source length, and
 the adapter keeps cursors attached to uniquely identifiable tokens within reordered literals.
 Duplicate or ambiguous tokens retain their relative cursor offset within the replacement.
 

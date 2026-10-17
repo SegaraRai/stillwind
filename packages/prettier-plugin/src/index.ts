@@ -11,6 +11,7 @@ import type { Parser, ParserOptions, Plugin, SupportOptions } from "prettier";
 import { parsers as babelParsers } from "prettier/plugins/babel";
 import { parsers as flowParsers } from "prettier/plugins/flow";
 import { parsers as htmlParsers } from "prettier/plugins/html";
+import { parsers as cssParsers } from "prettier/plugins/postcss";
 import { parsers as typescriptParsers } from "prettier/plugins/typescript";
 
 import { mapOffset } from "./cursor.ts";
@@ -43,6 +44,7 @@ const bases: Record<string, Parser> = {
   flow: flowParsers.flow,
   typescript: typescriptParsers.typescript,
   vue: htmlParsers.vue,
+  css: cssParsers.css,
 };
 
 for (const name of ["prettier-plugin-svelte", "prettier-plugin-astro"] as const) {
@@ -175,10 +177,13 @@ async function delegateParser(
  *
  * @param parser - Prettier parser name. Component parsers require their exact lowercase suffix.
  * @param file - Filepath supplied by Prettier, before resolution to an absolute path.
- * @returns Whether the component suffix matches, or a case-insensitive JS/TS suffix matches
- * without a TypeScript declaration suffix.
+ * @returns Whether the component suffix matches, the CSS parser has a case-insensitive `.css`
+ * suffix, or a JS/TS suffix matches without a TypeScript declaration suffix.
  */
 function matchesFile(parser: string, file: string): boolean {
+  if (parser === "css") {
+    return /\.css$/i.test(file);
+  }
   if (["vue", "svelte", "astro"].includes(parser)) {
     return file.endsWith(`.${parser}`);
   }

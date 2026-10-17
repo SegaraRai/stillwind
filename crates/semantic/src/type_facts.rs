@@ -27,6 +27,7 @@ impl CheckedValue {
     /// Validates an asset's family and candidate kinds. Confirmed non-assets are valid.
     ///
     /// # Errors
+    ///
     /// Returns an error when an asset family disagrees with its symbolic kind.
     pub fn validate(&self) -> Result<(), SymbolicError> {
         match self {

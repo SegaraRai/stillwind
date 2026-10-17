@@ -58,6 +58,25 @@ export declare class NativeDesignSystemLoader {
 
 /** Candidate operations for one immutable design system and explicitly supplied source buffers. */
 export declare class NativeEditorQuery {
+  /**
+   * Returns concrete colors with original byte ranges, including incomplete CSS
+   * blocks. Runtime references use the active theme definition.
+   *
+   * # Errors
+   *
+   * Returns malformed utility requirements or offsets exceeding uint32.
+   */
+  stylesheetColors(source: string): Array<NativeStylesheetColor>
+  /**
+   * Plans nonoverlapping source edits with captured CSS sorting targets. Protected
+   * ranges use original UTF-8 bytes. Invalid ranges reject the request.
+   *
+   * # Errors
+   *
+   * Returns malformed requirements, invalid protected ranges, or offsets exceeding
+   * uint32.
+   */
+  sortStylesheet(source: string, protected?: Array<NativeStylesheetRange> | undefined | null): Array<NativeEditorLintEdit>
   /** Returns the captured design-system fingerprint used by completion resolution. */
   revision(): string
   /**
@@ -684,6 +703,8 @@ export interface NativeCompilerOptions {
   tailwindPrefix?: string
   /** Ordering strategy: authored or tailwind. Defaults to authored. */
   utilityOrder?: string
+  /** Independent CSS sorting targets. Omission sorts only @apply arguments. */
+  stylesheetSort?: NativeStylesheetSortOptions
   /**
    * Minimum browser versions, for example `["chrome111", "safari17"]`.
    * Omission or an empty list keeps generated color compatibility branches.
@@ -704,7 +725,10 @@ export interface NativeCompilerOptions {
    * Defaults to 5. Values from 1 to 50 are accepted.
    */
   hashLength?: number
-  /** Positive finite pixels per rem in the documents that use the CSS. Defaults to 16. */
+  /**
+   * Positive finite pixels per rem in the documents that use the CSS.
+   * Defaults to 16.
+   */
   rootFontSize?: number
 }
 
@@ -1523,6 +1547,24 @@ export interface NativeStyleDependency {
   base: NativeIdentity
 }
 
+/** A concrete sRGB color at an original CSS utility or reference. */
+export interface NativeStylesheetColor {
+  /** Inclusive original UTF-8 byte boundary. */
+  start: number
+  /** Exclusive original UTF-8 byte boundary. */
+  end: number
+  /** sRGB red component in 0..1. */
+  red: number
+  /** sRGB green component in 0..1. */
+  green: number
+  /** sRGB blue component in 0..1. */
+  blue: number
+  /** Effective opacity in 0..1. */
+  alpha: number
+  /** Original utility spelling. Omitted for a reference replaced by a CSS literal. */
+  candidate?: string
+}
+
 /** A CSS completion whose replacement range counts original UTF-8 bytes. */
 export interface NativeStylesheetCompletion {
   /** Inclusive byte offset of the replaced input. */
@@ -1622,6 +1664,14 @@ export interface NativeStylesheetProducer {
   analysisRevision: string
 }
 
+/** A half-open UTF-8 byte range in an original stylesheet. */
+export interface NativeStylesheetRange {
+  /** Inclusive original UTF-8 byte boundary. */
+  start: number
+  /** Exclusive original UTF-8 byte boundary. */
+  end: number
+}
+
 /** Producers, coverage claim, and placement for one output. */
 export interface NativeStylesheetSelection {
   /** Module paths to include. */
@@ -1630,6 +1680,22 @@ export interface NativeStylesheetSelection {
   coverage: NativeCoverage
   /** Where the rendered CSS will be placed. */
   placement: NativeStylesheetPlacement
+}
+
+/** Independent CSS sorting targets shared by editor queries and stylesheet lint. */
+export interface NativeStylesheetSortOptions {
+  /** Sorts arguments within each @apply statement. Defaults to true. */
+  applyUtilities?: boolean
+  /**
+   * Orders adjacent @apply statements while retaining competing writes. Defaults to
+   * false.
+   */
+  applyStatements?: boolean
+  /**
+   * Orders adjacent applied @variant blocks while retaining competing writes.
+   * Defaults to false.
+   */
+  variantBlocks?: boolean
 }
 
 /** A value whose exact runtime identity may not be known statically. */

@@ -9,6 +9,53 @@ import type { CliResult } from "../src/result.ts";
 
 const main = path.resolve(import.meta.dirname, "../dist/main.js");
 
+test("fmt includes imported CSS, applies independent targets without lint, and preserves unchanged bytes", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-css-format-"));
+  try {
+    const config = path.join(root, "stillwind.config.json");
+    const project = {
+      css: "root.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+      lint: false,
+      sort: { applyUtilities: true, applyStatements: true, variantBlocks: true },
+    };
+    await writeFile(config, JSON.stringify({ projects: [project] }));
+    await writeFile(
+      path.join(root, "root.css"),
+      '@import "./local.css"; @utility a{display:block;} @utility b{margin:1px;} @utility c{padding:1px;} @custom-variant hover (&:hover); @custom-variant focus (&:focus);',
+    );
+    const file = path.join(root, "local.css");
+    const source =
+      "/* 日本語 🦀 */\r\n.a { @apply c; @apply b a; @variant focus { @apply c; } @variant hover { @apply a; } }\r\n";
+    await writeFile(file, source);
+    const check = await run(root, ["fmt", "--check", "--format", "json"]);
+    expect(check.code, check.stderr).toBe(1);
+    expect(JSON.parse(check.stdout).changed.map(path.normalize)).toEqual([file]);
+    expect(await readFile(file, "utf8")).toBe(source);
+    const result = await run(root, ["fmt"]);
+    expect(result.code, result.stderr).toBe(0);
+    const formatted = await readFile(file, "utf8");
+    expect(formatted).toBe(
+      source
+        .replace("@apply c; @apply b a;", "@apply a b; @apply c;")
+        .replace(
+          "@variant focus { @apply c; } @variant hover { @apply a; }",
+          "@variant hover { @apply a; } @variant focus { @apply c; }",
+        ),
+    );
+    const before = (await stat(file)).mtimeMs;
+    expect((await run(root, ["fmt", "--check"])).code).toBe(0);
+    expect((await stat(file)).mtimeMs).toBe(before);
+    await writeFile(config, JSON.stringify({ projects: [{ ...project, sort: false }] }));
+    await writeFile(file, source);
+    expect((await run(root, ["fmt", "--check"])).code).toBe(0);
+    expect(await readFile(file, "utf8")).toBe(source);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("fmt checks and sorts with byte preservation; unchanged fmt and lint fixes preserve mtime", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-format-"));
   try {

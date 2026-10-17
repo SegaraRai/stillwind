@@ -20,6 +20,7 @@ use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrid
 use stillwind_source::ReplaceText;
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
+use crate::query::StylesheetSortOptions;
 
 /// Knobs a host may set per compilation.
 ///
@@ -40,6 +41,9 @@ pub struct CompilerOptions {
     /// Strategy for ordering resolved utilities. Defaults to authored definition
     /// positions.
     pub utility_order: UtilityOrderMode,
+    /// Targets for stylesheet sorting and its diagnostics. These flags do not change
+    /// generated CSS. Explicit sorting remains available when lint is disabled.
+    pub stylesheet_sort: StylesheetSortOptions,
     /// Minimum browser versions used to remove generated color compatibility branches.
     pub target: BrowserTargets,
     /// Extra namespace mixed into class identity, so two independently built projects
@@ -76,6 +80,7 @@ impl Default for CompilerOptions {
             prefix: "--sw-".to_lean_str(),
             tailwind_prefix: "--tw-".to_lean_str(),
             utility_order: UtilityOrderMode::default(),
+            stylesheet_sort: StylesheetSortOptions::default(),
             target: BrowserTargets::default(),
             class_namespace: LeanStr::new(),
             use_css_if: false,

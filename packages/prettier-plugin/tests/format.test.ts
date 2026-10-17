@@ -40,6 +40,30 @@ test("Prettier sorts unsaved buffers, keeps ignored nodes, and is idempotent", a
   });
 });
 
+test("CSS formatting sorts apply arguments and respects ignores and formatting ranges", async () => {
+  await project(async (root) => {
+    const filepath = path.join(root, "root.css");
+    const definitions = await readFile(filepath, "utf8");
+    const source = `${definitions}\n/* prettier-ignore */\n.ignored { @apply flex block; }\n.before { @apply flex block; }\n.selected { @apply flex block; }\n`;
+    const options = {
+      filepath,
+      plugins: [plugin],
+    };
+    const output = await format(source, options);
+    expect(output).toContain(".ignored { @apply flex block; }");
+    expect(output.match(/@apply block flex/g)).toHaveLength(2);
+    expect(await format(output, options)).toBe(output);
+    const selected = await format(source, {
+      ...options,
+      rangeStart: source.indexOf(".selected"),
+      rangeEnd: source.length,
+    });
+    expect(selected).toContain(".before { @apply flex block; }");
+    expect(selected).toContain("@apply block flex;");
+    expect(await readFile(filepath, "utf8")).toBe(definitions);
+  });
+});
+
 test("range formatting changes only the selected source and cursors follow reordered utilities", async () => {
   await project(async (root) => {
     const filepath = path.join(root, "entry.tsx");

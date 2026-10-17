@@ -8,7 +8,8 @@ use lean_string::{LeanString, ToLeanString};
 use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{DesignSystemSnapshot, ThemeIndex};
 use stillwind_diagnostics::{
-    LintFinding, LintKind, LintSettings, LintSurface, SourceRange, finish_lint_findings,
+    FixAction, LintDiagnostic, LintFinding, LintKind, LintSettings, LintSurface, SourceEdit,
+    SourceRange, finish_lint_findings,
 };
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
@@ -75,6 +76,36 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
             };
             let nodes = parse_structure(source.source.text());
             checker.visit(&nodes, &[LeanString::new()], false);
+            if checker.enabled(LintKind::PreferSortedUtilities)
+                && let Ok(edits) = query.sort_stylesheet(source.source.text(), &[])
+            {
+                for edit in edits {
+                    let span = checker.span(edit.range);
+                    let mut finding = LintFinding::new(
+                        if edit.directives {
+                            LintDiagnostic::UnsortedStylesheet
+                        } else {
+                            LintDiagnostic::UnsortedUtilities
+                        },
+                        span,
+                    );
+                    if let Some(range) = checker.edit_range(span) {
+                        finding.actions.push(FixAction {
+                            title: if edit.directives {
+                                "Sort Stillwind CSS inputs"
+                            } else {
+                                "Sort Stillwind utilities"
+                            }
+                            .into(),
+                            edits: vec![SourceEdit {
+                                range,
+                                replacement: edit.replacement,
+                            }],
+                        });
+                    }
+                    checker.report(finding);
+                }
+            }
             for definition in definitions(&nodes, source.source.text()) {
                 check_nesting(&mut checker, &definition);
                 check_utility_namespaces(&mut checker, &definition);

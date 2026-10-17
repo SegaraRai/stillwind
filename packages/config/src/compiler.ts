@@ -11,7 +11,7 @@ import {
 } from "./lint.ts";
 import { nonemptyText, strictObject, validate } from "./validation.ts";
 
-/** Controls input grouping and independent utility and attribute ordering. */
+/** Controls independent sorting targets in scripts and stylesheets. */
 export type UtilitySortOptions = {
   /** Sorts utilities within each static string or template segment. Defaults to true. */
   stringLiterals?: boolean;
@@ -23,6 +23,12 @@ export type UtilitySortOptions = {
   arrays?: boolean;
   /** Sorts aria-/data- names within adjacent attribute entries. Defaults to false. */
   attributes?: boolean;
+  /** Sorts utilities within each CSS `@apply` statement. Defaults to true. */
+  applyUtilities?: boolean;
+  /** Orders adjacent CSS `@apply` statements while preserving competing writes. Defaults to false. */
+  applyStatements?: boolean;
+  /** Orders adjacent applied CSS `@variant` blocks while preserving competing writes. Defaults to false. */
+  variantBlocks?: boolean;
 };
 
 /** Controls document CSS delivery through build integrations. */
@@ -133,6 +139,9 @@ const sortOptionsSchema = strictObject({
   stringLiterals: v.optional(v.boolean()),
   arrays: v.optional(v.boolean()),
   attributes: v.optional(v.boolean()),
+  applyUtilities: v.optional(v.boolean()),
+  applyStatements: v.optional(v.boolean()),
+  variantBlocks: v.optional(v.boolean()),
 });
 
 const browserTarget = v.pipe(
@@ -296,11 +305,17 @@ export function normalizeCompilerConfig(
             stringLiterals: false,
             arrays: false,
             attributes: false,
+            applyUtilities: false,
+            applyStatements: false,
+            variantBlocks: false,
           }
         : {
             stringLiterals: config.sort?.stringLiterals ?? true,
             arrays: config.sort?.arrays ?? true,
             attributes: config.sort?.attributes ?? false,
+            applyUtilities: config.sort?.applyUtilities ?? true,
+            applyStatements: config.sort?.applyStatements ?? false,
+            variantBlocks: config.sort?.variantBlocks ?? false,
           },
     lint,
   };

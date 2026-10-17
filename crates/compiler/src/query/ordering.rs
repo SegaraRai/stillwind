@@ -20,6 +20,7 @@ impl DesignSystemQuery {
     /// and each unresolved spelling are retained for this immutable query.
     ///
     /// # Errors
+    ///
     /// Returns a malformed requirement from a matching utility definition.
     pub fn compare_candidates(
         &self,
@@ -42,6 +43,7 @@ impl DesignSystemQuery {
     /// only to this batch and cannot be compared with ranks from another call.
     ///
     /// # Errors
+    ///
     /// Returns the first malformed matching utility requirement in input order.
     pub fn candidate_ranks(
         &self,

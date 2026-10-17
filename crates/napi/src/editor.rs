@@ -171,6 +171,34 @@ pub struct NativeStylesheetHover {
     pub documentation: String,
 }
 
+/// A half-open UTF-8 byte range in an original stylesheet.
+#[napi(object)]
+pub struct NativeStylesheetRange {
+    /// Inclusive original UTF-8 byte boundary.
+    pub start: u32,
+    /// Exclusive original UTF-8 byte boundary.
+    pub end: u32,
+}
+
+/// A concrete sRGB color at an original CSS utility or reference.
+#[napi(object, object_from_js = false)]
+pub struct NativeStylesheetColor {
+    /// Inclusive original UTF-8 byte boundary.
+    pub start: u32,
+    /// Exclusive original UTF-8 byte boundary.
+    pub end: u32,
+    /// sRGB red component in 0..1.
+    pub red: f64,
+    /// sRGB green component in 0..1.
+    pub green: f64,
+    /// sRGB blue component in 0..1.
+    pub blue: f64,
+    /// Effective opacity in 0..1.
+    pub alpha: f64,
+    /// Original utility spelling. Omitted for a reference replaced by a CSS literal.
+    pub candidate: Option<String>,
+}
+
 /// Extracts definitions and imports for an editor-only load of incomplete CSS.
 /// Ordinary compilation and lint must continue to use the original source.
 #[napi]
@@ -188,6 +216,74 @@ pub struct NativeEditorQuery {
 #[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 impl NativeEditorQuery {
+    /// Returns concrete colors with original byte ranges, including incomplete CSS
+    /// blocks. Runtime references use the active theme definition.
+    ///
+    /// # Errors
+    ///
+    /// Returns malformed utility requirements or offsets exceeding uint32.
+    #[napi]
+    pub fn stylesheet_colors(&self, source: String) -> napi::Result<Vec<NativeStylesheetColor>> {
+        self.query
+            .stylesheet_colors(&source)
+            .map_err(|error| Error::from_reason(error.to_string()))?
+            .into_iter()
+            .map(|color| {
+                Ok(NativeStylesheetColor {
+                    start: u32::try_from(color.range.start)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    end: u32::try_from(color.range.end)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    red: color.rgba[0],
+                    green: color.rgba[1],
+                    blue: color.rgba[2],
+                    alpha: color.rgba[3],
+                    candidate: color.candidate.map(Into::into),
+                })
+            })
+            .collect()
+    }
+
+    /// Plans nonoverlapping source edits with captured CSS sorting targets. Protected
+    /// ranges use original UTF-8 bytes. Invalid ranges reject the request.
+    ///
+    /// # Errors
+    ///
+    /// Returns malformed requirements, invalid protected ranges, or offsets exceeding
+    /// uint32.
+    #[napi]
+    pub fn sort_stylesheet(
+        &self,
+        source: String,
+        protected: Option<Vec<NativeStylesheetRange>>,
+    ) -> napi::Result<Vec<NativeEditorLintEdit>> {
+        let protected = protected
+            .unwrap_or_default()
+            .into_iter()
+            .map(|range| {
+                let (start, end) = (range.start as usize, range.end as usize);
+                if start > end || !source.is_char_boundary(start) || !source.is_char_boundary(end) {
+                    return Err(Error::from_reason("Invalid protected CSS range"));
+                }
+                Ok(start..end)
+            })
+            .collect::<napi::Result<Vec<_>>>()?;
+        self.query
+            .sort_stylesheet(&source, &protected)
+            .map_err(|error| Error::from_reason(error.to_string()))?
+            .into_iter()
+            .map(|edit| {
+                Ok(NativeEditorLintEdit {
+                    start: u32::try_from(edit.range.start)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    end: u32::try_from(edit.range.end)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    replacement: edit.replacement.into(),
+                })
+            })
+            .collect()
+    }
+
     /// Returns the captured design-system fingerprint used by completion resolution.
     #[napi]
     pub fn revision(&self) -> String {

@@ -4,6 +4,61 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("CSS color ranges and sorting policies share native and WASM contracts", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader({
+      stylesheetSort: {
+        applyStatements: true,
+        variantBlocks: true,
+      },
+    });
+    loader.provide(
+      0,
+      "theme.css",
+      "@theme { --color-brand:red; } @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);} @custom-variant hover (&:hover);",
+    );
+    const query = loader.editorQuery();
+    const source = "/* 日本語 🦀 */ .a { @apply hover:bg-brand; color:var(--color-brand); }";
+    const bytes = new TextEncoder().encode(source);
+    const colors = query.stylesheetColors(source);
+    expect(
+      colors.map((color: { start: number; end: number }) =>
+        new TextDecoder().decode(bytes.slice(color.start, color.end)),
+      ),
+    ).toEqual(["hover:bg-brand", "var(--color-brand)"]);
+    expect(colors[0]).toMatchObject({
+      red: 1,
+      green: 0,
+      blue: 0,
+      alpha: 1,
+      candidate: "hover:bg-brand",
+    });
+    const css = ".a { @apply b; @apply a; }";
+    expect(query.sortStylesheet(css)).toEqual([
+      {
+        start: 5,
+        end: css.length - 2,
+        replacement: "@apply a; @apply b;",
+      },
+    ]);
+    expect(
+      query.sortStylesheet(css, [
+        {
+          start: 0,
+          end: css.length,
+        },
+      ]),
+    ).toEqual([]);
+    expect(() =>
+      query.sortStylesheet(css, [
+        {
+          start: 100,
+          end: 101,
+        },
+      ]),
+    ).toThrow("Invalid protected CSS range");
+  });
+
   test("stylesheet queries preserve byte ranges and resolve incomplete applications, variants, and theme references", async () => {
     const { NativeDesignSystemLoader, editorCssSource } = await import(specifier);
     const loader = new NativeDesignSystemLoader();

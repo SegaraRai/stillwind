@@ -98,7 +98,6 @@ pub(super) fn check_application(
         }
     }
     check_pairs(checker, &resolved);
-    check_order(checker, candidates);
 }
 
 /// Reports `prefer-canonical-utilities` for `raw` at `span` with a fix that writes the
@@ -232,57 +231,4 @@ fn declarations(css: &str) -> Vec<(LeanString, &str)> {
             Some((property.trim().to_ascii_lowercase().into(), value.trim()))
         })
         .collect()
-}
-
-/// Reports `prefer-sorted-utilities` when the `candidates` of one statement differ from
-/// compiler order, with a fix that writes them in that order.
-///
-/// A candidate that does not resolve keeps its position and separates the runs that
-/// are sorted, as the editor sorts script literals. Whitespace and comments between
-/// candidates keep their positions.
-fn check_order(checker: &mut Checker<'_>, candidates: &[Range<usize>]) {
-    let (Some(first), Some(last)) = (candidates.first(), candidates.last()) else {
-        return;
-    };
-    if candidates.len() < 2 || !checker.enabled(LintKind::PreferSortedUtilities) {
-        return;
-    }
-    let text = checker.source.text();
-    let raws = candidates
-        .iter()
-        .map(|range| &text[range.clone()])
-        .collect::<Vec<_>>();
-    let Ok(ranks) = checker.query.candidate_ranks(&raws) else {
-        return;
-    };
-    let mut order = (0..raws.len()).collect::<Vec<_>>();
-    let mut start = 0;
-    for position in 0..=raws.len() {
-        if position == raws.len() || ranks[position].is_none() {
-            order[start..position].sort_by_key(|&index| ranks[index]);
-            start = position + 1;
-        }
-    }
-    if order.iter().enumerate().all(|(slot, &index)| slot == index) {
-        return;
-    }
-    let mut replacement = LeanString::new();
-    let mut cursor = first.start;
-    for (slot, &index) in order.iter().enumerate() {
-        replacement.push_str(&text[cursor..candidates[slot].start]);
-        replacement.push_str(raws[index]);
-        cursor = candidates[slot].end;
-    }
-    let span = checker.span(first.start..last.end);
-    let mut finding = LintFinding::new(LintDiagnostic::UnsortedUtilities, span);
-    if let Some(range) = checker.edit_range(span) {
-        finding.actions.push(FixAction {
-            title: "Sort Stillwind utilities".into(),
-            edits: vec![SourceEdit {
-                range,
-                replacement: replacement.into(),
-            }],
-        });
-    }
-    checker.report(finding);
 }

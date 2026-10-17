@@ -1,6 +1,8 @@
 import type { BaseConfig, PreviewOptions } from "@stillwind/config";
 import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillwind/native";
 
+import { CandidateQueries } from "../editor/candidates.ts";
+import { colorReplacement, cssColor } from "../editor/colors.ts";
 import type { EditorEdit, EditorRequest, EditorResult } from "../editor/snapshot.ts";
 
 /** Answers CSS queries and lint fixes from one original buffer and captured design system. */
@@ -24,6 +26,7 @@ export class StylesheetEditor {
 
   /**
    * Captures original text, lint reports, and query settings for one stylesheet revision.
+   * Callers must load the original CSS graph before using sorting or lint fixes.
    * @param id - Resolver identity of the stylesheet.
    * @param text - Complete stylesheet text that the reports were computed from.
    * @param reports - Reports whose primary location is this stylesheet. Reports and edits are copied.
@@ -52,7 +55,7 @@ export class StylesheetEditor {
   }
 
   /**
-   * Answers completion, hover, completion resolution, and lint-fix requests.
+   * Answers completion, hover, colors, sorting, and lint-fix requests.
    *
    * @param id - Resolver identity of the requested source.
    * @param request - Operation in the stylesheet's original UTF-16 coordinates. Cursor offsets must
@@ -62,15 +65,53 @@ export class StylesheetEditor {
    * Completion includes original replacement ranges. Hover includes formatted CSS or documentation
    * when the input resolves. Resolve omits hover when its snapshot or label no longer matches.
    * Fixes select each report's first action when all edits address this revision and do not overlap
-   * a selected action, then sort edits by offset. Sort returns no edits because CSS sorting is a lint
-   * fix. Color requests return the fingerprint without additional data.
+   * a selected action, then sort edits by offset. Sort uses captured CSS targets independently of
+   * lint reporting. Colors include original utility or reference ranges; presentations replace
+   * only a currently recognized range in this buffer.
    * @throws If a matching utility definition has a malformed requirement or CSS formatting fails.
    */
   query(id: string, request: EditorRequest): EditorResult | undefined {
     if (id !== this.#id) {
       return undefined;
     }
-    const result: EditorResult = { revision: this.#revision };
+
+    const result: EditorResult = {
+      revision: this.#revision,
+    };
+    if (request.kind === "colors" || request.kind === "colorPresentation") {
+      const colors = this.#query.stylesheetColors(this.#text).map((color) => ({
+        ...color,
+        start: this.#utf16(color.start),
+        end: this.#utf16(color.end),
+      }));
+      if (request.kind === "colors") {
+        result.colors = colors.map(({ candidate: _candidate, ...color }) => color);
+      } else {
+        const color = colors.find(
+          (color) => color.start === request.start && color.end === request.end,
+        );
+        if (color) {
+          const newText = color.candidate
+            ? colorReplacement(
+                color.candidate,
+                "",
+                request.color,
+                new CandidateQueries(this.#query),
+              )
+            : cssColor(request.color);
+          if (newText) {
+            result.edits = [
+              {
+                start: color.start,
+                end: color.end,
+                newText,
+              },
+            ];
+          }
+        }
+      }
+      return result;
+    }
     if (request.kind === "completion") {
       result.completions = this.#query
         .completeStylesheet(this.#text, this.#byteOffset(request.offset))
@@ -98,12 +139,28 @@ export class StylesheetEditor {
           this.#text.slice(0, start) + item.label + this.#text.slice(this.#utf16(item.end));
         const hover = this.#hover(text, start + item.label.length);
         if (hover) {
-          result.hover = { ...hover, start: 0, end: 0 };
+          result.hover = {
+            ...hover,
+            start: 0,
+            end: 0,
+          };
         }
       }
     }
     if (request.kind === "sort") {
-      result.edits = [];
+      result.edits = this.#query
+        .sortStylesheet(
+          this.#text,
+          request.protectedRanges?.map((range) => ({
+            start: this.#byteOffset(range.start),
+            end: this.#byteOffset(range.end),
+          })),
+        )
+        .map((edit) => ({
+          start: this.#utf16(edit.start),
+          end: this.#utf16(edit.end),
+          newText: edit.replacement,
+        }));
     }
     if (request.kind === "fixes") {
       const edits: EditorEdit[] = [];

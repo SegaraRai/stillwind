@@ -230,11 +230,11 @@ Lint exits with `0` after complete checks without error reports, `1` for compile
 errors or deny-level findings, and `2` for initialization failures, incomplete
 analysis, or an empty target selection. Warnings preserve exit code `0`.
 
-`fmt` sorts recognized Stillwind inputs independently of sorting lint severity and source lint
-suppression. It leaves layout and utility spelling intact. `fmt --check` writes nothing and returns
-`1` when sorting would change a file. Use `stillwind fmt && vp fmt` to apply sorting and general
-formatting. The [Prettier plugin](../packages/prettier-plugin/README.md) performs sorting within
-Prettier's parser pipeline.
+`fmt` sorts recognized Stillwind inputs in scripts and stylesheets independently of sorting lint
+severity and source lint suppression. It leaves layout and utility spelling intact. `fmt --check`
+writes nothing and returns `1` when sorting would change a file. Use `stillwind fmt && vp fmt` to
+apply sorting and general formatting. The [Prettier plugin](../packages/prettier-plugin/README.md)
+performs sorting within Prettier's parser pipeline.
 
 `lint --fix` applies enabled automatic fixes until they converge and reports findings from the
 final source buffers. Source lint suppression still applies. Both commands compare original and
@@ -362,8 +362,9 @@ check stylesheets. One severity setting applies to every source that a rule chec
 In a stylesheet, only `/* ... */` comments carry `swlint-*` directives. A directive
 that names a rule that does not check stylesheets reports `invalid-lint-suppression`.
 
-`stillwind lint` and `lint --fix` add the linted stylesheets of each project to the
-script targets. `fmt` does not change stylesheets. The language server publishes
+`stillwind lint`, `lint --fix`, and `fmt` add each project's CSS entry and imported user
+stylesheets to the script targets. Explicit file patterns filter both kinds of targets.
+The language server publishes
 diagnostics and quick fixes for open CSS documents and uses unsaved CSS buffers when
 it loads the design system. When the CSS graph cannot load, script analysis reports
 the failure, and no stylesheet is linted.
@@ -374,9 +375,19 @@ CSS editor queries complete Stillwind at-rule names, `@apply` candidates, applie
 directive and slot documentation, or the active theme definition. A `var()` hover
 describes that definition; the browser's cascade can override its value.
 
+Color queries resolve `@apply` candidates and complete `theme()`, `--theme()`, and
+`var()` references to active theme values. Unknown, cyclic, contextual, and ambiguous
+colors are omitted. References inside `@apply` candidates are handled through the
+whole candidate. A color presentation preserves a utility's variants, importance, and
+modifier, and returns no edit when the candidate cannot reproduce the requested color.
+Changing a reference replaces that entire function call with a color literal at the
+current use. It does not edit the referenced theme declaration. Ordinary CSS color
+literals remain available through the editor's standard CSS provider.
+
 Queries accept incomplete blocks and candidates. When original CSS cannot load,
 the editor retries with recovered imports and definitions. This recovery does not
-supply compilation output, lint diagnostics, or fixes. Unreadable files and
+supply compilation output, lint diagnostics, sorting, or lint fixes. Color queries
+and color presentations can use recovered definitions. Unreadable files and
 unresolved imports can still prevent semantic queries. Completion resolution
 requires the same document, design-system revision, and preview settings.
 
@@ -775,16 +786,43 @@ suppression uses the same rule names, for example
 
 ## Editor sorting
 
-`sort.arrays` groups direct arrays, `style()` argument lists, and object entries by input kind. It defaults to true. Ref groups retain their first appearance order, with each ref's marker before its projections. Bases, utilities, custom properties, and attributes follow. Entries in each category retain their original order. A base can contain variants, custom properties, or composed styles; the sorter uses its identity without inspecting its body or CSS.
+`sort.arrays` groups direct arrays, `style()` argument lists, and object entries by
+input kind. It defaults to true. Ref groups retain their first appearance order, with
+each ref's marker before its projections. Bases, utilities, custom properties, and
+attributes follow. Entries in each category retain their original order. A base can
+contain variants, custom properties, or composed styles; the sorter uses its identity
+without inspecting its body or CSS.
 
-`sort.stringLiterals` defaults to true and sorts utility tokens inside each static string or template segment using compiler order. This does not reorder separate utility array elements. Unknown utility tokens delimit sortable string runs.
+`sort.stringLiterals` defaults to true and sorts utility tokens inside each static
+string or template segment using compiler order. This does not reorder separate utility
+array elements. Unknown utility tokens delimit sortable string runs.
 
-`sort: false` disables utility sorting, input grouping, and attribute name sorting.
+`sort: false` disables all sorting targets in scripts and stylesheets.
 It also disables sorting diagnostics and sorting fixes. Other lint rules and fixes
 remain active. An inline `sort: false` replaces the project's sort options; an object
 override of false uses the default targets for omitted fields.
 
-`sort.attributes` defaults to false. Set it to true to sort adjacent `aria-` and `data-` property names. It works independently of the other two options. Duplicate names keep their original order. Spreads, unsupported expressions, ambiguous comments, and unmapped source regions delimit sortable input runs. Explicit sorting is available when sorting diagnostics are off; lint fixes respect source suppression.
+`sort.attributes` defaults to false. Set it to true to sort adjacent `aria-` and `data-`
+property names. Duplicate names keep their original order. Spreads, unsupported
+expressions, ambiguous comments, and unmapped source regions delimit sortable input runs.
+
+The CSS targets are independent:
+
+- `sort.applyUtilities` defaults to true. It sorts utility arguments inside each complete
+  `@apply` statement using compiler order. Unknown utilities and comments delimit sortable runs.
+- `sort.applyStatements` defaults to false. It orders adjacent `@apply` statements by their
+  utilities' compiler order. It keeps each statement intact and leaves argument sorting to
+  `applyUtilities`.
+- `sort.variantBlocks` defaults to false. It orders adjacent applied `@variant` blocks by
+  compiler variant order. It preserves each header and never moves variant definitions.
+
+Whole statements and blocks move only among siblings of the same kind separated by whitespace.
+Competing property writes retain their relative order, even under different variants. This
+includes shorthand and longhand properties, logical properties, `all`, and custom properties.
+Comments, ordinary declarations and rules, unknown effects, and protected ranges stop movement.
+The sorter combines inner edits with outer movement and returns nonoverlapping edits in original
+source coordinates. Explicit sorting remains available with `lint: false` or sorting diagnostics
+off. Lint fixes respect source suppression and use the same CSS edit planner.
 
 ```ts
 import { defineConfig } from "stillwind/config";
@@ -798,6 +836,9 @@ export default defineConfig({
         arrays: true,
         stringLiterals: true,
         attributes: true,
+        applyUtilities: true,
+        applyStatements: true,
+        variantBlocks: true,
       },
     },
   ],

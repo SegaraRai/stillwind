@@ -122,6 +122,8 @@ export class AnalysisProject {
       revision: number;
       /** Immutable view used for editor queries: a script graph or one linted stylesheet. */
       snapshot: EditorSnapshot | StylesheetEditor;
+      /** True when CSS definitions were recovered and structural edits require strict analysis. */
+      recovered?: boolean;
     }
   >();
 
@@ -224,7 +226,7 @@ export class AnalysisProject {
    *
    * @param editor - When false (the default), loads the original CSS and rejects invalid input.
    * When true, retries a failed load with recovered definitions so incomplete CSS can still
-   * determine membership for completion and hover.
+   * determine membership for completion, hover, and colors.
    * @returns Identities of the CSS entry and the imported files that the CSS host marks for lint,
    * in load order. Package CSS is excluded unless the host marks it.
    * @throws If the project is closed, installing buffers or invalidating caches fails, or the
@@ -280,7 +282,8 @@ export class AnalysisProject {
 
   /**
    * Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer.
-   * CSS completion, hover, and resolution can load recovered definitions for incomplete input.
+   * CSS completion, hover, resolution, and colors can load recovered definitions for incomplete
+   * input. CSS sorting and lint fixes require the original graph to load successfully.
    * @param entry - Full resolver identity. The workspace applies target membership filtering.
    * @param request - Operation with offsets in the original UTF-16 document.
    * @param signal - Optional cancellation checked before and after queued work.
@@ -299,8 +302,15 @@ export class AnalysisProject {
       if (this.#closed || this.#discardReason(revision, signal)) {
         return undefined;
       }
+      const structural = request.kind === "sort" || request.kind === "fixes";
+      if (structural && this.#editors.get(entry)?.recovered) {
+        this.#editors.delete(entry);
+      }
       if (this.#editors.get(entry)?.revision !== revision) {
-        if (isStylesheet(entry) && ["completion", "hover", "resolve"].includes(request.kind)) {
+        if (
+          isStylesheet(entry) &&
+          ["completion", "hover", "resolve", "colors", "colorPresentation"].includes(request.kind)
+        ) {
           await this.host.setDocuments(documents);
           await this.#resetCaches();
           const graph = await this.#editorDesignSystem();
@@ -316,6 +326,7 @@ export class AnalysisProject {
                 );
           this.#editors.set(entry, {
             revision,
+            recovered: graph.recovered,
             snapshot: new StylesheetEditor(
               entry,
               await this.host.css.read(entry),

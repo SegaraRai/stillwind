@@ -1,6 +1,8 @@
 import { NativeDesignSystemLoader } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
+import { applyEdits } from "../editor/sort.ts";
+import { compilerOptions } from "./options.ts";
 import { StylesheetEditor } from "./stylesheet-editor.ts";
 
 test("CSS completions replace original UTF-16 ranges and resolve across equivalent snapshots", () => {
@@ -40,6 +42,127 @@ test("CSS completions replace original UTF-16 ranges and resolve across equivale
   ).toBeUndefined();
 });
 
+test("CSS colors and picker edits use original UTF-16 ranges and preserve utility modifiers", () => {
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(
+    0,
+    "theme.css",
+    "@theme { --color-brand:red; } @stillwind-utility bg-* {background-color:--compat-color(--value(--color-*, [color]), --alpha(--modifier()));} @custom-variant hover (&:hover);",
+  );
+  const text = "/* 日本語 🦀 */ .a { @apply hover:!bg-brand/50; color:var(--color-brand, blue); }";
+  const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery());
+  const colors = editor.query("local.css", { kind: "colors" })!.colors!;
+  expect(colors.map((color) => text.slice(color.start, color.end))).toEqual([
+    "hover:!bg-brand/50",
+    "var(--color-brand, blue)",
+  ]);
+  expect(colors[0].alpha).toBeCloseTo(0.5);
+  const picked = {
+    red: 0,
+    green: 1,
+    blue: 0,
+    alpha: 0.25,
+  };
+  const changed = editor.query("local.css", {
+    kind: "colorPresentation",
+    ...colors[0],
+    color: picked,
+  })!.edits!;
+  const next = applyEdits(text, changed);
+  expect(next).toContain("hover:!bg-[rgb(0_255_0_/_");
+  expect(next).toContain(")]/50;");
+  const actual = new StylesheetEditor("local.css", next, [], loader.editorQuery()).query(
+    "local.css",
+    {
+      kind: "colors",
+    },
+  )!.colors![0];
+  for (const component of ["red", "green", "blue", "alpha"] as const) {
+    expect(Math.abs(actual[component] - picked[component])).toBeLessThanOrEqual(2 / 255);
+  }
+  expect(
+    editor.query("local.css", {
+      kind: "colorPresentation",
+      ...colors[0],
+      color: {
+        ...picked,
+        alpha: 1,
+      },
+    })!.edits,
+  ).toBeUndefined();
+  const reference = editor.query("local.css", {
+    kind: "colorPresentation",
+    ...colors[1],
+    color: {
+      red: 0,
+      green: 1,
+      blue: 0,
+      alpha: 1,
+    },
+  })!.edits!;
+  expect(applyEdits(text, reference)).toContain("color:#00ff00;");
+  expect(
+    editor.query("local.css", {
+      kind: "colorPresentation",
+      start: 0,
+      end: 1,
+      color: picked,
+    })!.edits,
+  ).toBeUndefined();
+});
+
+test.each([false, true])(
+  "CSS explicit sorting is independent of lint with applyStatements=%s",
+  (statements) => {
+    const config = {
+      css: "theme.css",
+      lint: false as const,
+      sort: {
+        applyUtilities: false,
+        applyStatements: statements,
+      },
+    };
+    const loader = new NativeDesignSystemLoader(compilerOptions(config));
+    loader.provide(0, "theme.css", "@utility a {display:block;} @utility b {padding:1px;}");
+    const text = ".a { @apply b; @apply b a; }";
+    const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery(), config);
+    const sorted = applyEdits(
+      text,
+      editor.query("local.css", {
+        kind: "sort",
+      })!.edits!,
+    );
+    expect(sorted).toBe(text);
+    const independent = ".a { @apply b; @apply a; }";
+    const current = new StylesheetEditor(
+      "local.css",
+      independent,
+      [],
+      loader.editorQuery(),
+      config,
+    );
+    expect(
+      applyEdits(
+        independent,
+        current.query("local.css", {
+          kind: "sort",
+        })!.edits!,
+      ),
+    ).toBe(statements ? ".a { @apply a; @apply b; }" : independent);
+    expect(
+      current.query("local.css", {
+        kind: "sort",
+        protectedRanges: [
+          {
+            start: 0,
+            end: independent.length,
+          },
+        ],
+      })!.edits,
+    ).toEqual([]);
+  },
+);
+
 test("directive and slot completions resolve to documentation without generated CSS", () => {
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "theme.css", "");
@@ -49,7 +172,10 @@ test("directive and slot completions resolve to documentation without generated 
   ]) {
     const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery());
     const item = editor
-      .query("local.css", { kind: "completion", offset: text.length })!
+      .query("local.css", {
+        kind: "completion",
+        offset: text.length,
+      })!
       .completions!.find((item) => item.label === label)!;
     expect(
       editor.query("local.css", {

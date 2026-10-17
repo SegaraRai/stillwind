@@ -162,9 +162,13 @@ test("CSS editor queries recover imported definitions from cold incomplete buffe
       '@import "./local.css"; @utility flex {display:flex;} @custom-variant hover (&:hover);',
     );
     const local = path.join(root, "local.css");
-    const text = "@theme { --color-brand:red; } /* 日本語 🦀 */ .a { @apply fl";
+    const text =
+      "@theme { --color-brand:red; } /* 日本語 🦀 */ .a { color:var(--color-brand); @apply fl";
     await writeFile(local, text);
     workspace = await AnalysisWorkspace.open(config);
+    const [colors] = await workspace.query(local, { kind: "colors" });
+    expect(colors.result.colors).toHaveLength(1);
+    expect(await workspace.query(local, { kind: "sort" })).toEqual([]);
     const [answer] = await workspace.query(local, { kind: "completion", offset: text.length });
     const item = answer.result.completions!.find((item) => item.label === "flex")!;
     expect(item.newText).toBe("flex");

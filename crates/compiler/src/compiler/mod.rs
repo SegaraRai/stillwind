@@ -60,8 +60,10 @@ pub(crate) use document::emit_document_style;
 pub(crate) use editor::{preview_resource_urls, reserve_preview_names};
 pub(crate) use media::media_argument_query;
 pub(crate) use rule_boundaries::RuleBoundaries;
-pub(crate) use stylesheet::{expand_authored_variant, variant_sequences};
-pub(crate) use stylesheet::{render_mapped, render_module_stylesheet, render_stylesheet};
+pub(crate) use stylesheet::{
+    expand_authored_variant, parse_variant_sequence, render_mapped, render_module_stylesheet,
+    render_stylesheet, variant_sequences,
+};
 pub(crate) use symbols::detached_symbol;
 pub(crate) use utilities::{
     FLATTEN_COLOR_COMPATIBILITY, candidate_allowed, check_candidate_name, emit_utility_rules,

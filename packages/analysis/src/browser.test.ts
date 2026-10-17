@@ -3,6 +3,52 @@ import { expect, test } from "vite-plus/test";
 
 import { BrowserAnalysisWorkspace } from "./browser.ts";
 
+test("CSS colors recover cold buffers while sorting requires original CSS after recovery", async () => {
+  const uri = "file:///workspace/theme.css";
+  const definitions =
+    "@theme {--color-brand:red;} @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);}";
+  const source = `${definitions} /* 日本語 🦀 */ .a { @apply bg-brand`;
+  const workspace = new BrowserAnalysisWorkspace({
+    config: "config",
+    projects: [
+      {
+        root: "/workspace",
+        files: ["*.ts"],
+        css: "theme.css",
+        typeFacts: false,
+        lint: false,
+        sort: {
+          applyStatements: true,
+        },
+      },
+    ],
+    files: new Map([["/workspace/theme.css", source]]),
+  });
+  try {
+    const [answer] = await workspace.query(uri, { kind: "colors" });
+    const color = answer.result.colors![0];
+    expect(source.slice(color.start, color.end)).toBe("bg-brand");
+    const [presentation] = await workspace.query(uri, {
+      kind: "colorPresentation",
+      start: color.start,
+      end: color.end,
+      color: {
+        red: 0,
+        green: 0,
+        blue: 1,
+        alpha: 1,
+      },
+    });
+    expect(presentation.result.edits![0].newText).toBe("bg-[#0000ff]");
+    await expect(workspace.query(uri, { kind: "sort" })).rejects.toThrow();
+    workspace.update(uri, `${definitions} .a { @apply b; @apply a; }`, 1);
+    const [sort] = await workspace.query(uri, { kind: "sort" });
+    expect(sort.result.edits![0].newText).toBe("@apply a; @apply b;");
+  } finally {
+    await workspace.close();
+  }
+});
+
 test("browser workspace captures configuration and files across inventory revisions", async () => {
   const id = "/workspace/entry.ts";
   const uri = `file://${id}`;

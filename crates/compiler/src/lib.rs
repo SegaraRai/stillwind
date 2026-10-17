@@ -82,8 +82,9 @@ pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
 pub use options::{CompilerOptions, RootFontSize};
 pub use query::{
     CandidateContext, CandidateFailure, CandidateHover, CandidateResolution, ColorEquivalents,
-    CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations, StylesheetCompletion,
-    StylesheetHover, editor_css_source, prepare_canonical_index,
+    CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations, StylesheetColor,
+    StylesheetCompletion, StylesheetEdit, StylesheetHover, StylesheetSortOptions,
+    editor_css_source, prepare_canonical_index,
 };
 pub use renderer::{
     RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,

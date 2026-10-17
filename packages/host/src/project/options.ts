@@ -40,6 +40,11 @@ export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
     prefix: resolved.prefix,
     tailwindPrefix: resolved.tailwindPrefix,
     utilityOrder: resolved.utilityOrder,
+    stylesheetSort: {
+      applyUtilities: resolved.sort.applyUtilities,
+      applyStatements: resolved.sort.applyStatements,
+      variantBlocks: resolved.sort.variantBlocks,
+    },
     target: resolved.target,
     classNamespace: resolved.classNamespace,
     useCssIf: resolved.useCssIf,

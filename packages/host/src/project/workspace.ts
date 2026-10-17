@@ -107,8 +107,8 @@ export class AnalysisWorkspace {
    * @param project - Project whose CSS graph lists its linted stylesheets.
    * @param file - Absolute file path to test.
    * @param editor - When false (the default), requires the original CSS graph to load successfully.
-   * When true, retries a failed load with recovered definitions so completion and hover can still
-   * identify stylesheet membership while the CSS is incomplete.
+   * When true, retries a failed load with recovered definitions so completion, hover, and colors
+   * can still identify stylesheet membership while the CSS is incomplete.
    * @returns Whether the file is the CSS entry or an imported file that the CSS host marks for
    * lint. Returns false for other extensions or when the selected loading mode fails. Ordinary
    * script analysis reports CSS loading failures.

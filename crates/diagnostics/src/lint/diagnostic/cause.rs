@@ -401,6 +401,9 @@ pub enum LintDiagnostic {
     /// A static source container differs from compiler order.
     #[error("utilities are not in compiler order")]
     UnsortedUtilities,
+    /// Authored CSS utility arguments or directive siblings differ from compiler order.
+    #[error("Stillwind CSS inputs are not in compiler order")]
+    UnsortedStylesheet,
     /// A value import of the style macro is incompatible with the original file format.
     #[error("`{import}` is incompatible with {source_format} input; use {expected}")]
     MismatchedFrameworkImport {
@@ -785,7 +788,7 @@ impl LintDiagnostic {
             Self::RestrictedThemeToken { .. } => LintKind::NoRestrictedThemeTokens,
             Self::ArbitraryBreakpoint { .. } => LintKind::NoArbitraryBreakpoints,
             Self::NonCanonicalUtility => LintKind::PreferCanonicalUtilities,
-            Self::UnsortedUtilities => LintKind::PreferSortedUtilities,
+            Self::UnsortedUtilities | Self::UnsortedStylesheet => LintKind::PreferSortedUtilities,
             Self::MismatchedFrameworkImport { .. } => LintKind::MismatchedFrameworkImport,
             Self::MutatingMacroArgument => LintKind::MutatingMacroArgument,
             Self::SuspendingMacroArgument => LintKind::SuspendingMacroArgument,

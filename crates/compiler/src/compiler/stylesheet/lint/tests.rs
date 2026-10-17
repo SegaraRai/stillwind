@@ -10,7 +10,7 @@ use stillwind_source::{SourceRegistry, SourceUri};
 use stillwind_test_support::expand_css;
 
 use super::lint_stylesheets;
-use crate::CompilerOptions;
+use crate::{CompilerOptions, StylesheetSortOptions};
 
 /// Text that the user source starts with before the CSS under test.
 const IMPORT: &str = "@import 'stillwind';\n";
@@ -196,19 +196,58 @@ fn fixes_edit_the_stylesheet() {
         ..CompilerOptions::default()
     };
     assert_eq!(
-        findings(".a { @apply p-4 /* x */ [display:flex]; }", &options),
+        findings(".a { @apply p-4 [display:flex]; }", &options),
         [
             fixed(
                 LintKind::PreferSortedUtilities,
-                "p-4 /* x */ [display:flex]",
-                ".a { @apply [display:flex] /* x */ p-4; }"
+                "p-4 [display:flex]",
+                ".a { @apply [display:flex] p-4; }"
             ),
             fixed(
                 LintKind::PreferCanonicalUtilities,
                 "[display:flex]",
-                ".a { @apply p-4 /* x */ flex; }"
+                ".a { @apply p-4 flex; }"
             ),
         ]
+    );
+}
+
+#[test]
+fn sorting_targets_control_reports_and_fixes_independently_of_other_rules() {
+    let css = ".a { @apply p-4; @apply flex; } .b { @apply p-4 flex; @apply unknown-x; }";
+    let mut options = CompilerOptions {
+        stylesheet_sort: StylesheetSortOptions {
+            apply_utilities: false,
+            apply_statements: true,
+            variant_blocks: false,
+        },
+        lint: LintOverrides {
+            prefer_sorted_utilities: Some(LintSeverity::Warn),
+            ..LintOverrides::default()
+        },
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        findings(css, &options),
+        [
+            fixed(
+                LintKind::PreferSortedUtilities,
+                "@apply p-4; @apply flex;",
+                ".a { @apply flex; @apply p-4; } .b { @apply p-4 flex; @apply unknown-x; }"
+            ),
+            finding(LintKind::UnknownUtility, "unknown-x"),
+        ]
+    );
+    options.stylesheet_sort.apply_statements = false;
+    assert_eq!(
+        findings(css, &options),
+        [finding(LintKind::UnknownUtility, "unknown-x")]
+    );
+    options.stylesheet_sort.apply_statements = true;
+    options.lint.prefer_sorted_utilities = Some(LintSeverity::Off);
+    assert_eq!(
+        findings(css, &options),
+        [finding(LintKind::UnknownUtility, "unknown-x")]
     );
 }
 

@@ -25,7 +25,7 @@ test("CSS LSP requests complete cold incomplete buffers and resolve dialect and 
   const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
   const uri = "file:///workspace/theme.css";
   const definitions =
-    "@theme { --color-brand:red; }\n@utility flex {display:flex;}\n@custom-variant hover (&:hover);\n";
+    "@theme { --color-brand:red; }\n@utility flex {display:flex;}\n@utility bg-* {background-color:--value(--color-*);}\n@custom-variant hover (&:hover);\n";
   let text = `${definitions}/* 日本語 🦀 */ .a { @apply fl`;
   let version = 1;
   const service = createLanguageServer(server, {
@@ -134,6 +134,56 @@ test("CSS LSP requests complete cold incomplete buffers and resolve dialect and 
       position: position(text.lastIndexOf("--color-brand") + 6),
     });
     expect(JSON.stringify(themeHover.contents)).toContain("cascade");
+    const references = await client.sendRequest<ColorInformation[]>("textDocument/documentColor", {
+      textDocument: { uri },
+    });
+    expect(references).toHaveLength(1);
+    const referenceEdit = await client.sendRequest<ColorPresentation[]>(
+      "textDocument/colorPresentation",
+      {
+        textDocument: { uri },
+        range: references[0].range,
+        color: {
+          red: 0,
+          green: 0,
+          blue: 1,
+          alpha: 1,
+        },
+      },
+    );
+    expect(referenceEdit[0].textEdit?.newText).toBe("#0000ff");
+    await change(`${definitions}/* 日本語 🦀 */ .a { @apply hover:bg-brand`);
+    const colors = await client.sendRequest<ColorInformation[]>("textDocument/documentColor", {
+      textDocument: { uri },
+    });
+    expect(colors[0].range.end).toEqual(position(text.length));
+    const candidateEdit = await client.sendRequest<ColorPresentation[]>(
+      "textDocument/colorPresentation",
+      {
+        textDocument: { uri },
+        range: colors[0].range,
+        color: {
+          red: 0,
+          green: 0,
+          blue: 1,
+          alpha: 1,
+        },
+      },
+    );
+    expect(candidateEdit[0].textEdit?.newText).toBe("hover:bg-[#0000ff]");
+    await change(`${definitions}.a { @apply bg-brand flex; }`);
+    const actions = await client.sendRequest<CodeAction[]>("textDocument/codeAction", {
+      textDocument: { uri },
+      range: {
+        start: position(0),
+        end: position(text.length),
+      },
+      context: {
+        diagnostics: [],
+        only: ["source.sort.stillwind"],
+      },
+    });
+    expect(JSON.stringify(actions[0].edit)).toContain("flex bg-brand");
   } finally {
     await service.dispose();
     client.dispose();

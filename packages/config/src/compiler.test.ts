@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { normalizeCompilerConfig, validateCompilerConfig } from "./compiler.ts";
+import { normalizeCompilerConfig, validateCompilerConfig, type BaseConfig } from "./compiler.ts";
 
 test.each([null, [], { sort: [] }, { naming: [] }])(
   "compiler options require objects: %j",
@@ -78,6 +78,9 @@ test("false disables all sorting targets and remains disabled after normalizatio
     stringLiterals: false,
     arrays: false,
     attributes: false,
+    applyUtilities: false,
+    applyStatements: false,
+    variantBlocks: false,
   });
   expect(normalizeCompilerConfig(normalized).sort).toEqual(normalized.sort);
 });
@@ -104,9 +107,13 @@ test("sorting targets are validated independently of lint reporting", () => {
       stringLiterals: false,
       arrays: true,
       attributes: true,
+      applyUtilities: false,
+      applyStatements: true,
+      variantBlocks: true,
     },
-  };
+  } satisfies BaseConfig;
   expect(() => validateCompilerConfig(config)).not.toThrow();
+  expect(normalizeCompilerConfig(config).sort).toMatchObject(config.sort);
   expect(() =>
     validateCompilerConfig({
       sort: {

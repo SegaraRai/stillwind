@@ -10,6 +10,13 @@ Previews add comments after values: `var(--color-brand) /* oklch(63.7% 0.237 25.
 
 `Stillwind: Sort Utilities` invokes the `source.sort.stillwind` Code Action. Utility strings use compiler ordering. Arrays, argument lists, and object properties use stable groups: each ref's markers then projections, bases, utilities, custom properties, and attributes. Entries within each group keep their authored order. Unsupported expressions and comments separate runs. Set `sort.attributes` to sort aria-/data- attribute names independently; it defaults to false.
 
+CSS uses `sort.applyUtilities` to sort arguments inside `@apply` by default. Set
+`sort.applyStatements` or `sort.variantBlocks` to sort adjacent statements or applied variant
+blocks as well. Both default to false. Movement preserves the order of competing property writes.
+CSS color decorators cover `@apply` candidates and active theme references in `theme()`, `--theme()`,
+and `var()`. Picker edits preserve utility variants and modifiers. Editing a theme reference
+replaces its current use with a color literal without editing the referenced declaration.
+
 Use a document formatter such as Prettier or Oxfmt for layout and whitespace. Stillwind provides sorting and lint fixes as Code Actions. To run them on explicit saves alongside your formatter, configure VS Code:
 
 ```json

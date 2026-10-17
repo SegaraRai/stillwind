@@ -3,7 +3,7 @@
 use napi::Error;
 use napi_derive::napi;
 
-use stillwind_compiler::{CompilerOptions, RootFontSize};
+use stillwind_compiler::{CompilerOptions, RootFontSize, StylesheetSortOptions};
 use stillwind_design_system::{BrowserTargets, UtilityOrderMode};
 
 use super::NativeLintOptions;
@@ -21,6 +21,8 @@ pub struct NativeCompilerOptions {
     pub tailwind_prefix: Option<String>,
     /// Ordering strategy: authored or tailwind. Defaults to authored.
     pub utility_order: Option<String>,
+    /// Independent CSS sorting targets. Omission sorts only @apply arguments.
+    pub stylesheet_sort: Option<NativeStylesheetSortOptions>,
     /// Minimum browser versions, for example `["chrome111", "safari17"]`.
     /// Omission or an empty list keeps generated color compatibility branches.
     pub target: Option<Vec<String>>,
@@ -35,7 +37,8 @@ pub struct NativeCompilerOptions {
     /// Number of base-36 digits a built-in generated name keeps from its request hash.
     /// Defaults to 5. Values from 1 to 50 are accepted.
     pub hash_length: Option<u32>,
-    /// Positive finite pixels per rem in the documents that use the CSS. Defaults to 16.
+    /// Positive finite pixels per rem in the documents that use the CSS.
+    /// Defaults to 16.
     pub root_font_size: Option<f64>,
 }
 
@@ -64,6 +67,9 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                     ));
                 }
             },
+            stylesheet_sort: input
+                .stylesheet_sort
+                .map_or_else(StylesheetSortOptions::default, Into::into),
             class_namespace: input
                 .class_namespace
                 .map(Into::into)
@@ -92,6 +98,29 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
             .validate()
             .map_err(|error| Error::from_reason(error.to_string()))?;
         Ok(options)
+    }
+}
+
+/// Independent CSS sorting targets shared by editor queries and stylesheet lint.
+#[napi(object)]
+pub struct NativeStylesheetSortOptions {
+    /// Sorts arguments within each @apply statement. Defaults to true.
+    pub apply_utilities: Option<bool>,
+    /// Orders adjacent @apply statements while retaining competing writes. Defaults to
+    /// false.
+    pub apply_statements: Option<bool>,
+    /// Orders adjacent applied @variant blocks while retaining competing writes.
+    /// Defaults to false.
+    pub variant_blocks: Option<bool>,
+}
+
+impl From<NativeStylesheetSortOptions> for StylesheetSortOptions {
+    fn from(value: NativeStylesheetSortOptions) -> Self {
+        Self {
+            apply_utilities: value.apply_utilities.unwrap_or(true),
+            apply_statements: value.apply_statements.unwrap_or(false),
+            variant_blocks: value.variant_blocks.unwrap_or(false),
+        }
     }
 }
 

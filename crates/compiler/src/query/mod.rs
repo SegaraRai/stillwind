@@ -6,13 +6,13 @@
 //! and theme labels, and [`canonical`] finds equivalent spellings under the active lint
 //! policy. [`theme`] exposes theme values and resolves colors for editor decorations,
 //! and [`annotations`] adds comments with resolved values to preview CSS.
-//! [`stylesheet`] locates CSS inputs and reuses candidate queries for completion and
-//! hover. It also recovers definitions from incomplete CSS for editor queries.
-//! [`input`] selects the compiler resolver for each source input role. [`context`]
-//! evaluates CSS and retrieves shared canonical indexes for queries and
-//! [`prepare_canonical_index`], which loaders can use before exposing a revision.
-//! [`state`] owns the pinned snapshot and caches. [`syntax`] scans candidate
-//! delimiters.
+//! [`stylesheet`] locates CSS inputs and reuses candidate queries for completion,
+//! hover, colors, and sorting edits. It also recovers definitions from incomplete CSS
+//! for completion, hover, and color queries. [`input`] selects the compiler resolver
+//! for each source input role. [`context`] evaluates CSS and retrieves shared canonical
+//! indexes for queries and [`prepare_canonical_index`], which loaders can use before
+//! exposing a revision. [`state`] owns the pinned snapshot and caches. [`syntax`] scans
+//! candidate delimiters.
 
 mod annotations;
 mod canonical;
@@ -31,7 +31,10 @@ pub use completion::{CompletionInput, CompletionItem};
 pub use input::CandidateContext;
 pub use resolution::{CandidateFailure, CandidateHover, CandidateResolution};
 pub use state::{DesignSystemQuery, prepare_canonical_index};
-pub use stylesheet::{StylesheetCompletion, StylesheetHover, editor_css_source};
+pub use stylesheet::{
+    StylesheetColor, StylesheetCompletion, StylesheetEdit, StylesheetHover, StylesheetSortOptions,
+    editor_css_source,
+};
 
 use context::QueryContext;
 use syntax::last_top_level;
