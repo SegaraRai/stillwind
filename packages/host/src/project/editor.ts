@@ -5,6 +5,8 @@ import {
 } from "@stillwind/native";
 
 import { cleanModuleId, compileModule, type CompilerHost } from "../compilation/index.ts";
+import type { LoadedCssGraph } from "../css/css.ts";
+import { attachPlugins } from "../css/plugins.ts";
 import {
   TypeScriptFactsService,
   resolveTypeFactsEnvironment,
@@ -108,9 +110,11 @@ export class EditorProject {
   readonly host: CompilerHost;
   /**
    * Factory that must return a completed design-system loader suitable for a new compiler session
-   * on every analysis.
+   * on every analysis, or a loaded CSS graph whose plugins define dynamic candidates.
    */
-  readonly designSystem: () => NativeDesignSystemLoader;
+  readonly designSystem: () =>
+    | NativeDesignSystemLoader
+    | Pick<LoadedCssGraph, "loader" | "plugins">;
   /** Fixed checker settings reused by independent analyses and retained without rereading tsconfig. */
   readonly #typeFactsEnvironment: TypeFactsEnvironment;
 
@@ -119,14 +123,15 @@ export class EditorProject {
    *
    * @param root - Filesystem project root used for checker resolution.
    * @param host - Source descriptors, dependency resolver, and reader used by analysis.
-   * @param designSystem - Factory returning a loaded design system for each independent analysis.
+   * @param designSystem - Factory returning a loaded design system, or a loaded CSS graph with its
+   * plugins, for each independent analysis.
    * @param typeFactsEnvironment - Fixed checker settings whose root matches this project. Omission
    * selects an existing root tsconfig or isolated defaults.
    */
   constructor(
     root: string,
     host: CompilerHost,
-    designSystem: () => NativeDesignSystemLoader,
+    designSystem: () => NativeDesignSystemLoader | Pick<LoadedCssGraph, "loader" | "plugins">,
     typeFactsEnvironment = resolveTypeFactsEnvironment(root),
   ) {
     this.root = root;
@@ -224,7 +229,16 @@ export class EditorProject {
     let facts: TypeScriptFactsService | undefined;
     try {
       assertActive();
-      const session = new NativeProjectSession(this.designSystem(), false);
+      const design = this.designSystem();
+      const graph =
+        "loader" in design
+          ? design
+          : {
+              loader: design,
+              plugins: undefined,
+            };
+      const session = new NativeProjectSession(graph.loader, false);
+      attachPlugins(session, graph.plugins);
       const output = await compileModule(
         session,
         () => {
@@ -275,7 +289,9 @@ export class EditorProject {
       result.error = error instanceof Error ? error.message : String(error);
     } finally {
       if (facts) {
-        result.checkerStats = { ...facts.stats };
+        result.checkerStats = {
+          ...facts.stats,
+        };
       }
       facts?.close();
       result.dependencies = [...dependencies];

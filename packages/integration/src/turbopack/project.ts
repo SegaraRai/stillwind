@@ -11,6 +11,7 @@ import {
   cssEntrypoint,
   fileModuleDescriptor,
   loadCssGraph,
+  loadNodePlugin,
   warnRejectedNames,
   type CompilerHost,
   type LoadedCssGraph,
@@ -181,6 +182,13 @@ export async function createProject(
         extensions: [".css"],
         mainFields: ["style", "main"],
       }),
+      loadPlugin: loadNodePlugin,
+    },
+    undefined,
+    undefined,
+    {
+      plugins: options.compiler.plugins,
+      root: options.root,
     },
   );
   const compiler = new IntegrationSession(
@@ -189,6 +197,7 @@ export async function createProject(
     options.compiler,
     false,
     options.mode,
+    loaded.plugins,
   );
   const host = {
     describe: (id: string) => fileModuleDescriptor(options.root, id),

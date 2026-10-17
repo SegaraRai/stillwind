@@ -1,8 +1,10 @@
 /**
  * Loads the stylesheet graph that defines a native design system and marks the user's own CSS
- * for stylesheet lint. CSS output helpers replace resource placeholders with host delivery URLs
+ * for stylesheet lint. Plugins of `@plugin` statements generate CSS for the graph and define
+ * candidates of their dynamic families on demand. CSS output helpers replace resource placeholders with host delivery URLs
  * and retain the corresponding source maps.
  */
+
 export {
   cssWithSourceMap,
   decodeCssSourceMap,
@@ -17,6 +19,8 @@ export {
   loadCssGraph,
   loadEditorCssGraph,
   type CssHost,
+  type CssPluginInputs,
   type EditorCssGraph,
   type LoadedCssGraph,
 } from "./css.ts";
+export { attachPlugins, compileWithPlugins, pluginLoader, PluginRuntime } from "./plugins.ts";

@@ -474,13 +474,20 @@ export interface BindingOutput {
   /** Source-resolved diagnostics, including related locations and fixes. */
   reports: Array<BindingReport>
   /**
-   * Names a host-generated identifier was rejected for, which the host may warn about.
+   * Names a host-generated identifier was rejected for, which the host may warn
+   * about.
    *
-   * These are not lint findings: a rejected name comes from the generator rather than
-   * from the source, so the entry carries the family, the request hash, and the reason
-   * instead of a source span.
+   * These are not lint findings: a rejected name comes from the generator rather
+   * than from the source, so the entry carries the family, the request hash, and the
+   * reason instead of a source span.
    */
   rejectedNames: Array<BindingRejectedIdentifier>
+  /**
+   * Utility names of `@stillwind-dynamic` families that the source mentions and the
+   * design system does not define yet. A host plugin defines them before the host
+   * compiles the module again.
+   */
+  dynamicCandidates: Array<string>
   /** Non-fatal findings. */
   lintFindings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */
@@ -858,8 +865,13 @@ export interface NativeCssRequest {
   id: number
   /** Opaque name of the source that contains the import. */
   importer: string
-  /** Decoded import specifier, without CSS quoting or escapes. */
+  /** Decoded import or plugin specifier, without CSS quoting or escapes. */
   specifier: string
+  /**
+   * Options block text of an `@plugin` request, trimmed and empty without a block.
+   * Absent for an `@import`, whose answer is the imported CSS file.
+   */
+  pluginOptions?: string
 }
 
 /** A resource reference found in authored CSS. */
@@ -1806,8 +1818,17 @@ export interface ProjectModuleOutput {
   diagnostics: Array<BindingDiagnostic>
   /** Source-resolved diagnostics for this module. */
   reports: Array<BindingReport>
-  /** Names a host-generated identifier was rejected for, which the host may warn about. */
+  /**
+   * Names a host-generated identifier was rejected for, which the host may warn
+   * about.
+   */
   rejectedNames: Array<BindingRejectedIdentifier>
+  /**
+   * Utility names of `@stillwind-dynamic` families that the source mentions and the
+   * design system does not define yet. A host plugin defines them before the host
+   * compiles the module again.
+   */
+  dynamicCandidates: Array<string>
   /** Non-fatal findings. */
   lintFindings: Array<BindingLintFinding>
   /** Effective severity per lint rule. */

@@ -43,12 +43,17 @@ pub struct BindingOutput {
     pub diagnostics: Vec<BindingDiagnostic>,
     /// Source-resolved diagnostics, including related locations and fixes.
     pub reports: Vec<BindingReport>,
-    /// Names a host-generated identifier was rejected for, which the host may warn about.
+    /// Names a host-generated identifier was rejected for, which the host may warn
+    /// about.
     ///
-    /// These are not lint findings: a rejected name comes from the generator rather than
-    /// from the source, so the entry carries the family, the request hash, and the reason
-    /// instead of a source span.
+    /// These are not lint findings: a rejected name comes from the generator rather
+    /// than from the source, so the entry carries the family, the request hash, and the
+    /// reason instead of a source span.
     pub rejected_names: Vec<BindingRejectedIdentifier>,
+    /// Utility names of `@stillwind-dynamic` families that the source mentions and the
+    /// design system does not define yet. A host plugin defines them before the host
+    /// compiles the module again.
+    pub dynamic_candidates: Vec<String>,
     /// Non-fatal findings.
     pub lint_findings: Vec<BindingLintFinding>,
     /// Effective severity per lint rule.
@@ -261,8 +266,13 @@ pub struct ProjectModuleOutput {
     pub diagnostics: Vec<BindingDiagnostic>,
     /// Source-resolved diagnostics for this module.
     pub reports: Vec<BindingReport>,
-    /// Names a host-generated identifier was rejected for, which the host may warn about.
+    /// Names a host-generated identifier was rejected for, which the host may warn
+    /// about.
     pub rejected_names: Vec<BindingRejectedIdentifier>,
+    /// Utility names of `@stillwind-dynamic` families that the source mentions and the
+    /// design system does not define yet. A host plugin defines them before the host
+    /// compiles the module again.
+    pub dynamic_candidates: Vec<String>,
     /// Non-fatal findings.
     pub lint_findings: Vec<BindingLintFinding>,
     /// Effective severity per lint rule.
@@ -283,6 +293,7 @@ impl ProjectModuleOutput {
             diagnostics,
             reports,
             rejected_names,
+            dynamic_candidates,
             lint_findings,
             lint_settings,
         } = output;
@@ -298,6 +309,7 @@ impl ProjectModuleOutput {
             diagnostics,
             reports,
             rejected_names,
+            dynamic_candidates,
             lint_findings,
             lint_settings,
         }

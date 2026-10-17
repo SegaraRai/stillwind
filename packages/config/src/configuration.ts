@@ -84,7 +84,7 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
     return config;
   }
 
-  const { naming, sources, projection, ...settings } = config;
+  const { naming, sources, projection, plugins, ...settings } = config;
   const data = structuredClone(settings);
 
   const capturedSources =
@@ -103,6 +103,11 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
 
   const captured: CapturedProjectConfig = {
     ...data,
+    ...(plugins
+      ? {
+          plugins: [...plugins],
+        }
+      : {}),
     ...(naming
       ? {
           naming: {

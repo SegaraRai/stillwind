@@ -95,8 +95,8 @@ pub use snapshot::{
 };
 pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{
-    SPACING_VALUE_DOMAIN, ThemeIndex, ThemeNamespace, ThemeReferenceError, ThemeToken,
-    ThemeTokenKind, ThemeTokenMode, parse_theme, parse_theme_namespace_types,
+    DynamicFamily, SPACING_VALUE_DOMAIN, ThemeIndex, ThemeNamespace, ThemeReferenceError,
+    ThemeToken, ThemeTokenKind, ThemeTokenMode, parse_theme, parse_theme_namespace_types,
 };
 
 #[cfg(test)]

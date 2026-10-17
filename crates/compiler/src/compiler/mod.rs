@@ -14,8 +14,9 @@
 //! captures source occurrences and reuses emission for isolated CSS previews.
 //! [`document`] resolves document-level styles, whose variants select the element to
 //! style. [`media`] lowers `style.media()` calls into media query strings, and
-//! [`css_call`] lowers `style.css()` calls into stylesheet strings. [`stylesheet`] also
-//! checks the stylesheets that a host marks for lint.
+//! [`css_call`] lowers `style.css()` calls into stylesheet strings. [`dynamic`] finds
+//! the candidates that host plugins must define. [`stylesheet`] also checks the
+//! stylesheets that a host marks for lint.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's
@@ -29,6 +30,7 @@ mod conditionals;
 mod css_call;
 mod definitions;
 mod document;
+mod dynamic;
 mod editor;
 mod emission;
 mod expression_render;

@@ -13,12 +13,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use lean_string::{LeanString, ToLeanStr};
+use lean_string::{LeanStr, LeanString, ToLeanStr};
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
     CssOutputTemplate, MAX_VALUE_NESTING, extract_authored_property_names,
-    extract_authored_property_syntaxes, extract_property_definitions, unterminated_block,
+    extract_authored_property_syntaxes, extract_named_blocks_with_offsets,
+    extract_named_statements, extract_property_definitions, unterminated_block,
     value_nesting_overflow,
 };
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -100,6 +101,7 @@ fn parse_theme_contents(
     })?;
     theme.output_template = template;
     theme.css_templates = parse_css_templates(source.text())?;
+    theme.dynamic_utilities = extract_dynamic_utilities(source.text())?;
     for template in theme.css_templates.values_mut() {
         template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
         template.source_identity = source_identity.clone();
@@ -122,6 +124,78 @@ fn parse_theme_contents(
 
     Ok(theme)
 }
+
+/// A utility family that a host plugin defines on demand, declared by
+/// `@stillwind-dynamic <prefix>*;` for named candidates such as `icon-mdi--close`, and
+/// by `@stillwind-dynamic <prefix>[*];` for bracket candidates such as
+/// `icon-[mdi--close]`.
+///
+/// A family that accepts both forms resolves a bracket candidate like its named
+/// spelling, so both spellings share one definition. A family that accepts only the
+/// bracket form leaves named candidates to other definitions, and the plugin defines
+/// each bracket candidate under its bracket name, such as `@utility icon-[mdi--close]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DynamicFamily {
+    /// Nonempty name prefix without whitespace, `*`, `[`, or `]`, such as `icon-`.
+    pub prefix: LeanStr,
+    /// Whether named candidates belong to the family.
+    pub named: bool,
+    /// Whether bracket candidates belong to the family.
+    pub bracket: bool,
+}
+
+/// Extracts the families of `@stillwind-dynamic` statements in the order of their first
+/// statements. Statements with the same prefix merge into one family.
+///
+/// # Errors
+///
+/// Returns [`CompileDiagnostic::InvalidDirectiveForm`] for a block, or for a header
+/// that is not one name ending in `*` or `[*]` after a nonempty prefix.
+fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDiagnostic> {
+    if let Some((offset, _, _)) = extract_named_blocks_with_offsets(css, DYNAMIC).first() {
+        return Err(CompileDiagnostic::InvalidDirectiveForm {
+            offset: *offset,
+            directive: "stillwind-dynamic".into(),
+        });
+    }
+    let mut families: Vec<DynamicFamily> = Vec::new();
+    for (offset, header) in extract_named_statements(css, DYNAMIC) {
+        let (prefix, bracket) = header
+            .strip_suffix("[*]")
+            .map(|prefix| (prefix, true))
+            .or_else(|| header.strip_suffix('*').map(|prefix| (prefix, false)))
+            .filter(|(prefix, _)| {
+                !prefix.is_empty()
+                    && !prefix.contains(|character: char| {
+                        character.is_whitespace() || matches!(character, '*' | '[' | ']')
+                    })
+            })
+            .ok_or(CompileDiagnostic::InvalidDirectiveForm {
+                offset,
+                directive: "stillwind-dynamic".into(),
+            })?;
+        let index = families
+            .iter()
+            .position(|family| family.prefix == prefix)
+            .unwrap_or_else(|| {
+                families.push(DynamicFamily {
+                    prefix: prefix.to_lean_str(),
+                    named: false,
+                    bracket: false,
+                });
+                families.len() - 1
+            });
+        if bracket {
+            families[index].bracket = true;
+        } else {
+            families[index].named = true;
+        }
+    }
+    Ok(families)
+}
+
+/// At-rule that declares a utility family defined on demand by a host plugin.
+const DYNAMIC: &str = "@stillwind-dynamic";
 
 /// Extracts the top-level `@keyframes` rules of a `@theme` body, in authored order.
 ///
@@ -194,6 +268,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         utility_positions: BTreeMap::new(),
         output_template: CssOutputTemplate::default(),
         css_templates: BTreeMap::new(),
+        dynamic_utilities: Vec::new(),
         registry: Arc::default(),
         tokens,
         custom_css: (LeanString::new()).into(),
@@ -236,6 +311,71 @@ mod tests {
             "{}",
             theme.custom_css()
         );
+    }
+
+    #[test]
+    fn dynamic_families_merge_their_forms_and_normalize_only_shared_brackets() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@stillwind-dynamic icon-*; @stillwind-dynamic i-[*]; @stillwind-dynamic icon-[*]; @stillwind-dynamic icon-*; @stillwind-slot utilities;",
+        )
+        .unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
+        let family = |prefix: &str, named, bracket| DynamicFamily {
+            prefix: prefix.into(),
+            named,
+            bracket,
+        };
+        assert_eq!(
+            theme.dynamic_utilities(),
+            [family("icon-", true, true), family("i-", false, true)]
+        );
+        assert!(!theme.custom_css().contains("@stillwind-dynamic"));
+        assert_eq!(
+            theme.dynamic_named_utility("icon-[mdi--close]").as_deref(),
+            Some("icon-mdi--close")
+        );
+        assert_eq!(
+            theme.dynamic_family("i-[mdi--close]"),
+            Some((&family("i-", false, true), true))
+        );
+        for name in [
+            "i-[mdi--close]",
+            "icon-mdi--close",
+            "icon-[]",
+            "icon-[url:x]",
+            "icon-[a_b c]",
+            "other-[mdi--close]",
+        ] {
+            assert_eq!(theme.dynamic_named_utility(name), None, "{name}");
+        }
+        for name in ["i-mdi--close", "i-", "icon-", "i-[]"] {
+            assert_eq!(theme.dynamic_family(name), None, "{name}");
+        }
+    }
+
+    #[test]
+    fn malformed_dynamic_directives_are_rejected() {
+        for css in [
+            "@stillwind-dynamic icon-;",
+            "@stillwind-dynamic *;",
+            "@stillwind-dynamic [*];",
+            "@stillwind-dynamic icon-[x*];",
+            "@stillwind-dynamic icon- *;",
+            "@stillwind-dynamic icon-* { }",
+        ] {
+            let source = SourceFile::new(FileId(1), None, None, css).unwrap();
+            let error = parse_theme(&source, &CssSourceName::from("test.css")).unwrap_err();
+            assert!(
+                matches!(
+                    error.diagnostic,
+                    CompileDiagnostic::InvalidDirectiveForm { .. }
+                ),
+                "{css}"
+            );
+        }
     }
 
     #[test]

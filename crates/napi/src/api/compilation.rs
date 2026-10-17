@@ -228,6 +228,11 @@ pub(crate) fn binding_output_with_batch(
             classes: result.classes.into_iter().map(Into::into).collect(),
             symbols: result.symbols.into_iter().map(Into::into).collect(),
             rejected_names: result.rejected_names.into_iter().map(Into::into).collect(),
+            dynamic_candidates: result
+                .dynamic_candidates
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
             diagnostics,
             reports,
             lint_findings,

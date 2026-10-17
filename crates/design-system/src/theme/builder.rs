@@ -10,6 +10,7 @@ use stillwind_source::Span;
 
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
+use super::parser::DynamicFamily;
 use crate::{BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, UtilityOrderMode};
 
 #[derive(Debug, Default)]
@@ -24,6 +25,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) output_template: CssOutputTemplate,
     /// Named `style.css()` output templates; the last definition of each name.
     pub(crate) css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
+    /// `@stillwind-dynamic` utility families, one for each prefix.
+    pub(crate) dynamic_utilities: Vec<DynamicFamily>,
     /// Built-in definitions selected by this CSS; empty when it imports none.
     pub(crate) registry: Arc<BuiltinDefinitions>,
     /// Every token in authored order, including resets and superseded values.

@@ -75,9 +75,12 @@ pub struct NativeCssRequest {
     /// Opaque name of the source that contains the import.
     #[napi(ts_type = "string")]
     pub importer: NativeText,
-    /// Decoded import specifier, without CSS quoting or escapes.
+    /// Decoded import or plugin specifier, without CSS quoting or escapes.
     #[napi(ts_type = "string")]
     pub specifier: NativeText,
+    /// Options block text of an `@plugin` request, trimmed and empty without a block.
+    /// Absent for an `@import`, whose answer is the imported CSS file.
+    pub plugin_options: Option<String>,
 }
 
 /// A resource reference found in authored CSS.
@@ -363,9 +366,11 @@ pub(crate) fn stylesheet_locations(
     let mut indices = BTreeMap::new();
     let mut entries = Vec::with_capacity(mappings.len());
     for mapping in mappings {
-        let source_map_source = mapping.source.source_map_source().ok_or_else(|| {
-            napi::Error::from_reason("Stylesheet source is missing sourceMapSource")
-        })?;
+        // Internal buffers, such as plugin CSS, have no source-map identity, so their
+        // generated text stays unmapped.
+        let Some(source_map_source) = mapping.source.source_map_source() else {
+            continue;
+        };
         let offset = |value| {
             u32::try_from(value)
                 .map_err(|_| napi::Error::from_reason("Stylesheet map offset exceeds 32 bits"))

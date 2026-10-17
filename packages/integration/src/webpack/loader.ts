@@ -9,6 +9,7 @@ import {
   cssEntrypoint,
   finalizeModuleWithMap,
   loadCssGraph,
+  loadNodePlugin,
   moduleSourceMap,
   warnRejectedNames,
   type UpstreamSourceMap,
@@ -120,19 +121,31 @@ export default function webpackLoader(
     watchCompilerFiles(watch);
     const root = path.resolve(this.rootContext, config.root ?? ".");
     const css = path.resolve(root, cssEntrypoint(config));
-    const loaded = await loadCssGraph(css, buildCompilerOptions(config), {
-      resolve: resolveCss,
-      read,
-      documentUri: (id) => pathToFileURL(id).href,
-      sourceMapSource: (id) => pathToFileURL(id).href,
-      watch,
-    });
+    const loaded = await loadCssGraph(
+      css,
+      buildCompilerOptions(config),
+      {
+        resolve: resolveCss,
+        read,
+        documentUri: (id) => pathToFileURL(id).href,
+        sourceMapSource: (id) => pathToFileURL(id).href,
+        watch,
+        loadPlugin: loadNodePlugin,
+      },
+      undefined,
+      undefined,
+      {
+        plugins: config.plugins,
+        root,
+      },
+    );
     compiler = new IntegrationSession(
       root,
       loaded.loader,
       config,
       false,
       this.mode === "development" ? "development" : "release",
+      loaded.plugins,
     );
     const session = compiler.native;
     const output = await compiler.compile(

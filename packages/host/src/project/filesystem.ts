@@ -9,6 +9,7 @@ import { ResolverFactory } from "oxc-resolver";
 import { fileModuleDescriptor } from "../compilation/index.ts";
 import { resolveTypeFactsEnvironment } from "../semantics/index.ts";
 import type { AnalysisHost } from "./analysis.ts";
+import { loadNodePlugin } from "./plugins.ts";
 
 /**
  * Creates a Node analysis host with captured buffers, source providers, and CSS resolution.
@@ -110,6 +111,7 @@ export function createFileSystemAnalysisHost(
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch: () => {},
+      loadPlugin: loadNodePlugin,
     },
     setDocuments: async (next) => {
       documents = next;

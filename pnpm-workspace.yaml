@@ -8,6 +8,7 @@ packages:
   - e2e/frameworks/*
   - packages/*
   - packages/native/npm/*
+  - plugins/*
   - tools/*
 
 allowBuilds:

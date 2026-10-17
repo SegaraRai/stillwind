@@ -1,4 +1,4 @@
-import { lintPresets, type AnalysisProjectConfig } from "@stillwind/config";
+import { definePlugin, lintPresets, type AnalysisProjectConfig } from "@stillwind/config";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
@@ -398,6 +398,43 @@ test("style.css calls and inputs preview their output, and template names comple
     expect(plain).not.toContain("block");
     expect(await labels(source.indexOf("p-4"))).toContain("block");
     expect(await labels(source.lastIndexOf('template: "') + 11)).toEqual(["default", "shadow"]);
+  } finally {
+    await current.close();
+  }
+});
+
+test("plugin catalogs complete dynamic utilities, and hover shows their resolved CSS", async () => {
+  const source =
+    'import {style} from "stillwind/react"; const icon = style("demo-red"); const next = style("hover:demo-b");';
+  const current = project(
+    source,
+    {
+      plugins: [
+        definePlugin({
+          name: "demo",
+          css: () => "@stillwind-dynamic demo-*;",
+          resolve: (candidates) =>
+            candidates.map((name) => `@utility ${name} { color: ${name.slice(5)}; }`).join(" "),
+          catalog: () => ["demo-red", "demo-blue"],
+        }),
+      ],
+    },
+    `${theme} @plugin "demo";`,
+  );
+  try {
+    await current.analyze("/workspace/entry.tsx");
+    const hover = await current.query("/workspace/entry.tsx", {
+      kind: "hover",
+      offset: source.indexOf("demo-red"),
+    });
+    expect(hover?.hover?.css).toContain("color: red");
+    const completion = await current.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: source.indexOf("demo-b") + 6,
+    });
+    const labels = completion!.completions!.map((item) => item.label);
+    expect(labels).toContain("hover:demo-blue");
+    expect(labels).not.toContain("hover:demo-red");
   } finally {
     await current.close();
   }

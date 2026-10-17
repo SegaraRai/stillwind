@@ -10,11 +10,14 @@ import {
 
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/index.ts";
 import {
+  attachPlugins,
   isStylesheet,
   loadCssGraph,
   loadEditorCssGraph,
   type CssHost,
+  type CssPluginInputs,
   type EditorCssGraph,
+  type PluginRuntime,
 } from "../css/index.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import {
@@ -141,6 +144,11 @@ export class AnalysisProject {
   #editorCss?: EditorCssGraph;
   /** Identities that the retained loader marked for stylesheet lint, in load order. */
   #lintSources: string[] = [];
+  /**
+   * Plugin runtime of the retained loader. A CSS update keeps it as the previous runtime of the
+   * next load, so definitions of unchanged plugins survive.
+   */
+  #plugins?: PluginRuntime;
   /** Requests backend invalidation before the next transaction. */
   #dirty = true;
   /** Requests replacement of the cached CSS loader. */
@@ -424,6 +432,7 @@ export class AnalysisProject {
         "development",
         this.host.config.naming,
       );
+      attachPlugins(session, this.#plugins);
       const graph = await analyzeModule(session, () => this.#semanticBackend(), entry, this.host, {
         overlayFiles: documents,
       });
@@ -433,7 +442,13 @@ export class AnalysisProject {
         graph.sources,
         (id) => this.host.read(id),
       );
-      const editor = new EditorSnapshot(graph, session, loader, this.host.config);
+      const editor = new EditorSnapshot(
+        graph,
+        session,
+        loader,
+        this.host.config,
+        (await this.#plugins?.catalog()) ?? [],
+      );
       result.reports.push(...editor.reports());
       this.#editors.set(entry, {
         revision,
@@ -513,11 +528,31 @@ export class AnalysisProject {
   async #designSystem(): Promise<NativeDesignSystemLoader> {
     if (!this.#loader) {
       const css = path.resolve(this.host.root, cssEntrypoint(this.host.config));
-      const loaded = await loadCssGraph(css, compilerOptions(this.host.config), this.host.css);
+      const loaded = await loadCssGraph(
+        css,
+        compilerOptions(this.host.config),
+        this.host.css,
+        undefined,
+        undefined,
+        this.#pluginInputs(),
+      );
       this.#loader = loaded.loader;
       this.#lintSources = loaded.lintSources;
+      this.#plugins = loaded.plugins;
     }
     return this.#loader;
+  }
+
+  /**
+   * Selects the plugins of the project's CSS graph.
+   * @returns Configured plugins, the project root, and the runtime of the last load.
+   */
+  #pluginInputs(): CssPluginInputs {
+    return {
+      plugins: this.host.config.plugins,
+      root: this.host.root,
+      previous: this.#plugins,
+    };
   }
 
   /**
@@ -540,6 +575,7 @@ export class AnalysisProject {
           path.resolve(this.host.root, cssEntrypoint(this.host.config)),
           compilerOptions(this.host.config),
           this.host.css,
+          this.#pluginInputs(),
         );
       }
     }

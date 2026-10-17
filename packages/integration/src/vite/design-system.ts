@@ -4,7 +4,14 @@ import { readFile, realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { cleanModuleId, cssEntrypoint, loadCssGraph } from "@stillwind/host";
+import {
+  attachPlugins,
+  cleanModuleId,
+  cssEntrypoint,
+  loadCssGraph,
+  loadNodePlugin,
+  type PluginRuntime,
+} from "@stillwind/host";
 import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 
 import { buildCompilerOptions, IntegrationSession } from "../session.ts";
@@ -81,6 +88,8 @@ export interface DesignSystemStatus {
 export class DesignSystem {
   /** Compiler session retained across CSS reloads and replaced when initialization restarts. */
   #compiler?: IntegrationSession;
+  /** Plugin runtime of the applied design system, kept as the previous runtime of reloads. */
+  #plugins?: PluginRuntime;
   /** Whether the compiler is ready for producer compilation and stylesheet planning. */
   #initialized = false;
 
@@ -214,7 +223,9 @@ export class DesignSystem {
         this.config,
         this.settings.watching,
         this.settings.compilerMode,
+        loaded.plugins,
       );
+      this.#plugins = loaded.plugins;
       this.#initialized = true;
       this.resources = loaded.resources;
       this.cssFiles = loaded.dependencies;
@@ -275,6 +286,8 @@ export class DesignSystem {
           continue;
         }
         const update = this.compiler.native.reload(loaded.loader);
+        attachPlugins(this.compiler.native, loaded.plugins);
+        this.#plugins = loaded.plugins;
         onReload(update.transformedModules);
         this.resources = loaded.resources;
         this.cssFiles = loaded.dependencies;
@@ -338,6 +351,7 @@ export class DesignSystem {
       dependencies,
       this.#initialized ? this.#compiler?.native : undefined,
       watch,
+      this.#plugins,
     );
     return { ...result, dependencies, observed };
   }
@@ -349,6 +363,8 @@ export interface LoadedDesignSystem {
   loader: NativeDesignSystemLoader;
   /** Resource placeholder tokens mapped to resolver identities and checked filesystem paths. */
   resources: Map<string, StylesheetResource>;
+  /** Plugins of the CSS graph's `@plugin` statements. */
+  plugins?: PluginRuntime;
 }
 
 /** Loaded design system with the file sets needed to watch and apply its revision. */
@@ -370,7 +386,9 @@ export interface DesignSystemRevision extends LoadedDesignSystem {
  * @param session - Existing native session used to create a compatible loader during reload.
  * @param watch - Records attempted and resolved file paths, including unresolved relative
  * candidates.
- * @returns A native design-system loader and a map from resource placeholders to resolved files.
+ * @param previous - Plugin runtime of the previous load, whose candidates are resolved again.
+ * @returns A native design-system loader, a map from resource placeholders to resolved files, and
+ * the plugin runtime.
  * @throws If the entrypoint is missing, an import fails, or a referenced resource is not readable.
  */
 async function loadDesignSystem(
@@ -380,6 +398,7 @@ async function loadDesignSystem(
   dependencies: Set<string>,
   session?: NativeProjectSession,
   watch: (file: string) => void = () => {},
+  previous?: PluginRuntime,
 ): Promise<LoadedDesignSystem> {
   const entry = resolve(settings.projectRoot, cssEntrypoint(config));
   watch(entry);
@@ -400,7 +419,11 @@ async function loadDesignSystem(
     return file;
   };
   const nativeOptions = buildCompilerOptions(config);
-  const { loader, resources: resourceReferences } = await loadCssGraph(
+  const {
+    loader,
+    resources: resourceReferences,
+    plugins,
+  } = await loadCssGraph(
     root,
     nativeOptions,
     {
@@ -412,9 +435,15 @@ async function loadDesignSystem(
         dependencies.add(name);
         watch(name);
       },
+      loadPlugin: loadNodePlugin,
     },
     undefined,
     session?.newLoader(nativeOptions),
+    {
+      plugins: config.plugins,
+      root: settings.projectRoot,
+      previous,
+    },
   );
   const references = new Map<string, StylesheetResource>();
   for (const resource of resourceReferences) {
@@ -429,6 +458,7 @@ async function loadDesignSystem(
   return {
     loader,
     resources: references,
+    plugins,
   };
 }
 

@@ -1,0 +1,34 @@
+{
+  "name": "@stillwind/plugin-iconify",
+  "version": "0.0.0",
+  "description": "Iconify icons as Stillwind utilities",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@iconify/types": "^2.0.0",
+    "@iconify/utils": "^3.1.0",
+    "@stillwind/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@stillwind/host": "workspace:*",
+    "@stillwind/native": "workspace:*",
+    "@types/node": "catalog:",
+    "stillwind": "workspace:*",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

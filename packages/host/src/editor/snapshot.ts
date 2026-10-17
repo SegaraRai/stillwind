@@ -8,6 +8,7 @@ import {
   fingerprint,
   type BindingEdit,
   type BindingReport,
+  type NativeCandidateContext,
   type NativeDesignSystemLoader,
   type NativeEditorQuery,
   type NativeProjectSession,
@@ -16,11 +17,15 @@ import type { PreparedSource } from "@stillwind/projection";
 import ts from "typescript-6";
 
 import type { ModuleAnalysis } from "../compilation/compiler.ts";
-import { CandidateQueries } from "./candidates.ts";
+import { pluginLoader } from "../css/plugins.ts";
+import { CandidateQueries, segments } from "./candidates.ts";
 import { colorReplacement } from "./colors.ts";
 import type { GeneratedPreview } from "./previews.ts";
 import { escapeContent, sortSource } from "./sort.ts";
 import { SourceIndex, type UtilityLiteral } from "./source-index.ts";
+
+/** Most catalog candidates that one completion request adds. */
+const CATALOG_COMPLETIONS = 200;
 
 /** A replacement in the original document, using half-open UTF-16 offsets. */
 export interface EditorEdit {
@@ -157,6 +162,8 @@ export class EditorSnapshot {
   readonly #query: NativeEditorQuery;
   /** Candidate caches shared by all queries against this snapshot. */
   readonly #candidates: CandidateQueries;
+  /** Dynamic-family candidates that plugins list for completion, sorted. */
+  readonly #catalog: readonly string[];
   /** Fingerprint of captures, graph dependencies, and configuration used for lazy resolution. */
   readonly #revision: string;
   /** Targets for explicit sorting and sorting fixes. False disables both. */
@@ -187,7 +194,9 @@ export class EditorSnapshot {
     config: BaseConfig & {
       preview?: PreviewOptions;
     },
+    catalog: readonly string[] = [],
   ) {
+    this.#catalog = catalog;
     const inputs = structuredClone({
       sources: graph.sources,
       dependencies: graph.dependencies,
@@ -195,7 +204,8 @@ export class EditorSnapshot {
     this.#sources = inputs.sources;
     this.#fixes = structuredClone(graph.fixes);
     this.#index = new SourceIndex(inputs, session);
-    this.#query = loader.editorQuery();
+    // Plugin definitions added during compilation live in the session's latest loader.
+    this.#query = (pluginLoader(session) ?? loader).editorQuery();
     this.#candidates = new CandidateQueries(this.#query);
     const css = this.#query.lintSettings();
     this.#sort =
@@ -396,23 +406,29 @@ export class EditorSnapshot {
     const decoded = literal.boundaries.findIndex((position) => position >= request.offset);
     const decodedStart = literal.boundaries.indexOf(start);
     const prefix = literal.text.slice(Math.max(0, decodedStart), Math.max(0, decoded));
-    result.completions = this.#candidates
+    const native = this.#candidates
       .complete(literal.prefix + prefix, literal.context)
       .filter(
         (candidate) =>
           candidate.endsWith(":") ||
           !literal.site ||
           this.#preview(literal, candidate.slice(literal.prefix.length)),
-      )
-      .map((candidate) => ({
-        label: candidate.slice(literal.prefix.length),
-        candidate,
-        input: literal.boundaries[0],
-        snapshot: this.#revision,
-        start,
-        end,
-        newText: escapeContent(candidate.slice(literal.prefix.length), literal),
-      }));
+      );
+    const known = new Set(native);
+    result.completions = [
+      ...native,
+      ...this.#catalogCompletions(literal.prefix + prefix, literal.context).filter(
+        (candidate) => !known.has(candidate),
+      ),
+    ].map((candidate) => ({
+      label: candidate.slice(literal.prefix.length),
+      candidate,
+      input: literal.boundaries[0],
+      snapshot: this.#revision,
+      start,
+      end,
+      newText: escapeContent(candidate.slice(literal.prefix.length), literal),
+    }));
 
     return result;
   }
@@ -502,6 +518,30 @@ export class EditorSnapshot {
       );
     }
     return this.#candidates.preview(literal.prefix + candidate, literal.context) ?? undefined;
+  }
+
+  /**
+   * Completes dynamic-family candidates that plugins list but compilation has not defined yet.
+   *
+   * @param text - Decoded partial candidate, including enclosing and written variants.
+   * @param context - Input role of the literal. Only utility roles complete catalog names.
+   * @returns Candidates with the written variants, for names that start with the partial
+   * utility, at most {@link CATALOG_COMPLETIONS} of them in catalog order.
+   */
+  #catalogCompletions(text: string, context: NativeCandidateContext): string[] {
+    if (!this.#catalog.length || !["utility", "document", "anchoredDocument"].includes(context)) {
+      return [];
+    }
+    const parts = segments(text, ":");
+    const partial = parts.pop()!;
+    if (!partial) {
+      return [];
+    }
+    const variants = parts.map((part) => `${part}:`).join("");
+    return this.#catalog
+      .filter((name) => name.startsWith(partial))
+      .slice(0, CATALOG_COMPLETIONS)
+      .map((name) => variants + name);
   }
 
   /**

@@ -170,6 +170,41 @@ puts the `dark` media query around the `:hover` rule. Nested blocks expand insid
 rules of the enclosing sequences. A `@variant`
 statement without a block stays in the output unchanged.
 
+## Plugins
+
+A plugin is JavaScript that generates Stillwind CSS. A stylesheet loads it with
+`@plugin "<name>";`, or with `@plugin "<name>" { option: value; }` to pass options. The
+host looks up `<name>` in the `plugins` configuration entry first. Otherwise it imports
+the package with Node resolution from the stylesheet and uses its default export. The
+browser host cannot import packages, so it accepts only configured plugins.
+
+The CSS that the plugin's `css()` returns replaces the statement, at the statement's
+position in the graph. That CSS must not contain `@import` or `@plugin`.
+
+A plugin defines a utility family on demand when its CSS contains
+`@stillwind-dynamic <prefix>*;`, `@stillwind-dynamic <prefix>[*];`, or both. The first
+form accepts named candidates such as `icon-mdi--close`. The second form accepts
+bracket candidates such as `icon-[mdi--close]`, whose value is nonempty and contains no
+`:`, `[`, `]`, or spaces. When a module uses a candidate of the family that has no
+definition, compilation reports the candidate. The host then passes it to the
+plugin's `resolve()`, adds the returned CSS after the plugin's CSS, reloads the design
+system, and compiles the module again, for at most three rounds. The candidate arrives
+without variants, modifiers, or `!`. A plugin can leave a candidate undefined, and the
+host does not pass that candidate again while the design system stays loaded. A reload
+passes the earlier candidates of the same statement to `resolve()` again, before any
+module compiles, so the plugin can read changed files.
+
+A family that accepts both forms resolves a bracket candidate like its named spelling:
+`icon-[mdi--close]` is `icon-mdi--close`. Compilation reports the named spelling, and
+the `prefer-canonical-utilities` lint suggests it in place of the bracket form. A
+family that accepts only the bracket form reports the bracket candidate as written, and
+the plugin defines it under that name, such as `@utility icon-[mdi--close]`. The named
+spelling then stays undefined. Plugin CSS is an internal source, so source maps and
+diagnostics do not point into it.
+
+The `catalog()` of a plugin lists the candidates that editors complete for its families.
+[`@stillwind/plugin-iconify`](../plugins/iconify/README.md) is the official plugin.
+
 ## Browser targets
 
 Set `target` in `stillwind.config.ts` to minimum browser versions:

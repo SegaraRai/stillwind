@@ -7,6 +7,7 @@ import {
   cssEntrypoint,
   cssWithSourceMap,
   loadCssGraph,
+  loadNodePlugin,
   warnRejectedNames,
   type CssUpstreamMap,
 } from "@stillwind/host";
@@ -53,6 +54,13 @@ export async function compilationStyles(
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
+      loadPlugin: loadNodePlugin,
+    },
+    undefined,
+    undefined,
+    {
+      plugins: config.plugins,
+      root,
     },
   );
   const compiler = new IntegrationSession(
@@ -61,6 +69,7 @@ export async function compilationStyles(
     config,
     false,
     mode === "development" ? "development" : "release",
+    loaded.plugins,
   );
   const selection: string[] = [];
   try {

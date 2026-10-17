@@ -9,6 +9,7 @@ import {
   type LintConfig,
   type ResolvedLintRules,
 } from "./lint.ts";
+import type { StillwindPlugin } from "./plugins.ts";
 import { nonemptyText, strictObject, validate } from "./validation.ts";
 
 /** Controls independent sorting targets in scripts and stylesheets. */
@@ -114,6 +115,12 @@ export interface BaseConfig {
    */
   hashLength?: number;
   /**
+   * Plugins that `@plugin` statements of the design-system stylesheet select by name. An entry
+   * takes precedence over a package of the same name. A plugin without a matching statement is
+   * not loaded.
+   */
+  plugins?: readonly StillwindPlugin[];
+  /**
    * Positive finite number of pixels per rem in the documents that use the CSS. Defaults to 16.
    * Canonical lint converts pixel spacing with it, and editor previews annotate rem values with it.
    * Media and container query annotations always use 16 because browsers evaluate rem there
@@ -193,6 +200,16 @@ export const compilerEntries = {
       conditionHelper: v.optional(v.function()),
       layerName: v.optional(v.function()),
     }),
+  ),
+  plugins: v.optional(
+    v.array(
+      v.object({
+        name: nonemptyText,
+        css: v.function(),
+        resolve: v.optional(v.function()),
+        catalog: v.optional(v.function()),
+      }),
+    ),
   ),
   lint: v.optional(v.unknown()),
 };

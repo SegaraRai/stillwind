@@ -326,11 +326,12 @@ impl DesignSystemSnapshot {
         }
         let content = Fingerprint::of(
             format_args!(
-                "{}\0{}\0{:?}\0{:?}\0",
+                "{}\0{}\0{:?}\0{:?}\0{:?}\0",
                 content.0,
                 builtins.source(),
                 semantic_template,
                 css_templates,
+                theme.dynamic_utilities(),
             )
             .to_lean_string(),
         );

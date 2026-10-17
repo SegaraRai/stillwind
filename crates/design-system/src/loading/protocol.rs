@@ -21,6 +21,12 @@ use crate::DesignSystemSnapshot;
 pub enum CssDependencyKind {
     /// An authored `@import` in the importer's CSS.
     Import,
+    /// An authored `@plugin`. The host runs the plugin that the specifier names and
+    /// answers with the CSS that the plugin generates.
+    Plugin {
+        /// Trimmed text of the options block, or empty without a block.
+        options: LeanStr,
+    },
 }
 
 /// One unresolved dependency, identified by the ID the host must answer with.

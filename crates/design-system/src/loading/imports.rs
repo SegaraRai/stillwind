@@ -1,4 +1,5 @@
-//! Lexical discovery of `@import` statements and their conditional wrappers.
+//! Lexical discovery of `@import` and `@plugin` statements and the conditional wrappers
+//! of imports.
 //!
 //! Only the authored spelling is interpreted here: which name a specifier denotes
 //! belongs to the host. Tokenization skips comments, strings, and nested blocks, and
@@ -31,6 +32,8 @@ pub(super) struct Import {
     /// Wrapper at-rule preludes without braces, outermost first; expansion
     /// nests them in this order, and an empty vector means no condition.
     pub(super) wrappers: Vec<LeanStr>,
+    /// Plugin options when the statement is `@plugin`, or `None` for `@import`.
+    pub(super) plugin: Option<LeanStr>,
 }
 
 /// Finds every authored `@import` at the top level of one buffer, in source
@@ -67,6 +70,10 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
                 .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
             continue;
         }
+        if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin")) {
+            imports.push(plugin(&mut parser, start)?);
+            continue;
+        }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
             continue;
         }
@@ -97,9 +104,56 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
             end: parser.position().byte_index(),
             specifier: (specifier).into(),
             wrappers,
+            plugin: None,
         });
     }
     Ok(imports)
+}
+
+/// Reads the rest of a `@plugin "specifier";` statement or a
+/// `@plugin "specifier" { options }` rule after its keyword. The options are the
+/// trimmed block text, and an absent block gives empty options.
+///
+/// # Errors
+///
+/// Returns [`CompileDiagnostic::InvalidCssImportSpecifier`] for a missing string
+/// specifier or for other tokens before the semicolon or block, and
+/// [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
+fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagnostic> {
+    let invalid = |detail: &str| CompileDiagnostic::InvalidCssImportSpecifier {
+        offset: start,
+        detail: detail.into(),
+    };
+    let specifier = parser
+        .expect_string()
+        .map_err(|error| invalid(&error.kind.to_lean_str()))?
+        .to_lean_string();
+    let options = match parser.next() {
+        Ok(Token::Semicolon) | Err(_) => LeanStr::default(),
+        Ok(Token::CurlyBracketBlock) => {
+            let open = parser.position();
+            parser
+                .parse_nested_block(|nested| {
+                    while nested.next_including_whitespace_and_comments().is_ok() {}
+                    Ok::<_, ParseError<()>>(())
+                })
+                .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
+            let block = parser.slice(open..parser.position());
+            block
+                .strip_suffix('}')
+                .unwrap_or(block)
+                .trim()
+                .to_lean_str()
+        }
+        Ok(_) => return Err(invalid("expected `;` or an options block after the plugin")),
+    };
+    Ok(Import {
+        start,
+        end: parser.position().byte_index(),
+        specifier: specifier.into(),
+        wrappers: Vec::new(),
+        plugin: Some(options),
+    })
 }
 
 /// Turns the text after a specifier into the wrapper preludes expansion emits:
@@ -221,6 +275,23 @@ mod tests {
             imports("@import 42;"),
             Err(CompileDiagnostic::InvalidCssImportSpecifier { .. })
         ));
+    }
+
+    #[test]
+    fn plugins_are_dependencies_with_their_options() {
+        let css = ".a{} @plugin \"@stillwind/plugin-iconify\"; @plugin 'local' { prefix: i; scale: 1.2; } .b{}";
+        let found = imports(css).unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].specifier, "@stillwind/plugin-iconify");
+        assert_eq!(found[0].plugin.as_deref(), Some(""));
+        assert_eq!(
+            &css[found[0].start..found[0].end],
+            "@plugin \"@stillwind/plugin-iconify\";"
+        );
+        assert_eq!(found[1].plugin.as_deref(), Some("prefix: i; scale: 1.2;"));
+        assert!(css[found[1].start..found[1].end].ends_with("scale: 1.2; }"));
+        assert!(imports("@plugin;").is_err());
+        assert!(imports("@plugin 'a' b;").is_err());
     }
 
     #[test]

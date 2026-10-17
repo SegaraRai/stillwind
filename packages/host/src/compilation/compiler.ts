@@ -1,8 +1,8 @@
 import type {
   BindingDiagnostic,
   BindingEdit,
-  BindingReport,
   BindingRejectedIdentifier,
+  BindingReport,
   NativeDiagnosticBatch,
   NativeModuleSummary,
   NativePreparedSource,
@@ -11,9 +11,13 @@ import type {
 } from "@stillwind/native";
 import type { PreparedSource, ProjectInput } from "@stillwind/projection";
 
+import { compileWithPlugins } from "../css/plugins.ts";
 import type { TypeFactsBackend, TypeFactsInputs, UnverifiedRange } from "../semantics/index.ts";
 import { CompilationFailure, ModuleGraph } from "./module-graph.ts";
 import type { ModuleDescriptor } from "./module-source.ts";
+
+/** Most reloads with new plugin definitions during one compilation of a graph. */
+const PLUGIN_ROUNDS = 3;
 
 /**
  * Source metadata, dependency resolution, reads, watches, and warnings supplied to
@@ -300,9 +304,11 @@ async function compileGraph(
     }
     await graph.collectDependencies(entrySource, entrySummary);
     const typedSources = await graph.collectTypedSources(entrySource);
-    const projectOutput = session.compile(
-      typedSources,
-      analysis ? undefined : entrySource.moduleId,
+    const producer = analysis ? undefined : entrySource.moduleId;
+    const projectOutput = await compileWithPlugins(
+      session,
+      () => session.compile(typedSources, producer),
+      PLUGIN_ROUNDS,
     );
     if (analysis) {
       recordAnalysis(analysis, projectOutput.modules, session, typedSources, graph);
@@ -584,6 +590,7 @@ function failedOutput(
     diagnostics: reports.filter((report) => report.severity === "error").map(reportDiagnostic),
     reports,
     rejectedNames: [],
+    dynamicCandidates: [],
     lintFindings: [],
     lintSettings: {} as Record<string, "off" | "warn" | "deny">,
     composition: [],

@@ -17,6 +17,7 @@ import {
   type CssHost,
   type EditorCssGraph,
 } from "../css/css.ts";
+import { attachPlugins, type PluginRuntime } from "../css/plugins.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
 import { StylesheetEditor } from "../project/stylesheet-editor.ts";
@@ -91,6 +92,8 @@ export class BrowserProject {
   #resources: NativeCssResource[] = [];
   /** Paths that the loaded CSS graph marks for stylesheet lint, in load order. */
   #lintSources: string[] = [];
+  /** Plugin runtime of the retained loader. */
+  #plugins?: PluginRuntime;
   /** Analysis graphs keyed by full entry identity, invalidated when native artifacts are removed. */
   readonly #cache = new Map<string, BrowserModuleAnalysis>();
 
@@ -147,11 +150,19 @@ export class BrowserProject {
         resolve(root, cssEntrypoint(config)),
         compilerOptions(config),
         this.#cssHost(),
+        undefined,
+        undefined,
+        {
+          plugins: config.plugins,
+          root,
+        },
       );
       this.#loader = loaded.loader;
       this.#resources = loaded.resources;
       this.#lintSources = loaded.lintSources;
+      this.#plugins = loaded.plugins;
       this.#session = new NativeProjectSession(this.#loader, false, "development", config.naming);
+      attachPlugins(this.#session, this.#plugins);
     }
     return this.#loader;
   }
@@ -319,7 +330,13 @@ export class BrowserProject {
         this.#invalidate(attempted);
       }
       result.sources = structuredClone(result.sources);
-      const editor = new EditorSnapshot(result, this.#session!, this.#loader!, config);
+      const editor = new EditorSnapshot(
+        result,
+        this.#session!,
+        this.#loader!,
+        config,
+        (await this.#plugins?.catalog()) ?? [],
+      );
       for (const report of editor.reports()) {
         const batch =
           result.batches.find((batch) =>

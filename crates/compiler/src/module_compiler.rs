@@ -376,6 +376,7 @@ impl ModuleCompiler {
             classes: if success { result.classes } else { Vec::new() },
             symbols: if success { result.symbols } else { Vec::new() },
             rejected_names: result.rejected_names,
+            dynamic_candidates: result.dynamic_candidates,
             diagnostics,
             lint_findings: result.lint_findings,
             source_lint_findings: result.source_lint_findings,

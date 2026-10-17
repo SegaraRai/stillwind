@@ -1,3 +1,4 @@
+import type { StillwindPlugin } from "@stillwind/config";
 import {
   editorCssSource,
   NativeDesignSystemLoader,
@@ -6,6 +7,8 @@ import {
   type NativeCssLoadStep,
   type NativeCssResource,
 } from "@stillwind/native";
+
+import { PluginRuntime } from "./plugins.ts";
 
 /**
  * Checks whether an identity names a stylesheet.
@@ -28,6 +31,7 @@ export interface EditorCssGraph extends LoadedCssGraph {
  * @param root - Resolved CSS entrypoint.
  * @param options - Compiler policies used by semantic queries.
  * @param host - Resolver and reads of the captured original buffers.
+ * @param pluginInputs - Plugins for `@plugin` statements, as {@link loadCssGraph} describes.
  * @returns A query graph and whether its sources were recovered. Original buffers remain unchanged.
  * The recovered graph must only supply editor queries, because its text omits authored rules.
  * @throws If both loads fail, including unresolved imports or unreadable files.
@@ -36,18 +40,26 @@ export async function loadEditorCssGraph(
   root: string,
   options: NativeCompilerOptions,
   host: CssHost,
+  pluginInputs?: CssPluginInputs,
 ): Promise<EditorCssGraph> {
   try {
     return {
-      ...(await loadCssGraph(root, options, host)),
+      ...(await loadCssGraph(root, options, host, undefined, undefined, pluginInputs)),
       recovered: false,
     };
   } catch {
     return {
-      ...(await loadCssGraph(root, options, {
-        ...host,
-        read: async (id) => editorCssSource(await host.read(id)),
-      })),
+      ...(await loadCssGraph(
+        root,
+        options,
+        {
+          ...host,
+          read: async (id) => editorCssSource(await host.read(id)),
+        },
+        undefined,
+        undefined,
+        pluginInputs,
+      )),
       recovered: true,
     };
   }
@@ -113,6 +125,25 @@ export interface CssHost {
     },
     specifier?: string,
   ): boolean;
+  /**
+   * Loads the plugin package that an `@plugin` statement names when no configured plugin has
+   * that name. Omission limits the graph to configured plugins.
+   *
+   * @param specifier - Package specifier from the statement.
+   * @param importer - Resolved identity of the stylesheet that contains the statement.
+   * @returns The plugin that the package exports by default.
+   */
+  loadPlugin?(specifier: string, importer: string): Promise<StillwindPlugin>;
+}
+
+/** Plugins and project inputs for the `@plugin` statements of one CSS graph. */
+export interface CssPluginInputs {
+  /** Plugins configured for the project. */
+  plugins?: readonly StillwindPlugin[];
+  /** Absolute project directory passed to plugins. */
+  root: string;
+  /** Runtime of an earlier load of the same project, whose candidates are resolved again. */
+  previous?: PluginRuntime;
 }
 
 /**
@@ -156,6 +187,11 @@ export interface LoadedCssGraph {
   resources: NativeCssResource[];
   /** Identities of the files marked for stylesheet lint, in the order the loader accepted them. */
   lintSources: string[];
+  /**
+   * Plugins of the graph's `@plugin` statements and the definitions that they have added. Absent
+   * for a graph that a host assembled without loading plugins.
+   */
+  plugins?: PluginRuntime;
 }
 
 /**
@@ -178,6 +214,8 @@ export interface LoadedCssGraph {
  * @param host - CSS resolver, reader, source identity operations, and dependency watcher.
  * @param rootContent - Optional entrypoint text that replaces the initial filesystem read.
  * @param suppliedLoader - Optional configured loader that has not received any CSS input.
+ * @param pluginInputs - Plugins for `@plugin` statements. Omission uses no configured plugins,
+ * the root's directory as the project directory, and the host's package loader.
  * @returns A promise for the completed native loader and its authored resource references.
  * @throws If resolving, reading, or loading the CSS graph fails.
  */
@@ -187,8 +225,17 @@ export async function loadCssGraph(
   host: CssHost,
   rootContent?: string,
   suppliedLoader?: NativeDesignSystemLoader,
+  pluginInputs?: CssPluginInputs,
 ): Promise<LoadedCssGraph> {
   const loader = suppliedLoader ?? new NativeDesignSystemLoader(options);
+  const plugins = new PluginRuntime(
+    options,
+    pluginInputs?.plugins ?? [],
+    pluginInputs?.root ?? root.replace(/[\\/][^\\/]*$/, ""),
+    host.loadPlugin?.bind(host),
+    (path) => host.watch(path),
+    pluginInputs?.previous,
+  );
 
   host.watch(root);
 
@@ -196,13 +243,21 @@ export async function loadCssGraph(
   const lint: typeof lintsStylesheet = (id, importer, specifier) =>
     host.lint ? host.lint(id, importer, specifier) : lintsStylesheet(id, importer, specifier);
   lints.set(root, lint(root));
+  const rootAnswer = {
+    name: root,
+    content: rootContent ?? (await host.read(root)),
+    uri: host.documentUri(root),
+    sourceMapSource: host.sourceMapSource(root),
+    lint: lints.get(root),
+  };
+  plugins.recordRoot(rootAnswer);
   const initial = loader.provide(
     0,
-    root,
-    rootContent ?? (await host.read(root)),
-    host.documentUri(root),
-    host.sourceMapSource(root),
-    lints.get(root),
+    rootAnswer.name,
+    rootAnswer.content,
+    rootAnswer.uri,
+    rootAnswer.sourceMapSource,
+    rootAnswer.lint,
   );
 
   let completion:
@@ -250,6 +305,17 @@ export async function loadCssGraph(
          * @throws If host resolution or reading fails. The attached rejection handler stops the load.
          */
         const read = async () => {
+          if (request.pluginOptions !== undefined) {
+            const answer = await plugins.answerPlugin(request);
+            if (!stopped) {
+              ready.push({
+                id: request.id,
+                ...answer,
+              });
+              schedule();
+            }
+            return;
+          }
           const name = await host.resolve(request.specifier, request.importer);
           if (stopped) {
             return;
@@ -261,37 +327,45 @@ export async function loadCssGraph(
           }
           const marked = lint(
             name,
-            { id: request.importer, lint: lints.get(request.importer) ?? false },
+            {
+              id: request.importer,
+              lint: lints.get(request.importer) ?? false,
+            },
             request.specifier,
           );
           lints.set(name, (lints.get(name) ?? false) || marked);
-          ready.push({
-            id: request.id,
+          const answer = {
             name,
             content,
             uri: host.documentUri(name),
             sourceMapSource: host.sourceMapSource(name),
             lint: marked,
-          });
-          if (!queued) {
-            queued = true;
-            setTimeout(() => {
-              queued = false;
-              const responses = ready;
-              ready = [];
-              if (stopped) {
-                return;
-              }
-              try {
-                advance(loader.provideMany(responses));
-              } catch (error) {
-                fail(error);
-              }
-            });
-          }
+          };
+          plugins.recordImport(request, answer);
+          ready.push({ id: request.id, ...answer });
+          schedule();
         };
         // Handle every rejection, including reads finishing after another read failed.
         void read().catch(fail);
+      }
+    };
+    /** Sends the responses that are ready in the current event-loop turn together. */
+    const schedule = () => {
+      if (!queued) {
+        queued = true;
+        setTimeout(() => {
+          queued = false;
+          const responses = ready;
+          ready = [];
+          if (stopped) {
+            return;
+          }
+          try {
+            advance(loader.provideMany(responses));
+          } catch (error) {
+            fail(error);
+          }
+        });
       }
     };
     advance(initial);
@@ -301,5 +375,6 @@ export async function loadCssGraph(
     loader,
     resources: completion?.resources ?? [],
     lintSources: completion?.lintSources ?? [],
+    plugins,
   };
 }

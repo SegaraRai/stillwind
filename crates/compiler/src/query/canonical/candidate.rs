@@ -47,7 +47,11 @@ impl DesignSystemQuery {
         if let Some(cached) = self.canonical_cache.borrow().get(raw) {
             return Ok(cached.clone());
         }
-        let result = self.find_canonical(raw)?.filter(|candidate| {
+        let result = match self.dynamic_named_candidate(raw) {
+            Some(named) => Some(named),
+            None => self.find_canonical(raw)?,
+        }
+        .filter(|candidate| {
             candidate_allowed(
                 candidate,
                 self.context.design_system.theme(),
@@ -58,6 +62,29 @@ impl DesignSystemQuery {
             .borrow_mut()
             .insert(raw.to_lean_str(), result.clone());
         Ok(result)
+    }
+
+    /// Returns `raw` with its utility name replaced by the named spelling when the name
+    /// is the bracket form of a dynamic family that accepts both forms. That family
+    /// resolves both spellings to one definition.
+    fn dynamic_named_candidate(&self, raw: &str) -> Option<LeanStr> {
+        let Utility::Named { name, .. } = parse_candidate(raw)?.utility else {
+            return None;
+        };
+        let named = self
+            .context
+            .design_system
+            .theme()
+            .dynamic_named_utility(&name)?;
+        let split = last_top_level(raw, ':').map_or(0, |index| index + 1);
+        Some(
+            format_args!(
+                "{}{}",
+                &raw[..split],
+                raw[split..].replacen(name.as_str(), &named, 1)
+            )
+            .to_lean_str(),
+        )
     }
 
     fn find_canonical(&self, raw: &str) -> Result<Option<LeanStr>, UtilityResolutionError> {
@@ -453,6 +480,26 @@ mod tests {
                 Some("[width:--if(--mode,1px,2px)]"),
             ),
             ("[width:--if(--c,20px,10px)]", None),
+        ] {
+            assert_eq!(
+                query.canonical_candidate(raw).unwrap().as_deref(),
+                expected,
+                "{raw}"
+            );
+        }
+    }
+
+    #[test]
+    fn dynamic_families_with_both_forms_prefer_the_named_spelling() {
+        let query = make_query(
+            "@import 'stillwind'; @stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @stillwind-dynamic i-[*];",
+            CompilerOptions::default(),
+        );
+        for (raw, expected) in [
+            ("icon-[mdi--close]", Some("icon-mdi--close")),
+            ("hover:!icon-[mdi--close]", Some("hover:!icon-mdi--close")),
+            ("icon-mdi--close", None),
+            ("i-[mdi--close]", None),
         ] {
             assert_eq!(
                 query.canonical_candidate(raw).unwrap().as_deref(),

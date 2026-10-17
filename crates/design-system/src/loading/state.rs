@@ -391,7 +391,12 @@ impl DesignSystemLoader {
                 id,
                 importer: name.clone(),
                 specifier: import.specifier.clone(),
-                kind: CssDependencyKind::Import,
+                kind: import
+                    .plugin
+                    .clone()
+                    .map_or(CssDependencyKind::Import, |options| {
+                        CssDependencyKind::Plugin { options }
+                    }),
             });
             self.pending.insert(id, (index, import_index));
         }

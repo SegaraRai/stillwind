@@ -53,6 +53,9 @@ pub(in crate::evaluation) fn resolve_named_utility(
     negative: bool,
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
+    if let Some(named) = theme.dynamic_named_utility(name) {
+        return resolve_named_utility(&named, modifier, negative, theme);
+    }
     let check = ArbitraryValueCheck::Grammar;
     let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     if let Some(mut resolution) = resolve_registry_layers(name, modifier, negative, theme, check)? {

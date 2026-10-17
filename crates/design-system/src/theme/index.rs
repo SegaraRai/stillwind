@@ -13,6 +13,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property
 use super::builder::ThemeBuilder;
 use super::declarations::ThemeToken;
 use super::namespace::{ThemeNamespace, excluded_from_namespace, namespace_key_names};
+use super::parser::DynamicFamily;
 use super::references::{inline_theme_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
@@ -28,6 +29,7 @@ struct ThemeDeclarations {
     utility_positions: BTreeMap<LeanStr, usize>,
     output_template: CssOutputTemplate,
     css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
+    dynamic_utilities: Vec<DynamicFamily>,
     registry: Arc<BuiltinDefinitions>,
     tokens: Vec<Arc<ThemeToken>>,
     custom_css: LeanStr,
@@ -79,6 +81,7 @@ impl ThemeIndex {
             utility_positions: builder.utility_positions,
             output_template: builder.output_template,
             css_templates: builder.css_templates,
+            dynamic_utilities: builder.dynamic_utilities,
             registry: builder.registry,
             tokens: builder.tokens.into_iter().map(Arc::new).collect(),
             custom_css: builder.custom_css,
@@ -146,6 +149,43 @@ impl ThemeIndex {
     /// name replaced earlier ones.
     pub fn css_templates(&self) -> &BTreeMap<LeanStr, CssOutputTemplate> {
         &self.inner.declarations.css_templates
+    }
+
+    /// Utility families that a host plugin defines on demand, in the order of their
+    /// first `@stillwind-dynamic` statements. The host adds a definition for each
+    /// candidate of such a family that a module uses.
+    pub fn dynamic_utilities(&self) -> &[DynamicFamily] {
+        &self.inner.declarations.dynamic_utilities
+    }
+
+    /// Returns the dynamic family that a utility name belongs to, and whether the name
+    /// is in the bracket form.
+    ///
+    /// A name belongs to a family when it is the prefix followed by a nonempty rest in
+    /// a form that the family accepts. The bracket form is `<prefix>[<value>]` with a
+    /// nonempty value that contains no `:`, `[`, `]`, or space.
+    pub fn dynamic_family(&self, name: &str) -> Option<(&DynamicFamily, bool)> {
+        self.dynamic_utilities().iter().find_map(|family| {
+            let rest = name.strip_prefix(family.prefix.as_str())?;
+            if bracket_value(rest).is_some() {
+                family.bracket.then_some((family, true))
+            } else {
+                (family.named && !rest.is_empty()).then_some((family, false))
+            }
+        })
+    }
+
+    /// Returns the named spelling of `name` when it is the bracket form of a candidate
+    /// of a family that accepts both forms, such as `icon-mdi--close` for
+    /// `icon-[mdi--close]`.
+    pub fn dynamic_named_utility(&self, name: &str) -> Option<LeanString> {
+        let (family, true) = self.dynamic_family(name)? else {
+            return None;
+        };
+        let value = bracket_value(&name[family.prefix.len()..])?;
+        family
+            .named
+            .then(|| format_args!("{}{value}", family.prefix).to_lean_string())
     }
 
     /// Built-in definitions selected by this CSS; empty when it imports none.
@@ -435,6 +475,13 @@ impl ThemeIndex {
             .find(|variant| variant.name == name)
             .map(Arc::as_ref)
     }
+}
+
+/// Returns the value of a bracket form `[<value>]` whose value is nonempty and contains
+/// no `:`, `[`, `]`, or space.
+fn bracket_value(rest: &str) -> Option<&str> {
+    let value = rest.strip_prefix('[')?.strip_suffix(']')?;
+    (!value.is_empty() && !value.contains([':', '[', ']', ' '])).then_some(value)
 }
 
 #[cfg(test)]

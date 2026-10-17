@@ -161,6 +161,9 @@ pub struct CompiledModule {
     pub symbols: Vec<GeneratedSymbol>,
     /// Names a host generator rejected, which the host may warn about.
     pub rejected_names: Vec<RejectedIdentifier>,
+    /// Dynamic-family utility names that the module mentions and the design system does
+    /// not define yet, as [`crate::CompileResult::dynamic_candidates`] describes.
+    pub dynamic_candidates: Vec<LeanStr>,
     /// Errors that failed the compilation, if any.
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
@@ -231,6 +234,7 @@ impl CompiledModule {
             classes: self.classes.clone(),
             symbols: self.symbols.clone(),
             rejected_names: self.rejected_names.clone(),
+            dynamic_candidates: self.dynamic_candidates.clone(),
             transforms: self.code_transforms.clone(),
             diagnostics: self.diagnostics.clone(),
             lint_findings: self.lint_findings.clone(),

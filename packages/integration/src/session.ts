@@ -1,11 +1,13 @@
 import type { BuildConfig } from "@stillwind/config";
 import {
+  attachPlugins,
   compileModule,
   compilerOptions,
   resolveTypeFactsEnvironment,
   TypeScriptFactsService,
   type CompilerHost,
   type ModuleCompileOptions,
+  type PluginRuntime,
   type TypeFactsEnvironment,
 } from "@stillwind/host";
 import {
@@ -53,6 +55,7 @@ export class IntegrationSession {
    * @param config - Compiler settings, including the root-relative or absolute tsconfig selection.
    * @param watch - Whether failed native updates retain the last successful output.
    * @param mode - Native compilation mode selected by the adapter.
+   * @param plugins - Plugin runtime of the loader's CSS graph, which resolves dynamic utilities.
    * @throws If the selected TypeScript configuration does not exist or native session creation fails.
    */
   constructor(
@@ -61,10 +64,12 @@ export class IntegrationSession {
     config: BuildConfig,
     watch: boolean,
     mode: string,
+    plugins?: PluginRuntime,
   ) {
     this.root = root;
     this.#typeFactsEnvironment = resolveTypeFactsEnvironment(root, config.tsconfig);
     this.native = new NativeProjectSession(loader, watch, mode, config.naming, false);
+    attachPlugins(this.native, plugins);
   }
 
   /**
