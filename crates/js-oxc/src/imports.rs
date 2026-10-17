@@ -19,7 +19,7 @@ use oxc::ast::ast::{
 };
 use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
-use oxc::span::GetSpan;
+use oxc::span::{GetSpan, Span as OxcSpan};
 
 use stillwind_ir::{
     MODULE_CSS_IMPORT, MacroImport, MacroImportSpecifier, ModuleImports, from_macro_import,
@@ -78,7 +78,7 @@ struct Collector<'s> {
 
 impl Collector<'_> {
     /// Stamps an Oxc span with this collector's file id.
-    fn span(&self, span: oxc::span::Span) -> Span {
+    fn span(&self, span: OxcSpan) -> Span {
         Span::new(self.file, span.start, span.end)
     }
 }

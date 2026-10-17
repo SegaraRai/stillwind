@@ -35,9 +35,10 @@ impl DesignSystemQuery {
     /// Offers labels that continue `input.prefix`.
     ///
     /// The input role selects utility or animation-option names and their theme tokens.
-    /// Definition branches offer only variant prefixes. Every label must resolve under
-    /// the role's variant constraints. Compound variants complete their nested
-    /// argument, and the existing variant prefix is retained.
+    /// Definition branches and `style.media()` arguments offer only variant prefixes.
+    /// Every label must resolve under the role's variant constraints. Compound variants
+    /// complete their nested argument, and the existing variant prefix is retained.
+    ///
     /// Returns unique labels in lexical order, each pinned to this query's
     /// design-system revision. Variant labels end in `:` so the caller can continue the
     /// input.
@@ -55,8 +56,7 @@ impl DesignSystemQuery {
         let (variants, partial) = prefix.split_at(split);
         let utility_partial = partial.trim_start_matches('!').trim_start_matches('-');
         let utility_flags = &partial[..partial.len() - utility_partial.len()];
-        let mut vocabulary = if context.options() || context == CandidateContext::DefinitionVariants
-        {
+        let mut vocabulary = if context.options() || context.variants_only() {
             BTreeSet::new()
         } else {
             self.utility_vocabulary_for(utility_partial)
@@ -91,9 +91,7 @@ impl DesignSystemQuery {
             .filter(|label| label.starts_with(utility_partial))
         {
             let label = format_args!("{variants}{utility_flags}{label}").to_lean_str();
-            if context != CandidateContext::DefinitionVariants
-                && self.valid_input(&label, context)?
-            {
+            if !context.variants_only() && self.valid_input(&label, context)? {
                 completions.insert(label);
             }
         }
@@ -153,9 +151,7 @@ impl DesignSystemQuery {
                     let before = &prefix[..prefix.len() - input.len() + index];
                     let closing = completion_closers(before);
                     let label = format_args!("{before}{}{closing}", token.name.value).to_lean_str();
-                    if context != CandidateContext::DefinitionVariants
-                        && self.valid_input(&label, context)?
-                    {
+                    if !context.variants_only() && self.valid_input(&label, context)? {
                         completions.insert(label);
                     } else if modifier.is_none() && self.valid_input_variant(&label, context) {
                         completions.insert(format_args!("{label}:").to_lean_str());
@@ -171,9 +167,7 @@ impl DesignSystemQuery {
                         && name.starts_with(input)
                     {
                         let label = format_args!("{before}{name}").to_lean_str();
-                        if context != CandidateContext::DefinitionVariants
-                            && self.valid_input(&label, context)?
-                        {
+                        if !context.variants_only() && self.valid_input(&label, context)? {
                             completions.insert(label);
                         }
                     }
@@ -200,7 +194,7 @@ impl DesignSystemQuery {
             .iter()
             .filter(|(name, _)| {
                 !context.options()
-                    && context != CandidateContext::DefinitionVariants
+                    && !context.variants_only()
                     && name
                         .strip_suffix('*')
                         .is_some_and(|root| input.starts_with(root))

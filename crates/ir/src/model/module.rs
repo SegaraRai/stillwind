@@ -3,7 +3,7 @@
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
-use stillwind_source::Span;
+use stillwind_source::{Span, Spanned};
 
 use super::{KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition};
 use crate::AdapterKind;
@@ -27,6 +27,9 @@ pub struct ModuleIr {
     /// CVA factories and their independently compiled style values, in source order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cva_calls: Vec<CvaCall>,
+    /// `style.media()` calls in source order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub media_calls: Vec<MediaCall>,
     /// In source order. Each entry is a `style.ref()` declaration.
     pub ref_definitions: Vec<RefDefinition>,
     /// In source order. Each entry is a `style.keyframes()` declaration.
@@ -56,6 +59,7 @@ impl ModuleIr {
             },
             style_calls: Vec::new(),
             cva_calls: Vec::new(),
+            media_calls: Vec::new(),
             ref_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
@@ -89,6 +93,18 @@ pub struct CvaReplacement {
     pub span: Span,
     /// Static JavaScript that preserves the enclosing object or array syntax.
     pub replacement: LeanStr,
+}
+
+/// A `style.media()` call that lowering replaces with a media query list string.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaCall {
+    /// Whole call in the original source.
+    pub span: Span,
+    /// Static arguments in source order, each a variant list with an optional final
+    /// `:`. The span covers the literal content without its delimiters. Unsupported
+    /// arguments are absent because they match no environment.
+    pub arguments: Vec<Spanned<LeanStr>>,
 }
 
 /// Binding-aware import information. All spans belong to the editable source.

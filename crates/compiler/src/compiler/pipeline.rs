@@ -32,6 +32,7 @@ use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
 };
 use super::fragment::{render_cva_value, render_style_call};
+use super::media::media_query;
 use super::output::CompileResult;
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol, generated_symbol,
@@ -40,6 +41,7 @@ use super::symbols::{
 use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
 use crate::editor_lint::detect;
+use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
 use crate::options::validate_lint_settings;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
@@ -297,6 +299,14 @@ impl Compiler {
                     replacement: (replacement.replacement.clone()).into(),
                     expressions: Vec::new(),
                 }));
+        }
+        for media in &module.media_calls {
+            let query = media_query(media, theme, &mut result.lint_findings);
+            result.transforms.push(SourceTransform {
+                call_span: media.span,
+                replacement: js_string(&query),
+                expressions: Vec::new(),
+            });
         }
         let mut definition_css = Vec::new();
         for animation in &module.keyframes_declarations {

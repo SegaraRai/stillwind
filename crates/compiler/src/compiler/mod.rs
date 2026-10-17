@@ -13,7 +13,8 @@
 //! [`output`] defines compilation results and structured CSS contributions. [`editor`]
 //! captures source occurrences and reuses emission for isolated CSS previews.
 //! [`document`] resolves document-level styles, whose variants select the element to
-//! style. [`stylesheet`] also checks the stylesheets that a host marks for lint.
+//! style. [`media`] lowers `style.media()` calls into media query strings.
+//! [`stylesheet`] also checks the stylesheets that a host marks for lint.
 //!
 //! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
 //! Callers with reusable snapshots and module artifacts use the crate's
@@ -32,6 +33,7 @@ mod expression_render;
 mod fragment;
 mod lexer;
 mod literal;
+mod media;
 mod rule_boundaries;
 
 mod output;
@@ -55,6 +57,7 @@ pub(crate) use conditionals::lower as lower_conditionals;
 pub(crate) use definitions::{emit_view_transition_utilities, resolve_frame};
 pub(crate) use document::emit_document_style;
 pub(crate) use editor::{preview_resource_urls, reserve_preview_names};
+pub(crate) use media::media_argument_query;
 pub(crate) use rule_boundaries::RuleBoundaries;
 pub(crate) use stylesheet::{render_mapped, render_module_stylesheet, render_stylesheet};
 pub(crate) use symbols::detached_symbol;

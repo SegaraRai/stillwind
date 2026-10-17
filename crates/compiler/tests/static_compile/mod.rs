@@ -23,6 +23,7 @@ mod conditional_flow;
 mod cva;
 mod definitions;
 mod folding;
+mod media;
 mod numeric;
 mod parity;
 mod react;

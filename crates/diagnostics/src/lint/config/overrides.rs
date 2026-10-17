@@ -75,6 +75,8 @@ pub struct LintOverrides {
     pub invalid_view_transition_definition: Option<LintSeverity>,
     /// Reporting level for `invalid-view-transition-variant`.
     pub invalid_view_transition_variant: Option<LintSeverity>,
+    /// Reporting level for `invalid-media-query`.
+    pub invalid_media_query: Option<LintSeverity>,
     /// Reporting level for `invalid-ref-input`.
     pub invalid_ref_input: Option<LintSeverity>,
     /// Reporting level for `invalid-animation-option`.
@@ -363,6 +365,7 @@ impl LintOverrides {
                 LintKind::InvalidViewTransitionVariant,
                 self.invalid_view_transition_variant,
             ),
+            (LintKind::InvalidMediaQuery, self.invalid_media_query),
             (LintKind::InvalidRefInput, self.invalid_ref_input),
             (
                 LintKind::InvalidAnimationOption,

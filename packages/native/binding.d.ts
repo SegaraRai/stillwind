@@ -592,7 +592,7 @@ export type NativeAttributeQuote = 'single' | 'double'
  * Option roles use the animation-option registry and its property mappings. Frame and
  * phase utilities retain the declarations produced by ordinary utility resolution.
  */
-export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants'
+export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'mediaVariants'
 
 /** The candidate set of a symbolic value. */
 export type NativeCandidates =
@@ -1084,6 +1084,8 @@ export interface NativeLintOptions {
   invalidViewTransitionDefinition?: string
   /** Settings for `invalid-view-transition-variant`. */
   invalidViewTransitionVariant?: string
+  /** Settings for `invalid-media-query`. */
+  invalidMediaQuery?: string
   /** Settings for `invalid-ref-input`. */
   invalidRefInput?: string
   /** Settings for `invalid-animation-option`. */

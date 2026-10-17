@@ -6,7 +6,7 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{CallExpression, ChainElement, Expression};
-use oxc::span::GetSpan;
+use oxc::span::{GetSpan, Span as OxcSpan};
 
 use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{RefCondition, RefDefinition, StyleInput, StyleVariant};
@@ -333,7 +333,7 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    fn ref_input_error(&mut self, diagnostic: LintDiagnostic, span: oxc::span::Span) {
+    fn ref_input_error(&mut self, diagnostic: LintDiagnostic, span: OxcSpan) {
         self.lint_findings
             .push(LintFinding::new(diagnostic, self.source_span(span)));
     }

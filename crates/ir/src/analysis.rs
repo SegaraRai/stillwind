@@ -252,6 +252,7 @@ impl ModuleAnalysis {
             support.asset_support.clear();
             support.ir.style_calls.clear();
             support.ir.cva_calls.clear();
+            support.ir.media_calls.clear();
             support.ir.ref_definitions.clear();
             support.ir.keyframes_declarations.retain(|declaration| {
                 identities.iter().any(|identity| {

@@ -68,6 +68,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-media-query": {
+    category: "input",
+    nativeName: "invalidMediaQuery",
+    defaults: null,
+    options: null,
+  },
   "invalid-ref-input": {
     category: "input",
     nativeName: "invalidRefInput",

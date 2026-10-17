@@ -334,6 +334,34 @@ test("hover uses emitted selectors, bound identities, and candidate variants; co
   }
 });
 
+test("style.media arguments complete and preview only media variants", async () => {
+  const source =
+    'import {style} from "stillwind/react"; const wide = style.media("wide:"); const next = style.media("");';
+  const current = project(
+    source,
+    {},
+    `${theme}
+@custom-variant wide (@media (width >= 40rem));`,
+  );
+  try {
+    const hover = (await current.query("/workspace/entry.tsx", {
+      kind: "hover",
+      offset: source.indexOf("wide:") + 1,
+    }))!.hover;
+    expect(hover?.css).toContain("@media (width >= 40rem /* 640px */)");
+    const completions = (await current.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: source.lastIndexOf('("') + 2,
+    }))!.completions!;
+    const labels = completions.map((item) => item.label);
+    expect(labels).toContain("wide:");
+    expect(labels).not.toContain("hover:");
+    expect(labels).not.toContain("block");
+  } finally {
+    await current.close();
+  }
+});
+
 test("color queries display concrete colors and picker edits preserve variants", async () => {
   const source =
     'import {style} from "stillwind/react"; const card = style("hover:bg-brand bg-[currentColor]");';

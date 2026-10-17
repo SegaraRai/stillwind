@@ -83,6 +83,9 @@ pub enum NativeCandidateContext {
     /// Serialized as `definitionVariants` for media and supports prefixes of a
     /// definition branch.
     DefinitionVariants,
+    /// Serialized as `mediaVariants` for one `style.media()` argument, whose variants
+    /// contain only media conditions.
+    MediaVariants,
 }
 
 impl From<NativeCandidateContext> for CandidateContext {
@@ -94,6 +97,7 @@ impl From<NativeCandidateContext> for CandidateContext {
             NativeCandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
             NativeCandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             NativeCandidateContext::DefinitionVariants => Self::DefinitionVariants,
+            NativeCandidateContext::MediaVariants => Self::MediaVariants,
         }
     }
 }
@@ -108,6 +112,7 @@ impl From<CandidateContext> for NativeCandidateContext {
             CandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
             CandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             CandidateContext::DefinitionVariants => Self::DefinitionVariants,
+            CandidateContext::MediaVariants => Self::MediaVariants,
         }
     }
 }

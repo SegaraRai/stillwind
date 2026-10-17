@@ -6,6 +6,7 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{Expression, PropertyKey, StringLiteral};
+use oxc::span::Span as OxcSpan;
 
 use stillwind_ir::AssetReference;
 use stillwind_semantic::{AssetKind, IdentityId};
@@ -30,16 +31,12 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Re-tags an Oxc span with the file id of the analysed source.
-    pub(crate) fn source_span(&self, span: oxc::span::Span) -> Span {
+    pub(crate) fn source_span(&self, span: OxcSpan) -> Span {
         Span::new(self.source.id(), span.start, span.end)
     }
 
     /// Pairs an external declaration identity with a genuine local use-site span.
-    pub(crate) fn asset_reference(
-        &self,
-        identity: &IdentityId,
-        span: oxc::span::Span,
-    ) -> AssetReference {
+    pub(crate) fn asset_reference(&self, identity: &IdentityId, span: OxcSpan) -> AssetReference {
         let span = self.source_span(span);
         AssetReference {
             identity: identity.clone(),

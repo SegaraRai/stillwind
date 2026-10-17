@@ -11,10 +11,10 @@
 //! the macro purity contract. Folding may reorder their evaluation and omit unused
 //! values while retaining guards for selected contributions.
 //!
-//! `module` groups declarations and calls extracted from one source. `assets`
-//! describes named declarations and their uses. `style` describes call inputs and
-//! variants. `expression` stores recursive class and rule contributions and validates
-//! conversion to the rule-only subset.
+//! [`module`] groups declarations and calls extracted from one source, including
+//! `style.media()` calls. [`assets`] describes named declarations and their uses.
+//! [`style`] describes call inputs and variants. [`expression`] stores recursive class
+//! and rule contributions and validates conversion to the rule-only subset.
 
 mod assets;
 mod expression;
@@ -30,7 +30,7 @@ pub use expression::{
     RuleExpression, RuleExpressionError, RuleExpressionErrorKind,
 };
 pub use module::{
-    CvaCall, CvaReplacement, MacroImport, MacroImportSpecifier, ModuleImports, ModuleIr,
+    CvaCall, CvaReplacement, MacroImport, MacroImportSpecifier, MediaCall, ModuleImports, ModuleIr,
 };
 pub use style::{
     AnchorScope, ContainerType, RefCondition, RefProjection, StyleCall, StyleInput, StyleVariant,

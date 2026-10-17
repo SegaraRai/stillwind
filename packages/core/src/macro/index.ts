@@ -959,6 +959,23 @@ export type StyleMacro<Props = object> = {
   anchorScope(scope: AnchorScope): StyleRefProjection;
 
   /**
+   * Returns the media query list of variants, such as for `window.matchMedia()`.
+   *
+   * The compiler replaces the call with a string, so the result can be stored, exported,
+   * and passed. The string has no `@media` or braces. Write the call outside other macro
+   * calls.
+   *
+   * @param variants - String literals of variants whose definitions contain only media
+   * conditions, with an optional final `:`. The variants of one argument must all hold,
+   * and the arguments are alternatives: `media("sm:motion-reduce", "print")` matches a
+   * wide screen with reduced motion, or print. An argument that does not resolve or that
+   * contains another kind of condition, such as `hover`, matches nothing and produces a
+   * lint finding.
+   * @returns A media query list. It is `"not all"` when no argument can match.
+   */
+  media(...variants: [string, ...string[]]): string;
+
+  /**
    * Compiles a CVA definition and returns a function that selects element props.
    * Write the configuration and utility inputs directly in the call. Custom properties
    * remain inline and value expressions obey this macro's purity contract.
@@ -1006,6 +1023,9 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       },
       cva(): never {
         throw new Error("Stillwind style.cva() is a compile-time macro.");
+      },
+      media(): never {
+        throw new Error("Stillwind style.media() is a compile-time macro.");
       },
     },
   );

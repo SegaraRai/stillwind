@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use oxc::ast::ast::{Expression, Function, Program};
 use oxc::ast_visit::{Visit, walk};
-use oxc::span::GetSpan;
+use oxc::span::{GetSpan, Span as OxcSpan};
 use oxc::syntax::scope::ScopeFlags;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
@@ -86,7 +86,7 @@ struct Violations {
 }
 
 impl Violations {
-    fn report(&mut self, span: oxc::span::Span, diagnostic: LintDiagnostic) {
+    fn report(&mut self, span: OxcSpan, diagnostic: LintDiagnostic) {
         self.errors.push(LintFinding::new(
             diagnostic,
             Span::new(self.file, span.start, span.end),

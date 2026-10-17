@@ -8,7 +8,7 @@ use oxc::ast::ast::{
     TSTypeQueryExprName, VariableDeclarator,
 };
 use oxc::ast_visit::{Visit, walk};
-use oxc::span::GetSpan;
+use oxc::span::{GetSpan, Span as OxcSpan};
 
 use stillwind_ir::{CheckerBinding, FrameworkSpec, ProjectionDecision, ProjectionExpression};
 use stillwind_source::{ProjectionIndex, SourceFile, Span};
@@ -59,11 +59,11 @@ struct NormalizationVisitor<'a, 'b> {
 }
 
 impl NormalizationVisitor<'_, '_> {
-    fn span(&self, span: oxc::span::Span) -> Span {
+    fn span(&self, span: OxcSpan) -> Span {
         Span::new(self.source.id(), span.start, span.end)
     }
 
-    fn text(&self, span: oxc::span::Span) -> &str {
+    fn text(&self, span: OxcSpan) -> &str {
         self.source
             .text()
             .get(span.start as usize..span.end as usize)
@@ -283,7 +283,7 @@ impl<'a> Visit<'a> for NormalizationVisitor<'_, 'a> {
                 callee: callee.name.as_str(),
                 whole: self.span(call.span),
                 value: self.span(value),
-                witness: self.text(oxc::span::Span::new(value.end, call.span.end)),
+                witness: self.text(OxcSpan::new(value.end, call.span.end)),
             });
             let synthetic = self.index.is_unmapped_syntax(self.span(callee.span));
             let ignored = matches!(decision, ProjectionDecision::IgnoreReferences)

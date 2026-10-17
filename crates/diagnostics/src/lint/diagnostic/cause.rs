@@ -39,6 +39,13 @@ pub enum LintDiagnostic {
     /// A composition base is an inline macro call instead of a bound style value.
     #[error("nested style() calls are not supported; bind the base to a variable")]
     NestedStyleCall,
+    /// A `style.media()` call appears in the arguments of another macro call. The
+    /// enclosing lowering would keep the call in JavaScript, so the smallest input that
+    /// contains it is omitted.
+    #[error(
+        "style.media() is not supported in the arguments of another macro call; bind its result to a variable"
+    )]
+    NestedMediaQuery,
     /// A style input array contains a spread that cannot be statically expanded.
     #[error("style() array spreads require a literal array")]
     StyleArraySpread,
@@ -191,9 +198,24 @@ pub enum LintDiagnostic {
         "keyframes definition variants must be media or supports conditions; container queries do not condition global keyframes"
     )]
     InvalidKeyframesVariant,
-    /// A view-transition utility carries a variant that cannot wrap a pseudo-element rule.
+    /// A view-transition utility carries a variant that cannot wrap a pseudo-element
+    /// rule.
     #[error("view transition utilities accept only media and supports condition variants")]
     InvalidViewTransitionVariant,
+    /// A `style.media()` argument is not a static string of variants, or the call has
+    /// no arguments. The argument matches no environment.
+    #[error("style.media() requires string literals of variants: {reason}")]
+    InvalidMediaArgument {
+        /// What the argument or call supplies instead.
+        reason: LeanStr,
+    },
+    /// A `style.media()` argument contains a variant that adds a condition other than a
+    /// media query. The whole argument matches no environment.
+    #[error("`{variant}` adds a condition that is not a media query")]
+    NonMediaVariant {
+        /// Variant text as written.
+        variant: LeanStr,
+    },
     /// A variant prefix of an object key or ref condition is not a list of complete
     /// `name:` segments (`invalid-variant`).
     #[error("variant prefixes must be complete `name:` segments")]
@@ -678,6 +700,7 @@ impl LintDiagnostic {
             | Self::InvalidAnchorScope
             | Self::InvalidPositionAnchorArguments => LintKind::InvalidRefInput,
             Self::NestedStyleCall
+            | Self::NestedMediaQuery
             | Self::StyleArraySpread
             | Self::InvalidStyleInput
             | Self::AttributeSpread
@@ -711,6 +734,9 @@ impl LintDiagnostic {
             | Self::InvalidViewTransitionValue
             | Self::InvalidViewTransitionLabel => LintKind::InvalidViewTransitionDefinition,
             Self::InvalidViewTransitionVariant => LintKind::InvalidViewTransitionVariant,
+            Self::InvalidMediaArgument { .. } | Self::NonMediaVariant { .. } => {
+                LintKind::InvalidMediaQuery
+            }
             Self::InvalidVariantPrefix | Self::InvalidVariant { .. } => LintKind::InvalidVariant,
             Self::UnknownVariant { .. } => LintKind::UnknownVariant,
             Self::MissingDocumentTarget { .. } => LintKind::MissingDocumentTarget,

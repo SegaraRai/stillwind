@@ -34,6 +34,9 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         expression: &Expression<'a>,
     ) -> Option<ClassExpression> {
+        if self.omit_kept_media(expression) {
+            return None;
+        }
         match expression {
             Expression::StringLiteral(literal) => {
                 Some(RuleExpression::Utilities(self.string_literal(literal)).into())
@@ -221,6 +224,23 @@ impl<'a> MacroExtractor<'a> {
                 continue;
             }
             let name = self.static_property_name(&property.key);
+            if property.computed
+                && let Some(key) = property.key.as_expression()
+                && self.omit_nested_media(key, property.span)
+            {
+                continue;
+            }
+            // Class, attribute, and custom-property values are kept as JavaScript;
+            // rule-group values are lowered as inputs.
+            if name.as_ref().is_some_and(|name| {
+                name.value == "class"
+                    || name.value.starts_with("--")
+                    || (!name.value.ends_with(':')
+                        && (name.value.starts_with("aria-") || name.value.starts_with("data-")))
+            }) && self.omit_nested_media(&property.value, property.span)
+            {
+                continue;
+            }
             if property.computed && name.is_none() {
                 if let Some(entry) = self.computed_variant_entry(property) {
                     entries.push(entry);

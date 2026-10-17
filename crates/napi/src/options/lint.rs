@@ -35,6 +35,8 @@ pub struct NativeLintOptions {
     pub invalid_view_transition_definition: Option<String>,
     /// Settings for `invalid-view-transition-variant`.
     pub invalid_view_transition_variant: Option<String>,
+    /// Settings for `invalid-media-query`.
+    pub invalid_media_query: Option<String>,
     /// Settings for `invalid-ref-input`.
     pub invalid_ref_input: Option<String>,
     /// Settings for `invalid-animation-option`.
@@ -183,6 +185,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_view_transition_variant: input
                 .invalid_view_transition_variant
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_media_query: input
+                .invalid_media_query
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_ref_input: input

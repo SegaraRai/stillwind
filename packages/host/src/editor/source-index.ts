@@ -241,6 +241,12 @@ export class SourceIndex {
               }
             }
           }
+        } else if (this.#producer(node.expression, "media")) {
+          for (const argument of node.arguments) {
+            if (ts.isStringLiteralLike(argument)) {
+              this.#literal(source, argument, "", "mediaVariants");
+            }
+          }
         } else if (this.asset(source, node.expression)?.identity.kind === "keyframes") {
           const options = node.arguments[0];
           if (options && ts.isStringLiteralLike(options)) {

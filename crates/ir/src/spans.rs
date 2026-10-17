@@ -73,6 +73,12 @@ impl ModuleIr {
                 }
             }
         }
+        for media in &mut result.media_calls {
+            media.span = map(media.span)?;
+            for argument in &mut media.arguments {
+                map_value(argument, &mut map)?;
+            }
+        }
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }

@@ -16,7 +16,7 @@ use super::DesignSystemQuery;
 use super::resolution::candidate_identifiers;
 use crate::compiler::{
     OptionVariants, condition_paths, emit_document_style, emit_view_transition_utilities,
-    resolve_frame, resolve_options, wrap_conditions,
+    media_argument_query, resolve_frame, resolve_options, wrap_conditions,
 };
 
 /// The syntax and emission contract of an editor input.
@@ -38,6 +38,9 @@ pub enum CandidateContext {
     ViewTransitionUtilities,
     /// Media and supports prefixes that can contain a global definition.
     DefinitionVariants,
+    /// One `style.media()` argument: variants whose definitions contain only media
+    /// conditions, with an optional final `:`.
+    MediaVariants,
     /// Utilities of a document-level style, which has no generated class. The first
     /// variant that selects an element, such as `host:` or `[:root]:`, must come before
     /// any variant that refers to `&`. Only tests use this role until the
@@ -46,9 +49,15 @@ pub enum CandidateContext {
 }
 
 impl CandidateContext {
-    /// Whether this role uses the animation-option registry instead of utility definitions.
+    /// Whether this role uses the animation-option registry instead of utility
+    /// definitions.
     pub(super) const fn options(self) -> bool {
         matches!(self, Self::AnimationOptions | Self::ViewTransitionOptions)
+    }
+
+    /// Whether this role accepts only variants, without a utility or option.
+    pub(super) const fn variants_only(self) -> bool {
+        matches!(self, Self::DefinitionVariants | Self::MediaVariants)
     }
 
     /// Whether this role permits variant prefixes. Allowed roles still validate each
@@ -82,23 +91,11 @@ impl DesignSystemQuery {
                 .hover_candidate(candidate)
                 .map(|value| value.map(|value| value.css));
         }
-
-        let theme = self.context.design_system.theme();
-        if context == CandidateContext::DefinitionVariants {
-            // Only the parsed variants contribute to the preview. The required utility
-            // suffix is discarded without resolving it.
-            let text = format_args!("{}:utility", candidate.trim_end_matches(':')).to_lean_string();
-            let Some(parsed) = parse_candidate(&text) else {
-                return Ok(None);
-            };
-            let Some(paths) = condition_paths(&parsed.variants, theme) else {
-                return Ok(None);
-            };
-            return Ok(Some(
-                paths.iter().map(|path| wrap_conditions("", path)).collect(),
-            ));
+        if context.variants_only() {
+            return Ok(self.preview_variants(candidate, context));
         }
 
+        let theme = self.context.design_system.theme();
         let input = Spanned::new(
             LeanStr::from(candidate),
             Span::new(
@@ -170,13 +167,31 @@ impl DesignSystemQuery {
                 );
                 css
             }
-            CandidateContext::Utility | CandidateContext::DefinitionVariants => return Ok(None),
+            CandidateContext::Utility
+            | CandidateContext::DefinitionVariants
+            | CandidateContext::MediaVariants => return Ok(None),
         };
         Ok(if diagnostics.is_empty() && !css.is_empty() {
             self.context.preview_declarations(&css)
         } else {
             None
         })
+    }
+
+    /// Renders the empty at-rules that a variant-only input wraps around a rule, or
+    /// returns `None` when the input does not resolve under `context`.
+    fn preview_variants(&self, candidate: &str, context: CandidateContext) -> Option<LeanStr> {
+        let theme = self.context.design_system.theme();
+        if context == CandidateContext::MediaVariants {
+            return media_argument_query(candidate, theme)
+                .map(|query| format_args!("@media {query}{{}}").to_lean_string().into());
+        }
+        // Only the parsed variants contribute to the preview. The required utility
+        // suffix is discarded without resolving it.
+        let text = format_args!("{}:utility", candidate.trim_end_matches(':')).to_lean_string();
+        let parsed = parse_candidate(&text)?;
+        let paths = condition_paths(&parsed.variants, theme)?;
+        Some(paths.iter().map(|path| wrap_conditions("", path)).collect())
     }
 
     /// Checks decoded `text` under its role. Ordinary utilities require failure-free
@@ -208,6 +223,9 @@ impl DesignSystemQuery {
     pub(super) fn valid_input_variant(&self, text: &str, context: CandidateContext) -> bool {
         if !context.variants() {
             return false;
+        }
+        if context == CandidateContext::MediaVariants {
+            return media_argument_query(text, self.context.design_system.theme()).is_some();
         }
 
         // The candidate grammar requires a utility suffix. Validation below resolves
@@ -247,7 +265,7 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
-    use crate::CompilerOptions;
+    use crate::{CompilerOptions, CompletionInput};
 
     #[test]
     fn variant_inputs_resolve_without_evaluating_utility_definitions() {
@@ -283,6 +301,33 @@ mod tests {
                     .as_deref(),
                 Some("@media (width >= 40rem){}")
             );
+            assert!(query.valid_input_variant("wide", CandidateContext::MediaVariants));
+            assert!(!query.valid_input_variant("hovered", CandidateContext::MediaVariants));
+            for argument in ["wide", "wide:"] {
+                assert_eq!(
+                    query
+                        .preview_candidate(argument, CandidateContext::MediaVariants)
+                        .unwrap()
+                        .as_deref(),
+                    Some("@media (width >= 40rem){}")
+                );
+            }
+            assert_eq!(
+                query
+                    .preview_candidate("wide:hovered", CandidateContext::MediaVariants)
+                    .unwrap(),
+                None
+            );
+            let labels = query
+                .complete_candidate(CompletionInput {
+                    prefix: "w".into(),
+                    context: CandidateContext::MediaVariants,
+                })
+                .unwrap()
+                .into_iter()
+                .map(|item| item.label)
+                .collect::<Vec<_>>();
+            assert_eq!(labels, ["wide:"]);
         }
     }
 }

@@ -21,9 +21,10 @@ for (const [framework, load] of frameworks) {
       () => style.anchorScope("none"),
       () => style.keyframes({ from: "opacity-0" }),
       () => style.viewTransition({ old: "opacity-0" }),
+      () => style.media("sm"),
     ]) {
       expect(call).toThrow(
-        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition))?\(\) is a compile-time macro/,
+        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition|media))?\(\) is a compile-time macro/,
       );
     }
   });

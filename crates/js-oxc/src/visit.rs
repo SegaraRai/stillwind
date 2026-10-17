@@ -3,7 +3,7 @@
 //!
 //! The visit records module structure (imports, re-exports,
 //! specifier literals, exported bindings), declarations of assets (`style.ref()`,
-//! keyframes, view transitions), and `style()` call sites.
+//! keyframes, view transitions), `style()` call sites, and `style.media()` calls.
 //!
 //! Recognition always goes through resolved symbols. The one place spelling is used is
 //! [`ImportBinding`], because an import declaration is the only construct that can
@@ -196,6 +196,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         if self.is_style_member(call.callee.get_inner_expression(), "cva") {
             self.collect_cva(call);
+            walk::walk_call_expression(self, call);
+            return;
+        }
+        if self.is_style_member(call.callee.get_inner_expression(), "media") {
+            self.collect_media(call);
             walk::walk_call_expression(self, call);
             return;
         }

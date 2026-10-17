@@ -15,10 +15,11 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::ModuleExportName;
 use oxc::semantic::{Scoping, SymbolId};
+use oxc::span::Span as OxcSpan;
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, CvaCall, CvaReplacement, KeyframesDefinition, RefDefinition, StyleCall,
+    AdapterKind, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, RefDefinition, StyleCall,
     ViewTransitionDefinition,
 };
 use stillwind_semantic::{
@@ -72,6 +73,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_calls: Vec<StyleCall>,
     /// CVA factory calls whose values use the ordinary style-input parser.
     pub(crate) cva_calls: Vec<CvaCall>,
+    /// `style.media()` calls in source order.
+    pub(crate) media_calls: Vec<MediaCall>,
     /// Allows boolean literals as empty contributions while parsing CVA values.
     pub(crate) in_cva: bool,
     /// Diagnostics raised during extraction, in visit order.
@@ -146,6 +149,7 @@ impl<'a> MacroExtractor<'a> {
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             cva_calls: Vec::new(),
+            media_calls: Vec::new(),
             in_cva: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
@@ -170,13 +174,13 @@ impl<'a> MacroExtractor<'a> {
 
     /// Records that the source expression at `span` is erased from generated code.
     /// Nested macro reads inside it are erased with it.
-    pub(crate) fn omit_input(&mut self, span: oxc::span::Span) {
+    pub(crate) fn omit_input(&mut self, span: OxcSpan) {
         self.omitted_inputs.push(self.source_span(span));
     }
 
     /// Returns whether `span` lies inside an expression recorded by
     /// [`Self::omit_input`].
-    pub(crate) fn input_is_omitted(&self, span: oxc::span::Span) -> bool {
+    pub(crate) fn input_is_omitted(&self, span: OxcSpan) -> bool {
         let span = self.source_span(span);
         self.omitted_inputs.iter().any(|omitted| {
             omitted.file == span.file && omitted.start <= span.start && span.end <= omitted.end
@@ -184,7 +188,7 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Looks up a fact by its original UTF-8 expression range.
-    pub(crate) fn type_fact(&self, span: oxc::span::Span) -> Option<&CheckedValue> {
+    pub(crate) fn type_fact(&self, span: OxcSpan) -> Option<&CheckedValue> {
         let span = (self.coordinates)(self.source_span(span))?;
         self.type_facts
             .get(&LocalSpan::new(span.start.0, span.end.0))

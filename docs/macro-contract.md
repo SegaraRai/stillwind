@@ -301,6 +301,7 @@ const props = style({
 | `ref.at(query?)` / ref.at tags                                            | The receiver has finite raw-ref candidates. The static query returns a variant. An omitted or empty query emits `@container <container-name>` without a condition or parentheses.                                         |
 | `ref()` / `ref("variant:")` / ref tags                                    | The prefix is static. Tags cannot contain interpolations.                                                                                                                                                                 |
 | `ref(state).in(scope)`                                                    | The scope is a raw ref or an unscoped ref call/tag. Scope operands cannot use `.in()` or `.at()`. Repeated `.in()` calls independently combine containment conditions for the original ref and target with AND.           |
+| `style.media(...variants)`                                                | String literals or interpolation-free template literals of variants whose definitions contain only media conditions. See [Media queries](#media-queries).                                                                 |
 | Utility strings and variant keys in `style()`                             | Static CSS descriptions. Utility templates accept only the specified ref-variant interpolations.                                                                                                                          |
 | Arrays and variant objects                                                | Recursively contain supported inputs. Literal spreads and array holes are supported. Getters and methods are forbidden.                                                                                                   |
 
@@ -509,6 +510,60 @@ creates a factory that returns selected props at runtime. Write its static
 configuration object directly in the call. Completed-style composition and
 declaration uses are not accepted as CVA inputs. See
 [runtime](runtime.md#cva-factories) for selection, defaults, compounds, and examples.
+
+## Media queries
+
+`style.media(...variants)` returns the media query list of variants as a string, so
+JavaScript can test the breakpoints and media variants that the CSS uses:
+
+```ts
+const compact = style.media("not-md");
+const query = window.matchMedia(style.media("sm:motion-reduce", "print"));
+```
+
+The compiler replaces the call with a string literal, such as
+`"(width >= 40rem) and (prefers-reduced-motion: reduce), print"`. The string has no
+`@media` or braces, and the call contributes no CSS. Store, export, and pass the result
+like any string. A change to a variant definition in the CSS changes the string and
+transforms the module again.
+
+Each argument is a string literal or a template literal without interpolations. It
+contains variants with an optional final `:`. The variants of one argument must all
+hold, as in a utility: `sm:motion-reduce` combines both conditions with `and`. The
+arguments are alternatives, so the result lists the queries of every argument. A variant
+that is itself a media query list, such as a custom variant with two `@media` blocks,
+contributes one query per alternative. When one variant supplies the query, its
+definition's spelling is kept.
+
+Only variants whose resolved definitions consist of media conditions are accepted.
+Variants are checked by their resolved definitions, not by name. `dark` qualifies while
+it uses `prefers-color-scheme`, but not after a project redefines it with a selector.
+`hover` combines `(hover: hover)` with `:hover`, so it is rejected. The compiler does
+not extract the media part, because that part means a device that can hover. Define a
+media-only variant for that case:
+
+```css
+@custom-variant can-hover (@media (hover: hover));
+```
+
+An argument that is empty, is not a literal, or contains a variant that does not
+resolve or adds another kind of condition matches no environment. Removing only the
+failing variant would match more environments than the author wrote. The other
+arguments keep their queries. When no argument can match, the call becomes `"not all"`,
+because an empty media query list matches every environment. Unresolved variants report
+`unknown-variant` or `invalid-variant`. Other problems, including a call without
+arguments, report `invalid-media-query`, which defaults to `deny`. Severity settings and
+suppression do not change the string.
+
+A call inside the arguments of another macro call is unsupported input of that call.
+The enclosing lowering would keep the call in JavaScript, so it omits the smallest input
+that contains the call: a style input, the whole conditional for its test, or an object
+property for its key or value. `style()` and CVA inputs report `invalid-style-input`.
+Declaration macros accept only literals, so their own input rules report the call.
+Store the result in a binding outside the call.
+
+Editors complete only media variants inside the arguments and preview each argument's
+query.
 
 ## Custom properties
 

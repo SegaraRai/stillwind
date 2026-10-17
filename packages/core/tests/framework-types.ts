@@ -280,5 +280,9 @@ function explicitRefUses(flag: boolean) {
   a.asContainer("normal scroll-state");
   // @ts-expect-error scope identities must be refs
   react.anchorScope(["a"]);
+  const query: string = react.media("sm:motion-reduce", "print");
+  void query;
+  // @ts-expect-error media requires at least one variant list
+  react.media();
 }
 void explicitRefUses;

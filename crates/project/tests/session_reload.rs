@@ -193,3 +193,47 @@ fn build_load_failure_clears_artifacts_and_dependency_indexes() {
     );
     assert_eq!(session.dependencies(), &DependencyIndex::default());
 }
+
+/// A design-system change that alters a media variant changes the replacement of a
+/// `style.media()` call, including a variant that the previous revision lacked.
+#[test]
+fn reload_retransforms_media_queries_of_changed_variants() {
+    let mut session = ProjectSession::new(
+        snapshot("@custom-variant wide (@media (width >= 40rem));"),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::default(),
+    );
+    let id = ModuleId::from("query.tsx");
+    let source =
+        "import { style } from 'stillwind/react'; export const q = style.media('wide', 'tall');";
+    session.update_module(support::analysis("query.tsx", source));
+    let replacements = |session: &ProjectSession| {
+        session.artifacts()[&id]
+            .code_transforms
+            .iter()
+            .map(|transform| transform.replacement.to_string())
+            .collect::<Vec<_>>()
+    };
+    assert!(
+        replacements(&session).contains(&r#""(width >= 40rem)""#.to_owned()),
+        "{:?}",
+        replacements(&session)
+    );
+    let update = session
+        .reload(
+            Ok(snapshot(
+                "@custom-variant wide (@media (width >= 50rem)); @custom-variant tall (@media (height >= 40rem));",
+            )),
+            session.options().clone(),
+        )
+        .unwrap();
+    assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+    assert!(update.transformed_modules.contains(&id));
+    assert!(
+        replacements(&session).contains(&r#""(width >= 50rem), (height >= 40rem)""#.to_owned()),
+        "{:?}",
+        replacements(&session)
+    );
+}

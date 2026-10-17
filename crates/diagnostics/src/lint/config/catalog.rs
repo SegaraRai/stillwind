@@ -259,6 +259,7 @@ define_lint_rules! {
         InvalidViewTransitionUse => "invalid-view-transition-use",
         InvalidViewTransitionDefinition => "invalid-view-transition-definition",
         InvalidViewTransitionVariant => "invalid-view-transition-variant",
+        InvalidMediaQuery => "invalid-media-query",
         InvalidRefInput => "invalid-ref-input",
         InvalidAnimationOption => "invalid-animation-option",
         InvalidStyleComposition => "invalid-style-composition",

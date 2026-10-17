@@ -97,6 +97,9 @@ impl<'a> MacroExtractor<'a> {
             ));
             return;
         }
+        if self.omit_kept_media(expression) {
+            return;
+        }
         match expression {
             Expression::ArrayExpression(array) => {
                 self.collect_style_array(array, inputs);
@@ -179,6 +182,26 @@ impl<'a> MacroExtractor<'a> {
         if let Some(class) = self.class_expression(expression) {
             inputs.push(StyleInput::Class(class));
         }
+    }
+
+    /// Omits `expression` when a part that lowering keeps as JavaScript contains a
+    /// `style.media()` call. Returns whether it did.
+    ///
+    /// Arrays, objects, and conditional branches are lowered separately, so only the
+    /// test of a conditional is checked for them. Any other expression is kept whole.
+    pub(super) fn omit_kept_media(&mut self, expression: &Expression<'a>) -> bool {
+        let kept = match expression {
+            Expression::ArrayExpression(_)
+            | Expression::ObjectExpression(_)
+            | Expression::StringLiteral(_)
+            | Expression::ParenthesizedExpression(_) => return false,
+            Expression::ConditionalExpression(conditional) => &conditional.test,
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
+                &logical.left
+            }
+            _ => expression,
+        };
+        self.omit_nested_media(kept, expression.span())
     }
 
     /// Appends a mixed-channel array to `inputs`, keeping class-only arrays in the
