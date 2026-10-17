@@ -19,6 +19,7 @@ export const extensionManifest = {
     "onLanguage:javascriptreact",
     "onLanguage:typescript",
     "onLanguage:typescriptreact",
+    "onLanguage:css",
     ...configurationFiles.map((file) => `workspaceContains:${file}`),
   ],
   capabilities: {

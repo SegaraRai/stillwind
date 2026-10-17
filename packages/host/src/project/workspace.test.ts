@@ -139,3 +139,56 @@ test("workspace lints the CSS entry and imported user stylesheets with unsaved b
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("CSS editor queries recover imported definitions from cold incomplete buffers without changing lint", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-css-editor-"));
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    const config = path.join(root, "stillwind.config.json");
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [
+          {
+            css: "root.css",
+            files: ["*.tsx"],
+            typeFacts: false,
+          },
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "root.css"),
+      '@import "./local.css"; @utility flex {display:flex;} @custom-variant hover (&:hover);',
+    );
+    const local = path.join(root, "local.css");
+    const text = "@theme { --color-brand:red; } /* 日本語 🦀 */ .a { @apply fl";
+    await writeFile(local, text);
+    workspace = await AnalysisWorkspace.open(config);
+    const [answer] = await workspace.query(local, { kind: "completion", offset: text.length });
+    const item = answer.result.completions!.find((item) => item.label === "flex")!;
+    expect(item.newText).toBe("flex");
+    expect(item.start).toBe(text.length - 2);
+    const [resolved] = await workspace.query(local, {
+      kind: "resolve",
+      candidate: item.candidate,
+      input: item.input,
+      snapshot: item.snapshot,
+    });
+    expect(resolved.result.hover?.css).toContain("display: flex");
+    expect(await workspace.analyze(local)).toEqual([]);
+    const next = "@theme { --color-latest:blue; } .a { color:--theme(--color-la";
+    workspace.update(local, next, 1);
+    const [updated] = await workspace.query(local, { kind: "completion", offset: next.length });
+    expect(updated.result.completions?.map((item) => item.label)).toEqual(["--color-latest"]);
+    expect(
+      await workspace.query(path.join(root, "outside.css"), {
+        kind: "completion",
+        offset: 0,
+      }),
+    ).toEqual([]);
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

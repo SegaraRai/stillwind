@@ -102,7 +102,11 @@ export function registerEditorFeatures(
     const items: CompletionItem[] = entries.flatMap((entry) =>
       (entry.result.completions ?? []).map((item) => ({
         label: item.label,
-        kind: item.candidate.endsWith(":") ? CompletionItemKind.Module : CompletionItemKind.Value,
+        kind: item.keyword
+          ? CompletionItemKind.Keyword
+          : item.candidate.endsWith(":")
+            ? CompletionItemKind.Module
+            : CompletionItemKind.Value,
         textEdit: {
           range: offsets(document, item),
           newText: item.newText,
@@ -257,7 +261,7 @@ export function registerEditorFeatures(
 }
 
 /**
- * Formats generated CSS as a fenced block and explains authored runtime key expressions.
+ * Formats CSS previews and dialect documentation, and explains authored runtime key expressions.
  * Expression line breaks become spaces, and code-span delimiters exceed every authored
  * backtick run so expressions remain literal Markdown. The supplied hover remains unchanged.
  *
@@ -267,6 +271,8 @@ export function registerEditorFeatures(
 function hoverMarkdown(hover: {
   /** Formatted generated CSS included verbatim inside the CSS fence. */
   css: string;
+  /** Markdown describing authored CSS syntax or theme semantics. */
+  documentation?: string;
   /** Authored expressions in the order in which their notes should appear. */
   runtimeNames?: string[];
 }): string {
@@ -277,7 +283,9 @@ function hoverMarkdown(hover: {
     );
     return `view-transition-name is computed at runtime from ${ticks} ${text} ${ticks}.`;
   });
-  return [`\`\`\`css\n${hover.css}\n\`\`\``, ...notes].join("\n\n");
+  return [hover.css ? `\`\`\`css\n${hover.css}\n\`\`\`` : undefined, hover.documentation, ...notes]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /**

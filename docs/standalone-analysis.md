@@ -368,6 +368,18 @@ diagnostics and quick fixes for open CSS documents and uses unsaved CSS buffers 
 it loads the design system. When the CSS graph cannot load, script analysis reports
 the failure, and no stylesheet is linted.
 
+CSS editor queries complete Stillwind at-rule names, `@apply` candidates, applied
+`@variant` sequences, output-slot arguments, and active theme names in `theme()`,
+`--theme()`, and `var()`. Hovers show generated candidate CSS, variant wrappers,
+directive and slot documentation, or the active theme definition. A `var()` hover
+describes that definition; the browser's cascade can override its value.
+
+Queries accept incomplete blocks and candidates. When original CSS cannot load,
+the editor retries with recovered imports and definitions. This recovery does not
+supply compilation output, lint diagnostics, or fixes. Unreadable files and
+unresolved imports can still prevent semantic queries. Completion resolution
+requires the same document, design-system revision, and preview settings.
+
 Build, development, and watch sessions of bundler integrations skip stylesheet lint,
 as they skip module lint, so lint never changes whether a build succeeds or what it
 emits. Hosts that load CSS themselves call `NativeDesignSystemLoader.stylesheetReports()`

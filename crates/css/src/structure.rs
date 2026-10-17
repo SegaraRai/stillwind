@@ -52,9 +52,11 @@ pub enum CssNodeKind {
     },
     /// An at-rule other than an `@apply` statement.
     AtRule {
-        /// Name without `@`, in ASCII lowercase.
+        /// Name without `@`, in ASCII lowercase. Empty for a lone `@` in incomplete
+        /// input.
         name: LeanStr,
-        /// Prelude without surrounding whitespace. It is empty when the at-rule has none.
+        /// Prelude without surrounding whitespace. It is empty when the at-rule has
+        /// none.
         prelude: Range<usize>,
         /// Block contents, or `None` for a statement such as `@import "x.css";`.
         block: Option<CssBlock>,
@@ -78,7 +80,8 @@ pub enum CssNodeKind {
 /// The contents of one `{ ... }` block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssBlock {
-    /// Range between the braces. For an unclosed block, it ends at the end of the input.
+    /// Range between the braces. For an unclosed block, it ends at the end of the
+    /// input.
     pub contents: Range<usize>,
     /// Nodes in authored order.
     pub children: Vec<CssNode>,
@@ -117,6 +120,9 @@ fn parse_block(parser: &mut Parser<'_>, css: &str) -> Vec<CssNode> {
                     name.to_ascii_lowercase().into(),
                 ));
             }
+            Token::Delim('@') => {
+                nodes.push(at_rule(parser, css, start, LeanStr::default()));
+            }
             _ => {
                 parser.reset(&state);
                 nodes.extend(rule_or_declaration(parser, css, start));
@@ -126,7 +132,7 @@ fn parse_block(parser: &mut Parser<'_>, css: &str) -> Vec<CssNode> {
     nodes
 }
 
-/// Reads an at-rule whose `@name` token ends at the parser position.
+/// Reads an at-rule after its `@name` token or an incomplete lone `@`.
 fn at_rule(parser: &mut Parser<'_>, css: &str, start: usize, name: LeanStr) -> CssNode {
     let prelude_start = parser.position().byte_index();
     let mut candidates = Vec::new();

@@ -186,7 +186,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
             : undefined;
 
       const results: WorkspaceResult[] = [];
-      const stylesheet = /\.css$/i.test(id);
+      const stylesheet = isStylesheet(id);
       for (const [index, config] of this.#options.projects.entries()) {
         if (!includes(config, id) && !stylesheet) {
           continue;
@@ -359,7 +359,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
       await this.#prepareProjects(revision, files);
       const results: WorkspaceEditorResult[] = [];
       for (const [index, config] of this.#options.projects.entries()) {
-        if (!includes(config, id)) {
+        if (!includes(config, id) && !isStylesheet(id)) {
           continue;
         }
         const result = await this.#projects![index].query(id, request);
@@ -387,6 +387,15 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     await this.#queue;
     await Promise.all(this.#projects?.map((project) => project.close()) ?? []);
   }
+}
+
+/**
+ * Checks whether a virtual identity names a stylesheet.
+ * @param id - Absolute virtual file path.
+ * @returns Whether the complete identity ends in `.css`, ignoring case.
+ */
+function isStylesheet(id: string): boolean {
+  return /\.css$/i.test(id);
 }
 
 /**

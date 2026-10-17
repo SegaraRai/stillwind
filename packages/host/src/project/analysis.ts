@@ -9,7 +9,13 @@ import {
 } from "@stillwind/native";
 
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/index.ts";
-import { loadCssGraph, type CssHost } from "../css/index.ts";
+import {
+  isStylesheet,
+  loadCssGraph,
+  loadEditorCssGraph,
+  type CssHost,
+  type EditorCssGraph,
+} from "../css/index.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import {
   TypeScriptFactsService,
@@ -53,12 +59,14 @@ export interface AnalysisHost extends CompilerHost {
    *
    * @param documents - Absolute file paths to captured text. Missing entries use backend reads.
    * @returns A promise that resolves when subsequent reads can use the supplied snapshot.
+   * @throws If the backend cannot install the supplied buffers.
    */
   setDocuments(documents: ReadonlyMap<string, string>): Promise<void>;
   /**
    * Discards backend caches before the next transaction. Must not overlap resolution or loads.
    *
    * @returns A promise that resolves when cached reads and resolutions have been invalidated.
+   * @throws If backend invalidation fails.
    */
   invalidate(): Promise<void>;
   /**
@@ -127,6 +135,8 @@ export class AnalysisProject {
   #facts?: TypeScriptFactsService;
   /** CSS loader retained until a CSS update or explicit invalidation. */
   #loader?: NativeDesignSystemLoader;
+  /** Query-only CSS graph, rebuilt after CSS changes and kept separate from strict analysis. */
+  #editorCss?: EditorCssGraph;
   /** Identities that the retained loader marked for stylesheet lint, in load order. */
   #lintSources: string[] = [];
   /** Requests backend invalidation before the next transaction. */
@@ -182,7 +192,7 @@ export class AnalysisProject {
     });
     this.#revision++;
     this.#dirty = true;
-    this.#cssDirty ||= id.endsWith(".css");
+    this.#cssDirty ||= isStylesheet(id);
   }
 
   /**
@@ -196,7 +206,7 @@ export class AnalysisProject {
     if (this.#documents.delete(id)) {
       this.#revision++;
       this.#dirty = true;
-      this.#cssDirty ||= id.endsWith(".css");
+      this.#cssDirty ||= isStylesheet(id);
     }
   }
 
@@ -212,11 +222,15 @@ export class AnalysisProject {
    * Lists the stylesheets that this project lints, using the document contents captured when this
    * method is called.
    *
+   * @param editor - When false (the default), loads the original CSS and rejects invalid input.
+   * When true, retries a failed load with recovered definitions so incomplete CSS can still
+   * determine membership for completion and hover.
    * @returns Identities of the CSS entry and the imported files that the CSS host marks for lint,
    * in load order. Package CSS is excluded unless the host marks it.
-   * @throws If the project is closed or resolving or reading the CSS graph fails.
+   * @throws If the project is closed, installing buffers or invalidating caches fails, or the
+   * selected CSS loading mode fails.
    */
-  stylesheets(): Promise<string[]> {
+  stylesheets(editor = false): Promise<string[]> {
     const documents = new Map([...this.#documents].map(([id, document]) => [id, document.source]));
     const task = this.#queue.then(async () => {
       if (this.#closed) {
@@ -224,6 +238,9 @@ export class AnalysisProject {
       }
       await this.host.setDocuments(documents);
       await this.#resetCaches();
+      if (editor) {
+        return [...(await this.#editorDesignSystem()).lintSources];
+      }
       await this.#designSystem();
       return [...this.#lintSources];
     });
@@ -263,10 +280,13 @@ export class AnalysisProject {
 
   /**
    * Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer.
+   * CSS completion, hover, and resolution can load recovered definitions for incomplete input.
    * @param entry - Full resolver identity. The workspace applies target membership filtering.
    * @param request - Operation with offsets in the original UTF-16 document.
    * @param signal - Optional cancellation checked before and after queued work.
-   * @returns The current editor answer, or undefined after closure, cancellation, or a revision change.
+   * @returns The current editor answer, or undefined after closure, cancellation, a revision change,
+   * failed entry analysis, or a CSS query outside the graph's stylesheets marked for lint.
+   * @throws If preparing a CSS query fails or the editor query rejects a candidate or preview.
    */
   query(
     entry: string,
@@ -280,7 +300,33 @@ export class AnalysisProject {
         return undefined;
       }
       if (this.#editors.get(entry)?.revision !== revision) {
-        await this.#analyzeSnapshot(entry, revision, documents);
+        if (isStylesheet(entry) && ["completion", "hover", "resolve"].includes(request.kind)) {
+          await this.host.setDocuments(documents);
+          await this.#resetCaches();
+          const graph = await this.#editorDesignSystem();
+          if (!graph.lintSources.some((source) => sameFile(source, entry))) {
+            return undefined;
+          }
+          const reports = graph.recovered
+            ? []
+            : graph.loader
+                .stylesheetReports()
+                .filter(
+                  (report) => report.primary.location.uri === this.host.css.documentUri(entry),
+                );
+          this.#editors.set(entry, {
+            revision,
+            snapshot: new StylesheetEditor(
+              entry,
+              await this.host.css.read(entry),
+              reports,
+              graph.loader.editorQuery(),
+              this.host.config,
+            ),
+          });
+        } else {
+          await this.#analyzeSnapshot(entry, revision, documents);
+        }
       }
       const result = this.#editors.get(entry)?.snapshot.query(entry, request);
       return this.#discardReason(revision, signal) ? undefined : result;
@@ -414,7 +460,13 @@ export class AnalysisProject {
     });
     this.#editors.set(entry, {
       revision,
-      snapshot: new StylesheetEditor(entry, await this.host.css.read(entry), result.reports),
+      snapshot: new StylesheetEditor(
+        entry,
+        await this.host.css.read(entry),
+        result.reports,
+        loader.editorQuery(),
+        this.host.config,
+      ),
     });
     result.status = "complete";
     return result;
@@ -437,6 +489,7 @@ export class AnalysisProject {
     if (this.#cssDirty) {
       this.#cssDirty = false;
       this.#loader = undefined;
+      this.#editorCss = undefined;
     }
     await this.host.invalidate();
   }
@@ -444,7 +497,7 @@ export class AnalysisProject {
   /**
    * Loads the configured CSS graph once until CSS invalidation clears it.
    * @returns The retained loader with compiler options applied.
-   * @throws If resolving or reading the CSS graph fails.
+   * @throws If resolving, reading, or loading the CSS graph fails.
    */
   async #designSystem(): Promise<NativeDesignSystemLoader> {
     if (!this.#loader) {
@@ -454,6 +507,32 @@ export class AnalysisProject {
       this.#lintSources = loaded.lintSources;
     }
     return this.#loader;
+  }
+
+  /**
+   * Loads a query graph from original CSS or recovered definitions, without publishing its reports.
+   * @returns The cached editor graph, reusing the strict loader when available. Otherwise, a failed
+   * original load is retried with recovered definitions. CSS invalidation clears this cache.
+   * @throws If neither the original nor the recovered CSS graph can be resolved, read, and loaded.
+   */
+  async #editorDesignSystem(): Promise<EditorCssGraph> {
+    if (!this.#editorCss) {
+      if (this.#loader) {
+        this.#editorCss = {
+          loader: this.#loader,
+          resources: [],
+          lintSources: this.#lintSources,
+          recovered: false,
+        };
+      } else {
+        this.#editorCss = await loadEditorCssGraph(
+          path.resolve(this.host.root, cssEntrypoint(this.host.config)),
+          compilerOptions(this.host.config),
+          this.host.css,
+        );
+      }
+    }
+    return this.#editorCss;
   }
 
   /**
@@ -476,15 +555,6 @@ export class AnalysisProject {
     }
     return this.#semantics;
   }
-}
-
-/**
- * Checks whether an identity names a stylesheet.
- * @param id - Resolver identity or file path.
- * @returns Whether the identity ends in `.css`, ignoring case.
- */
-export function isStylesheet(id: string): boolean {
-  return /\.css$/i.test(id);
 }
 
 /**

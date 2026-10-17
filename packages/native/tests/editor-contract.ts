@@ -4,6 +4,44 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("stylesheet queries preserve byte ranges and resolve incomplete applications, variants, and theme references", async () => {
+    const { NativeDesignSystemLoader, editorCssSource } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      "@theme { --color-brand:red; } @utility flex { display:flex; } @custom-variant hover (&:hover);",
+    );
+    const query = loader.editorQuery();
+    const source = "/* 日本語 🦀 */ .a { @apply fl";
+    const offset = new TextEncoder().encode(source).length;
+    expect(query.completeStylesheet(source, offset)).toEqual([
+      { label: "flex", start: offset - 2, end: offset, keyword: false },
+    ]);
+    expect(query.hoverStylesheet(".a { @variant hover", 19)?.css).toContain("&:hover");
+    const reference = ".a { color:--theme(--color-br";
+    expect(
+      query
+        .completeStylesheet(reference, reference.length)
+        .map((item: { label: string }) => item.label),
+    ).toEqual(["--color-brand"]);
+    expect(query.revision()).toBeTruthy();
+    const recovered = new NativeDesignSystemLoader();
+    recovered.provide(
+      0,
+      "incomplete.css",
+      editorCssSource(
+        "@theme { --color-local:blue; } @utility local { color:var(--color-local); } .a { @apply lo",
+      ),
+    );
+    expect(
+      recovered
+        .editorQuery()
+        .completeStylesheet(".a { @apply lo", 14)
+        .map((item: { label: string }) => item.label),
+    ).toContain("local");
+  });
+
   test("editor input roles share compiler registries, declaration mapping, and variant restrictions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const motion = await readFile(

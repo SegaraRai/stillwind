@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use lean_string::LeanStr;
 
-use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_design_system::{DesignSystemRevision, DesignSystemSnapshot};
 use stillwind_diagnostics::LintSettings;
 
 use super::canonical::CanonicalIndex;
@@ -14,7 +14,7 @@ use super::context::QueryContext;
 use super::ordering::CandidateOrdering;
 use crate::CompilerOptions;
 
-/// Answers candidate questions against one immutable snapshot.
+/// Answers editor queries against one immutable snapshot.
 ///
 /// Holding the snapshot rather than a project keeps editor answers independent of
 /// module state and deterministic for as long as the revision does not change.
@@ -41,6 +41,11 @@ impl DesignSystemQuery {
             canonical_cache: RefCell::new(BTreeMap::new()),
             ordering: CandidateOrdering::default(),
         }
+    }
+
+    /// Returns the immutable design-system revision used by every query answer.
+    pub fn revision(&self) -> DesignSystemRevision {
+        self.context.design_system.revision()
     }
 
     /// Returns effective lint settings after compiler defaults and project settings.

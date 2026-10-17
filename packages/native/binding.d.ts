@@ -58,6 +58,15 @@ export declare class NativeDesignSystemLoader {
 
 /** Candidate operations for one immutable design system and explicitly supplied source buffers. */
 export declare class NativeEditorQuery {
+  /** Returns the captured design-system fingerprint used by completion resolution. */
+  revision(): string
+  /**
+   * Completes an authored CSS input at an original UTF-8 byte boundary.
+   * Incomplete blocks and candidates are accepted. Invalid boundaries have no answer.
+   */
+  completeStylesheet(source: string, offset: number): Array<NativeStylesheetCompletion>
+  /** Returns generated CSS or dialect documentation at an original UTF-8 byte boundary. */
+  hoverStylesheet(source: string, offset: number): NativeStylesheetHover | null
   /** Returns a verified canonical replacement using the effective project lint options, or null. */
   canonicalCandidate(candidate: string): string | null
   /** Returns the resolved canonical lint policy used by compilation and Reporter. */
@@ -509,6 +518,12 @@ export declare function compileProject(sources: Array<NativePreparedSource>, css
  */
 export declare function compileSource(input: NativeCompileSourceInput, options?: NativeCompilerOptions | undefined | null): BindingOutput
 
+/**
+ * Extracts definitions and imports for an editor-only load of incomplete CSS.
+ * Ordinary compilation and lint must continue to use the original source.
+ */
+export declare function editorCssSource(source: string): string
+
 /** Returns the compiler's lowercase hexadecimal fingerprint of UTF-8 text or raw bytes. */
 export declare function fingerprint(content: string | Uint8Array): string
 
@@ -592,7 +607,7 @@ export type NativeAttributeQuote = 'single' | 'double'
  * Option roles use the animation-option registry and its property mappings. Frame and
  * phase utilities retain the declarations produced by ordinary utility resolution.
  */
-export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'mediaVariants' | 'document' | 'anchoredDocument' | 'cssTemplate'
+export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'elementVariants' | 'mediaVariants' | 'document' | 'anchoredDocument' | 'cssTemplate'
 
 /** The candidate set of a symbolic value. */
 export type NativeCandidates =
@@ -1506,6 +1521,30 @@ export interface NativeStyleDependency {
   derived: NativeIdentity
   /** The style call whose payload is consumed. */
   base: NativeIdentity
+}
+
+/** A CSS completion whose replacement range counts original UTF-8 bytes. */
+export interface NativeStylesheetCompletion {
+  /** Inclusive byte offset of the replaced input. */
+  start: number
+  /** Exclusive byte offset of the replaced input. */
+  end: number
+  /** Literal replacement text. */
+  label: string
+  /** Whether the replacement names an at-rule. */
+  keyword: boolean
+}
+
+/** CSS or Markdown documentation at an original UTF-8 range. */
+export interface NativeStylesheetHover {
+  /** Inclusive byte offset of the described input. */
+  start: number
+  /** Exclusive byte offset of the described input. */
+  end: number
+  /** Generated CSS, or empty for documentation-only hovers. */
+  css: string
+  /** Markdown description, or empty for candidate previews. */
+  documentation: string
 }
 
 /** Source map for generated CSS. */

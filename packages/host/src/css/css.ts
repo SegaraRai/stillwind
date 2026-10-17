@@ -1,10 +1,57 @@
 import {
+  editorCssSource,
   NativeDesignSystemLoader,
   type NativeCompilerOptions,
   type NativeCssFileInput,
   type NativeCssLoadStep,
   type NativeCssResource,
 } from "@stillwind/native";
+
+/**
+ * Checks whether an identity names a stylesheet.
+ * @param id - Resolver identity or file path.
+ * @returns Whether the complete identity ends in `.css`, ignoring case. The check includes any
+ * query suffix.
+ */
+export function isStylesheet(id: string): boolean {
+  return /\.css$/i.test(id);
+}
+
+/** A CSS graph for interactive queries. Recovered text must never supply lint fixes or builds. */
+export interface EditorCssGraph extends LoadedCssGraph {
+  /** Whether incomplete sources were replaced with recovered definitions. */
+  recovered: boolean;
+}
+
+/**
+ * Loads original CSS, then retries with recovered definitions if that load fails.
+ * @param root - Resolved CSS entrypoint.
+ * @param options - Compiler policies used by semantic queries.
+ * @param host - Resolver and reads of the captured original buffers.
+ * @returns A query graph and whether its sources were recovered. Original buffers remain unchanged.
+ * The recovered graph must only supply editor queries, because its text omits authored rules.
+ * @throws If both loads fail, including unresolved imports or unreadable files.
+ */
+export async function loadEditorCssGraph(
+  root: string,
+  options: NativeCompilerOptions,
+  host: CssHost,
+): Promise<EditorCssGraph> {
+  try {
+    return {
+      ...(await loadCssGraph(root, options, host)),
+      recovered: false,
+    };
+  } catch {
+    return {
+      ...(await loadCssGraph(root, options, {
+        ...host,
+        read: async (id) => editorCssSource(await host.read(id)),
+      })),
+      recovered: true,
+    };
+  }
+}
 
 /**
  * Host operations that load the CSS graph and preserve document and source-map identities. Resolved

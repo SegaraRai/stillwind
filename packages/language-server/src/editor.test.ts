@@ -9,6 +9,7 @@ import type {
   CompletionItem,
   Hover,
 } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   createConnection,
   StreamMessageReader,
@@ -16,6 +17,131 @@ import {
 } from "vscode-languageserver/node";
 
 import { createLanguageServer } from "./server.ts";
+
+test("CSS LSP requests complete cold incomplete buffers and resolve dialect and semantic hovers", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/theme.css";
+  const definitions =
+    "@theme { --color-brand:red; }\n@utility flex {display:flex;}\n@custom-variant hover (&:hover);\n";
+  let text = `${definitions}/* 日本語 🦀 */ .a { @apply fl`;
+  let version = 1;
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "config",
+          new BrowserAnalysisWorkspace({
+            config: "config",
+            projects: [
+              {
+                root: "/workspace",
+                files: ["*.tsx"],
+                css: "theme.css",
+                typeFacts: false,
+              },
+            ],
+            files: new Map([["/workspace/theme.css", text]]),
+          }),
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  const position = (offset: number) =>
+    TextDocument.create(uri, "css", version, text).positionAt(offset);
+  const complete = () =>
+    client.sendRequest<CompletionItem[]>("textDocument/completion", {
+      textDocument: { uri },
+      position: position(text.length),
+    });
+  const change = async (next: string) => {
+    text = next;
+    await client.sendNotification("textDocument/didChange", {
+      textDocument: {
+        uri,
+        version: ++version,
+      },
+      contentChanges: [{ text }],
+    });
+  };
+  try {
+    await client.sendRequest("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version,
+        text,
+      },
+    });
+    const item = (await complete()).find((item) => item.label === "flex")!;
+    expect(item.textEdit).toMatchObject({
+      range: {
+        start: position(text.length - 2),
+        end: position(text.length),
+      },
+      newText: "flex",
+    });
+    const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", item);
+    expect(JSON.stringify(resolved.documentation)).toContain("display: flex");
+    await change(`${definitions}.a { @variant ho`);
+    const variant = (await complete()).find((item) => item.label === "hover")!;
+    expect(variant.textEdit).toMatchObject({ newText: "hover" });
+    expect(
+      JSON.stringify(
+        (await client.sendRequest<CompletionItem>("completionItem/resolve", variant)).documentation,
+      ),
+    ).toContain("&:hover");
+    expect(
+      (await client.sendRequest<CompletionItem>("completionItem/resolve", resolved)).documentation,
+    ).toBeUndefined();
+    await change(`${definitions}.a { color:--theme(--color-br`);
+    const token = (await complete()).find((item) => item.label === "--color-brand")!;
+    expect(
+      JSON.stringify(
+        (await client.sendRequest<CompletionItem>("completionItem/resolve", token)).documentation,
+      ),
+    ).toContain("--color-brand: red");
+    await change(`${definitions}.a { @stillwind-slot property-initials inh`);
+    const slot = (await complete()).find((item) => item.label === "property-initials inherited")!;
+    expect(
+      JSON.stringify(
+        (await client.sendRequest<CompletionItem>("completionItem/resolve", slot)).documentation,
+      ),
+    ).toContain("inherits: true");
+    await change("@app");
+    const directive = (await complete()).find((item) => item.label === "@apply")!;
+    expect(directive.kind).toBe(14);
+    const documentation = (
+      await client.sendRequest<CompletionItem>("completionItem/resolve", directive)
+    ).documentation;
+    expect(JSON.stringify(documentation)).toContain("@apply utilities;");
+    await change(`${definitions}.a { @apply hover:flex; color:var(--color-brand); }`);
+    const hover = await client.sendRequest<Hover>("textDocument/hover", {
+      textDocument: { uri },
+      position: position(text.indexOf("hover:flex") + 8),
+    });
+    expect(JSON.stringify(hover.contents)).toContain("display: flex");
+    const themeHover = await client.sendRequest<Hover>("textDocument/hover", {
+      textDocument: { uri },
+      position: position(text.lastIndexOf("--color-brand") + 6),
+    });
+    expect(JSON.stringify(themeHover.contents)).toContain("cascade");
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
 
 test("standard LSP requests support lazy completion, hover, colors, and separate fix-all and sort actions", async () => {
   const input = new PassThrough();

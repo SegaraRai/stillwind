@@ -16,7 +16,7 @@ use super::DesignSystemQuery;
 use super::resolution::candidate_identifiers;
 use crate::compiler::{
     OptionVariants, condition_paths, emit_document_style, emit_view_transition_utilities,
-    media_argument_query, resolve_frame, resolve_options, wrap_conditions,
+    expand_authored_variant, media_argument_query, resolve_frame, resolve_options, wrap_conditions,
 };
 
 /// The syntax and emission contract of an editor input.
@@ -38,6 +38,8 @@ pub enum CandidateContext {
     ViewTransitionUtilities,
     /// Media and supports prefixes that can contain a global definition.
     DefinitionVariants,
+    /// Applied variant sequences with element selectors and conditional at-rules.
+    ElementVariants,
     /// One `style.media()` argument: variants whose definitions contain only media
     /// conditions, with an optional final `:`.
     MediaVariants,
@@ -62,7 +64,10 @@ impl CandidateContext {
 
     /// Whether this role accepts only variants, without a utility or option.
     pub(super) const fn variants_only(self) -> bool {
-        matches!(self, Self::DefinitionVariants | Self::MediaVariants)
+        matches!(
+            self,
+            Self::DefinitionVariants | Self::MediaVariants | Self::ElementVariants
+        )
     }
 
     /// Whether this role permits variant prefixes. Allowed roles still validate each
@@ -185,6 +190,7 @@ impl DesignSystemQuery {
             | CandidateContext::CssTemplate
             | CandidateContext::AnchoredDocument
             | CandidateContext::DefinitionVariants
+            | CandidateContext::ElementVariants
             | CandidateContext::MediaVariants => return Ok(None),
         };
         Ok(if diagnostics.is_empty() && !css.is_empty() {
@@ -219,10 +225,21 @@ impl DesignSystemQuery {
             .map(|template| template.outline().into())
     }
 
-    /// Renders the empty at-rules that a variant-only input wraps around a rule, or
-    /// returns `None` when the input does not resolve under `context`.
+    /// Renders the wrappers that a variant-only input applies to a rule, or returns
+    /// `None` when the input does not resolve under `context`.
     fn preview_variants(&self, candidate: &str, context: CandidateContext) -> Option<LeanStr> {
         let theme = self.context.design_system.theme();
+        if context == CandidateContext::ElementVariants {
+            let css = expand_authored_variant(
+                candidate.trim_end_matches(':'),
+                "&{}",
+                theme,
+                &candidate_identifiers(true),
+            )
+            .ok()
+            .filter(|css| !css.is_empty())?;
+            return self.context.preview_declarations(&css);
+        }
         if context == CandidateContext::MediaVariants {
             return media_argument_query(candidate, theme)
                 .map(|query| format_args!("@media {query}{{}}").to_lean_string().into());
@@ -280,6 +297,7 @@ impl DesignSystemQuery {
         if matches!(
             context,
             CandidateContext::Utility
+                | CandidateContext::ElementVariants
                 | CandidateContext::Document
                 | CandidateContext::AnchoredDocument
         ) {

@@ -83,6 +83,8 @@ pub enum NativeCandidateContext {
     /// Serialized as `definitionVariants` for media and supports prefixes of a
     /// definition branch.
     DefinitionVariants,
+    /// Serialized as `elementVariants` for applied variants with element selectors.
+    ElementVariants,
     /// Serialized as `mediaVariants` for one `style.media()` argument, whose variants
     /// contain only media conditions.
     MediaVariants,
@@ -105,6 +107,7 @@ impl From<NativeCandidateContext> for CandidateContext {
             NativeCandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
             NativeCandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             NativeCandidateContext::DefinitionVariants => Self::DefinitionVariants,
+            NativeCandidateContext::ElementVariants => Self::ElementVariants,
             NativeCandidateContext::MediaVariants => Self::MediaVariants,
             NativeCandidateContext::Document => Self::Document,
             NativeCandidateContext::AnchoredDocument => Self::AnchoredDocument,
@@ -124,6 +127,7 @@ impl From<CandidateContext> for NativeCandidateContext {
             CandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
             CandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             CandidateContext::DefinitionVariants => Self::DefinitionVariants,
+            CandidateContext::ElementVariants => Self::ElementVariants,
             CandidateContext::MediaVariants => Self::MediaVariants,
             CandidateContext::CssTemplate => Self::CssTemplate,
         }
@@ -141,10 +145,102 @@ pub struct NativeEditorLintEdit {
     pub replacement: String,
 }
 
+/// A CSS completion whose replacement range counts original UTF-8 bytes.
+#[napi(object, object_from_js = false)]
+pub struct NativeStylesheetCompletion {
+    /// Inclusive byte offset of the replaced input.
+    pub start: u32,
+    /// Exclusive byte offset of the replaced input.
+    pub end: u32,
+    /// Literal replacement text.
+    pub label: String,
+    /// Whether the replacement names an at-rule.
+    pub keyword: bool,
+}
+
+/// CSS or Markdown documentation at an original UTF-8 range.
+#[napi(object, object_from_js = false)]
+pub struct NativeStylesheetHover {
+    /// Inclusive byte offset of the described input.
+    pub start: u32,
+    /// Exclusive byte offset of the described input.
+    pub end: u32,
+    /// Generated CSS, or empty for documentation-only hovers.
+    pub css: String,
+    /// Markdown description, or empty for candidate previews.
+    pub documentation: String,
+}
+
+/// Extracts definitions and imports for an editor-only load of incomplete CSS.
+/// Ordinary compilation and lint must continue to use the original source.
+#[napi]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn editor_css_source(source: String) -> String {
+    stillwind_compiler::editor_css_source(&source).into()
+}
+
 /// Candidate operations for one immutable design system and explicitly supplied source buffers.
 #[napi]
 pub struct NativeEditorQuery {
     query: DesignSystemQuery,
+}
+
+#[napi]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+impl NativeEditorQuery {
+    /// Returns the captured design-system fingerprint used by completion resolution.
+    #[napi]
+    pub fn revision(&self) -> String {
+        self.query.revision().0.to_string()
+    }
+
+    /// Completes an authored CSS input at an original UTF-8 byte boundary.
+    /// Incomplete blocks and candidates are accepted. Invalid boundaries have no answer.
+    #[napi]
+    pub fn complete_stylesheet(
+        &self,
+        source: String,
+        offset: u32,
+    ) -> napi::Result<Vec<NativeStylesheetCompletion>> {
+        self.query
+            .complete_stylesheet(&source, offset as usize)
+            .map_err(|error| Error::from_reason(error.to_string()))?
+            .into_iter()
+            .map(|item| {
+                Ok(NativeStylesheetCompletion {
+                    start: u32::try_from(item.range.start)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    end: u32::try_from(item.range.end)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    label: item.label.into(),
+                    keyword: item.keyword,
+                })
+            })
+            .collect()
+    }
+
+    /// Returns generated CSS or dialect documentation at an original UTF-8 byte boundary.
+    #[napi]
+    pub fn hover_stylesheet(
+        &self,
+        source: String,
+        offset: u32,
+    ) -> napi::Result<Option<NativeStylesheetHover>> {
+        self.query
+            .hover_stylesheet(&source, offset as usize)
+            .map_err(|error| Error::from_reason(error.to_string()))?
+            .map(|hover| {
+                Ok(NativeStylesheetHover {
+                    start: u32::try_from(hover.range.start)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    end: u32::try_from(hover.range.end)
+                        .map_err(|error| Error::from_reason(error.to_string()))?,
+                    css: hover.css.into(),
+                    documentation: hover.documentation.into(),
+                })
+            })
+            .transpose()
+    }
 }
 
 impl NativeEditorQuery {

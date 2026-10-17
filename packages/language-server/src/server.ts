@@ -354,7 +354,7 @@ export function createLanguageServer(
         completionProvider: editor
           ? {
               resolveProvider: true,
-              triggerCharacters: [":", "-", "/", "[", "("],
+              triggerCharacters: ["@", ":", "-", "/", "[", "(", " "],
             }
           : undefined,
         colorProvider: editor,

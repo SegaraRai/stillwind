@@ -10,9 +10,16 @@ import { dirname, relative, resolve } from "pathe";
 
 import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/compiler.ts";
 import { fileSourceKind } from "../compilation/module-source.ts";
-import { loadCssGraph } from "../css/css.ts";
+import {
+  isStylesheet,
+  loadCssGraph,
+  loadEditorCssGraph,
+  type CssHost,
+  type EditorCssGraph,
+} from "../css/index.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
+import { StylesheetEditor } from "../project/stylesheet-editor.ts";
 import { BrowserTypeFactsService } from "../semantics/browser.ts";
 import { resolveVirtualModule } from "./resolution.ts";
 
@@ -44,7 +51,9 @@ export interface BrowserStylesheetOutput {
 export interface BrowserModuleCss extends BrowserStylesheetOutput {
   /** Fragments in stylesheet occurrence order, with their content fingerprints. */
   parts: {
+    /** Content fingerprint supplied by the native emission plan. */
     key: string;
+    /** Fragment CSS including enclosing conditions, after local resources are embedded. */
     css: string;
   }[];
 }
@@ -61,7 +70,7 @@ export type BrowserModuleAnalysis = ReadonlyData<ModuleAnalysis>;
 /** Owns the design system, semantic checker, and compiler artifacts for one captured inventory. */
 export class BrowserProject {
   /** Editor views retained for each analyzed entry in the captured inventory. */
-  readonly #editors = new Map<string, EditorSnapshot>();
+  readonly #editors = new Map<string, EditorSnapshot | StylesheetEditor>();
   /** Owned configuration records and callbacks fixed for this project's lifetime. */
   readonly #options: BrowserProjectOptions;
   /** Copy of the original inventory used by source, CSS, and checker reads. */
@@ -70,6 +79,8 @@ export class BrowserProject {
   readonly #facts: BrowserTypeFactsService;
   /** Lazily loaded CSS graph shared by all entry analyses. */
   #loader?: NativeDesignSystemLoader;
+  /** Original or recovered CSS graph retained for editor queries. Fixes use original CSS only. */
+  #editorCss?: EditorCssGraph;
   /** Native session retaining successful compiler artifacts across entry analyses. */
   #session?: NativeProjectSession;
   /** Serializes analyses and permits subsequent work after a failure. */
@@ -83,7 +94,11 @@ export class BrowserProject {
   /** Analysis graphs keyed by full entry identity, invalidated when native artifacts are removed. */
   readonly #cache = new Map<string, BrowserModuleAnalysis>();
 
-  /** @param options - Captured files and configuration. Source mutations require a new project. */
+  /**
+   * Copies the file inventory and configuration and creates a checker for that inventory.
+   * @param options - Captured files and configuration. Source mutations require a new project.
+   * @throws If the checker cannot be initialized.
+   */
   constructor(options: BrowserProjectOptions) {
     this.#options = {
       ...options,
@@ -128,23 +143,10 @@ export class BrowserProject {
   async #designSystem(): Promise<NativeDesignSystemLoader> {
     if (!this.#loader) {
       const { config, root } = this.#options;
-      const uri = (file: string) => this.#documentUri(file);
       const loaded = await loadCssGraph(
         resolve(root, cssEntrypoint(config)),
         compilerOptions(config),
-        {
-          resolve: async (specifier, importer) => {
-            const resolved = resolveVirtualModule(this.#files, specifier, importer, "style");
-            if (!resolved) {
-              throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
-            }
-            return resolved;
-          },
-          read: (file) => this.#read(file),
-          documentUri: uri,
-          sourceMapSource: uri,
-          watch: () => {},
-        },
+        this.#cssHost(),
       );
       this.#loader = loaded.loader;
       this.#resources = loaded.resources;
@@ -152,6 +154,29 @@ export class BrowserProject {
       this.#session = new NativeProjectSession(this.#loader, false, "development", config.naming);
     }
     return this.#loader;
+  }
+
+  /**
+   * Creates CSS loader operations backed by this project's captured virtual inventory.
+   * @returns A host that resolves style imports and uses document URIs for diagnostics and maps.
+   * Its reads reject missing files, and its resolver rejects unresolved imports. Watching has no
+   * effect because changing the inventory requires a new project.
+   */
+  #cssHost(): CssHost {
+    const uri = (file: string) => this.#documentUri(file);
+    return {
+      resolve: async (specifier, importer) => {
+        const resolved = resolveVirtualModule(this.#files, specifier, importer, "style");
+        if (!resolved) {
+          throw new Error(`Cannot resolve CSS ${specifier} from ${importer}`);
+        }
+        return resolved;
+      },
+      read: (file) => this.#read(file),
+      documentUri: uri,
+      sourceMapSource: uri,
+      watch: () => {},
+    };
   }
 
   /**
@@ -356,13 +381,62 @@ export class BrowserProject {
   }
 
   /**
-   * Queries the captured source graph after ensuring the entry has been analyzed.
+   * Queries a captured source graph or a stylesheet in the project's CSS graph.
+   * CSS queries retry failed graph loads with recovered definitions for incomplete input.
+   * Recovered graphs provide no lint fixes. Script queries first analyze their entry.
    * @param id - Absolute virtual entry path, including a query that selects distinct source.
    * @param request - Operation with original UTF-16 offsets for that source.
-   * @returns The editor answer, or undefined after closure or when no snapshot is available.
-   * @throws If entry analysis fails.
+   * @returns The editor answer, or undefined when no snapshot is available, the CSS graph
+   * does not mark the stylesheet for lint, or closure suppresses a pending answer.
+   * @throws If a script query starts after closure, or if entry analysis, CSS graph loading,
+   * source reading, or the editor query fails.
    */
   async query(id: string, request: EditorRequest): Promise<EditorResult | undefined> {
+    if (isStylesheet(id)) {
+      const task = this.#queue.then(async () => {
+        if (this.#closed) {
+          return undefined;
+        }
+        if (!this.#editorCss) {
+          this.#editorCss = this.#loader
+            ? {
+                loader: this.#loader,
+                resources: this.#resources,
+                lintSources: this.#lintSources,
+                recovered: false,
+              }
+            : await loadEditorCssGraph(
+                resolve(this.#options.root, cssEntrypoint(this.#options.config)),
+                compilerOptions(this.#options.config),
+                this.#cssHost(),
+              );
+        }
+        if (!this.#editorCss.lintSources.includes(id) || this.#closed) {
+          return undefined;
+        }
+        if (!this.#editors.has(id)) {
+          const reports = this.#editorCss.recovered
+            ? []
+            : this.#editorCss.loader
+                .stylesheetReports()
+                .filter((report) => report.primary.location.uri === this.#documentUri(id));
+          this.#editors.set(
+            id,
+            new StylesheetEditor(
+              id,
+              await this.#read(id),
+              reports,
+              this.#editorCss.loader.editorQuery(),
+              this.#options.config,
+            ),
+          );
+        }
+        return this.#closed ? undefined : this.#editors.get(id)?.query(id, request);
+      });
+      this.#queue = task.catch(() => {});
+      return task;
+    }
+
     await this.analyze(id);
     if (this.#closed) {
       return undefined;
@@ -486,6 +560,7 @@ export class BrowserProject {
     this.#editors.clear();
     this.#session = undefined;
     this.#loader = undefined;
+    this.#editorCss = undefined;
   }
 }
 

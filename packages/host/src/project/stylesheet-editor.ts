@@ -1,8 +1,9 @@
-import { fingerprint, type BindingReport } from "@stillwind/native";
+import type { BaseConfig, PreviewOptions } from "@stillwind/config";
+import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillwind/native";
 
-import type { EditorEdit, EditorRequest, EditorResult } from "../editor/index.ts";
+import type { EditorEdit, EditorRequest, EditorResult } from "../editor/snapshot.ts";
 
-/** Answers editor requests for one linted stylesheet from its captured lint reports. */
+/** Answers CSS queries and lint fixes from one original buffer and captured design system. */
 export class StylesheetEditor {
   /** Resolver identity of the stylesheet. */
   readonly #id: string;
@@ -10,33 +11,97 @@ export class StylesheetEditor {
   readonly #revision: string;
   /** Lint reports whose primary location is this stylesheet. */
   readonly #reports: readonly BindingReport[];
+  /** Original buffer whose UTF-16 coordinates are exposed to callers. */
+  readonly #text: string;
+  /** UTF-8 encoding of the original buffer used to convert native byte ranges. */
+  readonly #bytes: Uint8Array;
+  /** Query pinned to the design system captured with this buffer. */
+  readonly #query: NativeEditorQuery;
+  /** Formatting settings copied before any previews are requested. */
+  readonly #preview?: PreviewOptions;
+  /** Fingerprint of source, design-system revision, and serialized configuration for completion resolution. */
+  readonly #snapshot: string;
 
   /**
-   * Captures the reports of one stylesheet revision.
+   * Captures original text, lint reports, and query settings for one stylesheet revision.
    * @param id - Resolver identity of the stylesheet.
    * @param text - Complete stylesheet text that the reports were computed from.
-   * @param reports - Reports whose primary location is this stylesheet. The array is copied.
+   * @param reports - Reports whose primary location is this stylesheet. Reports and edits are copied.
+   * Use an empty array when the design system was loaded from recovered CSS.
+   * @param query - Immutable design system captured for this source revision.
+   * @param config - Compiler and preview settings included in completion identity.
+   * @throws If reports cannot be cloned or configuration cannot be serialized.
    */
-  constructor(id: string, text: string, reports: readonly BindingReport[]) {
+  constructor(
+    id: string,
+    text: string,
+    reports: readonly BindingReport[],
+    query: NativeEditorQuery,
+    config: BaseConfig & {
+      preview?: PreviewOptions;
+    } = {},
+  ) {
     this.#id = id;
     this.#revision = fingerprint(text);
     this.#reports = structuredClone(reports);
+    this.#text = text;
+    this.#bytes = new TextEncoder().encode(text);
+    this.#query = query;
+    this.#preview = config.preview && { ...config.preview };
+    this.#snapshot = fingerprint(JSON.stringify([text, query.revision(), config]));
   }
 
   /**
-   * Answers a fixes or sort request. Other requests return only the revision.
+   * Answers completion, hover, completion resolution, and lint-fix requests.
    *
    * @param id - Resolver identity of the requested source.
-   * @param request - Operation in the stylesheet's original UTF-16 coordinates.
-   * @returns For fixes, the first action of each report whose edits all address this revision and
-   * do not overlap an earlier selected action. Edits are in ascending offset order. Sort returns no
-   * edits, because utility sorting in stylesheets is a lint fix. Another identity returns undefined.
+   * @param request - Operation in the stylesheet's original UTF-16 coordinates. Cursor offsets must
+   * be character boundaries within the captured text. Resolve uses the label, input, and snapshot
+   * returned by completion.
+   * @returns An answer with the captured source fingerprint, or undefined for another identity.
+   * Completion includes original replacement ranges. Hover includes formatted CSS or documentation
+   * when the input resolves. Resolve omits hover when its snapshot or label no longer matches.
+   * Fixes select each report's first action when all edits address this revision and do not overlap
+   * a selected action, then sort edits by offset. Sort returns no edits because CSS sorting is a lint
+   * fix. Color requests return the fingerprint without additional data.
+   * @throws If a matching utility definition has a malformed requirement or CSS formatting fails.
    */
   query(id: string, request: EditorRequest): EditorResult | undefined {
     if (id !== this.#id) {
       return undefined;
     }
     const result: EditorResult = { revision: this.#revision };
+    if (request.kind === "completion") {
+      result.completions = this.#query
+        .completeStylesheet(this.#text, this.#byteOffset(request.offset))
+        .map((item) => ({
+          start: this.#utf16(item.start),
+          end: this.#utf16(item.end),
+          label: item.label,
+          candidate: item.label,
+          newText: item.label,
+          keyword: item.keyword,
+          input: request.offset,
+          snapshot: this.#snapshot,
+        }));
+    }
+    if (request.kind === "hover") {
+      result.hover = this.#hover(this.#text, request.offset);
+    }
+    if (request.kind === "resolve" && request.snapshot === this.#snapshot) {
+      const item = this.#query
+        .completeStylesheet(this.#text, this.#byteOffset(request.input))
+        .find((item) => item.label === request.candidate);
+      if (item) {
+        const start = this.#utf16(item.start);
+        const text =
+          this.#text.slice(0, start) + item.label + this.#text.slice(this.#utf16(item.end));
+        const hover = this.#hover(text, start + item.label.length);
+        if (hover) {
+          result.hover = { ...hover, start: 0, end: 0 };
+        }
+      }
+    }
     if (request.kind === "sort") {
       result.edits = [];
     }
@@ -66,5 +131,53 @@ export class StylesheetEditor {
       result.edits = edits;
     }
     return result;
+  }
+
+  /**
+   * Converts a cursor in the original buffer to the native query's byte coordinates.
+   * @param offset - UTF-16 character boundary within the captured text.
+   * @returns The length in UTF-8 bytes of the text before the cursor.
+   */
+  #byteOffset(offset: number): number {
+    return new TextEncoder().encode(this.#text.slice(0, offset)).length;
+  }
+
+  /**
+   * Converts a native range boundary back to the original buffer's coordinates.
+   * @param offset - UTF-8 character boundary within the captured bytes, returned by the native query.
+   * @returns The UTF-16 offset at that boundary.
+   */
+  #utf16(offset: number): number {
+    return new TextDecoder().decode(this.#bytes.subarray(0, offset)).length;
+  }
+
+  /**
+   * Queries and formats a hover against original text or a completed copy of that text.
+   * @param text - CSS buffer to query, including any synthetic completion replacement.
+   * @param offset - UTF-16 character boundary within `text`.
+   * @returns CSS and documentation at UTF-16 boundaries in `text`, or undefined for unresolved input.
+   * Theme declarations retain their native spelling because the formatter expects complete rules.
+   * @throws If candidate resolution or CSS formatting fails.
+   */
+  #hover(text: string, offset: number): EditorResult["hover"] {
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(text);
+    const hover = this.#query.hoverStylesheet(text, encoder.encode(text.slice(0, offset)).length);
+    if (!hover) {
+      return undefined;
+    }
+
+    const css = hover.css.startsWith("--")
+      ? hover.css
+      : hover.css
+        ? this.#query.formatCss(hover.css, this.#preview)
+        : "";
+    const decoder = new TextDecoder();
+    return {
+      start: decoder.decode(bytes.subarray(0, hover.start)).length,
+      end: decoder.decode(bytes.subarray(0, hover.end)).length,
+      css,
+      documentation: hover.documentation || undefined,
+    };
   }
 }

@@ -11,4 +11,12 @@ export {
   type CssUpstreamMap,
   type DecodedCssSourceMap,
 } from "./css-source-map.ts";
-export { lintsStylesheet, loadCssGraph, type CssHost, type LoadedCssGraph } from "./css.ts";
+export {
+  isStylesheet,
+  lintsStylesheet,
+  loadCssGraph,
+  loadEditorCssGraph,
+  type CssHost,
+  type EditorCssGraph,
+  type LoadedCssGraph,
+} from "./css.ts";

@@ -167,7 +167,7 @@ fn expand_application<'a>(
 /// # Errors
 ///
 /// Returns the host generator's failure for a conditional helper's name.
-fn expand_authored_variant(
+pub(crate) fn expand_authored_variant(
     prelude: &str,
     body: &str,
     theme: &ThemeIndex,
@@ -216,7 +216,7 @@ fn expand_authored_variant(
 ///
 /// Commas inside quotes, parentheses, brackets, or braces stay part of the sequence
 /// that contains them, which allows a sequence such as `[&:is(a,b)]`.
-pub(super) fn variant_sequences(prelude: &str) -> Vec<Range<usize>> {
+pub(crate) fn variant_sequences(prelude: &str) -> Vec<Range<usize>> {
     let mut sequences = Vec::new();
     let mut push = |range: Range<usize>| {
         let text = &prelude[range.clone()];

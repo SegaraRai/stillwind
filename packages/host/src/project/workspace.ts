@@ -6,8 +6,9 @@ import { loadConfiguration } from "@stillwind/config/node";
 import { minimatch } from "minimatch";
 import { glob } from "tinyglobby";
 
+import { isStylesheet } from "../css/index.ts";
 import type { EditorRequest, EditorResult } from "../editor/index.ts";
-import { AnalysisProject, isStylesheet, sameFile, type AnalysisResult } from "./analysis.ts";
+import { AnalysisProject, sameFile, type AnalysisResult } from "./analysis.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
 
 /** A project's configuration and results, retained independently when scopes overlap. */
@@ -105,15 +106,18 @@ export class AnalysisWorkspace {
    *
    * @param project - Project whose CSS graph lists its linted stylesheets.
    * @param file - Absolute file path to test.
+   * @param editor - When false (the default), requires the original CSS graph to load successfully.
+   * When true, retries a failed load with recovered definitions so completion and hover can still
+   * identify stylesheet membership while the CSS is incomplete.
    * @returns Whether the file is the CSS entry or an imported file that the CSS host marks for
-   * lint. When the CSS graph cannot load, no stylesheet is linted, and script analysis reports
-   * the failure.
+   * lint. Returns false for other extensions or when the selected loading mode fails. Ordinary
+   * script analysis reports CSS loading failures.
    */
-  async lintsStylesheet(project: WorkspaceProject, file: string): Promise<boolean> {
+  async lintsStylesheet(project: WorkspaceProject, file: string, editor = false): Promise<boolean> {
     if (!isStylesheet(file)) {
       return false;
     }
-    const sources = await project.analysis.stylesheets().catch(() => []);
+    const sources = await project.analysis.stylesheets(editor).catch(() => []);
     return sources.some((source) => sameFile(source, file));
   }
 
@@ -181,6 +185,8 @@ export class AnalysisWorkspace {
    * @param request - Operation in the original document's UTF-16 coordinates.
    * @param signal - Optional cancellation forwarded to each project's queued query.
    * @returns Available answers in configuration order, including overlapping project memberships.
+   * CSS membership checks allow recovered definitions when the original graph cannot load.
+   * @throws If a project's editor query fails.
    */
   async query(
     file: string,
@@ -205,7 +211,7 @@ export class AnalysisWorkspace {
       result: EditorResult;
     }[] = [];
     for (const [index, project] of this.projects.entries()) {
-      if (!this.includes(project, file) && !(await this.lintsStylesheet(project, file))) {
+      if (!this.includes(project, file) && !(await this.lintsStylesheet(project, file, true))) {
         continue;
       }
       const result = await project.analysis.query(file, request, signal);

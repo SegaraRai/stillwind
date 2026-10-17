@@ -27,17 +27,19 @@ export interface EditorEdit {
   start: number;
   /** Exclusive UTF-16 offset in the original document. */
   end: number;
-  /** Source spelling inserted at the range, including any necessary JS escapes. */
+  /** Source spelling inserted at the range, including escapes required by its source context. */
   newText: string;
 }
 
 /** Completion text replaces the entire candidate at the supplied original range. */
 export interface EditorCompletion extends EditorEdit {
+  /** Directive names use the keyword category. Other inputs use candidate categories. */
+  keyword?: boolean;
   /** Visible completion text; surrounding group variants are omitted. */
   label: string;
   /** Full candidate used for lazy CSS resolution, including surrounding group variants. */
   candidate: string;
-  /** Original UTF-16 boundary of the literal's first decoded position. */
+  /** Original UTF-16 input identity used for completion resolution. */
   input: number;
   /** Fingerprint of the captured graph and configuration. Resolve requires this exact value. */
   snapshot: string;
@@ -62,9 +64,9 @@ export interface EditorColor {
 /** Requests address original document UTF-16 offsets, including incomplete candidate text. */
 export type EditorRequest =
   | {
-      /** Requests CSS for a candidate or a recognized expression occurrence. */
+      /** Requests CSS or documentation for a candidate, expression, or CSS directive. */
       kind: "hover";
-      /** Original UTF-16 cursor offset at a utility or recognized style expression. */
+      /** Original UTF-16 cursor offset at the input to describe. */
       offset: number;
     }
   | {
@@ -74,9 +76,9 @@ export type EditorRequest =
       offset: number;
     }
   | {
-      /** Requests CSS for a completion from the same captured snapshot. */
+      /** Requests CSS or documentation for a completion from the same captured snapshot. */
       kind: "resolve";
-      /** Full candidate returned by completion, including surrounding group variants. */
+      /** Full candidate or CSS label returned by completion. */
       candidate: string;
       /** Original UTF-16 boundary returned as `EditorCompletion.input`. */
       input: number;
@@ -125,8 +127,10 @@ export interface EditorResult {
     start: number;
     /** Exclusive original UTF-16 boundary, or zero for completion resolution. */
     end: number;
-    /** CSS with readable generated identifiers; expression hovers include required definitions. */
+    /** Generated CSS or an active theme declaration. Empty for documentation-only hovers. */
     css: string;
+    /** Markdown explaining CSS directives, output slots, or theme references. */
+    documentation?: string;
     /** Authored runtime key expressions, deduplicated in dependency traversal order.
      * Absent when the preview has no runtime key expression to explain.
      */
