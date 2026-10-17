@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vite-plus/test";
 
-import { bundleConfiguration } from "./configuration.ts";
+import { bundleModule } from "./bundle.ts";
 
 vi.mock("@rolldown/browser", () => import("rolldown"));
 
@@ -21,7 +21,7 @@ test("browser configurations bundle captured TypeScript, JSON, and browser packa
     ["/workspace/node_modules/preset/browser.js", 'export const css = "first.css";'],
   ]);
   const evaluate = async () => {
-    const code = await bundleConfiguration(files, entry);
+    const code = await bundleModule(files, entry);
     const module = await import(
       `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
     );
@@ -39,9 +39,9 @@ test("browser configurations bundle captured TypeScript, JSON, and browser packa
 });
 
 test.each([
-  ['import "node:fs";', "Node module is unavailable in browser configuration: node:fs"],
-  ['import "./missing.ts";', "Cannot resolve configuration import ./missing.ts"],
+  ['import "node:fs";', "Node module is unavailable in the browser: node:fs"],
+  ['import "./missing.ts";', "Cannot resolve import ./missing.ts"],
 ])("browser configurations reject unavailable imports", async (source, message) => {
   const entry = "/workspace/stillwind.config.ts";
-  await expect(bundleConfiguration(new Map([[entry, source]]), entry)).rejects.toThrow(message);
+  await expect(bundleModule(new Map([[entry, source]]), entry)).rejects.toThrow(message);
 });

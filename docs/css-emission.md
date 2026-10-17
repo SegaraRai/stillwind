@@ -175,8 +175,14 @@ statement without a block stays in the output unchanged.
 A plugin is JavaScript that generates Stillwind CSS. A stylesheet loads it with
 `@plugin "<name>";`, or with `@plugin "<name>" { option: value; }` to pass options. The
 host looks up `<name>` in the `plugins` configuration entry first. Otherwise it imports
-the package with Node resolution from the stylesheet and uses its default export. The
-browser host cannot import packages, so it accepts only configured plugins.
+the package from the stylesheet and uses its default export. Node hosts use Node
+resolution. The browser language server bundles the package from the captured workspace,
+as it bundles configurations, so the package must not import Node modules. A
+`BrowserProject` without plugin operations accepts only configured plugins.
+
+A plugin reads files through its context: `resolve()` resolves a module request from the
+stylesheet with the host's resolution, and `read()` reads a file. Plugins that use these
+operations instead of Node APIs also run in browser hosts.
 
 The CSS that the plugin's `css()` returns replaces the statement, at the statement's
 position in the graph. That CSS must not contain `@import` or `@plugin`.

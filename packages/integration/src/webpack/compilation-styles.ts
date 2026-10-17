@@ -7,7 +7,7 @@ import {
   cssEntrypoint,
   cssWithSourceMap,
   loadCssGraph,
-  loadNodePlugin,
+  nodePluginHost,
   warnRejectedNames,
   type CssUpstreamMap,
 } from "@stillwind/host";
@@ -54,7 +54,7 @@ export async function compilationStyles(
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
-      loadPlugin: loadNodePlugin,
+      plugins: nodePluginHost,
     },
     undefined,
     undefined,

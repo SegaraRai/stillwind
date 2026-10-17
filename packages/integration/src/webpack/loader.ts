@@ -9,8 +9,8 @@ import {
   cssEntrypoint,
   finalizeModuleWithMap,
   loadCssGraph,
-  loadNodePlugin,
   moduleSourceMap,
+  nodePluginHost,
   warnRejectedNames,
   type UpstreamSourceMap,
 } from "@stillwind/host";
@@ -130,7 +130,7 @@ export default function webpackLoader(
         documentUri: (id) => pathToFileURL(id).href,
         sourceMapSource: (id) => pathToFileURL(id).href,
         watch,
-        loadPlugin: loadNodePlugin,
+        plugins: nodePluginHost,
       },
       undefined,
       undefined,

@@ -1,7 +1,8 @@
 /**
  * Runs the browser LSP worker over files captured by the extension's workspace provider.
- * Configurations are bundled from that inventory and evaluated as ESM. Node imports fail resolution.
- * Snapshot and compile requests require one workspace and matching document and reload revisions.
+ * Configurations and `@plugin` packages are bundled from that inventory and evaluated as ESM.
+ * Node imports fail resolution. Snapshot and compile requests require one workspace and matching
+ * document and reload revisions.
  */
 
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
@@ -16,6 +17,7 @@ import {
 } from "vscode-languageserver/browser";
 
 import { installLibraries } from "./libraries.ts";
+import { browserPluginHost } from "./plugins.ts";
 
 const connection = createConnection(
   ProposedFeatures.all,
@@ -28,6 +30,36 @@ let initial = true;
 /** Counts workspace openings so compile requests can reject snapshots captured before a reload. */
 let generation = 0;
 let libraries: Promise<[string, string][]> | undefined;
+
+/**
+ * Bundles a module of the captured inventory. The bundler loads on first use.
+ * @param files - Virtual absolute paths and text.
+ * @param entry - Module path present in `files`.
+ * @returns One ESM source.
+ * @throws If an import is unavailable, uses a Node builtin, or fails compilation.
+ */
+async function bundle(files: ReadonlyMap<string, string>, entry: string): Promise<string> {
+  return (await import("./bundle.ts")).bundleModule(files, entry);
+}
+
+/**
+ * Evaluates an ESM source through a Blob URL.
+ * @param code - Bundled module source.
+ * @returns The module namespace.
+ * @throws If evaluation fails.
+ */
+async function evaluate(code: string): Promise<unknown> {
+  const url = URL.createObjectURL(
+    new Blob([code], {
+      type: "text/javascript",
+    }),
+  );
+  try {
+    return await import(/* @vite-ignore */ url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 const server = createLanguageServer(connection, {
   openWorkspaces: async ({ workspaceFolders, initializationOptions }) => {
@@ -66,20 +98,12 @@ const server = createLanguageServer(connection, {
           root,
           {
             exists: (id) => files.has(id),
-            evaluate: async (id) => {
-              const { bundleConfiguration } = await import("./configuration.ts");
-              const code = await bundleConfiguration(files, id);
-              const url = URL.createObjectURL(
-                new Blob([code], {
-                  type: "text/javascript",
-                }),
-              );
-              try {
-                return (await import(/* @vite-ignore */ url)).default as unknown;
-              } finally {
-                URL.revokeObjectURL(url);
-              }
-            },
+            evaluate: async (id) =>
+              (
+                (await evaluate(await bundle(files, id))) as {
+                  default?: unknown;
+                }
+              ).default,
           },
           captured.configFile,
         );
@@ -90,6 +114,7 @@ const server = createLanguageServer(connection, {
           config: config.configFile ?? rootUri,
           projects: config.projects,
           files,
+          plugins: browserPluginHost(files, bundle, evaluate),
           documentUri: (id) => {
             const uri = new URL(rootUri);
             uri.pathname = id;

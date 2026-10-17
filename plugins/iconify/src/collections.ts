@@ -1,8 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import path from "node:path";
-
 import type { IconifyJSON } from "@iconify/types";
+import type { PluginContext } from "@stillwind/config";
 
 /**
  * Icon set given in plugin options: icon set data, an absolute path of an icon set JSON file, or a
@@ -10,17 +7,8 @@ import type { IconifyJSON } from "@iconify/types";
  */
 export type CollectionSource = IconifyJSON | string | (() => IconifyJSON | Promise<IconifyJSON>);
 
-/** Host inputs that icon set lookup uses. */
-export interface CollectionContext {
-  /** Absolute project directory, from which installed icon set packages are resolved. */
-  readonly root: string;
-  /**
-   * Registers a file that an icon set comes from.
-   *
-   * @param path - Absolute file path.
-   */
-  watch(path: string): void;
-}
+/** Host operations that icon set lookup uses. */
+export type CollectionContext = Pick<PluginContext, "root" | "watch" | "resolve" | "read">;
 
 /** Icon set data and the file that it comes from. */
 interface LoadedCollection {
@@ -31,12 +19,27 @@ interface LoadedCollection {
 }
 
 /**
+ * Parsed icon sets keyed by file path, with the text that they were parsed from. Statements of
+ * later loads reuse the data while the text is unchanged, because large sets take long to parse.
+ */
+const parsed = new Map<
+  string,
+  {
+    /** Text of the file when it was parsed. */
+    text: string;
+    /** Parsed icon set. */
+    data: IconifyJSON;
+  }
+>();
+
+/**
  * Finds and caches the icon sets of one loaded `@plugin` statement.
  *
  * A set comes from the first source that provides it: the configured sources, then the
- * `@iconify-json/<set>` package, then the `@iconify/json` package. Packages are resolved from the
- * project directory. Each lookup registers the set's file with the host, so a changed file reloads
- * the design system, and the new statement context reads the file again.
+ * `@iconify-json/<set>` package, then the `@iconify/json` package. Packages are resolved by the
+ * host from the stylesheet that contains the statement. Each lookup registers the set's file with
+ * the host, so a changed file reloads the design system, and the new statement context reads the
+ * file again.
  */
 export class Collections {
   readonly #sources: Readonly<Record<string, CollectionSource>>;
@@ -45,7 +48,7 @@ export class Collections {
 
   /**
    * @param sources - Configured icon sets keyed by set prefix.
-   * @param context - Project directory and file watcher.
+   * @param context - Project directory and host file operations.
    */
   constructor(sources: Readonly<Record<string, CollectionSource>>, context: CollectionContext) {
     this.#sources = sources;
@@ -81,11 +84,11 @@ export class Collections {
    */
   async prefixes(): Promise<string[]> {
     const prefixes = new Set(Object.keys(this.#sources));
-    const manifest = path.join(this.#context.root, "package.json");
+    const manifest = `${this.#context.root.replace(/[\\/]$/, "")}/package.json`;
     this.#context.watch(manifest);
     let json: Record<string, Record<string, string> | undefined>;
     try {
-      json = JSON.parse(await readFile(manifest, "utf8"));
+      json = JSON.parse(await this.#context.read(manifest));
     } catch {
       // A project without a readable manifest lists only the configured sets.
       return [...prefixes];
@@ -116,7 +119,7 @@ export class Collections {
     }
     if (typeof source === "string") {
       return {
-        data: await readCollection(source),
+        data: await this.#read(source),
         file: source,
       };
     }
@@ -130,34 +133,40 @@ export class Collections {
       return {};
     }
 
-    const require = createRequire(path.join(this.#context.root, "package.json"));
     for (const request of [
       `@iconify-json/${prefix}/icons.json`,
       `@iconify/json/json/${prefix}.json`,
     ]) {
-      let file: string;
-      try {
-        file = require.resolve(request);
-      } catch {
-        continue;
+      const file = await this.#context.resolve(request);
+      if (file) {
+        return {
+          data: await this.#read(file),
+          file,
+        };
       }
-      return {
-        data: await readCollection(file),
-        file,
-      };
     }
 
     return {};
   }
-}
 
-/**
- * Reads an icon set JSON file.
- *
- * @param file - Absolute file path.
- * @returns The parsed icon set.
- * @throws If reading or parsing fails.
- */
-async function readCollection(file: string): Promise<IconifyJSON> {
-  return JSON.parse(await readFile(file, "utf8")) as IconifyJSON;
+  /**
+   * Reads and parses an icon set JSON file, reusing earlier data for unchanged text.
+   *
+   * @param file - Absolute file path.
+   * @returns The parsed icon set.
+   * @throws If reading or parsing fails.
+   */
+  async #read(file: string): Promise<IconifyJSON> {
+    const text = await this.#context.read(file);
+    const cached = parsed.get(file);
+    if (cached?.text === text) {
+      return cached.data;
+    }
+    const data = JSON.parse(text) as IconifyJSON;
+    parsed.set(file, {
+      text,
+      data,
+    });
+    return data;
+  }
 }

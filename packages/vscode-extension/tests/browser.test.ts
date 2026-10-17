@@ -56,13 +56,11 @@ test("the packaged browser bundler evaluates and reloads virtual configurations 
         globalThis as typeof globalThis & {
           __stillwindImport: (
             url: string,
-          ) => Promise<
-            typeof import("../src/server/configuration.ts") & { default(): Promise<unknown> }
-          >;
+          ) => Promise<typeof import("../src/server/bundle.ts") & { default(): Promise<unknown> }>;
         }
       ).__stillwindImport;
-      const url = "/configuration.js";
-      const { bundleConfiguration } = await importModule(url);
+      const url = "/bundle.js";
+      const { bundleModule } = await importModule(url);
       const entry = "/workspace/stillwind.config.ts";
       const files = new Map([
         [entry, 'import { settings } from "./settings.js"; export default async () => settings;'],
@@ -79,7 +77,7 @@ test("the packaged browser bundler evaluates and reloads virtual configurations 
         ["/workspace/node_modules/preset/browser.js", 'export const css = "first.css";'],
       ]);
       const evaluate = async () => {
-        const code = await bundleConfiguration(files, entry);
+        const code = await bundleModule(files, entry);
         const blob = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
         try {
           const module = await importModule(blob);
@@ -95,7 +93,7 @@ test("the packaged browser bundler evaluates and reloads virtual configurations 
       for (const source of ['import "node:fs";', 'import "./missing.ts";']) {
         files.set(entry, source);
         try {
-          await bundleConfiguration(files, entry);
+          await bundleModule(files, entry);
           rejected.push("");
         } catch (error) {
           rejected.push(String(error));
@@ -115,10 +113,8 @@ test("the packaged browser bundler evaluates and reloads virtual configurations 
       files: ["*.tsx"],
       css: "second.css",
     });
-    expect(result.rejected[0]).toContain(
-      "Node module is unavailable in browser configuration: node:fs",
-    );
-    expect(result.rejected[1]).toContain("Cannot resolve configuration import ./missing.ts");
+    expect(result.rejected[0]).toContain("Node module is unavailable in the browser: node:fs");
+    expect(result.rejected[1]).toContain("Cannot resolve import ./missing.ts");
     expect(errors).toEqual([]);
   } finally {
     await browser?.close();

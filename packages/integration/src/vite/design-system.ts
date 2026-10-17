@@ -9,7 +9,7 @@ import {
   cleanModuleId,
   cssEntrypoint,
   loadCssGraph,
-  loadNodePlugin,
+  nodePluginHost,
   type PluginRuntime,
 } from "@stillwind/host";
 import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
@@ -435,7 +435,7 @@ async function loadDesignSystem(
         dependencies.add(name);
         watch(name);
       },
-      loadPlugin: loadNodePlugin,
+      plugins: nodePluginHost,
     },
     undefined,
     session?.newLoader(nativeOptions),

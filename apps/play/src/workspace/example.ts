@@ -12,6 +12,11 @@ export function App() {
   return <main {...style(card, "p-4 rounded-md")}>
     <h1>Stillwind Play</h1>
     <p>Edit this component or its imported styles.</p>
+    <p {...style("flex gap-2")} aria-hidden="true">
+      <span {...style("icon-mdi--weather-windy")} />
+      <span {...style("icon-lucide--sparkles")} />
+      <span {...style("icon-fluent-emoji-flat--wind-face")} />
+    </p>
     <button {...style("bg-accent text-white px-4 py-2 rounded-md")} onClick={() => setCount(count + 1)}>
       Count: {count}
     </button>
@@ -28,6 +33,7 @@ export const card = style("bg-surface");
   [
     "/workspace/stillwind.css",
     `@import "stillwind";
+@plugin "@stillwind/plugin-iconify";
 
 @theme {
   --color-accent: oklch(.6 .2 250);

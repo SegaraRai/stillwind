@@ -7,6 +7,8 @@ import { build } from "esbuild";
 import { bundleRefresh } from "./refresh.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
+/** Iconify sets available in the playground: two monochrome sets and one colored set. */
+const ICON_SETS = ["mdi", "lucide", "fluent-emoji-flat"];
 const output = path.join(root, "dist/assets-static");
 if (path.dirname(output) !== path.join(root, "dist")) {
   throw new Error("Invalid generated asset directory");
@@ -27,13 +29,33 @@ const files: [string, string][] = [];
 for (const [name, directory] of [
   ["stillwind", "../../packages/core"],
   ["@stillwind/config", "../../packages/config"],
+  ["@stillwind/plugin-iconify", "../../plugins/iconify"],
   ["valibot", "../../packages/config/node_modules/valibot"],
+  ["@iconify/utils", "../../plugins/iconify/node_modules/@iconify/utils"],
   ["@types/react", "node_modules/@types/react"],
   ["@types/react-dom", "node_modules/@types/react-dom"],
 ] as const) {
   await collect(path.resolve(root, directory), `/workspace/node_modules/${name}`);
 }
 const require = createRequire(path.join(root, "package.json"));
+// Icon sets need only their manifests and icon data. The hidden workspace manifest lists them so
+// that the Iconify plugin offers their icons as completions.
+for (const set of ICON_SETS) {
+  const directory = path.dirname(require.resolve(`@iconify-json/${set}/package.json`));
+  for (const file of ["package.json", "icons.json"]) {
+    files.push([
+      `/workspace/node_modules/@iconify-json/${set}/${file}`,
+      await readFile(path.join(directory, file), "utf8"),
+    ]);
+  }
+}
+files.push([
+  "/workspace/package.json",
+  JSON.stringify({
+    private: true,
+    devDependencies: Object.fromEntries(ICON_SETS.map((set) => [`@iconify-json/${set}`, "*"])),
+  }),
+]);
 await bundleRefresh(
   require.resolve("react-refresh/babel"),
   path.join(output, "react-refresh-babel.js"),

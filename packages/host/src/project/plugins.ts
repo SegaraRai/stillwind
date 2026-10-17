@@ -1,31 +1,26 @@
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
-import type { StillwindPlugin } from "@stillwind/config";
+import { defaultPluginExport, type PluginHost } from "../css/plugins.ts";
 
 /**
- * Loads the plugin package that an `@plugin` statement names, with Node module resolution from
- * the stylesheet that contains the statement.
- *
- * @param specifier - Package specifier or path from the statement.
- * @param importer - Absolute path of the stylesheet.
- * @returns The plugin that the module exports by default.
- * @throws If resolution or evaluation fails, or the default export is not a plugin.
+ * Loads plugin packages and plugin files with Node module resolution from the stylesheet that
+ * contains the `@plugin` statement, and reads files from the filesystem.
  */
-export async function loadNodePlugin(
-  specifier: string,
-  importer: string,
-): Promise<StillwindPlugin> {
-  const resolved = createRequire(importer).resolve(specifier);
-  const module = (await import(pathToFileURL(resolved).href)) as { default?: unknown };
-  const plugin = module.default;
-  if (
-    typeof plugin !== "object" ||
-    plugin === null ||
-    typeof (plugin as StillwindPlugin).name !== "string" ||
-    typeof (plugin as StillwindPlugin).css !== "function"
-  ) {
-    throw new Error(`Stillwind plugin ${specifier} must export a plugin object by default`);
-  }
-  return plugin as StillwindPlugin;
-}
+export const nodePluginHost: PluginHost = {
+  async load(specifier, importer) {
+    const resolved = createRequire(importer).resolve(specifier);
+    return defaultPluginExport(await import(pathToFileURL(resolved).href), specifier);
+  },
+  async resolve(specifier, importer) {
+    try {
+      return createRequire(importer).resolve(specifier);
+    } catch {
+      return undefined;
+    }
+  },
+  async read(path) {
+    return await readFile(path, "utf8");
+  },
+};

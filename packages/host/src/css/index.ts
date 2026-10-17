@@ -23,4 +23,11 @@ export {
   type EditorCssGraph,
   type LoadedCssGraph,
 } from "./css.ts";
-export { attachPlugins, compileWithPlugins, pluginLoader, PluginRuntime } from "./plugins.ts";
+export {
+  attachPlugins,
+  compileWithPlugins,
+  defaultPluginExport,
+  pluginLoader,
+  PluginRuntime,
+  type PluginHost,
+} from "./plugins.ts";

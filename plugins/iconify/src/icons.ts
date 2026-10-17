@@ -1,5 +1,8 @@
 import type { IconifyJSON } from "@iconify/types";
-import { getIconData, iconToHTML, iconToSVG, svgToURL } from "@iconify/utils";
+import { getIconData } from "@iconify/utils/lib/icon-set/get-icon";
+import { iconToSVG } from "@iconify/utils/lib/svg/build";
+import { iconToHTML } from "@iconify/utils/lib/svg/html";
+import { svgToURL } from "@iconify/utils/lib/svg/url";
 
 /**
  * How an icon utility paints the icon. `mask` paints the element's text color through the icon's

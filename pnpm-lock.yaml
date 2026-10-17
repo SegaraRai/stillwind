@@ -414,6 +414,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
+      '@iconify-json/fluent-emoji-flat':
+        specifier: ^1.2.6
+        version: 1.2.6
+      '@iconify-json/lucide':
+        specifier: ^1.2.145
+        version: 1.2.145
+      '@iconify-json/mdi':
+        specifier: ^1.2.3
+        version: 1.2.3
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:../../tools/workspace
@@ -423,6 +432,9 @@ importers:
       '@stillwind/native':
         specifier: workspace:*
         version: link:../../packages/native
+      '@stillwind/plugin-iconify':
+        specifier: workspace:*
+        version: link:../../plugins/iconify
       '@types/babel__standalone':
         specifier: ^7.1.9
         version: 7.1.9
@@ -3717,6 +3729,15 @@ packages:
 
   '@fontsource/instrument-sans@5.3.0':
     resolution: {integrity: sha512-QwXc4hb/px3XvSPS2CPAOgey8nyrQFxgxrmXQQ+pN+P51hKdAcchxpg8rSbjANFfPu6VKXhDqkVDucXMZ9CM5g==}
+
+  '@iconify-json/fluent-emoji-flat@1.2.6':
+    resolution: {integrity: sha512-RY47RgPb47fYUiyrA64sIOL0+UU02s29sXpNBbIQRBUlPlfNFTKUmZDERGuxDs/7yNGWqQYvuaSYM1M4fRXlUw==}
+
+  '@iconify-json/lucide@1.2.145':
+    resolution: {integrity: sha512-eYBZipY6g4bbJNyKBAEq1wBy3mJ2jKtI4O2K30ArO2lMpVDOEuQfu5aDZhiimj1+Q/mIrn3ZxnDeX1BbILxkwQ==}
+
+  '@iconify-json/mdi@1.2.3':
+    resolution: {integrity: sha512-O3cLwbDOK7NNDf2ihaQOH5F9JglnulNDFV7WprU2dSoZu3h3cWH//h74uQAB87brHmvFVxIOkuBX2sZSzYhScg==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -13165,6 +13186,18 @@ snapshots:
     optional: true
 
   '@fontsource/instrument-sans@5.3.0': {}
+
+  '@iconify-json/fluent-emoji-flat@1.2.6':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/lucide@1.2.145':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/mdi@1.2.3':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify/types@2.0.0': {}
 

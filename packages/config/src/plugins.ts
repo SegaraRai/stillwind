@@ -62,6 +62,23 @@ export interface PluginContext {
    * @param path - Absolute file path.
    */
   watch(path: string): void;
+  /**
+   * Resolves a module request from the stylesheet that contains the statement, with the host's
+   * module resolution. A plugin uses it instead of Node APIs, so that it also runs in browser hosts.
+   *
+   * @param specifier - Package specifier with an optional subpath, such as
+   * `@iconify-json/mdi/icons.json`, or a relative or absolute path.
+   * @returns The absolute path of the file, or undefined when the request does not resolve.
+   */
+  resolve(specifier: string): Promise<string | undefined>;
+  /**
+   * Reads a text file through the host.
+   *
+   * @param path - Absolute file path, such as a result of {@link PluginContext.resolve}.
+   * @returns The file's text.
+   * @throws If the file does not exist or cannot be read.
+   */
+  read(path: string): Promise<string>;
 }
 
 /**

@@ -34,6 +34,10 @@ function context(options: Record<string, string> = {}): PluginContext {
     options,
     root: import.meta.dirname,
     watch: () => {},
+    resolve: async () => undefined,
+    read: async (path) => {
+      throw new Error(`${path} does not exist`);
+    },
   };
 }
 
@@ -128,6 +132,31 @@ describe("iconify", () => {
     expect(await plugin.catalog!(context())).toEqual(
       expect.arrayContaining(["icon-demo--close", "icon-demo--flag", "icon-demo--cross"]),
     );
+  });
+
+  test("installed icon set packages are found through the host", async () => {
+    const files = new Map([
+      ["/project/package.json", JSON.stringify({ devDependencies: { "@iconify-json/demo": "1" } })],
+      ["/project/node_modules/@iconify-json/demo/icons.json", JSON.stringify(collection)],
+    ]);
+    const watched: string[] = [];
+    const host: PluginContext = {
+      options: {},
+      root: "/project",
+      watch: (path) => watched.push(path),
+      resolve: async (specifier) =>
+        specifier === "@iconify-json/demo/icons.json"
+          ? "/project/node_modules/@iconify-json/demo/icons.json"
+          : undefined,
+      read: async (path) => files.get(path) ?? expect.fail(`unexpected read of ${path}`),
+    };
+    const plugin = iconify();
+
+    expect(await plugin.resolve!(["icon-demo--close"], host)).toContain(
+      "@utility icon-demo--close",
+    );
+    expect(await plugin.catalog!(host)).toContain("icon-demo--flag");
+    expect(watched).toContain("/project/node_modules/@iconify-json/demo/icons.json");
   });
 
   test("rejects invalid options", async () => {

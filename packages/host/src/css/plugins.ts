@@ -8,6 +8,60 @@ import type {
   NativeProjectSession,
 } from "@stillwind/native";
 
+/**
+ * Host operations for plugin packages and the files that plugins read. Paths are absolute host
+ * identities, which the host's `read` accepts.
+ */
+export interface PluginHost {
+  /**
+   * Loads the plugin package that an `@plugin` statement names when no configured plugin has
+   * that name.
+   *
+   * @param specifier - Package specifier or path from the statement.
+   * @param importer - Resolved identity of the stylesheet that contains the statement.
+   * @returns The plugin that the module exports by default, as {@link defaultPluginExport} checks.
+   * @throws If resolution or evaluation fails, or the default export is not a plugin.
+   */
+  load(specifier: string, importer: string): Promise<StillwindPlugin>;
+  /**
+   * Resolves a module request for {@link PluginContext.resolve}.
+   *
+   * @param specifier - Package specifier with an optional subpath, or a relative or absolute path.
+   * @param importer - Resolved identity of the stylesheet that contains the statement.
+   * @returns The resolved path, or undefined when the request does not resolve.
+   */
+  resolve(specifier: string, importer: string): Promise<string | undefined>;
+  /**
+   * Reads a text file for {@link PluginContext.read}.
+   *
+   * @param path - Absolute file path.
+   * @returns The file's text.
+   * @throws If the file does not exist or cannot be read.
+   */
+  read(path: string): Promise<string>;
+}
+
+/**
+ * Selects the plugin that a module exports by default.
+ *
+ * @param module - Evaluated module namespace.
+ * @param specifier - Request that loaded the module, used in the error message.
+ * @returns The default export.
+ * @throws If the default export is not an object with a string `name` and a `css` function.
+ */
+export function defaultPluginExport(module: unknown, specifier: string): StillwindPlugin {
+  const plugin = (module as { default?: unknown } | null)?.default;
+  if (
+    typeof plugin !== "object" ||
+    plugin === null ||
+    typeof (plugin as StillwindPlugin).name !== "string" ||
+    typeof (plugin as StillwindPlugin).css !== "function"
+  ) {
+    throw new Error(`Stillwind plugin ${specifier} must export a plugin object by default`);
+  }
+  return plugin as StillwindPlugin;
+}
+
 /** Matches `@stillwind-dynamic <prefix>*;` or `<prefix>[*];` and captures the prefix. */
 const DYNAMIC = /@stillwind-dynamic\s+([^\s;*[\]]+)(?:\[\*\]|\*)\s*;/g;
 
@@ -60,8 +114,8 @@ export class PluginRuntime {
    * @param options - Compiler options of the load, reused by {@link PluginRuntime.replay}.
    * @param plugins - Plugins configured for the project, which take precedence over packages.
    * @param root - Absolute project directory passed to plugins.
-   * @param loadPlugin - Loads a plugin package by specifier, or undefined when the host can only
-   * use configured plugins.
+   * @param host - Loads plugin packages and plugin files, or undefined when the host can only use
+   * configured plugins.
    * @param watch - Registers files that plugins read.
    * @param previous - Runtime of an earlier load of the same project. A statement with the same
    * specifier, options, and plugin resolves the earlier load's candidates of its families again.
@@ -70,9 +124,7 @@ export class PluginRuntime {
     readonly options: NativeCompilerOptions,
     readonly plugins: readonly StillwindPlugin[],
     readonly root: string,
-    readonly loadPlugin:
-      | ((specifier: string, importer: string) => Promise<StillwindPlugin>)
-      | undefined,
+    readonly host: PluginHost | undefined,
     readonly watch: (path: string) => void,
     readonly previous?: PluginRuntime,
   ) {}
@@ -119,7 +171,7 @@ export class PluginRuntime {
     if (!instance) {
       const plugin =
         this.plugins.find((candidate) => candidate.name === request.specifier) ??
-        (await this.loadPlugin?.(request.specifier, request.importer));
+        (await this.host?.load(request.specifier, request.importer));
       if (!plugin) {
         throw new Error(
           `Stillwind plugin ${request.specifier} is not configured, and this host cannot load packages`,
@@ -129,6 +181,13 @@ export class PluginRuntime {
         options: parsePluginOptions(request.pluginOptions ?? ""),
         root: this.root,
         watch: this.watch,
+        resolve: async (specifier) => this.host?.resolve(specifier, request.importer),
+        read: async (path) => {
+          if (!this.host) {
+            throw new Error(`This host cannot read plugin files: ${path}`);
+          }
+          return this.host.read(path);
+        },
       };
       const css = await plugin.css(context);
       const prefixes = [...css.matchAll(DYNAMIC)].map((match) => match[1]);

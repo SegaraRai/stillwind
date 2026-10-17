@@ -51,7 +51,7 @@ const pack: PackUserConfig[] = [
     ...runtime,
     name: "runtime-web-server",
     entry: {
-      configuration: "src/server/configuration.ts",
+      bundle: "src/server/bundle.ts",
       "server-module": "src/server/browser.ts",
     },
     outDir: "dist/extension/dist/browser",

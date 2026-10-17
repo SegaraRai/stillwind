@@ -8,7 +8,7 @@ import {
   type NativeCssResource,
 } from "@stillwind/native";
 
-import { PluginRuntime } from "./plugins.ts";
+import { PluginRuntime, type PluginHost } from "./plugins.ts";
 
 /**
  * Checks whether an identity names a stylesheet.
@@ -126,14 +126,10 @@ export interface CssHost {
     specifier?: string,
   ): boolean;
   /**
-   * Loads the plugin package that an `@plugin` statement names when no configured plugin has
-   * that name. Omission limits the graph to configured plugins.
-   *
-   * @param specifier - Package specifier from the statement.
-   * @param importer - Resolved identity of the stylesheet that contains the statement.
-   * @returns The plugin that the package exports by default.
+   * Loads plugin packages and the files that plugins read. Omission limits the graph to
+   * configured plugins, whose `resolve` finds nothing and whose `read` fails.
    */
-  loadPlugin?(specifier: string, importer: string): Promise<StillwindPlugin>;
+  plugins?: PluginHost;
 }
 
 /** Plugins and project inputs for the `@plugin` statements of one CSS graph. */
@@ -215,7 +211,7 @@ export interface LoadedCssGraph {
  * @param rootContent - Optional entrypoint text that replaces the initial filesystem read.
  * @param suppliedLoader - Optional configured loader that has not received any CSS input.
  * @param pluginInputs - Plugins for `@plugin` statements. Omission uses no configured plugins,
- * the root's directory as the project directory, and the host's package loader.
+ * the root's directory as the project directory, and the host's plugin operations.
  * @returns A promise for the completed native loader and its authored resource references.
  * @throws If resolving, reading, or loading the CSS graph fails.
  */
@@ -232,7 +228,7 @@ export async function loadCssGraph(
     options,
     pluginInputs?.plugins ?? [],
     pluginInputs?.root ?? root.replace(/[\\/][^\\/]*$/, ""),
-    host.loadPlugin?.bind(host),
+    host.plugins,
     (path) => host.watch(path),
     pluginInputs?.previous,
   );

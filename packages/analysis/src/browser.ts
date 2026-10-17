@@ -5,6 +5,7 @@ import {
   type BrowserModuleCss,
   type BrowserStylesheetOutput,
   type EditorRequest,
+  type PluginHost,
 } from "@stillwind/host/browser";
 import { minimatch } from "minimatch";
 import { relative, resolve } from "pathe";
@@ -30,6 +31,11 @@ export interface BrowserWorkspaceOptions {
    * @returns Original URI used in diagnostics and source maps.
    */
   documentUri?(this: void, path: string): string;
+  /**
+   * Loads plugin packages and plugin files for `@plugin` statements. Omission limits the projects
+   * to the plugins of their configurations.
+   */
+  plugins?: PluginHost;
 }
 
 /** Shares snapshot compilation between LSP analysis and application builds. */
@@ -78,6 +84,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
           config,
           files,
           documentUri: this.#options.documentUri,
+          plugins: this.#options.plugins,
         }),
     );
     this.#buildRevision = revision;
@@ -197,6 +204,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
           config,
           files,
           documentUri: this.#options.documentUri,
+          plugins: this.#options.plugins,
         });
         let result: WorkspaceResult["result"] = {
           entry: uri,

@@ -17,7 +17,7 @@ import {
   type CssHost,
   type EditorCssGraph,
 } from "../css/css.ts";
-import { attachPlugins, type PluginRuntime } from "../css/plugins.ts";
+import { attachPlugins, type PluginHost, type PluginRuntime } from "../css/plugins.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
 import { StylesheetEditor } from "../project/stylesheet-editor.ts";
@@ -38,6 +38,11 @@ export interface BrowserProjectOptions {
    * @returns URI used for diagnostic locations and source-map names.
    */
   documentUri?(id: string): string;
+  /**
+   * Loads plugin packages and plugin files for `@plugin` statements. Omission limits the project
+   * to the plugins of its configuration.
+   */
+  plugins?: PluginHost;
 }
 
 /** Rendered browser CSS and the naming fallbacks observed during its assembly. */
@@ -187,6 +192,7 @@ export class BrowserProject {
       documentUri: uri,
       sourceMapSource: uri,
       watch: () => {},
+      plugins: this.#options.plugins,
     };
   }
 

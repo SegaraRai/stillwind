@@ -67,7 +67,11 @@ export default defineConfig({
           input: [{ auto: true }, "!dist/**"],
           output: ["dist/assets-static/**"],
         },
-        dependsOn: ["@stillwind/vscode-extension#build", "stillwind#build"],
+        dependsOn: [
+          "@stillwind/plugin-iconify#build",
+          "@stillwind/vscode-extension#build",
+          "stillwind#build",
+        ],
       },
       typecheck: {
         command: "tsc --noEmit",

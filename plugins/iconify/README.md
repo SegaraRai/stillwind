@@ -34,9 +34,9 @@ The plugin finds a set in this order:
 2. The `@iconify-json/<set>` package.
 3. The `@iconify/json` package, which contains every Iconify set.
 
-Packages are resolved from the project directory. A change to a set's JSON file reloads the
-design system. Editors complete the icons of configured sets and of the `@iconify-json/*`
-packages in the dependencies of the project's `package.json`.
+The host resolves packages from the stylesheet that contains the `@plugin` statement. A change
+to a set's JSON file reloads the design system. Editors complete the icons of configured sets
+and of the `@iconify-json/*` packages in the dependencies of the project's `package.json`.
 
 ## Options
 

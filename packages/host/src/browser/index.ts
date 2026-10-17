@@ -1,3 +1,4 @@
+export { defaultPluginExport, type PluginHost } from "../css/plugins.ts";
 export { TypeFactsError } from "../semantics/backend.ts";
 export type {
   AvailableFacts,
