@@ -267,10 +267,11 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             branches.retain(|(_, _, domains, _, _)| domains.contains(&selected));
         }
     }
-    let Some((_, _, _, mut resolution, _)) = branches.first().cloned() else {
+    let mut branches = branches.into_iter();
+    let Some((_, _, _, mut resolution, _)) = branches.next() else {
         return Ok(None);
     };
-    for (_, _, _, branch, _) in branches.into_iter().skip(1) {
+    for (_, _, _, branch, _) in branches {
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
         // competing overloads cannot overwrite a more-specific property branch.

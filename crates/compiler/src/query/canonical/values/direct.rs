@@ -373,10 +373,10 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
             .and_then(dimension)
             .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
     {
-        values.push(convert_pixel_dimensions(
-            value,
-            query.options.root_font_size.get(),
-        ));
+        let converted = convert_pixel_dimensions(value, query.options.root_font_size.get());
+        if converted != values[0] {
+            values.push(converted);
+        }
     }
     values
         .into_iter()
