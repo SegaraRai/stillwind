@@ -13,7 +13,7 @@ use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{
-    KeyframesBody, KeyframesDefinition, ModuleAnalysis, StyleCall, StyleVariant,
+    CssCall, KeyframesBody, KeyframesDefinition, ModuleAnalysis, StyleCall, StyleVariant,
     ViewTransitionDefinition,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
@@ -21,6 +21,7 @@ use stillwind_source::{Fingerprint, ModuleId, Span};
 
 use super::super::class_units::PreviewSlots;
 use super::super::conditionals::lower;
+use super::super::css_call::{CssOutput, css_call_text};
 use super::super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::super::emission::{CallEmitter, CallEmitterInputs};
 use super::super::symbols::named_identity;
@@ -41,6 +42,8 @@ pub enum EditorSiteKind {
     Use,
     /// A compiler-recognized literal input.
     Input,
+    /// A `style.css()` call, whose CSS is the string that the call lowers to.
+    Stylesheet,
 }
 
 /// CSS and dependencies contributed by one original source occurrence.
@@ -88,6 +91,13 @@ pub(super) enum EditorPlan {
         /// Complete definition or one selected group or phase input.
         ViewTransitionDefinition,
     ),
+    /// Emits the string of a `style.css()` call, or only its rules.
+    Css {
+        /// Complete call, or the call with one selected input and its options.
+        call: CssCall,
+        /// The part of the output to render.
+        output: CssOutput,
+    },
 }
 
 /// Captured editor output and replacement plans for one analyzed module.
@@ -154,6 +164,9 @@ impl ModuleEditor {
         }
         for call in module.ir.style_inputs() {
             editor.add_call(call);
+        }
+        for call in &module.ir.css_calls {
+            editor.add_css(call);
         }
         editor.revision = Fingerprint::of(
             format_args!(
@@ -255,6 +268,44 @@ impl ModuleEditor {
         }
     }
 
+    /// Records a `style.css()` call with its whole string and each input literal with
+    /// its rules. `call` must retain its original spans in this module.
+    ///
+    /// An input plan keeps the call's options and the input's group keys, so a
+    /// replacement preview resolves like the input in the call.
+    fn add_css(&mut self, call: &CssCall) {
+        self.add(
+            call.span,
+            EditorSiteKind::Stylesheet,
+            None,
+            None,
+            EditorPlan::Css {
+                call: call.clone(),
+                output: CssOutput::Template,
+            },
+        );
+        let context = if call.selector.is_some() {
+            CandidateContext::AnchoredDocument
+        } else {
+            CandidateContext::Document
+        };
+        for input in &call.inputs {
+            self.add(
+                input.utilities.span,
+                EditorSiteKind::Input,
+                None,
+                Some(context),
+                EditorPlan::Css {
+                    call: CssCall {
+                        inputs: vec![input.clone()],
+                        ..call.clone()
+                    },
+                    output: CssOutput::Rules,
+                },
+            );
+        }
+    }
+
     /// Captures a complete call's slot allocations before recording its isolated inputs
     /// and uses. `call` must retain its original spans in this module.
     fn add_call(&mut self, call: &StyleCall) {
@@ -342,17 +393,19 @@ impl ModuleEditor {
         output: Option<(LeanString, Vec<IdentityId>)>,
     ) {
         let output = output.filter(|_| {
-            !matches!(kind, EditorSiteKind::Style | EditorSiteKind::Definition)
-                || !self
-                    .module
-                    .diagnostics
-                    .iter()
-                    .flat_map(|error| &error.labels)
-                    .any(|label| {
-                        label.span.file == span.file
-                            && label.span.start < span.end
-                            && span.start < label.span.end
-                    })
+            !matches!(
+                kind,
+                EditorSiteKind::Style | EditorSiteKind::Definition | EditorSiteKind::Stylesheet
+            ) || !self
+                .module
+                .diagnostics
+                .iter()
+                .flat_map(|error| &error.labels)
+                .any(|label| {
+                    label.span.file == span.file
+                        && label.span.start < span.end
+                        && span.start < label.span.end
+                })
         });
         let valid = output.is_some();
         let (css, dependencies) = output.unwrap_or_default();
@@ -431,6 +484,21 @@ impl ModuleEditor {
         let mut lint_findings = Vec::new();
         let mut contributions = Vec::new();
         let mut dependencies = BTreeSet::new();
+        if let EditorPlan::Css { call, output } = plan {
+            // The text is already lowered and rewritten, so it skips the steps below.
+            let css = css_call_text(
+                call,
+                self.snapshot.theme(),
+                &self.options,
+                &context,
+                *output,
+                &mut diagnostics,
+                &mut lint_findings,
+            );
+            return diagnostics
+                .is_empty()
+                .then(|| (preview_resource_urls(css, &self.snapshot), Vec::new()));
+        }
         match plan {
             EditorPlan::Keyframes(definition) => {
                 let mut contribution = CssContribution::default();
@@ -458,6 +526,7 @@ impl ModuleEditor {
                 );
                 contributions.push(contribution);
             }
+            EditorPlan::Css { .. } => {}
             EditorPlan::Call(call) => {
                 for input in &call.inputs {
                     collect_bases(input, &mut dependencies);

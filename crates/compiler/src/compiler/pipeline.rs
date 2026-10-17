@@ -27,7 +27,7 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::lower;
-use super::css_call::css_call_text;
+use super::css_call::{CssOutput, css_call_text};
 use super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
@@ -314,8 +314,8 @@ impl Compiler {
                 css,
                 theme,
                 options,
-                &result.lint_settings,
                 identifiers,
+                CssOutput::Template,
                 &mut diagnostics,
                 &mut result.lint_findings,
             );

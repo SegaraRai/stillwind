@@ -257,6 +257,15 @@ export class SourceIndex {
             );
           if (options !== undefined && isCssOptions(options)) {
             inputs.pop();
+            for (const property of options.properties) {
+              if (
+                ts.isPropertyAssignment(property) &&
+                propertyName(property) === "template" &&
+                ts.isStringLiteralLike(property.initializer)
+              ) {
+                this.#literal(source, property.initializer, "", "cssTemplate");
+              }
+            }
           }
           for (const input of inputs) {
             this.#cssInput(source, input, "", anchored ? "anchoredDocument" : "document");

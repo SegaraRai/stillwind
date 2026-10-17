@@ -9,7 +9,7 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::ThemeIndex;
-use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding, LintSettings};
+use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::CssCall;
 
 use super::conditionals::lower;
@@ -22,7 +22,17 @@ use crate::{CompilerOptions, MappedStylesheet};
 /// Name of the template that a call without a `template` option selects.
 const DEFAULT_TEMPLATE: &str = "default";
 
-/// Returns the stylesheet text that `call` lowers to.
+/// The part of a call's output that [`css_call_text`] returns.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CssOutput {
+    /// The whole string that the call lowers to.
+    Template,
+    /// Only the rules of the utilities, without the template and its support.
+    Rules,
+}
+
+/// Returns the stylesheet text that `call` lowers to, or only its rules when `output`
+/// is [`CssOutput::Rules`].
 ///
 /// A group key that does not resolve omits the literals beneath it. A template name
 /// that the stylesheet does not define reports a finding, and the call then returns
@@ -35,11 +45,12 @@ pub(crate) fn css_call_text(
     call: &CssCall,
     theme: &ThemeIndex,
     options: &CompilerOptions,
-    lint_settings: &LintSettings,
     identifiers: &IdentifierContext,
+    output: CssOutput,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> LeanString {
+    let lint_settings = &options.lint_settings();
     let mut prefixes = Vec::with_capacity(call.inputs.len());
     for input in &call.inputs {
         let resolved = input.variants.iter().all(|variant| {
@@ -87,6 +98,9 @@ pub(crate) fn css_call_text(
                     .iter()
                     .map(|name| options.rewrite_generated(name)),
             );
+        }
+        if output == CssOutput::Rules {
+            return Ok(utilities.css.into());
         }
         let name = call
             .template

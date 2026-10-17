@@ -35,9 +35,10 @@ impl DesignSystemQuery {
     /// Offers labels that continue `input.prefix`.
     ///
     /// The input role selects utility or animation-option names and their theme tokens.
-    /// Definition branches and `style.media()` arguments offer only variant prefixes.
-    /// Every label must resolve under the role's variant constraints. Compound variants
-    /// complete their nested argument, and the existing variant prefix is retained.
+    /// Definition branches and `style.media()` arguments offer only variant prefixes,
+    /// and the `template` option of `style.css()` offers template names. Every label
+    /// must resolve under the role's variant constraints. Compound variants complete
+    /// their nested argument, and the existing variant prefix is retained.
     ///
     /// Returns unique labels in lexical order, each pinned to this query's
     /// design-system revision. Variant labels end in `:` so the caller can continue the
@@ -52,6 +53,20 @@ impl DesignSystemQuery {
     ) -> Result<Vec<CompletionItem>, UtilityResolutionError> {
         let prefix = input.prefix;
         let context = input.context;
+        if context == CandidateContext::CssTemplate {
+            return Ok(self
+                .context
+                .design_system
+                .theme()
+                .css_templates()
+                .keys()
+                .filter(|name| name.starts_with(prefix.as_str()))
+                .map(|name| CompletionItem {
+                    label: name.clone(),
+                    revision: self.context.design_system.revision(),
+                })
+                .collect());
+        }
         let split = last_top_level(&prefix, ':').map_or(0, |index| index + 1);
         let (variants, partial) = prefix.split_at(split);
         let utility_partial = partial.trim_start_matches('!').trim_start_matches('-');

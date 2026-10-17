@@ -663,8 +663,10 @@ or `@utility`; either problem is a compilation error. A call inside a `style()` 
 input is omitted with that input, as
 [Materialization and consumption sites](#materialization-and-consumption-sites) describes.
 
-Editors complete and preview each input as a document-level style. In a call with a
-`selector` option, a utility that selects no element previews with `&` as its element.
+Editors complete and preview each input as a document-level style with the call's group
+keys and `selector` option. The preview of an input shows only its rules, and the preview
+of the whole call shows the string that it lowers to. The `template` option completes the
+names of defined templates, and its preview shows the template.
 
 ## Custom properties
 

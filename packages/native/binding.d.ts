@@ -592,7 +592,7 @@ export type NativeAttributeQuote = 'single' | 'double'
  * Option roles use the animation-option registry and its property mappings. Frame and
  * phase utilities retain the declarations produced by ordinary utility resolution.
  */
-export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'mediaVariants' | 'document' | 'anchoredDocument'
+export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'mediaVariants' | 'document' | 'anchoredDocument' | 'cssTemplate'
 
 /** The candidate set of a symbolic value. */
 export type NativeCandidates =
@@ -904,7 +904,7 @@ export interface NativeEditorSite {
 }
 
 /** The source object addressed by a preview. */
-export type NativeEditorSiteKind = 'style' | 'definition' | 'use' | 'input'
+export type NativeEditorSiteKind = 'style' | 'definition' | 'use' | 'input' | 'stylesheet'
 
 /**
  * Named entries preserve arbitrary export names, including `__proto__`.

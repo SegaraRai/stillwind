@@ -45,6 +45,8 @@ pub enum CandidateContext {
     /// generated class. The first variant that selects an element, such as `host:` or
     /// `[:root]:`, must come before any variant that refers to `&`.
     Document,
+    /// The `template` option of `style.css()`: the name of a `@stillwind-css-template`.
+    CssTemplate,
     /// Utilities of a document-level style with a default element, such as a
     /// `style.css()` input with a `selector` option. A candidate whose variants select
     /// no element styles the default element, which previews show as `&`.
@@ -66,7 +68,10 @@ impl CandidateContext {
     /// Whether this role permits variant prefixes. Allowed roles still validate each
     /// prefix through their own resolver.
     pub(super) const fn variants(self) -> bool {
-        !matches!(self, Self::KeyframesFrame | Self::AnimationOptions)
+        !matches!(
+            self,
+            Self::KeyframesFrame | Self::AnimationOptions | Self::CssTemplate
+        )
     }
 }
 
@@ -97,13 +102,11 @@ impl DesignSystemQuery {
         if context.variants_only() {
             return Ok(self.preview_variants(candidate, context));
         }
+        if context == CandidateContext::CssTemplate {
+            return Ok(self.preview_template(candidate));
+        }
         if context == CandidateContext::AnchoredDocument {
-            let document = self.preview_candidate(candidate, CandidateContext::Document)?;
-            return if document.is_some() {
-                Ok(document)
-            } else {
-                self.preview_candidate(candidate, CandidateContext::Utility)
-            };
+            return self.preview_anchored(candidate);
         }
 
         let theme = self.context.design_system.theme();
@@ -179,6 +182,7 @@ impl DesignSystemQuery {
                 css
             }
             CandidateContext::Utility
+            | CandidateContext::CssTemplate
             | CandidateContext::AnchoredDocument
             | CandidateContext::DefinitionVariants
             | CandidateContext::MediaVariants => return Ok(None),
@@ -188,6 +192,31 @@ impl DesignSystemQuery {
         } else {
             None
         })
+    }
+
+    /// Renders `candidate` as a document-level utility, or with `&` as its element when
+    /// its variants select none.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed matching utility requirement.
+    fn preview_anchored(&self, candidate: &str) -> Result<Option<LeanStr>, UtilityResolutionError> {
+        let document = self.preview_candidate(candidate, CandidateContext::Document)?;
+        if document.is_some() {
+            return Ok(document);
+        }
+        self.preview_candidate(candidate, CandidateContext::Utility)
+    }
+
+    /// Returns the outline of the `@stillwind-css-template` named `name`, or `None`
+    /// when the stylesheet defines no such template.
+    fn preview_template(&self, name: &str) -> Option<LeanStr> {
+        self.context
+            .design_system
+            .theme()
+            .css_templates()
+            .get(name)
+            .map(|template| template.outline().into())
     }
 
     /// Renders the empty at-rules that a variant-only input wraps around a rule, or

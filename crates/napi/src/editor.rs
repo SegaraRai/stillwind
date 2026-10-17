@@ -92,6 +92,8 @@ pub enum NativeCandidateContext {
     /// Serialized as `anchoredDocument` for `style.css()` inputs of a call with a
     /// `selector` option.
     AnchoredDocument,
+    /// Serialized as `cssTemplate` for the `template` option of `style.css()`.
+    CssTemplate,
 }
 
 impl From<NativeCandidateContext> for CandidateContext {
@@ -106,6 +108,7 @@ impl From<NativeCandidateContext> for CandidateContext {
             NativeCandidateContext::MediaVariants => Self::MediaVariants,
             NativeCandidateContext::Document => Self::Document,
             NativeCandidateContext::AnchoredDocument => Self::AnchoredDocument,
+            NativeCandidateContext::CssTemplate => Self::CssTemplate,
         }
     }
 }
@@ -122,6 +125,7 @@ impl From<CandidateContext> for NativeCandidateContext {
             CandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             CandidateContext::DefinitionVariants => Self::DefinitionVariants,
             CandidateContext::MediaVariants => Self::MediaVariants,
+            CandidateContext::CssTemplate => Self::CssTemplate,
         }
     }
 }

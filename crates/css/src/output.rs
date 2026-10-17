@@ -10,7 +10,7 @@
 //! original editable source, never a generated buffer, and may be `None` when a node
 //! has no authored origin, for example the utilities slot.
 
-use lean_string::{LeanStr, LeanString, ToLeanStr};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_source::{CssSourceName, Span};
 
@@ -132,6 +132,14 @@ impl CssOutputTemplate {
         authored_css(&self.nodes)
     }
 
+    /// Writes the template as CSS, with each slot as its `@stillwind-slot` statement.
+    ///
+    /// Editors show this text for a template name. Theme blocks are omitted, because
+    /// they define tokens rather than place output.
+    pub fn outline(&self) -> LeanString {
+        outline(&self.nodes)
+    }
+
     /// Rewrites every `origin` span through `map`, keeping `None` as `None`.
     ///
     /// Callers use this when a template moves between coordinate systems, for example
@@ -140,6 +148,38 @@ impl CssOutputTemplate {
     pub fn map_origins(&mut self, mut map: impl FnMut(Span) -> Option<Span>) {
         visit_nodes(&mut self.nodes, &mut map);
     }
+}
+
+/// Writes a node list as CSS with its slot statements, as
+/// [`CssOutputTemplate::outline`] describes.
+fn outline(nodes: &[CssOutputNode]) -> LeanString {
+    nodes
+        .iter()
+        .map(|node| match node {
+            CssOutputNode::Authored { css, .. } | CssOutputNode::LayerOrder { css, .. } => {
+                css.to_lean_string()
+            }
+            CssOutputNode::Style {
+                header, children, ..
+            }
+            | CssOutputNode::Group {
+                header, children, ..
+            } => format_args!("{header}{{{}}}", outline(children)).to_lean_string(),
+            CssOutputNode::Theme { .. } => LeanString::new(),
+            CssOutputNode::Utilities => "@stillwind-slot utilities;".to_lean_string(),
+            CssOutputNode::ThemeVariables => "@stillwind-slot theme;".to_lean_string(),
+            CssOutputNode::Keyframes => "@stillwind-slot keyframes;".to_lean_string(),
+            CssOutputNode::Properties => "@stillwind-slot properties;".to_lean_string(),
+            CssOutputNode::PropertyInitials(inheritance) => match inheritance {
+                PropertyInheritance::All => "@stillwind-slot property-initials;",
+                PropertyInheritance::Inherited => "@stillwind-slot property-initials inherited;",
+                PropertyInheritance::NonInherited => {
+                    "@stillwind-slot property-initials non-inherited;"
+                }
+            }
+            .to_lean_string(),
+        })
+        .collect()
 }
 
 /// Renders the authored part of a node list, wrapping groups in their headers.

@@ -243,6 +243,13 @@ pub(super) fn replace_text(plan: &mut EditorPlan, span: Span, candidate: &str) {
                 replace_input_text(input, span, candidate);
             }
         }
+        EditorPlan::Css { call, .. } => {
+            for input in &mut call.inputs {
+                if input.utilities.span == span {
+                    input.utilities.value = candidate.into();
+                }
+            }
+        }
     }
 }
 

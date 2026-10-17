@@ -26,6 +26,8 @@ pub enum NativeEditorSiteKind {
     Use,
     /// Serialized as `input` for a literal interpreted by a compiler resolver.
     Input,
+    /// Serialized as `stylesheet` for a `style.css()` call.
+    Stylesheet,
 }
 
 impl From<EditorSiteKind> for NativeEditorSiteKind {
@@ -35,6 +37,7 @@ impl From<EditorSiteKind> for NativeEditorSiteKind {
             EditorSiteKind::Definition => Self::Definition,
             EditorSiteKind::Use => Self::Use,
             EditorSiteKind::Input => Self::Input,
+            EditorSiteKind::Stylesheet => Self::Stylesheet,
         }
     }
 }

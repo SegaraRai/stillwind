@@ -362,31 +362,42 @@ test("style.media arguments complete and preview only media variants", async () 
   }
 });
 
-test("style.css inputs preview their selected element and complete by selector option", async () => {
+test("style.css calls and inputs preview their output, and template names complete", async () => {
   const source =
-    'import {style} from "stillwind/react"; const sheet = style.css("[:host]:flex", { "[button]:": "block" }); const anchored = style.css("p-4", { selector: ":host" }); const plain = style.css("");';
+    'import {style} from "stillwind/react"; const sheet = style.css("[:host]:flex", { "[button]:": "block" }); const anchored = style.css("p-4", { selector: ":host", template: "shadow" }); const plain = style.css("", { template: "" });';
   const current = project(
     source,
     {},
     `${theme}
-@custom-variant shell scope(document) (:host);`,
+@custom-variant shell scope(document) (:host);
+@stillwind-css-template default { @stillwind-slot utilities; }
+@stillwind-css-template shadow { :host { @stillwind-slot theme; } @stillwind-slot utilities; }`,
   );
   try {
     const hover = async (offset: number) =>
       (await current.query("/workspace/entry.tsx", { kind: "hover", offset }))!.hover?.css;
     expect(await hover(source.indexOf("flex"))).toMatch(/:host \{\n\s+display: flex;/);
     expect(await hover(source.indexOf("block"))).toMatch(/button \{\n\s+display: block;/);
-    expect(await hover(source.indexOf("p-4"))).toMatch(/& \{\n\s+padding:/);
+    // The input preview applies the call's selector option and omits the template.
+    const input = await hover(source.indexOf("p-4"));
+    expect(input).toMatch(/:host \{\n\s+padding:/);
+    expect(input).not.toContain("--spacing:");
+    // The call preview is the string that the call lowers to.
+    const call = await hover(source.indexOf("style.css", source.indexOf("anchored")) + 7);
+    expect(call).toMatch(/--spacing: \.25rem\b/);
+    expect(call).toMatch(/:host \{\n\s+padding:/);
+    expect(await hover(source.indexOf('"shadow"') + 2)).toContain("@stillwind-slot theme;");
     const labels = async (offset: number) =>
       (await current.query("/workspace/entry.tsx", {
         kind: "completion",
         offset,
       }))!.completions!.map((item) => item.label);
-    const plain = await labels(source.lastIndexOf('("') + 2);
+    const plain = await labels(source.indexOf('style.css("",') + 11);
     expect(plain).toContain("shell:");
     expect(plain).not.toContain("hover:");
     expect(plain).not.toContain("block");
     expect(await labels(source.indexOf("p-4"))).toContain("block");
+    expect(await labels(source.lastIndexOf('template: "') + 11)).toEqual(["default", "shadow"]);
   } finally {
     await current.close();
   }
