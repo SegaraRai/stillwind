@@ -391,6 +391,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: "br".into(),
                     context: CandidateContext::Utility,
+                    snippets: false,
                 })
                 .unwrap()
                 .iter()

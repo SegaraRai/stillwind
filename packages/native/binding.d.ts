@@ -56,7 +56,10 @@ export declare class NativeDesignSystemLoader {
   editorQuery(): NativeEditorQuery
 }
 
-/** Candidate operations for one immutable design system and explicitly supplied source buffers. */
+/**
+ * Candidate operations for one immutable design system and explicitly supplied source
+ * buffers.
+ */
 export declare class NativeEditorQuery {
   /**
    * Returns concrete colors with original byte ranges, including incomplete CSS
@@ -86,15 +89,22 @@ export declare class NativeEditorQuery {
    * compiler settings nor its hover and argument catalogs.
    */
   completeStylesheet(source: string, offset: number, options?: NativeStylesheetCompletionOptions | undefined | null): Array<NativeStylesheetCompletion>
-  /** Returns generated CSS or dialect documentation at an original UTF-8 byte boundary. */
+  /**
+   * Returns generated CSS or dialect documentation at an original UTF-8 byte
+   * boundary.
+   */
   hoverStylesheet(source: string, offset: number): NativeStylesheetHover | null
-  /** Returns a verified canonical replacement using the effective project lint options, or null. */
+  /**
+   * Returns a verified canonical replacement using the effective project lint
+   * options, or null.
+   */
   canonicalCandidate(candidate: string): string | null
   /** Returns the resolved canonical lint policy used by compilation and Reporter. */
   canonicalOptions(): NativeCanonicalUtilitiesOptions
   /**
-   * Reports sorting suggestions through the effective typed settings and common Reporter.
-   * URI and text must identify the exact original document addressed by all byte ranges.
+   * Reports sorting suggestions through the effective typed settings and common
+   * Reporter. URI and text must identify the exact original document addressed by
+   * all byte ranges.
    */
   reportSortEdits(uri: string, text: string, edits: Array<NativeEditorLintEdit>): Array<BindingReport>
   /** Returns effective lint severities after stylesheet and project configuration. */
@@ -117,6 +127,12 @@ export declare class NativeEditorQuery {
    */
   previewCandidate(candidate: string, context?: NativeCandidateContext | undefined | null): string | null
   /**
+   * Returns variant wrappers and their own declarations for decoded `candidate`.
+   * An omitted `context` selects ordinary utilities. Unsupported chains or roles
+   * return null. A trailing colon is optional.
+   */
+  previewVariant(candidate: string, context?: NativeCandidateContext | undefined | null): string | null
+  /**
    * Returns a complete CSS preview with line breaks and two-space indentation.
    * Nesting and fallback declarations are retained. When `preview` is supplied, the
    * result also contains its comments with resolved values; omitted fields use their
@@ -133,12 +149,15 @@ export declare class NativeEditorQuery {
    * omitted context selects ordinary utilities. Returns unique labels in lexical
    * order, retaining existing prefixes and ending variant labels with `:`.
    *
+   * When `snippets` is true, arbitrary variants include empty `[]` placeholders.
+   * Omitted snippet support is false.
+   *
    * # Errors
    *
    * Returns a malformed requirement while validating a matching ordinary utility
    * label.
    */
-  completeCandidate(prefix: string, context?: NativeCandidateContext | undefined | null): Array<string>
+  completeCandidate(prefix: string, context?: NativeCandidateContext | undefined | null, snippets?: boolean | undefined | null): Array<string>
   /**
    * Returns -1, 0, or 1 in compiler order, or null if either candidate is
    * unresolved.
@@ -546,6 +565,9 @@ export declare function compileProject(sources: Array<NativePreparedSource>, css
  */
 export declare function compileSource(input: NativeCompileSourceInput, options?: NativeCompilerOptions | undefined | null): BindingOutput
 
+/** Returns a short declaration or rule summary for one selected CSS completion. */
+export declare function completionDetail(source: string): string | null
+
 /**
  * Extracts definitions and imports for an editor-only load of incomplete CSS.
  * Ordinary compilation and lint must continue to use the original source.
@@ -632,6 +654,7 @@ export type NativeAttributeQuote = 'single' | 'double'
 
 /**
  * Selects the compiler contract of a candidate's source position.
+ *
  * Option roles use the animation-option registry and its property mappings. Frame and
  * phase utilities retain the declarations produced by ordinary utility resolution.
  */
@@ -912,7 +935,10 @@ export interface NativeDiagnosticBatch {
   reports: Array<BindingReport>
 }
 
-/** A source operation detected by a host's syntax index and reported through the common lint policy. */
+/**
+ * A source operation detected by a host's syntax index and reported through the common
+ * lint policy.
+ */
 export interface NativeEditorLintEdit {
   /** Original inclusive UTF-8 byte boundary. */
   start: number
@@ -1373,7 +1399,10 @@ export type NativePreparedSource =
     stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
   moduleCssImport?: string }
 
-/** Comments that formatted previews add after values. Omitted fields use their defaults. */
+/**
+ * Comments that formatted previews add after values. Omitted fields use their
+ * defaults.
+ */
 export interface NativePreviewOptions {
   /**
    * Adds resolved values after theme `var()` references and single-value `calc()`
@@ -1589,6 +1618,8 @@ export interface NativeStylesheetCompletion {
   label: string
   /** Whether the replacement names an at-rule. */
   keyword: boolean
+  /** Whether the replacement names a variant. */
+  variant: boolean
   /** Audience and syntax provenance for a directive, omitted for other inputs. */
   detail?: string
   /** Lexical key that ranks a directive by location, audience, and provenance. */
@@ -1599,6 +1630,8 @@ export interface NativeStylesheetCompletion {
 export interface NativeStylesheetCompletionOptions {
   /** Includes registry metadata where it is useful. Defaults to false. */
   registryDirectives?: boolean
+  /** Includes empty arbitrary-variant placeholders. Defaults to false. */
+  snippets?: boolean
 }
 
 /** CSS or Markdown documentation at an original UTF-8 range. */
@@ -1670,6 +1703,22 @@ export interface NativeStylesheetPlan {
   designSystem: string
   /** One entry per selected producer, for cache identity. */
   producers: Array<NativeStylesheetProducer>
+}
+
+/** A plugin path whose byte range excludes its CSS quotes. */
+export interface NativeStylesheetPluginPath {
+  /** Inclusive original UTF-8 byte boundary after the opening quote. */
+  start: number
+  /** Exclusive original UTF-8 byte boundary before the closing quote, or at EOF. */
+  end: number
+  /** Decoded CSS string used for module resolution. */
+  specifier: string
+  /** Opening quote, either a single or double quote. */
+  quote: string
+  /** Whether the original string has a closing quote. */
+  closed: boolean
+  /** Decoded text before the requested cursor when it lies within this path. */
+  prefix?: string
 }
 
 /** Artifact identity of one selected producer. */
@@ -1866,6 +1915,16 @@ export declare function renderStylesheet(moduleCss: string, theme: string, optio
  * Rejects malformed host input and failures to resolve diagnostic locations.
  */
 export declare function scanSource(source: NativePreparedSource): NativeScanResult
+
+/**
+ * Finds top-level plugin paths without loading CSS or plugins. Offset uses original
+ * UTF-8 bytes.
+ *
+ * # Errors
+ *
+ * Returns an error if a path boundary exceeds uint32.
+ */
+export declare function stylesheetPluginPaths(source: string, offset?: number | undefined | null): Array<NativeStylesheetPluginPath>
 
 /**
  * Returns the versioned Stillwind module summary used for cross-module values.

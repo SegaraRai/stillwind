@@ -8,11 +8,25 @@ import type {
   NativeProjectSession,
 } from "@stillwind/native";
 
+import type { PluginPathCompletion } from "./plugin-paths.ts";
+
 /**
  * Host operations for plugin packages and the files that plugins read. Paths are absolute host
  * identities, which the host's `read` accepts.
  */
 export interface PluginHost {
+  /**
+   * Lists complete specifiers for an editor without evaluating their modules.
+   * @param prefix - Decoded path text before the CSS cursor.
+   * @param importer - Absolute identity of the stylesheet containing the path.
+   * @param root - Absolute project directory used to find package metadata.
+   * @returns Full specifiers with trailing slashes for directory prefixes.
+   */
+  complete?(
+    prefix: string,
+    importer: string,
+    root: string,
+  ): Promise<readonly PluginPathCompletion[]>;
   /**
    * Loads the plugin package that an `@plugin` statement names when no configured plugin has
    * that name.
@@ -24,7 +38,7 @@ export interface PluginHost {
    */
   load(specifier: string, importer: string): Promise<StillwindPlugin>;
   /**
-   * Resolves a module request for {@link PluginContext.resolve}.
+   * Resolves a module request for plugin file reads and editor navigation without evaluating it.
    *
    * @param specifier - Package specifier with an optional subpath, or a relative or absolute path.
    * @param importer - Resolved identity of the stylesheet that contains the statement.

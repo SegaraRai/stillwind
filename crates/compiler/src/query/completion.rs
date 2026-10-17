@@ -1,25 +1,28 @@
 //! Completion catalogs and theme domains use the active compiler registry.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
-use stillwind_css::find_css_functions;
+use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 use stillwind_design_system::{
     BuiltinVariantValueType, DesignSystemRevision, ThemeNamespace, ThemeTokenKind,
     UtilityResolutionError, builtin_utility_token_prefixes,
 };
+use stillwind_syntax::parse_candidate;
 
 use super::{CandidateContext, DesignSystemQuery, last_top_level};
 
 /// A partially typed candidate, as spelled in the editor.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct CompletionInput {
     /// Decoded text of one partial candidate before the cursor, including its variant
     /// prefix. JavaScript string escapes must already be decoded.
     pub prefix: LeanStr,
     /// Input role used to validate labels and select their registry.
     pub context: CandidateContext,
+    /// Includes variant labels with an empty `[]` for a client to turn into a snippet.
+    pub snippets: bool,
 }
 
 /// One label the editor may insert.
@@ -53,6 +56,7 @@ impl DesignSystemQuery {
     ) -> Result<Vec<CompletionItem>, UtilityResolutionError> {
         let prefix = input.prefix;
         let context = input.context;
+        let snippets = input.snippets;
         if context == CandidateContext::CssTemplate {
             return Ok(self
                 .context
@@ -110,25 +114,67 @@ impl DesignSystemQuery {
                 completions.insert(label);
             }
         }
-        let mut variant_names = self.variant_vocabulary();
-        variant_names.extend(self.compound_variant_vocabulary(partial, &variant_names, 0));
-        for variant in variant_names {
-            if variant.starts_with(partial)
-                && self.valid_input_variant(
-                    &format_args!("{variants}{variant}").to_lean_str(),
-                    context,
-                )
-            {
-                completions.insert(format_args!("{variants}{variant}:").to_lean_str());
-            }
-        }
+        completions.extend(self.variant_completion_labels(variants, partial, context, snippets));
+        let used: BTreeSet<_> = parse_candidate(&format_args!("{variants}utility").to_lean_str())
+            .into_iter()
+            .flat_map(|candidate| candidate.variants)
+            .map(|variant| variant.raw)
+            .collect();
         Ok(completions
             .into_iter()
+            .filter(|label| {
+                label.strip_suffix(':').is_none_or(|text| {
+                    let start = last_top_level(text, ':').map_or(0, |index| index + 1);
+                    !used.contains(&text[start..])
+                })
+            })
             .map(|label| CompletionItem {
                 label,
                 revision: self.context.design_system.revision(),
             })
             .collect())
+    }
+
+    /// Returns variant labels matching `partial` after the enclosing `variants`.
+    /// `context` validates the complete chain. `snippets` includes empty brackets whose
+    /// filled values can resolve under that role.
+    fn variant_completion_labels(
+        &self,
+        variants: &str,
+        partial: &str,
+        context: CandidateContext,
+        snippets: bool,
+    ) -> BTreeSet<LeanStr> {
+        let mut completions = BTreeSet::new();
+        let mut variant_names = self.variant_vocabulary();
+        let empty_placeholders = BTreeMap::new();
+        let placeholders = if snippets {
+            self.variant_placeholders()
+        } else {
+            &empty_placeholders
+        };
+        variant_names.extend(placeholders.keys().cloned());
+        variant_names.extend(self.compound_variant_vocabulary(partial, &variant_names, 0));
+        for variant in variant_names {
+            let probe = placeholders
+                .iter()
+                .filter(|(label, _)| variant.ends_with(label.as_str()))
+                .max_by_key(|(label, _)| label.len())
+                .map_or_else(
+                    || variant.clone(),
+                    |(label, value)| {
+                        format_args!("{}{value}", &variant[..variant.len() - label.len()])
+                            .to_lean_str()
+                    },
+                );
+            if variant.starts_with(partial)
+                && self
+                    .valid_input_variant(&format_args!("{variants}{probe}").to_lean_str(), context)
+            {
+                completions.insert(format_args!("{variants}{variant}:").to_lean_str());
+            }
+        }
+        completions
     }
 
     /// Completes theme references and modifiers permitted by `context`. `split` is the
@@ -356,6 +402,42 @@ impl DesignSystemQuery {
         variant_names
     }
 
+    fn variant_placeholders(&self) -> &BTreeMap<LeanStr, LeanStr> {
+        self.variant_placeholders.get_or_init(|| {
+            let mut placeholders = BTreeMap::new();
+            let mut patterns: BTreeSet<_> = self
+                .context
+                .design_system
+                .variants()
+                .iter()
+                .flat_map(|(_, definitions)| definitions)
+                .filter_map(|definition| definition.wildcard_parts())
+                .filter(|(prefix, _)| !prefix.is_empty())
+                .map(|(prefix, suffix)| (prefix.to_owned(), suffix.to_owned()))
+                .collect();
+            patterns.insert((String::new(), String::new()));
+            for (prefix, suffix) in patterns {
+                for value in [
+                    "&:hover",
+                    "1",
+                    "1px",
+                    "display:grid",
+                    "pressed",
+                    "--flag",
+                    "@media_(width>1px)",
+                ] {
+                    let probe = format_args!("{prefix}[{value}]{suffix}").to_lean_str();
+                    if self.valid_input_variant(&probe, CandidateContext::ElementVariants) {
+                        placeholders
+                            .insert(format_args!("{prefix}[]{suffix}").to_lean_str(), probe);
+                        break;
+                    }
+                }
+            }
+            placeholders
+        })
+    }
+
     fn compound_variant_vocabulary(
         &self,
         partial: &str,
@@ -401,6 +483,72 @@ impl DesignSystemQuery {
         }
         labels
     }
+}
+
+/// Summarizes generated CSS for one selected completion. Ordinary declarations take
+/// precedence over custom properties. A preview without declarations shows its rule
+/// wrappers. The result contains at most 160 characters, including a final ellipsis.
+pub fn completion_detail(css: &str) -> Option<LeanStr> {
+    fn collect(
+        css: &str,
+        nodes: &[CssNode],
+        ordinary: &mut Vec<String>,
+        custom: &mut Vec<String>,
+        wrappers: &mut Vec<String>,
+    ) {
+        for node in nodes {
+            match &node.kind {
+                CssNodeKind::AtRule { name, .. } if name == "property" => continue,
+                CssNodeKind::Declaration { property, value } => {
+                    let property = &css[property.clone()];
+                    let output = if property.starts_with("--") {
+                        &mut *custom
+                    } else {
+                        &mut *ordinary
+                    };
+                    let text = format!("{property}: {};", &css[value.clone()]);
+                    if !output.contains(&text) {
+                        output.push(text);
+                    }
+                }
+                CssNodeKind::StyleRule { selector, .. } => {
+                    let selector = &css[selector.clone()];
+                    if selector != "&" {
+                        wrappers.push(selector.into());
+                    }
+                }
+                CssNodeKind::AtRule { name, prelude, .. } => {
+                    wrappers.push(format!("@{name} {}", &css[prelude.clone()]));
+                }
+                CssNodeKind::Apply { .. } => {}
+            }
+            collect(css, node.children(), ordinary, custom, wrappers);
+        }
+    }
+    let (mut ordinary, mut custom, mut wrappers) = (Vec::new(), Vec::new(), Vec::new());
+    collect(
+        css,
+        &parse_structure(css),
+        &mut ordinary,
+        &mut custom,
+        &mut wrappers,
+    );
+    let values = if !ordinary.is_empty() {
+        ordinary
+    } else if !custom.is_empty() {
+        custom
+    } else {
+        wrappers
+    };
+    if values.is_empty() {
+        return None;
+    }
+    let text = values.join(" ");
+    Some(if text.chars().count() > 160 {
+        format_args!("{}…", text.chars().take(159).collect::<String>()).to_lean_str()
+    } else {
+        text.into()
+    })
 }
 
 pub(super) fn value_namespaces(body: &str, function: &str) -> Vec<LeanStr> {
@@ -454,6 +602,89 @@ mod tests {
     use crate::CompilerOptions;
 
     #[test]
+    fn variant_completions_offer_valid_placeholders_and_skip_used_variants() {
+        let source = css_source(FileId(1), "@import 'stillwind';").unwrap();
+        let query = DesignSystemQuery::new(
+            DesignSystemSnapshot::from_source(
+                &source,
+                "theme.css".into(),
+                DesignSystemOptions::default(),
+            )
+            .unwrap(),
+            CompilerOptions::default(),
+        );
+        let complete = |prefix: &str, context, snippets| {
+            query
+                .complete_candidate(CompletionInput {
+                    prefix: prefix.into(),
+                    context,
+                    snippets,
+                })
+                .unwrap()
+                .into_iter()
+                .map(|item| item.label)
+                .collect::<Vec<_>>()
+        };
+        let labels = complete("hover:", CandidateContext::Utility, true);
+        assert!(!labels.iter().any(|label| label == "hover:hover:"));
+        assert!(labels.iter().any(|label| label == "hover:nth-[]:"));
+        assert!(labels.iter().any(|label| label == "hover:group-[]:"));
+        assert!(
+            complete("group-nth-", CandidateContext::Utility, true)
+                .iter()
+                .any(|label| label == "group-nth-[]:")
+        );
+        assert!(
+            !complete("nth-", CandidateContext::Utility, false)
+                .iter()
+                .any(|label| label.contains("[]"))
+        );
+        assert_eq!(
+            complete("nth-", CandidateContext::MediaVariants, true),
+            [] as [LeanStr; 0]
+        );
+        assert!(
+            complete("min-", CandidateContext::MediaVariants, true)
+                .iter()
+                .any(|label| label == "min-[]:")
+        );
+        assert!(
+            query
+                .preview_variant("hover:", CandidateContext::KeyframesFrame)
+                .is_none()
+        );
+        assert!(
+            query
+                .preview_variant("hover:", CandidateContext::Document)
+                .is_none()
+        );
+        assert!(
+            query
+                .preview_variant("hover:", CandidateContext::Utility)
+                .unwrap()
+                .contains("&:hover")
+        );
+    }
+
+    #[test]
+    fn completion_details_preserve_declaration_values_and_describe_empty_wrappers() {
+        assert_eq!(
+            completion_detail("& { --metadata: blue; content: 'a;b'; padding: 1rem; }"),
+            Some("content: 'a;b'; padding: 1rem;".into())
+        );
+        assert_eq!(
+            completion_detail("@media (hover: hover) { &:hover {} }"),
+            Some("@media (hover: hover) &:hover".into())
+        );
+        assert_eq!(
+            completion_detail(
+                "@property --color { syntax: '<color>'; inherits: false; initial-value: red; } & { --paint: red; }"
+            ),
+            Some("--paint: red;".into())
+        );
+    }
+
+    #[test]
     fn completions_include_theme_values_breakpoints_and_variant_prefixes() {
         let theme = css_source(
             FileId(1),
@@ -484,6 +715,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: prefix.into(),
                     context: CandidateContext::Utility,
+                    snippets: false,
                 })
                 .unwrap();
             assert!(
@@ -509,6 +741,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: prefix.into(),
                     context: CandidateContext::Utility,
+                    snippets: false,
                 })
                 .unwrap()
                 .into_iter()
@@ -528,6 +761,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: "missing:bg-br".into(),
                     context: CandidateContext::Utility,
+                    snippets: false,
                 })
                 .unwrap()
                 .is_empty()
@@ -555,6 +789,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: prefix.into(),
                     context: CandidateContext::Document,
+                    snippets: false,
                 })
                 .unwrap()
                 .into_iter()

@@ -3,9 +3,10 @@ import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillw
 
 import { CandidateQueries } from "../editor/candidates.ts";
 import { colorReplacement, cssColor } from "../editor/colors.ts";
+import { completionSnippet } from "../editor/completion.ts";
 import type { EditorEdit, EditorRequest, EditorResult } from "../editor/snapshot.ts";
 
-/** Answers CSS queries and lint fixes from one original buffer and captured design system. */
+/** Answers semantic CSS queries and lint fixes from one original buffer and captured design system. */
 export class StylesheetEditor {
   /** Resolver identity of the stylesheet. */
   readonly #id: string;
@@ -23,6 +24,8 @@ export class StylesheetEditor {
   readonly #preview?: PreviewOptions;
   /** Fingerprint of source, design-system revision, and serialized configuration for completion resolution. */
   readonly #snapshot: string;
+  /** Caches variant previews and completion summaries for this buffer's captured design system. */
+  readonly #candidates: CandidateQueries;
 
   /**
    * Captures original text, lint reports, and query settings for one stylesheet revision.
@@ -50,6 +53,7 @@ export class StylesheetEditor {
     this.#text = text;
     this.#bytes = new TextEncoder().encode(text);
     this.#query = query;
+    this.#candidates = new CandidateQueries(query);
     this.#preview = config.preview && { ...config.preview };
     this.#snapshot = fingerprint(JSON.stringify([text, query.revision(), config]));
   }
@@ -60,15 +64,16 @@ export class StylesheetEditor {
    * @param id - Resolver identity of the requested source.
    * @param request - Operation in the stylesheet's original UTF-16 coordinates. Cursor offsets must
    * be character boundaries within the captured text. Resolve uses the label, input, and snapshot
-   * returned by completion. Completion and resolution also accept `registryDirectives`, an
-   * editor-only setting whose default is false. Resolve requires the same setting.
+   * returned by completion. Completion and resolution accept `registryDirectives` and `snippets`,
+   * editor-only settings whose defaults are false. Resolve requires the same settings.
    * @returns An answer with the captured source fingerprint, or undefined for another identity.
    * Completion includes original replacement ranges. Hover includes formatted CSS or documentation
    * when the input resolves. Resolve omits hover when its snapshot or label no longer matches.
    * Fixes select each report's first action when all edits address this revision and do not overlap
    * a selected action, then sort edits by offset. Sort uses captured CSS targets independently of
    * lint reporting. Colors include original utility or reference ranges; presentations replace
-   * only a currently recognized range in this buffer.
+   * only a currently recognized range in this buffer. Link requests return an empty array;
+   * the project host resolves plugin paths.
    * @throws If a matching utility definition has a malformed requirement or CSS formatting fails.
    */
   query(id: string, request: EditorRequest): EditorResult | undefined {
@@ -79,6 +84,12 @@ export class StylesheetEditor {
     const result: EditorResult = {
       revision: this.#revision,
     };
+    if (request.kind === "links") {
+      return {
+        ...result,
+        links: [],
+      };
+    }
     if (request.kind === "colors" || request.kind === "colorPresentation") {
       const colors = this.#query.stylesheetColors(this.#text).map((color) => ({
         ...color,
@@ -117,6 +128,7 @@ export class StylesheetEditor {
       result.completions = this.#query
         .completeStylesheet(this.#text, this.#byteOffset(request.offset), {
           registryDirectives: request.registryDirectives === true,
+          snippets: request.snippets === true,
         })
         .map((item) => ({
           start: this.#utf16(item.start),
@@ -124,11 +136,14 @@ export class StylesheetEditor {
           label: item.label,
           candidate: item.label,
           newText: item.label,
+          snippet: request.snippets && item.variant ? completionSnippet(item.label) : undefined,
+          retrigger: item.label.endsWith(":"),
           keyword: item.keyword,
+          variant: item.variant,
           detail: item.detail ?? undefined,
           sortText: item.sortText ?? undefined,
           input: request.offset,
-          snapshot: this.#completionSnapshot(request.registryDirectives),
+          snapshot: this.#completionSnapshot(request.registryDirectives, request.snippets),
         }));
     }
     if (request.kind === "hover") {
@@ -136,23 +151,35 @@ export class StylesheetEditor {
     }
     if (
       request.kind === "resolve" &&
-      request.snapshot === this.#completionSnapshot(request.registryDirectives)
+      request.snapshot === this.#completionSnapshot(request.registryDirectives, request.snippets)
     ) {
       const item = this.#query
         .completeStylesheet(this.#text, this.#byteOffset(request.input), {
           registryDirectives: request.registryDirectives === true,
+          snippets: request.snippets === true,
         })
         .find((item) => item.label === request.candidate);
       if (item) {
         const start = this.#utf16(item.start);
         const text =
           this.#text.slice(0, start) + item.label + this.#text.slice(this.#utf16(item.end));
-        const hover = this.#hover(text, start + item.label.length);
+        const variant =
+          item.label.endsWith(":") && !item.keyword
+            ? this.#candidates.variant(item.label, "utility")
+            : undefined;
+        const hover = variant
+          ? {
+              start: 0,
+              end: 0,
+              css: this.#query.formatCss(variant, this.#preview),
+            }
+          : this.#hover(text, start + item.label.length);
         if (hover) {
           result.hover = {
             ...hover,
             start: 0,
             end: 0,
+            detail: this.#candidates.detail(hover.css),
           };
         }
       }
@@ -201,12 +228,13 @@ export class StylesheetEditor {
   }
 
   /**
-   * Pins completion resolution to the discovery setting used for its labels.
-   * @param registryDirectives - Whether the request includes registry metadata. Omission is false.
-   * @returns A fingerprint of the captured snapshot and normalized editor setting.
+   * Pins completion resolution to the discovery and snippet settings used for its labels.
+   * @param registryDirectives - Whether the request includes registry metadata.
+   * @param snippets - Whether the client supports arbitrary variant snippets.
+   * @returns A fingerprint of the captured snapshot and normalized editor settings.
    */
-  #completionSnapshot(registryDirectives = false): string {
-    return fingerprint(JSON.stringify([this.#snapshot, registryDirectives]));
+  #completionSnapshot(registryDirectives = false, snippets = false): string {
+    return fingerprint(JSON.stringify([this.#snapshot, registryDirectives, snippets]));
   }
 
   /**

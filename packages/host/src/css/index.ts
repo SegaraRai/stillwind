@@ -23,6 +23,7 @@ export {
   type EditorCssGraph,
   type LoadedCssGraph,
 } from "./css.ts";
+export type { PluginPathCompletion } from "./plugin-paths.ts";
 export {
   attachPlugins,
   compileWithPlugins,

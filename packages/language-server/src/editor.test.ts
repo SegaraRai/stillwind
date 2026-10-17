@@ -7,7 +7,9 @@ import type {
   ColorInformation,
   ColorPresentation,
   CompletionItem,
+  DocumentLink,
   Hover,
+  InitializeResult,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
@@ -17,6 +19,254 @@ import {
 } from "vscode-languageserver/node";
 
 import { createLanguageServer } from "./server.ts";
+
+test.each([false, true])(
+  "LSP variant snippets respect client support (%s) and continue completion",
+  async (snippetSupport) => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const server = createConnection(
+      new StreamMessageReader(input),
+      new StreamMessageWriter(output),
+    );
+    const client = createConnection(
+      new StreamMessageReader(output),
+      new StreamMessageWriter(input),
+    );
+    const uri = "file:///workspace/entry.tsx";
+    const text = 'import {style} from "stillwind/react"; const card=style("hover:");';
+    const document = TextDocument.create(uri, "typescriptreact", 1, text);
+    const service = createLanguageServer(server, {
+      openWorkspaces: async () => ({
+        workspaces: new Map([
+          [
+            "config",
+            new BrowserAnalysisWorkspace({
+              config: "config",
+              projects: [
+                {
+                  root: "/workspace",
+                  css: "theme.css",
+                  files: ["*.tsx"],
+                  typeFacts: false,
+                },
+              ],
+              files: new Map([
+                ["/workspace/entry.tsx", text],
+                [
+                  "/workspace/theme.css",
+                  `@utility block { display:block; }
+@custom-variant hover (&:hover);
+@stillwind-variant nth-* (value: [nth]) { &:--value(":nth-child({value})") { @slot; } }`,
+                ],
+              ]),
+            }),
+          ],
+        ]),
+      }),
+    });
+    server.listen();
+    client.listen();
+    try {
+      await client.sendRequest("initialize", {
+        rootUri: "file:///workspace",
+        capabilities: {
+          textDocument: {
+            completion: {
+              completionItem: {
+                snippetSupport,
+              },
+            },
+          },
+        },
+      });
+      await client.sendNotification("textDocument/didOpen", {
+        textDocument: {
+          uri,
+          languageId: document.languageId,
+          version: 1,
+          text,
+        },
+      });
+      const complete = (offset: number) =>
+        client.sendRequest<CompletionItem[]>("textDocument/completion", {
+          textDocument: {
+            uri,
+          },
+          position: document.positionAt(offset),
+        });
+      const items = await complete(text.indexOf("hover:") + "hover:".length);
+      expect(items.some((item) => item.label === "hover:hover:")).toBe(false);
+      const arbitrary = items.find((item) => item.label === "hover:nth-[]:");
+      if (snippetSupport) {
+        expect(arbitrary).toMatchObject({
+          insertTextFormat: 2,
+          textEdit: {
+            newText: "hover:nth-[${1}]:${0}",
+          },
+          command: {
+            command: "editor.action.triggerSuggest",
+          },
+        });
+      } else {
+        expect(arbitrary).toBeUndefined();
+        expect(items.every((item) => item.insertTextFormat !== 2)).toBe(true);
+      }
+      const block = items.find((item) => item.label === "hover:block")!;
+      expect(block.detail).toBeUndefined();
+      const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", block);
+      expect(resolved.detail).toBe("display: block;");
+      expect(JSON.stringify(resolved.documentation)).toContain("&:hover");
+      const variant = (await complete(text.indexOf("hover:"))).find(
+        (item) => item.label === "hover:",
+      )!;
+      expect(variant.command).toMatchObject({
+        command: "editor.action.triggerSuggest",
+      });
+      expect(
+        (await client.sendRequest<CompletionItem>("completionItem/resolve", variant)).detail,
+      ).toContain("&:hover");
+      await client.sendNotification("textDocument/didChange", {
+        textDocument: {
+          uri,
+          version: 2,
+        },
+        contentChanges: [
+          {
+            text: text.replace("hover:", ""),
+          },
+        ],
+      });
+      const stale = await client.sendRequest<CompletionItem>("completionItem/resolve", resolved);
+      expect(stale.detail).toBeUndefined();
+      expect(stale.documentation).toBeUndefined();
+    } finally {
+      await service.dispose();
+      client.dispose();
+      server.dispose();
+      input.destroy();
+      output.destroy();
+    }
+  },
+);
+
+test("LSP plugin navigation preserves Unicode ranges and omits conflicting project targets", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/theme.css";
+  const text =
+    '/* 日本語 🦀 */ @plugin "./local.mjs"; @plugin "demo-plugin"; @plugin "missing"; @plugin "de';
+  const document = TextDocument.create(uri, "css", 1, text);
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "config",
+          new BrowserAnalysisWorkspace({
+            config: "config",
+            projects: [
+              {
+                root: "/workspace",
+                css: "theme.css",
+                files: ["*.tsx"],
+                typeFacts: false,
+              },
+              {
+                root: "/workspace",
+                css: "theme.css",
+                files: ["*.tsx"],
+                typeFacts: false,
+                plugins: [
+                  {
+                    name: "demo-plugin",
+                    css: () => "",
+                  },
+                ],
+              },
+            ],
+            files: new Map([
+              ["/workspace/theme.css", text],
+              ["/workspace/local.mjs", "throw new Error('must not run');"],
+              [
+                "/workspace/package.json",
+                JSON.stringify({
+                  dependencies: {
+                    "demo-plugin": "1",
+                  },
+                }),
+              ],
+              [
+                "/workspace/node_modules/demo-plugin/package.json",
+                JSON.stringify({
+                  main: "index.js",
+                }),
+              ],
+              ["/workspace/node_modules/demo-plugin/index.js", "throw new Error('must not run');"],
+            ]),
+          }),
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  try {
+    const initialized = await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    expect(initialized.capabilities.documentLinkProvider).toEqual({
+      resolveProvider: false,
+    });
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version: 1,
+        text,
+      },
+    });
+    const links = await client.sendRequest<DocumentLink[]>("textDocument/documentLink", {
+      textDocument: {
+        uri,
+      },
+    });
+    const start = text.indexOf("./local.mjs");
+    expect(links).toEqual([
+      {
+        range: {
+          start: document.positionAt(start),
+          end: document.positionAt(start + "./local.mjs".length),
+        },
+        target: "file:///workspace/local.mjs",
+      },
+    ]);
+    const items = await client.sendRequest<CompletionItem[]>("textDocument/completion", {
+      textDocument: {
+        uri,
+      },
+      position: document.positionAt(text.length),
+    });
+    const item = items.find((item) => item.label === "demo-plugin")!;
+    expect(item).toMatchObject({
+      kind: 9,
+      textEdit: {
+        newText: 'demo-plugin"',
+      },
+    });
+    expect((await client.sendRequest<CompletionItem>("completionItem/resolve", item)).detail).toBe(
+      "Plugin module",
+    );
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
 
 test("LSP completion settings expose registry metadata and invalidate prior CSS resolutions", async () => {
   const input = new PassThrough();

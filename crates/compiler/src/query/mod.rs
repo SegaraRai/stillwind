@@ -27,13 +27,14 @@ mod syntax;
 mod theme;
 
 pub use annotations::{ColorEquivalents, PreviewAnnotations};
-pub use completion::{CompletionInput, CompletionItem};
+pub use completion::{CompletionInput, CompletionItem, completion_detail};
 pub use input::CandidateContext;
 pub use resolution::{CandidateFailure, CandidateHover, CandidateResolution};
 pub use state::{DesignSystemQuery, prepare_canonical_index};
 pub use stylesheet::{
     StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions, StylesheetEdit,
-    StylesheetHover, StylesheetSortOptions, editor_css_source,
+    StylesheetHover, StylesheetPluginPath, StylesheetSortOptions, editor_css_source,
+    stylesheet_plugin_paths,
 };
 
 use context::QueryContext;

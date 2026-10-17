@@ -4,6 +4,36 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("completion placeholders, summaries, and plugin ranges cross the binding", async () => {
+    const { NativeDesignSystemLoader, completionDetail, stylesheetPluginPaths } = await import(
+      specifier
+    );
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `@variant hover { &:hover { @slot; } }
+@stillwind-variant nth-* (value: [nth]) { &:--value(":nth-child({value})") { @slot; } }`,
+    );
+    const query = loader.editorQuery();
+    expect(query.completeCandidate("hover:", "utility", true)).toContain("hover:nth-[]:");
+    expect(query.completeCandidate("hover:")).not.toContain("hover:hover:");
+    expect(query.completeCandidate("nth-")).not.toContain("nth-[]:");
+    expect(query.previewVariant("hover:", "mediaVariants")).toBeNull();
+    expect(completionDetail(query.previewVariant("hover:"))).toBe("&:hover");
+    const css = '/* 日本語 🦀 */ @plugin "./loc';
+    const bytes = new TextEncoder().encode(css);
+    const paths = stylesheetPluginPaths(css, bytes.length);
+    expect(paths).toHaveLength(1);
+    expect(paths[0]).toMatchObject({
+      specifier: "./loc",
+      prefix: "./loc",
+      quote: '"',
+      closed: false,
+    });
+    expect(new TextDecoder().decode(bytes.slice(paths[0].start, paths[0].end))).toBe("./loc");
+  });
+
   test("candidate colors require color utilities and keep stylesheet reference colors", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const loader = new NativeDesignSystemLoader();
@@ -132,7 +162,7 @@ export function registerEditorContract(specifier: string): void {
     const source = "/* 日本語 🦀 */ .a { @apply fl";
     const offset = new TextEncoder().encode(source).length;
     expect(query.completeStylesheet(source, offset)).toEqual([
-      { label: "flex", start: offset - 2, end: offset, keyword: false },
+      { label: "flex", start: offset - 2, end: offset, keyword: false, variant: false },
     ]);
     expect(query.hoverStylesheet(".a { @variant hover", 19)?.css).toContain("&:hover");
     const reference = ".a { color:--theme(--color-br";

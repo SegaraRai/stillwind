@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -7,9 +7,10 @@ import { resolveProjectConfig } from "@stillwind/config/node";
 import { ResolverFactory } from "oxc-resolver";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
+import { completePluginPaths, pluginDirectory } from "../css/plugin-paths.ts";
 import { resolveTypeFactsEnvironment } from "../semantics/index.ts";
 import type { AnalysisHost } from "./analysis.ts";
-import { nodePluginHost } from "./plugins.ts";
+import { nodePluginHost, readPluginDirectory } from "./plugins.ts";
 
 /**
  * Creates a Node analysis host with captured buffers, source providers, and CSS resolution.
@@ -37,6 +38,7 @@ export function createFileSystemAnalysisHost(
 
   let documents: ReadonlyMap<string, string> = new Map();
   let buffers: ReadonlyMap<string, string> = new Map();
+
   /**
    * Normalizes paths for lookup in the captured buffer map.
    * @param id - File path resolved against the process working directory when relative.
@@ -44,6 +46,7 @@ export function createFileSystemAnalysisHost(
    */
   const documentKey = (id: string) =>
     process.platform === "win32" ? path.resolve(id).toLowerCase() : path.resolve(id);
+
   /**
    * Reads a captured buffer before falling back to the physical file.
    * @param id - File path accepted by the Node filesystem.
@@ -52,6 +55,7 @@ export function createFileSystemAnalysisHost(
    */
   const read = (id: string) =>
     Promise.resolve(buffers.get(documentKey(id)) ?? readFile(id, "utf8"));
+
   /**
    * Selects script and framework sources eligible for default analysis.
    * @param id - File path tested case-insensitively by extension.
@@ -111,7 +115,46 @@ export function createFileSystemAnalysisHost(
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch: () => {},
-      plugins: nodePluginHost,
+      plugins: {
+        ...nodePluginHost,
+        read,
+        async resolve(specifier, importer) {
+          if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+            const base = path.resolve(path.dirname(importer), specifier);
+            for (const suffix of ["", ".js", ".json", "/index.js"]) {
+              const candidate = base + suffix;
+              if (buffers.has(documentKey(candidate))) {
+                return candidate;
+              }
+            }
+          }
+          const resolved = await nodePluginHost.resolve(specifier, importer);
+          return resolved &&
+            (await stat(resolved)
+              .then((value) => value.isFile())
+              .catch(() => false))
+            ? resolved
+            : undefined;
+        },
+        complete: (prefix, importer, projectRoot) =>
+          completePluginPaths(prefix, importer, projectRoot, {
+            read,
+            directory: async (id) => {
+              const entries = [
+                ...(await readPluginDirectory(id).catch(() => [])),
+                ...pluginDirectory(documents, id, process.platform !== "win32"),
+              ];
+              return [
+                ...new Map(
+                  entries.map((entry) => [
+                    process.platform === "win32" ? entry.name.toLowerCase() : entry.name,
+                    entry,
+                  ]),
+                ).values(),
+              ];
+            },
+          }),
+      },
     },
     setDocuments: async (next) => {
       documents = next;

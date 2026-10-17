@@ -17,6 +17,8 @@ pub struct StylesheetCompletionOptions {
     /// Offers registry metadata in addition to authoring directives. Defaults to false.
     /// Required local syntax remains available inside matching definitions.
     pub registry_directives: bool,
+    /// Includes empty arbitrary-variant placeholders for clients that support snippets.
+    pub snippets: bool,
 }
 
 /// One CSS completion with a range in the supplied original UTF-8 text.
@@ -29,6 +31,8 @@ pub struct StylesheetCompletion {
     pub label: LeanStr,
     /// True for an at-rule name, which editors display as a keyword.
     pub keyword: bool,
+    /// True when this item inserts a variant or a variant prefix.
+    pub variant: bool,
     /// Audience and provenance for at-rule names. Other inputs omit this detail.
     pub detail: Option<LeanStr>,
     /// Lexical sort key that ranks at-rule names by location, audience, and provenance.
@@ -95,30 +99,11 @@ impl DesignSystemQuery {
                     .filter(|label| label.starts_with(prefix))
                     .collect()
             }
-            Kind::Apply | Kind::Variant => {
-                let variants = matches!(context.kind, Kind::Variant);
-                self.complete_candidate(CompletionInput {
-                    prefix: if variants {
-                        prefix.trim_end().into()
-                    } else {
-                        prefix.into()
-                    },
-                    context: if variants {
-                        CandidateContext::ElementVariants
-                    } else {
-                        CandidateContext::Utility
-                    },
-                })?
-                .into_iter()
-                .filter_map(|item| {
-                    if variants {
-                        item.label.strip_suffix(':').map(Into::into)
-                    } else {
-                        Some(item.label)
-                    }
-                })
-                .collect()
-            }
+            Kind::Apply | Kind::Variant => self.stylesheet_candidate_labels(
+                prefix,
+                matches!(context.kind, Kind::Variant),
+                options.snippets,
+            )?,
             Kind::Slot { declarations } => {
                 let mut prefix = prefix.split_whitespace().collect::<Vec<_>>().join(" ");
                 if css[context.range.start..offset].ends_with(char::is_whitespace)
@@ -152,11 +137,50 @@ impl DesignSystemQuery {
         Ok(labels
             .into_iter()
             .map(|label| StylesheetCompletion {
+                variant: matches!(context.kind, Kind::Variant)
+                    || matches!(context.kind, Kind::Apply) && label.ends_with(':'),
                 range: context.range.clone(),
                 label,
                 keyword,
                 detail: None,
                 sort_text: None,
+            })
+            .collect())
+    }
+
+    /// Completes `prefix` as an applied utility or variant. Variant labels omit the
+    /// trailing colon. `snippets` enables empty brackets for arbitrary variant values.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    fn stylesheet_candidate_labels(
+        &self,
+        prefix: &str,
+        variants: bool,
+        snippets: bool,
+    ) -> Result<Vec<LeanStr>, UtilityResolutionError> {
+        Ok(self
+            .complete_candidate(CompletionInput {
+                prefix: if variants {
+                    prefix.trim_end().into()
+                } else {
+                    prefix.into()
+                },
+                context: if variants {
+                    CandidateContext::ElementVariants
+                } else {
+                    CandidateContext::Utility
+                },
+                snippets,
+            })?
+            .into_iter()
+            .filter_map(|item| {
+                if variants {
+                    item.label.strip_suffix(':').map(Into::into)
+                } else {
+                    Some(item.label)
+                }
             })
             .collect())
     }
@@ -187,6 +211,7 @@ fn directive_completions(
                     detail: Some(directive.detail()),
                     label,
                     keyword: true,
+                    variant: false,
                 })
         })
         .collect();

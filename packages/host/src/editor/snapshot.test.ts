@@ -20,6 +20,98 @@ const theme = `
 @stillwind-slot utilities;
 `;
 
+test("variant snippets preserve string contexts and group prefixes", async () => {
+  const css = `${theme} @stillwind-variant nth-* (value: [nth]) { &:--value(":nth-child({value})") { @slot; } }`;
+  for (const input of [
+    '"nth-"',
+    "'nth-'",
+    "`nth-`",
+    '{ "hover:": "nth-" }',
+    '"[&[data-label=\\\"x\\\"]]:nth-"',
+    '"[&[data-label=\\\"[]\\\"]]:nth-"',
+  ]) {
+    const source = `import { style } from "stillwind/react"; const value = style(${input});`;
+    const current = project(source, {}, css);
+    try {
+      const offset = source.indexOf("nth-") + 4;
+      const plain = (await current.query("/workspace/entry.tsx", {
+        kind: "completion",
+        offset,
+      }))!.completions!;
+      expect(plain.some((item) => item.label.includes("[]"))).toBe(false);
+      const items = (await current.query("/workspace/entry.tsx", {
+        kind: "completion",
+        offset,
+        snippets: true,
+      }))!.completions!;
+      const item = items.find((item) => item.label.endsWith("nth-[]:"))!;
+      expect(item?.snippet).toContain("nth-[${1}]:${0}");
+      expect(item.retrigger).toBe(true);
+      if (input.startsWith("{")) {
+        expect(item.label).toBe("nth-[]:");
+      }
+      if (input.includes("data-label")) {
+        expect(item.newText).toContain(input.includes("[]") ? '\\"[]\\"' : '\\"x\\"');
+      }
+      const completed = applyEdits(source, [
+        {
+          ...item,
+          newText: item.newText.replace("nth-[]", "nth-[2n]") + "block",
+        },
+      ]);
+      const next = project(completed, {}, css);
+      try {
+        expect(
+          (
+            await next.query("/workspace/entry.tsx", {
+              kind: "hover",
+              offset: completed.indexOf("nth-"),
+            })
+          )?.hover?.css,
+        ).toContain(":nth-child(2n)");
+      } finally {
+        await next.close();
+      }
+    } finally {
+      await current.close();
+    }
+  }
+});
+
+test("selected completion details describe utilities and variants in their captured snapshot", async () => {
+  const source = 'import { style } from "stillwind/react"; const value = style("");';
+  const current = project(source);
+  try {
+    const items = (await current.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: source.indexOf('("') + 2,
+    }))!.completions!;
+    for (const [label, detail] of [
+      ["block", "display: block;"],
+      ["hover:", "&:hover"],
+    ]) {
+      const item = items.find((item) => item.label === label)!;
+      const request = {
+        kind: "resolve" as const,
+        candidate: item.candidate,
+        input: item.input,
+        snapshot: item.snapshot,
+      };
+      expect((await current.query("/workspace/entry.tsx", request))?.hover?.detail).toBe(detail);
+      expect(
+        (
+          await current.query("/workspace/entry.tsx", {
+            ...request,
+            snapshot: "stale",
+          })
+        )?.hover,
+      ).toBeUndefined();
+    }
+  } finally {
+    await current.close();
+  }
+});
+
 test("captured editor inputs and reports survive mutation and later native compilation", async () => {
   const id = "/workspace/entry.tsx";
   const source = 'import {style} from "stillwind/react"; const card=style("p-[16px] flex block");';

@@ -4,7 +4,12 @@ This extension starts the Stillwind language server independently of the CLI. De
 
 Add `stillwind.config.*` to your workspace (`ts`, `mts`, `cts`, `js`, `mjs`, `cjs`, or `json`). Set `stillwind.configFile` to select another file. The extension reports Stillwind diagnostics and supplies Quick Fixes from the compiler. `Stillwind: Restart Language Server` reloads configuration and dependency files.
 
-Hover over a utility, `style()` call, or its bound variable to see the generated CSS with the main selector written as `&`. Completion includes utilities, variants, and theme values from the active design system. Completion details load CSS when the selected item is resolved. Concrete colors have inline swatches and color picker edits.
+Hover over a utility, `style()` call, or its bound variable to see the generated CSS with the main selector written as `&`. Completion includes utilities, variants, and theme values from the active design system. Selected items load CSS and a short declaration or variant selector summary. Variant suggestions omit already used variants and continue completion after insertion. Clients with snippet support also receive editable arbitrary variant values, such as `nth-[]:`. Concrete colors have inline swatches and color picker edits.
+
+Quoted `@plugin` paths complete configured plugin names, package dependencies, explicit package
+export subpaths, local scripts, and directories. Resolved paths link to their module files.
+Configured plugins without a module file have no link. Path completion and links use captured
+files, including unsaved buffers, without executing plugins or requiring a valid CSS graph.
 
 CSS at-rule completion normally offers syntax for application and theme authors. Set
 `stillwind.completion.registryDirectives` to true to include registry metadata when editing

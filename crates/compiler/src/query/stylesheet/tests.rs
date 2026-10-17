@@ -69,6 +69,7 @@ fn directive_discovery_uses_audience_location_and_provenance() {
                 css.len(),
                 StylesheetCompletionOptions {
                     registry_directives: registry,
+                    snippets: false,
                 },
             )
             .unwrap()

@@ -81,6 +81,26 @@ impl CandidateContext {
 }
 
 impl DesignSystemQuery {
+    /// Renders the wrappers of `candidate` under the variant constraints of `context`.
+    /// A trailing colon is optional. Unsupported variants or roles return `None`.
+    /// The preview retains declarations introduced by variants and omits utility
+    /// output and surrounding source conditions.
+    pub fn preview_variant(&self, candidate: &str, context: CandidateContext) -> Option<LeanStr> {
+        if !self.valid_input_variant(candidate.trim_end_matches(':'), context) {
+            return None;
+        }
+        let context = match context {
+            CandidateContext::Utility
+            | CandidateContext::Document
+            | CandidateContext::AnchoredDocument => CandidateContext::ElementVariants,
+            CandidateContext::ViewTransitionOptions | CandidateContext::ViewTransitionUtilities => {
+                CandidateContext::DefinitionVariants
+            }
+            other => other,
+        };
+        self.preview_variants(candidate, context)
+    }
+
     /// Renders decoded `candidate` text under `context`, using `&` as the utility
     /// subject. Ordinary utility input accepts one candidate; declaration roles and
     /// document-level styles accept a token list. A document-level style uses the
@@ -383,6 +403,7 @@ mod tests {
                 .complete_candidate(CompletionInput {
                     prefix: "w".into(),
                     context: CandidateContext::MediaVariants,
+                    snippets: false,
                 })
                 .unwrap()
                 .into_iter()

@@ -1,6 +1,7 @@
 import type { EditorRequest, WorkspaceEditorResult } from "@stillwind/analysis";
 import {
   CompletionItemKind,
+  InsertTextFormat,
   MarkupKind,
   type CancellationToken,
   type CodeAction,
@@ -31,7 +32,7 @@ export type EditorQuery = (
 ) => Promise<WorkspaceEditorResult[]>;
 
 /**
- * Registers hover, completion, completion resolution, and color handlers on the connection.
+ * Registers hover, completion, colors, plugin links, and source actions on the connection.
  *
  * @param connection - Caller-owned connection on which handlers are installed.
  * @param documents - Open original buffers used to convert UTF-16 offsets to LSP positions.
@@ -42,6 +43,37 @@ export function registerEditorFeatures(
   documents: TextDocuments<TextDocument>,
   query: EditorQuery,
 ): void {
+  connection.onDocumentLinks(async (params, token) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+      return [];
+    }
+    const entries = await query(
+      document.uri,
+      {
+        kind: "links",
+      },
+      token,
+    );
+    const links = entries.flatMap((entry) => entry.result.links ?? []);
+    return links
+      .filter(
+        (link, index) =>
+          link.target &&
+          links.findIndex(
+            (other) =>
+              other.start === link.start && other.end === link.end && other.target === link.target,
+          ) === index &&
+          !links.some(
+            (other) =>
+              other.start === link.start && other.end === link.end && other.target !== link.target,
+          ),
+      )
+      .map((link) => ({
+        range: offsets(document, link),
+        target: link.target,
+      }));
+  });
   connection.onHover(async (params, token) => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
@@ -104,14 +136,22 @@ export function registerEditorFeatures(
         label: item.label,
         detail: item.detail,
         sortText: item.sortText,
+        insertTextFormat: item.snippet ? InsertTextFormat.Snippet : undefined,
+        command: item.retrigger
+          ? { title: "Continue completion", command: "editor.action.triggerSuggest" }
+          : undefined,
         kind: item.keyword
           ? CompletionItemKind.Keyword
-          : item.candidate.endsWith(":")
-            ? CompletionItemKind.Module
-            : CompletionItemKind.Value,
+          : item.category === "directory"
+            ? CompletionItemKind.Folder
+            : item.category === "file"
+              ? CompletionItemKind.File
+              : item.category === "module" || item.variant || item.candidate.endsWith(":")
+                ? CompletionItemKind.Module
+                : CompletionItemKind.Value,
         textEdit: {
           range: offsets(document, item),
-          newText: item.newText,
+          newText: item.snippet ?? item.newText,
         },
         data: {
           uri: document.uri,
@@ -136,7 +176,9 @@ export function registerEditorFeatures(
   });
 
   connection.onCompletionResolve(async (item, token) => {
+    const detail = item.detail;
     delete item.documentation;
+    delete item.detail;
     const data = item.data as
       | {
           /** Original document URI captured when completion was requested. */
@@ -185,6 +227,7 @@ export function registerEditorFeatures(
         entry.result.revision === data.revision,
     )?.result.hover;
     if (answer) {
+      item.detail = answer.detail ?? detail;
       item.documentation = {
         kind: MarkupKind.Markdown,
         value: hoverMarkdown(answer),

@@ -1,13 +1,21 @@
-import type { NativeCandidateContext, NativeEditorQuery } from "@stillwind/native";
+import {
+  completionDetail,
+  type NativeCandidateContext,
+  type NativeEditorQuery,
+} from "@stillwind/native";
 
-/** Shares candidate previews, batch ordering, and completion catalogs for one captured design system. */
+/**
+ * Shares previews, batch ordering, completion catalogs, and summaries for one captured design system.
+ */
 export class CandidateQueries {
-  /** Immutable design system that owns every cached result in this instance. */
+  /** Native query pinned to the design system used for candidate validation and previews. */
   readonly #query: NativeEditorQuery;
-  /** Successful and failed previews keyed by input role and decoded candidate text. */
+  /** Successful and failed CSS previews keyed by preview kind, input role, and decoded candidate. */
   readonly #previews = new Map<string, string | null>();
-  /** Shared completion arrays keyed by input role and decoded prefix text. */
+  /** Shared completion arrays keyed by input role, decoded prefix, and snippet support. */
   readonly #completions = new Map<string, readonly string[]>();
+  /** Summaries and empty results keyed by the full generated CSS, including preview annotations. */
+  readonly #details = new Map<string, string | undefined>();
 
   /**
    * Creates empty caches for one captured design system.
@@ -21,7 +29,7 @@ export class CandidateQueries {
 
   /**
    * Caches standalone CSS for one candidate and its input role, including failed resolution.
-   * The result uses `&` as its subject and omits enclosing source conditions and definitions.
+   * Ordinary utilities use `&` as their subject. Previews omit enclosing source conditions.
    *
    * @param candidate - Decoded candidate text, including any variants supplied by the caller.
    * Option roles also accept the option text supported by their registry.
@@ -33,6 +41,22 @@ export class CandidateQueries {
     const key = `${context}\0${candidate}`;
     if (!this.#previews.has(key)) {
       this.#previews.set(key, this.#query.previewCandidate(candidate, context));
+    }
+    return this.#previews.get(key)!;
+  }
+
+  /**
+   * Caches the selectors, at-rule conditions, and declarations of a variant chain.
+   *
+   * @param candidate - Decoded variant chain, with or without a trailing colon.
+   * @param context - Original input role whose constraints must allow the entire chain.
+   * @returns CSS introduced by the variants, or null when the chain or role is unsupported.
+   * Utility output and surrounding source conditions are omitted.
+   */
+  variant(candidate: string, context: NativeCandidateContext): string | null {
+    const key = `variant\0${context}\0${candidate}`;
+    if (!this.#previews.has(key)) {
+      this.#previews.set(key, this.#query.previewVariant(candidate, context));
     }
     return this.#previews.get(key)!;
   }
@@ -76,19 +100,39 @@ export class CandidateQueries {
   /**
    * Caches unique labels in lexical order for one decoded partial candidate and its role.
    * Existing variant prefixes remain present, and variant labels end in `:`.
+   * Suggestions do not append a variant already present in the prefix.
    *
    * @param prefix - Decoded partial candidate, including any enclosing variants.
    * @param context - Input role that selects the candidate registry and permitted variants.
    * Defaults to ordinary utilities.
+   * @param snippets - Whether to include empty brackets for arbitrary variant values. Defaults to false.
    * @returns A shared readonly array of matching labels.
    * @throws If a matching ordinary utility definition has a malformed requirement.
    */
-  complete(prefix: string, context: NativeCandidateContext = "utility"): readonly string[] {
-    const key = `${context}\0${prefix}`;
+  complete(
+    prefix: string,
+    context: NativeCandidateContext = "utility",
+    snippets = false,
+  ): readonly string[] {
+    const key = `${context}\0${prefix}\0${snippets}`;
     if (!this.#completions.has(key)) {
-      this.#completions.set(key, this.#query.completeCandidate(prefix, context));
+      this.#completions.set(key, this.#query.completeCandidate(prefix, context, snippets));
     }
     return this.#completions.get(key)!;
+  }
+
+  /**
+   * Caches a short declaration or rule summary for selected completion CSS.
+   *
+   * @param css - Generated CSS to summarize, including optional preview annotations.
+   * @returns A summary of at most 160 Unicode code points, or undefined when the CSS has
+   * no declarations or descriptive rule wrappers.
+   */
+  detail(css: string): string | undefined {
+    if (!this.#details.has(css)) {
+      this.#details.set(css, completionDetail(css) ?? undefined);
+    }
+    return this.#details.get(css);
   }
 
   /**

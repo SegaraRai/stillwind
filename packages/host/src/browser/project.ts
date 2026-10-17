@@ -17,6 +17,7 @@ import {
   type CssHost,
   type EditorCssGraph,
 } from "../css/css.ts";
+import { completePluginPaths, pluginDirectory, queryPluginPaths } from "../css/plugin-paths.ts";
 import { attachPlugins, type PluginHost, type PluginRuntime } from "../css/plugins.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
@@ -407,11 +408,13 @@ export class BrowserProject {
    * Queries a captured source graph or a stylesheet in the project's CSS graph.
    * CSS completion, hover, resolution, and colors retry failed graph loads with recovered
    * definitions. CSS sorting and lint fixes require the original graph to load successfully.
+   * Plugin path completion and links read captured files inside the project root without
+   * loading the CSS graph or executing plugins.
    * Script queries first analyze their entry.
    * @param id - Absolute virtual entry path, including a query that selects distinct source.
    * @param request - Operation with original UTF-16 offsets for that source.
    * @returns The editor answer, or undefined when no snapshot is available, the CSS graph
-   * does not mark the stylesheet for lint, or closure suppresses a pending answer.
+   * does not mark the stylesheet for a semantic query, or closure suppresses a pending answer.
    * @throws If a script query starts after closure, or if entry analysis, CSS graph loading,
    * source reading, or the editor query fails.
    */
@@ -420,6 +423,29 @@ export class BrowserProject {
       const task = this.#queue.then(async () => {
         if (this.#closed) {
           return undefined;
+        }
+        if (!this.#files.has(id)) {
+          return undefined;
+        }
+        const navigation = await queryPluginPaths(id, await this.#read(id), request, {
+          root: this.#options.root,
+          names: this.#options.config.plugins?.map((plugin) => plugin.name) ?? [],
+          documentUri: (file) => this.#documentUri(file),
+          host: {
+            resolve: async (specifier, importer) =>
+              (await this.#options.plugins?.resolve(specifier, importer)) ??
+              resolveVirtualModule(this.#files, specifier, importer),
+            complete: async (prefix, importer, root) => [
+              ...(await completePluginPaths(prefix, importer, root, {
+                read: (file) => this.#read(file),
+                directory: async (directory) => pluginDirectory(this.#files, directory),
+              })),
+              ...((await this.#options.plugins?.complete?.(prefix, importer, root)) ?? []),
+            ],
+          },
+        });
+        if (navigation) {
+          return this.#closed ? undefined : navigation;
         }
         if (request.kind === "sort" || request.kind === "fixes") {
           await this.#designSystem();

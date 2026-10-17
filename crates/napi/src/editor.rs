@@ -22,7 +22,8 @@ use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 use crate::options::NativeCanonicalUtilitiesOptions;
 use crate::output::{BindingReport, NativeText};
 
-/// Comments that formatted previews add after values. Omitted fields use their defaults.
+/// Comments that formatted previews add after values. Omitted fields use their
+/// defaults.
 #[napi(object)]
 pub struct NativePreviewOptions {
     /// Adds resolved values after theme `var()` references and single-value `calc()`
@@ -63,6 +64,7 @@ impl TryFrom<NativePreviewOptions> for PreviewAnnotations {
 }
 
 /// Selects the compiler contract of a candidate's source position.
+///
 /// Option roles use the animation-option registry and its property mappings. Frame and
 /// phase utilities retain the declarations produced by ordinary utility resolution.
 #[napi(string_enum = "camelCase")]
@@ -134,7 +136,8 @@ impl From<CandidateContext> for NativeCandidateContext {
     }
 }
 
-/// A source operation detected by a host's syntax index and reported through the common lint policy.
+/// A source operation detected by a host's syntax index and reported through the common
+/// lint policy.
 #[napi(object)]
 pub struct NativeEditorLintEdit {
     /// Original inclusive UTF-8 byte boundary.
@@ -156,6 +159,8 @@ pub struct NativeStylesheetCompletion {
     pub label: String,
     /// Whether the replacement names an at-rule.
     pub keyword: bool,
+    /// Whether the replacement names a variant.
+    pub variant: bool,
     /// Audience and syntax provenance for a directive, omitted for other inputs.
     pub detail: Option<String>,
     /// Lexical key that ranks a directive by location, audience, and provenance.
@@ -168,12 +173,15 @@ pub struct NativeStylesheetCompletion {
 pub struct NativeStylesheetCompletionOptions {
     /// Includes registry metadata where it is useful. Defaults to false.
     pub registry_directives: Option<bool>,
+    /// Includes empty arbitrary-variant placeholders. Defaults to false.
+    pub snippets: Option<bool>,
 }
 
 impl From<NativeStylesheetCompletionOptions> for StylesheetCompletionOptions {
     fn from(value: NativeStylesheetCompletionOptions) -> Self {
         Self {
             registry_directives: value.registry_directives.unwrap_or(false),
+            snippets: value.snippets.unwrap_or(false),
         }
     }
 }
@@ -227,7 +235,61 @@ pub fn editor_css_source(source: String) -> String {
     stillwind_compiler::editor_css_source(&source).into()
 }
 
-/// Candidate operations for one immutable design system and explicitly supplied source buffers.
+/// Returns a short declaration or rule summary for one selected CSS completion.
+#[napi(ts_return_type = "string | null")]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn completion_detail(source: String) -> Option<NativeText> {
+    stillwind_compiler::completion_detail(&source).map(Into::into)
+}
+
+/// A plugin path whose byte range excludes its CSS quotes.
+#[napi(object, object_from_js = false)]
+pub struct NativeStylesheetPluginPath {
+    /// Inclusive original UTF-8 byte boundary after the opening quote.
+    pub start: u32,
+    /// Exclusive original UTF-8 byte boundary before the closing quote, or at EOF.
+    pub end: u32,
+    /// Decoded CSS string used for module resolution.
+    pub specifier: String,
+    /// Opening quote, either a single or double quote.
+    pub quote: String,
+    /// Whether the original string has a closing quote.
+    pub closed: bool,
+    /// Decoded text before the requested cursor when it lies within this path.
+    pub prefix: Option<String>,
+}
+
+/// Finds top-level plugin paths without loading CSS or plugins. Offset uses original
+/// UTF-8 bytes.
+///
+/// # Errors
+///
+/// Returns an error if a path boundary exceeds uint32.
+#[napi]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn stylesheet_plugin_paths(
+    source: String,
+    offset: Option<u32>,
+) -> napi::Result<Vec<NativeStylesheetPluginPath>> {
+    stillwind_compiler::stylesheet_plugin_paths(&source, offset.map(|offset| offset as usize))
+        .into_iter()
+        .map(|path| {
+            Ok(NativeStylesheetPluginPath {
+                start: u32::try_from(path.range.start)
+                    .map_err(|error| Error::from_reason(error.to_string()))?,
+                end: u32::try_from(path.range.end)
+                    .map_err(|error| Error::from_reason(error.to_string()))?,
+                specifier: path.specifier.into(),
+                quote: path.quote.to_string(),
+                closed: path.closed,
+                prefix: path.prefix.map(Into::into),
+            })
+        })
+        .collect()
+}
+
+/// Candidate operations for one immutable design system and explicitly supplied source
+/// buffers.
 #[napi]
 pub struct NativeEditorQuery {
     query: DesignSystemQuery,
@@ -333,6 +395,7 @@ impl NativeEditorQuery {
                         .map_err(|error| Error::from_reason(error.to_string()))?,
                     label: item.label.into(),
                     keyword: item.keyword,
+                    variant: item.variant,
                     detail: item.detail.map(Into::into),
                     sort_text: item.sort_text.map(Into::into),
                 })
@@ -340,7 +403,8 @@ impl NativeEditorQuery {
             .collect()
     }
 
-    /// Returns generated CSS or dialect documentation at an original UTF-8 byte boundary.
+    /// Returns generated CSS or dialect documentation at an original UTF-8 byte
+    /// boundary.
     #[napi]
     pub fn hover_stylesheet(
         &self,
@@ -375,7 +439,8 @@ impl NativeEditorQuery {
 #[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 impl NativeEditorQuery {
-    /// Returns a verified canonical replacement using the effective project lint options, or null.
+    /// Returns a verified canonical replacement using the effective project lint
+    /// options, or null.
     #[napi(ts_return_type = "string | null")]
     pub fn canonical_candidate(&self, candidate: String) -> napi::Result<Option<NativeText>> {
         self.query
@@ -394,8 +459,9 @@ impl NativeEditorQuery {
         }
     }
 
-    /// Reports sorting suggestions through the effective typed settings and common Reporter.
-    /// URI and text must identify the exact original document addressed by all byte ranges.
+    /// Reports sorting suggestions through the effective typed settings and common
+    /// Reporter. URI and text must identify the exact original document addressed by
+    /// all byte ranges.
     #[napi]
     pub fn report_sort_edits(
         &self,
@@ -496,6 +562,23 @@ impl NativeEditorQuery {
             .map_err(|error| Error::from_reason(error.to_string()))
     }
 
+    /// Returns variant wrappers and their own declarations for decoded `candidate`.
+    /// An omitted `context` selects ordinary utilities. Unsupported chains or roles
+    /// return null. A trailing colon is optional.
+    #[napi(ts_return_type = "string | null")]
+    pub fn preview_variant(
+        &self,
+        candidate: String,
+        context: Option<NativeCandidateContext>,
+    ) -> Option<NativeText> {
+        self.query
+            .preview_variant(
+                &candidate,
+                context.map_or(CandidateContext::Utility, Into::into),
+            )
+            .map(Into::into)
+    }
+
     /// Returns a complete CSS preview with line breaks and two-space indentation.
     /// Nesting and fallback declarations are retained. When `preview` is supplied, the
     /// result also contains its comments with resolved values; omitted fields use their
@@ -525,6 +608,9 @@ impl NativeEditorQuery {
     /// omitted context selects ordinary utilities. Returns unique labels in lexical
     /// order, retaining existing prefixes and ending variant labels with `:`.
     ///
+    /// When `snippets` is true, arbitrary variants include empty `[]` placeholders.
+    /// Omitted snippet support is false.
+    ///
     /// # Errors
     ///
     /// Returns a malformed requirement while validating a matching ordinary utility
@@ -534,11 +620,13 @@ impl NativeEditorQuery {
         &self,
         prefix: String,
         context: Option<NativeCandidateContext>,
+        snippets: Option<bool>,
     ) -> napi::Result<Vec<NativeText>> {
         self.query
             .complete_candidate(CompletionInput {
                 prefix: (prefix).into(),
                 context: context.map_or(CandidateContext::Utility, Into::into),
+                snippets: snippets.unwrap_or(false),
             })
             .map(|items| items.into_iter().map(|item| item.label.into()).collect())
             .map_err(|error| Error::from_reason(error.to_string()))

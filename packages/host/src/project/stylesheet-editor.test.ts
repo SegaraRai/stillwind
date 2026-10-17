@@ -5,6 +5,66 @@ import { applyEdits } from "../editor/sort.ts";
 import { compilerOptions } from "./options.ts";
 import { StylesheetEditor } from "./stylesheet-editor.ts";
 
+test("CSS variant snippets and selected details retain the completion settings", () => {
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(
+    0,
+    "theme.css",
+    `@variant hover { &:hover { @slot; } }
+@stillwind-variant nth-* (value: [nth]) { &:--value(":nth-child({value})") { @slot; } }
+@utility block { display: block; }`,
+  );
+  for (const text of ["/* 🦀 */ .a { @apply nth-; }", "/* 🦀 */ .a { @variant nth- {} }"]) {
+    const offset = text.indexOf("nth-") + 4;
+    const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery());
+    const items = editor.query("local.css", {
+      kind: "completion",
+      offset,
+      snippets: true,
+    })!.completions!;
+    const item = items.find((item) => item.label.includes("[]"))!;
+    expect(item.snippet).toContain("nth-[${1}]");
+    expect(item.variant).toBe(true);
+    expect(
+      editor
+        .query("local.css", {
+          kind: "completion",
+          offset,
+        })!
+        .completions!.some((item) => item.snippet),
+    ).toBe(false);
+    const filled = applyEdits(text, [
+      {
+        ...item,
+        newText: item.newText.replace("[]", "[2n]") + (text.includes("@apply") ? "block" : ""),
+      },
+    ]);
+    const completed = new StylesheetEditor("local.css", filled, [], loader.editorQuery());
+    expect(
+      completed.query("local.css", {
+        kind: "hover",
+        offset: filled.indexOf("nth-"),
+      })?.hover?.css,
+    ).toContain(":nth-child(2n)");
+  }
+  const text = ".a { @apply hov; }";
+  const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery());
+  const item = editor
+    .query("local.css", {
+      kind: "completion",
+      offset: text.indexOf("hov") + 3,
+    })!
+    .completions!.find((item) => item.label === "hover:")!;
+  expect(
+    editor.query("local.css", {
+      kind: "resolve",
+      candidate: item.candidate,
+      input: item.input,
+      snapshot: item.snapshot,
+    })?.hover?.detail,
+  ).toBe("&:hover");
+});
+
 test("CSS directive metadata and discovery settings are pinned through completion resolution", () => {
   const loader = new NativeDesignSystemLoader();
   loader.provide(0, "theme.css", "");

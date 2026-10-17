@@ -19,6 +19,7 @@ import {
   type EditorCssGraph,
   type PluginRuntime,
 } from "../css/index.ts";
+import { queryPluginPaths } from "../css/plugin-paths.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import {
   TypeScriptFactsService,
@@ -292,11 +293,13 @@ export class AnalysisProject {
    * Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer.
    * CSS completion, hover, resolution, and colors can load recovered definitions for incomplete
    * input. CSS sorting and lint fixes require the original graph to load successfully.
+   * Plugin path completion and links read captured CSS inside the project root without loading
+   * its graph or executing plugins.
    * @param entry - Full resolver identity. The workspace applies target membership filtering.
    * @param request - Operation with offsets in the original UTF-16 document.
    * @param signal - Optional cancellation checked before and after queued work.
    * @returns The current editor answer, or undefined after closure, cancellation, a revision change,
-   * failed entry analysis, or a CSS query outside the graph's stylesheets marked for lint.
+   * failed entry analysis, or a semantic CSS query outside the graph's stylesheets marked for lint.
    * @throws If preparing a CSS query fails or the editor query rejects a candidate or preview.
    */
   query(
@@ -309,6 +312,23 @@ export class AnalysisProject {
     const task = this.#queue.then(async () => {
       if (this.#closed || this.#discardReason(revision, signal)) {
         return undefined;
+      }
+      if (isStylesheet(entry) && ["completion", "resolve", "links"].includes(request.kind)) {
+        await this.host.setDocuments(documents);
+        await this.#resetCaches();
+        const text = await this.host.css.read(entry).catch(() => undefined);
+        if (text === undefined) {
+          return undefined;
+        }
+        const navigation = await queryPluginPaths(entry, text, request, {
+          root: this.host.root,
+          names: this.host.config.plugins?.map((plugin) => plugin.name) ?? [],
+          host: this.host.css.plugins,
+          documentUri: (id) => this.host.css.documentUri(id),
+        });
+        if (navigation) {
+          return this.#discardReason(revision, signal) ? undefined : navigation;
+        }
       }
       const structural = request.kind === "sort" || request.kind === "fixes";
       if (structural && this.#editors.get(entry)?.recovered) {

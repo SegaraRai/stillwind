@@ -20,6 +20,7 @@ import type { ModuleAnalysis } from "../compilation/compiler.ts";
 import { pluginLoader } from "../css/plugins.ts";
 import { CandidateQueries, segments } from "./candidates.ts";
 import { colorReplacement } from "./colors.ts";
+import { completionSnippet } from "./completion.ts";
 import type { GeneratedPreview } from "./previews.ts";
 import { escapeContent, sortSource } from "./sort.ts";
 import { SourceIndex, type UtilityLiteral } from "./source-index.ts";
@@ -41,8 +42,16 @@ export interface EditorEdit {
 export interface EditorCompletion extends EditorEdit {
   /** Directive names use the keyword category. Other inputs use candidate categories. */
   keyword?: boolean;
-  /** Audience and syntax provenance for a CSS directive. Omitted for other inputs. */
+  /** True for a variant, including CSS variant labels without a trailing colon. */
+  variant?: boolean;
+  /** Static description for a CSS directive or plugin path. CSS summaries load on resolve. */
   detail?: string;
+  /** Replacement encoded as an LSP snippet when the requesting client supports snippets. */
+  snippet?: string;
+  /** Requests another completion after the client inserts this item. */
+  retrigger?: boolean;
+  /** Completion category for host-resolved plugin names, files, and directories. */
+  category?: "module" | "file" | "directory";
   /** Lexical priority key supplied by the semantic catalog. Omission sorts by label. */
   sortText?: string;
   /** Visible completion text; surrounding group variants are omitted. */
@@ -51,7 +60,7 @@ export interface EditorCompletion extends EditorEdit {
   candidate: string;
   /** Original UTF-16 input identity used for completion resolution. */
   input: number;
-  /** Fingerprint of the captured graph and configuration. Resolve requires this exact value. */
+  /** Fingerprint of the captured query inputs. Resolve requires this exact value. */
   snapshot: string;
 }
 
@@ -74,6 +83,10 @@ export interface EditorColor {
 /** Requests address original document UTF-16 offsets, including incomplete candidate text. */
 export type EditorRequest =
   | {
+      /** Requests plugin module links in the original stylesheet. */
+      kind: "links";
+    }
+  | {
       /** Requests CSS or documentation for a candidate, expression, or CSS directive. */
       kind: "hover";
       /** Original UTF-16 cursor offset at the input to describe. */
@@ -84,6 +97,8 @@ export type EditorRequest =
       kind: "completion";
       /** Includes CSS registry directives. Defaults to false and does not affect compilation. */
       registryDirectives?: boolean;
+      /** Includes placeholders for clients that support completion snippets. */
+      snippets?: boolean;
       /** Original UTF-16 insertion point; text before this point determines the prefix. */
       offset: number;
     }
@@ -92,6 +107,8 @@ export type EditorRequest =
       kind: "resolve";
       /** CSS discovery setting used for the original completion. A change makes it stale. */
       registryDirectives?: boolean;
+      /** Snippet setting captured when completion was requested. */
+      snippets?: boolean;
       /** Full candidate or CSS label returned by completion. */
       candidate: string;
       /** Original UTF-16 boundary returned as `EditorCompletion.input`. */
@@ -131,6 +148,12 @@ export type EditorRequest =
 
 /** Editor data belongs to the exact source fingerprint in revision. Absent fields mean no answer. */
 export interface EditorResult {
+  /** Plugin paths at half-open original UTF-16 ranges. An absent target means unresolved or configured-only. */
+  links?: {
+    start: number;
+    end: number;
+    target?: string;
+  }[];
   /** Fingerprint of the original source text used to compute every range and edit. */
   revision: string;
   /** Formatted CSS at a half-open original UTF-16 range. Generated element subjects use `&`.
@@ -143,7 +166,9 @@ export interface EditorResult {
     end: number;
     /** Generated CSS or an active theme declaration. Empty for documentation-only hovers. */
     css: string;
-    /** Markdown explaining CSS directives, output slots, or theme references. */
+    /** Short CSS summary or plugin description for the selected completion. */
+    detail?: string;
+    /** Markdown for CSS directives, output slots, theme references, or plugin paths. */
     documentation?: string;
     /** Authored runtime key expressions, deduplicated in dependency traversal order.
      * Absent when the preview has no runtime key expression to explain.
@@ -264,6 +289,12 @@ export class EditorSnapshot {
     }
 
     const result: EditorResult = { revision: fingerprint(source.document.code) };
+    if (request.kind === "links") {
+      return {
+        ...result,
+        links: [],
+      };
+    }
     if (request.kind === "fixes" || request.kind === "sort") {
       const seed =
         request.kind === "fixes"
@@ -316,13 +347,17 @@ export class EditorSnapshot {
       );
       const css =
         literal && request.snapshot === this.#revision
-          ? this.#preview(literal, request.candidate.slice(literal.prefix.length))
+          ? request.candidate.endsWith(":")
+            ? this.#candidates.variant(request.candidate, literal.context)
+            : this.#preview(literal, request.candidate.slice(literal.prefix.length))
           : undefined;
       if (css) {
+        const formatted = this.#query.formatCss(css, this.#annotations);
         result.hover = {
           start: 0,
           end: 0,
-          css: this.#query.formatCss(css, this.#annotations),
+          css: formatted,
+          detail: this.#candidates.detail(formatted),
         };
       }
       return result;
@@ -415,7 +450,7 @@ export class EditorSnapshot {
     const decodedStart = literal.boundaries.indexOf(start);
     const prefix = literal.text.slice(Math.max(0, decodedStart), Math.max(0, decoded));
     const native = this.#candidates
-      .complete(literal.prefix + prefix, literal.context)
+      .complete(literal.prefix + prefix, literal.context, request.snippets === true)
       .filter(
         (candidate) =>
           candidate.endsWith(":") ||
@@ -436,6 +471,13 @@ export class EditorSnapshot {
       start,
       end,
       newText: escapeContent(candidate.slice(literal.prefix.length), literal),
+      snippet:
+        request.snippets && candidate.endsWith(":")
+          ? completionSnippet(candidate.slice(literal.prefix.length), (text) =>
+              escapeContent(text, literal),
+            )
+          : undefined,
+      retrigger: candidate.endsWith(":"),
     }));
 
     return result;

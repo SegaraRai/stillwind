@@ -20,10 +20,19 @@ use crate::CompilerOptions;
 /// module state and deterministic for as long as the revision does not change.
 #[derive(Clone, Debug)]
 pub struct DesignSystemQuery {
+    /// Snapshot and resolved compiler settings shared by candidate operations.
     pub(super) context: QueryContext,
+    /// Lazily retained index for this snapshot and its canonical conversion policy.
     pub(super) canonical_index: OnceCell<Arc<CanonicalIndex>>,
+    /// Canonical replacements keyed by full candidate spelling. `None` records no
+    /// verified replacement.
     pub(super) canonical_cache: RefCell<BTreeMap<LeanStr, Option<LeanStr>>>,
+    /// Ordering keys and unresolved spellings reused by comparisons and batch ranking.
     pub(super) ordering: CandidateOrdering,
+    /// Variant spellings with empty `[]` captures and no trailing colon, mapped to
+    /// filled probes valid in element context. Completion validates each probe again
+    /// under the requested input role.
+    pub(super) variant_placeholders: OnceCell<BTreeMap<LeanStr, LeanStr>>,
 }
 
 impl DesignSystemQuery {
@@ -40,6 +49,7 @@ impl DesignSystemQuery {
             canonical_index: OnceCell::new(),
             canonical_cache: RefCell::new(BTreeMap::new()),
             ordering: CandidateOrdering::default(),
+            variant_placeholders: OnceCell::new(),
         }
     }
 
@@ -53,6 +63,7 @@ impl DesignSystemQuery {
         self.context.options.lint_settings()
     }
 
+    /// Returns the retained canonical spelling index, preparing it on first use.
     pub(super) fn canonical_index(&self) -> &Arc<CanonicalIndex> {
         self.canonical_index
             .get_or_init(|| self.context.canonical_index())

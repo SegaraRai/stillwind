@@ -1,9 +1,81 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { expect, test } from "vite-plus/test";
 
 import { AnalysisWorkspace } from "./workspace.ts";
+
+test("plugin navigation uses unsaved files when the CSS graph cannot load", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-plugin-navigation-"));
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    const config = path.join(root, "stillwind.config.json");
+    const css = path.join(root, "theme.css");
+    const plugin = path.join(root, "pending.mjs");
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [
+          {
+            css: "theme.css",
+            files: ["*.tsx"],
+            typeFacts: false,
+          },
+        ],
+      }),
+    );
+    await writeFile(css, '@plugin "missing-plugin";');
+    workspace = await AnalysisWorkspace.open(config);
+    const project = workspace.projects[0].analysis;
+    project.update(plugin, "throw new Error('must not run');", 1);
+    const text = '/* 🦀 */ @plugin "./pen';
+    project.update(css, text, 1);
+    const [answer] = await workspace.query(css, {
+      kind: "completion",
+      offset: text.length,
+    });
+    const item = answer.result.completions!.find((item) => item.label === "./pending.mjs")!;
+    expect(item).toMatchObject({
+      category: "file",
+      newText: './pending.mjs"',
+    });
+    project.update(css, '@plugin "./pending.mjs";', 2);
+    const [links] = await workspace.query(css, {
+      kind: "links",
+    });
+    expect(links.result.links?.[0].target).toBe(pathToFileURL(plugin).href);
+    const [stale] = await workspace.query(css, {
+      kind: "resolve",
+      candidate: item.candidate,
+      input: item.input,
+      snapshot: item.snapshot,
+    });
+    expect(stale?.result.hover).toBeUndefined();
+    const directory = path.join(root, "plugin-source");
+    await mkdir(directory);
+    await symlink(
+      directory,
+      path.join(root, "plugins"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    project.update(css, '@plugin "./pl', 3);
+    const [directories] = await workspace.query(css, {
+      kind: "completion",
+      offset: '@plugin "./pl'.length,
+    });
+    expect(directories.result.completions).toContainEqual(
+      expect.objectContaining({
+        label: "./plugins/",
+        category: "directory",
+        retrigger: true,
+      }),
+    );
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("target filters accept leading dots and absolute literal paths within configured scopes", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-config-"));

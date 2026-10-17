@@ -51,30 +51,6 @@ warnings without treating valid cross-component pairing as a collision.
 
 Source: [view-transition analysis](../crates/compiler/src/style_analysis/view_transition.rs).
 
-## Editor completion and plugin navigation
-
-Utility completions provide labels and deferred CSS documentation. Add short
-declaration details and variant selector details without compiling the whole
-catalog on each request. Verify that cached details retain the source revision
-and the candidate's input role.
-
-Variant completions do not request follow-up suggestions, omit already used
-variants, or offer placeholders for arbitrary values. Define snippets and follow-up
-completion for supported clients, and suppress repeated variants in suggestions.
-Verify replacement ranges and escaping in JavaScript strings, CSS, and grouped
-variants, including clients that do not support snippets.
-
-The language server does not complete paths or expose document links for `@plugin`.
-Define these operations through the host resolver so they work with package
-specifiers, local files, browser projects, and unsaved buffers. Configured plugin
-names can resolve without a package file, so navigation must handle that case.
-
-Sources: [completion results](../packages/host/src/editor/snapshot.ts),
-[LSP handlers](../packages/language-server/src/editor.ts),
-[plugin resolution](../packages/host/src/project/plugins.ts).
-Upstream references: [completion details and snippets](https://github.com/tailwindlabs/tailwindcss-intellisense/blob/5067ff7ec0b4b8bb5c3325a69c1f3410eb5b350a/packages/tailwindcss-language-service/src/completionProvider.ts),
-[directive links](https://github.com/tailwindlabs/tailwindcss-intellisense/blob/5067ff7ec0b4b8bb5c3325a69c1f3410eb5b350a/packages/tailwindcss-language-service/src/documentLinksProvider.ts).
-
 ## Measurement coverage
 
 `TypeScriptFactsService` enables checker timing collection but exposes only

@@ -5,6 +5,7 @@ import { definePlugin } from "@stillwind/config";
 import { NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
+import { BrowserProject } from "../src/browser/project.ts";
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
 import {
   attachPlugins,
@@ -12,9 +13,97 @@ import {
   decodeCssSourceMap,
   loadCssGraph,
 } from "../src/css/index.ts";
+import { applyEdits } from "../src/editor/sort.ts";
 import { TypeScriptFactsService } from "../src/semantics/index.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+
+test("browser plugin paths complete and link without evaluating plugins", async () => {
+  const files = new Map([
+    [
+      "/workspace/package.json",
+      JSON.stringify({
+        dependencies: {
+          "demo-plugin": "1",
+        },
+      }),
+    ],
+    ["/workspace/local.mjs", "throw new Error('must not run');"],
+    ["/workspace/quo'te.mjs", "throw new Error('must not run');"],
+    [
+      "/workspace/node_modules/demo-plugin/package.json",
+      JSON.stringify({
+        exports: {
+          ".": "./index.mjs",
+          "./feature": "./feature.mjs",
+          "./forbidden": null,
+        },
+      }),
+    ],
+    ["/workspace/node_modules/demo-plugin/index.mjs", "throw new Error('must not run');"],
+    ["/workspace/node_modules/demo-plugin/feature.mjs", "throw new Error('must not run');"],
+  ]);
+  const create = (text: string) =>
+    new BrowserProject({
+      root: "/workspace",
+      files: new Map([...files, ["/workspace/theme.css", text]]),
+      documentUri: (id) => `memory:${id}`,
+      config: {
+        css: "theme.css",
+        files: ["*.tsx"],
+        typeFacts: false,
+        plugins: [
+          definePlugin({
+            name: "configured",
+            css: () => expect.fail("plugin execution during navigation"),
+          }),
+        ],
+      },
+    });
+  const text =
+    '/* 🦀 */ @plugin "configured"; @plugin "demo-plugin"; @plugin "./local.mjs"; @plugin "missing";';
+  const project = create(text);
+  try {
+    const links = (await project.query("/workspace/theme.css", {
+      kind: "links",
+    }))!.links!;
+    expect(links.map((link) => [text.slice(link.start, link.end), link.target])).toEqual([
+      ["configured", undefined],
+      ["demo-plugin", "memory:/workspace/node_modules/demo-plugin/index.mjs"],
+      ["./local.mjs", "memory:/workspace/local.mjs"],
+      ["missing", undefined],
+    ]);
+  } finally {
+    await project.close();
+  }
+  for (const [text, prefix, label, expected] of [
+    ['/* 🦀 */ @plugin "./loZZ";', "./lo", "./local.mjs", '/* 🦀 */ @plugin "./local.mjs";'],
+    ["@plugin './quo", "./quo", "./quo'te.mjs", "@plugin './quo\\'te.mjs'"],
+    [
+      '@plugin "demo-plugin/f',
+      "demo-plugin/f",
+      "demo-plugin/feature",
+      '@plugin "demo-plugin/feature"',
+    ],
+    ['@plugin "conf', "conf", "configured", '@plugin "configured"'],
+  ]) {
+    const project = create(text);
+    try {
+      const result = await project.query("/workspace/theme.css", {
+        kind: "completion",
+        offset: text.indexOf(prefix) + prefix.length,
+      });
+      const item = result!.completions!.find((item) => item.label === label)!;
+      expect(item, JSON.stringify(result)).toBeDefined();
+      expect(applyEdits(text, [item])).toBe(expected);
+      expect(result!.completions!.some((item) => item.label === "demo-plugin/forbidden")).toBe(
+        false,
+      );
+    } finally {
+      await project.close();
+    }
+  }
+});
 
 /**
  * Creates a plugin whose `demo-*` family sets `color` to the candidate's suffix.

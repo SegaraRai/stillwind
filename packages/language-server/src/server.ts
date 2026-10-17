@@ -84,6 +84,7 @@ export function createLanguageServer(
   let roots: string[] = [];
   let initializationOptions: unknown;
   let registryDirectives = false;
+  let snippets = false;
   let generation = 0;
   let controls = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -306,6 +307,7 @@ export function createLanguageServer(
       request = {
         ...request,
         registryDirectives,
+        snippets,
       };
     }
     const document = documents.get(uri);
@@ -344,6 +346,8 @@ export function createLanguageServer(
   connection.onInitialize(async (params: InitializeParams) => {
     initializationOptions = params.initializationOptions;
     registryDirectives = completionRegistrySetting(initializationOptions) ?? false;
+    snippets =
+      params.capabilities.textDocument?.completion?.completionItem?.snippetSupport === true;
     foldersSupported = params.capabilities.workspace?.workspaceFolders === true;
     dynamicWatch =
       params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration === true;
@@ -366,6 +370,11 @@ export function createLanguageServer(
             }
           : undefined,
         colorProvider: editor,
+        documentLinkProvider: editor
+          ? {
+              resolveProvider: false,
+            }
+          : undefined,
         workspace: {
           workspaceFolders: {
             supported: true,

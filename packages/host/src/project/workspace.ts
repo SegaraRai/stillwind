@@ -186,6 +186,7 @@ export class AnalysisWorkspace {
    * @param signal - Optional cancellation forwarded to each project's queued query.
    * @returns Available answers in configuration order, including overlapping project memberships.
    * CSS membership checks allow recovered definitions when the original graph cannot load.
+   * Plugin path completion and links also accept CSS files inside a project's root.
    * @throws If a project's editor query fails.
    */
   async query(
@@ -211,7 +212,18 @@ export class AnalysisWorkspace {
       result: EditorResult;
     }[] = [];
     for (const [index, project] of this.projects.entries()) {
-      if (!this.includes(project, file) && !(await this.lintsStylesheet(project, file, true))) {
+      const relative = path.relative(project.analysis.host.root, file);
+      const navigation =
+        isStylesheet(file) &&
+        ["completion", "resolve", "links"].includes(request.kind) &&
+        relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative);
+      if (
+        !this.includes(project, file) &&
+        !navigation &&
+        !(await this.lintsStylesheet(project, file, true))
+      ) {
         continue;
       }
       const result = await project.analysis.query(file, request, signal);
