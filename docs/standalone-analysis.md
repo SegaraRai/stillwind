@@ -375,6 +375,29 @@ CSS editor queries complete Stillwind at-rule names, `@apply` candidates, applie
 directive and slot documentation, or the active theme definition. A `var()` hover
 describes that definition; the browser's cascade can override its value.
 
+At-rule discovery separates **Authoring**, **Registry**, and **Compiler** audiences.
+Ordinary completion offers authoring syntax, including Stillwind directives for output
+slots, CSS templates, custom-property registrations and requirements, and animation-option
+definitions. Registry syntax describes utility libraries and resolution metadata. Compiler
+intrinsics appear only in the direct body of a registry variant definition. Known blocks
+narrow the suggestions: variant definitions offer `@slot`, and style rules offer `@apply`
+and applied `@variant`. A fragment without an enclosing block retains broad authoring
+suggestions and ranks names for stylesheet placement first.
+
+VS Code's `stillwind.completion.registryDirectives` setting adds registry suggestions; it
+defaults to false. Other LSP clients can send `initializationOptions.completion.registryDirectives`
+and update it with `workspace/didChangeConfiguration` under
+`settings.stillwind.completion.registryDirectives`. Direct editor requests pass
+`registryDirectives` with both completion and resolution. This editor setting does not
+change compiler output or lint. Changing it invalidates earlier CSS completion resolutions.
+Written directives retain hover and supported argument completions even when their names
+are hidden. Property requirements use registered property names; format arguments use
+active registry metadata; intrinsic arguments use the compiler's supported identifiers.
+
+Completion details and hovers show the audience and the independent syntax family,
+**Tailwind-derived** or **Stillwind**. The family describes provenance and does not
+guarantee Tailwind compatibility. Lower-level syntax is not deprecated by this classification.
+
 Color queries resolve `@apply` candidates and complete `theme()`, `--theme()`, and
 `var()` references to active theme values. Unknown, cyclic, contextual, and ambiguous
 colors are omitted. References inside `@apply` candidates are handled through the

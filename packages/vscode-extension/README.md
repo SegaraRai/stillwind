@@ -6,6 +6,13 @@ Add `stillwind.config.*` to your workspace (`ts`, `mts`, `cts`, `js`, `mjs`, `cj
 
 Hover over a utility, `style()` call, or its bound variable to see the generated CSS with the main selector written as `&`. Completion includes utilities, variants, and theme values from the active design system. Completion details load CSS when the selected item is resolved. Concrete colors have inline swatches and color picker edits.
 
+CSS at-rule completion normally offers syntax for application and theme authors. Set
+`stillwind.completion.registryDirectives` to true to include registry metadata when editing
+utility libraries. This editor setting leaves compilation and lint unchanged. Suggestions
+respect the enclosing block, and compiler intrinsics appear only inside matching definitions.
+Hidden names retain hover and supported argument completions. Details show the intended
+audience and syntax provenance; Tailwind-derived syntax does not imply full compatibility.
+
 Previews add comments after values: `var(--color-brand) /* oklch(63.7% 0.237 25.331) = #fb2c36 */`, `calc(var(--spacing) * 4) /* 1rem = 16px */`, and `1rem /* 16px */`. The `preview` field of a project selects these comments. `themeValues` adds resolved theme values and evaluated `calc()` results, `pixelEquivalents` adds pixel values for rem, and `colorEquivalents` adds hexadecimal sRGB colors. All three are enabled by default. `colorEquivalents: "approximate"`, the default, maps a color outside the sRGB gamut into the gamut and marks the result with `≈`. `"exact"` omits those colors, and `false` omits all color comments. Numbers in comments are rounded to six fractional digits; `≈` marks a rounded number, such as `calc(1.25 / 0.875) ≈ 1.428571`. A `calc()` that evaluates to one value receives one comment after the expression. When the expression combines rem with px, the comment contains the pixel total, such as `calc(var(--spacing) + 1px) /* 5px */`; this total requires `pixelEquivalents`. Other expressions receive comments on the theme references inside them.
 
 `Stillwind: Sort Utilities` invokes the `source.sort.stillwind` Code Action. Utility strings use compiler ordering. Arrays, argument lists, and object properties use stable groups: each ref's markers then projections, bases, utilities, custom properties, and attributes. Entries within each group keep their authored order. Unsupported expressions and comments separate runs. Set `sort.attributes` to sort aria-/data- attribute names independently; it defaults to false.

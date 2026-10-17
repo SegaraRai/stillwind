@@ -65,6 +65,23 @@ test("browser CSS colors, picker edits, and statement sorting use WASI queries",
     const sorted = (await project.query(id, { kind: "sort" }))!.edits!;
     expect(sorted).toHaveLength(1);
     expect(sorted[0].newText).toBe("@apply a; @apply b; @apply bg-brand;");
+    const offset = source.indexOf("@utility") + 1;
+    const ordinary = (await project.query(id, {
+      kind: "completion",
+      offset,
+    }))!.completions!;
+    expect(ordinary.some((item) => item.label === "@stillwind-utility")).toBe(false);
+    const registry = (await project.query(id, {
+      kind: "completion",
+      offset,
+      registryDirectives: true,
+    }))!.completions!;
+    expect(registry).toContainEqual(
+      expect.objectContaining({
+        label: "@stillwind-utility",
+        detail: "Registry authoring · Stillwind syntax",
+      }),
+    );
   } finally {
     await project.close();
   }

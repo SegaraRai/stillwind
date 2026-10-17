@@ -5,6 +5,47 @@ import { applyEdits } from "../editor/sort.ts";
 import { compilerOptions } from "./options.ts";
 import { StylesheetEditor } from "./stylesheet-editor.ts";
 
+test("CSS directive metadata and discovery settings are pinned through completion resolution", () => {
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "theme.css", "");
+  const text = "/* 日本語 🦀 */ @stillwind-";
+  const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery());
+  const complete = (registryDirectives: boolean) =>
+    editor.query("local.css", {
+      kind: "completion",
+      offset: text.length,
+      registryDirectives,
+    })!.completions!;
+  expect(complete(false).some((item) => item.label === "@stillwind-utility")).toBe(false);
+  const enabled = complete(true);
+  const registry = enabled.find((item) => item.label === "@stillwind-utility")!;
+  expect(registry).toMatchObject({
+    detail: "Registry authoring · Stillwind syntax",
+    start: text.indexOf("@"),
+    end: text.length,
+  });
+  expect(registry.sortText).toEqual(expect.any(String));
+  const item = enabled.find((item) => item.label === "@stillwind-slot")!;
+  const request = {
+    kind: "resolve" as const,
+    candidate: item.candidate,
+    input: item.input,
+    snapshot: item.snapshot,
+  };
+  expect(
+    editor.query("local.css", {
+      ...request,
+      registryDirectives: false,
+    })!.hover,
+  ).toBeUndefined();
+  expect(
+    editor.query("local.css", {
+      ...request,
+      registryDirectives: true,
+    })!.hover?.documentation,
+  ).toContain("Authoring");
+});
+
 test("CSS completions replace original UTF-16 ranges and resolve across equivalent snapshots", () => {
   const loader = new NativeDesignSystemLoader();
   loader.provide(

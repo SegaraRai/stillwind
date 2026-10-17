@@ -102,6 +102,8 @@ export function registerEditorFeatures(
     const items: CompletionItem[] = entries.flatMap((entry) =>
       (entry.result.completions ?? []).map((item) => ({
         label: item.label,
+        detail: item.detail,
+        sortText: item.sortText,
         kind: item.keyword
           ? CompletionItemKind.Keyword
           : item.candidate.endsWith(":")

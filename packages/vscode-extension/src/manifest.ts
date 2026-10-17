@@ -69,6 +69,12 @@ export const extensionManifest = {
           description:
             "Configuration path relative to the workspace root. Empty discovers stillwind.config.* (ts, mts, cts, js, mjs, cjs, or json).",
         },
+        "stillwind.completion.registryDirectives": {
+          type: "boolean",
+          default: false,
+          description:
+            "Include registry directives when editing utility libraries and CSS metadata. This changes editor suggestions only.",
+        },
       },
     },
   },

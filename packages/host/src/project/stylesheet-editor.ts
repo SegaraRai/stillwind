@@ -60,7 +60,8 @@ export class StylesheetEditor {
    * @param id - Resolver identity of the requested source.
    * @param request - Operation in the stylesheet's original UTF-16 coordinates. Cursor offsets must
    * be character boundaries within the captured text. Resolve uses the label, input, and snapshot
-   * returned by completion.
+   * returned by completion. Completion and resolution also accept `registryDirectives`, an
+   * editor-only setting whose default is false. Resolve requires the same setting.
    * @returns An answer with the captured source fingerprint, or undefined for another identity.
    * Completion includes original replacement ranges. Hover includes formatted CSS or documentation
    * when the input resolves. Resolve omits hover when its snapshot or label no longer matches.
@@ -114,7 +115,9 @@ export class StylesheetEditor {
     }
     if (request.kind === "completion") {
       result.completions = this.#query
-        .completeStylesheet(this.#text, this.#byteOffset(request.offset))
+        .completeStylesheet(this.#text, this.#byteOffset(request.offset), {
+          registryDirectives: request.registryDirectives === true,
+        })
         .map((item) => ({
           start: this.#utf16(item.start),
           end: this.#utf16(item.end),
@@ -122,16 +125,23 @@ export class StylesheetEditor {
           candidate: item.label,
           newText: item.label,
           keyword: item.keyword,
+          detail: item.detail ?? undefined,
+          sortText: item.sortText ?? undefined,
           input: request.offset,
-          snapshot: this.#snapshot,
+          snapshot: this.#completionSnapshot(request.registryDirectives),
         }));
     }
     if (request.kind === "hover") {
       result.hover = this.#hover(this.#text, request.offset);
     }
-    if (request.kind === "resolve" && request.snapshot === this.#snapshot) {
+    if (
+      request.kind === "resolve" &&
+      request.snapshot === this.#completionSnapshot(request.registryDirectives)
+    ) {
       const item = this.#query
-        .completeStylesheet(this.#text, this.#byteOffset(request.input))
+        .completeStylesheet(this.#text, this.#byteOffset(request.input), {
+          registryDirectives: request.registryDirectives === true,
+        })
         .find((item) => item.label === request.candidate);
       if (item) {
         const start = this.#utf16(item.start);
@@ -188,6 +198,15 @@ export class StylesheetEditor {
       result.edits = edits;
     }
     return result;
+  }
+
+  /**
+   * Pins completion resolution to the discovery setting used for its labels.
+   * @param registryDirectives - Whether the request includes registry metadata. Omission is false.
+   * @returns A fingerprint of the captured snapshot and normalized editor setting.
+   */
+  #completionSnapshot(registryDirectives = false): string {
+    return fingerprint(JSON.stringify([this.#snapshot, registryDirectives]));
   }
 
   /**

@@ -53,6 +53,26 @@ test("Node workers answer editor queries from unsaved source and stylesheet buff
       revision: fingerprint(updated),
       edits: [],
     });
+    const fragment = `${css}\n@stillwind-`;
+    await workspace.update(cssUri, fragment, 2);
+    const ordinary = await workspace.query!(cssUri, {
+      kind: "completion",
+      offset: fragment.length,
+    });
+    expect(
+      ordinary[0].result.completions?.some((item) => item.label === "@stillwind-utility"),
+    ).toBe(false);
+    const registry = await workspace.query!(cssUri, {
+      kind: "completion",
+      offset: fragment.length,
+      registryDirectives: true,
+    });
+    expect(registry[0].result.completions).toContainEqual(
+      expect.objectContaining({
+        label: "@stillwind-utility",
+        detail: "Registry authoring · Stillwind syntax",
+      }),
+    );
   } finally {
     for (const workspace of opened?.workspaces.values() ?? []) {
       await workspace.close();

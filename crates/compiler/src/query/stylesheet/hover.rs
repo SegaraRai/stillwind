@@ -57,10 +57,22 @@ impl DesignSystemQuery {
                 (
                     "".into(),
                     format_args!(
-                        "```css\n{}\n```\n\n{}",
-                        directive.syntax, directive.description
+                        "```css\n{}\n```\n\n{}\n\n{}",
+                        directive.syntax,
+                        directive.detail(),
+                        directive.description
                     )
                     .to_lean_str(),
+                )
+            }
+            Kind::DirectiveArgument { directive, .. } => {
+                let Some(directive) = DIRECTIVES.iter().find(|item| item.name == directive) else {
+                    return Ok(None);
+                };
+                (
+                    "".into(),
+                    format_args!("{}\n\n{}", directive.detail(), directive.description)
+                        .to_lean_str(),
                 )
             }
             Kind::Apply => {

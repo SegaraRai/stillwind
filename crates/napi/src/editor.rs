@@ -9,7 +9,7 @@ use napi_derive::napi;
 
 use stillwind_compiler::{
     CandidateContext, ColorEquivalents, CompilerOptions, CompletionInput, DesignSystemQuery,
-    PreviewAnnotations,
+    PreviewAnnotations, StylesheetCompletionOptions,
 };
 use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::DesignSystemSnapshot;
@@ -156,6 +156,26 @@ pub struct NativeStylesheetCompletion {
     pub label: String,
     /// Whether the replacement names an at-rule.
     pub keyword: bool,
+    /// Audience and syntax provenance for a directive, omitted for other inputs.
+    pub detail: Option<String>,
+    /// Lexical key that ranks a directive by location, audience, and provenance.
+    pub sort_text: Option<String>,
+}
+
+/// Editor settings that control at-rule discovery without changing compiler output.
+#[napi(object)]
+#[derive(Default)]
+pub struct NativeStylesheetCompletionOptions {
+    /// Includes registry metadata where it is useful. Defaults to false.
+    pub registry_directives: Option<bool>,
+}
+
+impl From<NativeStylesheetCompletionOptions> for StylesheetCompletionOptions {
+    fn from(value: NativeStylesheetCompletionOptions) -> Self {
+        Self {
+            registry_directives: value.registry_directives.unwrap_or(false),
+        }
+    }
 }
 
 /// CSS or Markdown documentation at an original UTF-8 range.
@@ -290,16 +310,19 @@ impl NativeEditorQuery {
         self.query.revision().0.to_string()
     }
 
-    /// Completes an authored CSS input at an original UTF-8 byte boundary.
-    /// Incomplete blocks and candidates are accepted. Invalid boundaries have no answer.
+    /// Completes an authored CSS input at an original UTF-8 byte boundary. Incomplete
+    /// blocks and candidates are accepted. Invalid boundaries have no answer. Optional
+    /// discovery settings default to authoring syntax. They affect neither the query's
+    /// compiler settings nor its hover and argument catalogs.
     #[napi]
     pub fn complete_stylesheet(
         &self,
         source: String,
         offset: u32,
+        options: Option<NativeStylesheetCompletionOptions>,
     ) -> napi::Result<Vec<NativeStylesheetCompletion>> {
         self.query
-            .complete_stylesheet(&source, offset as usize)
+            .complete_stylesheet(&source, offset as usize, options.unwrap_or_default().into())
             .map_err(|error| Error::from_reason(error.to_string()))?
             .into_iter()
             .map(|item| {
@@ -310,6 +333,8 @@ impl NativeEditorQuery {
                         .map_err(|error| Error::from_reason(error.to_string()))?,
                     label: item.label.into(),
                     keyword: item.keyword,
+                    detail: item.detail.map(Into::into),
+                    sort_text: item.sort_text.map(Into::into),
                 })
             })
             .collect()

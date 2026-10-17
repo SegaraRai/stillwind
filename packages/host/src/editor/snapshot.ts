@@ -41,6 +41,10 @@ export interface EditorEdit {
 export interface EditorCompletion extends EditorEdit {
   /** Directive names use the keyword category. Other inputs use candidate categories. */
   keyword?: boolean;
+  /** Audience and syntax provenance for a CSS directive. Omitted for other inputs. */
+  detail?: string;
+  /** Lexical priority key supplied by the semantic catalog. Omission sorts by label. */
+  sortText?: string;
   /** Visible completion text; surrounding group variants are omitted. */
   label: string;
   /** Full candidate used for lazy CSS resolution, including surrounding group variants. */
@@ -78,12 +82,16 @@ export type EditorRequest =
   | {
       /** Requests matching candidates and variant prefixes for an insertion point. */
       kind: "completion";
+      /** Includes CSS registry directives. Defaults to false and does not affect compilation. */
+      registryDirectives?: boolean;
       /** Original UTF-16 insertion point; text before this point determines the prefix. */
       offset: number;
     }
   | {
       /** Requests CSS or documentation for a completion from the same captured snapshot. */
       kind: "resolve";
+      /** CSS discovery setting used for the original completion. A change makes it stale. */
+      registryDirectives?: boolean;
       /** Full candidate or CSS label returned by completion. */
       candidate: string;
       /** Original UTF-16 boundary returned as `EditorCompletion.input`. */

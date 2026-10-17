@@ -20,6 +20,7 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
   );
 
   return {
+    initializationOptions: editorSettings,
     documentSelector: [
       "javascript",
       "javascriptreact",
@@ -33,7 +34,23 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
       "vue",
     ].map((language) => ({ language })),
     synchronize: {
+      configurationSection: "stillwind",
       fileEvents: watcher,
+    },
+  };
+}
+
+/**
+ * Reads completion discovery preferences independently of project compiler configuration.
+ * @returns Initialization fields shared by the Node client and the browser client.
+ */
+export function editorSettings() {
+  return {
+    completion: {
+      registryDirectives:
+        vscode.workspace
+          .getConfiguration("stillwind")
+          .get<boolean>("completion.registryDirectives") === true,
     },
   };
 }

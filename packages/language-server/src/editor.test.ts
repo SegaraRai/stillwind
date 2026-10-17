@@ -18,6 +18,107 @@ import {
 
 import { createLanguageServer } from "./server.ts";
 
+test("LSP completion settings expose registry metadata and invalidate prior CSS resolutions", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/theme.css";
+  const text = "@stillwind-utility example { display:block; }\n/* 日本語 🦀 */ @stillwind-";
+  const document = TextDocument.create(uri, "css", 1, text);
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "config",
+          new BrowserAnalysisWorkspace({
+            config: "config",
+            projects: [
+              {
+                root: "/workspace",
+                css: "theme.css",
+                files: ["*.tsx"],
+                typeFacts: false,
+              },
+            ],
+            files: new Map([["/workspace/theme.css", text]]),
+          }),
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  const complete = () =>
+    client.sendRequest<CompletionItem[]>("textDocument/completion", {
+      textDocument: { uri },
+      position: document.positionAt(text.length),
+    });
+  try {
+    await client.sendRequest("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+      initializationOptions: {
+        completion: {
+          registryDirectives: true,
+        },
+      },
+    });
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version: 1,
+        text,
+      },
+    });
+    const enabled = await complete();
+    const registry = enabled.find((item) => item.label === "@stillwind-utility")!;
+    expect(registry.detail).toBe("Registry authoring · Stillwind syntax");
+    expect(registry.sortText).toEqual(expect.any(String));
+    expect(registry.deprecated).not.toBe(true);
+    const authoring = enabled.find((item) => item.label === "@stillwind-slot")!;
+    await client.sendNotification("workspace/didChangeConfiguration", {
+      settings: {
+        stillwind: {
+          completion: {
+            registryDirectives: false,
+          },
+        },
+      },
+    });
+    expect((await complete()).some((item) => item.label === "@stillwind-utility")).toBe(false);
+    expect(
+      (await client.sendRequest<CompletionItem>("completionItem/resolve", authoring)).documentation,
+    ).toBeUndefined();
+    const hover = await client.sendRequest<Hover>("textDocument/hover", {
+      textDocument: { uri },
+      position: document.positionAt(4),
+    });
+    expect(JSON.stringify(hover.contents)).toContain("Registry authoring");
+    await client.sendNotification("workspace/didChangeConfiguration", {
+      settings: {
+        stillwind: {
+          completion: {
+            registryDirectives: true,
+          },
+        },
+      },
+    });
+    const restored = (await complete()).find((item) => item.label === "@stillwind-utility")!;
+    expect(
+      (await client.sendRequest<CompletionItem>("completionItem/resolve", restored)).documentation,
+    ).toMatchObject({
+      kind: "markdown",
+      value: expect.stringContaining("Registry authoring"),
+    });
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+  }
+});
+
 test("CSS LSP requests complete cold incomplete buffers and resolve dialect and semantic hovers", async () => {
   const input = new PassThrough();
   const output = new PassThrough();

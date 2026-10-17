@@ -4,6 +4,46 @@ import { expect, test } from "vite-plus/test";
 
 /** Registers editor and canonical lint contracts for the selected native or WASM loader. */
 export function registerEditorContract(specifier: string): void {
+  test("CSS directive discovery separates registry settings, local syntax, and hover", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(0, "theme.css", "");
+    const query = loader.editorQuery();
+    const source = "/* 日本語 🦀 */ @stillwind-";
+    const offset = new TextEncoder().encode(source).length;
+    const ordinary = query.completeStylesheet(source, offset);
+    expect(ordinary.map((item: { label: string }) => item.label)).toContain("@stillwind-slot");
+    expect(ordinary.map((item: { label: string }) => item.label)).not.toContain(
+      "@stillwind-utility",
+    );
+    const registry = query.completeStylesheet(source, offset, { registryDirectives: true });
+    expect(registry).toContainEqual(
+      expect.objectContaining({
+        label: "@stillwind-utility",
+        detail: "Registry authoring · Stillwind syntax",
+        start: new TextEncoder().encode("/* 日本語 🦀 */ ").length,
+        end: offset,
+      }),
+    );
+    expect(registry.map((item: { label: string }) => item.label)).not.toContain(
+      "@stillwind-intrinsic",
+    );
+    const local = "@stillwind-variant named (value: [variant]) { @";
+    expect(
+      query.completeStylesheet(local, local.length).map((item: { label: string }) => item.label),
+    ).toContain("@stillwind-intrinsic");
+    const intrinsic = "@stillwind-intrinsic builtin-";
+    expect(
+      query
+        .completeStylesheet(intrinsic, intrinsic.length)
+        .map((item: { label: string }) => item.label),
+    ).toEqual(["builtin-if-variant", "builtin-not-variant"]);
+    const written = "@stillwind-utility";
+    expect(query.hoverStylesheet(written, written.length).documentation).toContain(
+      "Registry authoring",
+    );
+  });
+
   test("CSS color ranges and sorting policies share native and WASM contracts", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const loader = new NativeDesignSystemLoader({

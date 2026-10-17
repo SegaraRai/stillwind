@@ -6,9 +6,18 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_design_system::UtilityResolutionError;
 
-use super::context::{Kind, context};
+use super::context::{Context, Kind, context};
 use super::directives::{DECLARATION_SLOTS, DIRECTIVES, RULE_SLOTS, directive_name};
 use crate::query::{CandidateContext, CompletionInput, DesignSystemQuery};
+
+/// Editor discovery settings. These options do not alter compilation or stylesheet
+/// lint.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct StylesheetCompletionOptions {
+    /// Offers registry metadata in addition to authoring directives. Defaults to false.
+    /// Required local syntax remains available inside matching definitions.
+    pub registry_directives: bool,
+}
 
 /// One CSS completion with a range in the supplied original UTF-8 text.
 #[derive(Clone, Debug)]
@@ -20,6 +29,11 @@ pub struct StylesheetCompletion {
     pub label: LeanStr,
     /// True for an at-rule name, which editors display as a keyword.
     pub keyword: bool,
+    /// Audience and provenance for at-rule names. Other inputs omit this detail.
+    pub detail: Option<LeanStr>,
+    /// Lexical sort key that ranks at-rule names by location, audience, and provenance.
+    /// Other inputs retain lexical label order.
+    pub sort_text: Option<LeanStr>,
 }
 
 impl DesignSystemQuery {
@@ -31,7 +45,9 @@ impl DesignSystemQuery {
     /// colon. Slot labels respect whether the cursor is inside a style rule. Theme
     /// functions offer active token names only in their first argument.
     ///
-    /// Returns unique labels in lexical order. Every replacement range addresses
+    /// `options` controls editor discovery independently of compiler settings.
+    /// Returns unique labels, with directive names ordered by location, audience, and
+    /// provenance and other labels ordered lexically. Every replacement range addresses
     /// the original `css`, including any token suffix after `offset`.
     ///
     /// # Errors
@@ -41,6 +57,7 @@ impl DesignSystemQuery {
         &self,
         css: &str,
         offset: usize,
+        options: StylesheetCompletionOptions,
     ) -> Result<Vec<StylesheetCompletion>, UtilityResolutionError> {
         let Some(context) = context(css, offset) else {
             return Ok(Vec::new());
@@ -48,12 +65,34 @@ impl DesignSystemQuery {
         let prefix = &css[context.range.start..offset];
         let keyword = matches!(context.kind, Kind::Directive);
         let mut labels: Vec<LeanStr> = match context.kind {
-            Kind::Directive => {
-                let prefix = directive_name(prefix);
-                DIRECTIVES
-                    .iter()
-                    .map(|directive| format_args!("@{}", directive.name).to_lean_str())
-                    .filter(|label| label.starts_with(prefix.as_str()))
+            Kind::Directive => return Ok(directive_completions(&context, prefix, options)),
+            Kind::DirectiveArgument { directive, first } => {
+                let theme = self.context.design_system.theme();
+                let values: Vec<LeanStr> = match directive {
+                    "stillwind-require-properties" => self
+                        .context
+                        .design_system
+                        .properties()
+                        .names()
+                        .map(Into::into)
+                        .collect(),
+                    "stillwind-intrinsic" if first => ["builtin-if-variant", "builtin-not-variant"]
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                    "stillwind-format" if first => {
+                        theme.declaration_formats().keys().cloned().collect()
+                    }
+                    "stillwind-format" => theme
+                        .declaration_formats()
+                        .values()
+                        .flat_map(|value| value.split_whitespace().map(Into::into))
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                values
+                    .into_iter()
+                    .filter(|label| label.starts_with(prefix))
                     .collect()
             }
             Kind::Apply | Kind::Variant => {
@@ -116,7 +155,41 @@ impl DesignSystemQuery {
                 range: context.range.clone(),
                 label,
                 keyword,
+                detail: None,
+                sort_text: None,
             })
             .collect())
     }
+}
+
+/// Offers names for the captured cursor positions and discovery settings.
+/// `prefix` is the original at-rule token before the cursor. Returned ranges copy
+/// `context.range`, and sort keys retain the same order in LSP clients.
+fn directive_completions(
+    context: &Context,
+    prefix: &str,
+    options: StylesheetCompletionOptions,
+) -> Vec<StylesheetCompletion> {
+    let prefix = directive_name(prefix);
+    let mut directives: Vec<_> = DIRECTIVES
+        .iter()
+        .filter(|directive| directive.visible(context.positions, options.registry_directives))
+        .filter_map(|directive| {
+            let label = format_args!("@{}", directive.name).to_lean_str();
+            label
+                .starts_with(prefix.as_str())
+                .then(|| StylesheetCompletion {
+                    range: context.range.clone(),
+                    sort_text: Some(
+                        format_args!("{:02}-{label}", directive.priority(context.positions))
+                            .to_lean_str(),
+                    ),
+                    detail: Some(directive.detail()),
+                    label,
+                    keyword: true,
+                })
+        })
+        .collect();
+    directives.sort_by(|a, b| a.sort_text.cmp(&b.sort_text));
+    directives
 }

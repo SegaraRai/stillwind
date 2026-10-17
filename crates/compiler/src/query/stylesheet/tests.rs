@@ -4,7 +4,7 @@ use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
 use stillwind_source::{CssSourceName, FileId, SourceFile};
 use stillwind_test_support::css_source;
 
-use super::editor_css_source;
+use super::{StylesheetCompletionOptions, editor_css_source};
 use crate::CompilerOptions;
 use crate::query::DesignSystemQuery;
 
@@ -23,7 +23,7 @@ fn query() -> DesignSystemQuery {
 
 fn labels(css: &str) -> Vec<LeanStr> {
     query()
-        .complete_stylesheet(css, css.len())
+        .complete_stylesheet(css, css.len(), StylesheetCompletionOptions::default())
         .unwrap()
         .into_iter()
         .map(|item| item.label)
@@ -60,10 +60,174 @@ fn completes_partial_directives_applications_variants_and_slots() {
 }
 
 #[test]
+fn directive_discovery_uses_audience_location_and_provenance() {
+    let query = query();
+    let complete = |css: &str, registry| {
+        query
+            .complete_stylesheet(
+                css,
+                css.len(),
+                StylesheetCompletionOptions {
+                    registry_directives: registry,
+                },
+            )
+            .unwrap()
+    };
+    let defaults = complete("@", false);
+    for name in [
+        "@apply",
+        "@theme",
+        "@slot",
+        "@stillwind-slot",
+        "@stillwind-property",
+        "@stillwind-animation-option",
+        "@plugin",
+    ] {
+        assert!(defaults.iter().any(|item| item.label == name), "{name}");
+    }
+    assert!(!defaults.iter().any(|item| {
+        item.detail.as_deref().is_some_and(|detail| {
+            detail.starts_with("Registry authoring") || detail.starts_with("Compiler intrinsic")
+        })
+    }));
+    let enabled = complete("@", true);
+    assert!(enabled.iter().any(|item| item.label == "@stillwind-utility"
+        && item.detail.as_deref() == Some("Registry authoring · Stillwind syntax")));
+    assert!(
+        !enabled
+            .iter()
+            .any(|item| item.label == "@stillwind-intrinsic")
+    );
+    let first_stillwind = defaults
+        .iter()
+        .position(|item| item.label == "@stillwind-slot")
+        .unwrap();
+    let theme = defaults
+        .iter()
+        .position(|item| item.label == "@theme")
+        .unwrap();
+    let apply = defaults
+        .iter()
+        .position(|item| item.label == "@apply")
+        .unwrap();
+    assert!(theme < first_stillwind && first_stillwind < apply);
+    for (css, expected) in [
+        (".a { @", vec!["@apply", "@variant", "@stillwind-slot"]),
+        (
+            "@custom-variant named { @media print { & { @",
+            vec!["@apply", "@slot", "@variant", "@stillwind-slot"],
+        ),
+        ("@custom-variant named { @", vec!["@slot"]),
+        (
+            "@stillwind-variant named (value: [variant]) { @",
+            vec!["@slot", "@stillwind-intrinsic"],
+        ),
+        (
+            "@stillwind-utility named { @",
+            vec!["@stillwind-require-properties"],
+        ),
+        ("@stillwind-animation-option named { @", vec![]),
+    ] {
+        assert_eq!(
+            complete(css, false)
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            expected,
+            "{css}"
+        );
+    }
+    assert!(complete("@stillwind-variant named { & { @stillwind-intr", true).is_empty());
+    let template = complete("@stillwind-css-template named { @", false);
+    assert_eq!(
+        template
+            .iter()
+            .map(|item| item.label.as_str())
+            .collect::<Vec<_>>(),
+        ["@stillwind-slot"]
+    );
+    let inside = complete(".a { @", true);
+    assert_eq!(
+        inside.iter().map(|item| &item.label).collect::<Vec<_>>(),
+        complete(".a { @", false)
+            .iter()
+            .map(|item| &item.label)
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        enabled
+            .windows(2)
+            .all(|items| items[0].sort_text <= items[1].sort_text)
+    );
+}
+
+#[test]
+fn hidden_names_keep_hover_and_semantic_argument_catalogs() {
+    let query = query();
+    for (css, expected) in [
+        ("@stillwind-utility", "Registry authoring"),
+        ("@stillwind-format", "Registry authoring"),
+        ("@stillwind-intrinsic", "Compiler intrinsic"),
+        (
+            "@stillwind-intrinsic builtin-if-variant",
+            "Compiler intrinsic",
+        ),
+    ] {
+        assert!(
+            query
+                .hover_stylesheet(css, css.len())
+                .unwrap()
+                .unwrap()
+                .documentation
+                .contains(expected)
+        );
+    }
+    assert_eq!(
+        labels("@stillwind-intrinsic builtin-"),
+        ["builtin-if-variant", "builtin-not-variant"]
+    );
+    assert_eq!(
+        labels("@stillwind-intrinsic builtin-if-variant "),
+        [] as [LeanStr; 0]
+    );
+
+    let source = css_source(FileId(1), "@stillwind-property --example { syntax:'<number>'; inherits:false; initial-value:0; } @stillwind-format --* compose-space;").unwrap();
+    let query = DesignSystemQuery::new(
+        DesignSystemSnapshot::from_source(
+            &source,
+            "theme.css".into(),
+            DesignSystemOptions::default(),
+        )
+        .unwrap(),
+        CompilerOptions::default(),
+    );
+    for (css, expected) in [
+        (
+            "@utility example { @stillwind-require-properties --ex",
+            "--example",
+        ),
+        ("@stillwind-format --* compose-", "compose-space"),
+    ] {
+        let items = query
+            .complete_stylesheet(css, css.len(), StylesheetCompletionOptions::default())
+            .unwrap();
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>(),
+            [expected]
+        );
+    }
+}
+
+#[test]
 fn theme_references_replace_the_whole_name_and_skip_fallback_text() {
     let css = "/* 日本語 🦀 */ .a { color: --theme(--color-brZZ); }";
     let offset = css.find("brZZ").unwrap() + 2;
-    let items = query().complete_stylesheet(css, offset).unwrap();
+    let items = query()
+        .complete_stylesheet(css, offset, StylesheetCompletionOptions::default())
+        .unwrap();
     assert_eq!(items.len(), 1);
     assert_eq!(items[0].label, "--color-brand");
     assert_eq!(&css[items[0].range.clone()], "--color-brZZ");
@@ -91,8 +255,18 @@ fn strings_comments_urls_and_definition_headers_do_not_offer_semantic_labels() {
     ] {
         assert!(labels(css).is_empty(), "{css}");
     }
-    assert!(query().complete_stylesheet("🦀", 1).unwrap().is_empty());
-    assert!(query().complete_stylesheet("", 1).unwrap().is_empty());
+    assert!(
+        query()
+            .complete_stylesheet("🦀", 1, StylesheetCompletionOptions::default())
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        query()
+            .complete_stylesheet("", 1, StylesheetCompletionOptions::default())
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

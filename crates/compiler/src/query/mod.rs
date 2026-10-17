@@ -32,8 +32,8 @@ pub use input::CandidateContext;
 pub use resolution::{CandidateFailure, CandidateHover, CandidateResolution};
 pub use state::{DesignSystemQuery, prepare_canonical_index};
 pub use stylesheet::{
-    StylesheetColor, StylesheetCompletion, StylesheetEdit, StylesheetHover, StylesheetSortOptions,
-    editor_css_source,
+    StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions, StylesheetEdit,
+    StylesheetHover, StylesheetSortOptions, editor_css_source,
 };
 
 use context::QueryContext;

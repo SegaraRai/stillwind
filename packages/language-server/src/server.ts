@@ -83,6 +83,7 @@ export function createLanguageServer(
 
   let roots: string[] = [];
   let initializationOptions: unknown;
+  let registryDirectives = false;
   let generation = 0;
   let controls = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -301,6 +302,12 @@ export function createLanguageServer(
    */
   const query: EditorQuery = async (uri, request, token: CancellationToken) => {
     await controls;
+    if (request.kind === "completion" || request.kind === "resolve") {
+      request = {
+        ...request,
+        registryDirectives,
+      };
+    }
     const document = documents.get(uri);
     if (!document || shutdown || token.isCancellationRequested) {
       return [];
@@ -336,6 +343,7 @@ export function createLanguageServer(
 
   connection.onInitialize(async (params: InitializeParams) => {
     initializationOptions = params.initializationOptions;
+    registryDirectives = completionRegistrySetting(initializationOptions) ?? false;
     foldersSupported = params.capabilities.workspace?.workspaceFolders === true;
     dynamicWatch =
       params.capabilities.workspace?.didChangeWatchedFiles?.dynamicRegistration === true;
@@ -420,8 +428,12 @@ export function createLanguageServer(
     control(open);
     schedule();
   });
-  connection.onDidChangeConfiguration(() => {
-    control(open);
+  connection.onDidChangeConfiguration(({ settings }) => {
+    control(async () => {
+      registryDirectives =
+        completionRegistrySetting(settings?.stillwind ?? settings) ?? registryDirectives;
+      await open();
+    });
     schedule();
   });
   connection.onCodeAction(async (params, token) => {
@@ -548,6 +560,23 @@ export function createLanguageServer(
     },
     dispose,
   };
+}
+
+/**
+ * Reads the editor-only completion field from initialization options or configuration settings.
+ * @param value - A protocol object that may contain `completion.registryDirectives`.
+ * @returns The boolean setting, or undefined when the field is absent or invalid.
+ */
+function completionRegistrySetting(value: unknown): boolean | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const completion = (value as Record<string, unknown>).completion;
+  if (!completion || typeof completion !== "object") {
+    return undefined;
+  }
+  const registry = (completion as Record<string, unknown>).registryDirectives;
+  return typeof registry === "boolean" ? registry : undefined;
 }
 
 /**

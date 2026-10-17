@@ -80,10 +80,12 @@ export declare class NativeEditorQuery {
   /** Returns the captured design-system fingerprint used by completion resolution. */
   revision(): string
   /**
-   * Completes an authored CSS input at an original UTF-8 byte boundary.
-   * Incomplete blocks and candidates are accepted. Invalid boundaries have no answer.
+   * Completes an authored CSS input at an original UTF-8 byte boundary. Incomplete
+   * blocks and candidates are accepted. Invalid boundaries have no answer. Optional
+   * discovery settings default to authoring syntax. They affect neither the query's
+   * compiler settings nor its hover and argument catalogs.
    */
-  completeStylesheet(source: string, offset: number): Array<NativeStylesheetCompletion>
+  completeStylesheet(source: string, offset: number, options?: NativeStylesheetCompletionOptions | undefined | null): Array<NativeStylesheetCompletion>
   /** Returns generated CSS or dialect documentation at an original UTF-8 byte boundary. */
   hoverStylesheet(source: string, offset: number): NativeStylesheetHover | null
   /** Returns a verified canonical replacement using the effective project lint options, or null. */
@@ -1587,6 +1589,16 @@ export interface NativeStylesheetCompletion {
   label: string
   /** Whether the replacement names an at-rule. */
   keyword: boolean
+  /** Audience and syntax provenance for a directive, omitted for other inputs. */
+  detail?: string
+  /** Lexical key that ranks a directive by location, audience, and provenance. */
+  sortText?: string
+}
+
+/** Editor settings that control at-rule discovery without changing compiler output. */
+export interface NativeStylesheetCompletionOptions {
+  /** Includes registry metadata where it is useful. Defaults to false. */
+  registryDirectives?: boolean
 }
 
 /** CSS or Markdown documentation at an original UTF-8 range. */

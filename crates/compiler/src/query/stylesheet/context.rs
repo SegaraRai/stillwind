@@ -10,6 +10,7 @@ use cssparser::{ParseError, Parser, Token};
 
 use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 
+use super::directives::Positions;
 use crate::compiler::variant_sequences;
 
 /// The syntax at a cursor, with the complete text range that a completion replaces.
@@ -20,6 +21,9 @@ pub(super) struct Context {
     pub(super) range: Range<usize>,
     /// Input role that selects completion labels and hover semantics.
     pub(super) kind: Kind,
+    /// Enclosing rule and definition roles used only to rank and filter directive
+    /// names.
+    pub(super) positions: Positions,
 }
 
 /// A CSS input whose meaning can be resolved by an editor query.
@@ -27,6 +31,13 @@ pub(super) struct Context {
 pub(super) enum Kind {
     /// An at-rule name, including its leading `@`.
     Directive,
+    /// A whitespace-separated argument of a directive with a finite semantic catalog.
+    DirectiveArgument {
+        /// Decoded name without `@`; definition names remain free authored text.
+        directive: &'static str,
+        /// True for the first argument, which selects the property of format metadata.
+        first: bool,
+    },
     /// One whitespace-separated utility candidate in `@apply`.
     Apply,
     /// One comma-separated sequence in an applied `@variant` inside a style rule.
@@ -71,20 +82,26 @@ pub(super) fn context(css: &str, offset: usize) -> Option<Context> {
                 kind: Kind::Theme {
                     runtime: call.name_index == 2,
                 },
+                positions: Positions::NONE,
             });
         }
     }
     let nodes = parse_structure(css);
-    locate(css, &nodes, offset, false)
+    locate(
+        css,
+        &nodes,
+        offset,
+        Positions::RULES.union(Positions::UNCERTAIN),
+    )
 }
 
 /// Returns the input at `offset` among nodes parsed from the original `css`.
 ///
-/// Node ranges and the UTF-8 byte `offset` must address `css`. `declarations` records
-/// whether the containing block belongs to a style rule. Conditions inherit it, and
-/// definition blocks clear it. An unterminated node can include trailing whitespace
+/// Node ranges and the UTF-8 byte `offset` must address `css`. `positions` records the
+/// enclosing rule and definition roles. Grouping rules retain those roles, and new
+/// definitions replace them. An unterminated node can include trailing whitespace
 /// through the cursor so an empty argument remains completable.
-fn locate(css: &str, nodes: &[CssNode], offset: usize, declarations: bool) -> Option<Context> {
+fn locate(css: &str, nodes: &[CssNode], offset: usize, positions: Positions) -> Option<Context> {
     for node in nodes {
         let tail = offset > node.range.end
             && !css[node.range.clone()].ends_with([';', '}'])
@@ -92,20 +109,31 @@ fn locate(css: &str, nodes: &[CssNode], offset: usize, declarations: bool) -> Op
         if offset < node.range.start || (offset > node.range.end && !tail) {
             continue;
         }
-        let (name, prelude, block) = match &node.kind {
+        match &node.kind {
             CssNodeKind::StyleRule { block, .. } => {
                 if block.contents.start <= offset && offset <= block.contents.end {
-                    return locate(css, &block.children, offset, true);
+                    return locate(
+                        css,
+                        &block.children,
+                        offset,
+                        positions
+                            .without(
+                                Positions::RULES
+                                    .union(Positions::UNCERTAIN)
+                                    .union(Positions::INTRINSIC_VARIANT),
+                            )
+                            .union(Positions::STYLE),
+                    );
                 }
-                continue;
             }
-            CssNodeKind::Declaration { .. } => continue,
+            CssNodeKind::Declaration { .. } => {}
             CssNodeKind::Apply { candidates } => {
                 let end = name_end(css, node.range.start);
                 if offset <= end {
                     return Some(Context {
                         range: node.range.start..end,
                         kind: Kind::Directive,
+                        positions,
                     });
                 }
                 if css.as_bytes().get(offset.wrapping_sub(1)) == Some(&b';') {
@@ -118,71 +146,134 @@ fn locate(css: &str, nodes: &[CssNode], offset: usize, declarations: bool) -> Op
                         .cloned()
                         .unwrap_or(offset..offset),
                     kind: Kind::Apply,
+                    positions,
                 });
             }
-            CssNodeKind::AtRule {
-                name,
-                prelude,
-                block,
-            } => (name, prelude, block),
-        };
-        let name_end = name_end(css, node.range.start);
-        if offset <= name_end {
-            return Some(Context {
-                range: node.range.start..name_end,
-                kind: Kind::Directive,
-            });
-        }
-        if let Some(block) = block
-            && block.contents.start <= offset
-            && offset <= block.contents.end
-        {
-            let definitions = matches!(
-                name.as_str(),
-                "theme"
-                    | "utility"
-                    | "custom-variant"
-                    | "stillwind-utility"
-                    | "stillwind-variant"
-                    | "stillwind-property"
-                    | "stillwind-animation-option"
-            ) || (name == "variant" && !declarations);
-            return locate(css, &block.children, offset, declarations && !definitions);
-        }
-        let header_end = block.as_ref().map_or_else(
-            || {
-                node.range.end.max(if tail { offset } else { 0 })
-                    - usize::from(css.as_bytes().get(node.range.end.wrapping_sub(1)) == Some(&b';'))
-            },
-            |block| block.contents.start - 1,
-        );
-        if offset > header_end {
-            continue;
-        }
-        if name == "stillwind-slot" {
-            return Some(Context {
-                range: prelude.start.min(offset)..prelude.end.max(offset),
-                kind: Kind::Slot { declarations },
-            });
-        }
-        if name == "variant" && declarations {
-            let range = variant_sequences(&css[prelude.clone()])
-                .into_iter()
-                .map(|range| prelude.start + range.start..prelude.start + range.end)
-                .find(|range| {
-                    (range.start <= offset && offset <= range.end)
-                        || (offset < range.start && css[offset..range.start].trim().is_empty())
-                        || (range.end < offset && css[range.end..offset].trim().is_empty())
-                })
-                .map(|range| range.start.min(offset)..range.end.max(offset))
-                .unwrap_or(offset..offset);
-            return Some(Context {
-                range,
-                kind: Kind::Variant,
-            });
+            CssNodeKind::AtRule { .. } => {
+                if let Some(context) = at_rule_context(css, node, offset, positions, tail) {
+                    return Some(context);
+                }
+            }
         }
     }
     None
+}
+
+/// Locates a name, argument, or child context in an at-rule from the same original CSS.
+/// `positions` describes its parent. `tail` permits trailing whitespace in an
+/// unterminated header. Returns no context for other node kinds or unsupported headers.
+fn at_rule_context(
+    css: &str,
+    node: &CssNode,
+    offset: usize,
+    positions: Positions,
+    tail: bool,
+) -> Option<Context> {
+    let CssNodeKind::AtRule {
+        name,
+        prelude,
+        block,
+    } = &node.kind
+    else {
+        return None;
+    };
+    let declarations = positions.intersects(Positions::STYLE);
+    let name_end = name_end(css, node.range.start);
+    if offset <= name_end {
+        return Some(Context {
+            range: node.range.start..name_end,
+            kind: Kind::Directive,
+            positions,
+        });
+    }
+    if let Some(block) = block
+        && block.contents.start <= offset
+        && offset <= block.contents.end
+    {
+        let positions = match name.as_str() {
+            "utility" | "stillwind-utility" => Positions::UTILITY,
+            "custom-variant" => Positions::VARIANT,
+            "stillwind-variant" => Positions::VARIANT.union(Positions::INTRINSIC_VARIANT),
+            "variant" if !declarations => Positions::VARIANT,
+            "stillwind-animation-option" => Positions::ANIMATION,
+            "stillwind-css-template" => Positions::TEMPLATE,
+            "theme" | "stillwind-property" | "plugin" => Positions::NONE,
+            _ => positions.without(Positions::UNCERTAIN.union(Positions::INTRINSIC_VARIANT)),
+        };
+        return locate(css, &block.children, offset, positions);
+    }
+    let header_end = block.as_ref().map_or_else(
+        || {
+            node.range.end.max(if tail { offset } else { 0 })
+                - usize::from(css.as_bytes().get(node.range.end.wrapping_sub(1)) == Some(&b';'))
+        },
+        |block| block.contents.start - 1,
+    );
+    if offset > header_end {
+        return None;
+    }
+    if name == "stillwind-slot" {
+        return Some(Context {
+            range: prelude.start.min(offset)..prelude.end.max(offset),
+            kind: Kind::Slot { declarations },
+            positions,
+        });
+    }
+    if name == "variant" && declarations {
+        let range = variant_sequences(&css[prelude.clone()])
+            .into_iter()
+            .map(|range| prelude.start + range.start..prelude.start + range.end)
+            .find(|range| {
+                (range.start <= offset && offset <= range.end)
+                    || (offset < range.start && css[offset..range.start].trim().is_empty())
+                    || (range.end < offset && css[range.end..offset].trim().is_empty())
+            })
+            .map(|range| range.start.min(offset)..range.end.max(offset))
+            .unwrap_or(offset..offset);
+        return Some(Context {
+            range,
+            kind: Kind::Variant,
+            positions,
+        });
+    }
+    let directive = match name.as_str() {
+        "stillwind-require-properties" => "stillwind-require-properties",
+        "stillwind-intrinsic" => "stillwind-intrinsic",
+        "stillwind-format" => "stillwind-format",
+        _ => return None,
+    };
+    let start = prelude.start.min(offset);
+    let arguments = &css[start..prelude.end.max(offset)];
+    let range = argument_range(arguments, offset - start);
+    Some(Context {
+        range: start + range.start..start + range.end,
+        kind: Kind::DirectiveArgument {
+            directive,
+            first: arguments[..range.start.min(arguments.len())]
+                .trim()
+                .is_empty(),
+        },
+        positions,
+    })
+}
+
+/// Returns the complete whitespace-separated argument around `offset`, including a
+/// partial argument at EOF. `offset` may extend past trailing parsed whitespace.
+fn argument_range(arguments: &str, offset: usize) -> Range<usize> {
+    let before = &arguments[..offset.min(arguments.len())];
+    let start = before
+        .char_indices()
+        .rev()
+        .find_map(|(index, character)| {
+            character
+                .is_whitespace()
+                .then_some(index + character.len_utf8())
+        })
+        .unwrap_or(0);
+    let end = arguments[offset.min(arguments.len())..]
+        .find(char::is_whitespace)
+        .map_or(arguments.len(), |length| offset + length);
+    start.min(offset)..end.max(offset)
 }
 
 /// Returns the exclusive UTF-8 byte end of the token beginning at `start` in `css`.
@@ -280,6 +371,7 @@ mod tests {
         let Context {
             range,
             kind: actual,
+            ..
         } = context(&css, offset).unwrap();
         assert_eq!(actual, kind, "{marked}");
         assert_eq!(&css[range.clone()], expected, "{marked}");
@@ -308,6 +400,22 @@ mod tests {
             ".a { color:var(  --color-br|and  , red); }",
             "--color-brand",
             Kind::Theme { runtime: true },
+        );
+        assert_context(
+            "@utility named { @stillwind-require-properties --ex|ample --next; }",
+            "--example",
+            Kind::DirectiveArgument {
+                directive: "stillwind-require-properties",
+                first: true,
+            },
+        );
+        assert_context(
+            "@stillwind-format --* compose-|space;",
+            "compose-space",
+            Kind::DirectiveArgument {
+                directive: "stillwind-format",
+                first: false,
+            },
         );
     }
 
