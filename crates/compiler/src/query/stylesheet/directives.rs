@@ -151,7 +151,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         family: Family::TailwindDerived,
         positions: Positions::RULES.union(Positions::STYLE),
         syntax: "@variant variant:sequence, alternative { ... }",
-        description: "Inside a style rule, applies each comma-separated variant sequence to a copy of the block. Outside a style rule, a block containing @slot defines a variant.",
+        description: "Inside a style rule, applies each comma-separated variant sequence to a separate copy of the block. Outside style rules, a block containing @slot is accepted as a legacy variant definition. Use @custom-variant for new variant definitions.",
     },
     Directive {
         name: "theme",
