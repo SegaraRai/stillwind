@@ -5,6 +5,57 @@ import { applyEdits } from "../editor/sort.ts";
 import { compilerOptions } from "./options.ts";
 import { StylesheetEditor } from "./stylesheet-editor.ts";
 
+test("CSS hovers and completion previews use default value comments and respect overrides", () => {
+  const loader = new NativeDesignSystemLoader({
+    rootFontSize: 20,
+  });
+  const text = `@theme { --spacing:.25rem; --color-brand:red; }
+@utility space { padding:calc(var(--spacing) * 4); color:var(--color-brand); }
+.a { @apply space; }`;
+  loader.provide(0, "theme.css", text);
+  const offset = text.lastIndexOf("space") + 2;
+  const editor = new StylesheetEditor("theme.css", text, [], loader.editorQuery());
+  const hover = editor.query("theme.css", {
+    kind: "hover",
+    offset,
+  })!.hover!.css;
+  expect(hover).toContain("padding: calc(var(--spacing) * 4) /* 1rem = 20px */;");
+  expect(hover).toContain("color: var(--color-brand) /* red = #ff0000 */;");
+  const item = editor
+    .query("theme.css", {
+      kind: "completion",
+      offset,
+    })!
+    .completions!.find((item) => item.label === "space")!;
+  expect(
+    editor.query("theme.css", {
+      kind: "resolve",
+      candidate: item.candidate,
+      input: item.input,
+      snapshot: item.snapshot,
+    })!.hover!.css,
+  ).toBe(hover);
+  const partial = new StylesheetEditor("theme.css", text, [], loader.editorQuery(), {
+    preview: { colorEquivalents: false },
+  }).query("theme.css", {
+    kind: "hover",
+    offset,
+  })!.hover!.css;
+  expect(partial).toContain("/* 1rem = 20px */");
+  expect(partial).not.toContain("#ff0000");
+  const plain = new StylesheetEditor("theme.css", text, [], loader.editorQuery(), {
+    preview: {
+      themeValues: false,
+      pixelEquivalents: false,
+      colorEquivalents: false,
+    },
+  }).query("theme.css", {
+    kind: "hover",
+    offset,
+  })!.hover!.css;
+  expect(plain).not.toContain("/*");
+});
+
 test("CSS variant snippets and selected details retain the completion settings", () => {
   const loader = new NativeDesignSystemLoader();
   loader.provide(

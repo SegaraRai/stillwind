@@ -20,8 +20,8 @@ export class StylesheetEditor {
   readonly #bytes: Uint8Array;
   /** Query pinned to the design system captured with this buffer. */
   readonly #query: NativeEditorQuery;
-  /** Formatting settings copied before any previews are requested. */
-  readonly #preview?: PreviewOptions;
+  /** Captured comment settings. Omitted fields use native preview defaults. */
+  readonly #preview: PreviewOptions;
   /** Fingerprint of source, design-system revision, and serialized configuration for completion resolution. */
   readonly #snapshot: string;
   /** Caches variant previews and completion summaries for this buffer's captured design system. */
@@ -54,7 +54,7 @@ export class StylesheetEditor {
     this.#bytes = new TextEncoder().encode(text);
     this.#query = query;
     this.#candidates = new CandidateQueries(query);
-    this.#preview = config.preview && { ...config.preview };
+    this.#preview = { ...config.preview };
     this.#snapshot = fingerprint(JSON.stringify([text, query.revision(), config]));
   }
 

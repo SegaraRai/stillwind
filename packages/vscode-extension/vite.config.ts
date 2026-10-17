@@ -131,7 +131,24 @@ export default defineConfig(({ mode }) => ({
   run: {
     tasks: {
       build: {
-        command: ["vp pack", "node build.ts"],
+        command: "node build.ts",
+        cache: {
+          input: [{ auto: true }, "!dist/**"],
+          output: [
+            "dist/extension/package.json",
+            "dist/extension/README.md",
+            "dist/extension/LICENSE",
+            "dist/extension/dist/node/package.json",
+            "dist/extension/dist/browser/server.js",
+            "dist/extension/dist/browser/stillwind_native.wasm32-wasi.wasm",
+            "dist/extension/dist/browser/rolldown-binding.wasm32-wasi.wasm",
+            "dist/extension/dist/browser/libraries.json",
+          ],
+        },
+        dependsOn: ["build:runtime"],
+      },
+      "build:runtime": {
+        command: "vp pack",
         cache: {
           input: [{ auto: true }, "!dist/**"],
           output: ["dist/api/**", "dist/extension/**"],
