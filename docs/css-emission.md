@@ -170,6 +170,23 @@ puts the `dark` media query around the `:hover` rule. Nested blocks expand insid
 rules of the enclosing sequences. A `@variant`
 statement without a block stays in the output unchanged.
 
+## Utility bodies
+
+A `@utility` body can contain nested rules, `@apply`, and `@keyframes`, as in Tailwind.
+
+Variants select the utility element, and the nested selector of the body applies
+inside them. `hover:child` with `@utility child { & > span { color: red; } }` selects
+`.x:hover > span`.
+
+`@apply` in a utility body expands after the utility's variants are applied. The
+applied declarations therefore stay in the rule of their nested selector and under
+the variants of the utility.
+
+`@keyframes` in a utility body moves to the `keyframes` slot when a used utility
+contains it. An unused utility contributes no keyframes, and equal definitions from
+several rules of a utility are emitted once. Conditions around a nested `@keyframes`
+are not kept.
+
 ## Utility definitions with the same name
 
 As in Tailwind, every definition of a utility name contributes: a project `@utility`
@@ -257,7 +274,13 @@ statement selects a Tailwind plugin, so `tailwindcss` is an optional peer depend
 of `@stillwind/host`.
 
 Callbacks run in the host, and the compiler receives ordinary `@utility` definitions.
-A static utility from `addUtilities` keeps its name. The CSS that a `matchUtilities`
+A static utility from `addUtilities` keeps its name. As in Tailwind, each selector
+registers every class that it contains outside attribute selectors and outside the
+arguments of `:not()`, `:nth-child()`, and `:nth-last-child()`: `.outer .inner`
+registers `outer` with `& .inner` and `inner` with `.outer &`. A top-level `@keyframes`
+of `addUtilities` and every `@property` rule are global CSS. A `@keyframes` inside a
+utility follows [Utility bodies](#utility-bodies). An empty at-rule object, such as `"@apply p-4": {}`,
+becomes the statement `@apply p-4;`. The CSS that a `matchUtilities`
 callback returns for one candidate becomes `@utility <candidate> (functional) { ... }`,
 which belongs to the functional utility of its root, so `duration-300` from
 `tailwindcss-animate` adds `animation-duration` to the built-in `transition-duration`.

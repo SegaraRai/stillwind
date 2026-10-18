@@ -10,13 +10,14 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::declaration_ranges;
+use stillwind_css::{declaration_ranges, extract_named_blocks, strip_blocks};
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::CssContribution;
+use super::super::stylesheet::expand_authored_directives;
 use super::declaration_order::{combine_declarations_for_theme, order_utilities};
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
@@ -44,14 +45,41 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
 ) -> Result<(), CompileDiagnostic> {
     let mut css = LeanString::new();
     emit_utility_css::<FLAGS>(&mut css, class_selector, utilities, theme, identifiers)?;
+    let mut required_properties = utilities
+        .iter()
+        .flat_map(|utility| utility.required_properties.clone())
+        .collect::<Vec<_>>();
+    // A utility body can apply other utilities, as a Tailwind plugin's `@apply p-4`
+    // does. The rendered rules anchor the applications, so variants of the utility
+    // also select the applied declarations.
+    if css.contains("@apply") {
+        css = expand_authored_directives(&css, theme, &mut required_properties, identifiers)?;
+    }
+    // A utility body can define the keyframes it animates, as `@utility` and Tailwind
+    // plugin utilities do. Browsers ignore `@keyframes` inside a style rule, so the
+    // rules move to the keyframes slot and are emitted only with a used utility.
+    let keyframes = if css.contains("@keyframes") {
+        let keyframes = extract_named_blocks(&css, "@keyframes")
+            .into_iter()
+            .map(|(header, body)| format_args!("@keyframes {header}{{{body}}}").to_lean_string())
+            .collect::<LeanString>();
+        css = strip_blocks(&css, "@keyframes");
+        keyframes
+    } else {
+        LeanString::new()
+    };
     contributions.push(CssContribution {
         css: (css).into(),
-        required_properties: utilities
-            .iter()
-            .flat_map(|utility| utility.required_properties.clone())
-            .collect(),
+        required_properties,
         keyframes: false,
     });
+    if !keyframes.is_empty() {
+        contributions.push(CssContribution {
+            css: keyframes.into(),
+            required_properties: Vec::new(),
+            keyframes: true,
+        });
+    }
     Ok(())
 }
 

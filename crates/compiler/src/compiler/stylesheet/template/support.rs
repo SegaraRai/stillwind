@@ -203,8 +203,13 @@ impl<'a> SupportSelection<'a> {
                 keyframes.append(&frames);
             }
         }
+        // Every rule of a utility that defines keyframes contributes them again, so
+        // equal definitions are emitted once.
+        let mut emitted = BTreeSet::new();
         for frames in &utility_css.keyframes {
-            keyframes.append(frames);
+            if emitted.insert(frames.css.as_str()) {
+                keyframes.append(frames);
+            }
         }
         Ok(SupportOutput {
             theme_variables,

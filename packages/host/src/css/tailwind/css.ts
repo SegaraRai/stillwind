@@ -28,6 +28,10 @@ export function serializeCss(input: unknown): string {
       output += `${key}{@slot;}`;
       continue;
     }
+    if (statement(key, value)) {
+      output += `${key};`;
+      continue;
+    }
     const values = Array.isArray(value) ? value : [value];
     for (const entry of values) {
       if (entry && typeof entry === "object") {
@@ -41,6 +45,24 @@ export function serializeCss(input: unknown): string {
     }
   }
   return output;
+}
+
+/**
+ * Whether an entry is an at-rule without a block, such as `{ "@apply p-4": {} }`, which
+ * Tailwind serializes as the statement `@apply p-4;`.
+ *
+ * @param key - Entry key.
+ * @param value - Entry value.
+ * @returns Whether the key is an at-rule and the value an empty object.
+ */
+function statement(key: string, value: unknown): boolean {
+  return (
+    key.startsWith("@") &&
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 0
+  );
 }
 
 /**
@@ -81,20 +103,24 @@ export function withAlpha(value: string, alpha: string): string {
   return percentage === "100%" ? value : `color-mix(in oklab, ${value} ${percentage}, transparent)`;
 }
 
+/** Class names that Tailwind's `addUtilities()` registers. */
+const IS_VALID_UTILITY_NAME = /^[a-z@][a-zA-Z0-9/%._-]*$/;
+
 /**
- * Finds the class that a plugin selector registers: the first class outside `:not()` and outside
- * attribute selectors, as Tailwind's `addUtilities()` does.
+ * Finds the classes that a plugin selector registers, as Tailwind's `addUtilities()` does: every
+ * class outside attribute selectors and outside the arguments of `:not()`, `:nth-child()`, and
+ * `:nth-last-child()`, whose classes are conditions rather than utilities. `.outer .inner`
+ * registers both `outer` and `inner`.
  *
  * @param selector - One complex selector without top-level commas.
- * @returns The decoded class name and the range of `.name`, or undefined without such a class.
+ * @returns The decoded class names with the range of each `.name`, in source order.
  */
-function anchorClass(selector: string):
-  | {
-      name: string;
-      start: number;
-      end: number;
-    }
-  | undefined {
+function utilityClasses(selector: string): { name: string; start: number; end: number }[] {
+  const classes: {
+    name: string;
+    start: number;
+    end: number;
+  }[] = [];
   const parentheses: boolean[] = [];
   let excluded = 0;
   let attribute = 0;
@@ -112,9 +138,9 @@ function anchorClass(selector: string):
     } else if (char === "]") {
       attribute--;
     } else if (char === "(") {
-      const not = /:not$/i.test(selector.slice(0, index));
-      parentheses.push(not);
-      excluded += not ? 1 : 0;
+      const condition = /:(?:not|nth-child|nth-last-child)$/i.test(selector.slice(0, index));
+      parentheses.push(condition);
+      excluded += condition ? 1 : 0;
     } else if (char === ")") {
       excluded -= parentheses.pop() ? 1 : 0;
     } else if (char === "." && !excluded && !attribute) {
@@ -126,23 +152,24 @@ function anchorClass(selector: string):
           const hex = /^[0-9a-f]{1,6}\s?/i.exec(selector.slice(end + 1));
           name += hex ? String.fromCodePoint(Number.parseInt(hex[0], 16)) : selector[end + 1];
           end += 1 + (hex ? hex[0].length : 1);
-        } else if (/[\w\u0080-\uffff-]/u.test(next)) {
+        } else if (/[\w\u0080-￿-]/u.test(next)) {
           name += next;
           end++;
         } else {
           break;
         }
       }
-      if (name) {
-        return {
+      if (IS_VALID_UTILITY_NAME.test(name)) {
+        classes.push({
           name,
           start: index,
           end,
-        };
+        });
       }
+      index = end - 1;
     }
   }
-  return undefined;
+  return classes;
 }
 
 /**
@@ -189,7 +216,9 @@ function substituteNesting(selector: string, parent: string): string | undefined
  * @param input - CSS-in-JS object keyed by selectors and at-rules, or an array of them.
  * @param register - Receives the anchor class of a selector and one body for it, once for each
  * selector of the body.
- * @param global - Receives `@keyframes` and `@property` rules, which apply outside utilities.
+ * @param global - Receives top-level `@keyframes` rules and every `@property` rule, which apply
+ * whether or not a utility is used. The compiler emits `@keyframes` nested in a utility body only
+ * with that utility, as Tailwind does.
  * @param wrappers - Enclosing at-rule preludes, outermost first.
  * @throws If a selector has no class outside `:not()` and attribute selectors.
  */
@@ -221,17 +250,20 @@ export function utilityRules(
       utilityRules(body, register, global, [...wrappers, selector]);
     } else {
       for (const branch of splitTopLevel(selector, ",").map((part) => part.trim())) {
-        const anchor = anchorClass(branch);
-        if (!anchor) {
+        const classes = utilityClasses(branch);
+        if (!classes.length) {
           throw new Error(`Tailwind plugin utility requires a class selector: ${selector}`);
         }
-        const relative = `${branch.slice(0, anchor.start)}&${branch.slice(anchor.end)}`;
-        for (const css of utilityBodies(
-          utilityGlobals(body, global, wrappers),
-          relative,
-          wrappers,
-        )) {
-          register(anchor.name, css);
+        // Each class becomes `&` in its own registration and stays literal in the others.
+        for (const anchor of classes) {
+          const relative = `${branch.slice(0, anchor.start)}&${branch.slice(anchor.end)}`;
+          for (const css of utilityBodies(
+            utilityProperties(body, global, wrappers),
+            relative,
+            wrappers,
+          )) {
+            register(anchor.name, css);
+          }
         }
       }
     }
@@ -239,8 +271,8 @@ export function utilityRules(
 }
 
 /**
- * Lifts `@keyframes` and `@property` rules out of a utility body before selector targets are
- * flattened.
+ * Lifts `@property` rules out of a utility body, because a registration inside a style rule
+ * has no effect.
  *
  * @param input - CSS-in-JS body, or an array of them.
  * @param global - Receives each lifted rule, wrapped in its enclosing conditions.
@@ -248,20 +280,20 @@ export function utilityRules(
  * @returns A copy of `input` without the lifted rules. Values other than objects are returned
  * unchanged.
  */
-export function utilityGlobals(
+export function utilityProperties(
   input: unknown,
   global: (css: string) => void,
   conditions: string[] = [],
 ): unknown {
   if (Array.isArray(input)) {
-    return input.map((entry) => utilityGlobals(entry, global, conditions));
+    return input.map((entry) => utilityProperties(entry, global, conditions));
   }
   if (!input || typeof input !== "object") {
     return input;
   }
   return Object.fromEntries(
     Object.entries(input).flatMap(([key, value]) => {
-      if (key.startsWith("@keyframes ") || key.startsWith("@property ")) {
+      if (key.startsWith("@property ")) {
         global(
           conditions.reduceRight(
             (body, condition) => `${condition}{${body}}`,
@@ -273,7 +305,7 @@ export function utilityGlobals(
       return [
         [
           key,
-          utilityGlobals(value, global, key.startsWith("@") ? [...conditions, key] : conditions),
+          utilityProperties(value, global, key.startsWith("@") ? [...conditions, key] : conditions),
         ],
       ];
     }),
@@ -288,7 +320,7 @@ export function utilityGlobals(
  * @param selector - Selector of the body relative to the utility class, `&` for the class itself.
  * @param conditions - Enclosing at-rule preludes, outermost first.
  * @returns Bodies in source order. Each one is either declarations, possibly inside
- * conditions, for `&`, or one rule for another selector.
+ * conditions, for `&`, one rule for another selector, or one `@keyframes` rule.
  */
 export function utilityBodies(input: unknown, selector = "&", conditions: string[] = []): string[] {
   if (Array.isArray(input)) {
@@ -312,10 +344,15 @@ export function utilityBodies(input: unknown, selector = "&", conditions: string
     if (
       value &&
       typeof value === "object" &&
+      !statement(key, value) &&
       (!Array.isArray(value) || value.some((entry) => entry && typeof entry === "object"))
     ) {
       flush();
-      if (key.startsWith("@")) {
+      if (key.startsWith("@keyframes ")) {
+        // The compiler moves keyframes to the stylesheet root, where conditions would not
+        // apply to them.
+        result.push(`${key}{${serializeCss(value)}}`);
+      } else if (key.startsWith("@")) {
         result.push(...utilityBodies(value, selector, [...conditions, key]));
       } else {
         // Each target keeps one selector, because a utility body holds one selector block.

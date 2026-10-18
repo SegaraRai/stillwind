@@ -14,7 +14,7 @@ import {
   serializeCss,
   splitTopLevel,
   utilityBodies,
-  utilityGlobals,
+  utilityProperties,
   utilityRules,
   withAlpha,
 } from "./css.ts";
@@ -608,7 +608,7 @@ function parseModifier(text: string): CandidatePart | undefined {
  *
  * @param candidate - Utility key, such as `-probe-[3px]/mirror`.
  * @param registration - Registration whose root, callback, and options apply.
- * @param global - Receives `@keyframes` and `@property` rules from the callback's result.
+ * @param global - Receives `@property` rules from the callback's result.
  * @returns The bodies of the callback's targets, undefined when the registration does not apply,
  * and null when an arbitrary value has an invalid modifier, which ends Tailwind's evaluation of
  * later definitions.
@@ -705,7 +705,7 @@ function resolveUtility(
     value = `calc(${String(value as string)} * -1)`;
   }
   return utilityBodies(
-    utilityGlobals(
+    utilityProperties(
       // Tailwind passes a value from `values` as it is, so a number stays a number.
       (
         callback as (

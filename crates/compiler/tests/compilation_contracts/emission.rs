@@ -312,3 +312,51 @@ fn explicit_registration_dependencies_survive_apply_and_do_not_leak_into_css() {
     );
     assert_ne!(missing.diagnostics, [] as [CompileError; 0]);
 }
+
+#[test]
+fn variants_select_the_utility_element_before_the_utility_selector() {
+    let (_, result) = compile(
+        "const x = style('hover:child');",
+        "@variant hover { &:hover { @slot; } } @utility child { & > span { color:red; } }",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.css.contains(":hover > span{color:red"),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
+fn utility_bodies_apply_other_utilities_under_their_variants() {
+    let (_, result) = compile(
+        "const x = style('hover:card');",
+        "@variant hover { &:hover { @slot; } } @utility pad { padding:4px; } \
+         @utility card { color:red; & > span { @apply pad; } }",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.css.contains(":hover > span{padding:4px"),
+        "{}",
+        result.css
+    );
+    assert!(!result.css.contains("@apply"), "{}", result.css);
+}
+
+#[test]
+fn utility_keyframes_are_emitted_once_at_the_root_only_for_used_utilities() {
+    let css = "@stillwind-slot keyframes; @variant hover { &:hover { @slot; } } \
+               @utility spin { animation:turn 1s; @keyframes turn { to { rotate:1turn; } } } \
+               @utility block { display:block; }";
+    let (_, used) = compile("const x = style('spin hover:spin');", css);
+    assert!(used.diagnostics.is_empty(), "{:?}", used.diagnostics);
+    assert_eq!(
+        used.css.matches("@keyframes turn").count(),
+        1,
+        "{}",
+        used.css
+    );
+    assert!(used.css.starts_with("@keyframes turn"), "{}", used.css);
+    let (_, unused) = compile("const x = style('block');", css);
+    assert!(!unused.css.contains("@keyframes"), "{}", unused.css);
+}

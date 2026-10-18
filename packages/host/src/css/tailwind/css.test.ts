@@ -13,7 +13,7 @@ function rules(input: unknown): [string, string][] {
   return registered;
 }
 
-test("plugin selectors register their first class outside :not() and attribute selectors", () => {
+test("plugin selectors register every class outside conditions and attribute selectors", () => {
   expect(
     rules({
       ".form-input, .form-select:not(.ghost)": {
@@ -22,12 +22,77 @@ test("plugin selectors register their first class outside :not() and attribute s
       "[data-x='.no'] .w-1\\/2": {
         width: "50%",
       },
+      ".outer .inner": {
+        color: "blue",
+      },
+      "li:nth-child(2 of .selected) .item:nth-last-child(1 of .last)": {
+        color: "green",
+      },
     }),
   ).toEqual([
     ["form-input", "color:red;"],
     ["form-select", "&:not(.ghost){color:red;}"],
     ["w-1/2", "[data-x='.no'] &{width:50%;}"],
+    ["outer", "& .inner{color:blue;}"],
+    ["inner", ".outer &{color:blue;}"],
+    ["item", "li:nth-child(2 of .selected) &:nth-last-child(1 of .last){color:green;}"],
   ]);
+  expect(() =>
+    rules({
+      ".item, .Upper": {
+        color: "red",
+      },
+    }),
+  ).toThrow("requires a class selector");
+});
+
+test("keyframes stay in the utility body, and top-level keyframes and properties are global", () => {
+  const globals: string[] = [];
+  const registered: [string, string][] = [];
+  utilityRules(
+    {
+      ".spin": {
+        animation: "turn 1s",
+        "@media (min-width: 1px)": {
+          "@keyframes turn": {
+            to: {
+              rotate: "1turn",
+            },
+          },
+          "@property --turn": {
+            syntax: '"*"',
+            inherits: "false",
+          },
+        },
+      },
+      "@keyframes shared": {
+        to: {
+          opacity: "1",
+        },
+      },
+    },
+    (name, body) => registered.push([name, body]),
+    (css) => globals.push(css),
+  );
+  expect(registered).toEqual([
+    ["spin", "animation:turn 1s;"],
+    ["spin", "@keyframes turn{to{rotate:1turn;}}"],
+  ]);
+  expect(globals).toEqual([
+    '@media (min-width: 1px){@property --turn{syntax:"*";inherits:false;}}',
+    "@keyframes shared{to{opacity:1;}}",
+  ]);
+});
+
+test("empty at-rule objects become statements", () => {
+  expect(
+    rules({
+      ".card": {
+        "@apply p-4": {},
+        color: "red",
+      },
+    }),
+  ).toEqual([["card", "@apply p-4;color:red;"]]);
 });
 
 test("nested selector objects become one target per selector", () => {

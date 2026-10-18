@@ -122,10 +122,12 @@ pub(in crate::compiler) fn render_utility_rule_path(
 
 /// Applies the steps of one path to the selector and declaration body.
 ///
-/// Selector steps rewrite the selector in place, so the reference element's variants
-/// stay attached to the reference and the surrounding variants to the target.
-/// Declarations a variant contributes are only prepended when the body does not already
-/// set that property.
+/// Selector steps rewrite the utility element's selector in place, so the reference
+/// element's variants stay attached to the reference and the surrounding variants to
+/// the target. The utility's own selector, such as `& > span`, is applied last, as the
+/// innermost nesting level: `hover:` on that utility selects `.x:hover > span`, as in
+/// Tailwind, rather than `.x > span:hover`. Declarations a variant contributes are only
+/// prepended when the body does not already set that property.
 ///
 /// In [`VariantContext::Document`], the rule starts from the element that
 /// [`document_rule_target`] finds instead of `class_selector`, and the step that
@@ -143,10 +145,7 @@ fn render_utility_steps(
     let Some((start, target)) = rule_start(class_selector, utility, applications) else {
         return Ok(LeanString::new());
     };
-    let mut selector = utility.selector.as_deref().map_or_else(
-        || start.clone(),
-        |selector| instantiate_selector(selector, &start),
-    );
+    let mut selector = start;
     let mut media = Vec::new();
     let mut containers = Vec::new();
     let mut supports = Vec::new();
@@ -205,6 +204,9 @@ fn render_utility_steps(
                 starting_style = true;
             }
         }
+    }
+    if let Some(template) = utility.selector.as_deref() {
+        selector = instantiate_selector(template, &selector);
     }
     let conditional = !conditions.is_empty();
     // Every conditional guards the body the previous one produced, and the gate declarations a

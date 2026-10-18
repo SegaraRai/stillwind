@@ -30,5 +30,7 @@ pub(crate) use authored_directives::{
 pub(crate) use render::{render_module_stylesheet, render_stylesheet};
 pub(crate) use template::{render_css_template, render_mapped};
 
+pub(super) use authored_directives::expand_authored_directives;
+
 #[cfg(test)]
 pub(super) use authored_directives::render_authored_variant_path;

@@ -143,27 +143,179 @@ test("editor catalogs resolve selected script and CSS candidates lazily without 
   }
 });
 
-test("plugin selectors keep sibling rules and lift nested keyframes", async () => {
+test("plugin selectors keep sibling rules and register every class", async () => {
   const loaded = await graph(
     '@plugin "test"; @stillwind-slot utilities;',
     plugin((api) =>
       api.addUtilities({
         ".probe": {
           color: "red",
-          "&:hover": { color: "blue" },
-          "&:focus": { color: "green" },
-          "@keyframes pulse": { from: { opacity: "0" }, to: { opacity: "1" } },
+          "&:hover": {
+            color: "blue",
+          },
+          "&:focus": {
+            color: "green",
+          },
+        },
+        ".outer .inner": {
+          color: "pink",
         },
       }),
     ),
   );
-  const css = loaded.loader.editorQuery().previewCandidate("probe");
+  const query = loaded.loader.editorQuery();
+  const css = query.previewCandidate("probe");
   expect(css).toContain("color:red");
   expect(css).toContain("&:hover");
   expect(css).toContain("&:focus");
-  expect(new NativeProjectSession(loaded.loader, false).baseCss().css).toContain(
-    "@keyframes pulse",
+  expect(query.previewCandidate("outer")).toBe("& .inner{color:pink;}");
+  expect(query.previewCandidate("inner")).toBe(".outer &{color:pink;}");
+});
+
+/**
+ * Creates a project whose entry module uses `candidates` with the plugin `extension`.
+ * @param extension - Plugin that the stylesheet loads.
+ * @param candidates - Space-separated candidates for one `style()` call.
+ * @param stylesheet - CSS that precedes the plugin in the stylesheet.
+ * @returns The project and its entry module source.
+ */
+function pluginProject(extension: LoadedPlugin, candidates: string, stylesheet = "") {
+  const source = `import { style } from "stillwind/react"; export const props = style(${JSON.stringify(candidates)});`;
+  return {
+    source,
+    project: new BrowserProject({
+      root: "/workspace",
+      files: new Map([
+        ["/workspace/theme.css", `${stylesheet}@plugin "test"; @stillwind-slot utilities;`],
+        ["/workspace/entry.tsx", source],
+      ]),
+      config: {
+        css: "theme.css",
+        files: ["*.tsx"],
+        typeFacts: false,
+      },
+      plugins: {
+        load: async () => extension,
+        resolve: async () => undefined,
+        read: async () => expect.fail("unexpected read"),
+      },
+    }),
+  };
+}
+
+test("variants apply before plugin selectors, and plugin bodies expand @apply", async () => {
+  const extension = plugin((api) => {
+    api.addUtilities({
+      ".probe": {
+        "& > span": {
+          color: "red",
+          "@apply pad": {},
+        },
+      },
+    });
+    api.matchUtilities(
+      {
+        child: (value) => ({
+          "& > span": {
+            color: value,
+            "@apply gap": {},
+          },
+        }),
+      },
+      {
+        values: {
+          blue: "blue",
+        },
+      },
+    );
+  });
+  const { project } = pluginProject(
+    extension,
+    "focus:probe hover:child-blue",
+    "@utility pad { padding: 4px; } @utility gap { margin: 2px; } @custom-variant focus (&:focus); @custom-variant hover (&:hover);",
   );
+  try {
+    const result = await project.analyze("/workspace/entry.tsx");
+    expect(result.batches.flatMap((batch) => batch.reports)).toEqual([]);
+    const css = project.css().css;
+    expect(css).toMatch(/:focus > span\{[^}]*color:red/);
+    expect(css).toMatch(/:hover > span\{[^}]*color:blue/);
+    expect(css).toMatch(/:focus > span\{[^}]*padding: ?4px/);
+    expect(css).toMatch(/:hover > span\{[^}]*margin: ?2px/);
+  } finally {
+    await project.close();
+  }
+});
+
+test("utility keyframes appear only with their utility, and top-level keyframes stay global", async () => {
+  const extension = plugin((api) => {
+    api.addUtilities({
+      ".spin": {
+        animation: "turn 1s",
+        "@keyframes turn": {
+          to: {
+            rotate: "1turn",
+          },
+        },
+      },
+      "@keyframes shared": {
+        to: {
+          opacity: "1",
+        },
+      },
+    });
+    api.matchUtilities(
+      {
+        fade: (value) => ({
+          animation: `${value} 1s`,
+          [`@keyframes ${value}`]: {
+            to: {
+              opacity: value === "fade-half" ? "0.5" : "1",
+            },
+          },
+        }),
+      },
+      {
+        values: {
+          half: "fade-half",
+          full: "fade-full",
+        },
+      },
+    );
+  });
+  const stylesheet = "@stillwind-slot keyframes;";
+  const { project, source } = pluginProject(extension, "fade-", stylesheet);
+  try {
+    const completion = await project.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: source.indexOf("fade-") + 5,
+    });
+    const item = completion!.completions!.find((item) => item.candidate === "fade-half")!;
+    const resolved = await project.query("/workspace/entry.tsx", {
+      kind: "resolve",
+      candidate: item.candidate,
+      input: item.input,
+      snapshot: item.snapshot,
+    });
+    expect(resolved?.hover?.css).toContain("fade-half");
+    const unused = project.css().css;
+    expect(unused).toContain("@keyframes shared");
+    expect(unused).not.toContain("@keyframes turn");
+    expect(unused).not.toContain("@keyframes fade-half");
+  } finally {
+    await project.close();
+  }
+  const used = pluginProject(extension, "spin fade-full", stylesheet);
+  try {
+    await used.project.analyze("/workspace/entry.tsx");
+    const css = used.project.css().css;
+    expect(css).toContain("@keyframes shared");
+    expect(css).toContain("@keyframes turn");
+    expect(css).toContain("@keyframes fade-full");
+    expect(css).not.toContain("@keyframes fade-half");
+  } finally {
+    await used.project.close();
+  }
 });
 
 test("dynamic variant ordering and explicit type hints follow v4 callback contracts", async () => {
