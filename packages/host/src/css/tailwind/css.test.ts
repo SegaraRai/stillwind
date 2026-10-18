@@ -46,7 +46,7 @@ test("plugin selectors register every class outside conditions and attribute sel
   ).toThrow("requires a class selector");
 });
 
-test("keyframes stay in the utility body, and top-level keyframes and properties are global", () => {
+test("nested keyframes and properties stay in the utility body with their conditions", () => {
   const globals: string[] = [];
   const registered: [string, string][] = [];
   utilityRules(
@@ -70,17 +70,22 @@ test("keyframes stay in the utility body, and top-level keyframes and properties
           opacity: "1",
         },
       },
+      "@property --shared": {
+        syntax: '"*"',
+        inherits: "false",
+      },
     },
     (name, body) => registered.push([name, body]),
     (css) => globals.push(css),
   );
   expect(registered).toEqual([
     ["spin", "animation:turn 1s;"],
-    ["spin", "@keyframes turn{to{rotate:1turn;}}"],
+    ["spin", "@media (min-width: 1px){@keyframes turn{to{rotate:1turn;}}}"],
+    ["spin", '@media (min-width: 1px){@property --turn{syntax:"*";inherits:false;}}'],
   ]);
   expect(globals).toEqual([
-    '@media (min-width: 1px){@property --turn{syntax:"*";inherits:false;}}',
     "@keyframes shared{to{opacity:1;}}",
+    '@property --shared{syntax:"*";inherits:false;}',
   ]);
 });
 

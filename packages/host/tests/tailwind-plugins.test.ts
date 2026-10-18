@@ -297,14 +297,26 @@ test("utility keyframes appear only with their utility, and top-level keyframes 
     });
     api.matchUtilities(
       {
-        fade: (value) => ({
-          animation: `${value} 1s`,
-          [`@keyframes ${value}`]: {
-            to: {
-              opacity: value === "fade-half" ? "0.5" : "1",
-            },
-          },
-        }),
+        fade: (value) =>
+          Object.fromEntries([
+            ["animation", `${value} 1s`],
+            [`--${value}`, "0"],
+            [
+              `@keyframes ${value}`,
+              {
+                to: {
+                  opacity: value === "fade-half" ? "0.5" : "1",
+                },
+              },
+            ],
+            [
+              `@property --${value}`,
+              {
+                syntax: '"*"',
+                inherits: "false",
+              },
+            ],
+          ]),
       },
       {
         values: {
@@ -333,6 +345,7 @@ test("utility keyframes appear only with their utility, and top-level keyframes 
     expect(unused).toContain("@keyframes shared");
     expect(unused).not.toContain("@keyframes turn");
     expect(unused).not.toContain("@keyframes fade-half");
+    expect(unused).not.toContain("@property --fade-half");
   } finally {
     await project.close();
   }
@@ -343,7 +356,9 @@ test("utility keyframes appear only with their utility, and top-level keyframes 
     expect(css).toContain("@keyframes shared");
     expect(css).toContain("@keyframes turn");
     expect(css).toContain("@keyframes fade-full");
+    expect(css).toContain("@property --fade-full");
     expect(css).not.toContain("@keyframes fade-half");
+    expect(css).not.toContain("@property --fade-half");
   } finally {
     await used.project.close();
   }

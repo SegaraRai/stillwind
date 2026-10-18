@@ -216,9 +216,9 @@ function substituteNesting(selector: string, parent: string): string | undefined
  * @param input - CSS-in-JS object keyed by selectors and at-rules, or an array of them.
  * @param register - Receives the anchor class of a selector and one body for it, once for each
  * selector of the body.
- * @param global - Receives top-level `@keyframes` rules and every `@property` rule, which apply
- * whether or not a utility is used. The compiler emits `@keyframes` nested in a utility body only
- * with that utility, as Tailwind does.
+ * @param global - Receives top-level `@keyframes` and `@property` rules, which apply whether or
+ * not a utility is used. The compiler emits such rules nested in a utility body only with that
+ * utility.
  * @param wrappers - Enclosing at-rule preludes, outermost first.
  * @throws If a selector has no class outside `:not()` and attribute selectors.
  */
@@ -257,59 +257,13 @@ export function utilityRules(
         // Each class becomes `&` in its own registration and stays literal in the others.
         for (const anchor of classes) {
           const relative = `${branch.slice(0, anchor.start)}&${branch.slice(anchor.end)}`;
-          for (const css of utilityBodies(
-            utilityProperties(body, global, wrappers),
-            relative,
-            wrappers,
-          )) {
+          for (const css of utilityBodies(body, relative, wrappers)) {
             register(anchor.name, css);
           }
         }
       }
     }
   }
-}
-
-/**
- * Lifts `@property` rules out of a utility body, because a registration inside a style rule
- * has no effect.
- *
- * @param input - CSS-in-JS body, or an array of them.
- * @param global - Receives each lifted rule, wrapped in its enclosing conditions.
- * @param conditions - Enclosing at-rule preludes, outermost first.
- * @returns A copy of `input` without the lifted rules. Values other than objects are returned
- * unchanged.
- */
-export function utilityProperties(
-  input: unknown,
-  global: (css: string) => void,
-  conditions: string[] = [],
-): unknown {
-  if (Array.isArray(input)) {
-    return input.map((entry) => utilityProperties(entry, global, conditions));
-  }
-  if (!input || typeof input !== "object") {
-    return input;
-  }
-  return Object.fromEntries(
-    Object.entries(input).flatMap(([key, value]) => {
-      if (key.startsWith("@property ")) {
-        global(
-          conditions.reduceRight(
-            (body, condition) => `${condition}{${body}}`,
-            `${key}{${serializeCss(value)}}`,
-          ),
-        );
-        return [];
-      }
-      return [
-        [
-          key,
-          utilityProperties(value, global, key.startsWith("@") ? [...conditions, key] : conditions),
-        ],
-      ];
-    }),
-  );
 }
 
 /**
@@ -320,7 +274,8 @@ export function utilityProperties(
  * @param selector - Selector of the body relative to the utility class, `&` for the class itself.
  * @param conditions - Enclosing at-rule preludes, outermost first.
  * @returns Bodies in source order. Each one is either declarations, possibly inside
- * conditions, for `&`, one rule for another selector, or one `@keyframes` rule.
+ * conditions, for `&`, one rule for another selector, or one `@keyframes` or `@property` rule
+ * inside its conditions.
  */
 export function utilityBodies(input: unknown, selector = "&", conditions: string[] = []): string[] {
   if (Array.isArray(input)) {
@@ -348,10 +303,13 @@ export function utilityBodies(input: unknown, selector = "&", conditions: string
       (!Array.isArray(value) || value.some((entry) => entry && typeof entry === "object"))
     ) {
       flush();
-      if (key.startsWith("@keyframes ")) {
-        // The compiler moves keyframes to the stylesheet root, where conditions would not
-        // apply to them.
-        result.push(`${key}{${serializeCss(value)}}`);
+      if (key.startsWith("@keyframes ") || key.startsWith("@property ")) {
+        result.push(
+          conditions.reduceRight(
+            (body, condition) => `${condition}{${body}}`,
+            `${key}{${serializeCss(value)}}`,
+          ),
+        );
       } else if (key.startsWith("@")) {
         result.push(...utilityBodies(value, selector, [...conditions, key]));
       } else {

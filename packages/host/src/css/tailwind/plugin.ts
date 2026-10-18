@@ -15,7 +15,6 @@ import {
   serializeCss,
   splitTopLevel,
   utilityBodies,
-  utilityProperties,
   utilityRules,
   withAlpha,
 } from "./css.ts";
@@ -408,15 +407,7 @@ export class TailwindRuntime {
         }
       } else {
         for (const registration of this.#dynamicUtilities) {
-          registration.results.set(
-            candidate,
-            resolveUtility(candidate, registration, (css) =>
-              this.#globals.push({
-                owner: registration.owner,
-                css,
-              }),
-            ),
-          );
+          registration.results.set(candidate, resolveUtility(candidate, registration));
         }
       }
     }
@@ -680,7 +671,6 @@ function parseModifier(text: string): CandidatePart | undefined {
  *
  * @param candidate - Utility key, such as `-probe-[3px]/mirror`.
  * @param registration - Registration whose root, callback, and options apply.
- * @param global - Receives `@property` rules from the callback's result.
  * @returns The bodies of the callback's targets, undefined when the registration does not apply,
  * and null when an arbitrary value has an invalid modifier, which ends Tailwind's evaluation of
  * later definitions.
@@ -688,7 +678,6 @@ function parseModifier(text: string): CandidatePart | undefined {
 function resolveUtility(
   candidate: string,
   { name, callback, options }: DynamicUtility,
-  global: (css: string) => void,
 ): string[] | null | undefined {
   const negative = candidate.startsWith("-");
   const raw = negative ? candidate.slice(1) : candidate;
@@ -777,20 +766,17 @@ function resolveUtility(
     value = `calc(${String(value as string)} * -1)`;
   }
   return utilityBodies(
-    utilityProperties(
-      // Tailwind passes a value from `values` as it is, so a number stays a number.
-      (
-        callback as (
-          value: unknown,
-          extra: {
-            modifier: string | null;
-          },
-        ) => unknown
-      )(value, {
-        modifier,
-      }),
-      global,
-    ),
+    // Tailwind passes a value from `values` as it is, so a number stays a number.
+    (
+      callback as (
+        value: unknown,
+        extra: {
+          modifier: string | null;
+        },
+      ) => unknown
+    )(value, {
+      modifier,
+    }),
   );
 }
 

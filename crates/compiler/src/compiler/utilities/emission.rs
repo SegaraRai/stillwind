@@ -8,10 +8,12 @@
 //! same rule are inserted after the property they override, so a nested at-rule cannot
 //! win by appearing before the value it is meant to replace.
 
+use std::ops::Range;
+
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
-    declaration_ranges, extract_named_blocks, important_declarations, strip_blocks,
+    CssNode, CssNodeKind, declaration_ranges, important_declarations, parse_structure,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, UtilityImportance,
@@ -65,16 +67,14 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
     if css.contains("@apply") {
         css = expand_authored_directives(&css, theme, &mut required_properties, identifiers)?;
     }
-    // A utility body can define the keyframes it animates, as `@utility` and Tailwind
-    // plugin utilities do. Browsers ignore `@keyframes` inside a style rule, so the
-    // rules move to the keyframes slot and are emitted only with a used utility.
-    let keyframes = if css.contains("@keyframes") {
-        let keyframes = extract_named_blocks(&css, "@keyframes")
-            .into_iter()
-            .map(|(header, body)| format_args!("@keyframes {header}{{{body}}}").to_lean_string())
-            .collect::<LeanString>();
-        css = strip_blocks(&css, "@keyframes");
-        keyframes
+    // A utility body can define the keyframes and custom properties it uses, as
+    // `@utility` and Tailwind plugin utilities do. Browsers ignore these rules inside a
+    // style rule, so they move to the keyframes slot and are emitted only with a used
+    // utility.
+    let keyframes = if css.contains("@keyframes") || css.contains("@property") {
+        let (remaining, definitions) = hoist_definitions(&css);
+        css = remaining;
+        definitions
     } else {
         LeanString::new()
     };
@@ -91,6 +91,94 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
         });
     }
     Ok(())
+}
+
+/// Moves the `@keyframes` and `@property` rules of rendered utility CSS out of their
+/// style rules.
+///
+/// Each moved rule keeps its enclosing at-rules, such as `@media`, and loses its
+/// enclosing style rules. A rule or at-rule whose block contained only moved rules is
+/// removed with them. Returns the remaining CSS and the moved rules in source order.
+fn hoist_definitions(css: &str) -> (LeanString, LeanString) {
+    /// Collects the ranges to remove from `nodes` and the moved rules, and returns
+    /// whether every node is removed.
+    fn visit(
+        css: &str,
+        nodes: &[CssNode],
+        conditions: &mut Vec<LeanString>,
+        removed: &mut Vec<Range<usize>>,
+        definitions: &mut LeanString,
+    ) -> bool {
+        let mut all = !nodes.is_empty();
+        for node in nodes {
+            let gone =
+                match &node.kind {
+                    CssNodeKind::AtRule { name, .. }
+                        if matches!(name.as_str(), "keyframes" | "property") =>
+                    {
+                        let rule = &css[node.range.clone()];
+                        definitions.push_str(&conditions.iter().rev().fold(
+                            rule.to_lean_string(),
+                            |body, condition| {
+                                format_args!("{condition}{{{body}}}").to_lean_string()
+                            },
+                        ));
+                        true
+                    }
+                    CssNodeKind::AtRule {
+                        name,
+                        prelude,
+                        block: Some(block),
+                    } => {
+                        let prelude = &css[prelude.clone()];
+                        conditions.push(if prelude.is_empty() {
+                            format_args!("@{name}").to_lean_string()
+                        } else {
+                            format_args!("@{name} {prelude}").to_lean_string()
+                        });
+                        let start = removed.len();
+                        let gone = visit(css, &block.children, conditions, removed, definitions);
+                        conditions.pop();
+                        if gone {
+                            removed.truncate(start);
+                        }
+                        gone
+                    }
+                    CssNodeKind::StyleRule { block, .. } => {
+                        let start = removed.len();
+                        let gone = visit(css, &block.children, conditions, removed, definitions);
+                        if gone {
+                            removed.truncate(start);
+                        }
+                        gone
+                    }
+                    _ => false,
+                };
+            if gone {
+                removed.push(node.range.clone());
+            }
+            all &= gone;
+        }
+        all
+    }
+    let mut removed = Vec::new();
+    let mut definitions = LeanString::new();
+    visit(
+        css,
+        &parse_structure(css),
+        &mut Vec::new(),
+        &mut removed,
+        &mut definitions,
+    );
+    removed.sort_by_key(|range| range.start);
+    let mut remaining = LeanString::new();
+    let mut cursor = 0;
+    for range in removed {
+        remaining.push_str(&css[cursor..range.start]);
+        cursor = range.end;
+    }
+    remaining.push_str(&css[cursor..]);
+    (remaining, definitions)
 }
 
 /// Returns a copy of `utility` whose declarations, including those in conditional

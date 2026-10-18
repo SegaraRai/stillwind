@@ -172,7 +172,8 @@ statement without a block stays in the output unchanged.
 
 ## Utility bodies
 
-A `@utility` body can contain nested rules, `@apply`, and `@keyframes`, as in Tailwind.
+A `@utility` body can contain nested rules, `@apply`, `@keyframes`, and `@property`, as in
+Tailwind.
 
 Variants select the utility element, and the nested selector of the body applies
 inside them. `hover:child` with `@utility child { & > span { color: red; } }` selects
@@ -182,10 +183,11 @@ inside them. `hover:child` with `@utility child { & > span { color: red; } }` se
 applied declarations therefore stay in the rule of their nested selector and under
 the variants of the utility.
 
-`@keyframes` in a utility body moves to the `keyframes` slot when a used utility
-contains it. An unused utility contributes no keyframes, and equal definitions from
-several rules of a utility are emitted once. Conditions around a nested `@keyframes`
-are not kept.
+`@keyframes` and `@property` rules in a utility body move to the `keyframes` slot when a
+used utility contains them, because browsers ignore them inside a style rule. A moved
+rule keeps its enclosing at-rules, such as `@media`, and loses its enclosing style rules.
+An unused utility contributes no such rules, and equal rules from several rules of a
+utility are emitted once.
 
 ## Utility definitions with the same name
 
@@ -278,8 +280,8 @@ A static utility from `addUtilities` keeps its name. As in Tailwind, each select
 registers every class that it contains outside attribute selectors and outside the
 arguments of `:not()`, `:nth-child()`, and `:nth-last-child()`: `.outer .inner`
 registers `outer` with `& .inner` and `inner` with `.outer &`. A top-level `@keyframes`
-of `addUtilities` and every `@property` rule are global CSS. A `@keyframes` inside a
-utility follows [Utility bodies](#utility-bodies). An empty at-rule object, such as `"@apply p-4": {}`,
+or `@property` rule of `addUtilities` is global CSS. Such a rule inside a utility, including
+one that a `matchUtilities` callback returns, follows [Utility bodies](#utility-bodies). An empty at-rule object, such as `"@apply p-4": {}`,
 becomes the statement `@apply p-4;`. The CSS that a `matchUtilities`
 callback returns for one candidate becomes `@utility <candidate> (functional) { ... }`,
 which belongs to the functional utility of its root, so `duration-300` from

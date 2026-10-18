@@ -344,9 +344,11 @@ fn utility_bodies_apply_other_utilities_under_their_variants() {
 }
 
 #[test]
-fn utility_keyframes_are_emitted_once_at_the_root_only_for_used_utilities() {
+fn utility_keyframes_and_properties_move_to_the_root_only_for_used_utilities() {
     let css = "@stillwind-slot keyframes; @variant hover { &:hover { @slot; } } \
-               @utility spin { animation:turn 1s; @keyframes turn { to { rotate:1turn; } } } \
+               @utility spin { animation:turn 1s; --angle:0deg; \
+               @media print { @keyframes turn { to { rotate:1turn; } } } \
+               @property --angle { syntax:\"<angle>\"; inherits:false; initial-value:0deg; } } \
                @utility block { display:block; }";
     let (_, used) = compile("const x = style('spin hover:spin');", css);
     assert!(used.diagnostics.is_empty(), "{:?}", used.diagnostics);
@@ -356,9 +358,23 @@ fn utility_keyframes_are_emitted_once_at_the_root_only_for_used_utilities() {
         "{}",
         used.css
     );
-    assert!(used.css.starts_with("@keyframes turn"), "{}", used.css);
+    assert_eq!(
+        used.css.matches("@property --angle").count(),
+        1,
+        "{}",
+        used.css
+    );
+    assert!(
+        used.css.contains("@media print{@keyframes turn"),
+        "{}",
+        used.css
+    );
+    let rules = &used.css[used.css.find(".sw_").unwrap()..];
+    assert!(!rules.contains("@media"), "{}", used.css);
+    assert!(!rules.contains("@property"), "{}", used.css);
     let (_, unused) = compile("const x = style('block');", css);
     assert!(!unused.css.contains("@keyframes"), "{}", unused.css);
+    assert!(!unused.css.contains("@property"), "{}", unused.css);
 }
 
 #[test]
