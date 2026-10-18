@@ -195,10 +195,10 @@ container { padding-inline: 1rem; }` keeps the built-in `width` and `max-width`
 declarations and adds `padding-inline`. The definitions are evaluated in Tailwind's
 registration order, built-ins first, then plugin registrations, then the stylesheet's
 `@utility` definitions, and each one that resolves is emitted in that order, so a later
-definition wins in the cascade. Tailwind registers every plugin before the stylesheet's
-`@utility` rules. Stillwind evaluates the `(functional)` definitions of a Tailwind plugin
-there too, but a plugin's static utilities keep the position of its `@plugin` statement
-among the stylesheet's definitions.
+definition wins in the cascade. As in Tailwind, the definitions that `@plugin` statements
+generate are plugin registrations wherever the statements appear, so
+`@utility probe { color: blue; }` overrides a plugin's `probe` before or after its
+`@plugin` statement.
 Within the built-ins, and within the stylesheet's definitions, matching definitions are
 typed branches of one utility, and a candidate selects the branches that accept its
 value.
@@ -289,7 +289,8 @@ include `any` and another type becomes `(functional, fallback)`, which applies o
 no other definition resolves. When a typed callback rejects an arbitrary value because
 of an invalid modifier, `(functional, stop)` ends the evaluation of the definitions that
 Tailwind registers later. The output of each `@plugin` statement stays at the
-statement's position.
+statement's position, and [CSS ordering](css-ordering.md#l1---declaration-order-inside-one-rule)
+places its utilities before the other utilities.
 
 Plugin theme configuration supports functions and `extend`, and `theme()` reads the CSS
 theme with the same key mapping as Tailwind, such as `colors` to `--color-*` and

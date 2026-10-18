@@ -218,7 +218,11 @@ fn resolve_candidate(
                     tokens: tokens.into_iter().collect(),
                 });
             }
-            resolution.builtin_order = Some(arbitrary_property_order(property, theme));
+            resolution.builtin_order = Some(match theme.utility_order() {
+                UtilityOrderMode::Authored => arbitrary_property_order(property, theme)
+                    .saturating_add(theme.utility_position_base()),
+                UtilityOrderMode::Tailwind => arbitrary_property_order(property, theme),
+            });
             if property_rejects(property, value) {
                 resolution.diagnostic_data.invalid_value =
                     resolution.diagnostic_data.arbitrary_uses.first().cloned();

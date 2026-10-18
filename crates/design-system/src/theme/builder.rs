@@ -18,9 +18,13 @@ pub(crate) struct ThemeBuilder {
     /// First declaration offsets after imports are expanded, shared by user and
     /// built-in variants.
     pub(crate) variant_positions: BTreeMap<LeanStr, usize>,
-    /// First declaration offsets after imports are expanded, shared by user and
-    /// built-in utilities.
+    /// Authored positions of utility names, shared by user and built-in utilities: the
+    /// first declaration offset after imports are expanded. The offset of a name that
+    /// no plugin defines is increased by `utility_position_base`.
     pub(crate) utility_positions: BTreeMap<LeanStr, usize>,
+    /// Added to the authored positions of utilities that no plugin defines, so plugin
+    /// utilities precede them. Zero when no plugin defines a utility.
+    pub(crate) utility_position_base: usize,
     /// Structured output positions from the authored entry CSS.
     pub(crate) output_template: CssOutputTemplate,
     /// Named `style.css()` output templates; the last definition of each name.

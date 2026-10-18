@@ -28,13 +28,25 @@ async function graph(css: string, extension: LoadedPlugin, previous?: PluginRunt
     },
     undefined,
     undefined,
-    { root, previous },
+    {
+      root,
+      previous,
+    },
   );
 }
 
 test("theme edits re-evaluate previously requested plugin candidates", async () => {
   const extension = plugin((api) =>
-    api.matchUtilities({ ink: (value) => ({ "--ink": value }) }, { values: api.theme("colors") }),
+    api.matchUtilities(
+      {
+        ink: (value) => ({
+          "--ink": value,
+        }),
+      },
+      {
+        values: api.theme("colors"),
+      },
+    ),
   );
   const first = await graph('@plugin "test"; @theme { --color-brand: #123456; }', extension);
   expect((await first.plugins!.query("ink-brand")).previewCandidate("ink-brand")).toContain(
@@ -86,12 +98,23 @@ test("editor catalogs resolve selected script and CSS candidates lazily without 
       {
         probe: (value) => {
           calls.push(value);
-          return { width: value };
+          return {
+            width: value,
+          };
         },
       },
-      { values: { four: "4px", eight: "8px" } },
+      {
+        values: {
+          four: "4px",
+          eight: "8px",
+        },
+      },
     );
-    api.matchVariant("state", (value) => `&[data-state="${value}"]`, { values: { open: "open" } });
+    api.matchVariant("state", (value) => `&[data-state="${value}"]`, {
+      values: {
+        open: "open",
+      },
+    });
   });
   const source = 'import { style } from "stillwind/react"; export const props = style("probe-");';
   const stylesheet = '@plugin "test"; @stillwind-slot utilities; .target { @apply probe-; }';
@@ -101,7 +124,11 @@ test("editor catalogs resolve selected script and CSS candidates lazily without 
       ["/workspace/theme.css", stylesheet],
       ["/workspace/entry.tsx", source],
     ]),
-    config: { css: "theme.css", files: ["*.tsx"], typeFacts: false },
+    config: {
+      css: "theme.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+    },
     plugins: {
       load: async () => extension,
       resolve: async () => undefined,
@@ -177,16 +204,20 @@ test("plugin selectors keep sibling rules and register every class", async () =>
  * @param extension - Plugin that the stylesheet loads.
  * @param candidates - Space-separated candidates for one `style()` call.
  * @param stylesheet - CSS that precedes the plugin in the stylesheet.
+ * @param after - CSS that follows the plugin in the stylesheet.
  * @returns The project and its entry module source.
  */
-function pluginProject(extension: LoadedPlugin, candidates: string, stylesheet = "") {
+function pluginProject(extension: LoadedPlugin, candidates: string, stylesheet = "", after = "") {
   const source = `import { style } from "stillwind/react"; export const props = style(${JSON.stringify(candidates)});`;
   return {
     source,
     project: new BrowserProject({
       root: "/workspace",
       files: new Map([
-        ["/workspace/theme.css", `${stylesheet}@plugin "test"; @stillwind-slot utilities;`],
+        [
+          "/workspace/theme.css",
+          `${stylesheet}@plugin "test"; ${after} @stillwind-slot utilities;`,
+        ],
         ["/workspace/entry.tsx", source],
       ]),
       config: {
@@ -325,11 +356,23 @@ test("dynamic variant ordering and explicit type hints follow v4 callback contra
       api.matchVariant("rank", (value) => `&[data-rank="${value}"]`, {
         sort: (a, b) => Number(b.value) - Number(a.value),
       });
-      api.addVariant("both", { "&:hover": "@slot", "&:focus": "@slot" });
+      api.addVariant("both", {
+        "&:hover": "@slot",
+        "&:focus": "@slot",
+      });
       api.addVariant("2d", "&[data-dimension='two']");
       api.matchUtilities(
-        { probe: (value) => ({ width: value }) },
-        { type: "length", values: { DEFAULT: "1px" } },
+        {
+          probe: (value) => ({
+            width: value,
+          }),
+        },
+        {
+          type: "length",
+          values: {
+            DEFAULT: "1px",
+          },
+        },
       );
     }),
   );
@@ -347,16 +390,42 @@ test("Tailwind export forms and typed options preserve the native plugin contrac
   const options: unknown[] = [];
   const extension = plugin.withOptions((value) => {
     options.push(value);
-    return (api) => api.addUtilities({ ".test": { color: "red" } });
+    return (api) =>
+      api.addUtilities({
+        ".test": {
+          color: "red",
+        },
+      });
   });
   const loaded = await graph(
     '@plugin "test" { flag: false; count: 2; names: "a", "b"; empty: null; }',
     extension,
   );
-  expect(options).toEqual([{ flag: false, count: 2, names: ["a", "b"], empty: null }]);
+  expect(options).toEqual([
+    {
+      flag: false,
+      count: 2,
+      names: ["a", "b"],
+      empty: null,
+    },
+  ]);
   expect(loaded.loader.editorQuery().previewCandidate("test")).toContain("color:red");
-  expect(defaultPluginExport({ default: () => {} }, "test")).toBeTypeOf("function");
-  expect(defaultPluginExport({ default: plugin(() => {}) }, "test")).toHaveProperty("handler");
+  expect(
+    defaultPluginExport(
+      {
+        default: () => {},
+      },
+      "test",
+    ),
+  ).toBeTypeOf("function");
+  expect(
+    defaultPluginExport(
+      {
+        default: plugin(() => {}),
+      },
+      "test",
+    ),
+  ).toHaveProperty("handler");
   await expect(graph('@plugin "test" { flag: true; }', () => {})).rejects.toThrow(
     "does not accept options",
   );
@@ -373,20 +442,48 @@ test("handlers see the complete CSS theme and add base, components, and configur
           api.theme("fontSize.sm"),
           api.config("theme.colors.brand"),
         );
-        api.addBase({ input: { accentColor: api.theme("colors.brand") } });
-        api.addComponents({ ".card:hover": { color: api.theme("colors.brand"), padding: "1rem" } });
+        api.addBase({
+          input: {
+            accentColor: api.theme("colors.brand"),
+          },
+        });
+        api.addComponents({
+          ".card:hover": {
+            color: api.theme("colors.brand"),
+            padding: "1rem",
+          },
+        });
       },
       {
         theme: {
           extend: {
-            colors: { brand: "green", extra: "pink" },
-            fontSize: { sm: [".8rem", { lineHeight: "1.2" }] },
+            colors: {
+              brand: "green",
+              extra: "pink",
+            },
+            fontSize: {
+              sm: [
+                ".8rem",
+                {
+                  lineHeight: "1.2",
+                },
+              ],
+            },
           },
         },
       },
     ),
   );
-  expect(observed).toEqual(["blue", [".8rem", { lineHeight: "1.2" }], "blue"]);
+  expect(observed).toEqual([
+    "blue",
+    [
+      ".8rem",
+      {
+        lineHeight: "1.2",
+      },
+    ],
+    "blue",
+  ]);
   expect(loaded.loader.editorQuery().previewCandidate("card")).toContain("&:hover");
   expect(loaded.loader.editorQuery().themeValues()["--color-extra"]).toBe("pink");
   expect(new NativeProjectSession(loaded.loader, false).baseCss().css).toContain(
@@ -397,19 +494,43 @@ test("handlers see the complete CSS theme and add base, components, and configur
 test("source and CSS directive discovery resolve modifiers, negative values, fractions, and variants", async () => {
   const extension = plugin((api) => {
     api.matchUtilities(
-      { probe: (value, { modifier }) => ({ width: value, "--selected": modifier ?? "none" }) },
       {
-        values: { DEFAULT: "1px", 4: "4px", "1/2": "50%" },
-        modifiers: { mirror: "M" },
+        probe: (value, { modifier }) => ({
+          width: value,
+          "--selected": modifier ?? "none",
+        }),
+      },
+      {
+        values: {
+          DEFAULT: "1px",
+          4: "4px",
+          "1/2": "50%",
+        },
+        modifiers: {
+          mirror: "M",
+        },
         supportsNegativeValues: true,
       },
     );
     api.matchUtilities(
-      { ink: (value) => ({ color: value }) },
-      { type: "color", values: { brand: "#123456" } },
+      {
+        ink: (value) => ({
+          color: value,
+        }),
+      },
+      {
+        type: "color",
+        values: {
+          brand: "#123456",
+        },
+      },
     );
     api.addVariant("hocus", ["&:hover", "&:focus"]);
-    api.matchVariant("state", (value) => `&[data-state="${value}"]`, { values: { open: "open" } });
+    api.matchVariant("state", (value) => `&[data-state="${value}"]`, {
+      values: {
+        open: "open",
+      },
+    });
   });
   const files = new Map([
     [
@@ -424,7 +545,11 @@ test("source and CSS directive discovery resolve modifiers, negative values, fra
   const project = new BrowserProject({
     root: "/workspace",
     files,
-    config: { css: "theme.css", files: ["*.tsx"], typeFacts: false },
+    config: {
+      css: "theme.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+    },
     plugins: {
       load: async () => extension,
       resolve: async () => undefined,
@@ -446,5 +571,53 @@ test("source and CSS directive discovery resolve modifiers, negative values, fra
     expect(css).toContain(".applied");
   } finally {
     await project.close();
+  }
+});
+
+test("plugin registrations are defaults that built-ins and stylesheet utilities override", async () => {
+  const extension = plugin((api) => {
+    api.addUtilities({
+      ".probe": {
+        color: "red",
+      },
+      ".box": {
+        display: "block",
+        width: "1em",
+      },
+    });
+    api.matchUtilities(
+      {
+        icon: (value) => ({
+          width: value,
+        }),
+      },
+      {
+        values: {
+          one: "1em",
+        },
+      },
+    );
+  });
+
+  // `@stillwind-utility` defines `size-full` as a built-in.
+  const builtin = "@stillwind-utility size-full { width: 100%; }";
+  const stylesheet = "@utility probe { color: blue; }";
+  for (const [before, after] of [
+    [`${builtin} ${stylesheet}`, ""],
+    [builtin, stylesheet],
+  ]) {
+    for (const candidates of ["probe box icon-one size-full", "size-full icon-one box probe"]) {
+      const { project } = pluginProject(extension, candidates, before, after);
+      try {
+        // The overlap lint reports the intended conflicts, so reports are not checked here.
+        await project.analyze("/workspace/entry.tsx");
+        const css = project.css().css.replaceAll(" ", "");
+        const label = `${before} | ${after} | ${candidates}`;
+        expect(css.lastIndexOf("color:blue"), label).toBeGreaterThan(css.lastIndexOf("color:red"));
+        expect(css.lastIndexOf("width:100%"), label).toBeGreaterThan(css.lastIndexOf("width:1em"));
+      } finally {
+        await project.close();
+      }
+    }
   }
 });

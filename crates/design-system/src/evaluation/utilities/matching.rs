@@ -131,12 +131,13 @@ fn check_variable(
 /// Resolves a named candidate with every definition of its name and combines the ones
 /// that resolve, in Tailwind's registration order.
 ///
-/// The built-ins form one group of typed branches, and the stylesheet's `@utility`
-/// definitions form another, as [`resolve_css_utility_branches`] describes. The
-/// `(functional)` definitions of the complete candidate stand for plugin registrations,
-/// so they are evaluated between the two groups. Tailwind registers every plugin before
-/// the stylesheet's `@utility` rules, regardless of where `@plugin` appears, and the
-/// later definition wins in the cascade.
+/// The built-ins form one group of typed branches, the other definitions from `@plugin`
+/// statements form a second group, and the stylesheet's `@utility` definitions form a
+/// third, as [`resolve_css_utility_branches`] describes. The `(functional)`
+/// definitions of the complete candidate also stand for plugin registrations. They are
+/// evaluated after the built-ins and before the other plugin definitions. Tailwind
+/// registers every plugin before the stylesheet's `@utility` rules, regardless of where
+/// `@plugin` appears, and the later definition wins in the cascade.
 ///
 /// A candidate is static when an exact definition in either registry has its complete
 /// name, including a leading `-` and the modifier, because Tailwind parses a candidate
@@ -170,8 +171,11 @@ fn resolve_registry_layers(
             )
         };
         let mut resolution = resolve_exact(theme.registry().matching_utilities(&key))?;
-        if let Some(project) = resolve_exact(theme.matching_utilities(&key))? {
-            append_resolution(&mut resolution, project);
+        let (plugins, stylesheet) = plugin_groups(theme.matching_utilities(&key));
+        for group in [plugins, stylesheet] {
+            if let Some(next) = resolve_exact(group)? {
+                append_resolution(&mut resolution, next);
+            }
         }
         return Ok(resolution);
     }
@@ -200,8 +204,11 @@ fn resolve_registry_layers(
             append_resolution(&mut resolution, plugin);
         }
     }
-    if let Some(project) = resolve_group(theme.matching_utilities(lookup))? {
-        append_resolution(&mut resolution, project);
+    let (plugins, stylesheet) = plugin_groups(theme.matching_utilities(lookup));
+    for group in [plugins, stylesheet] {
+        if let Some(next) = resolve_group(group)? {
+            append_resolution(&mut resolution, next);
+        }
     }
     if resolution.is_some() {
         return Ok(resolution);
@@ -217,6 +224,14 @@ fn resolve_registry_layers(
         }
     }
     Ok(resolution)
+}
+
+/// Splits project definitions into the definitions from `@plugin` statements and the
+/// stylesheet's own definitions, keeping the order of each.
+fn plugin_groups(definitions: Vec<&CustomUtility>) -> (Vec<&CustomUtility>, Vec<&CustomUtility>) {
+    definitions
+        .into_iter()
+        .partition(|definition| definition.plugin)
 }
 
 /// Adds the CSS of a later definition to the resolution of earlier ones.
@@ -686,11 +701,13 @@ mod tests {
             builtin_order: None,
             tw_sort: None,
             role: UtilityRole::default(),
+            plugin: false,
         };
         let wildcard = CustomUtility {
             name: "w-*".into(),
             tw_sort: None,
             role: UtilityRole::default(),
+            plugin: false,
             ..exact.clone()
         };
         assert_eq!(utility_value_types(&exact), vec![ValueType::Length]);

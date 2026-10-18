@@ -6,6 +6,7 @@
 //! and producer revisions. It rejects output kept after a failed design-system load.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 use std::sync::Arc;
 
 use cssparser::{ParseError, Parser, Token};
@@ -423,7 +424,7 @@ fn stylesheet_parts(
 struct IntervalIndex {
     /// CSS byte ranges are sorted by start and paired with their original input
     /// indices. Each range includes its start and excludes its end.
-    ranges: Vec<(std::ops::Range<usize>, usize)>,
+    ranges: Vec<(Range<usize>, usize)>,
     /// Each entry records the largest end offset up to that position. A query can use
     /// binary search to skip earlier ranges even when ranges overlap or contain one
     /// another.
@@ -434,7 +435,7 @@ impl IntervalIndex {
     /// Builds an index from byte ranges in the same CSS buffer. Input order is
     /// arbitrary. The index keeps each range's original position so callers can find
     /// its source data.
-    fn new(ranges: impl Iterator<Item = std::ops::Range<usize>>) -> Self {
+    fn new(ranges: impl Iterator<Item = Range<usize>>) -> Self {
         let mut ranges: Vec<_> = ranges
             .enumerate()
             .map(|(index, range)| (range, index))
@@ -457,7 +458,7 @@ impl IntervalIndex {
     /// Returns input indices for ranges that start before `query.end` and end after
     /// `query.start`. Results follow input order. `query` must be a nonempty CSS byte
     /// range.
-    fn overlapping(&self, query: &std::ops::Range<usize>) -> Vec<usize> {
+    fn overlapping(&self, query: &Range<usize>) -> Vec<usize> {
         let start = self.maximum_ends.partition_point(|end| *end <= query.start);
         let end = self
             .ranges

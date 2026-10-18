@@ -20,12 +20,12 @@ below. Examples use illustrative class names; compiled output carries hashed nam
 
 ## The four levels
 
-| Level                     | Decides                               | Governed by                                                                                      |
-| ------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| L1 declaration order      | declarations inside one rule          | built-in utility definition order; user definitions keep their source position                   |
-| L2 block order            | selector blocks inside one class unit | plain block first, then variant blocks in the canonical variant order, then outside-nested rules |
-| L3 unit order             | class units inside one module         | composition topology, then source order; inside a call, the base unit before conditional units   |
-| L4 module and chunk order | modules in the delivered CSS          | composition topology, then stable module identity                                                |
+| Level                     | Decides                               | Governed by                                                                                                 |
+| ------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| L1 declaration order      | declarations inside one rule          | plugin utilities first, then built-in utility definition order; user definitions keep their source position |
+| L2 block order            | selector blocks inside one class unit | plain block first, then variant blocks in the canonical variant order, then outside-nested rules            |
+| L3 unit order             | class units inside one module         | composition topology, then source order; inside a call, the base unit before conditional units              |
+| L4 module and chunk order | modules in the delivered CSS          | composition topology, then stable module identity                                                           |
 
 The levels nest: L1 applies inside a block, L2 inside a class unit, L3 inside a
 module, and L4 across modules. All four sit inside the `utilities` layer; the
@@ -71,6 +71,10 @@ Rule:
 - A user `@utility` definition keeps its source position. Built-ins are
   reordered only among the slots they already occupy, so a user definition never
   moves.
+- Utilities that `@plugin` statements define come before every built-in and
+  stylesheet utility, in their source order, wherever the statements appear. A
+  plugin supplies defaults, so `size-full` overrides the size of an icon utility
+  from an Iconify plugin in either class order.
 - Contested shorthand and longhand declarations keep their order; a later
   declaration only replaces an earlier one when the two cannot interact.
 - Equal positions fall back to the candidate spelling, which keeps the output

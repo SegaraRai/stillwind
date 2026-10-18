@@ -2,6 +2,7 @@
 //! untyped variables. Findings retain original source snapshots; Reporter applies
 //! severity and suppression.
 
+use std::ops::Range;
 use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
@@ -60,7 +61,7 @@ pub(crate) fn detect(
                 Span::new(literal.span.file, boundaries[start], boundaries[end])
             });
             findings.extend(check_candidate_name(token, &settings, span));
-            let part = |range: std::ops::Range<usize>| {
+            let part = |range: Range<usize>| {
                 let boundaries = boundaries.as_ref()?;
                 Some(Span::new(
                     literal.span.file,

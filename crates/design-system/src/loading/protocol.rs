@@ -7,6 +7,7 @@
 //! and file reads before answering a request, but outside these types: it supplies the
 //! resulting buffer under a name it chose itself.
 
+use std::ops::Range;
 use std::sync::Arc;
 
 use lean_string::LeanStr;
@@ -106,7 +107,7 @@ pub struct CssResourceReference {
 #[derive(Clone, Debug)]
 pub struct CssSourceMapping {
     /// Range of the expanded text this mapping covers.
-    pub generated: std::ops::Range<usize>,
+    pub generated: Range<usize>,
     /// Source the generated text came from.
     pub file: FileId,
     /// Byte start in that source.

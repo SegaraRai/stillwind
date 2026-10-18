@@ -1,6 +1,7 @@
 //! Renders canonical previews and normalizes their CSS under one query's spacing policy.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use cssparser::{ParseError, Parser, Token};
@@ -242,7 +243,7 @@ pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> LeanString {
         parser: &mut Parser<'_>,
         value: &str,
         root: f64,
-        edits: &mut Vec<(std::ops::Range<usize>, LeanString)>,
+        edits: &mut Vec<(Range<usize>, LeanString)>,
     ) {
         loop {
             let start = parser.position().byte_index();

@@ -306,15 +306,16 @@ impl DesignSystemLoader {
         // host supplied, so no host-visible identity may claim it. Token spans
         // that point at it are mapped below into their original buffers.
         let source = SourceFile::new(FileId(u32::MAX), None, None, output.text.as_str())?;
-        let mut theme = parse_theme_builder(&source, &name).map_err(|mut error| {
-            // Whole-expansion failures use the root when no contiguous original span exists.
-            for label in &mut error.labels {
-                label.span = output
-                    .original_span(label.span)
-                    .unwrap_or_else(|| root.source.full_span());
-            }
-            error
-        })?;
+        let mut theme =
+            parse_theme_builder(&source, &name, &output.plugin_ranges).map_err(|mut error| {
+                // Whole-expansion failures use the root when no contiguous original span exists.
+                for label in &mut error.labels {
+                    label.span = output
+                        .original_span(label.span)
+                        .unwrap_or_else(|| root.source.full_span());
+                }
+                error
+            })?;
         theme.utility_order = self.options.utility_order;
         theme.target = self.options.target.clone();
         theme.map_template_origins(|span| output.original_span(span));
@@ -380,7 +381,7 @@ impl DesignSystemLoader {
         };
         let imports =
             imports(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
-        parse_theme_builder(&source, &name)?;
+        parse_theme_builder(&source, &name, &[])?;
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {
             let id = self.next_id;
@@ -499,7 +500,7 @@ impl DesignSystemLoader {
                 let imported = cache
                     .get(&target)
                     .ok_or(DesignSystemLoadError::InvalidGraph)?;
-                output.append_import(imported, &import.wrappers)?;
+                output.append_import(imported, &import.wrappers, import.plugin.is_some())?;
                 cursor = import.end;
             }
             output.append_source(

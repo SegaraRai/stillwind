@@ -80,6 +80,7 @@ mod tests {
                     builtin_order: None,
                     tw_sort: None,
                     role: UtilityRole::default(),
+                    plugin: false,
                 })
                 .collect(),
             ..Default::default()

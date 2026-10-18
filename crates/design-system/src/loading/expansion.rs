@@ -13,6 +13,8 @@
 //! the host later substitutes; that run records both original endpoints because its
 //! length is not preserved.
 
+use std::ops::Range;
+
 use lean_string::{LeanStr, ToLeanString};
 
 use stillwind_css::relative_css_urls;
@@ -30,6 +32,8 @@ pub(super) struct ExpandedSource {
     pub(super) mappings: Vec<CssSourceMapping>,
     /// Resource references in traversal order, identifying placeholders in text.
     pub(super) resources: Vec<CssResourceReference>,
+    /// Byte ranges of `text` that answer `@plugin` statements, in emitted order.
+    pub(super) plugin_ranges: Vec<Range<usize>>,
 }
 
 impl ExpandedSource {
@@ -50,17 +54,23 @@ impl ExpandedSource {
     /// modifier order, so `@layer` stays outside `@supports` and `@media`.
     ///
     /// The wrapper text is synthetic and intentionally unmapped; only the nested
-    /// expansion keeps its mappings, shifted by the current offset.
+    /// expansion keeps its mappings, shifted by the current offset. When `plugin` is
+    /// true, the nested text is recorded as the answer to a `@plugin` statement.
     pub(super) fn append_import(
         &mut self,
         other: &Self,
         wrappers: &[LeanStr],
+        plugin: bool,
     ) -> Result<(), SourceError> {
         for wrapper in wrappers {
             self.append_text(wrapper)?;
             self.append_text("{")?;
         }
+        let start = self.text.len();
         self.append(other)?;
+        if plugin {
+            self.plugin_ranges.push(start..self.text.len());
+        }
         for _ in wrappers {
             self.append_text("}")?;
         }
@@ -77,7 +87,7 @@ impl ExpandedSource {
         &mut self,
         source: &SourceFile,
         name: &CssSourceName,
-        range: std::ops::Range<usize>,
+        range: Range<usize>,
     ) -> Result<(), SourceError> {
         let text = source
             .text()
@@ -131,7 +141,7 @@ impl ExpandedSource {
     fn append_original(
         &mut self,
         source: &SourceFile,
-        range: std::ops::Range<usize>,
+        range: Range<usize>,
     ) -> Result<(), SourceError> {
         if range.is_empty() {
             return Ok(());
@@ -172,6 +182,12 @@ impl ExpandedSource {
                 source_end: mapping.source_end,
             }));
         self.resources.extend(other.resources.iter().cloned());
+        self.plugin_ranges.extend(
+            other
+                .plugin_ranges
+                .iter()
+                .map(|range| range.start + offset..range.end + offset),
+        );
         Ok(())
     }
 
@@ -312,7 +328,7 @@ mod tests {
             .unwrap();
         let mut expanded = ExpandedSource::default();
         expanded
-            .append_import(&fragment, &["@layer a".into()])
+            .append_import(&fragment, &["@layer a".into()], false)
             .unwrap();
         assert_eq!(expanded.text, "@layer a{color:red;}");
         assert_eq!(

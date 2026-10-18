@@ -11,6 +11,7 @@
 //! that a syntax error surfaces as a typed [`CompileError`].
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
@@ -54,11 +55,15 @@ pub fn parse_theme(
     source: &SourceFile,
     source_identity: &CssSourceName,
 ) -> Result<ThemeIndex, CompileError> {
-    parse_theme_builder(source, source_identity).map(ThemeBuilder::finish)
+    parse_theme_builder(source, source_identity, &[]).map(ThemeBuilder::finish)
 }
 
 /// Collects declarations from `source` without preparing evaluation data. The loader
 /// can map token and template spans before freezing the result.
+///
+/// `plugin_ranges` contains the byte ranges of `source` that answer `@plugin`
+/// statements. The `@utility` definitions inside them become plugin definitions, as
+/// [`crate::CustomUtility::plugin`] describes.
 ///
 /// # Errors
 ///
@@ -66,8 +71,9 @@ pub fn parse_theme(
 pub(crate) fn parse_theme_builder(
     source: &SourceFile,
     source_identity: &CssSourceName,
+    plugin_ranges: &[Range<usize>],
 ) -> Result<ThemeBuilder, CompileError> {
-    parse_theme_contents(source, source_identity)
+    parse_theme_contents(source, source_identity, plugin_ranges)
         .map_err(|kind| CompileError::new(kind, source.full_span()))
 }
 
@@ -79,6 +85,7 @@ pub(crate) fn parse_theme_builder(
 fn parse_theme_contents(
     source: &SourceFile,
     source_identity: &CssSourceName,
+    plugin_ranges: &[Range<usize>],
 ) -> Result<ThemeBuilder, CompileDiagnostic> {
     if let Some(offset) = unterminated_block(source.text()) {
         return Err(CompileDiagnostic::UnterminatedCssBlock { offset });
@@ -107,7 +114,21 @@ fn parse_theme_contents(
         template.source_identity = source_identity.clone();
     }
     theme.registry = Arc::new(BuiltinDefinitions::from_css(source.text()));
-    theme.utilities = extract_custom_utilities(source.text());
+    let in_plugin = |offset: usize| plugin_ranges.iter().any(|range| range.contains(&offset));
+    let mut plugin_positions = BTreeMap::<LeanStr, usize>::new();
+    theme.utilities = extract_custom_utilities(source.text())
+        .into_iter()
+        .map(|(offset, mut utility)| {
+            if in_plugin(offset) {
+                utility.plugin = true;
+                plugin_positions
+                    .entry(utility.name.clone())
+                    .and_modify(|position| *position = (*position).min(offset))
+                    .or_insert(offset);
+            }
+            utility
+        })
+        .collect();
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
     theme.marker_utilities = extract_marker_utilities(source.text());
@@ -121,6 +142,18 @@ fn parse_theme_contents(
     );
     theme.utility_positions =
         registration_positions(source.text(), &["@stillwind-utility", "@utility"]);
+    // A plugin supplies defaults that built-ins and the stylesheet can override, so its
+    // utilities take positions before every other utility. Offsets stay below the
+    // length of the text, which therefore separates the two groups.
+    if !plugin_positions.is_empty() {
+        theme.utility_position_base = source.text().len();
+        for (name, position) in &mut theme.utility_positions {
+            *position = plugin_positions
+                .get(name)
+                .copied()
+                .unwrap_or_else(|| position.saturating_add(theme.utility_position_base));
+        }
+    }
 
     Ok(theme)
 }
@@ -312,6 +345,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
     Ok(ThemeBuilder {
         variant_positions: BTreeMap::new(),
         utility_positions: BTreeMap::new(),
+        utility_position_base: 0,
         output_template: CssOutputTemplate::default(),
         css_templates: BTreeMap::new(),
         dynamic_utilities: Vec::new(),

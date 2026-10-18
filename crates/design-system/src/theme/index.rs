@@ -29,6 +29,7 @@ use crate::{
 struct ThemeDeclarations {
     variant_positions: BTreeMap<LeanStr, usize>,
     utility_positions: BTreeMap<LeanStr, usize>,
+    utility_position_base: usize,
     output_template: CssOutputTemplate,
     css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
     dynamic_utilities: Vec<DynamicFamily>,
@@ -87,6 +88,7 @@ impl ThemeIndex {
         let declarations = ThemeDeclarations {
             variant_positions: builder.variant_positions,
             utility_positions: builder.utility_positions,
+            utility_position_base: builder.utility_position_base,
             output_template: builder.output_template,
             css_templates: builder.css_templates,
             dynamic_utilities: builder.dynamic_utilities,
@@ -162,10 +164,22 @@ impl ThemeIndex {
         &self.inner.declarations.variant_positions
     }
 
-    /// First declaration offsets after imports are expanded, shared by user and
-    /// built-in utilities.
+    /// Authored positions of utility names, shared by user and built-in utilities.
+    ///
+    /// A position is the first declaration offset after imports are expanded. Utilities
+    /// that a `@plugin` statement defines keep their offsets, and the offsets of other
+    /// utilities are increased by [`Self::utility_position_base`], so plugin utilities
+    /// come first.
     pub fn utility_positions(&self) -> &BTreeMap<LeanStr, usize> {
         &self.inner.declarations.utility_positions
+    }
+
+    /// The amount that authored positions of utilities without a plugin definition
+    /// are increased by. Zero when no plugin defines a utility. Other authored
+    /// positions in the same text, such as those of arbitrary properties, must be
+    /// increased by the same amount.
+    pub fn utility_position_base(&self) -> usize {
+        self.inner.declarations.utility_position_base
     }
 
     /// Structured output positions from the authored entry CSS.

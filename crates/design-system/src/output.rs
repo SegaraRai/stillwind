@@ -14,6 +14,7 @@
 //! depend on runtime conditions. `@stillwind-slot` is the exception and may be nested.
 
 use std::collections::BTreeMap;
+use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
@@ -164,7 +165,7 @@ fn contains_utilities(nodes: &[CssOutputNode]) -> bool {
 }
 
 /// Inner byte range, modifier header, and token precedence of one theme block.
-pub(crate) type ThemeBlock = (std::ops::Range<usize>, LeanString, ThemeTokenPrecedence);
+pub(crate) type ThemeBlock = (Range<usize>, LeanString, ThemeTokenPrecedence);
 
 /// Collects the inner byte range, the modifier header, and the token precedence of
 /// every `@theme` and `@stillwind-plugin-theme` block, in source order.

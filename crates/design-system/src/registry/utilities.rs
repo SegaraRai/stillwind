@@ -19,7 +19,7 @@ use std::collections::BTreeSet;
 use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{extract_named_blocks, extract_named_blocks_with_offsets, strip_css_comments};
+use stillwind_css::{extract_named_blocks_with_offsets, strip_css_comments};
 
 /// One utility definition: its name, its body, and the ordering metadata of its
 /// registration.
@@ -36,6 +36,11 @@ pub struct CustomUtility {
     pub tw_sort: Option<LeanStr>,
     /// How the definition takes part in resolving its name.
     pub role: UtilityRole,
+    /// Whether the answer to a `@plugin` statement contains the definition. Plugin
+    /// definitions of a name are evaluated after built-ins and before the stylesheet's
+    /// definitions, as Tailwind registers plugins before the stylesheet's `@utility`
+    /// rules.
+    pub plugin: bool,
 }
 
 /// Header flags of a definition that stands for one candidate of a functional
@@ -143,6 +148,9 @@ pub(crate) fn decode_utility_name(raw: &str) -> Option<LeanStr> {
 #[must_use]
 pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
     extract_custom_utilities(css)
+        .into_iter()
+        .map(|(_, utility)| utility)
+        .collect()
 }
 
 /// Parses compiler-owned `@stillwind-utility` definitions and attaches their global
@@ -186,6 +194,7 @@ fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUt
                 builtin_order: Some(builtin_order),
                 tw_sort,
                 role,
+                plugin: false,
             })
         })
         .collect()
@@ -200,31 +209,29 @@ pub fn parse_marker_utilities(css: &str) -> BTreeSet<LeanStr> {
     extract_marker_utilities(css)
 }
 
-/// Extracts user `@utility` definitions after comment stripping, so commented example
-/// CSS cannot register a definition.
-pub(crate) fn extract_custom_utilities(css: &str) -> Vec<CustomUtility> {
-    let css = strip_css_comments(css);
-    extract_named_utility_blocks(&css, "@utility")
-}
-
-/// Shared body of the unordered parsers: matches `directive` exactly and leaves
-/// [`CustomUtility::builtin_order`] unset.
-fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility> {
-    extract_named_blocks(css, directive)
+/// Extracts user `@utility` definitions with the byte offset of each directive in
+/// `css`. Commented example CSS cannot register a definition, and comments inside a
+/// header or body are removed.
+pub(crate) fn extract_custom_utilities(css: &str) -> Vec<(usize, CustomUtility)> {
+    extract_named_blocks_with_offsets(css, "@utility")
         .into_iter()
-        .filter_map(|(header, body)| {
+        .filter_map(|(offset, header, body)| {
             let UtilityHeader {
                 name,
                 tw_sort,
                 role,
-            } = parse_utility_header(&header)?;
-            Some(CustomUtility {
-                name,
-                body,
-                builtin_order: None,
-                tw_sort,
-                role,
-            })
+            } = parse_utility_header(strip_css_comments(&header).trim())?;
+            Some((
+                offset,
+                CustomUtility {
+                    name,
+                    body: strip_css_comments(&body).trim().into(),
+                    builtin_order: None,
+                    tw_sort,
+                    role,
+                    plugin: false,
+                },
+            ))
         })
         .collect()
 }

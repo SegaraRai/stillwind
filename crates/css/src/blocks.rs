@@ -11,6 +11,8 @@
 //! so the CSS parser can still report it. The textual stripping helpers specially skip
 //! `{modifier}` markers; that exception is not shared by the token scanner.
 
+use std::ops::Range;
+
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, LeanString};
 
@@ -95,7 +97,7 @@ pub struct PropertyRequirementError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PropertyRequirement {
     /// Byte range of the full directive in its CSS body.
-    range: std::ops::Range<usize>,
+    range: Range<usize>,
     /// Required custom-property names in authored order.
     names: Vec<LeanStr>,
 }

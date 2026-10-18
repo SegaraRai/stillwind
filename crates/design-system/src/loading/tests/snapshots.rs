@@ -5,6 +5,7 @@ use lean_string::ToLeanString;
 use stillwind_source::ReplaceText;
 
 use super::*;
+use crate::resolve_utility;
 
 #[test]
 fn snapshot_reports_unresolved_requests_and_invalid_options_without_flattening() {
@@ -269,4 +270,35 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
         panic!("package must be resolved by the host")
     };
     assert_eq!(requests[0].specifier, "stillwind");
+}
+
+#[test]
+fn plugin_definitions_precede_builtins_and_the_stylesheet() {
+    for root in [
+        "@stillwind-utility size-full { width: 100%; } @utility probe { color: blue; } @plugin 'p';",
+        "@stillwind-utility size-full { width: 100%; } @plugin 'p'; @utility probe { color: blue; }",
+    ] {
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+        let request = requests(loader.provide(0, "root.css".into(), None, None, root.into()));
+        let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+            request[0].id,
+            "plugin".into(),
+            None,
+            None,
+            "@utility icon { width: 1em; } @utility probe { color: red; }".into(),
+        ) else {
+            panic!("expected loaded snapshot");
+        };
+        let theme = snapshot.theme();
+        let positions = theme.utility_positions();
+        assert!(positions["icon"] < positions["size-full"], "{root}");
+        assert!(positions["probe"] < positions["size-full"], "{root}");
+        let probe = resolve_utility("probe", theme).unwrap().unwrap();
+        let declaration = probe.declaration.replace(' ', "");
+        assert!(
+            declaration.find("color:red").unwrap() < declaration.find("color:blue").unwrap(),
+            "{root}: {declaration}"
+        );
+    }
 }

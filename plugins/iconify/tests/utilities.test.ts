@@ -38,11 +38,15 @@ const demo: IconifyJSON = {
  * Compiles a module against the Stillwind stylesheet with the Iconify plugin.
  * @param code - Module text.
  * @param options - Options block of the `@plugin` statement.
+ * @param pluginFirst - Whether the `@plugin` statement precedes `@import "stillwind"`. An
+ * options block would end the statements that `@import` may follow, so the plugin then receives
+ * no options.
  * @returns The rendered document CSS and the module's diagnostic messages.
  */
 async function compile(
   code: string,
   options = "",
+  pluginFirst = false,
 ): Promise<{
   css: string;
   diagnostics: string[];
@@ -54,7 +58,9 @@ async function compile(
       resolve: async (specifier, importer) => createRequire(importer).resolve(specifier),
       read: async (id) =>
         id === path.join(root, "design.css")
-          ? `@import "stillwind";\n@plugin "@stillwind/plugin-iconify" { ${options} }\n`
+          ? pluginFirst
+            ? `@plugin "@stillwind/plugin-iconify";\n@import "stillwind";\n`
+            : `@import "stillwind";\n@plugin "@stillwind/plugin-iconify" { ${options} }\n`
           : readFile(id, "utf8"),
       documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
       sourceMapSource: (id) => id,
@@ -192,3 +198,26 @@ export const icons = style("icon-demo--close hover:icon-[demo--flag] bg-brand");
     await project.close();
   }
 });
+
+test.for([
+  ["icon-demo--close size-full", false],
+  ["size-full icon-demo--close", false],
+  ["icon-demo--close size-full", true],
+  ["size-full icon-demo--close", true],
+] as const)(
+  "built-in utilities override icon sizes: %s, plugin first: %s",
+  async ([classes, pluginFirst]) => {
+    const { css, diagnostics } = await compile(
+      `import { style } from "stillwind/react";
+export const icon = style(${JSON.stringify(classes)});
+`,
+      "",
+      pluginFirst,
+    );
+    expect(diagnostics).toStrictEqual([]);
+    const rule = css.slice(css.indexOf("@layer utilities"));
+    expect(rule.indexOf("width: 1em")).toBeGreaterThan(-1);
+    expect(rule.indexOf("width:100%")).toBeGreaterThan(rule.indexOf("width: 1em"));
+    expect(rule.indexOf("height:100%")).toBeGreaterThan(rule.indexOf("height: 1em"));
+  },
+);
