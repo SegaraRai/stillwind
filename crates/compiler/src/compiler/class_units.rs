@@ -10,7 +10,7 @@ use std::fmt::Write as _;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_design_system::{ThemeIndex, UtilityOrder, VariantContext};
+use stillwind_design_system::{ThemeIndex, UtilityImportance, UtilityOrder, VariantContext};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{JoinText, ModuleId, Span};
 
@@ -435,6 +435,18 @@ impl<'a> ClassUnits<'a> {
                 self.theme,
                 self.identifiers,
             )?;
+            // A Tailwind `important` selector nests every utility rule, as Tailwind
+            // nests `@tailwind utilities` in it. Keyframes stay at the stylesheet root.
+            if self.preview.is_none()
+                && let Some(UtilityImportance::Selector(selector)) = self.theme.important()
+            {
+                for contribution in &mut contributions {
+                    if !contribution.keyframes {
+                        contribution.css =
+                            format_args!("{selector}{{{}}}", contribution.css).to_lean_str();
+                    }
+                }
+            }
             self.symbols.push(generated_class_symbol(
                 self.module_id,
                 name.as_str(),

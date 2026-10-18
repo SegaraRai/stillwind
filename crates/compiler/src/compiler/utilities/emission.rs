@@ -10,9 +10,12 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{declaration_ranges, extract_named_blocks, strip_blocks};
+use stillwind_css::{
+    declaration_ranges, extract_named_blocks, important_declarations, strip_blocks,
+};
 use stillwind_design_system::{
-    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, compare_variant_sequences,
+    NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, UtilityImportance,
+    compare_variant_sequences,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 
@@ -43,6 +46,13 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
 ) -> Result<(), CompileDiagnostic> {
+    let important;
+    let utilities = if theme.important() == Some(&UtilityImportance::Declarations) {
+        important = utilities.iter().map(important_utility).collect::<Vec<_>>();
+        important.as_slice()
+    } else {
+        utilities
+    };
     let mut css = LeanString::new();
     emit_utility_css::<FLAGS>(&mut css, class_selector, utilities, theme, identifiers)?;
     let mut required_properties = utilities
@@ -81,6 +91,17 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
         });
     }
     Ok(())
+}
+
+/// Returns a copy of `utility` whose declarations, including those in conditional
+/// rules, are `!important`.
+fn important_utility(utility: &CompiledUtility) -> CompiledUtility {
+    let mut utility = utility.clone();
+    utility.declaration = important_declarations(&utility.declaration).into();
+    for nested in &mut utility.nested {
+        nested.declaration = important_declarations(&nested.declaration).into();
+    }
+    utility
 }
 
 fn emit_utility_css<const FLAGS: u8>(

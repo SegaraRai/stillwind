@@ -97,7 +97,7 @@ pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{
     DynamicFamily, DynamicFamilyKind, SPACING_VALUE_DOMAIN, ThemeIndex, ThemeNamespace,
     ThemeReferenceError, ThemeToken, ThemeTokenKind, ThemeTokenMode, ThemeTokenPrecedence,
-    parse_theme, parse_theme_namespace_types,
+    UtilityImportance, parse_theme, parse_theme_namespace_types,
 };
 
 #[cfg(test)]

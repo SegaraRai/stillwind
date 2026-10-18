@@ -109,6 +109,7 @@ fn parse_theme_contents(
     theme.output_template = template;
     theme.css_templates = parse_css_templates(source.text())?;
     theme.dynamic_utilities = extract_dynamic_utilities(source.text())?;
+    theme.important = extract_important(source.text());
     for template in theme.css_templates.values_mut() {
         template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
         template.source_identity = source_identity.clone();
@@ -181,6 +182,34 @@ pub struct DynamicFamily {
     pub named: bool,
     /// Whether bracket candidates belong to the family.
     pub bracket: bool,
+}
+
+/// The `important` setting of a Tailwind plugin configuration, declared by
+/// `@stillwind-plugin-important;` for `true` and by `@stillwind-plugin-important
+/// <selector>;` for a selector. It applies to the class utilities that the compiler
+/// generates, including built-ins, and not to `@apply`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum UtilityImportance {
+    /// Every declaration of a class utility is `!important`.
+    Declarations,
+    /// Each class utility rule is nested in a rule with this selector, so `#app`
+    /// selects `.x` as `#app .x`. The text is trimmed and nonempty.
+    Selector(LeanStr),
+}
+
+/// Reads the last `@stillwind-plugin-important` statement, because a later Tailwind
+/// configuration replaces the `important` setting of an earlier one.
+fn extract_important(css: &str) -> Option<UtilityImportance> {
+    extract_named_statements(css, "@stillwind-plugin-important")
+        .pop()
+        .map(|(_, header)| {
+            let selector = header.trim();
+            if selector.is_empty() {
+                UtilityImportance::Declarations
+            } else {
+                UtilityImportance::Selector(selector.to_lean_str())
+            }
+        })
 }
 
 /// Host protocols for dynamically registered candidates.
@@ -349,6 +378,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         output_template: CssOutputTemplate::default(),
         css_templates: BTreeMap::new(),
         dynamic_utilities: Vec::new(),
+        important: None,
         registry: Arc::default(),
         tokens,
         custom_css: (LeanString::new()).into(),

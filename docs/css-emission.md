@@ -300,6 +300,22 @@ precedence over them, and they take precedence over `@theme default` values. Tai
 v3 default theme answers `theme()` reads without CSS or plugin values, but it is never
 written back.
 
+All configurations, including presets and the configurations of nested plugins, merge
+in registration order. `config()` reads Tailwind's resolved configuration: `theme`,
+`darkMode`, `prefix`, `blocklist`, and `important`, where the last configuration that
+defines a key sets it. Other keys return the fallback, as in Tailwind. Paths use
+Tailwind's key syntax, so `config("theme[colors][brand]")` and
+`config("theme.colors.brand")` read the same value.
+
+`important: true` makes every declaration of a class utility `!important`, including
+built-ins. A selector string, such as `important: "#app"`, nests every class utility
+rule in a rule with that selector, so `p-4` matches only inside `#app`. Neither form
+changes `@apply`, and keyframes stay at the stylesheet root. `theme.container` adds a
+`container` definition after the built-in one, as Tailwind does: `center` adds
+`margin-inline: auto`, `padding` adds `padding-inline` for the default and for each
+breakpoint, and `screens` replaces the maximum widths. `prefix` is not applied, because
+generated class names are unique without it.
+
 Editor catalogs list finite candidates without running their callbacks. Selecting a
 completion resolves its CSS without adding that candidate to the application's used CSS.
 CSS distributions load through `@import`. Their `--spacing(<value>)` becomes

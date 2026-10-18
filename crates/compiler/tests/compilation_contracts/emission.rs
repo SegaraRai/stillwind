@@ -360,3 +360,52 @@ fn utility_keyframes_are_emitted_once_at_the_root_only_for_used_utilities() {
     let (_, unused) = compile("const x = style('block');", css);
     assert!(!unused.css.contains("@keyframes"), "{}", unused.css);
 }
+
+#[test]
+fn tailwind_important_settings_apply_to_class_utilities_only() {
+    let utilities = "@stillwind-slot keyframes; @utility pad { padding:4px; } \
+                     @utility spin { animation:turn 1s; @keyframes turn { to { rotate:1turn; } } } \
+                     @utility tone { color:red; @media print { color:blue; } }";
+    let (_, important) = compile(
+        "const x = style('pad tone');",
+        &format!("@stillwind-plugin-important; {utilities} .applied {{ @apply pad; }}"),
+    );
+    assert!(
+        important.diagnostics.is_empty(),
+        "{:?}",
+        important.diagnostics
+    );
+    assert!(
+        important.css.contains("padding:4px!important"),
+        "{}",
+        important.css
+    );
+    assert!(
+        important.css.contains("color:blue!important"),
+        "{}",
+        important.css
+    );
+    assert!(
+        important.css.contains(".applied { padding:4px; }"),
+        "{}",
+        important.css
+    );
+
+    let (_, selector) = compile(
+        "const x = style('pad spin');",
+        &format!("@stillwind-plugin-important #app; {utilities}"),
+    );
+    assert!(
+        selector.diagnostics.is_empty(),
+        "{:?}",
+        selector.diagnostics
+    );
+    assert!(selector.css.contains("#app{."), "{}", selector.css);
+    assert!(!selector.css.contains("!important"), "{}", selector.css);
+    assert!(
+        !selector.css.contains("#app{@keyframes"),
+        "{}",
+        selector.css
+    );
+    assert!(selector.css.contains("@keyframes turn"), "{}", selector.css);
+}

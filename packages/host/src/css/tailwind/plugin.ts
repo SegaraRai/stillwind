@@ -8,6 +8,7 @@ import { decodeArbitraryValue, type NativeThemeToken } from "@stillwind/native";
 import type { PluginAPI, PluginCreator, PluginWithConfig } from "tailwindcss/plugin";
 
 import type { TailwindPlugin } from "../plugins.ts";
+import { containerUtility } from "./container.ts";
 import {
   identifier,
   pluginOptions,
@@ -19,7 +20,7 @@ import {
   withAlpha,
 } from "./css.ts";
 import { inferDataType, type DataType } from "./data-type.ts";
-import { merge, PluginTheme } from "./theme.ts";
+import { PluginTheme, toKeyPath } from "./theme.ts";
 
 /**
  * Normalizes a Tailwind plugin export to `{ handler, config }` and applies the options of its
@@ -128,6 +129,42 @@ interface Owned {
 }
 
 /**
+ * Builds the part of Tailwind's resolved config that `config()` reads besides `theme`.
+ *
+ * Like Tailwind, the result keeps only `darkMode`, `prefix`, `blocklist`, and `important` from
+ * the configs, so `config("custom")` returns the fallback. The last config that defines one of
+ * these keys sets it, and a `null` value restores the default.
+ *
+ * @param configs - Plugin configs in registration order, presets first.
+ * @returns The resolved keys with Tailwind's defaults for the others.
+ */
+function resolveConfig(configs: readonly Record<string, unknown>[]): Record<string, unknown> {
+  const defaults: Record<string, unknown> = {
+    darkMode: null,
+    prefix: "",
+    blocklist: [],
+    important: false,
+  };
+  const result: Record<string, unknown> = {
+    ...defaults,
+    future: {},
+    experimental: {},
+    plugins: [],
+    content: {
+      files: [],
+    },
+  };
+  for (const config of configs) {
+    for (const [key, fallback] of Object.entries(defaults)) {
+      if (config[key] !== undefined) {
+        result[key] = config[key] ?? fallback;
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * Executes Tailwind API handlers once and resolves their registered callbacks on demand.
  *
  * All handlers share one resolved config and theme, as in Tailwind. Each registration keeps the
@@ -152,6 +189,11 @@ export class TailwindRuntime {
   #owner = 0;
   /** Number of `@plugin` statements, which are the owners. */
   readonly #owners: number;
+  /**
+   * `@stillwind-plugin-important` statement for the merged `important` setting, or an empty
+   * string when the setting is neither `true` nor a selector.
+   */
+  readonly #important: string;
 
   /**
    * @param plugins - Configured handlers, one for each `@plugin` statement, in stylesheet order.
@@ -186,10 +228,7 @@ export class TailwindRuntime {
     }
     this.#owners = plugins.length;
     this.#theme = new PluginTheme(configs, tokens);
-    const config = configs.reduce((result, entry) => merge(result, entry), {
-      prefix: "",
-      important: false,
-    } as Record<string, unknown>);
+    const config = resolveConfig(configs);
     const addUtilities: PluginAPI["addUtilities"] = (css) =>
       utilityRules(
         css,
@@ -267,19 +306,22 @@ export class TailwindRuntime {
             theme: this.#theme.get(),
           };
         }
-        if (path === "theme" || path.startsWith("theme.")) {
-          return this.#theme.get(path.slice(6) || undefined, fallback);
+        // Tailwind reads a config path with `toKeyPath()`, so `theme[colors][brand]` and
+        // `theme.colors.brand` name the same value.
+        const [key, ...keys] = toKeyPath(path);
+        if (key === "theme") {
+          return keys.length
+            ? this.#theme.get(keys.map((entry) => `[${entry}]`).join(""), fallback)
+            : this.#theme.get();
         }
         return (
-          path
-            .split(".")
-            .reduce<unknown>(
-              (value, key) =>
-                value && typeof value === "object"
-                  ? (value as Record<string, unknown>)[key]
-                  : undefined,
-              config,
-            ) ?? fallback
+          [key, ...keys].reduce<unknown>(
+            (value, entry) =>
+              value && typeof value === "object"
+                ? (value as Record<string, unknown>)[entry]
+                : undefined,
+            config,
+          ) ?? fallback
         );
       },
       prefix: (className) => className,
@@ -287,6 +329,32 @@ export class TailwindRuntime {
     for (const [plugin, owner] of entries) {
       this.#owner = owner;
       plugin.handler(api);
+    }
+    // `config.prefix` is not applied: Stillwind generates unique class names, so it does not
+    // prefix candidates.
+    const { important } = config;
+    this.#important =
+      important === true
+        ? "@stillwind-plugin-important;"
+        : typeof important === "string" && important.trim()
+          ? `@stillwind-plugin-important ${important.trim()};`
+          : "";
+    const screens = this.#theme.get("screens");
+    const container = containerUtility(
+      this.#theme.get("container"),
+      Object.fromEntries(
+        Object.entries(screens && typeof screens === "object" ? screens : {}).filter(
+          (entry): entry is [string, string] =>
+            entry[0] !== "__CSS_VALUES__" && typeof entry[1] === "string",
+        ),
+      ),
+    );
+    if (container && this.#owners) {
+      this.#utilities.push({
+        owner: 0,
+        name: "container",
+        css: `@utility container{${container}}`,
+      });
     }
   }
 
@@ -407,8 +475,12 @@ export class TailwindRuntime {
    * @returns Stillwind CSS for the statement's position.
    */
   css(owner: number): string {
-    const output = this.#globals.filter((entry) => entry.owner === owner).map(({ css }) => css);
-    output.push(...this.#utilities.filter((entry) => entry.owner === owner).map(({ css }) => css));
+    const output = owner === 0 && this.#important ? [this.#important] : [];
+    output.push(
+      ...[...this.#globals, ...this.#utilities]
+        .filter((entry) => entry.owner === owner)
+        .map(({ css }) => css),
+    );
     for (const variant of this.#variants.values()) {
       if (variant.owner === owner) {
         output.push(variant.css);

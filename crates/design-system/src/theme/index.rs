@@ -13,7 +13,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property
 use super::builder::ThemeBuilder;
 use super::declarations::ThemeToken;
 use super::namespace::{ThemeNamespace, excluded_from_namespace, namespace_key_names};
-use super::parser::DynamicFamily;
+use super::parser::{DynamicFamily, UtilityImportance};
 use super::references::{inline_theme_functions, resolve_css_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
@@ -33,6 +33,7 @@ struct ThemeDeclarations {
     output_template: CssOutputTemplate,
     css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
     dynamic_utilities: Vec<DynamicFamily>,
+    important: Option<UtilityImportance>,
     registry: Arc<BuiltinDefinitions>,
     tokens: Vec<Arc<ThemeToken>>,
     custom_css: LeanStr,
@@ -92,6 +93,7 @@ impl ThemeIndex {
             output_template: builder.output_template,
             css_templates: builder.css_templates,
             dynamic_utilities: builder.dynamic_utilities,
+            important: builder.important,
             registry: builder.registry,
             tokens: builder.tokens.into_iter().map(Arc::new).collect(),
             custom_css: builder.custom_css,
@@ -291,6 +293,12 @@ impl ThemeIndex {
             .authored_property_syntaxes
             .get(name)
             .map(LeanStr::as_str)
+    }
+
+    /// Importance of class utilities that a Tailwind plugin configuration selects.
+    /// `None` leaves class utilities as their candidates spell them.
+    pub fn important(&self) -> Option<&UtilityImportance> {
+        self.inner.declarations.important.as_ref()
     }
 
     /// Host-selected ordering strategy for resolved utilities.

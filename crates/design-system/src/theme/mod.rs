@@ -26,7 +26,7 @@ mod tokens;
 pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode, ThemeTokenPrecedence};
 pub use index::ThemeIndex;
 pub use namespace::{SPACING_VALUE_DOMAIN, ThemeNamespace, parse_theme_namespace_types};
-pub use parser::{DynamicFamily, DynamicFamilyKind, parse_theme};
+pub use parser::{DynamicFamily, DynamicFamilyKind, UtilityImportance, parse_theme};
 pub use references::ThemeReferenceError;
 
 pub(crate) use parser::extract_keyframe_blocks;

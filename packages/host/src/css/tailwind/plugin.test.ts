@@ -191,3 +191,50 @@ test("named variant values must be strings, and the bare root uses DEFAULT", () 
   expect(css).toContain(String.raw`@custom-variant state-\[a_b\]{&[data-state="a b"]{@slot;}}`);
   expect(css).not.toContain("state-one");
 });
+
+test("config() reads Tailwind's resolved keys with bracket paths, and the last config sets them", () => {
+  const observed: unknown[] = [];
+  const tailwind = runtime(
+    plugin(() => {}, {
+      important: true,
+      prefix: "first",
+    }),
+    plugin(
+      (api) => {
+        observed.push(
+          api.config("theme[colors][brand]"),
+          api.config("theme.colors.brand"),
+          api.config("custom[one]", "missing"),
+          api.config("important"),
+          api.config("prefix"),
+        );
+      },
+      {
+        important: "#app",
+        theme: {
+          colors: {
+            brand: "red",
+          },
+        },
+        custom: { one: "found" },
+      } as never,
+    ),
+  );
+  expect(observed).toEqual(["red", "red", "missing", "#app", "first"]);
+  // The prefix is not applied to candidates.
+  expect(tailwind.css(0)).toBe("@stillwind-plugin-important #app;");
+  expect(
+    runtime(
+      plugin(() => {}, {
+        important: true,
+      }),
+    ).css(0),
+  ).toBe("@stillwind-plugin-important;");
+  expect(
+    runtime(
+      plugin(() => {}, {
+        important: false,
+      }),
+    ).css(0),
+  ).toBe("");
+});

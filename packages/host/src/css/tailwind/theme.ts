@@ -135,7 +135,7 @@ function themeableValues(theme: Dictionary): [string[], unknown][] {
  * @returns The keys, such as `["colors", "red", "500"]`. A bracket keeps dots, so `spacing[1.5]`
  * has the key `1.5`.
  */
-function toKeyPath(path: string): string[] {
+export function toKeyPath(path: string): string[] {
   const keys: string[] = [];
   for (const part of splitTopLevel(path, ".")) {
     let index = 0;

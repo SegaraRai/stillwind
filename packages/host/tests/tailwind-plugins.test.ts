@@ -621,3 +621,43 @@ test("plugin registrations are defaults that built-ins and stylesheet utilities 
     }
   }
 });
+
+test("plugin config important and container apply to build and hover, and the last config wins", async () => {
+  const extension = plugin(() => {}, {
+    presets: [
+      {
+        important: "#app",
+      },
+      {
+        important: true,
+        theme: {
+          container: {
+            center: true,
+            padding: "2rem",
+          },
+        },
+      },
+    ],
+  } as never);
+  const { project, source } = pluginProject(
+    extension,
+    "container pad",
+    "@utility pad { padding: 4px; } @utility container { width: 100%; }",
+  );
+  try {
+    await project.analyze("/workspace/entry.tsx");
+    const css = project.css().css;
+    expect(css).toContain("padding: 4px!important");
+    expect(css).not.toContain("#app{");
+    expect(css).toMatch(
+      /margin-inline:auto!important;padding-inline:2rem!important;[^}]*width: 100%!important/,
+    );
+    const resolved = await project.query("/workspace/entry.tsx", {
+      kind: "hover",
+      offset: source.indexOf("pad") + 1,
+    });
+    expect(resolved?.hover?.css).toContain("!important");
+  } finally {
+    await project.close();
+  }
+});

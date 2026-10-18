@@ -10,7 +10,7 @@ use stillwind_source::Span;
 
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
-use super::parser::DynamicFamily;
+use super::parser::{DynamicFamily, UtilityImportance};
 use crate::{BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, UtilityOrderMode};
 
 #[derive(Debug, Default)]
@@ -31,6 +31,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
     /// `@stillwind-dynamic` utility families, one for each prefix.
     pub(crate) dynamic_utilities: Vec<DynamicFamily>,
+    /// Importance of class utilities from a Tailwind plugin configuration.
+    pub(crate) important: Option<UtilityImportance>,
     /// Built-in definitions selected by this CSS; empty when it imports none.
     pub(crate) registry: Arc<BuiltinDefinitions>,
     /// Every token in authored order, including resets and superseded values.
