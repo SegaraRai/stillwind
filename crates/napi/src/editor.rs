@@ -11,7 +11,7 @@ use stillwind_compiler::{
     CandidateContext, ColorEquivalents, CompilerOptions, CompletionInput, DesignSystemQuery,
     PreviewAnnotations, StylesheetCompletionOptions,
 };
-use stillwind_css::{ValueType, color_rgba, format_css};
+use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::{DesignSystemSnapshot, ThemeTokenMode, ThemeTokenPrecedence};
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, LintSurface, Reporter, SourceEdit,
@@ -36,13 +36,13 @@ pub struct NativeThemeToken {
     pub inline: bool,
 }
 
-/// Checks a CSS value against a public arbitrary-value type hint.
-/// Unknown hints and empty values return false; CSS-wide keywords and variables follow
-/// CSS validation policy.
+/// Decodes the text inside an arbitrary value or modifier as Tailwind does: `_` becomes
+/// a space and `\_` an underscore, except in `url()` and the first argument of `var()`
+/// and `theme()`, and operators in math functions receive spaces.
 #[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
-pub fn css_value_matches(value: String, hint: String) -> bool {
-    ValueType::from_hint(&hint).is_some_and(|kind| kind.accepts(&value))
+pub fn decode_arbitrary_value(value: String) -> String {
+    stillwind_syntax::decode_arbitrary_value(&value).to_string()
 }
 
 /// Comments that formatted previews add after values. Omitted fields use their

@@ -215,7 +215,7 @@ mod tests {
         );
         assert_eq!(
             dynamic_candidates(
-                r#"style("probe-4", "-probe-[length:calc(2px_+_3px)]/[mirror]", { "state-[open]:": "probe-(--width)" }); group-state-[closed]:probe-4"#,
+                r#"style("probe-4", "-probe-[length:calc(2px_+_3px)]/[mirror]", { "state-[open]:": "probe-(--width)" }); group-state-[closed]:probe-4 probe-one/[foo_bar]"#,
                 &theme
             ),
             [
@@ -223,7 +223,9 @@ mod tests {
                 "@variant state-[closed]",
                 "@variant state-[open]",
                 "probe-(--width)",
-                "probe-4"
+                "probe-4",
+                // The modifier is encoded again, so the key contains no whitespace.
+                "probe-one/[foo_bar]"
             ]
         );
     }

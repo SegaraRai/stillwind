@@ -30,6 +30,21 @@ fn resolves_every_upstream_static_utility_from_the_css_registry() {
 }
 
 #[test]
+fn arbitrary_values_decode_as_tailwind_decodes_them() {
+    let theme = theme();
+    for (candidate, declaration) in [
+        ("w-[var(--my_width)]", "width: var(--my_width);"),
+        ("w-[calc(1px+2px)]", "width: calc(1px + 2px);"),
+        ("w-[calc(100%_-_1rem)]", "width: calc(100% - 1rem);"),
+    ] {
+        assert_css_eq!(
+            resolve_utility(candidate, &theme).unwrap().declaration,
+            declaration
+        );
+    }
+}
+
+#[test]
 fn resolves_every_upstream_functional_root_with_an_arbitrary_value() {
     let catalog =
         include_str!("../../../../../fixtures/tailwind-v4/catalog/direct-registrations.md");

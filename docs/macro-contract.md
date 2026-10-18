@@ -1013,10 +1013,15 @@ color. `theme(--name, fallback)` uses the fallback when the token is not active.
 A candidate whose `theme()` call names an inactive token without a fallback, or
 names something other than a custom property, is unresolved.
 
+Arbitrary values and modifiers decode as in Tailwind. An `_` becomes a space and `\_`
+an underscore, but underscores stay inside `url()` and in the first argument of `var()`
+and `theme()`, so `w-[var(--my_width)]` refers to `--my_width`. Other backslash escapes
+are kept as written.
+
 Inside a math function such as `calc()` or `min()`, the compiler adds the spaces that
-CSS requires around binary operators, as Tailwind does: `p-[calc(1rem+2px)]` sets
-`padding: calc(1rem + 2px)`. An operator that starts an argument or follows another
-operator is a sign and stays unchanged.
+CSS requires around binary operators and after commas, as Tailwind does:
+`p-[calc(1rem+2px)]` sets `padding: calc(1rem + 2px)`. An operator that starts an
+argument or follows another operator is a sign and stays unchanged.
 
 An arbitrary opacity modifier is a percentage, so `bg-red-500/[50%]` is the same as
 `bg-red-500/50`. A percentage outside `0%` to `100%` is emitted unchanged and reported

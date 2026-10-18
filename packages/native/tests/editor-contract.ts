@@ -8,7 +8,7 @@ import { expect, test } from "vite-plus/test";
  */
 export function registerEditorContract(specifier: string): void {
   test("functional registrations preserve modifiers, nested targets, theme defaults, and CSS functions", async () => {
-    const { NativeDesignSystemLoader, NativeProjectSession, cssValueMatches } = await import(
+    const { NativeDesignSystemLoader, NativeProjectSession, decodeArbitraryValue } = await import(
       specifier
     );
     const loader = new NativeDesignSystemLoader();
@@ -48,8 +48,7 @@ export function registerEditorContract(specifier: string): void {
     expect(query.previewCandidate("safe")).toContain("var(--spacing)");
     expect(query.previewCandidate("safe")).not.toContain("--spacing(");
     expect(query.previewCandidate("safe")).not.toContain("--alpha(");
-    expect(cssValueMatches("oklch(.5 .1 45)", "color")).toBe(true);
-    expect(cssValueMatches("123px", "color")).toBe(false);
+    expect(decodeArbitraryValue("calc(var(--my_width)+1px)")).toBe("calc(var(--my_width) + 1px)");
     const session = new NativeProjectSession(loader, false);
     const reload = loader.newLoader();
     reload.provide(0, "theme.css", "@theme { --color-brand: green; }");

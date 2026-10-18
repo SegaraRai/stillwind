@@ -4,7 +4,7 @@
  * statement selects such a plugin, because it depends on the `tailwindcss` package.
  */
 
-import { cssValueMatches, type NativeThemeToken } from "@stillwind/native";
+import { decodeArbitraryValue, type NativeThemeToken } from "@stillwind/native";
 import type { PluginAPI, PluginCreator, PluginWithConfig } from "tailwindcss/plugin";
 
 import type { TailwindPlugin } from "../plugins.ts";
@@ -18,6 +18,7 @@ import {
   utilityRules,
   withAlpha,
 } from "./css.ts";
+import { inferDataType, type DataType } from "./data-type.ts";
 import { merge, PluginTheme } from "./theme.ts";
 
 /**
@@ -497,31 +498,109 @@ function variantBody(value: unknown): string {
   return `${value}{@slot;}`;
 }
 
+/** A candidate value or modifier, as Tailwind's candidate parser reads it. */
+type CandidatePart =
+  | {
+      kind: "named";
+      /** Text as written. */
+      value: string;
+    }
+  | {
+      kind: "arbitrary";
+      /** Decoded value; a `(--name)` shorthand becomes `var(--name)`. */
+      value: string;
+      /** Explicit type hint such as `length` in `[length:1px]`, or null without one. */
+      dataType: string | null;
+    };
+
 /**
- * Decodes an arbitrary value as Tailwind does: `_` becomes a space and `\_` an underscore,
- * except inside `url()`.
- * @param value - Text inside the brackets.
- * @returns The decoded value.
+ * Whether a decoded arbitrary value has no top-level `;` or `}`, which Tailwind rejects.
+ * @param value - Decoded value.
+ * @returns Whether the value can be used.
  */
-function decode(value: string): string {
-  return value.replace(/url\([^)]*\)|\\_|_/g, (part) =>
-    part.startsWith("url(") ? part : part === "\\_" ? "_" : " ",
-  );
+function validArbitrary(value: string): boolean {
+  return splitTopLevel(value, ";").length === 1 && splitTopLevel(value, "}").length === 1;
 }
 
 /**
- * Reads an arbitrary value or a CSS variable shorthand.
- * @param value - Value or modifier text, such as `[3px]` or `(--size)`.
- * @returns The decoded value, `var(--size)` for `(--size)`, or undefined for a named value.
+ * Parses the value part of a candidate as Tailwind's candidate parser does.
+ * @param text - Text after the root and its `-`, such as `4`, `[length:1px]`, or
+ * `(length:--size)`.
+ * @returns The value, or undefined when Tailwind rejects the candidate.
  */
-function arbitrary(value: string): string | undefined {
-  if (value.startsWith("[") && value.endsWith("]")) {
-    return decode(value.slice(1, -1));
+function parseValue(text: string): CandidatePart | undefined {
+  let inner: string;
+  if (text.startsWith("(") && text.endsWith(")")) {
+    // Tailwind rewrites `(type:--name)` to `[type:var(--name)]` before decoding.
+    const parts = splitTopLevel(text.slice(1, -1), ":");
+    const [dataType, variable] = parts.length === 2 ? parts : [null, parts.join(":")];
+    if (!variable.startsWith("--") || !validArbitrary(variable)) {
+      return undefined;
+    }
+    inner = dataType === null ? `var(${variable})` : `${dataType}:var(${variable})`;
+  } else if (text.startsWith("[") && text.endsWith("]")) {
+    inner = text.slice(1, -1);
+  } else {
+    return {
+      kind: "named",
+      value: text,
+    };
   }
-  if (value.startsWith("(") && value.endsWith(")")) {
-    return `var(${value.slice(1, -1)})`;
+  let value = decodeArbitraryValue(inner);
+  if (!validArbitrary(value)) {
+    return undefined;
   }
-  return undefined;
+  // A type hint consists of lowercase letters and hyphens before the first colon.
+  let dataType: string | null = null;
+  const hint = /^([a-z-]*):/.exec(value);
+  if (hint) {
+    if (!hint[1]) {
+      return undefined;
+    }
+    dataType = hint[1];
+    value = value.slice(hint[0].length);
+  }
+  return value.trim()
+    ? {
+        kind: "arbitrary",
+        value,
+        dataType,
+      }
+    : undefined;
+}
+
+/**
+ * Parses a `/` modifier as Tailwind's candidate parser does.
+ * @param text - Modifier text without the slash.
+ * @returns The modifier, or undefined when Tailwind rejects the candidate.
+ */
+function parseModifier(text: string): CandidatePart | undefined {
+  if (text.startsWith("[") && text.endsWith("]")) {
+    const value = decodeArbitraryValue(text.slice(1, -1));
+    return validArbitrary(value) && value.trim()
+      ? {
+          kind: "arbitrary",
+          value,
+          dataType: null,
+        }
+      : undefined;
+  }
+  if (text.startsWith("(") && text.endsWith(")")) {
+    const variable = text.slice(1, -1);
+    return variable.startsWith("--") && validArbitrary(variable)
+      ? {
+          kind: "arbitrary",
+          value: decodeArbitraryValue(`var(${variable})`),
+          dataType: null,
+        }
+      : undefined;
+  }
+  return text
+    ? {
+        kind: "named",
+        value: text,
+      }
+    : undefined;
 }
 
 /**
@@ -544,84 +623,98 @@ function resolveUtility(
   if (!member(raw, name) || (negative && !options.supportsNegativeValues)) {
     return;
   }
-  const [stem, modifierName] = splitTopLevel(raw, "/");
-  const capture = stem === name ? "DEFAULT" : stem.slice(name.length + 1);
-  const types = Array.isArray(options.type) ? options.type : [options.type ?? "any"];
-  const values = options.values ?? {};
-  const isColor = types.includes("color");
-  let value: unknown;
-  let ignoreModifier = false;
-  let modifier: string | null = null;
-  const decoded = arbitrary(capture);
-  if (decoded !== undefined) {
-    const hint = /^([a-z-]+):(.+)$/s.exec(decoded);
-    if (hint) {
-      if (!types.includes(hint[1]) && !types.includes("any")) {
-        return;
-      }
-      value = hint[2];
-    } else {
-      if (
-        types.length &&
-        !types.includes("any") &&
-        !types.some((type) => matchesType(decoded, type))
-      ) {
-        return;
-      }
-      value = decoded;
-    }
-  } else {
-    if (modifierName && Object.hasOwn(values, `${capture}/${modifierName}`)) {
-      value = values[`${capture}/${modifierName}`];
-      ignoreModifier = true;
-    } else {
-      value = values[capture];
-    }
-    // Color utilities accept these keywords unless their values define the keys, as in Tailwind.
-    if (value === undefined && isColor) {
-      value = (
-        {
-          inherit: "inherit",
-          transparent: "transparent",
-          current: "currentcolor",
-        } as Record<string, string>
-      )[capture];
-    }
-    if (value === undefined && values.__BARE_VALUE__ && capture !== "DEFAULT") {
-      value = values.__BARE_VALUE__({
-        kind: "named",
-        value: capture,
-        fraction: modifierName ? `${capture}/${modifierName}` : null,
-      });
-      ignoreModifier = !!modifierName && typeof value === "string" && value.includes("/");
-    }
-  }
-  if (typeof value !== "string" && typeof value !== "number") {
+  const [stem, ...modifierParts] = splitTopLevel(raw, "/");
+  if (modifierParts.length > 1) {
     return;
   }
-  if (modifierName) {
-    modifier =
-      (modifierName.startsWith("[") && modifierName.endsWith("]")
-        ? modifierName.slice(1, -1)
-        : arbitrary(modifierName)) ??
-      (options.modifiers === "any" ? modifierName : options.modifiers?.[modifierName]) ??
-      null;
-    if (isColor && modifier === null && /^\d+(?:\.\d+)?$/.test(modifierName)) {
-      modifier = `${modifierName}%`;
-    }
-    if (modifier === null && !ignoreModifier) {
-      return decoded === undefined ? undefined : null;
-    }
-    if (isColor && modifier !== null) {
-      value = withAlpha(String(value), modifier);
+  const modifierText = modifierParts[0];
+  const valueText = stem === name ? undefined : stem.slice(name.length + 1);
+  const parsed = valueText === undefined ? null : parseValue(valueText);
+  const candidateModifier = modifierText === undefined ? null : parseModifier(modifierText);
+  if (parsed === undefined || candidateModifier === undefined) {
+    return;
+  }
+  const types = Array.isArray(options.type) ? options.type : [options.type ?? "any"];
+  if (parsed?.kind === "arbitrary" && types.length > 0 && !types.includes("any")) {
+    if (
+      parsed.dataType
+        ? !types.includes(parsed.dataType)
+        : !inferDataType(parsed.value, types as DataType[])
+    ) {
+      return;
     }
   }
+  const isColor = types.includes("color");
+  // Color utilities accept these keywords unless their values define the keys, as in Tailwind.
+  const values: Record<string, unknown> = isColor
+    ? {
+        inherit: "inherit",
+        transparent: "transparent",
+        current: "currentcolor",
+        ...options.values,
+      }
+    : (options.values ?? {});
+  // A named value with a named modifier, such as `w-1/2`, may be a fraction key.
+  const fraction =
+    parsed?.kind === "named" && candidateModifier?.kind === "named"
+      ? `${parsed.value}/${candidateModifier.value}`
+      : null;
+  let value: unknown = null;
+  let ignoreModifier = false;
+  if (!parsed) {
+    value = values.DEFAULT ?? null;
+  } else if (parsed.kind === "arbitrary") {
+    value = parsed.value;
+  } else if (fraction && Object.hasOwn(values, fraction)) {
+    value = values[fraction];
+    ignoreModifier = true;
+  } else if (Object.hasOwn(values, parsed.value)) {
+    value = values[parsed.value];
+  } else if (typeof values.__BARE_VALUE__ === "function") {
+    value =
+      values.__BARE_VALUE__({
+        kind: "named",
+        value: parsed.value,
+        fraction,
+      }) ?? null;
+    ignoreModifier = fraction !== null && typeof value === "string" && value.includes("/");
+  }
+  if (value === null || value === undefined) {
+    return;
+  }
+  let modifier: string | null = null;
+  if (candidateModifier) {
+    const modifiers = options.modifiers;
+    if (modifiers === "any" || candidateModifier.kind === "arbitrary") {
+      modifier = candidateModifier.value;
+    } else if (modifiers && Object.hasOwn(modifiers, candidateModifier.value)) {
+      modifier = modifiers[candidateModifier.value];
+    } else if (isColor && !Number.isNaN(Number(candidateModifier.value))) {
+      modifier = `${candidateModifier.value}%`;
+    }
+    if (modifier === null && !ignoreModifier) {
+      return parsed?.kind === "arbitrary" ? null : undefined;
+    }
+  }
+  // Like Tailwind, these interpolate the value as text; color and negative registrations hold
+  // strings or numbers.
+  if (isColor && modifier !== null) {
+    value = withAlpha(String(value as string), modifier);
+  }
   if (negative) {
-    value = `calc(${String(value)} * -1)`;
+    value = `calc(${String(value as string)} * -1)`;
   }
   return utilityBodies(
     utilityGlobals(
-      callback(String(value), {
+      // Tailwind passes a value from `values` as it is, so a number stays a number.
+      (
+        callback as (
+          value: unknown,
+          extra: {
+            modifier: string | null;
+          },
+        ) => unknown
+      )(value, {
         modifier,
       }),
       global,
@@ -630,37 +723,12 @@ function resolveUtility(
 }
 
 /**
- * Infers whether an arbitrary value without a type hint has a `matchUtilities` type, as
- * Tailwind's `inferDataType()` does.
- * @param value - Decoded arbitrary value.
- * @param type - Tailwind data type, such as `color`, `length`, or `generic-name`.
- * @returns Whether the value has the type.
- */
-function matchesType(value: string, type: string): boolean {
-  // Tailwind does not infer a type for a variable, so a typed registration skips it.
-  if (value.startsWith("var(")) {
-    return false;
-  }
-  // Tailwind's `isGenericName()` list of generic font families.
-  if (type === "generic-name") {
-    return /^(?:serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-serif|ui-sans-serif|ui-monospace|ui-rounded|math|emoji|fangsong)$/.test(
-      value,
-    );
-  }
-  // Tailwind separates percentages from lengths and does not count `none` as an image, while
-  // the CSS grammar of Stillwind's value types accepts both.
-  if (type === "length" && value.endsWith("%")) {
-    return false;
-  }
-  if (type === "image" && value === "none") {
-    return false;
-  }
-  // Tailwind's `size` type is the grammar of `background-size`.
-  return cssValueMatches(value, type === "size" ? "bg-size" : type);
-}
-
-/**
- * Selects the callback arguments of a `matchVariant()` registration for one variant name.
+ * Selects the callback arguments of a `matchVariant()` registration for one variant name, as
+ * Tailwind's compatibility layer does.
+ *
+ * The bare root uses the `DEFAULT` value. A named value must be a string in `values`, so
+ * `values: { one: 1 }` defines no `name-one` variant. An arbitrary value passes its decoded text.
+ *
  * @param candidate - Complete variant name, such as `state-[open]/peer`.
  * @param registration - Registration whose root and values apply.
  * @returns The variant name, value, and modifier, or undefined when the registration has no
@@ -679,15 +747,34 @@ function resolveVariant(
   if (!member(candidate, name)) {
     return;
   }
-  const [stem, modifierName] = splitTopLevel(candidate, "/");
-  const capture = stem === name ? "DEFAULT" : stem.slice(name.length + 1);
-  const value = arbitrary(capture) ?? options.values?.[capture];
-  if (value === undefined) {
+  const [stem, ...modifierParts] = splitTopLevel(candidate, "/");
+  if (modifierParts.length > 1) {
     return;
+  }
+  const valueText = stem === name ? undefined : stem.slice(name.length + 1);
+  const parsed = valueText === undefined ? null : parseValue(valueText);
+  const modifier = modifierParts[0] === undefined ? null : parseModifier(modifierParts[0]);
+  if (parsed === undefined || modifier === undefined) {
+    return;
+  }
+  const values = options.values;
+  let value: unknown;
+  if (!parsed) {
+    if (!values || !("DEFAULT" in values)) {
+      return;
+    }
+    value = values.DEFAULT;
+  } else if (parsed.kind === "arbitrary") {
+    value = parsed.value;
+  } else {
+    value = values && Object.hasOwn(values, parsed.value) ? values[parsed.value] : undefined;
+    if (typeof value !== "string") {
+      return;
+    }
   }
   return {
     name: candidate,
     value,
-    modifier: modifierName ? (arbitrary(modifierName) ?? modifierName) : null,
+    modifier: modifier?.value ?? null,
   };
 }

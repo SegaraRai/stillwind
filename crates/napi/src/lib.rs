@@ -56,7 +56,7 @@ pub use api::{
     summarize_source_input,
 };
 pub use editor::{
-    NativeStylesheetPluginPath, completion_detail, css_value_matches, editor_css_source,
+    NativeStylesheetPluginPath, completion_detail, decode_arbitrary_value, editor_css_source,
     stylesheet_plugin_paths,
 };
 pub use fingerprint::fingerprint;

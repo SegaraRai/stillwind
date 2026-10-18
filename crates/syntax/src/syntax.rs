@@ -14,6 +14,8 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use crate::arbitrary::decode_arbitrary_value;
+
 /// How a variant prefix was written.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariantKind {
@@ -67,8 +69,8 @@ pub enum Utility {
 }
 
 impl Utility {
-    /// Returns the key for a named utility, retaining negativity and decoded modifiers.
-    /// Arbitrary properties have no registration key.
+    /// Returns the key for a named utility, retaining negativity and the modifier, as
+    /// [`utility_registration_key`] spells it. Arbitrary properties have no key.
     pub fn registration_key(&self, negative: bool) -> Option<LeanString> {
         let Self::Named { name, modifier } = self else {
             return None;
@@ -77,7 +79,13 @@ impl Utility {
     }
 }
 
-/// Serializes a named utility and its decoded modifier for exact plugin registration.
+/// Serializes a named utility and its modifier as one candidate spelling for exact
+/// plugin registration.
+///
+/// An arbitrary modifier is encoded again so that the key contains no whitespace and
+/// decodes to the same modifier: a space becomes `_` and an underscore `\_`. Candidates
+/// whose modifiers decode equally, such as `x/[calc(1+2)]` and `x/[calc(1_+_2)]`,
+/// therefore share one key.
 pub fn utility_registration_key(
     name: &str,
     modifier: Option<&Value>,
@@ -95,7 +103,13 @@ pub fn utility_registration_key(
         }
         Some(Value::Arbitrary(value)) => {
             key.push_str("/[");
-            key.push_str(value);
+            for character in value.chars() {
+                match character {
+                    ' ' => key.push('_'),
+                    '_' => key.push_str("\\_"),
+                    _ => key.push(character),
+                }
+            }
             key.push(']');
         }
         Some(Value::CssVariable(value)) => {
@@ -378,26 +392,10 @@ fn strip_unescaped_suffix(value: &str, suffix: char) -> Option<&str> {
     (slash_count % 2 == 0).then_some(value)
 }
 
-/// Decodes the text inside an arbitrary value or property.
-///
-/// `\x` yields `x` and an unescaped `_` becomes a space. Escapes are resolved first, so
-/// `\_` is a literal underscore rather than a space.
+/// Decodes the text inside an arbitrary value or property as Tailwind does; see
+/// [`decode_arbitrary_value`].
 fn decode_arbitrary(value: &str) -> LeanStr {
-    let mut output = LeanString::new();
-    let mut escaped = false;
-    for character in value.chars() {
-        if escaped {
-            output.push(character);
-            escaped = false;
-        } else if character == '\\' {
-            escaped = true;
-        } else if character == '_' {
-            output.push(' ');
-        } else {
-            output.push(character);
-        }
-    }
-    output.into()
+    decode_arbitrary_value(value).into()
 }
 
 #[cfg(test)]
@@ -593,6 +591,16 @@ mod boundary_tests {
         assert!(balanced("[f(']')]"));
         assert!(!balanced("[x)"));
         assert_eq!(decode_arbitrary(r"a_b\_c"), "a b_c");
+        let key = |raw| {
+            let candidate = parse_candidate(raw).unwrap();
+            candidate
+                .utility
+                .registration_key(candidate.negative)
+                .unwrap()
+        };
+        assert_eq!(key("-probe-one/[foo_bar]"), "-probe-one/[foo_bar]");
+        assert_eq!(key(r"probe-one/[foo\_bar]"), r"probe-one/[foo\_bar]");
+        assert_eq!(key("probe/(--x)"), "probe/(--x)");
     }
 
     #[test]

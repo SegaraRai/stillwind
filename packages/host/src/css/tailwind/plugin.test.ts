@@ -85,3 +85,109 @@ test("typed registrations stop on invalid arbitrary modifiers, and any-typed one
   expect(css).not.toContain("tone-brand");
   expect(css).toContain("@utility line-thin (functional, fallback){border-width:1px;}");
 });
+
+/**
+ * Records the arguments that a `matchUtilities` callback receives for each candidate.
+ * @param options - Options of the registration.
+ * @param candidates - Utility keys to resolve.
+ * @returns The callback arguments in call order.
+ */
+function callbackArguments(options: object, candidates: string[]) {
+  const calls: {
+    value: unknown;
+    modifier: string | null;
+  }[] = [];
+  const tailwind = runtime(
+    plugin((api) =>
+      api.matchUtilities(
+        {
+          probe: (value, { modifier }) => {
+            calls.push({
+              value,
+              modifier,
+            });
+            return {
+              width: String(value),
+            };
+          },
+        },
+        options,
+      ),
+    ),
+  );
+  tailwind.resolve(candidates);
+  return calls;
+}
+
+test("arbitrary values and modifiers reach callbacks decoded as Tailwind decodes them", () => {
+  expect(
+    callbackArguments(
+      {
+        values: {
+          one: "1px",
+        },
+        modifiers: "any",
+      },
+      [
+        "probe-[var(--my_width)]",
+        "probe-[calc(1px+2px)]",
+        "probe-['a_b']",
+        "probe-one/[foo_bar]",
+        String.raw`probe-one/[foo\_bar]`,
+        "probe-one/(--alpha)",
+      ],
+    ),
+  ).toEqual([
+    { value: "var(--my_width)", modifier: null },
+    { value: "calc(1px + 2px)", modifier: null },
+    { value: "'a b'", modifier: null },
+    { value: "1px", modifier: "foo bar" },
+    { value: "1px", modifier: "foo_bar" },
+    { value: "1px", modifier: "var(--alpha)" },
+  ]);
+});
+
+test("type hints and Tailwind's type inference select typed registrations", () => {
+  expect(
+    callbackArguments({ type: "length" }, [
+      "probe-(length:--my-size)",
+      "probe-[length:var(--my-size)]",
+      "probe-[calc(100%_-_1rem)]",
+      "probe-[calc(1+2)]",
+      "probe-(--my-size)",
+      "probe-(color:--my-size)",
+      "probe-[red]",
+    ]),
+  ).toEqual([
+    { value: "var(--my-size)", modifier: null },
+    { value: "var(--my-size)", modifier: null },
+    { value: "calc(100% - 1rem)", modifier: null },
+    { value: "calc(1 + 2)", modifier: null },
+  ]);
+});
+
+test("named variant values must be strings, and the bare root uses DEFAULT", () => {
+  const tailwind = runtime(
+    plugin((api) =>
+      api.matchVariant("state", (value) => `&[data-state="${String(value)}"]`, {
+        values: {
+          DEFAULT: "on",
+          one: 1 as unknown as string,
+          open: "open",
+        },
+      }),
+    ),
+  );
+  tailwind.resolve([
+    "@variant state",
+    "@variant state-one",
+    "@variant state-open",
+    "@variant state-[a_b]",
+  ]);
+
+  const css = tailwind.css(0);
+  expect(css).toContain('@custom-variant state{&[data-state="on"]{@slot;}}');
+  expect(css).toContain('@custom-variant state-open{&[data-state="open"]{@slot;}}');
+  expect(css).toContain(String.raw`@custom-variant state-\[a_b\]{&[data-state="a b"]{@slot;}}`);
+  expect(css).not.toContain("state-one");
+});

@@ -12,6 +12,7 @@
 //!
 //! `lexer` locates utility tokens and their source spans. `syntax` parses each
 //! candidate's utility and variant structure without resolving registry names.
+//! `arbitrary` decodes arbitrary values as Tailwind does.
 
 #![cfg_attr(
     not(test),
@@ -25,9 +26,11 @@
     )
 )]
 
+mod arbitrary;
 mod lexer;
 mod syntax;
 
+pub use arbitrary::decode_arbitrary_value;
 pub use lexer::{UtilityToken, lex_utilities};
 pub use syntax::{
     Candidate, Utility, Value, Variant, VariantKind, parse_candidate, parse_variant_prefix,

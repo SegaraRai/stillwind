@@ -244,10 +244,17 @@ and comma-separated lists. Ordinary handlers reject options.
 The adapter supports `addBase`, `addUtilities`, `addComponents`, `matchUtilities`,
 `matchComponents`, `addVariant`, `matchVariant`, `theme`, `config`, and `prefix`.
 Dynamic utilities accept named and arbitrary values, type hints, negative values,
-fractions, and slash modifiers. Color utilities apply opacity modifiers before calling
-the handler. The host loads the adapter, and the `tailwindcss` package that it needs,
-only when a statement selects a Tailwind plugin, so `tailwindcss` is an optional peer
-dependency of `@stillwind/host`.
+fractions, and slash modifiers. Callbacks receive values and modifiers as Tailwind
+passes them: arbitrary text decoded as in Tailwind, `(type:--name)` as the type hint
+and `var(--name)`, and a value from `values` unchanged, so a number stays a number.
+An arbitrary value without a type hint reaches a typed registration only when
+Tailwind's type inference assigns it one of the types, which is a separate check from
+the CSS validation of Stillwind's own utilities. Color utilities apply opacity
+modifiers before calling the handler. A `matchVariant` registration accepts a named
+value only when `values` maps it to a string, and the bare root uses `DEFAULT`.
+The host loads the adapter, and the `tailwindcss` package that it needs, only when a
+statement selects a Tailwind plugin, so `tailwindcss` is an optional peer dependency
+of `@stillwind/host`.
 
 Callbacks run in the host, and the compiler receives ordinary `@utility` definitions.
 A static utility from `addUtilities` keeps its name. The CSS that a `matchUtilities`

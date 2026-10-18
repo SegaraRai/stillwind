@@ -48,6 +48,37 @@ test("theme edits re-evaluate previously requested plugin candidates", async () 
   expect(second.loader.editorQuery().previewCandidate("ink-brand")).toContain("#654321");
 });
 
+test("decoded values and modifiers register definitions that the compiler resolves", async () => {
+  const extension = plugin((api) =>
+    api.matchUtilities(
+      {
+        probe: (value, { modifier }) => ({
+          width: value,
+          "--modifier": modifier ?? "none",
+        }),
+      },
+      {
+        type: "length",
+        values: {
+          one: "1px",
+        },
+        modifiers: "any",
+      },
+    ),
+  );
+  const loaded = await graph('@plugin "test"; @stillwind-slot utilities;', extension);
+  const preview = async (candidate: string) =>
+    (await loaded.plugins!.query(candidate)).previewCandidate(candidate);
+
+  expect(await preview("probe-one/[foo_bar]")).toBe("&{width:1px;--modifier:foo bar;}");
+  expect(await preview("probe-[calc(100%_-_1rem)]")).toBe(
+    "&{width:calc(100% - 1rem);--modifier:none;}",
+  );
+  expect(await preview("probe-(length:--my-size)")).toBe(
+    "&{width:var(--my-size);--modifier:none;}",
+  );
+});
+
 test("editor catalogs resolve selected script and CSS candidates lazily without emitting unused CSS", async () => {
   const calls: string[] = [];
   const extension = plugin((api) => {

@@ -579,11 +579,11 @@ export declare function compileSource(input: NativeCompileSourceInput, options?:
 export declare function completionDetail(source: string): string | null
 
 /**
- * Checks a CSS value against a public arbitrary-value type hint.
- * Unknown hints and empty values return false; CSS-wide keywords and variables follow
- * CSS validation policy.
+ * Decodes the text inside an arbitrary value or modifier as Tailwind does: `_` becomes
+ * a space and `\_` an underscore, except in `url()` and the first argument of `var()`
+ * and `theme()`, and operators in math functions receive spaces.
  */
-export declare function cssValueMatches(value: string, hint: string): boolean
+export declare function decodeArbitraryValue(value: string): string
 
 /**
  * Extracts definitions and imports for an editor-only load of incomplete CSS.

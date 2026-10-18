@@ -24,6 +24,7 @@ stillwind-js-oxc = { path = "../js-oxc" }
 stillwind-project = { path = "../project" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
+stillwind-syntax = { path = "../syntax" }
 napi-derive.workspace = true
 napi.workspace = true
 serde.workspace = true

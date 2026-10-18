@@ -2128,6 +2128,7 @@ dependencies = [
  "stillwind-project",
  "stillwind-semantic",
  "stillwind-source",
+ "stillwind-syntax",
  "stillwind-test-support",
  "thiserror",
 ]
