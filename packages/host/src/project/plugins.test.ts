@@ -37,7 +37,7 @@ afterEach(async () => {
 test("packages resolve from the stylesheet and must export a plugin by default", async () => {
   const importer = path.join(root, "src", "app.css");
 
-  expect((await nodePluginHost.load("valid", importer)).name).toBe("valid");
+  expect(await nodePluginHost.load("valid", importer)).toMatchObject({ name: "valid" });
   await expect(nodePluginHost.load("invalid", importer)).rejects.toThrow(
     "must export a plugin object by default",
   );

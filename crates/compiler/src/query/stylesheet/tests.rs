@@ -70,6 +70,7 @@ fn directive_discovery_uses_audience_location_and_provenance() {
                 StylesheetCompletionOptions {
                     registry_directives: registry,
                     snippets: false,
+                    catalog: Vec::new(),
                 },
             )
             .unwrap()

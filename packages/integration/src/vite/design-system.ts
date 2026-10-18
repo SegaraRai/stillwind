@@ -7,7 +7,9 @@ import { pathToFileURL } from "node:url";
 import {
   attachPlugins,
   cleanModuleId,
+  createStylesheetResolver,
   cssEntrypoint,
+  isStylesheet,
   loadCssGraph,
   nodePluginHost,
   type PluginRuntime,
@@ -419,6 +421,7 @@ async function loadDesignSystem(
     return file;
   };
   const nativeOptions = buildCompilerOptions(config);
+  const resolvePackageCss = createStylesheetResolver();
   const {
     loader,
     resources: resourceReferences,
@@ -427,7 +430,29 @@ async function loadDesignSystem(
     root,
     nativeOptions,
     {
-      resolve: async (specifier, importer) => realpath(await resolveCss(specifier, importer)),
+      resolve: async (specifier, importer) => {
+        let resolved: string | undefined;
+        let failure: unknown;
+        try {
+          resolved = await resolveCss(specifier, importer);
+        } catch (error) {
+          failure = error;
+        }
+        if (resolved && isStylesheet(cleanModuleId(resolved))) {
+          return realpath(cleanModuleId(resolved));
+        }
+        const stylesheet =
+          !specifier.startsWith(".") && !specifier.startsWith("/")
+            ? await resolvePackageCss(specifier, importer)
+            : undefined;
+        if (stylesheet) {
+          return realpath(stylesheet);
+        }
+        if (resolved) {
+          return realpath(cleanModuleId(resolved));
+        }
+        throw failure;
+      },
       read: (name) => readFile(name, "utf8"),
       documentUri: (name) => pathToFileURL(name).href,
       sourceMapSource: (name) => pathToFileURL(name).href,

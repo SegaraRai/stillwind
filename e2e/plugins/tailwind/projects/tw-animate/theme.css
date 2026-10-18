@@ -1,0 +1,7 @@
+@import "stillwind";
+
+@import "tw-animate-css";
+
+@theme {
+  --color-brand: #123456;
+}

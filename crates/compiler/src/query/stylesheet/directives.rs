@@ -209,7 +209,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         family: Family::TailwindDerived,
         positions: Positions::RULES,
         syntax: "@plugin '<name>' { option: value; }",
-        description: "Loads a Stillwind plugin through the host. Options configure the plugin's CSS definitions and dynamic utility families.",
+        description: "Loads a Stillwind or Tailwind CSS v4 plugin through the host. Options configure the plugin's definitions and dynamic families.",
     },
     Directive {
         name: "stillwind-utility",

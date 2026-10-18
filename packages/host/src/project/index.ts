@@ -10,4 +10,5 @@ export { EditorProject, type EditorAnalysis, type EditorDocument } from "./edito
 export { createFileSystemAnalysisHost } from "./filesystem.ts";
 export { compilerOptions, cssEntrypoint } from "./options.ts";
 export { nodePluginHost } from "./plugins.ts";
+export { createStylesheetResolver } from "./stylesheets.ts";
 export { AnalysisWorkspace, type WorkspaceProject, type WorkspaceResult } from "./workspace.ts";

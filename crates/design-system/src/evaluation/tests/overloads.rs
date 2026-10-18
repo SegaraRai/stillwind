@@ -2,12 +2,89 @@
 //!
 //! Pins that user utilities use the same value domains as built-ins, that overloads are
 //! tried in reverse source order, that CSS fallbacks and extra selector targets survive
-//! merging, and that color alpha emits both the sRGB fallback and the oklab upgrade.
+//! merging, that definitions of one name add to each other as in Tailwind, and that
+//! color alpha emits both the sRGB fallback and the oklab upgrade.
 
 use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
 use super::*;
 use crate::test_support::parse_fixture_theme;
+
+/// Parses project CSS on top of the standard built-ins.
+fn project(css: &str) -> ThemeIndex {
+    parse_fixture_theme(&SourceFile::new(FileId(1), None, None, css).unwrap()).unwrap()
+}
+
+#[test]
+fn definitions_of_one_name_add_to_each_other_in_registration_order() {
+    let theme = project(
+        r"@utility container { padding-inline: 1rem; }
+@utility duration-* { animation-duration: calc(--value(integer) * 1ms); }",
+    );
+    assert_css_eq!(
+        resolve_utility("container", &theme).unwrap().declaration,
+        "width: 100%; padding-inline: 1rem;"
+    );
+    assert_css_eq!(
+        resolve_utility("duration-300", &theme).unwrap().declaration,
+        "--tw-duration: calc(300 * 1ms); transition-duration: calc(300 * 1ms); \
+         animation-duration: calc(300 * 1ms);"
+    );
+}
+
+#[test]
+fn an_exact_definition_makes_its_complete_candidate_static() {
+    // As in Tailwind, a static utility hides the functional ones of its root, so the
+    // built-in `shadow-*` does not apply to `shadow-lg`.
+    let theme = project(
+        r"@utility shadow-lg { box-shadow: none; }
+@utility tab-1\/2 { tab-size: 2; }",
+    );
+    assert_css_eq!(
+        resolve_utility("shadow-lg", &theme).unwrap().declaration,
+        "box-shadow: none;"
+    );
+    // An escaped name includes the modifier, which it then consumes.
+    assert_css_eq!(
+        resolve_utility("tab-1/2", &theme).unwrap().declaration,
+        "tab-size: 2;"
+    );
+}
+
+#[test]
+fn functional_definitions_join_their_root_and_honor_stop_and_fallback() {
+    let theme = project(
+        r"@utility duration-300 (functional) { animation-duration: 300ms; }
+@utility -probe-4\/mirror (functional) { inset: -1rem; }
+@utility duration-\[1s\] (functional, stop) {}
+@utility duration-\[1s\] (functional) { animation-duration: 1s; }
+@utility probe-x (functional, fallback) { color: red; }",
+    );
+    assert_css_eq!(
+        resolve_utility("duration-300", &theme).unwrap().declaration,
+        "--tw-duration: calc(300 * 1ms); transition-duration: calc(300 * 1ms); \
+         animation-duration: 300ms;"
+    );
+    assert_css_eq!(
+        resolve_utility("-probe-4/mirror", &theme)
+            .unwrap()
+            .declaration,
+        "inset: -1rem;"
+    );
+    // `(stop)` keeps the built-in result and skips the later registration.
+    assert_css_eq!(
+        resolve_utility("duration-[1s]", &theme)
+            .unwrap()
+            .declaration,
+        "--tw-duration: 1s; transition-duration: 1s;"
+    );
+    // A fallback applies only when nothing else resolves.
+    assert_css_eq!(
+        resolve_utility("probe-x", &theme).unwrap().declaration,
+        "color: red;"
+    );
+    assert!(resolve_utility("probe-y", &theme).is_none());
+}
 
 #[test]
 fn resolves_user_utilities_with_the_same_value_domains_as_built_ins() {
@@ -221,13 +298,13 @@ fn untyped_variables_select_the_earliest_registered_overload() {
         FileId(1),
         None,
         None,
-        r"@utility tab-* { tab-size: --value([integer]); }
-@utility tab-* { outline-color: --value([color]); }",
+        r"@utility probe-* { tab-size: --value([integer]); }
+@utility probe-* { outline-color: --value([color]); }",
     )
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
     assert_css_eq!(
-        resolve_utility("tab-(--x)", &theme).unwrap().declaration,
+        resolve_utility("probe-(--x)", &theme).unwrap().declaration,
         "tab-size:var(--x);"
     );
 }

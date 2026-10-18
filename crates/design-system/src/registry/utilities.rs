@@ -5,8 +5,10 @@
 //! offset they were authored at, while user definitions have none. That offset supplies
 //! the candidate precedence of authored utility ordering, so it must stay the authored
 //! position rather than a counter over parsed definitions. A definition header may also
-//! carry a `(tw-sort: property)` override, which supplies the property indices of
-//! Tailwind utility ordering.
+//! carry a descriptor list such as `(tw-sort: property)`, which supplies the property
+//! indices of Tailwind utility ordering, or the [`UtilityRole`] flags of a definition
+//! that a Tailwind plugin adapter registers. CSS escapes in a name decode as in
+//! Tailwind, so `@utility foo-1\/2` defines `foo-1/2`.
 //!
 //! Trailing-`*` names are ordinary here; wildcard matching happens when a candidate is
 //! resolved. Duplicate names are preserved in source order because they are separate
@@ -32,37 +34,104 @@ pub struct CustomUtility {
     /// Property name from the header's `(tw-sort: property)` descriptor, which replaces
     /// the resolved property indices in Tailwind ordering mode.
     pub tw_sort: Option<LeanStr>,
+    /// How the definition takes part in resolving its name.
+    pub role: UtilityRole,
 }
 
-/// Splits a definition header into its name and its optional `(tw-sort: property)`
-/// descriptor.
+/// Header flags of a definition that stands for one candidate of a functional
+/// utility. A Tailwind plugin adapter registers the CSS that a `matchUtilities`
+/// callback returned for one candidate this way, because the callback cannot be
+/// expressed as a `--value()` body.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UtilityRole {
+    /// `(functional)`: the name is one complete candidate, including a leading `-` and
+    /// a `/modifier`, and the definition belongs to the functional utility of its root.
+    /// An exact definition of the same name hides it, as it hides wildcard definitions.
+    pub functional: bool,
+    /// `(fallback)`: the definition applies only when no other definition of the
+    /// candidate resolves. Tailwind treats a `matchUtilities` registration whose types
+    /// include `any` and at least one other type this way.
+    pub fallback: bool,
+    /// `(stop)`: the definition contributes nothing and ends the evaluation of the
+    /// definitions that Tailwind registers after it. Tailwind stops this way when a
+    /// typed `matchUtilities` callback rejects an arbitrary value.
+    pub stop: bool,
+}
+
+/// Parsed definition header: the decoded name and its descriptors.
+struct UtilityHeader {
+    name: LeanStr,
+    tw_sort: Option<LeanStr>,
+    role: UtilityRole,
+}
+
+/// Splits a definition header into its decoded name and its optional descriptor list.
 ///
-/// The name is the first whitespace-delimited token. The descriptor, when present, must
-/// hold exactly one `tw-sort` key whose value is a single identifier; any other header
+/// The name is the first whitespace-delimited token. The descriptor list, when present,
+/// is one parenthesized, comma-separated list of `tw-sort: <identifier>`, `functional`,
+/// `fallback`, and `stop`. `fallback` and `stop` require `functional`. Any other header
 /// is rejected, which drops the definition from the registry.
-fn parse_utility_header(header: &str) -> Option<(LeanStr, Option<LeanStr>)> {
+fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
     let end = header.find(char::is_whitespace).unwrap_or(header.len());
-    let name: LeanStr = header[..end].into();
-    if name.is_empty() {
-        return None;
+    let mut parsed = UtilityHeader {
+        name: decode_utility_name(&header[..end])?,
+        tw_sort: None,
+        role: UtilityRole::default(),
+    };
+    let descriptors = header[end..].trim();
+    if descriptors.is_empty() {
+        return Some(parsed);
     }
-    let descriptor = header[end..].trim();
-    if descriptor.is_empty() {
-        return Some((name, None));
+    for descriptor in descriptors.strip_prefix('(')?.strip_suffix(')')?.split(',') {
+        match descriptor.split_once(':') {
+            Some((key, value)) if key.trim() == "tw-sort" && parsed.tw_sort.is_none() => {
+                let value = value.trim();
+                let mut parser = Parser::new(value);
+                parser.expect_ident().ok()?;
+                parser.is_exhausted().then_some(())?;
+                parsed.tw_sort = Some(value.to_lean_str());
+            }
+            None if descriptor.trim() == "functional" => parsed.role.functional = true,
+            None if descriptor.trim() == "fallback" => parsed.role.fallback = true,
+            None if descriptor.trim() == "stop" => parsed.role.stop = true,
+            _ => return None,
+        }
     }
-    let (key, value) = descriptor
-        .strip_prefix('(')?
-        .strip_suffix(')')?
-        .split_once(':')?;
-    if key.trim() != "tw-sort" {
-        return None;
+    ((!parsed.role.fallback && !parsed.role.stop) || parsed.role.functional).then_some(parsed)
+}
+
+/// Decodes the CSS escapes of a definition name.
+///
+/// A name without a backslash is kept as written, so unescaped names such as
+/// `icon-[mdi--close]` keep their meaning. An escape is a backslash followed by up to
+/// six hexadecimal digits and one optional whitespace character, or by any other
+/// character. Returns `None` for an empty name, a trailing backslash, or a code point
+/// that is not a character.
+pub(crate) fn decode_utility_name(raw: &str) -> Option<LeanStr> {
+    if !raw.contains('\\') {
+        return (!raw.is_empty()).then(|| raw.into());
     }
-    let value = value.trim();
-    let mut parser = Parser::new(value);
-    parser.expect_ident().ok()?;
-    parser
-        .is_exhausted()
-        .then(|| (name, Some(value.to_lean_str())))
+    let mut name = String::with_capacity(raw.len());
+    let mut characters = raw.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character != '\\' {
+            name.push(character);
+            continue;
+        }
+        let mut digits = String::new();
+        while digits.len() < 6
+            && let Some(digit) = characters.next_if(char::is_ascii_hexdigit)
+        {
+            digits.push(digit);
+        }
+        if digits.is_empty() {
+            name.push(characters.next()?);
+        } else {
+            name.push(char::from_u32(u32::from_str_radix(&digits, 16).ok()?)?);
+            characters.next_if(|character| character.is_whitespace());
+        }
+    }
+    (!name.is_empty()).then(|| name.into())
 }
 
 /// Parses user-authored `@utility` definitions without requiring a complete theme
@@ -106,12 +175,17 @@ fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUt
     extract_named_blocks_with_offsets(css, directive)
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
-            let (name, tw_sort) = parse_utility_header(&header)?;
+            let UtilityHeader {
+                name,
+                tw_sort,
+                role,
+            } = parse_utility_header(&header)?;
             Some(CustomUtility {
                 name,
                 body,
                 builtin_order: Some(builtin_order),
                 tw_sort,
+                role,
             })
         })
         .collect()
@@ -139,12 +213,17 @@ fn extract_named_utility_blocks(css: &str, directive: &str) -> Vec<CustomUtility
     extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(header, body)| {
-            let (name, tw_sort) = parse_utility_header(&header)?;
+            let UtilityHeader {
+                name,
+                tw_sort,
+                role,
+            } = parse_utility_header(&header)?;
             Some(CustomUtility {
                 name,
                 body,
                 builtin_order: None,
                 tw_sort,
+                role,
             })
         })
         .collect()

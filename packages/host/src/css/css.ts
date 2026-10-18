@@ -368,7 +368,7 @@ export async function loadCssGraph(
   });
 
   return {
-    loader,
+    loader: await plugins.initialize(loader),
     resources: completion?.resources ?? [],
     lintSources: completion?.lintSources ?? [],
     plugins,

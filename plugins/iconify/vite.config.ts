@@ -22,7 +22,7 @@ export default defineConfig({
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["build"],
+        dependsOn: ["build", "@stillwind/host#build", "stillwind#build"],
       },
       test: {
         command: "vp test --run",

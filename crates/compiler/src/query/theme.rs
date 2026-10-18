@@ -6,11 +6,28 @@ use stillwind_css::{
     CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure,
     split_css_function_arguments,
 };
-use stillwind_design_system::{ThemeNamespace, UtilityResolutionError};
+use stillwind_design_system::{ThemeNamespace, ThemeToken, UtilityResolutionError};
 
 use super::{DesignSystemQuery, QueryContext};
+use crate::compiler::dynamic_candidates;
 
 impl DesignSystemQuery {
+    /// Reports host plugin utility keys and `@variant ` requests found in source text.
+    pub fn dynamic_candidates(&self, text: &str) -> Vec<LeanStr> {
+        dynamic_candidates(text, self.context.design_system.theme())
+    }
+
+    /// Returns active token definitions, including their output and fallback policies.
+    pub fn theme_tokens(&self) -> Vec<ThemeToken> {
+        self.context
+            .design_system
+            .theme()
+            .active_tokens()
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+
     /// Returns active theme values by their full custom-property names.
     /// Values keep their authored CSS spelling, including references to other tokens.
     pub fn theme_values(&self) -> Vec<(LeanStr, LeanStr)> {
@@ -116,6 +133,7 @@ fn color_declarations<'a>(
     }
 }
 
+/// Returns a declaration value without surrounding whitespace and `!important`.
 fn declaration_value(value: &str) -> &str {
     value.trim().trim_end_matches("!important").trim()
 }

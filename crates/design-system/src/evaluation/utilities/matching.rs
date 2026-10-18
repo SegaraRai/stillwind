@@ -1,10 +1,11 @@
 //! Candidate-to-branch matching and branch merging.
 //!
-//! Because user CSS is the authoritative registry layer, a project definition must be
-//! able to replace any built-in name when its branch resolves. If all user branches
-//! fail, resolution still tries the built-in registry. Within one layer, every matching
-//! definition is a typed declaration branch, and a candidate selects the branches whose
-//! value domains accept it.
+//! As in Tailwind, every definition of a name contributes: a project `@utility` adds to
+//! a built-in of the same name instead of replacing it. The definitions are evaluated
+//! in Tailwind's registration order, built-ins first, then plugin registrations, then
+//! the stylesheet's `@utility` definitions, and each one that resolves is emitted in
+//! that order. Within one registry, every matching definition is a typed declaration
+//! branch, and a candidate selects the branches whose value domains accept it.
 //!
 //! Ordering is by branch specificity: an exact name outranks a wildcard, and a wildcard
 //! with typed arbitrary or theme domains outranks a generic one. When an exact
@@ -16,7 +17,7 @@ use std::collections::HashSet;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueType, declaration_ranges};
-use stillwind_syntax::Value;
+use stillwind_syntax::{Value, utility_registration_key};
 
 use super::super::context::ArbitraryValueCheck;
 use super::super::values::{
@@ -127,7 +128,26 @@ fn check_variable(
     }
 }
 
-/// Resolves a named candidate through project CSS and then the built-ins.
+/// Resolves a named candidate with every definition of its name and combines the ones
+/// that resolve, in Tailwind's registration order.
+///
+/// The built-ins form one group of typed branches, and the stylesheet's `@utility`
+/// definitions form another, as [`resolve_css_utility_branches`] describes. The
+/// `(functional)` definitions of the complete candidate stand for plugin registrations,
+/// so they are evaluated between the two groups. Tailwind registers every plugin before
+/// the stylesheet's `@utility` rules, regardless of where `@plugin` appears, and the
+/// later definition wins in the cascade.
+///
+/// A candidate is static when an exact definition in either registry has its complete
+/// name, including a leading `-` and the modifier, because Tailwind parses a candidate
+/// with a static utility only as that utility. Then only the exact definitions apply,
+/// and a name such as `@utility foo-1/2` consumes the modifier. Otherwise the candidate
+/// is functional, and an exact definition of the name without the modifier remains one
+/// branch of its registry: the built-ins define `bg-linear-to-r` exactly but accept
+/// `bg-linear-to-r/oklch` through `bg-linear-to-*`.
+///
+/// A `(stop)` definition ends the evaluation and keeps what earlier definitions
+/// produced. `(fallback)` definitions apply only when nothing else resolves.
 fn resolve_registry_layers(
     name: &str,
     modifier: Option<&Value>,
@@ -135,57 +155,102 @@ fn resolve_registry_layers(
     theme: &ThemeIndex,
     arbitrary_check: ArbitraryValueCheck,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    // Application CSS is the authoritative registry layer. It must be able to replace
-    // every built-in name.
-    if let Some(resolution) =
-        resolve_user_css_utility(name, modifier, negative, theme, arbitrary_check)?
-    {
-        return Ok(Some(resolution));
+    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
+    let lookup = lookup.as_deref().unwrap_or(name);
+    let key = utility_registration_key(name, modifier, negative);
+    if theme.has_exact_utility(&key) || theme.registry().has_exact_utility(&key) {
+        let resolve_exact = |mut definitions: Vec<&CustomUtility>| {
+            definitions.retain(|definition| definition.name == key);
+            resolve_css_utility_branches(
+                definitions.into_iter(),
+                &key,
+                None,
+                theme,
+                arbitrary_check,
+            )
+        };
+        let mut resolution = resolve_exact(theme.registry().matching_utilities(&key))?;
+        if let Some(project) = resolve_exact(theme.matching_utilities(&key))? {
+            append_resolution(&mut resolution, project);
+        }
+        return Ok(resolution);
     }
-    resolve_builtin_css_utility(name, modifier, negative, theme, arbitrary_check)
+    let resolve_group = |definitions: Vec<&CustomUtility>| {
+        resolve_css_utility_branches(
+            definitions.into_iter(),
+            lookup,
+            modifier,
+            theme,
+            arbitrary_check,
+        )
+    };
+    let mut resolution = resolve_group(theme.registry().matching_utilities(lookup))?;
+    let mut fallbacks = Vec::new();
+    for definition in theme.functional_utilities(&key) {
+        if definition.role.fallback {
+            fallbacks.push(definition);
+            continue;
+        }
+        if definition.role.stop {
+            return Ok(resolution);
+        }
+        if let Some(plugin) =
+            resolve_css_utility_body(definition, &key, None, theme, arbitrary_check)?
+        {
+            append_resolution(&mut resolution, plugin);
+        }
+    }
+    if let Some(project) = resolve_group(theme.matching_utilities(lookup))? {
+        append_resolution(&mut resolution, project);
+    }
+    if resolution.is_some() {
+        return Ok(resolution);
+    }
+    for definition in fallbacks {
+        if definition.role.stop {
+            break;
+        }
+        if let Some(plugin) =
+            resolve_css_utility_body(definition, &key, None, theme, arbitrary_check)?
+        {
+            append_resolution(&mut resolution, plugin);
+        }
+    }
+    Ok(resolution)
 }
 
-/// Resolves the same `@utility` body language for user CSS and vendored built-ins.
-/// `--value(...)` tries its comma-separated value domains in order.
-fn resolve_user_css_utility(
-    name: &str,
-    modifier: Option<&Value>,
-    negative: bool,
-    theme: &ThemeIndex,
-    arbitrary_check: ArbitraryValueCheck,
-) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
-    let lookup = lookup.as_deref().unwrap_or(name);
-    resolve_css_utility_branches(
-        theme.matching_utilities(lookup).into_iter(),
-        lookup,
-        modifier,
-        theme,
-        arbitrary_check,
-    )
-}
-
-/// Resolves a candidate against the selected built-ins.
+/// Adds the CSS of a later definition to the resolution of earlier ones.
 ///
-/// Wildcard families are searched before exact-name groups, and both iterate in reverse
-/// authored order so the most recently registered definition is considered first;
-/// branch specificity then decides which one wins.
-fn resolve_builtin_css_utility(
-    name: &str,
-    modifier: Option<&Value>,
-    negative: bool,
-    theme: &ThemeIndex,
-    arbitrary_check: ArbitraryValueCheck,
-) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
-    let lookup = lookup.as_deref().unwrap_or(name);
-    resolve_css_utility_branches(
-        theme.registry().matching_utilities(lookup).into_iter(),
-        lookup,
-        modifier,
-        theme,
-        arbitrary_check,
-    )
+/// Declarations for the same selector are appended, so a later definition wins in the
+/// cascade, as it does in Tailwind's output. A different selector becomes an additional
+/// target.
+fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityResolution) {
+    let Some(base) = resolution else {
+        *resolution = Some(next);
+        return;
+    };
+    base.builtin_order = base.builtin_order.max(next.builtin_order);
+    if base.tw_sort.is_none() {
+        base.tw_sort = next.tw_sort;
+    }
+    if base.selector == next.selector {
+        base.declaration = format_args!("{}{}", base.declaration, next.declaration).to_lean_str();
+        base.nested.extend(next.nested);
+    } else {
+        base.additional.push(ResolvedUtilityTarget {
+            declaration: next.declaration,
+            selector: next.selector,
+            nested: next.nested,
+        });
+    }
+    base.additional.extend(next.additional);
+    base.required_properties.extend(next.required_properties);
+    base.diagnostic_data
+        .token_uses
+        .extend(next.diagnostic_data.token_uses);
+    base.diagnostic_data
+        .arbitrary_uses
+        .extend(next.diagnostic_data.arbitrary_uses);
 }
 
 /// Every matching `@utility` block is a typed declaration branch. A candidate such as
@@ -585,6 +650,7 @@ fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::UtilityRole;
 
     #[test]
     fn branch_merging_keeps_primary_values_and_adds_only_missing_properties() {
@@ -619,10 +685,12 @@ mod tests {
             body: "width:--value([length]);x:--value([length]);".into(),
             builtin_order: None,
             tw_sort: None,
+            role: UtilityRole::default(),
         };
         let wildcard = CustomUtility {
             name: "w-*".into(),
             tw_sort: None,
+            role: UtilityRole::default(),
             ..exact.clone()
         };
         assert_eq!(utility_value_types(&exact), vec![ValueType::Length]);

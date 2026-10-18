@@ -1,6 +1,7 @@
 import type { BaseConfig, PreviewOptions } from "@stillwind/config";
 import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillwind/native";
 
+import type { PluginRuntime } from "../css/plugins.ts";
 import { CandidateQueries } from "../editor/candidates.ts";
 import { colorReplacement, cssColor } from "../editor/colors.ts";
 import { completionSnippet } from "../editor/completion.ts";
@@ -26,6 +27,12 @@ export class StylesheetEditor {
   readonly #snapshot: string;
   /** Caches variant previews and completion summaries for this buffer's captured design system. */
   readonly #candidates: CandidateQueries;
+  /** Queries that include callback CSS for selected completions in this stylesheet. */
+  readonly #resolved = new Map<string, NativeEditorQuery>();
+  /** Finite plugin suggestions captured with this stylesheet's design system. */
+  readonly #catalog: readonly string[];
+  /** Resolves completion CSS without changing reports or a session's used utilities. */
+  readonly #plugins: PluginRuntime | undefined;
 
   /**
    * Captures original text, lint reports, and query settings for one stylesheet revision.
@@ -36,6 +43,8 @@ export class StylesheetEditor {
    * Use an empty array when the design system was loaded from recovered CSS.
    * @param query - Immutable design system captured for this source revision.
    * @param config - Compiler and preview settings included in completion identity.
+   * @param catalog - Finite plugin candidates offered without running their callbacks.
+   * @param plugins - Runtime for resolving selected plugin completions without changing used CSS.
    * @throws If reports cannot be cloned or configuration cannot be serialized.
    */
   constructor(
@@ -46,8 +55,12 @@ export class StylesheetEditor {
     config: BaseConfig & {
       preview?: PreviewOptions;
     } = {},
+    catalog: readonly string[] = [],
+    plugins?: PluginRuntime,
   ) {
     this.#id = id;
+    this.#catalog = catalog;
+    this.#plugins = plugins;
     this.#revision = fingerprint(text);
     this.#reports = structuredClone(reports);
     this.#text = text;
@@ -56,6 +69,35 @@ export class StylesheetEditor {
     this.#candidates = new CandidateQueries(query);
     this.#preview = { ...config.preview };
     this.#snapshot = fingerprint(JSON.stringify([text, query.revision(), config]));
+  }
+
+  /**
+   * Resolves callback CSS for a selected completion without changing the captured source or
+   * reports, so that a following query can preview it. Other requests are ignored.
+   *
+   * @param request - Editor request. Only a `resolve` request for this stylesheet's completion
+   * snapshot loads CSS, once for each candidate. A variant completion is resolved with its `:`.
+   * @throws If a plugin fails or the native loader rejects the generated CSS.
+   */
+  async prepare(request: EditorRequest): Promise<void> {
+    if (
+      request.kind === "resolve" &&
+      request.snapshot === this.#completionSnapshot(request.registryDirectives, request.snippets) &&
+      this.#plugins &&
+      !this.#resolved.has(request.candidate)
+    ) {
+      const variant = this.#query
+        .completeStylesheet(this.#text, this.#byteOffset(request.input), {
+          catalog: [...this.#catalog],
+        })
+        .some((item) => item.label === request.candidate && item.variant);
+      this.#resolved.set(
+        request.candidate,
+        await this.#plugins.query(
+          variant && !request.candidate.endsWith(":") ? `${request.candidate}:` : request.candidate,
+        ),
+      );
+    }
   }
 
   /**
@@ -129,6 +171,7 @@ export class StylesheetEditor {
         .completeStylesheet(this.#text, this.#byteOffset(request.offset), {
           registryDirectives: request.registryDirectives === true,
           snippets: request.snippets === true,
+          catalog: [...this.#catalog],
         })
         .map((item) => ({
           start: this.#utf16(item.start),
@@ -157,15 +200,17 @@ export class StylesheetEditor {
         .completeStylesheet(this.#text, this.#byteOffset(request.input), {
           registryDirectives: request.registryDirectives === true,
           snippets: request.snippets === true,
+          catalog: [...this.#catalog],
         })
         .find((item) => item.label === request.candidate);
       if (item) {
+        const query = this.#resolved.get(request.candidate) ?? this.#query;
         const start = this.#utf16(item.start);
         const text =
           this.#text.slice(0, start) + item.label + this.#text.slice(this.#utf16(item.end));
         const variant =
           item.label.endsWith(":") && !item.keyword
-            ? this.#candidates.variant(item.label, "utility")
+            ? new CandidateQueries(query).variant(item.label, "utility")
             : undefined;
         const hover = variant
           ? {
@@ -173,7 +218,7 @@ export class StylesheetEditor {
               end: 0,
               css: this.#query.formatCss(variant, this.#preview),
             }
-          : this.#hover(text, start + item.label.length);
+          : this.#hover(text, start + item.label.length, query);
         if (hover) {
           result.hover = {
             ...hover,
@@ -263,10 +308,10 @@ export class StylesheetEditor {
    * Theme declarations retain their native spelling because the formatter expects complete rules.
    * @throws If candidate resolution or CSS formatting fails.
    */
-  #hover(text: string, offset: number): EditorResult["hover"] {
+  #hover(text: string, offset: number, query = this.#query): EditorResult["hover"] {
     const encoder = new TextEncoder();
     const bytes = encoder.encode(text);
-    const hover = this.#query.hoverStylesheet(text, encoder.encode(text.slice(0, offset)).length);
+    const hover = query.hoverStylesheet(text, encoder.encode(text.slice(0, offset)).length);
     if (!hover) {
       return undefined;
     }

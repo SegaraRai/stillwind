@@ -14,7 +14,14 @@ const vp = join(dirname(require.resolve("vite-plus/package.json")), "bin/vp");
 const options = matrixOptions(process.argv.slice(2));
 const { typecheck, selected } = options;
 const packages: { name: string; root: string; manifest?: FixtureManifest }[] = [
-  { name: "css", root: join(repo, "e2e/css") },
+  {
+    name: "css",
+    root: join(repo, "e2e/css"),
+  },
+  {
+    name: "tailwind-plugins",
+    root: join(repo, "e2e/plugins/tailwind"),
+  },
 ];
 for (const group of ["frameworks", "bundlers"]) {
   for (const entry of await readdir(join(repo, "e2e", group), { withFileTypes: true })) {

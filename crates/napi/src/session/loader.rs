@@ -57,6 +57,14 @@ impl NativeDesignSystemLoader {
         Self::with_sources(options, SourceRegistry::default())
     }
 
+    /// Creates an empty loader that shares source identities with this loader and its
+    /// sessions. `options` selects compiler settings; omission uses the compiler
+    /// defaults.
+    #[napi]
+    pub fn new_loader(&self, options: Option<NativeCompilerOptions>) -> napi::Result<Self> {
+        Self::with_sources(options, self.sources().fork_empty())
+    }
+
     /// Answers one pending request by calling [`Self::provide_many`] with one file.
     /// An absent URI marks the CSS as an internal buffer without a reportable location.
     /// `lint` marks the source for stylesheet lint, and an absent value means false.
@@ -219,6 +227,12 @@ impl NativeDesignSystemLoader {
 }
 
 impl NativeDesignSystemLoader {
+    /// Creates an empty loader whose sources register in `sources`, so their identities
+    /// match a session that shares the registry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `options` are invalid.
     pub(super) fn with_sources(
         options: Option<NativeCompilerOptions>,
         sources: SourceRegistry,
@@ -231,10 +245,12 @@ impl NativeDesignSystemLoader {
         })
     }
 
+    /// Compiler options that this loader was created with.
     pub(super) fn options(&self) -> &CompilerOptions {
         &self.options
     }
 
+    /// Registry of the sources that this loader received.
     pub(super) fn sources(&self) -> &SourceRegistry {
         self.loader.sources()
     }

@@ -29,11 +29,11 @@ test("plugin packages are bundled from the inventory once for each entry text", 
   const importer = "/workspace/stillwind.css";
 
   const plugin = await host.load("demo", importer);
-  expect(plugin.name).toBe("demo");
+  expect(plugin).toMatchObject({ name: "demo" });
   expect(await host.load("demo", importer)).toBe(plugin);
   expect(bundle).toHaveBeenCalledTimes(1);
   files.set(entry, 'export default { name: "changed", css: () => "" };');
-  expect((await host.load("demo", importer)).name).toBe("changed");
+  expect(await host.load("demo", importer)).toMatchObject({ name: "changed" });
 
   expect(await host.resolve("demo/data.json", importer)).toBe(
     "/workspace/node_modules/demo/data.json",

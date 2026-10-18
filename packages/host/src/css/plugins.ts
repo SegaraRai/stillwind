@@ -1,14 +1,71 @@
 import { parsePluginOptions, type PluginContext, type StillwindPlugin } from "@stillwind/config";
-import type {
-  NativeCompilerOptions,
-  NativeCssFileInput,
-  NativeCssLoadStep,
-  NativeCssRequest,
+import {
   NativeDesignSystemLoader,
-  NativeProjectSession,
+  type NativeCompilerOptions,
+  type NativeCssFileInput,
+  type NativeCssLoadStep,
+  type NativeCssRequest,
+  type NativeEditorQuery,
+  type NativeProjectSession,
 } from "@stillwind/native";
 
 import type { PluginPathCompletion } from "./plugin-paths.ts";
+import type { configurePlugin, TailwindRuntime } from "./tailwind/plugin.ts";
+
+/**
+ * A plugin written against Tailwind CSS v4's JavaScript plugin API: a handler, `{ handler,
+ * config }`, or a factory from `plugin.withOptions`. The host loads its adapter, and with it the
+ * `tailwindcss` package, only when a `@plugin` statement selects such a plugin.
+ */
+export type TailwindPlugin =
+  | ((...args: never[]) => unknown)
+  | {
+      /** Handler that receives Tailwind's plugin API. */
+      handler: (...args: never[]) => unknown;
+      /** v3-style config, such as `theme.extend`. */
+      config?: object;
+    };
+
+/** A native Stillwind plugin or a plugin using Tailwind v4's JavaScript API. */
+export type LoadedPlugin = StillwindPlugin | TailwindPlugin;
+
+/**
+ * Recognizes Tailwind's plugin export forms without executing a factory.
+ * @param value - Default export of a plugin module.
+ * @returns Whether `value` is a function or an object with a `handler` function.
+ */
+function isTailwindPlugin(value: unknown): value is TailwindPlugin {
+  return (
+    typeof value === "function" ||
+    (typeof value === "object" &&
+      value !== null &&
+      typeof (
+        value as {
+          handler?: unknown;
+        }
+      ).handler === "function")
+  );
+}
+
+/**
+ * Loads the Tailwind plugin adapter on first use.
+ * @returns The adapter module.
+ */
+const tailwindAdapter = () => import("./tailwind/plugin.ts");
+
+/**
+ * Whether a loaded plugin uses the Stillwind plugin contract.
+ * @param plugin - Configured or loaded plugin.
+ * @returns Whether `plugin` has a `css` function, which Tailwind plugins lack.
+ */
+function nativePlugin(plugin: LoadedPlugin): plugin is StillwindPlugin {
+  return (
+    typeof plugin === "object" &&
+    plugin !== null &&
+    "css" in plugin &&
+    typeof plugin.css === "function"
+  );
+}
 
 /**
  * Host operations for plugin packages and the files that plugins read. Paths are absolute host
@@ -36,7 +93,7 @@ export interface PluginHost {
    * @returns The plugin that the module exports by default, as {@link defaultPluginExport} checks.
    * @throws If resolution or evaluation fails, or the default export is not a plugin.
    */
-  load(specifier: string, importer: string): Promise<StillwindPlugin>;
+  load(specifier: string, importer: string): Promise<LoadedPlugin>;
   /**
    * Resolves a module request for plugin file reads and editor navigation without evaluating it.
    *
@@ -61,17 +118,22 @@ export interface PluginHost {
  * @param module - Evaluated module namespace.
  * @param specifier - Request that loaded the module, used in the error message.
  * @returns The default export.
- * @throws If the default export is not an object with a string `name` and a `css` function.
+ * @throws If the default export is neither a Stillwind plugin object nor a Tailwind v4 plugin.
  */
-export function defaultPluginExport(module: unknown, specifier: string): StillwindPlugin {
+export function defaultPluginExport(module: unknown, specifier: string): LoadedPlugin {
   const plugin = (module as { default?: unknown } | null)?.default;
+  if (isTailwindPlugin(plugin)) {
+    return plugin;
+  }
   if (
     typeof plugin !== "object" ||
     plugin === null ||
     typeof (plugin as StillwindPlugin).name !== "string" ||
     typeof (plugin as StillwindPlugin).css !== "function"
   ) {
-    throw new Error(`Stillwind plugin ${specifier} must export a plugin object by default`);
+    throw new Error(
+      `Stillwind plugin ${specifier} must export a plugin object by default, or a Tailwind v4 handler`,
+    );
   }
   return plugin as StillwindPlugin;
 }
@@ -82,7 +144,9 @@ const DYNAMIC = /@stillwind-dynamic\s+([^\s;*[\]]+)(?:\[\*\]|\*)\s*;/g;
 /** One `@plugin` statement with its plugin, options, and the CSS answered for it. */
 interface PluginInstance {
   /** Plugin that the statement selected. */
-  plugin: StillwindPlugin;
+  plugin: LoadedPlugin;
+  /** Configured Tailwind handler, evaluated after the complete CSS theme is available. */
+  tailwind?: ReturnType<typeof configurePlugin>;
   /** Options and host operations passed to every plugin call. */
   context: PluginContext;
   /** CSS that {@link StillwindPlugin.css} returned. */
@@ -104,12 +168,17 @@ type RecordedAnswer = Omit<NativeCssFileInput, "id">;
  * The runtime records every answer of the graph's load, so {@link PluginRuntime.replay} loads the
  * same graph again without host I/O, with the definitions that plugins have added since. A
  * candidate that a plugin leaves undefined is not requested again for the runtime's lifetime.
+ *
+ * Tailwind plugins of the graph share one adapter runtime, which {@link PluginRuntime.initialize}
+ * creates after the first load because their handlers read the complete CSS theme.
  */
 export class PluginRuntime {
-  /** Plugin statements keyed by specifier and options text, in load order. */
+  /** Plugin statements keyed by importer, specifier, and options text. */
   readonly #instances = new Map<string, PluginInstance>();
   /** Recorded answers keyed by {@link answerKey}. */
   readonly #answers = new Map<string, RecordedAnswer>();
+  /** Requests of the load by importer and request ID, which order the plugin statements. */
+  readonly #requests = new Map<string, Map<number, NativeCssRequest>>();
   /** Root answer, recorded by {@link PluginRuntime.recordRoot}. */
   #root?: RecordedAnswer;
   /** Candidates already passed to a plugin, including ones it left undefined. */
@@ -121,6 +190,14 @@ export class PluginRuntime {
    * load contains the definitions of generation zero.
    */
   #generation = 0;
+  /** Runtime of every Tailwind plugin of the graph, which share one config and theme. */
+  #tailwind?: TailwindRuntime;
+  /** The plugins' theme configuration as CSS, answered with the first Tailwind statement. */
+  #themeCss = "";
+  /** Loader of the original load, whose source IDs replays share without a session. */
+  #loader?: NativeDesignSystemLoader;
+  /** Tailwind statements in stylesheet order; an index is the statement's owner index. */
+  #tailwindInstances: PluginInstance[] = [];
 
   /**
    * Creates a runtime for one load.
@@ -150,7 +227,10 @@ export class PluginRuntime {
 
   /** Whether any loaded plugin declares a dynamic family. */
   get dynamic(): boolean {
-    return [...this.#instances.values()].some((instance) => instance.prefixes.length > 0);
+    return (
+      !!this.#tailwind ||
+      [...this.#instances.values()].some((instance) => instance.prefixes.length > 0)
+    );
   }
 
   /**
@@ -169,6 +249,7 @@ export class PluginRuntime {
    * @param answer - File input supplied for it, without its request ID.
    */
   recordImport(request: NativeCssRequest, answer: RecordedAnswer): void {
+    this.#recordRequest(request);
     this.#answers.set(answerKey(request), answer);
   }
 
@@ -180,7 +261,8 @@ export class PluginRuntime {
    * @throws If no plugin has the specifier's name and the host cannot load it, or the plugin fails.
    */
   async answerPlugin(request: NativeCssRequest): Promise<RecordedAnswer> {
-    const key = `${request.specifier}\0${request.pluginOptions ?? ""}`;
+    this.#recordRequest(request);
+    const key = instanceKey(request);
     let instance = this.#instances.get(key);
     if (!instance) {
       const plugin =
@@ -203,18 +285,19 @@ export class PluginRuntime {
           return this.host.read(path);
         },
       };
-      const css = await plugin.css(context);
+      const css = nativePlugin(plugin) ? await plugin.css(context) : "";
       const prefixes = [...css.matchAll(DYNAMIC)].map((match) => match[1]);
       const previous = this.previous ? this.previous.#instances.get(key) : undefined;
       // Resolving again, instead of copying the earlier definitions, reads files that changed
       // since the earlier load, such as an edited icon set.
       const candidates =
-        previous?.plugin === plugin && plugin.resolve
+        previous?.plugin === plugin && nativePlugin(plugin) && plugin.resolve
           ? previous.candidates.filter((candidate) =>
               prefixes.some((prefix) => candidate.startsWith(prefix)),
             )
           : [];
-      const resolved = candidates.length ? await plugin.resolve!(candidates, context) : "";
+      const resolved =
+        candidates.length && nativePlugin(plugin) ? await plugin.resolve!(candidates, context) : "";
       for (const candidate of candidates) {
         this.#requested.add(candidate);
       }
@@ -225,6 +308,9 @@ export class PluginRuntime {
         prefixes,
         candidates,
         definitions: resolved.trim() ? [resolved] : [],
+        tailwind: nativePlugin(plugin)
+          ? undefined
+          : (await tailwindAdapter()).configurePlugin(plugin, request.pluginOptions ?? ""),
       };
       this.#instances.set(key, instance);
     }
@@ -234,22 +320,80 @@ export class PluginRuntime {
   }
 
   /**
+   * Evaluates Tailwind handlers with the complete CSS theme, then resolves the candidates that
+   * the graph's own CSS uses, such as `@apply` inputs.
+   *
+   * Tailwind handlers run after the first load because their `theme()` calls read the complete
+   * CSS theme. Their output then needs one more load of the recorded graph, and a second one when
+   * the graph's CSS uses dynamic candidates.
+   *
+   * @param loader - Loader of the completed original load.
+   * @returns `loader` without Tailwind plugins, and otherwise a loader with their CSS.
+   * @throws If a handler or a callback fails, or the native loader rejects the generated CSS.
+   */
+  async initialize(loader: NativeDesignSystemLoader): Promise<NativeDesignSystemLoader> {
+    this.#loader = loader;
+    const instances = this.#orderedInstances().filter((instance) => instance.tailwind);
+    if (!instances.length) {
+      return loader;
+    }
+    this.#tailwindInstances = instances;
+    const { TailwindRuntime } = await tailwindAdapter();
+    this.#tailwind = new TailwindRuntime(
+      instances.map((instance) => instance.tailwind!),
+      loader.editorQuery().themeTokens(),
+    );
+    this.#themeCss = this.#tailwind.themeCss();
+    if (this.previous) {
+      await this.resolve(this.previous.#requested);
+    }
+    this.#updateTailwindCss();
+    let current = this.replay();
+    const text = [
+      this.#root?.content,
+      ...[...this.#answers.values()].map((answer) => answer.content),
+    ].join("\n");
+    if (await this.resolve(current.editorQuery().dynamicCandidates(text))) {
+      current = this.replay();
+    }
+    return current;
+  }
+
+  /**
+   * Resolves one editor candidate in a separate loader without changing a session's used CSS.
+   * @param candidate - Candidate as an editor offers it, such as `probe-4` or `state-open:`.
+   * @returns Queries over a replayed design system that contains the candidate's definitions.
+   * @throws If a plugin fails or the native loader rejects the generated CSS.
+   */
+  async query(candidate: string): Promise<NativeEditorQuery> {
+    const query = this.replay().editorQuery();
+    return (await this.resolve(query.dynamicCandidates(candidate)))
+      ? this.replay().editorQuery()
+      : query;
+  }
+
+  /**
    * Passes new candidates to the plugins that declare their families.
    *
-   * @param candidates - Named utility spellings reported by compilation. Duplicates and
-   * candidates already requested are skipped.
+   * @param candidates - Compiler requests for native utility names, complete Tailwind utility
+   * keys, or variant names with an `@variant ` prefix. Previously requested keys are skipped.
    * @returns Whether any plugin returned CSS, so that the design system must be loaded again.
    * @throws If a plugin fails.
    */
   async resolve(candidates: Iterable<string>): Promise<boolean> {
     const pending = new Map<PluginInstance, string[]>();
+    const tailwind: string[] = [];
     for (const candidate of candidates) {
       if (this.#requested.has(candidate)) {
         continue;
       }
       this.#requested.add(candidate);
+      if (this.#tailwind?.accepts(candidate)) {
+        tailwind.push(candidate);
+      }
       for (const instance of this.#instances.values()) {
         if (
+          nativePlugin(instance.plugin) &&
           instance.plugin.resolve &&
           instance.prefixes.some((prefix) => candidate.startsWith(prefix))
         ) {
@@ -258,10 +402,15 @@ export class PluginRuntime {
         }
       }
     }
-    let changed = false;
+    let changed = this.#tailwind?.resolve(tailwind) ?? false;
+    if (changed) {
+      this.#updateTailwindCss();
+    }
     for (const [instance, names] of pending) {
       instance.candidates.push(...names);
-      const css = await instance.plugin.resolve!(names, instance.context);
+      const css = nativePlugin(instance.plugin)
+        ? await instance.plugin.resolve!(names, instance.context)
+        : "";
       if (css.trim()) {
         instance.definitions.push(css);
         changed = true;
@@ -282,25 +431,30 @@ export class PluginRuntime {
   catalog(): Promise<readonly string[]> {
     this.#catalog ??= Promise.all(
       [...this.#instances.values()].map(async (instance): Promise<readonly string[]> =>
-        instance.plugin.catalog ? await instance.plugin.catalog(instance.context) : [],
+        nativePlugin(instance.plugin) && instance.plugin.catalog
+          ? await instance.plugin.catalog(instance.context)
+          : [],
       ),
-    ).then((lists) => [...new Set(lists.flat())].sort());
+    ).then((lists) => [...new Set([...lists.flat(), ...(this.#tailwind?.catalog() ?? [])])].sort());
     return this.#catalog;
   }
 
   /**
    * Loads the recorded graph again into a loader of `session`, with the current definitions.
    *
-   * @param session - Session whose source IDs the new loader shares.
+   * @param session - Session whose source IDs the new loader shares. Omission shares the
+   * original loader's source IDs.
    * @returns A complete loader with the load's compiler options, for
    * {@link NativeProjectSession.reload}.
    * @throws If the recorded graph is incomplete or the native loader rejects it.
    */
-  replay(session: NativeProjectSession): NativeDesignSystemLoader {
+  replay(session?: NativeProjectSession): NativeDesignSystemLoader {
     if (!this.#root) {
       throw new Error("Stillwind plugin runtime has no recorded CSS graph");
     }
-    const loader = session.newLoader(this.options);
+    const loader = session
+      ? session.newLoader(this.options)
+      : (this.#loader?.newLoader(this.options) ?? new NativeDesignSystemLoader(this.options));
     let step: NativeCssLoadStep = loader.provide(
       0,
       this.#root.name,
@@ -314,10 +468,10 @@ export class PluginRuntime {
         step.requests.map((request) => {
           const instance =
             request.pluginOptions !== undefined
-              ? this.#instances.get(`${request.specifier}\0${request.pluginOptions}`)
+              ? this.#instances.get(instanceKey(request))
               : undefined;
           const answer = instance
-            ? this.#pluginAnswer(`${request.specifier}\0${request.pluginOptions}`, instance)
+            ? this.#pluginAnswer(instanceKey(request), instance)
             : this.#answers.get(answerKey(request));
           if (!answer) {
             throw new Error(`Stillwind plugin runtime has no answer for ${request.specifier}`);
@@ -335,16 +489,84 @@ export class PluginRuntime {
   /**
    * Returns the answer to a plugin request with the instance's current definitions.
    *
-   * @param key - Specifier and options text of the instance.
+   * @param key - Importer, specifier, and options text of the instance.
    * @param instance - Loaded plugin statement.
    * @returns An internal buffer whose name changes with its content.
    */
   #pluginAnswer(key: string, instance: PluginInstance): RecordedAnswer {
     return {
-      name: `stillwind-plugin:${key.replace("\0", "#")}#${instance.definitions.length}`,
-      content: [instance.css, ...instance.definitions].join("\n"),
+      name: `stillwind-plugin:${key.replaceAll("\0", "#")}#${this.#generation}#${instance.definitions.length}`,
+      content: [
+        instance === this.#tailwindInstances[0] ? this.#themeCss : "",
+        instance.css,
+        ...instance.definitions,
+      ].join("\n"),
     };
   }
+
+  /** Stores the generated CSS of each Tailwind statement as that statement's answer. */
+  #updateTailwindCss(): void {
+    for (const [owner, instance] of this.#tailwindInstances.entries()) {
+      instance.css = this.#tailwind!.css(owner);
+    }
+  }
+
+  /**
+   * Records a request of the load, which orders the plugin statements.
+   * @param request - Import or plugin request.
+   */
+  #recordRequest(request: NativeCssRequest): void {
+    let requests = this.#requests.get(request.importer);
+    if (!requests) {
+      this.#requests.set(request.importer, (requests = new Map()));
+    }
+    requests.set(request.id, request);
+  }
+
+  /**
+   * Orders the plugin statements as the import-expanded stylesheet does.
+   * @returns Each statement once, depth first from the root in request order.
+   */
+  #orderedInstances(): PluginInstance[] {
+    const result = new Set<PluginInstance>();
+    const visited = new Set<string>();
+    /**
+     * Adds the statements of one stylesheet and of the stylesheets it imports.
+     * @param name - Recorded identity of the stylesheet.
+     */
+    const visit = (name: string) => {
+      if (visited.has(name)) {
+        return;
+      }
+      visited.add(name);
+      for (const request of [...(this.#requests.get(name)?.values() ?? [])].sort(
+        (a, b) => a.id - b.id,
+      )) {
+        const instance = this.#instances.get(instanceKey(request));
+        if (request.pluginOptions !== undefined && instance) {
+          result.add(instance);
+        } else {
+          const answer = this.#answers.get(answerKey(request));
+          if (answer) {
+            visit(answer.name);
+          }
+        }
+      }
+    };
+    if (this.#root) {
+      visit(this.#root.name);
+    }
+    return [...result];
+  }
+}
+
+/**
+ * Identifies one `@plugin` statement independently of its request ID.
+ * @param request - Plugin request.
+ * @returns Importer, specifier, and options text joined by NUL characters.
+ */
+function instanceKey(request: NativeCssRequest): string {
+  return `${request.importer}\0${request.specifier}\0${request.pluginOptions ?? ""}`;
 }
 
 /**
@@ -420,6 +642,7 @@ export async function compileWithPlugins<
   if (!binding) {
     return compile();
   }
+  /** Reloads the session with the runtime's current definitions. */
   const sync = () => {
     const loader = binding.runtime.replay(session);
     session.reload(loader);

@@ -1,0 +1,433 @@
+/**
+ * Serializes a plugin CSS object, as plugins pass it to Tailwind's API, while preserving
+ * repeated declarations and nested rules.
+ *
+ * @param input - CSS-in-JS object or array of them. An array value of a property repeats the
+ * declaration, camel-case property names become kebab-case, and null, undefined, and false
+ * values are skipped. `@slot` keys and values become `@slot` statements.
+ * @returns CSS declarations and rules without surrounding braces, or an empty string for input
+ * that is not an object.
+ */
+export function serializeCss(input: unknown): string {
+  if (Array.isArray(input)) {
+    return input.map(serializeCss).join("\n");
+  }
+  if (!input || typeof input !== "object") {
+    return "";
+  }
+  let output = "";
+  for (const [key, value] of Object.entries(input)) {
+    if (value === null || value === undefined || value === false) {
+      continue;
+    }
+    if (key === "@slot") {
+      output += "@slot;";
+      continue;
+    }
+    if (!key.startsWith("--") && value === "@slot") {
+      output += `${key}{@slot;}`;
+      continue;
+    }
+    const values = Array.isArray(value) ? value : [value];
+    for (const entry of values) {
+      if (entry && typeof entry === "object") {
+        output += `${key}{${serializeCss(entry)}}`;
+      } else if (entry !== null && entry !== undefined && entry !== false) {
+        const property = key.startsWith("--")
+          ? key
+          : key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`).replace(/^ms-/, "-ms-");
+        output += `${property}:${String(entry)};`;
+      }
+    }
+  }
+  return output;
+}
+
+/**
+ * Escapes a complete candidate as one CSS identifier, including arbitrary-value punctuation.
+ *
+ * @param value - Candidate or variant name, such as `-probe-[3px]/mirror`.
+ * @returns An identifier whose CSS escapes decode to `value`. A leading digit becomes a
+ * six-digit hexadecimal escape.
+ */
+export function identifier(value: string): string {
+  return Array.from(value)
+    .map((character, index) => {
+      if (/[_a-zA-Z\u0080-\uffff-]/u.test(character) || (index > 0 && /\d/.test(character))) {
+        return character;
+      }
+      if (/\d/.test(character)) {
+        return `\\${character.codePointAt(0)!.toString(16).padStart(6, "0")}`;
+      }
+      return `\\${character}`;
+    })
+    .join("");
+}
+
+/**
+ * Applies an alpha value to a color as Tailwind's `withAlpha()` does.
+ *
+ * Every plain number is multiplied by 100, so `0.5` means 50% and `50` means 5000%, which
+ * `color-mix()` rejects. Tailwind applies this to the `/50` of `theme("colors.red.500 / 50")`,
+ * while a `/50` color modifier of a utility arrives here already as `50%`.
+ *
+ * @param value - CSS color.
+ * @param alpha - Number, percentage, or other CSS value such as `var(--opacity)`.
+ * @returns The color itself for `100%`, and a `color-mix()` toward transparent otherwise.
+ */
+export function withAlpha(value: string, alpha: string): string {
+  const number = Number(alpha);
+  const percentage = Number.isNaN(number) ? alpha : `${number * 100}%`;
+  return percentage === "100%" ? value : `color-mix(in oklab, ${value} ${percentage}, transparent)`;
+}
+
+/**
+ * Finds the class that a plugin selector registers: the first class outside `:not()` and outside
+ * attribute selectors, as Tailwind's `addUtilities()` does.
+ *
+ * @param selector - One complex selector without top-level commas.
+ * @returns The decoded class name and the range of `.name`, or undefined without such a class.
+ */
+function anchorClass(selector: string):
+  | {
+      name: string;
+      start: number;
+      end: number;
+    }
+  | undefined {
+  const parentheses: boolean[] = [];
+  let excluded = 0;
+  let attribute = 0;
+  let quote = "";
+  for (let index = 0; index < selector.length; index++) {
+    const char = selector[index];
+    if (char === "\\") {
+      index++;
+    } else if (quote) {
+      quote = char === quote ? "" : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "[") {
+      attribute++;
+    } else if (char === "]") {
+      attribute--;
+    } else if (char === "(") {
+      const not = /:not$/i.test(selector.slice(0, index));
+      parentheses.push(not);
+      excluded += not ? 1 : 0;
+    } else if (char === ")") {
+      excluded -= parentheses.pop() ? 1 : 0;
+    } else if (char === "." && !excluded && !attribute) {
+      let end = index + 1;
+      let name = "";
+      while (end < selector.length) {
+        const next = selector[end];
+        if (next === "\\") {
+          const hex = /^[0-9a-f]{1,6}\s?/i.exec(selector.slice(end + 1));
+          name += hex ? String.fromCodePoint(Number.parseInt(hex[0], 16)) : selector[end + 1];
+          end += 1 + (hex ? hex[0].length : 1);
+        } else if (/[\w\u0080-\uffff-]/u.test(next)) {
+          name += next;
+          end++;
+        } else {
+          break;
+        }
+      }
+      if (name) {
+        return {
+          name,
+          start: index,
+          end,
+        };
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Replaces every `&` outside strings and attribute selectors.
+ *
+ * @param selector - Selector that may contain `&`.
+ * @param parent - Replacement for `&`.
+ * @returns The selector with the parent substituted, or undefined when it has no `&`.
+ */
+function substituteNesting(selector: string, parent: string): string | undefined {
+  let output = "";
+  let nested = false;
+  let attribute = 0;
+  let quote = "";
+  for (let index = 0; index < selector.length; index++) {
+    const char = selector[index];
+    if (char === "\\") {
+      output += selector.slice(index, index + 2);
+      index++;
+      continue;
+    }
+    if (quote) {
+      quote = char === quote ? "" : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "[") {
+      attribute++;
+    } else if (char === "]") {
+      attribute--;
+    } else if (char === "&" && !attribute) {
+      output += parent;
+      nested = true;
+      continue;
+    }
+    output += char;
+  }
+  return nested ? output : undefined;
+}
+
+/**
+ * Converts the rules that `addUtilities()` receives into utility bodies. At-rules retain their
+ * enclosing conditions.
+ *
+ * @param input - CSS-in-JS object keyed by selectors and at-rules, or an array of them.
+ * @param register - Receives the anchor class of a selector and one body for it, once for each
+ * selector of the body.
+ * @param global - Receives `@keyframes` and `@property` rules, which apply outside utilities.
+ * @param wrappers - Enclosing at-rule preludes, outermost first.
+ * @throws If a selector has no class outside `:not()` and attribute selectors.
+ */
+export function utilityRules(
+  input: unknown,
+  register: (name: string, body: string) => void,
+  global: (css: string) => void,
+  wrappers: string[] = [],
+): void {
+  if (Array.isArray(input)) {
+    for (const entry of input) {
+      utilityRules(entry, register, global, wrappers);
+    }
+    return;
+  }
+  if (!input || typeof input !== "object") {
+    return;
+  }
+  /**
+   * Wraps CSS in the enclosing at-rules.
+   * @param body - CSS inside the innermost at-rule.
+   * @returns The wrapped CSS.
+   */
+  const wrap = (body: string) => wrappers.reduceRight((css, rule) => `${rule}{${css}}`, body);
+  for (const [selector, body] of Object.entries(input)) {
+    if (selector.startsWith("@keyframes ") || selector.startsWith("@property ")) {
+      global(wrap(`${selector}{${serializeCss(body)}}`));
+    } else if (selector.startsWith("@")) {
+      utilityRules(body, register, global, [...wrappers, selector]);
+    } else {
+      for (const branch of splitTopLevel(selector, ",").map((part) => part.trim())) {
+        const anchor = anchorClass(branch);
+        if (!anchor) {
+          throw new Error(`Tailwind plugin utility requires a class selector: ${selector}`);
+        }
+        const relative = `${branch.slice(0, anchor.start)}&${branch.slice(anchor.end)}`;
+        for (const css of utilityBodies(
+          utilityGlobals(body, global, wrappers),
+          relative,
+          wrappers,
+        )) {
+          register(anchor.name, css);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Lifts `@keyframes` and `@property` rules out of a utility body before selector targets are
+ * flattened.
+ *
+ * @param input - CSS-in-JS body, or an array of them.
+ * @param global - Receives each lifted rule, wrapped in its enclosing conditions.
+ * @param conditions - Enclosing at-rule preludes, outermost first.
+ * @returns A copy of `input` without the lifted rules. Values other than objects are returned
+ * unchanged.
+ */
+export function utilityGlobals(
+  input: unknown,
+  global: (css: string) => void,
+  conditions: string[] = [],
+): unknown {
+  if (Array.isArray(input)) {
+    return input.map((entry) => utilityGlobals(entry, global, conditions));
+  }
+  if (!input || typeof input !== "object") {
+    return input;
+  }
+  return Object.fromEntries(
+    Object.entries(input).flatMap(([key, value]) => {
+      if (key.startsWith("@keyframes ") || key.startsWith("@property ")) {
+        global(
+          conditions.reduceRight(
+            (body, condition) => `${condition}{${body}}`,
+            `${key}{${serializeCss(value)}}`,
+          ),
+        );
+        return [];
+      }
+      return [
+        [
+          key,
+          utilityGlobals(value, global, key.startsWith("@") ? [...conditions, key] : conditions),
+        ],
+      ];
+    }),
+  );
+}
+
+/**
+ * Flattens nested selector rules into utility bodies with one selector block each, which the
+ * compiler composes as independent targets.
+ *
+ * @param input - CSS-in-JS body, or an array of them.
+ * @param selector - Selector of the body relative to the utility class, `&` for the class itself.
+ * @param conditions - Enclosing at-rule preludes, outermost first.
+ * @returns Bodies in source order. Each one is either declarations, possibly inside
+ * conditions, for `&`, or one rule for another selector.
+ */
+export function utilityBodies(input: unknown, selector = "&", conditions: string[] = []): string[] {
+  if (Array.isArray(input)) {
+    return input.flatMap((entry) => utilityBodies(entry, selector, conditions));
+  }
+  if (!input || typeof input !== "object") {
+    return [];
+  }
+  const result: string[] = [];
+  let declarations: Record<string, unknown> = {};
+  /** Adds the declarations collected so far as one body and starts a new collection. */
+  const flush = () => {
+    const css = serializeCss(declarations);
+    if (css) {
+      const body = conditions.reduceRight((body, condition) => `${condition}{${body}}`, css);
+      result.push(selector === "&" ? body : `${selector}{${body}}`);
+    }
+    declarations = {};
+  };
+  for (const [key, value] of Object.entries(input)) {
+    if (
+      value &&
+      typeof value === "object" &&
+      (!Array.isArray(value) || value.some((entry) => entry && typeof entry === "object"))
+    ) {
+      flush();
+      if (key.startsWith("@")) {
+        result.push(...utilityBodies(value, selector, [...conditions, key]));
+      } else {
+        // Each target keeps one selector, because a utility body holds one selector block.
+        for (const parent of splitTopLevel(selector, ",").map((part) => part.trim())) {
+          for (const child of splitTopLevel(key, ",").map((part) => part.trim())) {
+            result.push(
+              ...utilityBodies(
+                value,
+                substituteNesting(child, parent) ?? `${parent} ${child}`,
+                conditions,
+              ),
+            );
+          }
+        }
+      }
+    } else {
+      declarations[key] = value;
+    }
+  }
+  flush();
+  return result;
+}
+
+/**
+ * Splits text at a delimiter outside CSS strings, brackets, and function calls.
+ *
+ * @param value - Text to split. Escaped characters never delimit.
+ * @param delimiter - One character, such as `,` or `/`.
+ * @returns The parts without trimming, including empty ones. Text without the delimiter is one
+ * part.
+ */
+export function splitTopLevel(value: string, delimiter: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote = "";
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+    if (char === "\\") {
+      index++;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = "";
+      }
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === "[" || char === "(") {
+      depth++;
+    } else if (char === "]" || char === ")") {
+      depth--;
+    } else if (depth === 0 && char === delimiter) {
+      parts.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
+/**
+ * Parses a Tailwind `@plugin` options block into the values that `plugin.withOptions()`
+ * factories receive.
+ *
+ * @param text - Block text without braces, such as `nocompatible: false; prefix: "x"`.
+ * @returns Options by name. `true`, `false`, `null`, numbers, and quoted strings become those
+ * values, and a comma-separated list becomes an array.
+ * @throws If a value is none of these forms.
+ */
+export function pluginOptions(text: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const declaration of splitTopLevel(text, ";")) {
+    const [name, ...values] = splitTopLevel(declaration, ":");
+    if (!name.trim() || !values.length) {
+      continue;
+    }
+    const entries = splitTopLevel(values.join(":"), ",").map((part) => {
+      const value = part.trim();
+      if (value === "true") {
+        return true;
+      }
+      if (value === "false") {
+        return false;
+      }
+      if (value === "null") {
+        return null;
+      }
+      if (/^[+-]?(?:\d*\.)?\d+(?:e[+-]?\d+)?$/i.test(value)) {
+        return Number(value);
+      }
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        return value.slice(1, -1).replace(
+          /\\([\\'"nrt])/g,
+          (_, char: string) =>
+            ({
+              n: "\n",
+              r: "\r",
+              t: "\t",
+            })[char] ?? char,
+        );
+      }
+      throw new Error(`Invalid Tailwind plugin option ${name.trim()}: ${value}`);
+    });
+    result[name.trim()] = entries.length === 1 ? entries[0] : entries;
+  }
+  return result;
+}

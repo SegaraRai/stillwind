@@ -67,3 +67,14 @@ complete path before assigning application latency guarantees.
 
 Sources: [architecture benchmarks](../benchmarks/research/architecture.bench.ts),
 [host benchmarks](../benchmarks/compiler/host.bench.ts).
+
+## Removing utility definitions
+
+`@utility` definitions of one name add to each other, as in Tailwind, so a stylesheet
+cannot remove a built-in utility or a plugin's utility. Add an explicit directive, such
+as `@stillwind-undef-utility <name>`, when a project needs it. Define whether it removes
+earlier definitions only or every definition of the name, and how it interacts with
+`(functional)` plugin definitions and the `duplicate-definition` lint.
+
+Sources: [utility matching](../crates/design-system/src/evaluation/utilities/matching.rs),
+[CSS emission](css-emission.md#utility-definitions-with-the-same-name).

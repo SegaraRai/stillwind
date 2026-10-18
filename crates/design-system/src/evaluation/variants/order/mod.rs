@@ -19,6 +19,7 @@ mod position;
 mod sequence;
 mod sort_value;
 
+pub use position::compound_variant_inner;
 pub use sequence::{VariantSequenceOrder, compare_variant_sequences};
 
 pub(in crate::evaluation) use position::variant_sort_namespace;

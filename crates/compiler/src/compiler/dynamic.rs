@@ -8,14 +8,17 @@
 
 use std::collections::BTreeSet;
 
-use lean_string::{LeanStr, ToLeanStr};
+use lean_string::{LeanStr, LeanString, ToLeanStr};
 
-use stillwind_design_system::{ThemeIndex, resolve_utility};
-use stillwind_syntax::{Utility, parse_candidate};
+use stillwind_design_system::{
+    DynamicFamilyKind, ThemeIndex, compound_variant_inner, resolve_utility,
+};
+use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix};
 
-/// Returns the utility names, without variants or modifiers, of candidates in `text`
-/// that belong to a dynamic family of `theme` and that do not resolve yet, sorted and
-/// deduplicated.
+/// Returns sorted, unique requests for host plugin families found in `text`.
+/// Native families report unresolved utility names without modifiers. Tailwind utility
+/// families retain negative signs and modifiers even when a built-in already resolves.
+/// Variant requests have an `@variant ` prefix followed by the complete variant name.
 ///
 /// A bracket candidate such as `icon-[mdi--close]` is reported by its named spelling,
 /// `icon-mdi--close`, when its family accepts both forms, and as written otherwise. A
@@ -26,19 +29,51 @@ pub(crate) fn dynamic_candidates(text: &str, theme: &ThemeIndex) -> Vec<LeanStr>
         return Vec::new();
     }
     let mut names = BTreeSet::new();
-    for token in text.split(is_boundary) {
+    for token in candidate_tokens(text) {
         if !families
             .iter()
             .any(|family| token.contains(family.prefix.as_str()))
         {
             continue;
         }
-        let Some(candidate) = parse_candidate(token) else {
+        // A style object key such as `"data-[open]:"` carries variants without a utility.
+        let (variants, candidate) = match parse_variant_prefix(token) {
+            Some(variants) => (variants, None),
+            None => match parse_candidate(token) {
+                Some(candidate) => (candidate.variants.clone(), Some(candidate)),
+                None => continue,
+            },
+        };
+        for variant in &variants {
+            // A compound variant such as `group-state-[closed]` requests its inner
+            // variant. The registry's variant-stack definitions decide which variants
+            // are compound.
+            let mut value = LeanString::from(variant.raw.as_str());
+            loop {
+                if families.iter().any(|family| {
+                    family.kind == DynamicFamilyKind::Variant
+                        && family_member(&value, &family.prefix)
+                }) {
+                    names.insert(format_args!("@variant {value}").to_lean_str());
+                }
+                match compound_variant_inner(&value, theme) {
+                    Some(inner) if inner != value => value = inner,
+                    _ => break,
+                }
+            }
+        }
+        let Some(candidate) = candidate else {
             continue;
         };
         let Utility::Named { name, .. } = &candidate.utility else {
             continue;
         };
+        if families.iter().any(|family| {
+            family.kind == DynamicFamilyKind::Utility && family_member(name, &family.prefix)
+        }) && let Some(key) = candidate.utility.registration_key(candidate.negative)
+        {
+            names.insert(key.to_lean_str());
+        }
         if theme.dynamic_family(name).is_none() {
             continue;
         }
@@ -50,6 +85,64 @@ pub(crate) fn dynamic_candidates(text: &str, theme: &ThemeIndex) -> Vec<LeanStr>
         }
     }
     names.into_iter().collect()
+}
+
+/// Whether a candidate selects a registered Tailwind root or one of its values.
+fn family_member(candidate: &str, root: &str) -> bool {
+    candidate == root
+        || candidate
+            .strip_prefix(root)
+            .is_some_and(|rest| rest.starts_with('-') || rest.starts_with('/'))
+}
+
+/// Splits source text while retaining punctuation and quoted text inside arbitrary values.
+fn candidate_tokens(text: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let mut start = 0;
+    let mut brackets = 0_u32;
+    let mut parentheses = 0_u32;
+    let mut escaped = false;
+    for (index, character) in text.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if character == '\\' {
+            escaped = true;
+            continue;
+        }
+        if character == '[' {
+            brackets += 1;
+        }
+        if character == ']' {
+            brackets = brackets.saturating_sub(1);
+        }
+        if brackets > 0 {
+            continue;
+        }
+        if character == '('
+            && (parentheses > 0
+                || text[start..index].ends_with('-')
+                || text[start..index].ends_with('/'))
+        {
+            parentheses += 1;
+            continue;
+        }
+        if character == ')' && parentheses > 0 {
+            parentheses -= 1;
+            continue;
+        }
+        if parentheses == 0 && (is_boundary(character) || matches!(character, '(' | ')')) {
+            if start < index {
+                result.push(&text[start..index]);
+            }
+            start = index + character.len_utf8();
+        }
+    }
+    if start < text.len() {
+        result.push(&text[start..]);
+    }
+    result
 }
 
 /// Whether `character` cannot occur in a candidate outside brackets and therefore
@@ -112,6 +205,26 @@ mod tests {
         assert_eq!(
             dynamic_candidates(text, &ThemeIndex::default()),
             [] as [LeanStr; 0]
+        );
+    }
+
+    #[test]
+    fn tailwind_requests_retain_typed_values_modifiers_and_compound_variants() {
+        let theme = theme(
+            "@stillwind-plugin-family utility probe; @stillwind-plugin-family variant state; @utility probe-4 { width:1px; } @stillwind-variant group-* (value: [variant]) { &:is(:where(.group):--value() *) { @slot; } }",
+        );
+        assert_eq!(
+            dynamic_candidates(
+                r#"style("probe-4", "-probe-[length:calc(2px_+_3px)]/[mirror]", { "state-[open]:": "probe-(--width)" }); group-state-[closed]:probe-4"#,
+                &theme
+            ),
+            [
+                "-probe-[length:calc(2px_+_3px)]/[mirror]",
+                "@variant state-[closed]",
+                "@variant state-[open]",
+                "probe-(--width)",
+                "probe-4"
+            ]
         );
     }
 }

@@ -25,8 +25,8 @@ use stillwind_css::{
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, Span};
 
-use crate::ThemeToken;
 use crate::theme::extract_keyframe_blocks;
+use crate::{ThemeToken, ThemeTokenPrecedence};
 
 /// Deepest group nesting accepted in one authored buffer.
 ///
@@ -122,7 +122,8 @@ const CSS_TEMPLATE: &str = "@stillwind-css-template";
 /// Returns the byte offset and name of the first definition at-rule in `css`, searching
 /// nested blocks. Output slots are not definitions.
 fn first_definition(css: &str) -> Option<(usize, LeanStr)> {
-    // Positions of a nested parser index the same input as the outer parser.
+    /// Returns the first definition at-rule from the parser's position, entering nested
+    /// blocks. Positions of a nested parser index the same input as the outer parser.
     fn scan(parser: &mut Parser<'_>) -> Option<(usize, LeanStr)> {
         loop {
             let start = parser.position().byte_index();
@@ -162,18 +163,20 @@ fn contains_utilities(nodes: &[CssOutputNode]) -> bool {
     })
 }
 
-/// Collects the inner byte range and the modifier header of every `@theme` block, in
-/// source order.
+/// Inner byte range, modifier header, and token precedence of one theme block.
+pub(crate) type ThemeBlock = (std::ops::Range<usize>, LeanString, ThemeTokenPrecedence);
+
+/// Collects the inner byte range, the modifier header, and the token precedence of
+/// every `@theme` and `@stillwind-plugin-theme` block, in source order.
 ///
 /// Callers use this to extract declarations per block, so a block's mode (`inline`,
-/// `static`, or default) can be attributed to its own tokens.
+/// `static`, or default) and precedence can be attributed to its own tokens. A plugin
+/// theme block has no modifier.
 ///
 /// # Errors
 ///
 /// Returns a block error for unparsable or unterminated `@theme` syntax.
-pub(crate) fn theme_blocks(
-    css: &str,
-) -> Result<Vec<(std::ops::Range<usize>, LeanString)>, CompileDiagnostic> {
+pub(crate) fn theme_blocks(css: &str) -> Result<Vec<ThemeBlock>, CompileDiagnostic> {
     let mut blocks = Vec::new();
     parse_nodes(css, 0, &[], &mut blocks, false, 0)?;
     Ok(blocks)
@@ -238,7 +241,7 @@ fn parse_nodes(
     css: &str,
     base: usize,
     tokens: &[ThemeToken],
-    theme_blocks: &mut Vec<(std::ops::Range<usize>, LeanString)>,
+    theme_blocks: &mut Vec<ThemeBlock>,
     conditional: bool,
     depth: usize,
 ) -> Result<Vec<CssOutputNode>, CompileDiagnostic> {
@@ -318,11 +321,14 @@ fn parse_nodes(
                 };
                 nodes.push(node);
             }
-            (Some("theme"), Some((open, close))) => {
-                theme_blocks.push((
-                    base + open + 1..base + close,
-                    css[header_end..open].trim().into(),
-                ));
+            (Some(directive @ ("theme" | "stillwind-plugin-theme")), Some((open, close))) => {
+                let (modifier, precedence) = if directive == "stillwind-plugin-theme" {
+                    (LeanString::new(), ThemeTokenPrecedence::Plugin)
+                } else {
+                    let modifier = css[header_end..open].trim();
+                    (modifier.into(), ThemeTokenPrecedence::parse(modifier))
+                };
+                theme_blocks.push((base + open + 1..base + close, modifier, precedence));
                 nodes.push(CssOutputNode::Theme {
                     origin,
                     tokens: tokens

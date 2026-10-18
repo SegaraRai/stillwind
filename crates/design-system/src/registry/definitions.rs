@@ -113,8 +113,16 @@ impl BuiltinDefinitions {
         &self.theme_namespace_types
     }
 
+    /// Returns the built-in definitions whose names match the utility name `name`: the
+    /// wildcard definitions whose prefix `name` starts with, newest first, followed by
+    /// the exact definitions of `name`, newest first.
     pub(crate) fn matching_utilities(&self, name: &str) -> Vec<&CustomUtility> {
         self.utility_lookup.matching(name, &self.utilities, true)
+    }
+
+    /// Whether a built-in definition has exactly this name.
+    pub(crate) fn has_exact_utility(&self, name: &str) -> bool {
+        self.utility_lookup.has_exact(name)
     }
 
     /// Parses every registry that can be expressed as CSS from `css`.

@@ -19,6 +19,8 @@ pub struct UtilitySearchIndex {
 }
 
 impl UtilitySearchIndex {
+    /// Indexes every definition of `utilities` by name and by the properties that its
+    /// body declares.
     pub(super) fn new(utilities: &UtilityRegistry) -> Self {
         let mut index = Self::default();
         for (name, definitions) in utilities.iter() {
@@ -87,6 +89,10 @@ pub struct UtilitySearchEntry {
     pub value_namespaces: Vec<LeanStr>,
 }
 
+/// Returns the property names that `body` declares, including those in nested rules.
+///
+/// `depth` is the nesting level of `body`. Rules nested deeper than 64 levels
+/// contribute nothing, and a body that cannot be parsed has no properties.
 fn declared_properties(body: &str, depth: usize) -> BTreeSet<LeanStr> {
     if depth > 64 {
         return BTreeSet::new();
@@ -114,7 +120,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::CustomUtility;
+    use crate::{CustomUtility, UtilityRole};
 
     #[test]
     fn search_keeps_nested_properties_overloads_and_prefix_boundaries() {
@@ -126,6 +132,7 @@ mod tests {
                     body: "&:hover { border-width:--value(--spacing-*, [length]); }".into(),
                     builtin_order: None,
                     tw_sort: None,
+                    role: UtilityRole::default(),
                 }),
             ),
             (
@@ -135,6 +142,7 @@ mod tests {
                     body: "border-color:--value(--color-*, [color]);".into(),
                     builtin_order: None,
                     tw_sort: None,
+                    role: UtilityRole::default(),
                 }),
             ),
             (
@@ -144,6 +152,7 @@ mod tests {
                     body: "color:red;".into(),
                     builtin_order: None,
                     tw_sort: None,
+                    role: UtilityRole::default(),
                 }),
             ),
         ]);

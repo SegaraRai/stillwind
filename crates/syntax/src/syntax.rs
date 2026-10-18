@@ -66,6 +66,48 @@ pub enum Utility {
     },
 }
 
+impl Utility {
+    /// Returns the key for a named utility, retaining negativity and decoded modifiers.
+    /// Arbitrary properties have no registration key.
+    pub fn registration_key(&self, negative: bool) -> Option<LeanString> {
+        let Self::Named { name, modifier } = self else {
+            return None;
+        };
+        Some(utility_registration_key(name, modifier.as_ref(), negative))
+    }
+}
+
+/// Serializes a named utility and its decoded modifier for exact plugin registration.
+pub fn utility_registration_key(
+    name: &str,
+    modifier: Option<&Value>,
+    negative: bool,
+) -> LeanString {
+    let mut key = LeanString::new();
+    if negative {
+        key.push('-');
+    }
+    key.push_str(name);
+    match modifier {
+        Some(Value::Named(value)) => {
+            key.push('/');
+            key.push_str(value);
+        }
+        Some(Value::Arbitrary(value)) => {
+            key.push_str("/[");
+            key.push_str(value);
+            key.push(']');
+        }
+        Some(Value::CssVariable(value)) => {
+            key.push_str("/(");
+            key.push_str(value);
+            key.push(')');
+        }
+        None => {}
+    }
+    key
+}
+
 /// One parsed Tailwind-compatible candidate. The original spelling remains available
 /// through [`Candidate::raw`] for stable hashing and diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -97,17 +139,7 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
     }
     let (variant_parts, utility) = split_top_level(raw, ':');
     let utility = utility?;
-    let variants = variant_parts
-        .into_iter()
-        .map(|raw| Variant {
-            kind: if let Some(value) = arbitrary(&raw) {
-                VariantKind::Arbitrary(value.into())
-            } else {
-                VariantKind::Named(raw.clone())
-            },
-            raw,
-        })
-        .collect();
+    let variants = variant_parts.into_iter().map(variant).collect();
     let (important, utility) = utility
         .strip_prefix('!')
         .map_or((false, utility), |value| (true, value));
@@ -124,6 +156,36 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
         negative,
         utility,
     })
+}
+
+/// Parses a variant prefix without a utility, such as `hover:data-[open]:` in a style
+/// object key.
+///
+/// Returns the variants in source order, or `None` when `raw` does not end with a
+/// top-level `:`, when a variant is empty, or when delimiters are unbalanced.
+pub fn parse_variant_prefix(raw: &str) -> Option<Vec<Variant>> {
+    let stem = raw.strip_suffix(':')?;
+    if stem.is_empty() || !balanced(stem) {
+        return None;
+    }
+    let (mut parts, last) = split_top_level(stem, ':');
+    parts.push(last?.into());
+    parts
+        .iter()
+        .all(|part| !part.is_empty())
+        .then(|| parts.into_iter().map(variant).collect())
+}
+
+/// Classifies one variant spelling as an arbitrary or a named variant.
+fn variant(raw: LeanStr) -> Variant {
+    Variant {
+        kind: if let Some(value) = arbitrary(&raw) {
+            VariantKind::Arbitrary(value.into())
+        } else {
+            VariantKind::Named(raw.clone())
+        },
+        raw,
+    }
 }
 
 /// True when brackets and parentheses nest and close in order, quotes are closed, and

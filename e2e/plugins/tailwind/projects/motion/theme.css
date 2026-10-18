@@ -1,0 +1,7 @@
+@import "stillwind";
+
+@plugin "tailwindcss-motion";
+
+@theme {
+  --color-brand: #123456;
+}

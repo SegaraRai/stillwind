@@ -1,4 +1,3 @@
-import type { StillwindPlugin } from "@stillwind/config";
 import { defaultPluginExport, type PluginHost } from "@stillwind/host/browser";
 import { resolveVirtualModule } from "@stillwind/host/resolution";
 
@@ -14,7 +13,7 @@ const modules = new Map<
     /** Entry text when the module was evaluated. */
     text: string;
     /** Plugin that the module exports by default. */
-    plugin: Promise<StillwindPlugin>;
+    plugin: ReturnType<PluginHost["load"]>;
   }
 >();
 
@@ -34,6 +33,15 @@ export function browserPluginHost(
   evaluate: (code: string) => Promise<unknown>,
 ): PluginHost {
   return {
+    /**
+     * Bundles and evaluates a plugin package, reusing the module while its entry text is
+     * unchanged.
+     * @param specifier - Package specifier or path from the `@plugin` statement.
+     * @param importer - Stylesheet that contains the statement.
+     * @returns The plugin that the module exports by default.
+     * @throws If the request does not resolve, bundling or evaluation fails, or the default
+     * export is not a plugin.
+     */
     async load(specifier, importer) {
       const entry = resolveVirtualModule(files, specifier, importer);
       if (!entry) {
@@ -56,9 +64,21 @@ export function browserPluginHost(
       }
       return cached.plugin;
     },
+    /**
+     * Resolves a plugin file request with browser package exports.
+     * @param specifier - Package specifier with an optional subpath, or a path.
+     * @param importer - Stylesheet that contains the statement.
+     * @returns The virtual path, or undefined when the request does not resolve.
+     */
     async resolve(specifier, importer) {
       return resolveVirtualModule(files, specifier, importer);
     },
+    /**
+     * Reads a captured file.
+     * @param path - Absolute virtual path.
+     * @returns The captured text.
+     * @throws If the inventory has no such file.
+     */
     async read(path) {
       const text = files.get(path);
       if (text === undefined) {

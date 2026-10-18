@@ -180,6 +180,11 @@ export class BrowserProject {
    * effect because changing the inventory requires a new project.
    */
   #cssHost(): CssHost {
+    /**
+     * Selects the document identity of a virtual stylesheet.
+     * @param file - Absolute virtual path.
+     * @returns The configured document URI.
+     */
     const uri = (file: string) => this.#documentUri(file);
     return {
       resolve: async (specifier, importer) => {
@@ -242,7 +247,17 @@ export class BrowserProject {
 
       const { config, root } = this.#options;
 
+      /**
+       * Selects the document identity of a virtual file.
+       * @param file - Absolute virtual path.
+       * @returns The configured document URI.
+       */
       const uri = (file: string) => this.#documentUri(file);
+      /**
+       * Reads a captured virtual file.
+       * @param file - Absolute virtual path.
+       * @returns The captured text.
+       */
       const read = (file: string) => this.#read(file);
 
       await this.#designSystem();
@@ -343,6 +358,7 @@ export class BrowserProject {
         this.#loader!,
         config,
         (await this.#plugins?.catalog()) ?? [],
+        this.#plugins,
       );
       for (const report of editor.reports()) {
         const batch =
@@ -465,6 +481,7 @@ export class BrowserProject {
                 resources: this.#resources,
                 lintSources: this.#lintSources,
                 recovered: false,
+                plugins: this.#plugins,
               }
             : await loadEditorCssGraph(
                 resolve(this.#options.root, cssEntrypoint(this.#options.config)),
@@ -489,10 +506,14 @@ export class BrowserProject {
               reports,
               this.#editorCss.loader.editorQuery(),
               this.#options.config,
+              (await this.#editorCss.plugins?.catalog()) ?? [],
+              this.#editorCss.plugins,
             ),
           );
         }
-        return this.#closed ? undefined : this.#editors.get(id)?.query(id, request);
+        const editor = this.#editors.get(id);
+        await editor?.prepare(request);
+        return this.#closed ? undefined : editor?.query(id, request);
       });
       this.#queue = task.catch(() => {});
       return task;
@@ -502,7 +523,11 @@ export class BrowserProject {
     if (this.#closed) {
       return undefined;
     }
-    return this.#editors.get(id)?.query(id, request);
+    const editor = this.#editors.get(id);
+    if (editor instanceof EditorSnapshot) {
+      await editor.prepare(request);
+    }
+    return editor?.query(id, request);
   }
 
   /**

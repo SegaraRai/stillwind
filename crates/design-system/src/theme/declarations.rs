@@ -34,10 +34,41 @@ impl ThemeTokenMode {
     /// Reads a `@theme` block modifier; an unrecognized modifier is treated as the
     /// default mode rather than rejected.
     pub fn parse(modifier: &str) -> Self {
-        match modifier {
-            "inline" => ThemeTokenMode::Inline,
-            "static" => ThemeTokenMode::Static,
-            _ => ThemeTokenMode::Default,
+        let words = modifier.split_whitespace().collect::<Vec<_>>();
+        if words.contains(&"inline") {
+            Self::Inline
+        } else if words.contains(&"static") {
+            Self::Static
+        } else {
+            Self::Default
+        }
+    }
+}
+
+/// Which definition of a token wins, independent of source order. A definition replaces
+/// an earlier one of the same or lower precedence, and a reset such as `--color-*:
+/// initial` removes the definitions of the same or lower precedence.
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ThemeTokenPrecedence {
+    /// `@theme default`, which yields to every other definition, as in Tailwind.
+    Default,
+    /// Theme configuration of a Tailwind plugin, which the plugin adapter writes as
+    /// `@stillwind-plugin-theme`. It replaces `@theme default` definitions and yields
+    /// to ordinary ones.
+    Plugin,
+    /// Ordinary `@theme` definition.
+    #[default]
+    Ordinary,
+}
+
+impl ThemeTokenPrecedence {
+    /// Reads the precedence of a `@theme` block modifier, such as `default inline`.
+    #[must_use]
+    pub fn parse(modifier: &str) -> Self {
+        if modifier.split_whitespace().any(|word| word == "default") {
+            Self::Default
+        } else {
+            Self::Ordinary
         }
     }
 }
@@ -69,6 +100,8 @@ pub struct ThemeToken {
     pub kind: ThemeTokenKind,
     /// Emission policy: ordinary referenced token, inline value, or static retention.
     pub mode: ThemeTokenMode,
+    /// Which definition of the token wins, independent of source order.
+    pub precedence: ThemeTokenPrecedence,
 }
 
 /// Reads the declarations of one `@theme` body.
@@ -159,6 +192,7 @@ pub(crate) fn extract_theme_declarations(
             ),
             kind: classify_theme_token(name),
             mode,
+            precedence: ThemeTokenPrecedence::Ordinary,
         });
     }
     Ok(tokens)

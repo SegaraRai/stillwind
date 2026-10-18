@@ -36,7 +36,7 @@ pub use conditions::{
     RedundantVariant, UnsatisfiableVariants, VariantRedundancy, redundant_variants,
     unsatisfiable_variants,
 };
-pub use order::{VariantSequenceOrder, compare_variant_sequences};
+pub use order::{VariantSequenceOrder, compare_variant_sequences, compound_variant_inner};
 pub use resolve::{
     ConditionContext, VariantFailure, VariantFailureReason, exact_variant_definition_resolves,
     resolve_variant,

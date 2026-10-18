@@ -8,17 +8,19 @@ use stillwind_design_system::UtilityResolutionError;
 
 use super::context::{Context, Kind, context};
 use super::directives::{DECLARATION_SLOTS, DIRECTIVES, RULE_SLOTS, directive_name};
-use crate::query::{CandidateContext, CompletionInput, DesignSystemQuery};
+use crate::query::{CandidateContext, CompletionInput, DesignSystemQuery, last_top_level};
 
 /// Editor discovery settings. These options do not alter compilation or stylesheet
 /// lint.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StylesheetCompletionOptions {
     /// Offers registry metadata in addition to authoring directives. Defaults to false.
     /// Required local syntax remains available inside matching definitions.
     pub registry_directives: bool,
     /// Includes empty arbitrary-variant placeholders for clients that support snippets.
     pub snippets: bool,
+    /// Finite host plugin candidates. Variant labels end in `:`; no callback runs during discovery.
+    pub catalog: Vec<LeanStr>,
 }
 
 /// One CSS completion with a range in the supplied original UTF-8 text.
@@ -69,7 +71,7 @@ impl DesignSystemQuery {
         let prefix = &css[context.range.start..offset];
         let keyword = matches!(context.kind, Kind::Directive);
         let mut labels: Vec<LeanStr> = match context.kind {
-            Kind::Directive => return Ok(directive_completions(&context, prefix, options)),
+            Kind::Directive => return Ok(directive_completions(&context, prefix, &options)),
             Kind::DirectiveArgument { directive, first } => {
                 let theme = self.context.design_system.theme();
                 let values: Vec<LeanStr> = match directive {
@@ -99,11 +101,13 @@ impl DesignSystemQuery {
                     .filter(|label| label.starts_with(prefix))
                     .collect()
             }
-            Kind::Apply | Kind::Variant => self.stylesheet_candidate_labels(
-                prefix,
-                matches!(context.kind, Kind::Variant),
-                options.snippets,
-            )?,
+            Kind::Apply | Kind::Variant => {
+                let variants = matches!(context.kind, Kind::Variant);
+                let mut labels =
+                    self.stylesheet_candidate_labels(prefix, variants, options.snippets)?;
+                labels.extend(catalog_labels(prefix, variants, options.catalog));
+                labels
+            }
             Kind::Slot { declarations } => {
                 let mut prefix = prefix.split_whitespace().collect::<Vec<_>>().join(" ");
                 if css[context.range.start..offset].ends_with(char::is_whitespace)
@@ -186,13 +190,32 @@ impl DesignSystemQuery {
     }
 }
 
+/// Completes host candidates only inside an applied utility or variant input.
+fn catalog_labels(prefix: &str, variants: bool, catalog: Vec<LeanStr>) -> Vec<LeanStr> {
+    let split = last_top_level(prefix, ':').map_or(0, |index| index + 1);
+    let (before, partial) = prefix.split_at(split);
+    catalog
+        .into_iter()
+        .filter_map(|name| {
+            let name = if variants {
+                name.strip_suffix(':')?
+            } else {
+                name.as_str()
+            };
+            name.starts_with(partial)
+                .then(|| format_args!("{before}{name}").to_lean_str())
+        })
+        .take(200)
+        .collect()
+}
+
 /// Offers names for the captured cursor positions and discovery settings.
 /// `prefix` is the original at-rule token before the cursor. Returned ranges copy
 /// `context.range`, and sort keys retain the same order in LSP clients.
 fn directive_completions(
     context: &Context,
     prefix: &str,
-    options: StylesheetCompletionOptions,
+    options: &StylesheetCompletionOptions,
 ) -> Vec<StylesheetCompletion> {
     let prefix = directive_name(prefix);
     let mut directives: Vec<_> = DIRECTIVES

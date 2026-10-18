@@ -2,8 +2,60 @@ import { readFile } from "node:fs/promises";
 
 import { expect, test } from "vite-plus/test";
 
-/** Registers editor and canonical lint contracts for the selected native or WASM loader. */
+/**
+ * Registers editor and canonical lint contracts for the selected native or WASM loader.
+ * @param specifier - Module specifier of the binding that the tests import.
+ */
 export function registerEditorContract(specifier: string): void {
+  test("functional registrations preserve modifiers, nested targets, theme defaults, and CSS functions", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession, cssValueMatches } = await import(
+      specifier
+    );
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `
+@theme { --spacing: .25rem; --color-brand: blue; }
+@theme default { --color-brand: red; }
+@utility duration-* { transition-duration: --value(integer)ms; }
+@stillwind-plugin-family utility duration;
+@stillwind-plugin-family utility probe;
+@stillwind-plugin-family variant state;
+@utility duration-300 (functional) { animation-duration: 300ms; }
+@utility -probe-\\[3px\\]\\/mirror (functional) { width: calc(3px * -1); }
+@utility -probe-\\[3px\\]\\/mirror (functional) { &:hover { color: blue; } }
+@utility safe { padding-top: --spacing(4); color: --alpha(red / 50%); }
+`,
+    );
+    const query = loader.editorQuery();
+    expect(query.themeTokens()).toContainEqual({
+      name: "--color-brand",
+      value: "blue",
+      fallback: false,
+      inline: false,
+    });
+    expect(query.dynamicCandidates('"duration-300 -probe-[3px]/mirror state-[open]:safe"')).toEqual(
+      ["-probe-[3px]/mirror", "@variant state-[open]", "duration-300"],
+    );
+    // A plugin's functional definition adds to the stylesheet's `duration-*` and comes first,
+    // because Tailwind registers plugins before the stylesheet's utilities.
+    expect(query.previewCandidate("duration-300")).toBe(
+      "&{animation-duration: 300ms;transition-duration: 300ms;}",
+    );
+    const preview = query.previewCandidate("-probe-[3px]/mirror");
+    expect(preview).toBe("&{width: calc(3px * -1);}&:hover{color: blue;}");
+    expect(query.previewCandidate("safe")).toContain("var(--spacing)");
+    expect(query.previewCandidate("safe")).not.toContain("--spacing(");
+    expect(query.previewCandidate("safe")).not.toContain("--alpha(");
+    expect(cssValueMatches("oklch(.5 .1 45)", "color")).toBe(true);
+    expect(cssValueMatches("123px", "color")).toBe(false);
+    const session = new NativeProjectSession(loader, false);
+    const reload = loader.newLoader();
+    reload.provide(0, "theme.css", "@theme { --color-brand: green; }");
+    expect(() => session.reload(reload)).not.toThrow();
+  });
+
   test("completion placeholders, summaries, and plugin ranges cross the binding", async () => {
     const { NativeDesignSystemLoader, completionDetail, stylesheetPluginPaths } = await import(
       specifier
@@ -293,7 +345,11 @@ export function registerEditorContract(specifier: string): void {
       "@utility block {display:block;} @utility flex {display:flex;} @stillwind-slot utilities; @stillwind-slot keyframes;",
     );
     const session = new NativeProjectSession(loader, true);
-    /** Uses one stable module identity with fresh original text and no checker facts. */
+    /**
+     * Uses one stable module identity with fresh original text and no checker facts.
+     * @param code - Module text.
+     * @returns A prepared source for `entry.tsx`.
+     */
     const prepare = (code: string): import("../binding.js").NativePreparedSource => ({
       kind: "direct",
       moduleId: "entry.tsx",
@@ -454,6 +510,11 @@ export function registerEditorContract(specifier: string): void {
     const { NativeDesignSystemLoader } = await import(specifier);
     const css =
       "@theme {--color-red-500:red;--spacing:0.25rem;} @utility bg-* {background-color:--value(--color-*,[color]);} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;";
+    /**
+     * Loads the shared stylesheet with compiler options.
+     * @param options - Options under test.
+     * @returns Editor queries over the completed design system.
+     */
     const load = (options: import("../binding.js").NativeCompilerOptions) => {
       const loader = new NativeDesignSystemLoader(options);
       loader.provide(0, "theme.css", css, "file:///theme.css");
@@ -497,6 +558,11 @@ export function registerEditorContract(specifier: string): void {
 
   test("ordering batches preserve compiler order, duplicates, unresolved candidates, and theme revisions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
+    /**
+     * Loads one stylesheet.
+     * @param definitions - Stylesheet text.
+     * @returns Editor queries over the completed design system.
+     */
     const load = (definitions: string) => {
       const loader = new NativeDesignSystemLoader();
       loader.provide(0, "theme.css", definitions, "file:///theme.css");
@@ -572,6 +638,11 @@ export function registerEditorContract(specifier: string): void {
   test("canonical indexes preserve old snapshots and isolate theme reloads", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const loader = new NativeDesignSystemLoader();
+    /**
+     * Builds a theme whose brand color differs between revisions.
+     * @param value - Brand color.
+     * @returns Stylesheet text.
+     */
     const css = (value: string) =>
       `@theme { --color-*:initial; --color-brand:${value}; }
 @utility bg-* { background-color:--value(--color-*, [color]); }
@@ -709,6 +780,11 @@ const ignored=style('p-[20.5px]');`;
       loader.provide(0, "root.css", css, "file:///project/root.css", null, true);
       return loader;
     };
+    /**
+     * Selects the reports of the rule under test.
+     * @param reports - Stylesheet reports.
+     * @returns The `prefer-variant-directive` reports.
+     */
     const directives = (reports: { code: string }[]) =>
       reports.filter((report) => report.code === "prefer-variant-directive");
     expect(directives(load().stylesheetReports())).toEqual([]);

@@ -62,9 +62,9 @@ pub struct CompileResult {
     /// release compilation fails with a diagnostic instead.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rejected_names: Vec<RejectedIdentifier>,
-    /// Utility names of `@stillwind-dynamic` families that the source mentions and the
-    /// design system does not define yet, sorted and deduplicated. A host plugin
-    /// defines them, and the host then compiles the module again.
+    /// Sorted, unique host plugin requests found in the source. Native families report
+    /// unresolved utility names. Tailwind families retain negative signs and modifiers,
+    /// and variant requests start with `@variant `. The host defines them and recompiles.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dynamic_candidates: Vec<LeanStr>,
     /// Replacements to apply to the original source.

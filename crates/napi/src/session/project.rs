@@ -345,7 +345,7 @@ impl NativeProjectSession {
 
     /// Publishes a reloaded design system and reports what changed.
     ///
-    /// `loader` must be complete and created by this session.
+    /// `loader` must be complete and share source identities with this session.
     /// If recompilation fails, the error lists the failing modules. Watch mode keeps
     /// the previous revision. Build mode publishes the new revision without the failed
     /// modules before returning this error.

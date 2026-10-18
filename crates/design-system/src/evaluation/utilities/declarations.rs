@@ -57,6 +57,9 @@ pub(in crate::evaluation) struct PreparedDeclarations {
 }
 
 impl PreparedDeclarations {
+    /// Splits a declaration group into declarations and records which placeholder
+    /// families they use. A declaration without placeholders also gets its value
+    /// resolved for built-in and for project definitions.
     pub(in crate::evaluation) fn parse(body: &str, theme: &ThemeIndex) -> Self {
         let declarations: Vec<_> = split_css_declarations(body)
             .into_iter()
@@ -95,15 +98,21 @@ impl PreparedDeclarations {
     }
 }
 
+/// One declaration of a prepared group.
 #[derive(Debug)]
 struct PreparedDeclaration {
+    /// Authored declaration text.
     text: LeanStr,
+    /// Placeholders of the value, or `None` when they cannot be prepared.
     values: Option<PreparedValues>,
+    /// Resolved text of a declaration without placeholders, for a built-in definition.
     static_builtin: Option<LeanStr>,
+    /// Resolved text of a declaration without placeholders, for a project definition.
     static_project: Option<LeanStr>,
 }
 
 impl PreparedDeclaration {
+    /// Prepares one declaration and resolves it in advance when it has no placeholders.
     fn new(text: LeanString, theme: &ThemeIndex) -> Self {
         let values = PreparedValues::parse(&text);
         let is_static = values.as_ref().is_some_and(PreparedValues::is_static);
@@ -117,6 +126,8 @@ impl PreparedDeclaration {
         }
     }
 
+    /// Returns the declaration resolved in advance for a built-in or a project
+    /// definition, or `None` when it has placeholders.
     fn static_value(&self, builtin: bool) -> Option<&LeanStr> {
         if builtin {
             self.static_builtin.as_ref()
@@ -146,6 +157,13 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     color_compatibility: bool,
     arbitrary_check: ArbitraryValueCheck,
 ) -> Option<ResolvedCssDeclarations> {
+    let lowered;
+    let body = if body.contains("--spacing(") || body.contains("--alpha(") {
+        lowered = theme.resolve_css_functions(body)?;
+        lowered.as_str()
+    } else {
+        body
+    };
     let expanded;
     let prepared = if let Some(prepared) = theme.programs().declarations(body) {
         prepared

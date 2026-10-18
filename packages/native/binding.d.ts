@@ -20,6 +20,12 @@ export declare class NativeDesignSystemLoader {
   /** Creates a loader for the given compiler options. */
   constructor(options?: NativeCompilerOptions | undefined | null)
   /**
+   * Creates an empty loader that shares source identities with this loader and its
+   * sessions. `options` selects compiler settings; omission uses the compiler
+   * defaults.
+   */
+  newLoader(options?: NativeCompilerOptions | undefined | null): NativeDesignSystemLoader
+  /**
    * Answers one pending request by calling [`Self::provide_many`] with one file.
    * An absent URI marks the CSS as an internal buffer without a reportable location.
    * `lint` marks the source for stylesheet lint, and an absent value means false.
@@ -175,6 +181,10 @@ export declare class NativeEditorQuery {
   candidateRanks(candidates: Array<string>): Array<number | undefined | null>
   /** Returns active theme values, keyed by their full custom-property names. */
   themeValues(): Record<string, string>
+  /** Returns active theme values with the policies used by plugin configuration. */
+  themeTokens(): Array<NativeThemeToken>
+  /** Reports dynamic utility keys and `@variant ` requests in CSS or source text. */
+  dynamicCandidates(text: string): Array<string>
   /** Returns the authored spacing scale, or null when no scale is active. */
   spacingScale(): string | null
   /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */
@@ -295,7 +305,7 @@ export declare class NativeProjectSession {
   /**
    * Publishes a reloaded design system and reports what changed.
    *
-   * `loader` must be complete and created by this session.
+   * `loader` must be complete and share source identities with this session.
    * If recompilation fails, the error lists the failing modules. Watch mode keeps
    * the previous revision. Build mode publishes the new revision without the failed
    * modules before returning this error.
@@ -504,9 +514,9 @@ export interface BindingOutput {
    */
   rejectedNames: Array<BindingRejectedIdentifier>
   /**
-   * Utility names of `@stillwind-dynamic` families that the source mentions and the
-   * design system does not define yet. A host plugin defines them before the host
-   * compiles the module again.
+   * Host plugin requests found in source text. Native families report unresolved
+   * utility names. Tailwind utility keys retain negative signs and modifiers;
+   * variant requests start with `@variant `. The host defines them and recompiles.
    */
   dynamicCandidates: Array<string>
   /** Non-fatal findings. */
@@ -567,6 +577,13 @@ export declare function compileSource(input: NativeCompileSourceInput, options?:
 
 /** Returns a short declaration or rule summary for one selected CSS completion. */
 export declare function completionDetail(source: string): string | null
+
+/**
+ * Checks a CSS value against a public arbitrary-value type hint.
+ * Unknown hints and empty values return false; CSS-wide keywords and variables follow
+ * CSS validation policy.
+ */
+export declare function cssValueMatches(value: string, hint: string): boolean
 
 /**
  * Extracts definitions and imports for an editor-only load of incomplete CSS.
@@ -1632,6 +1649,8 @@ export interface NativeStylesheetCompletionOptions {
   registryDirectives?: boolean
   /** Includes empty arbitrary-variant placeholders. Defaults to false. */
   snippets?: boolean
+  /** Finite host plugin candidate labels. Variant labels end in `:`. */
+  catalog?: Array<string>
 }
 
 /** CSS or Markdown documentation at an original UTF-8 range. */
@@ -1779,6 +1798,21 @@ export interface NativeSymbolicValue {
   candidates: NativeCandidates
 }
 
+/** An active CSS theme token used by JavaScript plugin theme resolution. */
+export interface NativeThemeToken {
+  /** Full custom-property name, including the leading double hyphen. */
+  name: string
+  /** Authored CSS value, including references to other tokens. */
+  value: string
+  /**
+   * Whether ordinary `@theme` definitions take precedence over this definition: it
+   * comes from `@theme default` or from a plugin's theme configuration.
+   */
+  fallback: boolean
+  /** Whether utility declarations inline the value instead of referencing the token. */
+  inline: boolean
+}
+
 /**
  * An applied compiler edit, exposed to JavaScript for source-map construction.
  * Offsets are absolute UTF-16 code units before host prefix insertion or import removal;
@@ -1885,9 +1919,9 @@ export interface ProjectModuleOutput {
    */
   rejectedNames: Array<BindingRejectedIdentifier>
   /**
-   * Utility names of `@stillwind-dynamic` families that the source mentions and the
-   * design system does not define yet. A host plugin defines them before the host
-   * compiles the module again.
+   * Host plugin requests found in source text. Native families report unresolved
+   * utility names. Tailwind utility keys retain negative signs and modifiers;
+   * variant requests start with `@variant `. The host defines them and recompiles.
    */
   dynamicCandidates: Array<string>
   /** Non-fatal findings. */

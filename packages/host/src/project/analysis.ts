@@ -361,13 +361,17 @@ export class AnalysisProject {
               reports,
               graph.loader.editorQuery(),
               this.host.config,
+              (await graph.plugins?.catalog()) ?? [],
+              graph.plugins,
             ),
           });
         } else {
           await this.#analyzeSnapshot(entry, revision, documents);
         }
       }
-      const result = this.#editors.get(entry)?.snapshot.query(entry, request);
+      const snapshot = this.#editors.get(entry)?.snapshot;
+      await snapshot?.prepare(request);
+      const result = snapshot?.query(entry, request);
       return this.#discardReason(revision, signal) ? undefined : result;
     });
     this.#queue = task.catch(() => {});
@@ -468,6 +472,7 @@ export class AnalysisProject {
         loader,
         this.host.config,
         (await this.#plugins?.catalog()) ?? [],
+        this.#plugins,
       );
       result.reports.push(...editor.reports());
       this.#editors.set(entry, {
@@ -512,6 +517,8 @@ export class AnalysisProject {
         result.reports,
         loader.editorQuery(),
         this.host.config,
+        (await this.#plugins?.catalog()) ?? [],
+        this.#plugins,
       ),
     });
     result.status = "complete";
@@ -589,6 +596,7 @@ export class AnalysisProject {
           resources: [],
           lintSources: this.#lintSources,
           recovered: false,
+          plugins: this.#plugins,
         };
       } else {
         this.#editorCss = await loadEditorCssGraph(
@@ -631,6 +639,11 @@ export class AnalysisProject {
  * @returns Whether both paths name the same file, ignoring case on Windows.
  */
 export function sameFile(a: string, b: string): boolean {
+  /**
+   * Normalizes a path for comparison.
+   * @param file - File path.
+   * @returns The absolute path, lowercased on Windows.
+   */
   const key = (file: string) =>
     process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
   return key(a) === key(b);

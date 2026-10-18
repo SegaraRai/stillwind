@@ -47,6 +47,9 @@ impl UtilityPrograms {
         }
     }
 
+    /// Returns the prepared form of a utility body, or `None` for a body that no
+    /// definition of the theme has. The inner result reports a malformed property
+    /// requirement, and `Ok(None)` a body that cannot be prepared.
     pub(in crate::evaluation) fn body(
         &self,
         body: &str,
@@ -54,6 +57,8 @@ impl UtilityPrograms {
         self.bodies.get(body)
     }
 
+    /// Returns the prepared declarations of one declaration group of a prepared body,
+    /// or `None` for text that no prepared body contains.
     pub(in crate::evaluation) fn declarations(&self, body: &str) -> Option<&PreparedDeclarations> {
         self.declarations.get(body)
     }
@@ -62,7 +67,7 @@ impl UtilityPrograms {
 #[cfg(test)]
 mod tests {
     use crate::theme::ThemeBuilder;
-    use crate::{CustomUtility, resolve_utility};
+    use crate::{CustomUtility, UtilityRole, resolve_utility};
 
     #[test]
     fn resolution_retains_the_first_malformed_project_requirement() {
@@ -74,6 +79,7 @@ mod tests {
                     body: "@stillwind-require-properties invalid; color:red;".into(),
                     builtin_order: None,
                     tw_sort: None,
+                    role: UtilityRole::default(),
                 })
                 .collect(),
             ..Default::default()

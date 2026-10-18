@@ -6,6 +6,7 @@ packages:
   - e2e/play
   - e2e/bundlers/*
   - e2e/frameworks/*
+  - e2e/plugins/*
   - packages/*
   - packages/native/npm/*
   - plugins/*

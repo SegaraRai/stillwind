@@ -123,6 +123,15 @@ pub(super) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
     Some(parse_nested_variant(&capture))
 }
 
+/// Returns the inner variant of a compound variant, such as `hover` for `group-hover`,
+/// from the project's definitions and then the built-ins whose declared value type is a
+/// variant stack. The compound variant's own modifier, such as `/name`, is excluded.
+/// Returns `None` when no such definition matches `value`.
+pub fn compound_variant_inner(value: &str, theme: &ThemeIndex) -> Option<LeanString> {
+    compound_variant_capture(theme.variants(), value)
+        .or_else(|| compound_variant_capture(builtin_variants(theme), value))
+}
+
 /// The inner variant text of the first definition whose declared value type is a variant
 /// stack, without that definition's own modifier.
 pub(super) fn compound_variant_capture(

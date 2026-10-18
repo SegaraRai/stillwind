@@ -4,13 +4,13 @@ import { pathToFileURL } from "node:url";
 
 import { captureProjectConfig, type AnalysisProjectConfig } from "@stillwind/config";
 import { resolveProjectConfig } from "@stillwind/config/node";
-import { ResolverFactory } from "oxc-resolver";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
 import { completePluginPaths, pluginDirectory } from "../css/plugin-paths.ts";
 import { resolveTypeFactsEnvironment } from "../semantics/index.ts";
 import type { AnalysisHost } from "./analysis.ts";
 import { nodePluginHost, readPluginDirectory } from "./plugins.ts";
+import { stylesheetResolver } from "./stylesheets.ts";
 
 /**
  * Creates a Node analysis host with captured buffers, source providers, and CSS resolution.
@@ -30,11 +30,7 @@ export function createFileSystemAnalysisHost(
   const resolvedConfig = resolveProjectConfig(config, directory);
   const root = resolvedConfig.root!;
   const typeFactsEnvironment = resolveTypeFactsEnvironment(root, resolvedConfig.tsconfig);
-  const cssResolver = new ResolverFactory({
-    extensions: [".css"],
-    conditionNames: ["style", "import", "default"],
-    mainFields: ["style", "main"],
-  });
+  const cssResolver = stylesheetResolver();
 
   let documents: ReadonlyMap<string, string> = new Map();
   let buffers: ReadonlyMap<string, string> = new Map();
@@ -118,6 +114,14 @@ export function createFileSystemAnalysisHost(
       plugins: {
         ...nodePluginHost,
         read,
+        /**
+         * Resolves a plugin file request, preferring open buffers for a relative or absolute
+         * path so that an unsaved plugin file resolves.
+         * @param specifier - Package specifier or path.
+         * @param importer - Stylesheet that contains the statement.
+         * @returns A buffered or existing file, or undefined when the request does not resolve
+         * to a file.
+         */
         async resolve(specifier, importer) {
           if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
             const base = path.resolve(path.dirname(importer), specifier);

@@ -1,0 +1,9 @@
+@import "stillwind";
+
+@plugin "@tailwindcss/forms" {
+  strategy: "class";
+}
+
+@theme {
+  --color-brand: #123456;
+}

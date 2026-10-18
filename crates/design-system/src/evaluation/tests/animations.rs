@@ -1,8 +1,8 @@
 //! Placeholder and value-domain families exercised through real built-ins.
 //!
 //! Pins pseudo-element colors, gradient direction and interpolation, size and filter
-//! keywords, and the rule that application CSS may override any compatibility utility
-//! name.
+//! keywords, and the rule that application CSS adds to a compatibility utility of the
+//! same name.
 
 use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
@@ -82,7 +82,7 @@ fn resolves_filter_and_perspective_keywords() {
 }
 
 #[test]
-fn lets_user_css_override_compatibility_fallback_utility_names() {
+fn user_css_adds_to_compatibility_utilities_of_the_same_name() {
     let source = SourceFile::new(
         FileId(1),
         None,
@@ -92,9 +92,11 @@ fn lets_user_css_override_compatibility_fallback_utility_names() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
 
+    // As in Tailwind, the built-in's declarations come first and the project's follow.
     assert_css_eq!(
         resolve_utility("size-4", &theme).unwrap().declaration,
-        "inline-size: calc(var(--spacing) * 4); block-size: calc(var(--spacing) * 4);"
+        "width: calc(var(--spacing) * 4); height: calc(var(--spacing) * 4); \
+         inline-size: calc(var(--spacing) * 4); block-size: calc(var(--spacing) * 4);"
     );
 }
 

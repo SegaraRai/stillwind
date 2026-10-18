@@ -292,8 +292,8 @@ impl DesignSystemSnapshot {
                     token.name.value.clone(),
                     Fingerprint::of(
                         format_args!(
-                            "{:?}\0{:?}\0{}\0",
-                            token.kind, token.mode, token.value.value
+                            "{:?}\0{:?}\0{:?}\0{}\0",
+                            token.kind, token.mode, token.precedence, token.value.value
                         )
                         .to_lean_string(),
                     ),
@@ -304,7 +304,7 @@ impl DesignSystemSnapshot {
         let tokens: Vec<_> = theme
             .tokens()
             .iter()
-            .map(|t| (&t.name.value, &t.value.value, &t.kind, t.mode))
+            .map(|t| (&t.name.value, &t.value.value, &t.kind, t.mode, t.precedence))
             .collect();
         let content = Fingerprint::of(format_args!(
             "{}\0{config:?}\0{tokens:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{}\0",

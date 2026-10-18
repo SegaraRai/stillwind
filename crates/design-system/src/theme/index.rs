@@ -14,15 +14,17 @@ use super::builder::ThemeBuilder;
 use super::declarations::ThemeToken;
 use super::namespace::{ThemeNamespace, excluded_from_namespace, namespace_key_names};
 use super::parser::DynamicFamily;
-use super::references::{inline_theme_functions, resolve_theme_references};
+use super::references::{inline_theme_functions, resolve_css_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
 use crate::registry::UtilityLookup;
 use crate::{
-    BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, ThemeReferenceError,
-    ThemeTokenMode, UtilityOrderMode,
+    BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, DynamicFamilyKind,
+    ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
 };
 
+/// Everything that one stylesheet declares, as the parser collected it. Equality of two
+/// indexes compares these declarations only, because the lookups derive from them.
 #[derive(Debug, Eq, PartialEq)]
 struct ThemeDeclarations {
     variant_positions: BTreeMap<LeanStr, usize>,
@@ -45,11 +47,15 @@ struct ThemeDeclarations {
     target: BrowserTargets,
 }
 
+/// Declarations and the lookups derived from them, shared by every clone of an index.
 #[derive(Debug)]
 struct ThemeData {
     declarations: ThemeDeclarations,
+    /// Active tokens after resets, replacements, and precedence.
     tokens: TokenLookup,
+    /// Name lookup over `declarations.utilities`.
     utilities: UtilityLookup,
+    /// Prepared utility bodies, built once when the index is created.
     programs: OnceLock<UtilityPrograms>,
 }
 
@@ -75,6 +81,8 @@ impl PartialEq for ThemeIndex {
 impl Eq for ThemeIndex {}
 
 impl ThemeIndex {
+    /// Builds an index from parsed declarations, derives the token and utility lookups,
+    /// and prepares the utility programs.
     pub(crate) fn new(builder: ThemeBuilder) -> Self {
         let declarations = ThemeDeclarations {
             variant_positions: builder.variant_positions,
@@ -110,16 +118,36 @@ impl ThemeIndex {
         theme
     }
 
+    /// Returns the prepared bodies of the project and built-in utilities, shared by
+    /// every clone of this index.
     pub(crate) fn programs(&self) -> &UtilityPrograms {
         self.inner
             .programs
             .get_or_init(|| UtilityPrograms::new(self))
     }
 
+    /// Returns the project definitions whose names match the utility name `name`: the
+    /// exact definitions of `name` and the wildcard definitions whose prefix `name`
+    /// starts with, newest first. `(functional)` definitions are not included; see
+    /// [`Self::functional_utilities`].
     pub(crate) fn matching_utilities(&self, name: &str) -> Vec<&CustomUtility> {
         self.inner.utilities.matching(name, self.utilities(), false)
     }
 
+    /// Returns the project's `(functional)` definitions of one complete candidate, in
+    /// source order.
+    pub(crate) fn functional_utilities(&self, candidate: &str) -> Vec<&CustomUtility> {
+        self.inner.utilities.functional(candidate, self.utilities())
+    }
+
+    /// Whether a project definition without the `(functional)` flag has exactly this
+    /// name.
+    pub(crate) fn has_exact_utility(&self, name: &str) -> bool {
+        self.inner.utilities.has_exact(name)
+    }
+
+    /// Returns the definitions that are active after resets, replacements, and
+    /// precedence, ordered by custom-property name.
     pub(crate) fn active_token_definitions(&self) -> impl Iterator<Item = &Arc<ThemeToken>> {
         self.inner
             .tokens
@@ -151,21 +179,27 @@ impl ThemeIndex {
         &self.inner.declarations.css_templates
     }
 
-    /// Utility families that a host plugin defines on demand, in the order of their
-    /// first `@stillwind-dynamic` statements. The host adds a definition for each
-    /// candidate of such a family that a module uses.
+    /// Families whose candidates a host plugin defines on demand: the native families
+    /// of `@stillwind-dynamic` statements, in the order of their first statements,
+    /// followed by the families of `@stillwind-plugin-family` statements that the
+    /// Tailwind plugin adapter writes. The host adds a definition for each candidate
+    /// of such a family that a module uses.
     pub fn dynamic_utilities(&self) -> &[DynamicFamily] {
         &self.inner.declarations.dynamic_utilities
     }
 
-    /// Returns the dynamic family that a utility name belongs to, and whether the name
-    /// is in the bracket form.
+    /// Returns the native dynamic family that a utility name belongs to, and whether
+    /// the name is in the bracket form. Tailwind plugin families are not considered,
+    /// because their requests keep the complete candidate.
     ///
     /// A name belongs to a family when it is the prefix followed by a nonempty rest in
     /// a form that the family accepts. The bracket form is `<prefix>[<value>]` with a
     /// nonempty value that contains no `:`, `[`, `]`, or space.
     pub fn dynamic_family(&self, name: &str) -> Option<(&DynamicFamily, bool)> {
         self.dynamic_utilities().iter().find_map(|family| {
+            if family.kind != DynamicFamilyKind::Native {
+                return None;
+            }
             let rest = name.strip_prefix(family.prefix.as_str())?;
             if bracket_value(rest).is_some() {
                 family.bracket.then_some((family, true))
@@ -198,7 +232,8 @@ impl ThemeIndex {
         &self.inner.declarations.tokens
     }
 
-    /// User `@utility` definitions in authored order.
+    /// Project `@utility` definitions in authored order, including the definitions in
+    /// plugin CSS and `(functional)` definitions.
     pub fn utilities(&self) -> &[Arc<CustomUtility>] {
         &self.inner.declarations.utilities
     }
@@ -387,10 +422,29 @@ impl ThemeIndex {
         })
     }
 
+    /// Lowers Tailwind's public `--spacing(<value>)` and `--alpha(<color> / <alpha>)`
+    /// functions with this theme's spacing scale. An inline scale contributes its
+    /// value, and any other scale a `var()` reference.
+    ///
+    /// Returns `None` for a malformed call, for `--spacing(<value>)` when the theme has
+    /// no spacing scale, and for expansion beyond the size or nesting limits.
+    pub fn resolve_css_functions(&self, value: &str) -> Option<LeanString> {
+        let spacing = self.scale(ThemeNamespace::Spacing).map(|token| {
+            if matches!(token.mode, ThemeTokenMode::Inline) {
+                token.value.value.to_lean_string()
+            } else {
+                format_args!("var({})", token.name.value).to_lean_string()
+            }
+        });
+        resolve_css_functions(value, spacing.as_deref())
+    }
+
     /// Returns the effective CSS custom properties after v4 namespace resets.
     ///
-    /// Resets and replacements are applied in authored order. The result is sorted
-    /// by custom-property name because the effective values are stored in a `BTreeMap`.
+    /// Resets and replacements are applied in authored order, and a definition never
+    /// replaces or resets one of higher [`crate::ThemeTokenPrecedence`]. The result is
+    /// sorted by custom-property name because the effective values are stored in a
+    /// `BTreeMap`.
     #[must_use]
     pub fn active_tokens(&self) -> Vec<&ThemeToken> {
         self.active_token_definitions().map(Arc::as_ref).collect()
@@ -453,7 +507,8 @@ impl ThemeIndex {
         &self.inner.declarations.custom_css
     }
 
-    /// The last authored user utility with this exact name.
+    /// The last authored project utility with this exact name, including a
+    /// `(functional)` definition.
     ///
     /// Wildcard definitions are not matched here; candidate resolution owns
     /// prefix matching.

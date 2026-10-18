@@ -170,6 +170,31 @@ puts the `dark` media query around the `:hover` rule. Nested blocks expand insid
 rules of the enclosing sequences. A `@variant`
 statement without a block stays in the output unchanged.
 
+## Utility definitions with the same name
+
+As in Tailwind, every definition of a utility name contributes: a project `@utility`
+adds to a built-in utility of the same name instead of replacing it. `@utility
+container { padding-inline: 1rem; }` keeps the built-in `width` and `max-width`
+declarations and adds `padding-inline`. The definitions are evaluated in Tailwind's
+registration order, built-ins first, then plugin registrations, then the stylesheet's
+`@utility` definitions, and each one that resolves is emitted in that order, so a later
+definition wins in the cascade. Tailwind registers every plugin before the stylesheet's
+`@utility` rules. Stillwind evaluates the `(functional)` definitions of a Tailwind plugin
+there too, but a plugin's static utilities keep the position of its `@plugin` statement
+among the stylesheet's definitions.
+Within the built-ins, and within the stylesheet's definitions, matching definitions are
+typed branches of one utility, and a candidate selects the branches that accept its
+value.
+
+A candidate is static when a definition without `*` has its complete name, including a
+leading `-` and the modifier. Then only such definitions apply, as Tailwind parses a
+candidate with a static utility only as that utility: `@utility shadow-lg { ... }`
+replaces the built-in `shadow-*` for `shadow-lg`. CSS escapes in a definition name are
+decoded, so `@utility tab-1\/2` defines the static utility `tab-1/2`.
+
+To remove a built-in utility, a stylesheet currently has no directive; a definition can
+only add to it.
+
 ## Plugins
 
 A plugin is JavaScript that generates Stillwind CSS. A stylesheet loads it with
@@ -210,6 +235,56 @@ diagnostics do not point into it.
 
 The `catalog()` of a plugin lists the candidates that editors complete for its families.
 [`@stillwind/plugin-iconify`](../plugins/iconify/README.md) is the official plugin.
+
+Tailwind CSS v4 JavaScript plugins use the same `@plugin` statement. The host accepts
+a handler function, an object with `handler` and optional `config`, or a factory from
+`plugin.withOptions()`. Factory options accept quoted strings, numbers, booleans, null,
+and comma-separated lists. Ordinary handlers reject options.
+
+The adapter supports `addBase`, `addUtilities`, `addComponents`, `matchUtilities`,
+`matchComponents`, `addVariant`, `matchVariant`, `theme`, `config`, and `prefix`.
+Dynamic utilities accept named and arbitrary values, type hints, negative values,
+fractions, and slash modifiers. Color utilities apply opacity modifiers before calling
+the handler. The host loads the adapter, and the `tailwindcss` package that it needs,
+only when a statement selects a Tailwind plugin, so `tailwindcss` is an optional peer
+dependency of `@stillwind/host`.
+
+Callbacks run in the host, and the compiler receives ordinary `@utility` definitions.
+A static utility from `addUtilities` keeps its name. The CSS that a `matchUtilities`
+callback returns for one candidate becomes `@utility <candidate> (functional) { ... }`,
+which belongs to the functional utility of its root, so `duration-300` from
+`tailwindcss-animate` adds `animation-duration` to the built-in `transition-duration`.
+Two more descriptors reproduce Tailwind's exceptions. A registration whose types
+include `any` and another type becomes `(functional, fallback)`, which applies only when
+no other definition resolves. When a typed callback rejects an arbitrary value because
+of an invalid modifier, `(functional, stop)` ends the evaluation of the definitions that
+Tailwind registers later. The output of each `@plugin` statement stays at the
+statement's position.
+
+Plugin theme configuration supports functions and `extend`, and `theme()` reads the CSS
+theme with the same key mapping as Tailwind, such as `colors` to `--color-*` and
+`transitionDuration.DEFAULT` to `--default-transition-duration`. Values that the plugins
+configure are written back as CSS theme variables. Ordinary `@theme` values take
+precedence over them, and they take precedence over `@theme default` values. Tailwind's
+v3 default theme answers `theme()` reads without CSS or plugin values, but it is never
+written back.
+
+Editor catalogs list finite candidates without running their callbacks. Selecting a
+completion resolves its CSS without adding that candidate to the application's used CSS.
+CSS distributions load through `@import`. Their `--spacing(<value>)` becomes
+`calc(<spacing scale> * <value>)` with the theme's spacing scale, and
+`--alpha(<color> / <alpha>)` becomes a `color-mix()` as in Tailwind. Tailwind multiplies
+every plain number in `--alpha()` by 100, so `--alpha(red / 50)` is 5000%, which
+`color-mix()` rejects; write `50%` or `0.5`.
+
+Plugins that depend on literal utility class names in descendant selectors, such as
+daisyUI and Typography's `not-prose` behavior, are outside this compatibility contract.
+Browser hosts also require packages that can execute without Node APIs.
+
+The projects in [`e2e/plugins/tailwind`](../e2e/plugins/tailwind/stillwind.config.ts)
+exercise installed plugins in development and production. Run them with
+`vp run --filter @stillwind-internal/e2e-tailwind-plugins test:e2e`, or select
+`tailwind-plugins` in the E2E matrix.
 
 ## Browser targets
 

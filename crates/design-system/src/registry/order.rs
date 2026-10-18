@@ -14,6 +14,7 @@ use stillwind_css::{
     extract_named_blocks_with_offsets, extract_named_statements, extract_order_statements,
 };
 
+use super::utilities::decode_utility_name;
 use super::variants::parse_variant_name;
 
 /// First registration offsets in the import-expanded stylesheet; redefinitions retain
@@ -21,7 +22,8 @@ use super::variants::parse_variant_name;
 ///
 /// Only definitions that can register a name reserve a slot: `@variant` blocks must
 /// carry an `@slot`, and `@custom-variant` also registers from its statement form. The
-/// name is the header's first whitespace-delimited token.
+/// name is the header's first whitespace-delimited token, decoded as the definition
+/// parser of the directive decodes it.
 pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<LeanStr, usize> {
     let mut positions = BTreeMap::<LeanStr, usize>::new();
     for directive in directives {
@@ -38,7 +40,12 @@ pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap
             let Some(raw) = header.split_whitespace().next() else {
                 continue;
             };
-            let Some((name, _)) = parse_variant_name(raw) else {
+            let name = if directive.ends_with("utility") {
+                decode_utility_name(raw)
+            } else {
+                parse_variant_name(raw).map(|(name, _)| name)
+            };
+            let Some(name) = name else {
                 continue;
             };
             positions

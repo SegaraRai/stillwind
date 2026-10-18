@@ -1,0 +1,7 @@
+@import "stillwind";
+
+@plugin "tailwindcss-react-aria-components";
+
+@theme {
+  --color-brand: #123456;
+}

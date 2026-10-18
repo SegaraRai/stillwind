@@ -32,8 +32,8 @@ pub use formats::{
 };
 pub use order::{BuiltinArbitraryPropertyOrder, parse_builtin_arbitrary_property_order};
 pub use utilities::{
-    CustomUtility, parse_builtin_animation_option_definitions, parse_builtin_utility_definitions,
-    parse_marker_utilities, parse_utility_definitions,
+    CustomUtility, UtilityRole, parse_builtin_animation_option_definitions,
+    parse_builtin_utility_definitions, parse_marker_utilities, parse_utility_definitions,
 };
 pub use variants::{
     BuiltinVariantModifierType, BuiltinVariantSort, BuiltinVariantSortDirection,

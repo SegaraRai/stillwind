@@ -17,7 +17,7 @@ import type { PreparedSource } from "@stillwind/projection";
 import ts from "typescript-6";
 
 import type { ModuleAnalysis } from "../compilation/compiler.ts";
-import { pluginLoader } from "../css/plugins.ts";
+import { pluginLoader, type PluginRuntime } from "../css/plugins.ts";
 import { CandidateQueries, segments } from "./candidates.ts";
 import { colorReplacement } from "./colors.ts";
 import { completionSnippet } from "./completion.ts";
@@ -207,6 +207,10 @@ export class EditorSnapshot {
   readonly #annotations: PreviewOptions;
   /** Sorting reports cached by full compiler module identity, including empty results. */
   readonly #reports = new Map<string, BindingReport[]>();
+  /** Queries that include callback CSS for selected completions in this snapshot. */
+  readonly #resolved = new Map<string, CandidateQueries>();
+  /** Resolves completion CSS separately from the captured compiler session. */
+  readonly #plugins: PluginRuntime | undefined;
 
   /**
    * Captures recognized producers and compiler output for one set of source revisions.
@@ -218,6 +222,8 @@ export class EditorSnapshot {
    * @param loader - Completed design system with the same compiler options as the session.
    * @param config - Sorting targets and preview comments to capture. Effective lint policy comes
    * from the loader.
+   * @param catalog - Finite plugin candidates offered without running their callbacks.
+   * @param plugins - Runtime for resolving selected plugin completions without changing the session.
    * @throws If source transport, a projection map, or an original UTF-8 boundary is invalid.
    */
   constructor(
@@ -228,8 +234,10 @@ export class EditorSnapshot {
       preview?: PreviewOptions;
     },
     catalog: readonly string[] = [],
+    plugins?: PluginRuntime,
   ) {
     this.#catalog = catalog;
+    this.#plugins = plugins;
     const inputs = structuredClone({
       sources: graph.sources,
       dependencies: graph.dependencies,
@@ -254,6 +262,28 @@ export class EditorSnapshot {
       ...config.preview,
     };
     this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
+  }
+
+  /**
+   * Loads callback-generated CSS for a selected completion from this captured snapshot, so that
+   * a following {@link EditorSnapshot.query} can preview it. Other requests are ignored.
+   *
+   * @param request - Editor request. Only a `resolve` request for this snapshot's revision loads
+   * CSS, once for each candidate.
+   * @throws If a plugin fails or the native loader rejects the generated CSS.
+   */
+  async prepare(request: EditorRequest): Promise<void> {
+    if (
+      request.kind === "resolve" &&
+      request.snapshot === this.#revision &&
+      this.#plugins &&
+      !this.#resolved.has(request.candidate)
+    ) {
+      this.#resolved.set(
+        request.candidate,
+        new CandidateQueries(await this.#plugins.query(request.candidate)),
+      );
+    }
   }
 
   /**
@@ -345,11 +375,13 @@ export class EditorSnapshot {
       const literal = this.#index.literals.find(
         (literal) => literal.source === source && literal.boundaries[0] === request.input,
       );
+      const candidates = this.#resolved.get(request.candidate) ?? this.#candidates;
       const css =
         literal && request.snapshot === this.#revision
           ? request.candidate.endsWith(":")
-            ? this.#candidates.variant(request.candidate, literal.context)
-            : this.#preview(literal, request.candidate.slice(literal.prefix.length))
+            ? candidates.variant(request.candidate, literal.context)
+            : (this.#preview(literal, request.candidate.slice(literal.prefix.length)) ??
+              candidates.preview(request.candidate, literal.context))
           : undefined;
       if (css) {
         const formatted = this.#query.formatCss(css, this.#annotations);

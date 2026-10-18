@@ -50,9 +50,9 @@ pub struct BindingOutput {
     /// than from the source, so the entry carries the family, the request hash, and the
     /// reason instead of a source span.
     pub rejected_names: Vec<BindingRejectedIdentifier>,
-    /// Utility names of `@stillwind-dynamic` families that the source mentions and the
-    /// design system does not define yet. A host plugin defines them before the host
-    /// compiles the module again.
+    /// Host plugin requests found in source text. Native families report unresolved
+    /// utility names. Tailwind utility keys retain negative signs and modifiers;
+    /// variant requests start with `@variant `. The host defines them and recompiles.
     pub dynamic_candidates: Vec<String>,
     /// Non-fatal findings.
     pub lint_findings: Vec<BindingLintFinding>,
@@ -269,9 +269,9 @@ pub struct ProjectModuleOutput {
     /// Names a host-generated identifier was rejected for, which the host may warn
     /// about.
     pub rejected_names: Vec<BindingRejectedIdentifier>,
-    /// Utility names of `@stillwind-dynamic` families that the source mentions and the
-    /// design system does not define yet. A host plugin defines them before the host
-    /// compiles the module again.
+    /// Host plugin requests found in source text. Native families report unresolved
+    /// utility names. Tailwind utility keys retain negative signs and modifiers;
+    /// variant requests start with `@variant `. The host defines them and recompiles.
     pub dynamic_candidates: Vec<String>,
     /// Non-fatal findings.
     pub lint_findings: Vec<BindingLintFinding>,
@@ -281,6 +281,8 @@ pub struct ProjectModuleOutput {
 }
 
 impl ProjectModuleOutput {
+    /// Attaches the module identity of a project session to one module's binding
+    /// output.
     pub(crate) fn new(module_id: ModuleId, output: BindingOutput) -> Self {
         let BindingOutput {
             composition,

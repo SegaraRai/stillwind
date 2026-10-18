@@ -1,0 +1,7 @@
+@import "stillwind";
+
+@import "tailwindcss-safe-area";
+
+@theme {
+  --color-brand: #123456;
+}

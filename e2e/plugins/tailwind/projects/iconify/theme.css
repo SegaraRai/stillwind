@@ -1,0 +1,7 @@
+@import "stillwind";
+
+@plugin "@iconify/tailwind4";
+
+@theme {
+  --color-brand: #123456;
+}

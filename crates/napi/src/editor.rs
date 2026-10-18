@@ -11,8 +11,8 @@ use stillwind_compiler::{
     CandidateContext, ColorEquivalents, CompilerOptions, CompletionInput, DesignSystemQuery,
     PreviewAnnotations, StylesheetCompletionOptions,
 };
-use stillwind_css::{color_rgba, format_css};
-use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_css::{ValueType, color_rgba, format_css};
+use stillwind_design_system::{DesignSystemSnapshot, ThemeTokenMode, ThemeTokenPrecedence};
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, LintSurface, Reporter, SourceEdit,
     SourceRange, filter_lint_findings,
@@ -21,6 +21,29 @@ use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
 use crate::options::NativeCanonicalUtilitiesOptions;
 use crate::output::{BindingReport, NativeText};
+
+/// An active CSS theme token used by JavaScript plugin theme resolution.
+#[napi(object)]
+pub struct NativeThemeToken {
+    /// Full custom-property name, including the leading double hyphen.
+    pub name: String,
+    /// Authored CSS value, including references to other tokens.
+    pub value: String,
+    /// Whether ordinary `@theme` definitions take precedence over this definition: it
+    /// comes from `@theme default` or from a plugin's theme configuration.
+    pub fallback: bool,
+    /// Whether utility declarations inline the value instead of referencing the token.
+    pub inline: bool,
+}
+
+/// Checks a CSS value against a public arbitrary-value type hint.
+/// Unknown hints and empty values return false; CSS-wide keywords and variables follow
+/// CSS validation policy.
+#[napi]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn css_value_matches(value: String, hint: String) -> bool {
+    ValueType::from_hint(&hint).is_some_and(|kind| kind.accepts(&value))
+}
 
 /// Comments that formatted previews add after values. Omitted fields use their
 /// defaults.
@@ -175,6 +198,8 @@ pub struct NativeStylesheetCompletionOptions {
     pub registry_directives: Option<bool>,
     /// Includes empty arbitrary-variant placeholders. Defaults to false.
     pub snippets: Option<bool>,
+    /// Finite host plugin candidate labels. Variant labels end in `:`.
+    pub catalog: Option<Vec<String>>,
 }
 
 impl From<NativeStylesheetCompletionOptions> for StylesheetCompletionOptions {
@@ -182,6 +207,12 @@ impl From<NativeStylesheetCompletionOptions> for StylesheetCompletionOptions {
         Self {
             registry_directives: value.registry_directives.unwrap_or(false),
             snippets: value.snippets.unwrap_or(false),
+            catalog: value
+                .catalog
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
@@ -429,6 +460,8 @@ impl NativeEditorQuery {
 }
 
 impl NativeEditorQuery {
+    /// Creates queries over a completed design system with the compiler options of its
+    /// loader.
     pub(crate) fn new(snapshot: DesignSystemSnapshot, options: CompilerOptions) -> Self {
         Self {
             query: DesignSystemQuery::new(snapshot, options),
@@ -673,6 +706,31 @@ impl NativeEditorQuery {
             .theme_values()
             .into_iter()
             .map(|(name, value)| (name, value.into()))
+            .collect()
+    }
+
+    /// Returns active theme values with the policies used by plugin configuration.
+    #[napi]
+    pub fn theme_tokens(&self) -> Vec<NativeThemeToken> {
+        self.query
+            .theme_tokens()
+            .into_iter()
+            .map(|token| NativeThemeToken {
+                name: token.name.value.to_string(),
+                value: token.value.value.to_string(),
+                fallback: token.precedence != ThemeTokenPrecedence::Ordinary,
+                inline: token.mode == ThemeTokenMode::Inline,
+            })
+            .collect()
+    }
+
+    /// Reports dynamic utility keys and `@variant ` requests in CSS or source text.
+    #[napi]
+    pub fn dynamic_candidates(&self, text: String) -> Vec<String> {
+        self.query
+            .dynamic_candidates(&text)
+            .into_iter()
+            .map(|value| value.to_string())
             .collect()
     }
 

@@ -13,6 +13,114 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{find_css_functions, split_css_function_arguments};
 
+/// Lowers Tailwind's public `--spacing(<value>)` and `--alpha(<color> / <alpha>)`
+/// functions outside CSS strings, as Tailwind 4.3 lowers them.
+///
+/// `spacing` is the text that refers to the spacing scale token, such as
+/// `var(--spacing)`, or `None` when the theme has no scale. `--spacing(n)` becomes
+/// `calc(<spacing> * n)`, except that `0` becomes `0px` and `1` becomes the scale
+/// itself. Empty `--spacing()` is the spacing value domain of `--value()` and
+/// `--modifier()`, so it is kept. `--alpha()` without a top-level `/` is Stillwind's
+/// alpha placeholder of utility bodies, so it is also kept.
+///
+/// Returns `None` for a malformed call, for `--spacing(n)` without a scale, and for
+/// expansion beyond the size or nesting limits.
+pub(crate) fn resolve_css_functions(value: &str, spacing: Option<&str>) -> Option<LeanString> {
+    let mut output = LeanString::from(value);
+    for _ in 0..32 {
+        let mut changed = false;
+        let calls = find_css_functions(&output, &["--spacing", "--alpha"], 0);
+        let leaves: Vec<_> = calls
+            .iter()
+            .enumerate()
+            .filter(|(index, call)| {
+                calls
+                    .get(index + 1)
+                    .is_none_or(|next| next.start >= call.end.unwrap_or(output.len()))
+            })
+            .map(|(_, call)| call.clone())
+            .collect();
+        for call in leaves.into_iter().rev() {
+            let end = call.end?;
+            let arguments = output[call.arguments.clone()].trim();
+            let replacement = if call.name_index == 0 {
+                if arguments.is_empty() {
+                    continue;
+                }
+                let spacing = spacing?;
+                // Tailwind replaces 0 with `0px` to keep a <length> for `calc()`, and 1
+                // with the scale itself. Other values keep the authored argument text.
+                match arguments.parse::<f64>() {
+                    Ok(0.0) => "0px".to_owned(),
+                    Ok(1.0) => spacing.to_owned(),
+                    _ => format!("calc({spacing} * {arguments})"),
+                }
+            } else {
+                let mut depth = 0_u32;
+                let mut quote = None;
+                let mut escaped = false;
+                let slash = arguments.char_indices().find_map(|(index, character)| {
+                    if escaped {
+                        escaped = false;
+                        return None;
+                    }
+                    if character == '\\' {
+                        escaped = true;
+                        return None;
+                    }
+                    if let Some(current) = quote {
+                        if current == character {
+                            quote = None;
+                        }
+                        return None;
+                    }
+                    if matches!(character, '\'' | '"') {
+                        quote = Some(character);
+                    } else if character == '(' || character == '[' {
+                        depth += 1;
+                    } else if character == ')' || character == ']' {
+                        depth = depth.saturating_sub(1);
+                    } else if character == '/' && depth == 0 {
+                        return Some(index);
+                    }
+                    None
+                });
+                let Some(slash) = slash else {
+                    continue;
+                };
+                let color = arguments[..slash].trim();
+                let opacity = arguments[slash + 1..].trim();
+                if color.is_empty() || opacity.is_empty() {
+                    return None;
+                }
+                // Tailwind's `withAlpha()` multiplies every plain number by 100, so
+                // `--alpha(red / 50)` means 5000%, which `color-mix()` rejects, so the
+                // declaration is dropped by the browser. Stillwind's own alpha modifiers
+                // treat a number above 1 as a percentage instead; this function keeps
+                // Tailwind's result because CSS packages are written against it.
+                let percentage = opacity.parse::<f64>().map_or_else(
+                    |_| opacity.to_owned(),
+                    |value| format!("{}%", value * 100.0),
+                );
+                if percentage == "100%" {
+                    color.to_owned()
+                } else {
+                    format!("color-mix(in oklab, {color} {percentage}, transparent)")
+                }
+            };
+            output.replace_range(call.start..end, &replacement);
+            changed = true;
+        }
+        if !changed {
+            return Some(output);
+        }
+        if output.len() > 1_048_576 {
+            return None;
+        }
+    }
+    None
+}
+
 /// A malformed `--theme()` reference and its byte offset within a value.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ThemeReferenceError {
@@ -144,6 +252,48 @@ pub(crate) fn inline_theme_functions<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn public_css_functions_respect_nesting_strings_and_opacity() {
+        let spacing = Some("var(--spacing)");
+        for (source, expected) in [
+            ("--spacing(4)", "calc(var(--spacing) * 4)"),
+            ("--spacing(0)", "0px"),
+            ("--spacing(1)", "var(--spacing)"),
+            (
+                "--spacing(--spacing(2))",
+                "calc(var(--spacing) * calc(var(--spacing) * 2))",
+            ),
+            (
+                "--alpha(rgb(1 2 3 / .5) / .25)",
+                "color-mix(in oklab, rgb(1 2 3 / .5) 25%, transparent)",
+            ),
+            (
+                "--alpha(red / 50)",
+                "color-mix(in oklab, red 5000%, transparent)",
+            ),
+            ("--alpha(red / 1)", "red"),
+            ("'--spacing(4)'", "'--spacing(4)'"),
+            ("--alpha(50)", "--alpha(50)"),
+            (
+                "--value(--spacing-*, --spacing())",
+                "--value(--spacing-*, --spacing())",
+            ),
+        ] {
+            assert_eq!(
+                resolve_css_functions(source, spacing).as_deref(),
+                Some(expected),
+                "{source}"
+            );
+        }
+        assert_eq!(
+            resolve_css_functions("--spacing(4)", Some("0.25rem")).as_deref(),
+            Some("calc(0.25rem * 4)")
+        );
+        assert!(resolve_css_functions("--spacing(4)", None).is_none());
+        assert!(resolve_css_functions("--spacing(", spacing).is_none());
+        assert!(resolve_css_functions("--alpha(red / )", spacing).is_none());
+    }
 
     #[test]
     fn theme_functions_inline_token_values_or_fallbacks() {

@@ -134,8 +134,14 @@ fn parse_theme_contents(
 /// spelling, so both spellings share one definition. A family that accepts only the
 /// bracket form leaves named candidates to other definitions, and the plugin defines
 /// each bracket candidate under its bracket name, such as `@utility icon-[mdi--close]`.
+///
+/// The Tailwind plugin adapter declares its families with `@stillwind-plugin-family
+/// utility <root>;` and `@stillwind-plugin-family variant <root>;`. Their prefix is the
+/// root without a trailing `-`, and they accept both forms.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DynamicFamily {
+    /// Registration protocol and whether the host resolves utilities or variants.
+    pub kind: DynamicFamilyKind,
     /// Nonempty name prefix without whitespace, `*`, `[`, or `]`, such as `icon-`.
     pub prefix: LeanStr,
     /// Whether named candidates belong to the family.
@@ -144,13 +150,27 @@ pub struct DynamicFamily {
     pub bracket: bool,
 }
 
+/// Host protocols for dynamically registered candidates.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DynamicFamilyKind {
+    /// Native plugin utility names, normalized according to the family's accepted forms.
+    Native,
+    /// Tailwind utility keys with negative values and modifiers retained.
+    Utility,
+    /// Tailwind variant names with values and modifiers retained.
+    Variant,
+}
+
 /// Extracts the families of `@stillwind-dynamic` statements in the order of their first
-/// statements. Statements with the same prefix merge into one family.
+/// statements, followed by one family for each `@stillwind-plugin-family` statement.
+/// `@stillwind-dynamic` statements with the same prefix merge into one family.
 ///
 /// # Errors
 ///
-/// Returns [`CompileDiagnostic::InvalidDirectiveForm`] for a block, or for a header
-/// that is not one name ending in `*` or `[*]` after a nonempty prefix.
+/// Returns [`CompileDiagnostic::InvalidDirectiveForm`] for a `@stillwind-dynamic`
+/// block, for a `@stillwind-dynamic` header that is not one name ending in `*` or `[*]`
+/// after a nonempty prefix, and for a `@stillwind-plugin-family` header that is not
+/// `utility` or `variant` followed by one root.
 fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDiagnostic> {
     if let Some((offset, _, _)) = extract_named_blocks_with_offsets(css, DYNAMIC).first() {
         return Err(CompileDiagnostic::InvalidDirectiveForm {
@@ -179,6 +199,7 @@ fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDia
             .position(|family| family.prefix == prefix)
             .unwrap_or_else(|| {
                 families.push(DynamicFamily {
+                    kind: DynamicFamilyKind::Native,
                     prefix: prefix.to_lean_str(),
                     named: false,
                     bracket: false,
@@ -190,6 +211,31 @@ fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDia
         } else {
             families[index].named = true;
         }
+    }
+    for (offset, header) in extract_named_statements(css, "@stillwind-plugin-family") {
+        let words = header.split_whitespace().collect::<Vec<_>>();
+        let kind = match words.first().copied() {
+            Some("utility") => DynamicFamilyKind::Utility,
+            Some("variant") => DynamicFamilyKind::Variant,
+            _ => {
+                return Err(CompileDiagnostic::InvalidDirectiveForm {
+                    offset,
+                    directive: "stillwind-plugin-family".into(),
+                });
+            }
+        };
+        let prefix = words.get(1).filter(|_| words.len() == 2).ok_or(
+            CompileDiagnostic::InvalidDirectiveForm {
+                offset,
+                directive: "stillwind-plugin-family".into(),
+            },
+        )?;
+        families.push(DynamicFamily {
+            kind,
+            prefix: (*prefix).into(),
+            named: true,
+            bracket: true,
+        });
     }
     Ok(families)
 }
@@ -254,14 +300,14 @@ pub(crate) fn offset(value: usize) -> Result<u32, CompileDiagnostic> {
 /// Returns a block or offset error, or an unterminated `@theme` block error.
 fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, CompileDiagnostic> {
     let mut tokens = Vec::new();
-    for (range, modifier) in theme_blocks(css)? {
+    for (range, modifier, precedence) in theme_blocks(css)? {
         let mode = ThemeTokenMode::parse(&modifier);
-        tokens.extend(extract_theme_declarations(
-            file,
-            &css[range.clone()],
-            range.start,
-            mode,
-        )?);
+        let mut declarations =
+            extract_theme_declarations(file, &css[range.clone()], range.start, mode)?;
+        for token in &mut declarations {
+            token.precedence = precedence;
+        }
+        tokens.extend(declarations);
     }
     Ok(ThemeBuilder {
         variant_positions: BTreeMap::new(),
@@ -324,6 +370,7 @@ mod tests {
         .unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         let family = |prefix: &str, named, bracket| DynamicFamily {
+            kind: DynamicFamilyKind::Native,
             prefix: prefix.into(),
             named,
             bracket,
@@ -354,6 +401,42 @@ mod tests {
         for name in ["i-mdi--close", "i-", "icon-", "i-[]"] {
             assert_eq!(theme.dynamic_family(name), None, "{name}");
         }
+    }
+
+    #[test]
+    fn token_precedence_outranks_source_order() {
+        let value = |css: &str| {
+            let source = SourceFile::new(FileId(1), None, None, css).unwrap();
+            parse_theme(&source, &CssSourceName::from("test.css"))
+                .unwrap()
+                .token("color", "brand")
+                .map(|token| token.value.value.to_string())
+        };
+        assert_eq!(
+            value("@theme { --color-brand: red; } @theme default { --color-brand: blue; }"),
+            Some("red".into())
+        );
+        assert_eq!(
+            value(
+                "@theme default { --color-brand: blue; } @stillwind-plugin-theme { --color-brand: green; }"
+            ),
+            Some("green".into())
+        );
+        assert_eq!(
+            value(
+                "@theme { --color-brand: red; } @stillwind-plugin-theme { --color-brand: green; }"
+            ),
+            Some("red".into())
+        );
+        // A reset removes definitions of its own and lower precedence only.
+        assert_eq!(
+            value("@theme { --color-brand: red; } @theme default { --color-*: initial; }"),
+            Some("red".into())
+        );
+        assert_eq!(
+            value("@theme default { --color-brand: blue; } @theme { --color-*: initial; }"),
+            None
+        );
     }
 
     #[test]

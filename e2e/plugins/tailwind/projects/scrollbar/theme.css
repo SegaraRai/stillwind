@@ -1,0 +1,9 @@
+@import "stillwind";
+
+@plugin "tailwind-scrollbar" {
+  nocompatible: true;
+}
+
+@theme {
+  --color-brand: #123456;
+}

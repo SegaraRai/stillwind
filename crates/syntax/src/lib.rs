@@ -29,4 +29,7 @@ mod lexer;
 mod syntax;
 
 pub use lexer::{UtilityToken, lex_utilities};
-pub use syntax::{Candidate, Utility, Value, Variant, VariantKind, parse_candidate};
+pub use syntax::{
+    Candidate, Utility, Value, Variant, VariantKind, parse_candidate, parse_variant_prefix,
+    utility_registration_key,
+};
