@@ -329,9 +329,16 @@ daisyUI and Typography's `not-prose` behavior, are outside this compatibility co
 Browser hosts also require packages that can execute without Node APIs.
 
 The projects in [`e2e/plugins/tailwind`](../e2e/plugins/tailwind/stillwind.config.ts)
-exercise installed plugins in development and production. Run them with
+exercise installed plugins in development and production. The package's
+[comparison cases](../e2e/plugins/tailwind/tests/comparison.test.ts) build each plugin with
+Tailwind and with Stillwind and compare the computed styles in Chrome. Run them with
 `vp run --filter @stillwind-internal/e2e-tailwind-plugins test:e2e`, or select
 `tailwind-plugins` in the E2E matrix.
+
+The projects in [`e2e/plugins/iconify`](../e2e/plugins/iconify/stillwind.config.ts) check
+that built-in sizes override icon sizes in development and production. Run them with
+`vp run --filter @stillwind-internal/e2e-iconify-plugin test:e2e`, or select `iconify-plugin`
+in the E2E matrix.
 
 ## Browser targets
 

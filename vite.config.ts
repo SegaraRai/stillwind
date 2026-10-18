@@ -194,6 +194,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/benchmarks#typecheck",
           "@stillwind-internal/e2e-harness#typecheck:fixtures",
           "@stillwind-internal/e2e-harness#typecheck",
+          "@stillwind-internal/e2e-iconify-plugin#typecheck",
           "@stillwind-internal/e2e-play#typecheck",
           "@stillwind-internal/e2e-tailwind-plugins#typecheck",
           "@stillwind-internal/tools-fixture-css#typecheck",

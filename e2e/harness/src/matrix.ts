@@ -19,6 +19,10 @@ const packages: { name: string; root: string; manifest?: FixtureManifest }[] = [
     root: join(repo, "e2e/css"),
   },
   {
+    name: "iconify-plugin",
+    root: join(repo, "e2e/plugins/iconify"),
+  },
+  {
     name: "tailwind-plugins",
     root: join(repo, "e2e/plugins/tailwind"),
   },

@@ -1,0 +1,20 @@
+{
+  "name": "@stillwind-internal/e2e-iconify-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.145",
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/config": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@stillwind/native": "workspace:*",
+    "@stillwind/plugin-iconify": "workspace:*",
+    "@types/node": "catalog:",
+    "playwright": "catalog:",
+    "stillwind": "workspace:*",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
