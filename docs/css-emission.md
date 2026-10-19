@@ -302,6 +302,14 @@ precedence over them, and they take precedence over `@theme default` values. Tai
 v3 default theme answers `theme()` reads without CSS or plugin values, but it is never
 written back.
 
+A configured `fontFamily.sans` also sets `--default-font-family`,
+`--default-font-feature-settings`, and `--default-font-variation-settings`, which the
+preflight uses for documents. A configured `fontFamily.mono` sets the matching
+`--default-mono-font-*` variables for code. Settings that a `[family, settings]` tuple
+omits become `normal`. These variables are written even without the default theme.
+When an ordinary `@theme` value defines `--font-sans` or `--font-mono`, the
+corresponding variables are not written, as in Tailwind.
+
 All configurations, including presets and the configurations of nested plugins, merge
 in registration order. `config()` reads Tailwind's resolved configuration: `theme`,
 `darkMode`, `prefix`, `blocklist`, and `important`, where the last configuration that

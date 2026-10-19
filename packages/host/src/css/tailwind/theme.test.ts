@@ -82,3 +82,48 @@ test("only the plugins' own configuration is written back as CSS", () => {
   ).toContain("--color-*:initial;--color-only:red;");
   expect(new PluginTheme([{}], []).css()).toBe("");
 });
+
+test("fontFamily.sans and fontFamily.mono set the preflight fonts unless CSS defines the family", () => {
+  const css = (tokens: ReturnType<typeof token>[]) =>
+    new PluginTheme(
+      [
+        {
+          theme: {
+            extend: {
+              fontFamily: {
+                sans: [
+                  "Inter, sans-serif",
+                  {
+                    fontFeatureSettings: '"cv11"',
+                  },
+                ],
+                mono: ["Fira Code", "monospace"],
+              },
+            },
+          },
+        },
+      ],
+      tokens,
+    ).css();
+  expect(css([token("--font-sans", "Arial", true)])).toContain(
+    '--default-font-family:Inter, sans-serif;--default-font-feature-settings:"cv11";--default-font-variation-settings:normal;' +
+      "--default-mono-font-family:Fira Code, monospace;--default-mono-font-feature-settings:normal;--default-mono-font-variation-settings:normal;",
+  );
+  const ordinary = css([token("--font-sans", "Georgia")]);
+  expect(ordinary).not.toContain("--default-font-family");
+  expect(ordinary).toContain("--default-mono-font-family:Fira Code, monospace;");
+  expect(
+    new PluginTheme(
+      [
+        {
+          theme: {
+            fontFamily: {
+              serif: "Georgia",
+            },
+          },
+        },
+      ],
+      [],
+    ).css(),
+  ).not.toContain("--default-");
+});

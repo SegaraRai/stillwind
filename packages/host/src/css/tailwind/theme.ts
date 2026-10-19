@@ -212,6 +212,29 @@ export function merge(target: Dictionary, source: Dictionary): Dictionary {
   return target;
 }
 
+/**
+ * Reads one `fontFamily` config entry, as Tailwind's `fontFamily.sans` handling does.
+ * @param value - Config entry: a family string, an array of families, or a `[family, settings]`
+ * tuple.
+ * @param setting - Settings key of a tuple, such as `fontFeatureSettings`, or undefined for the
+ * family.
+ * @returns The family with array entries joined by `, `, or the tuple's setting. Returns null when
+ * the entry does not hold the requested value.
+ */
+function fontValue(value: unknown, setting?: string): string | null {
+  if (Array.isArray(value) && value.length === 2 && object(value[1])) {
+    const result = setting === undefined ? value[0] : value[1][setting];
+    return result === undefined || result === null ? null : String(result);
+  }
+  if (setting !== undefined) {
+    return null;
+  }
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+  return typeof value === "string" ? value : null;
+}
+
 /** The `theme` and `theme.extend` objects of one config. */
 interface ConfigLayer {
   theme: Dictionary;
@@ -347,6 +370,25 @@ export class PluginTheme {
       const name = keyPathToCssProperty(path);
       if (name) {
         declarations += `--${name}:${String(value)};`;
+      }
+    }
+    // Tailwind points the preflight fonts of documents and code at the configured `sans` and
+    // `mono` families, so they apply even without the default theme. An ordinary `--font-sans` or
+    // `--font-mono` definition keeps the preflight defaults unchanged.
+    if (object(configured.fontFamily)) {
+      for (const [key, prefix] of [
+        ["sans", "default"],
+        ["mono", "default-mono"],
+      ]) {
+        const entry = configured.fontFamily[key];
+        const family = fontValue(entry);
+        const token = this.#tokens.get(`--font-${key}`);
+        if (family !== null && (!token || token.fallback)) {
+          declarations +=
+            `--${prefix}-font-family:${family};` +
+            `--${prefix}-font-feature-settings:${fontValue(entry, "fontFeatureSettings") ?? "normal"};` +
+            `--${prefix}-font-variation-settings:${fontValue(entry, "fontVariationSettings") ?? "normal"};`;
+        }
       }
     }
     let frames = "";

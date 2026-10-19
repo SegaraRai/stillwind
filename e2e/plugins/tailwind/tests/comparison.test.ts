@@ -30,6 +30,10 @@ interface ComparisonCase {
   after?: string;
   /** Places the `@plugin` statement before the framework import. */
   pluginFirst?: boolean;
+  /** Adds Tailwind's preflight, which Stillwind's framework import always contains. */
+  preflight?: boolean;
+  /** Imports both frameworks without their default theme. */
+  themeless?: boolean;
   /** Markup that contains `#target`, given the class attribute of the candidates. */
   html?: (classes: string) => string;
   /** Element that receives focus before the measurement. */
@@ -327,6 +331,63 @@ const cases: ComparisonCase[] = [
     properties: ["padding-top"],
     absent: "unused-spin",
   },
+  ...[
+    {
+      name: "fontFamily.sans sets the document font and its settings",
+      html: box,
+    },
+    {
+      name: "fontFamily.mono sets the font and settings of code",
+      html: (classes: string) => `<code id="target" class="${classes}">x</code>`,
+    },
+    {
+      name: "fontFamily.sans leaves an ordinary --font-sans definition in place",
+      html: box,
+      after: "@theme { --font-sans: Georgia; }",
+    },
+    {
+      name: "fontFamily.sans sets the document font without the default theme",
+      html: box,
+      themeless: true,
+    },
+    {
+      name: "fontFamily.sans leaves the preflight font for an ordinary --font-sans without the default theme",
+      html: box,
+      after: "@theme { --font-sans: Georgia; }",
+      themeless: true,
+    },
+    {
+      name: "fontFamily.mono sets the font of code without the default theme",
+      html: (classes: string) => `<code id="target" class="${classes}">x</code>`,
+      themeless: true,
+    },
+  ].map((entry): ComparisonCase => ({
+    ...entry,
+    extension: plugin(() => {}, {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: [
+              "Inter, sans-serif",
+              {
+                fontFeatureSettings: '"cv11"',
+              },
+            ],
+            mono: [
+              "Fira Code, monospace",
+              {
+                fontVariationSettings: '"wght" 450',
+                fontFeatureSettings: '"zero"',
+              },
+            ],
+          },
+        },
+      },
+    }),
+    candidates: ["block"],
+    preflight: true,
+    properties: ["font-family", "font-feature-settings", "font-variation-settings"],
+  })),
 ];
 
 /**
@@ -335,8 +396,7 @@ const cases: ComparisonCase[] = [
  * @returns Tailwind's CSS and class names.
  */
 async function tailwind(entry: ComparisonCase): Promise<Output> {
-  const imports =
-    '@import "tailwindcss/theme.css" layer(theme); @import "tailwindcss/utilities.css" layer(utilities);';
+  const imports = `${entry.themeless ? "" : '@import "tailwindcss/theme.css" layer(theme); '}${entry.preflight ? '@import "tailwindcss/preflight.css" layer(base); ' : ""}@import "tailwindcss/utilities.css" layer(utilities);`;
   const statement = `${entry.before ?? ""} @plugin "probe"; ${entry.after ?? ""}`;
   const compiler = await compile(
     entry.pluginFirst ? `${statement} ${imports}` : `${imports} ${statement}`,
@@ -370,9 +430,10 @@ async function tailwind(entry: ComparisonCase): Promise<Output> {
  */
 async function stillwind(entry: ComparisonCase): Promise<Output> {
   const statement = `${entry.before ?? ""} @plugin "probe"; ${entry.after ?? ""}`;
-  const css = entry.pluginFirst
-    ? `${statement} @import "stillwind";`
-    : `@import "stillwind"; ${statement}`;
+  const imports = entry.themeless
+    ? '@layer properties, theme, base, components, utilities; @import "stillwind/preflight.css" layer(base); @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css"; @import "stillwind/templates.css"; @layer theme { :root, :host { @stillwind-slot theme; } }'
+    : '@import "stillwind";';
+  const css = entry.pluginFirst ? `${statement} ${imports}` : `${imports} ${statement}`;
   const file = path.join(root, "comparison.css");
   const loaded = await loadCssGraph(
     file,
