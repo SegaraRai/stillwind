@@ -5,8 +5,9 @@ use std::ops::Range;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_design_system::UtilityResolutionError;
+use stillwind_syntax::parse_candidate;
 
-use super::context::{Context, Kind, context};
+use super::context::{AppliedVariants, Context, Kind, context};
 use super::directives::{DECLARATION_SLOTS, DIRECTIVES, RULE_SLOTS, directive_name};
 use crate::query::{CandidateContext, CompletionInput, DesignSystemQuery, last_top_level};
 
@@ -48,8 +49,11 @@ impl DesignSystemQuery {
     /// Invalid offsets and positions in comments, strings, and URLs produce no labels.
     /// The source may contain unclosed blocks and partial candidates. Utilities use the
     /// active registry. Applied variants offer only variant names without a final
-    /// colon. Slot labels respect whether the cursor is inside a style rule. Theme
-    /// functions offer active token names only in their first argument.
+    /// colon. They skip a sequence that another alternative of the same rule already
+    /// spells and a final variant that every alternative of an enclosing applied
+    /// `@variant` rule already contains. Slot labels respect whether the cursor is
+    /// inside a style rule. Theme functions offer active token names only in their
+    /// first argument.
     ///
     /// `options` controls editor discovery independently of compiler settings.
     /// Returns unique labels, with directive names ordered by location, audience, and
@@ -106,6 +110,9 @@ impl DesignSystemQuery {
                 let mut labels =
                     self.stylesheet_candidate_labels(prefix, variants, options.snippets)?;
                 labels.extend(catalog_labels(prefix, variants, options.catalog));
+                if variants {
+                    labels.retain(|label| !redundant_variant(css, &context.applied, label));
+                }
                 labels
             }
             Kind::Slot { declarations } => {
@@ -188,6 +195,30 @@ impl DesignSystemQuery {
             })
             .collect())
     }
+}
+
+/// Returns whether the applied `@variant` `label` repeats a sibling sequence or ends
+/// with a variant that applies to every sequence of an enclosing `@variant` rule.
+/// `applied` must address `css`. Earlier variants in `label` were already written by
+/// the author and are not checked.
+fn redundant_variant(css: &str, applied: &AppliedVariants, label: &str) -> bool {
+    if applied
+        .siblings
+        .iter()
+        .any(|range| &css[range.clone()] == label)
+    {
+        return true;
+    }
+    let last = &label[last_top_level(label, ':').map_or(0, |index| index + 1)..];
+    applied.enclosing.iter().any(|sequences| {
+        !sequences.is_empty()
+            && sequences.iter().all(|range| {
+                parse_candidate(&format_args!("{}:utility", &css[range.clone()]).to_lean_str())
+                    .into_iter()
+                    .flat_map(|candidate| candidate.variants)
+                    .any(|variant| variant.raw == last)
+            })
+    })
 }
 
 /// Completes host candidates only inside an applied utility or variant input.

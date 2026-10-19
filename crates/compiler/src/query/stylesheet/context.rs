@@ -24,6 +24,21 @@ pub(super) struct Context {
     /// Enclosing rule and definition roles used only to rank and filter directive
     /// names.
     pub(super) positions: Positions,
+    /// Variant sequences that already apply at a [`Kind::Variant`] input. Other kinds
+    /// leave this empty.
+    pub(super) applied: AppliedVariants,
+}
+
+/// Variant sequences that already apply to the element of an applied `@variant` input.
+/// Every range is a trimmed, non-empty UTF-8 byte range in the original stylesheet.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct AppliedVariants {
+    /// Comma-separated sequences of each enclosing applied `@variant` rule, outermost
+    /// first. A nested style rule clears this list because its selector can select
+    /// another element.
+    pub(super) enclosing: Vec<Vec<Range<usize>>>,
+    /// Other comma-separated sequences in the prelude that contains the cursor.
+    pub(super) siblings: Vec<Range<usize>>,
 }
 
 /// A CSS input whose meaning can be resolved by an editor query.
@@ -83,6 +98,7 @@ pub(super) fn context(css: &str, offset: usize) -> Option<Context> {
                     runtime: call.name_index == 2,
                 },
                 positions: Positions::NONE,
+                applied: AppliedVariants::default(),
             });
         }
     }
@@ -92,6 +108,7 @@ pub(super) fn context(css: &str, offset: usize) -> Option<Context> {
         &nodes,
         offset,
         Positions::RULES.union(Positions::UNCERTAIN),
+        &[],
     )
 }
 
@@ -99,9 +116,17 @@ pub(super) fn context(css: &str, offset: usize) -> Option<Context> {
 ///
 /// Node ranges and the UTF-8 byte `offset` must address `css`. `positions` records the
 /// enclosing rule and definition roles. Grouping rules retain those roles, and new
-/// definitions replace them. An unterminated node can include trailing whitespace
-/// through the cursor so an empty argument remains completable.
-fn locate(css: &str, nodes: &[CssNode], offset: usize, positions: Positions) -> Option<Context> {
+/// definitions replace them. `enclosing` lists the sequences of enclosing applied
+/// `@variant` rules, as [`AppliedVariants::enclosing`] describes. An unterminated node
+/// can include trailing whitespace through the cursor so an empty argument remains
+/// completable.
+fn locate(
+    css: &str,
+    nodes: &[CssNode],
+    offset: usize,
+    positions: Positions,
+    enclosing: &[Vec<Range<usize>>],
+) -> Option<Context> {
     for node in nodes {
         let tail = offset > node.range.end
             && !css[node.range.clone()].ends_with([';', '}'])
@@ -123,6 +148,7 @@ fn locate(css: &str, nodes: &[CssNode], offset: usize, positions: Positions) -> 
                                     .union(Positions::INTRINSIC_VARIANT),
                             )
                             .union(Positions::STYLE),
+                        &[],
                     );
                 }
             }
@@ -134,6 +160,7 @@ fn locate(css: &str, nodes: &[CssNode], offset: usize, positions: Positions) -> 
                         range: node.range.start..end,
                         kind: Kind::Directive,
                         positions,
+                        applied: AppliedVariants::default(),
                     });
                 }
                 if css.as_bytes().get(offset.wrapping_sub(1)) == Some(&b';') {
@@ -147,10 +174,13 @@ fn locate(css: &str, nodes: &[CssNode], offset: usize, positions: Positions) -> 
                         .unwrap_or(offset..offset),
                     kind: Kind::Apply,
                     positions,
+                    applied: AppliedVariants::default(),
                 });
             }
             CssNodeKind::AtRule { .. } => {
-                if let Some(context) = at_rule_context(css, node, offset, positions, tail) {
+                if let Some(context) =
+                    at_rule_context(css, node, offset, positions, enclosing, tail)
+                {
                     return Some(context);
                 }
             }
@@ -160,13 +190,15 @@ fn locate(css: &str, nodes: &[CssNode], offset: usize, positions: Positions) -> 
 }
 
 /// Locates a name, argument, or child context in an at-rule from the same original CSS.
-/// `positions` describes its parent. `tail` permits trailing whitespace in an
-/// unterminated header. Returns no context for other node kinds or unsupported headers.
+/// `positions` describes its parent, and `enclosing` lists the sequences of enclosing
+/// applied `@variant` rules. `tail` permits trailing whitespace in an unterminated
+/// header. Returns no context for other node kinds or unsupported headers.
 fn at_rule_context(
     css: &str,
     node: &CssNode,
     offset: usize,
     positions: Positions,
+    enclosing: &[Vec<Range<usize>>],
     tail: bool,
 ) -> Option<Context> {
     let CssNodeKind::AtRule {
@@ -178,18 +210,24 @@ fn at_rule_context(
         return None;
     };
     let declarations = positions.intersects(Positions::STYLE);
+    let applied = name == "variant" && declarations;
     let name_end = name_end(css, node.range.start);
     if offset <= name_end {
         return Some(Context {
             range: node.range.start..name_end,
             kind: Kind::Directive,
             positions,
+            applied: AppliedVariants::default(),
         });
     }
     if let Some(block) = block
         && block.contents.start <= offset
         && offset <= block.contents.end
     {
+        let mut nested = enclosing.to_vec();
+        if applied {
+            nested.push(sequences(css, prelude));
+        }
         let positions = match name.as_str() {
             "utility" | "stillwind-utility" => Positions::UTILITY,
             "custom-variant" => Positions::VARIANT,
@@ -200,7 +238,10 @@ fn at_rule_context(
             "theme" | "stillwind-property" | "plugin" => Positions::NONE,
             _ => positions.without(Positions::UNCERTAIN.union(Positions::INTRINSIC_VARIANT)),
         };
-        return locate(css, &block.children, offset, positions);
+        if !positions.intersects(Positions::STYLE) {
+            nested.clear();
+        }
+        return locate(css, &block.children, offset, positions, &nested);
     }
     let header_end = block.as_ref().map_or_else(
         || {
@@ -217,24 +258,11 @@ fn at_rule_context(
             range: prelude.start.min(offset)..prelude.end.max(offset),
             kind: Kind::Slot { declarations },
             positions,
+            applied: AppliedVariants::default(),
         });
     }
-    if name == "variant" && declarations {
-        let range = variant_sequences(&css[prelude.clone()])
-            .into_iter()
-            .map(|range| prelude.start + range.start..prelude.start + range.end)
-            .find(|range| {
-                (range.start <= offset && offset <= range.end)
-                    || (offset < range.start && css[offset..range.start].trim().is_empty())
-                    || (range.end < offset && css[range.end..offset].trim().is_empty())
-            })
-            .map(|range| range.start.min(offset)..range.end.max(offset))
-            .unwrap_or(offset..offset);
-        return Some(Context {
-            range,
-            kind: Kind::Variant,
-            positions,
-        });
+    if applied {
+        return Some(variant_context(css, prelude, offset, positions, enclosing));
     }
     let directive = match name.as_str() {
         "stillwind-require-properties" => "stillwind-require-properties",
@@ -254,7 +282,54 @@ fn at_rule_context(
                 .is_empty(),
         },
         positions,
+        applied: AppliedVariants::default(),
     })
+}
+
+/// Returns the applied `@variant` input at `offset` in the header whose `prelude`
+/// addresses the original `css`. `positions` and `enclosing` describe the parent, and
+/// the cursor must lie inside the header.
+fn variant_context(
+    css: &str,
+    prelude: &Range<usize>,
+    offset: usize,
+    positions: Positions,
+    enclosing: &[Vec<Range<usize>>],
+) -> Context {
+    let sequences = sequences(css, prelude);
+    // An empty sequence inserts at the cursor. Extending its range over adjacent
+    // whitespace would make editors filter labels by that whitespace or reject a
+    // range that crosses a line break.
+    let current = sequences.iter().find(|range| {
+        (range.start <= offset && offset <= range.end)
+            || (offset < range.start && css[offset..range.start].trim().is_empty())
+            || (range.end < offset && css[range.end..offset].trim().is_empty())
+    });
+    Context {
+        range: current.map_or(offset..offset, |range| {
+            range.start.min(offset)..range.end.max(offset)
+        }),
+        kind: Kind::Variant,
+        positions,
+        applied: AppliedVariants {
+            enclosing: enclosing.to_vec(),
+            siblings: sequences
+                .iter()
+                .filter(|range| Some(*range) != current)
+                .cloned()
+                .collect(),
+        },
+    }
+}
+
+/// Returns the trimmed, non-empty comma-separated sequences of a `@variant` `prelude`
+/// as UTF-8 byte ranges in the original `css`.
+fn sequences(css: &str, prelude: &Range<usize>) -> Vec<Range<usize>> {
+    variant_sequences(&css[prelude.clone()])
+        .into_iter()
+        .filter(|range| !range.is_empty())
+        .map(|range| prelude.start + range.start..prelude.start + range.end)
+        .collect()
 }
 
 /// Returns the complete whitespace-separated argument around `offset`, including a
@@ -423,7 +498,14 @@ mod tests {
     fn cursor_whitespace_extends_incomplete_headers() {
         assert_context(".a { @apply flex |", "", Kind::Apply);
         assert_context(".a { @variant hover |", "hover ", Kind::Variant);
-        assert_context(".a { @variant dark, |", " ", Kind::Variant);
+        assert_context(".a { @variant dark, |", "", Kind::Variant);
+        assert_context(
+            ".a {
+  @variant |
+}",
+            "",
+            Kind::Variant,
+        );
         assert_context(".a { @variant  | hover {} }", " hover", Kind::Variant);
         assert_context(
             "@stillwind-slot |",

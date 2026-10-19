@@ -340,3 +340,51 @@ fn recovery_retains_imports_and_definitions_from_unclosed_sources() {
         "red"
     );
 }
+
+#[test]
+fn applied_variants_skip_variants_that_already_apply() {
+    let query = query();
+    let complete = |marked: &str| {
+        let offset = marked.find('|').unwrap();
+        let css = marked.replace('|', "");
+        query
+            .complete_stylesheet(&css, offset, StylesheetCompletionOptions::default())
+            .unwrap()
+            .into_iter()
+            .map(|item| (item.label, item.range))
+            .collect::<Vec<_>>()
+    };
+    let labels = |marked: &str| {
+        complete(marked)
+            .into_iter()
+            .map(|(label, _)| label)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(labels(".a { @variant hover { @variant | } }"), ["dark"]);
+    assert_eq!(
+        labels(".a { @variant hover { @media print { @variant | } } }"),
+        ["dark"]
+    );
+    assert_eq!(
+        labels(".a { @variant hover { @variant dark:| } }"),
+        [] as [LeanStr; 0]
+    );
+    assert_eq!(labels(".a { @variant hover, |"), ["dark"]);
+    assert_eq!(labels(".a { @variant | , hover {} }"), ["dark"]);
+    assert_eq!(
+        labels(".a { @variant hover, dark { @variant | } }"),
+        ["dark", "hover"]
+    );
+    assert_eq!(
+        labels(".a { @variant hover { & .b { @variant | } } }"),
+        ["dark", "hover"]
+    );
+    assert_eq!(
+        complete(
+            ".a {
+  @variant |
+}"
+        ),
+        [("dark".into(), 16..16), ("hover".into(), 16..16)]
+    );
+}
