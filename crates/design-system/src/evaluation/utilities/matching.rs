@@ -347,10 +347,12 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
         }
     }
     let mut branches = branches.into_iter();
-    let Some((_, _, _, mut resolution, _)) = branches.next() else {
+    let Some((_, _, _, mut resolution, base_registration)) = branches.next() else {
         return Ok(None);
     };
-    for (_, _, _, branch, _) in branches {
+    // Registration of each target in `resolution.additional`, for ordering below.
+    let mut registrations = vec![base_registration; resolution.additional.len()];
+    for (_, _, _, branch, registration) in branches {
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
         // competing overloads cannot overwrite a more-specific property branch.
@@ -380,18 +382,67 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             resolution.declaration =
                 (merge_branch_declarations(&resolution.declaration, &branch.declaration)).into();
             merge_nested_rules(&mut resolution.nested, branch.nested);
-            resolution.additional.extend(branch.additional);
         } else {
             diagnostic_data.extend_non_base_uses(branch_data);
+            registrations.push(registration);
             resolution.additional.push(ResolvedUtilityTarget {
                 declaration: branch.declaration,
                 selector: branch.selector,
                 nested: branch.nested,
             });
-            resolution.additional.extend(branch.additional);
         }
+        registrations.extend(std::iter::repeat_n(registration, branch.additional.len()));
+        resolution.additional.extend(branch.additional);
     }
+    order_targets_by_registration(&mut resolution, base_registration, registrations);
     Ok(Some(resolution))
+}
+
+/// Reorders the targets of `resolution` so that targets with distinct selectors follow
+/// the registration order of their definitions, as Tailwind emits the rules of several
+/// definitions of one name.
+///
+/// Merging visits definitions newest first, so a later definition wins for a shared
+/// selector. Without this step, rules with distinct selectors would also be emitted
+/// newest first: with the typography plugin, `.prose > :first-child { margin-top: 0 }`
+/// would precede `.prose p { margin-top: 1.25em }` and lose to it.
+///
+/// `base_registration` is the registration of the primary target, and `registrations`
+/// holds one registration for each target in `resolution.additional`. Smaller values
+/// were registered earlier. The sort is stable, so targets of one definition keep
+/// their order.
+fn order_targets_by_registration(
+    resolution: &mut UtilityResolution,
+    base_registration: usize,
+    registrations: Vec<usize>,
+) {
+    if registrations
+        .iter()
+        .all(|registration| *registration >= base_registration)
+        && registrations.is_sorted()
+    {
+        return;
+    }
+    let primary = ResolvedUtilityTarget {
+        declaration: std::mem::take(&mut resolution.declaration),
+        selector: std::mem::take(&mut resolution.selector),
+        nested: std::mem::take(&mut resolution.nested),
+    };
+    let mut targets: Vec<_> = std::iter::once((base_registration, primary))
+        .chain(
+            registrations
+                .into_iter()
+                .zip(resolution.additional.drain(..)),
+        )
+        .collect();
+    targets.sort_by_key(|(registration, _)| *registration);
+    let mut targets = targets.into_iter().map(|(_, target)| target);
+    if let Some(primary) = targets.next() {
+        resolution.declaration = primary.declaration;
+        resolution.selector = primary.selector;
+        resolution.nested = primary.nested;
+    }
+    resolution.additional = targets.collect();
 }
 
 /// The value types a definition mentions in its `[type]` hints, in authored order and

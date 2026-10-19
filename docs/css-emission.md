@@ -203,7 +203,10 @@ generate are plugin registrations wherever the statements appear, so
 `@plugin` statement.
 Within the built-ins, and within the stylesheet's definitions, matching definitions are
 typed branches of one utility, and a candidate selects the branches that accept its
-value.
+value. When selected branches write declarations for the same selector, the later
+definition wins. Rules with different selectors are emitted in registration order, so
+`@utility probe { & > p { margin: 1em; } } @utility probe { & > :first-child { margin: 0; } }`
+emits the `:first-child` rule last, and it wins for a first paragraph.
 
 A candidate is static when a definition without `*` has its complete name, including a
 leading `-` and the modifier. Then only such definitions apply, as Tailwind parses a

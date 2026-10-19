@@ -2,8 +2,8 @@
 //!
 //! Pins that user utilities use the same value domains as built-ins, that overloads are
 //! tried in reverse source order, that CSS fallbacks and extra selector targets survive
-//! merging, that definitions of one name add to each other as in Tailwind, and that
-//! color alpha emits both the sRGB fallback and the oklab upgrade.
+//! merging in registration order, that definitions of one name add to each other as in
+//! Tailwind, and that color alpha emits both the sRGB fallback and the oklab upgrade.
 
 use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
@@ -187,13 +187,18 @@ fn preserves_css_fallbacks_and_multiple_selector_targets() {
                 .contains_css("color: red; color: color(display-p3 1 0 0);")),
         "{resolved:#?}"
     );
-    assert_eq!(resolved.additional.len(), 1);
-    assert_eq!(resolved.selector.as_deref(), Some("&::before"));
-    assert_eq!(resolved.declaration, "content: \"fallback\";");
+    // Targets with distinct selectors follow registration order, as Tailwind emits them.
+    assert_eq!(resolved.selector, None);
     assert_eq!(
-        resolved.additional[0].declaration,
+        resolved.declaration,
         "color: red; color: color(display-p3 1 0 0);"
     );
+    assert_eq!(resolved.additional.len(), 1);
+    assert_eq!(
+        resolved.additional[0].selector.as_deref(),
+        Some("&::before")
+    );
+    assert_eq!(resolved.additional[0].declaration, "content: \"fallback\";");
 }
 
 #[test]
