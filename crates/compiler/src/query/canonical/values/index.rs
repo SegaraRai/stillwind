@@ -10,13 +10,14 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
-    ResolvedUtility, ThemeTokenMode, UtilityResolutionError, builtin_property_definitions,
-    resolve_utility,
+    ResolvedUtility, ThemeToken, ThemeTokenMode, UtilityResolutionError,
+    builtin_property_definitions, resolve_utility,
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
 
 use super::super::index::{policy, rank};
+use super::super::parallel;
 use super::super::preview::{CanonicalPreview, Normalization, normalized_signature};
 use super::direct::DirectValues;
 use crate::query::QueryContext;
@@ -35,19 +36,23 @@ impl ThemeValueIndex {
             direct: DirectValues::prepare(query),
             ..Self::default()
         };
-        let mut preparation = ValuePreparation::new(query);
+        let mut namespaces = Vec::new();
         for (name, definitions) in query.design_system.utilities().iter() {
             let Some(root) = name.strip_suffix('*') else {
                 continue;
             };
-            let namespaces: BTreeSet<_> = definitions
+            let names: BTreeSet<_> = definitions
                 .iter()
                 .flat_map(|definition| value_namespaces(&definition.body, "--value"))
                 .collect();
-            for namespace in namespaces {
-                preparation.namespace(&mut index, root, &namespace, labels);
-            }
+            namespaces.extend(names.into_iter().map(|namespace| (root, namespace)));
         }
+        let mut preparation = ValuePreparation::new(query);
+        preparation.resolve(&index, &namespaces, labels);
+        for (root, namespace) in &namespaces {
+            preparation.namespace(&mut index, root, namespace, labels);
+        }
+        preparation.insert_signatures(&mut index);
         for groups in index.groups.values_mut() {
             for names in groups.signatures.values_mut() {
                 names.sort_by(|left, right| rank(left, right));
@@ -108,7 +113,18 @@ struct ValuePreparation<'a> {
     registered: Vec<LeanStr>,
     required_values: BTreeMap<LeanStr, Vec<bool>>,
     resolved: BTreeMap<LeanStr, Result<Option<ResolvedUtility>, UtilityResolutionError>>,
-    signatures: HashMap<(LeanStr, Normalization), Option<LeanStr>>,
+    /// Values with substituted CSS, in the order `namespace` accepted them. Their
+    /// signatures do not affect which values `namespace` accepts, so
+    /// [`Self::insert_signatures`] computes them after all namespaces.
+    pending: Vec<PendingValue>,
+}
+
+/// A value that `namespace` accepted before its normalized signature is known.
+struct PendingValue {
+    label: LeanStr,
+    resolved_css: LeanStr,
+    normalization: Normalization,
+    required_properties: Vec<LeanStr>,
 }
 
 impl<'a> ValuePreparation<'a> {
@@ -163,7 +179,66 @@ impl<'a> ValuePreparation<'a> {
             registered,
             required_values,
             resolved: BTreeMap::new(),
-            signatures: HashMap::new(),
+            pending: Vec::new(),
+        }
+    }
+
+    /// Resolves the labels that `namespace` may compare for `namespaces` on several
+    /// threads. Labels that an earlier namespace covers are skipped later, so some
+    /// results can remain unused. `index` must already contain the direct values.
+    fn resolve(
+        &mut self,
+        index: &ThemeValueIndex,
+        namespaces: &[(&str, LeanStr)],
+        labels: &BTreeSet<LeanStr>,
+    ) {
+        let query = self.query;
+        let pending: BTreeSet<_> = namespaces
+            .iter()
+            .flat_map(|(root, namespace)| token_labels(query, root, namespace))
+            .map(|(_, _, label)| label)
+            .filter(|label| {
+                labels.contains(label) && !index.covers(label) && !self.resolved.contains_key(label)
+            })
+            .collect();
+        let pending: Vec<_> = pending.into_iter().collect();
+        let theme = query.design_system.theme();
+        let resolved = parallel::map(&pending, |label| {
+            resolve_utility(label, theme).map(Result::ok)
+        });
+        self.resolved.extend(pending.into_iter().zip(resolved));
+    }
+
+    /// Computes the signatures of pending values on several threads and adds the values
+    /// with a signature to `index` in acceptance order.
+    fn insert_signatures(&mut self, index: &mut ThemeValueIndex) {
+        let mut keys = Vec::new();
+        let mut positions = HashMap::new();
+        for value in &self.pending {
+            positions
+                .entry((value.resolved_css.clone(), value.normalization.clone()))
+                .or_insert_with_key(|key| {
+                    keys.push(key.clone());
+                    keys.len() - 1
+                });
+        }
+        let scale = self.scale.as_deref();
+        let root_font_size = self.query.options.root_font_size;
+        let signatures = parallel::map(&keys, |(css, normalization)| {
+            normalized_signature(css, scale, &normalization.properties, root_font_size)
+        });
+        for value in std::mem::take(&mut self.pending) {
+            let position = positions[&(value.resolved_css, value.normalization.clone())];
+            if let Some(signature) = &signatures[position] {
+                index
+                    .groups
+                    .entry(value.normalization)
+                    .or_default()
+                    .signatures
+                    .entry((signature.clone(), value.required_properties))
+                    .or_default()
+                    .push(value.label);
+            }
         }
     }
 
@@ -176,19 +251,7 @@ impl<'a> ValuePreparation<'a> {
     ) {
         let query = self.query;
         let mut template = None;
-        for token_name in query.design_system.tokens().names_with_prefix(namespace) {
-            let Some(token) = query
-                .design_system
-                .tokens()
-                .get(token_name)
-                .and_then(|group| group.first())
-            else {
-                continue;
-            };
-            let Some(capture) = token_name.strip_prefix(namespace) else {
-                continue;
-            };
-            let label = format_args!("{root}{capture}").to_lean_str();
+        for (token_name, token, label) in token_labels(query, root, namespace) {
             if !labels.contains(&label) || index.covers(&label) {
                 continue;
             }
@@ -240,32 +303,39 @@ impl<'a> ValuePreparation<'a> {
                     .map(|value| css.replace_text(&template.placeholder, value))
             });
             let normalization = policy(&css, &self.options, self.scale.as_deref());
-            let signature = resolved_css.as_ref().and_then(|css| {
-                self.signatures
-                    .entry((css.as_str().into(), normalization.clone()))
-                    .or_insert_with(|| {
-                        normalized_signature(
-                            css,
-                            self.scale.as_deref(),
-                            &normalization.properties,
-                            self.query.options.root_font_size,
-                        )
-                    })
-                    .clone()
-            });
-            if let Some(signature) = signature {
-                index
-                    .groups
-                    .entry(normalization)
-                    .or_default()
-                    .signatures
-                    .entry((signature, required_properties))
-                    .or_default()
-                    .push(label.clone());
+            if let Some(resolved_css) = resolved_css {
+                self.pending.push(PendingValue {
+                    label: label.clone(),
+                    resolved_css: resolved_css.into(),
+                    normalization,
+                    required_properties,
+                });
             }
             index.covered.insert(label);
         }
     }
+}
+
+/// Returns the tokens in `namespace` with the labels that they give the functional
+/// utility `root`. Token names keep their lexical order, and names without an active
+/// token are skipped.
+fn token_labels<'q>(
+    query: &'q QueryContext,
+    root: &'q str,
+    namespace: &'q str,
+) -> impl Iterator<Item = (&'q str, &'q ThemeToken, LeanStr)> {
+    let tokens = query.design_system.tokens();
+    tokens
+        .names_with_prefix(namespace)
+        .filter_map(move |token_name| {
+            let token = tokens.get(token_name)?.first()?;
+            let capture = token_name.strip_prefix(namespace)?;
+            Some((
+                token_name,
+                token.as_ref(),
+                format_args!("{root}{capture}").to_lean_str(),
+            ))
+        })
 }
 
 #[derive(Debug, Default)]

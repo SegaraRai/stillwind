@@ -71,4 +71,35 @@ impl QueryContext {
     pub(super) fn canonical_options(&self) -> CanonicalUtilitiesConfig {
         self.canonical_policy.clone()
     }
+
+    /// Returns the resolved inputs of this context without its preview cache.
+    pub(super) fn inputs(&self) -> QueryInputs {
+        QueryInputs {
+            design_system: self.design_system.clone(),
+            options: self.options.clone(),
+            canonical_policy: self.canonical_policy.clone(),
+        }
+    }
+}
+
+/// Resolved inputs of a [`QueryContext`], which threads can share.
+///
+/// A [`QueryContext`] cannot be shared between threads because its preview cache is
+/// not thread-safe. Each thread creates its own context from these inputs instead.
+pub(super) struct QueryInputs {
+    design_system: DesignSystemSnapshot,
+    options: CompilerOptions,
+    canonical_policy: CanonicalUtilitiesConfig,
+}
+
+impl QueryInputs {
+    /// Returns a context with these inputs and an empty preview cache.
+    pub(super) fn context(&self) -> QueryContext {
+        QueryContext {
+            design_system: self.design_system.clone(),
+            options: self.options.clone(),
+            canonical_policy: self.canonical_policy.clone(),
+            canonical_previews: RefCell::new(BTreeMap::new()),
+        }
+    }
 }

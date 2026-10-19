@@ -9,6 +9,10 @@ repository.workspace = true
 [lints]
 workspace = true
 
+[features]
+# Prepares canonical indexes on the rayon thread pool. WASM builds leave it disabled.
+parallel = ["dep:rayon"]
+
 [dependencies]
 lean_string.workspace = true
 stillwind-css = { path = "../css", features = ["minify"] }
@@ -20,6 +24,7 @@ stillwind-source = { path = "../source" }
 stillwind-syntax = { path = "../syntax" }
 blake3.workspace = true
 cssparser.workspace = true
+rayon = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

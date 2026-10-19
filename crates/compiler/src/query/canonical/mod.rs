@@ -1,15 +1,17 @@
 //! Finds equivalent canonical spellings under the active lint policy.
 //!
-//! `candidate` implements canonical queries and verifies proposed replacements.
-//! `conditions` rewrites runtime conditions to their canonical spelling. `preview`
-//! renders and normalizes CSS for comparison. `index` prepares finite spellings,
-//! `values` indexes theme values, and `variants` indexes named wrappers.
+//! [`candidate`] implements canonical queries and verifies proposed replacements.
+//! [`conditions`] rewrites runtime conditions to their canonical spelling. [`preview`]
+//! renders and normalizes CSS for comparison. [`index`] prepares finite spellings,
+//! [`values`] indexes theme values, and `variants` indexes named wrappers. [`parallel`]
+//! runs independent preparation steps on several threads.
 //!
 //! Call [`crate::DesignSystemQuery::canonical_candidate`] to query a candidate.
 
 mod candidate;
 mod conditions;
 mod index;
+mod parallel;
 mod preview;
 mod values;
 mod variants;

@@ -11,6 +11,7 @@ use stillwind_design_system::UtilityResolutionError;
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
 use super::super::completion::value_namespaces;
+use super::parallel;
 use super::preview::{
     CanonicalPreview, Normalization, SPACING_SCALE_REFERENCE, SPACING_TOKEN_REFERENCE_PREFIX,
     SpacingUnit, dimension, spacing_properties,
@@ -70,12 +71,22 @@ impl CanonicalIndex {
             values: ThemeValueIndex::prepare(query, &labels),
             ..Self::default()
         };
-        for label in labels {
-            if index.values.covers(&label) && query.design_system.utilities().get(&label).is_none()
-            {
-                continue;
-            }
-            match query.canonical_preview(&label) {
+        let pending: Vec<_> = labels
+            .into_iter()
+            .filter(|label| {
+                !index.values.covers(label) || query.design_system.utilities().get(label).is_some()
+            })
+            .collect();
+        // Previews are independent of each other, so threads render them with their own
+        // contexts. The index receives them in label order.
+        let inputs = query.inputs();
+        let previews = parallel::map_with_state(
+            &pending,
+            || inputs.context(),
+            |context, label| context.canonical_preview(label),
+        );
+        for (label, preview) in pending.into_iter().zip(previews) {
+            match preview {
                 Ok(Some(preview)) => index.insert(query, label, &preview),
                 Ok(None) => {}
                 Err(error) => index.errors.push(((label), error)),

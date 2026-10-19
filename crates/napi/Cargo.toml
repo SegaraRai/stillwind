@@ -30,6 +30,9 @@ napi.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+stillwind-compiler = { path = "../compiler", features = ["parallel"] }
+
 [dev-dependencies]
 stillwind-test-support = { path = "../test-support" }
 serde_json.workspace = true
