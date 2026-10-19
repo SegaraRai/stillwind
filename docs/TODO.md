@@ -78,3 +78,49 @@ earlier definitions only or every definition of the name, and how it interacts w
 
 Sources: [utility matching](../crates/design-system/src/evaluation/utilities/matching.rs),
 [CSS emission](css-emission.md#utility-definitions-with-the-same-name).
+
+## Tailwind configuration
+
+Add a `tailwind` field to each project in `stillwind.config.ts`. It accepts a Tailwind
+`Config` or a promise of one. The field replaces `@config`, which stays unsupported. A
+stylesheet that contains `@config` needs a diagnostic that names the field.
+
+The field reproduces Tailwind's meaning of the configuration. Tailwind merges the configs
+of every `@plugin` statement first and every `@config` file after them, regardless of their
+positions in the stylesheet. The field therefore takes the place of the `@config` files, so
+its keys override the same keys in plugin configs. `theme`, `plugins`, `presets`, `darkMode`,
+and `important` apply as in Tailwind. `prefix` and `blocklist` stay readable through
+`config()` but do not change output, as with plugin configs today. The
+`no-restricted-utilities` lint rule replaces `blocklist`.
+
+`darkMode` redefines the `dark` variant with Tailwind's mapping: `"selector"` becomes
+`&:where(.dark, .dark *)`, `"class"` becomes `&:is(.dark *)`, and `["variant", ...]` uses
+the given selectors. The native way to change the variant stays `@custom-variant dark` in
+CSS. Verify which definition Tailwind keeps when a stylesheet defines `@custom-variant dark`
+and the config also sets `darkMode`.
+
+Add an `important` field to each project. It accepts `true` or a selector string and has the
+meaning of Tailwind's `important` config key. Setting both `important` and
+`tailwind.important` is a configuration error. Decide whether an `important` value from a
+plugin config also conflicts with the project field.
+
+Sources: [project configuration](../packages/config/src/configuration.ts),
+[Tailwind plugin runtime](../packages/host/src/css/tailwind/plugin.ts),
+[CSS imports](../crates/design-system/src/loading/imports.rs).
+
+## Migration guide from Tailwind CSS
+
+Users replace `@import "tailwindcss"` with `@import "stillwind"`, so the guide can describe
+the other changes for that step. The guide needs these replacements:
+
+- `@config` becomes the project's `tailwind` field.
+- The `important` import modifier becomes the project's `important` field.
+- `theme(...)` import modifiers stay unsupported. No plugin package in
+  `e2e/plugins/tailwind` uses import modifiers. Define the replacement for a modifier on
+  `@import "stillwind"`, whose theme the user cannot edit.
+- `@source` and `source(...)` are removed, because Stillwind collects utilities from the
+  modules that `files` selects.
+- `blocklist` becomes the `no-restricted-utilities` lint rule.
+- The `tw:` variant prefix is unsupported.
+
+Decide whether the guide extends an existing document or needs its own file.
