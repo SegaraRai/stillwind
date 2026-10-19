@@ -13,12 +13,11 @@ use stillwind_css::{CustomPropertyDefinition, ValueType, parse_property_definiti
 
 use super::utility_lookup::UtilityLookup;
 use crate::{
-    BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, ThemeNamespace,
+    BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespace,
     parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
     parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
-    parse_builtin_variant_definitions, parse_declaration_formats, parse_marker_utilities,
-    parse_omit_token_prefixes, parse_relationship_patterns, parse_theme_namespace_types,
-    parse_theme_order,
+    parse_builtin_variant_definitions, parse_declaration_formats, parse_omit_token_prefixes,
+    parse_relationship_patterns, parse_theme_namespace_types, parse_theme_order,
 };
 
 /// Immutable registries parsed from the CSS supplied by a host.
@@ -37,7 +36,7 @@ pub struct BuiltinDefinitions {
     animation_property_mappings: BTreeMap<LeanStr, LeanStr>,
     declaration_formats: BTreeMap<LeanStr, LeanStr>,
     relationships: BTreeSet<LeanStr>,
-    marker_utilities: BTreeSet<LeanStr>,
+    markers: MarkerClasses,
     omit_token_prefixes: Vec<(LeanStr, LeanStr)>,
     theme_order: Vec<LeanStr>,
     theme_namespace_types: BTreeMap<ThemeNamespace, Vec<ValueType>>,
@@ -93,9 +92,9 @@ impl BuiltinDefinitions {
         &self.relationships
     }
 
-    /// Utilities that emit only a marker class and no declarations.
-    pub fn marker_utilities(&self) -> &BTreeSet<LeanStr> {
-        &self.marker_utilities
+    /// Marker classes that the CSS declares and that built-in definitions select.
+    pub fn markers(&self) -> &MarkerClasses {
+        &self.markers
     }
 
     /// Namespace to the prefix a token name omits when it is referenced.
@@ -134,6 +133,15 @@ impl BuiltinDefinitions {
             .map(Arc::new)
             .collect();
         let utility_lookup = UtilityLookup::new(&utilities);
+        let variants: Vec<_> = parse_builtin_variant_definitions(css)
+            .into_iter()
+            .map(Arc::new)
+            .collect();
+        let markers = MarkerClasses::collect(
+            css,
+            utilities.iter().map(|utility| &**utility),
+            variants.iter().map(|variant| &**variant),
+        );
         Self {
             source: css.into(),
             animation_options: parse_builtin_animation_option_definitions(css)
@@ -142,10 +150,7 @@ impl BuiltinDefinitions {
                 .collect(),
             utilities,
             utility_lookup,
-            variants: parse_builtin_variant_definitions(css)
-                .into_iter()
-                .map(Arc::new)
-                .collect(),
+            variants,
             properties: parse_property_definitions(css)
                 .into_iter()
                 .map(Arc::new)
@@ -154,7 +159,7 @@ impl BuiltinDefinitions {
             animation_property_mappings: parse_animation_option_property_mappings(css),
             declaration_formats: parse_declaration_formats(css),
             relationships: parse_relationship_patterns(css),
-            marker_utilities: parse_marker_utilities(css),
+            markers,
             omit_token_prefixes: parse_omit_token_prefixes(css),
             theme_order: parse_theme_order(css),
             theme_namespace_types: parse_theme_namespace_types(css),

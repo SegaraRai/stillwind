@@ -267,7 +267,7 @@ changes the compiled CSS.
 
 The rules check `@apply` candidates and `@variant` sequences inside style rules:
 `unknown-utility`, `unknown-variant`, `invalid-utility`, `invalid-variant`,
-`invalid-property-value`, `clamped-value`, `redundant-variant`,
+`invalid-marker-use`, `invalid-property-value`, `clamped-value`, `redundant-variant`,
 `unsatisfiable-variants`, `prefer-typed-variables`, `prefer-canonical-utilities`,
 `prefer-sorted-utilities`, `document-scoped-selector`, and `repeated-nesting-selector`.
 Each finding covers the candidate or the part of it that causes the finding, and fixes

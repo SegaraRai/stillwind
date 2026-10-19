@@ -114,6 +114,17 @@ fn unresolved_candidates_and_variants_are_reported_at_their_text() {
 }
 
 #[test]
+fn applied_marker_classes_are_reported_as_marker_uses() {
+    assert_eq!(
+        default_findings(".btn { @apply group hover:peer; }"),
+        [
+            finding(LintKind::InvalidMarkerUse, "group"),
+            finding(LintKind::InvalidMarkerUse, "hover:peer"),
+        ]
+    );
+}
+
+#[test]
 fn package_css_and_definitions_are_not_checked() {
     assert_eq!(
         default_findings("@utility thing { @apply unknown-x; } @variant nope { .x { } }"),

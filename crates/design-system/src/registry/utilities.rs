@@ -14,8 +14,6 @@
 //! resolved. Duplicate names are preserved in source order because they are separate
 //! declaration branches, not a replacement.
 
-use std::collections::BTreeSet;
-
 use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
@@ -200,15 +198,6 @@ fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUt
         .collect()
 }
 
-/// Extracts compatibility marker utility names declared by CSS metadata.
-///
-/// A marker utility emits a literal class that relational selectors can find across
-/// independent style calls, so the set is data about the registry, not a list of
-/// utilities to resolve.
-pub fn parse_marker_utilities(css: &str) -> BTreeSet<LeanStr> {
-    extract_marker_utilities(css)
-}
-
 /// Extracts user `@utility` definitions with the byte offset of each directive in
 /// `css`. Commented example CSS cannot register a definition, and comments inside a
 /// header or body are removed.
@@ -233,19 +222,6 @@ pub(crate) fn extract_custom_utilities(css: &str) -> Vec<(usize, CustomUtility)>
                 },
             ))
         })
-        .collect()
-}
-
-/// Reads `@stillwind-marker` statements into a deduplicated set.
-///
-/// The set only answers membership, so authored order and repeats carry no meaning
-/// here.
-pub(crate) fn extract_marker_utilities(css: &str) -> BTreeSet<LeanStr> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-marker"))
-        .filter_map(|segment| segment.split_once(';').map(|(name, _)| name.trim()))
-        .filter(|name| !name.is_empty())
-        .map(LeanStr::from)
         .collect()
 }
 
@@ -360,10 +336,6 @@ mod tests {
                 "@stillwind-utility"
             ),
             [] as [CustomUtility; 0]
-        );
-        assert_eq!(
-            parse_marker_utilities("@stillwind-marker group; @stillwind-marker group;"),
-            BTreeSet::from(["group".into()])
         );
     }
 }

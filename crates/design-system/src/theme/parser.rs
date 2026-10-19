@@ -32,9 +32,9 @@ use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
     extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
-    extract_marker_utilities, extract_relationship_patterns, registration_positions,
+    extract_relationship_patterns, registration_positions,
 };
-use crate::{BrowserTargets, BuiltinDefinitions, UtilityOrderMode};
+use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
@@ -132,7 +132,7 @@ fn parse_theme_contents(
         .collect();
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
-    theme.marker_utilities = extract_marker_utilities(source.text());
+    theme.markers = MarkerClasses::collect(source.text(), &theme.utilities, &theme.variants);
     theme.declaration_formats = extract_declaration_formats(source.text());
     theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
@@ -385,7 +385,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         utilities: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
-        marker_utilities: BTreeSet::new(),
+        markers: MarkerClasses::default(),
         declaration_formats: BTreeMap::new(),
         relationship_patterns: BTreeSet::new(),
         authored_properties: BTreeSet::new(),

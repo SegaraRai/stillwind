@@ -267,6 +267,7 @@ define_lint_rules! {
         RuntimeConditionRequiresCssIf => "runtime-condition-requires-css-if",
         InvalidUtility => "invalid-utility",
         UnknownUtility => "unknown-utility",
+        InvalidMarkerUse => "invalid-marker-use",
         InvalidVariant => "invalid-variant",
         UnknownVariant => "unknown-variant",
         MissingDocumentTarget => "missing-document-target",
@@ -353,6 +354,7 @@ impl LintKind {
                 self,
                 Self::InvalidUtility
                     | Self::UnknownUtility
+                    | Self::InvalidMarkerUse
                     | Self::InvalidVariant
                     | Self::UnknownVariant
                     | Self::DuplicateUtility

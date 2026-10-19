@@ -157,9 +157,10 @@ pub(crate) fn resolve_utility_targets(
 /// the author wrote at this location; earlier bytes come from enclosing variant
 /// wrappers. The finding covers the failing part of the written text. It covers all of
 /// `span` when the failure lies in the wrapper text, or when `span` is not `written`
-/// bytes long because the source spells the text with escapes. Unknown names select
-/// `unknown-utility` or `unknown-variant` and carry a spelling suggestion when one
-/// resolves. Other failures select `invalid-utility` or `invalid-variant`.
+/// bytes long because the source spells the text with escapes. A marker class that the
+/// candidate cannot add selects `invalid-marker-use` and covers all of `span`. Unknown
+/// names select `unknown-utility` or `unknown-variant` and carry a spelling suggestion
+/// when one resolves. Other failures select `invalid-utility` or `invalid-variant`.
 pub(crate) fn unresolved_utility_finding(
     candidate: &str,
     written: usize,
@@ -187,6 +188,16 @@ pub(crate) fn unresolved_utility_finding(
             |(start, end)| utility.get(start..end).unwrap_or_default().to_lean_str(),
         )
     };
+    if let UtilityFailureReason::Marker { class, reason } = &failure.reason {
+        return LintFinding::new(
+            LintDiagnostic::InvalidMarkerUse {
+                utility,
+                class: class.clone(),
+                reason: *reason,
+            },
+            span,
+        );
+    }
     let diagnostic = match unresolved_lint_kind(failure) {
         LintKind::UnknownVariant => LintDiagnostic::UnknownVariant {
             variant: part(),
@@ -212,18 +223,20 @@ pub(crate) fn unresolved_utility_finding(
 }
 
 /// Returns the rule that reports `failure`: `missing-document-target` for a
-/// document-level candidate without an element to style, `unknown-utility` or
-/// `unknown-variant` for a name that does not exist, and `invalid-utility` or
-/// `invalid-variant` otherwise.
+/// document-level candidate without an element to style, `invalid-marker-use` for a
+/// marker class that the candidate cannot add, `unknown-utility` or `unknown-variant`
+/// for a name that does not exist, and `invalid-utility` or `invalid-variant`
+/// otherwise.
 pub(crate) const fn unresolved_lint_kind(failure: &UtilityFailure) -> LintKind {
-    if let UtilityFailureReason::MissingDocumentTarget { .. } = failure.reason {
-        return LintKind::MissingDocumentTarget;
-    }
-    match (failure.reason.is_variant(), failure.reason.is_unknown()) {
-        (true, true) => LintKind::UnknownVariant,
-        (true, false) => LintKind::InvalidVariant,
-        (false, true) => LintKind::UnknownUtility,
-        (false, false) => LintKind::InvalidUtility,
+    match failure.reason {
+        UtilityFailureReason::MissingDocumentTarget { .. } => LintKind::MissingDocumentTarget,
+        UtilityFailureReason::Marker { .. } => LintKind::InvalidMarkerUse,
+        _ => match (failure.reason.is_variant(), failure.reason.is_unknown()) {
+            (true, true) => LintKind::UnknownVariant,
+            (true, false) => LintKind::InvalidVariant,
+            (false, true) => LintKind::UnknownUtility,
+            (false, false) => LintKind::InvalidUtility,
+        },
     }
 }
 

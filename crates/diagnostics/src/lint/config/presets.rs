@@ -44,6 +44,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidPropertyValue, LintSeverity::Deny),
     (LintKind::InvalidUtility, LintSeverity::Deny),
     (LintKind::UnknownUtility, LintSeverity::Warn),
+    (LintKind::InvalidMarkerUse, LintSeverity::Warn),
     (LintKind::InvalidVariant, LintSeverity::Deny),
     (LintKind::UnknownVariant, LintSeverity::Warn),
     (LintKind::MissingDocumentTarget, LintSeverity::Deny),

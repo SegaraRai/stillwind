@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { utilityRules, withAlpha } from "./css.ts";
+import { cssClassNames, selectorClassNames, utilityRules, withAlpha } from "./css.ts";
 
 /** Collects the utility bodies that `utilityRules` registers. */
 function rules(input: unknown): [string, string][] {
@@ -124,4 +124,17 @@ test("alpha values follow Tailwind's withAlpha", () => {
   expect(withAlpha("red", "50")).toBe("color-mix(in oklab, red 5000%, transparent)");
   expect(withAlpha("red", "1")).toBe("red");
   expect(withAlpha("red", "var(--a)")).toBe("color-mix(in oklab, red var(--a), transparent)");
+});
+
+test("selectors name classes at every position and through whole class attribute matches", () => {
+  expect(
+    selectorClassNames(String.raw`.a &:not(.b):has(> .c\/d), [class~="e"] [class*="f"]`),
+  ).toEqual(["a", "b", "c/d", "e"]);
+  expect(selectorClassNames(`[data-x=".a"] /* .b */ #c .5`)).toEqual([]);
+});
+
+test("CSS text names classes only in style rule selectors", () => {
+  expect(
+    cssClassNames(`color:red;.a &{content:".b"}@media (width>=40.5rem){.c &{margin:0}}`),
+  ).toEqual(["a", "c"]);
 });

@@ -51,6 +51,8 @@ pub struct NativeLintOptions {
     pub invalid_utility: Option<String>,
     /// Settings for `unknown-utility`.
     pub unknown_utility: Option<String>,
+    /// Settings for `invalid-marker-use`.
+    pub invalid_marker_use: Option<String>,
     /// Settings for `invalid-variant`.
     pub invalid_variant: Option<String>,
     /// Settings for `unknown-variant`.
@@ -219,6 +221,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             unknown_utility: input
                 .unknown_utility
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_marker_use: input
+                .invalid_marker_use
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_variant: input

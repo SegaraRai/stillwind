@@ -91,7 +91,7 @@ test("decoded values and modifiers register definitions that the compiler resolv
   );
 });
 
-test("editor catalogs resolve selected script and CSS candidates lazily without emitting unused CSS", async () => {
+test("editor catalogs resolve selected script and CSS candidates without emitting unused CSS", async () => {
   const calls: string[] = [];
   const extension = plugin((api) => {
     api.matchUtilities(
@@ -142,7 +142,9 @@ test("editor catalogs resolve selected script and CSS candidates lazily without 
     });
     const item = result!.completions!.find((item) => item.candidate === "probe-eight")!;
     expect(item).toBeDefined();
-    expect(calls).toEqual([]);
+    // Registration runs each named value once to find the classes that its selectors name.
+    expect(calls).toEqual(["4px", "8px"]);
+    calls.length = 0;
     const resolved = await project.query("/workspace/entry.tsx", {
       kind: "resolve",
       candidate: item.candidate,
@@ -273,6 +275,55 @@ test("variants apply before plugin selectors, and plugin bodies expand @apply", 
     expect(css).toMatch(/:hover > span\{[^}]*color:blue/);
     expect(css).toMatch(/:focus > span\{[^}]*padding: ?4px/);
     expect(css).toMatch(/:hover > span\{[^}]*margin: ?2px/);
+  } finally {
+    await project.close();
+  }
+});
+
+test("classes that plugin selectors name stay literal beside generated classes", async () => {
+  const extension = plugin((api) => {
+    api.addUtilities({
+      '.prose :where(p):not(:where([class~="not-prose"] *))': {
+        margin: "1em",
+      },
+      ".outer .inner": {
+        color: "pink",
+      },
+    });
+    api.matchUtilities(
+      {
+        stack: (value) => ({
+          ".stack-root &": {
+            gap: value,
+          },
+        }),
+      },
+      {
+        values: {
+          sm: "4px",
+        },
+      },
+    );
+  });
+  const { project } = pluginProject(
+    extension,
+    "prose not-prose outer inner stack-root hover:not-prose",
+    "@custom-variant hover (&:hover);",
+  );
+  try {
+    const result = await project.analyze("/workspace/entry.tsx");
+    expect(result.batches.flatMap((batch) => batch.reports).map((report) => report.code)).toEqual([
+      "invalid-marker-use",
+    ]);
+    const code = result.modules[0]!.code!;
+    for (const marker of ["not-prose", "outer", "inner", "stack-root"]) {
+      expect(code).toMatch(new RegExp(`[" ]${marker}[" ]`));
+    }
+    expect(code).not.toMatch(/[" ]prose[" ]/);
+    const css = project.css().css;
+    expect(css).toContain(':not(:where([class~="not-prose"] *))');
+    expect(css).toMatch(/\.outer \.[\w-]+\{[^}]*color: ?pink/);
+    expect(css).toMatch(/\.[\w-]+ \.inner\{[^}]*color: ?pink/);
   } finally {
     await project.close();
   }

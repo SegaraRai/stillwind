@@ -20,7 +20,7 @@ use crate::evaluation::{UtilityPrograms, color_fallback};
 use crate::registry::UtilityLookup;
 use crate::{
     BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, DynamicFamilyKind,
-    ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
+    MarkerClasses, ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
 };
 
 /// Everything that one stylesheet declares, as the parser collected it. Equality of two
@@ -40,7 +40,7 @@ struct ThemeDeclarations {
     utilities: Vec<Arc<CustomUtility>>,
     variants: Vec<Arc<CustomVariant>>,
     properties: Vec<Arc<CustomPropertyDefinition>>,
-    marker_utilities: BTreeSet<LeanStr>,
+    markers: MarkerClasses,
     declaration_formats: BTreeMap<LeanStr, LeanStr>,
     relationship_patterns: BTreeSet<LeanStr>,
     authored_properties: BTreeSet<LeanStr>,
@@ -100,7 +100,7 @@ impl ThemeIndex {
             utilities: builder.utilities.into_iter().map(Arc::new).collect(),
             variants: builder.variants.into_iter().map(Arc::new).collect(),
             properties: builder.properties.into_iter().map(Arc::new).collect(),
-            marker_utilities: builder.marker_utilities,
+            markers: builder.markers,
             declaration_formats: builder.declaration_formats,
             relationship_patterns: builder.relationship_patterns,
             authored_properties: builder.authored_properties,
@@ -264,9 +264,10 @@ impl ThemeIndex {
         &self.inner.declarations.properties
     }
 
-    /// Utility names whose declarations provide compatibility marker classes.
-    pub fn marker_utilities(&self) -> &BTreeSet<LeanStr> {
-        &self.inner.declarations.marker_utilities
+    /// Marker classes that the stylesheet declares and that user definitions select.
+    /// [`BuiltinDefinitions::markers`] holds the markers of the selected built-ins.
+    pub fn markers(&self) -> &MarkerClasses {
+        &self.inner.declarations.markers
     }
 
     /// Generic serialization formats attached to CSS declarations.

@@ -10,6 +10,7 @@ import type { PluginAPI, PluginCreator, PluginWithConfig } from "tailwindcss/plu
 import type { TailwindPlugin } from "../plugins.ts";
 import { containerUtility } from "./container.ts";
 import {
+  cssClassNames,
   identifier,
   pluginOptions,
   serializeCss,
@@ -89,6 +90,8 @@ interface DynamicUtility {
   name: string;
   callback: UtilityCallback;
   options: MatchOptions;
+  /** Classes that the callback's selectors name for the values in `options.values`. */
+  markers: string[];
   /** Generated bodies by request, null when the callback stops evaluation. */
   results: Map<string, string[] | null | undefined>;
 }
@@ -113,6 +116,8 @@ interface DynamicVariant {
   name: string;
   callback: VariantCallback;
   options: VariantOptions;
+  /** Classes that the callback's selectors name for the values in `options.values`. */
+  markers: string[];
   /** Generated variants by complete name. */
   results: Map<string, VariantResult>;
 }
@@ -250,6 +255,20 @@ export class TailwindRuntime {
           name,
           callback,
           options,
+          markers: probeClassNames(options.values, (value) =>
+            utilityBodies(
+              (
+                callback as (
+                  value: unknown,
+                  extra: {
+                    modifier: string | null;
+                  },
+                ) => unknown
+              )(value, {
+                modifier: null,
+              }),
+            ).join(""),
+          ),
           results: new Map(),
         });
       }
@@ -294,6 +313,13 @@ export class TailwindRuntime {
           name,
           callback: callback as VariantCallback,
           options: options as VariantOptions,
+          markers: probeClassNames((options as VariantOptions).values, (value) =>
+            variantBody(
+              (callback as VariantCallback)(value, {
+                modifier: null,
+              }),
+            ),
+          ),
           results: new Map(),
         });
       },
@@ -477,7 +503,10 @@ export class TailwindRuntime {
       if (registration.owner !== owner) {
         continue;
       }
-      output.push(`@stillwind-plugin-family utility ${registration.name};`);
+      output.push(
+        `@stillwind-plugin-family utility ${registration.name};`,
+        ...registration.markers.map((name) => `@stillwind-marker ${identifier(name)};`),
+      );
       const types = Array.isArray(registration.options.type)
         ? registration.options.type
         : [registration.options.type ?? "any"];
@@ -496,7 +525,10 @@ export class TailwindRuntime {
       if (registration.owner !== owner) {
         continue;
       }
-      output.push(`@stillwind-plugin-family variant ${registration.name};`);
+      output.push(
+        `@stillwind-plugin-family variant ${registration.name};`,
+        ...registration.markers.map((name) => `@stillwind-marker ${identifier(name)};`),
+      );
       const candidates = [...registration.results.values()];
       candidates.sort((a, b) => {
         if (registration.options.sort) {
@@ -523,6 +555,37 @@ export class TailwindRuntime {
     }
     return output.join("\n");
   }
+}
+
+/**
+ * Runs a `matchUtilities()` or `matchVariant()` callback for each named value and collects the
+ * classes that its selectors name.
+ *
+ * The compiler also collects these classes from callback results that candidates request. Running
+ * the named values when the plugin registers makes the classes markers before any candidate
+ * requests them, so the class that a candidate adds does not depend on which module the host
+ * compiles first. A value whose callback throws contributes nothing.
+ *
+ * @param values - Named values of the registration, whose `__`-prefixed keys are skipped.
+ * @param run - Returns the CSS that the callback generates for one value.
+ * @returns The decoded class names, each once.
+ */
+function probeClassNames(
+  values: Record<string, unknown> | undefined,
+  run: (value: unknown) => string,
+): string[] {
+  const names = new Set<string>();
+  for (const [key, value] of Object.entries(values ?? {})) {
+    if (key.startsWith("__")) {
+      continue;
+    }
+    try {
+      for (const name of cssClassNames(run(value))) {
+        names.add(name);
+      }
+    } catch {}
+  }
+  return [...names];
 }
 
 /**

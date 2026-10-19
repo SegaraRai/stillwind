@@ -11,12 +11,14 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_diagnostics::MarkerUseErrorKind;
 use stillwind_syntax::{Candidate, Utility, Value, decode_arbitrary_value, parse_candidate};
 
 use super::super::suggestions::closest_spelling;
 use super::super::values::named_domain_values;
 use super::super::variants::{
-    DocumentTargetFailure, VariantContext, VariantFailureReason, document_target, resolve_variant,
+    DocumentTargetFailure, MarkerUse, VariantContext, VariantFailureReason, document_target,
+    marker_use, resolve_variant,
 };
 use super::matching::resolve_named_utility;
 use crate::{CustomUtility, ThemeIndex};
@@ -133,6 +135,17 @@ pub enum UtilityFailureReason {
     UnsupportedNegative {
         /// Utility name without the leading `-`.
         utility: LeanStr,
+    },
+    /// No utility definition matches the name, which is a marker class that the
+    /// candidate cannot add in its form or position.
+    #[error("`{class}` is a marker class and cannot be added {reason}")]
+    Marker {
+        /// Marker class that the candidate names, without an unsupported modifier.
+        class: LeanStr,
+        /// Form or position of the candidate that prevents the class from being added.
+        /// [`MarkerUseErrorKind::Placement`] means that the form is valid, so a caller
+        /// that adds the class to an element can drop the failure.
+        reason: MarkerUseErrorKind,
     },
     /// A variant of the candidate does not resolve.
     #[error(transparent)]
@@ -363,6 +376,23 @@ pub(super) fn diagnose_utility(
     }
 }
 
+/// Returns the failure for a candidate `raw` that names a marker class and no utility,
+/// or `None` when it names no marker class. The range covers the whole candidate,
+/// because its variants, `!`, `-`, or modifier can each prevent the class.
+fn marker_failure(raw: &str, theme: &ThemeIndex) -> Option<UtilityFailure> {
+    let (class, reason) = match marker_use(raw, theme)? {
+        MarkerUse::Class(class) => (class, MarkerUseErrorKind::Placement),
+        MarkerUse::Invalid { class, reason } => (class, reason),
+    };
+    Some(UtilityFailure {
+        range: 0..raw.len(),
+        reason: UtilityFailureReason::Marker {
+            class: class.as_str().into(),
+            reason,
+        },
+    })
+}
+
 /// Explains why the named utility `name` of `raw` does not resolve. `negative` tells
 /// whether the candidate has a leading `-`, and `layout` locates its parts.
 fn diagnose_named_utility(
@@ -382,6 +412,11 @@ fn diagnose_named_utility(
         .as_ref()
         .map_or(layout.name.start, |range| range.start)..layout.name.end;
     let definitions = matching_definitions(&lookup, theme);
+    if definitions.is_empty()
+        && let Some(failure) = marker_failure(raw, theme)
+    {
+        return failure;
+    }
     if definitions.is_empty() {
         if let Some(range) = layout.negative.clone()
             && !matching_definitions(name, theme).is_empty()

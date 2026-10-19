@@ -7,7 +7,9 @@
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
-use stillwind_diagnostics::{LintDiagnostic, LintKind, LintOverrides, LintSeverity};
+use stillwind_diagnostics::{
+    LintDiagnostic, LintKind, LintOverrides, LintSeverity, MarkerUseErrorKind,
+};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -86,6 +88,110 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
             .contains(":is(:where(.peer\\/field):checked ~ *)")
     );
     assert!(result.css.contains("@container (width >= 24rem)"));
+}
+
+#[test]
+fn classes_selected_by_definitions_are_markers_beside_their_utilities() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+export const card = style("card");
+export const title = style("card-title");
+export const hovered = style({ "hover:": "card-title" });"#,
+    )
+    .unwrap();
+    let theme = css_source(
+        FileId(2),
+        "@import \"stillwind\";
+         @utility card { & .card-title { margin: 0; } }
+         @utility card-title { .card & { color: red; } }",
+    )
+    .unwrap();
+
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:#?}",
+        result.lint_findings
+    );
+    let transformed = result.apply_to_source(&component).unwrap();
+    for (name, class) in [("card", "card"), ("title", "card-title")] {
+        let declaration = transformed
+            .lines()
+            .find(|line| line.starts_with(&format!("export const {name} ")))
+            .unwrap();
+        assert!(
+            declaration.contains(&format!(" {class}\"")),
+            "{declaration}"
+        );
+    }
+    let hovered = transformed
+        .lines()
+        .find(|line| line.starts_with("export const hovered "))
+        .unwrap();
+    assert!(!hovered.contains("card"), "{hovered}");
+    assert!(result.css.contains(" .card-title{"), "{}", result.css);
+    assert!(result.css.contains(".card ."), "{}", result.css);
+}
+
+#[test]
+fn reports_marker_classes_that_a_candidate_cannot_add() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+export const a = style("hover:group !peer group/[x] -peer");
+export const b = style({ "focus:": "group" });"#,
+    )
+    .unwrap();
+    let theme = css_source(FileId(2), "@import \"stillwind\";").unwrap();
+
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    );
+
+    let reasons: Vec<_> = result
+        .lint_findings
+        .iter()
+        .map(|finding| match &finding.diagnostic {
+            LintDiagnostic::InvalidMarkerUse { class, reason, .. } => (class.to_string(), *reason),
+            other => panic!("unexpected finding {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        reasons,
+        [
+            ("group".into(), MarkerUseErrorKind::Conditional),
+            ("peer".into(), MarkerUseErrorKind::Important),
+            ("group".into(), MarkerUseErrorKind::Modifier),
+            ("peer".into(), MarkerUseErrorKind::Negative),
+            ("group".into(), MarkerUseErrorKind::Conditional),
+        ]
+    );
+    let transformed = result.apply_to_source(&component).unwrap();
+    assert!(!transformed.contains("group"), "{transformed}");
+    assert!(!transformed.contains("peer"), "{transformed}");
 }
 
 #[test]

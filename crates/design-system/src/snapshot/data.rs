@@ -314,7 +314,7 @@ impl DesignSystemSnapshot {
             theme.properties(),
             semantic_template,
             theme.utility_order(),
-            theme.marker_utilities(),
+            theme.markers(),
             theme.declaration_formats(),
             theme.relationship_patterns(),
             theme.authored_properties(),

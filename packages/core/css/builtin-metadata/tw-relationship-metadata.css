@@ -1,7 +1,7 @@
 /* Literal compatibility markers and relationship-aware candidate families. */
 
-@stillwind-marker group;
-@stillwind-marker peer;
+@stillwind-marker group (modifiable);
+@stillwind-marker peer (modifiable);
 
 @stillwind-relationship @*;
 @stillwind-relationship group-*;

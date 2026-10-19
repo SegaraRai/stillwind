@@ -1,7 +1,7 @@
 //! Read-only access to the definitions selected by a snapshot.
 //!
-//! `registry` borrows utility, variant, and animation definitions from the supplied
-//! theme. `metadata` reads declaration formats, property registrations, and ordering
+//! [`registry`] borrows utility, variant, and animation definitions from the supplied
+//! theme. [`metadata`] reads declaration formats, property registrations, and ordering
 //! metadata, and derives token prefixes for completion. Both use the caller's theme
 //! without consulting a global registry.
 
@@ -15,7 +15,7 @@ pub use metadata::{
 pub use registry::builtin_definitions;
 
 pub(super) use metadata::{
-    COMPAT_COLOR_MODERN_SPACE, COMPAT_COLOR_SUPPORT, builtin_marker_utilities,
+    COMPAT_COLOR_MODERN_SPACE, COMPAT_COLOR_SUPPORT, builtin_markers,
     builtin_relationship_patterns, builtin_theme_namespace_types,
 };
 pub(super) use registry::{

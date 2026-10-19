@@ -11,7 +11,10 @@ use stillwind_source::Span;
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
 use super::parser::{DynamicFamily, UtilityImportance};
-use crate::{BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, UtilityOrderMode};
+use crate::{
+    BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, MarkerClasses,
+    UtilityOrderMode,
+};
 
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {
@@ -45,8 +48,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) variants: Vec<CustomVariant>,
     /// Compiler-owned `@stillwind-property` definitions in authored order.
     pub(crate) properties: Vec<CustomPropertyDefinition>,
-    /// Utility names whose declarations provide compatibility marker classes.
-    pub(crate) marker_utilities: BTreeSet<LeanStr>,
+    /// Marker classes that the stylesheet declares and that user definitions select.
+    pub(crate) markers: MarkerClasses,
     /// Generic serialization formats attached to CSS declarations.
     pub(crate) declaration_formats: BTreeMap<LeanStr, LeanStr>,
     /// Candidate patterns identifying compatibility relationships, such as `group-*`.

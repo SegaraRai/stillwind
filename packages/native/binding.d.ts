@@ -1216,6 +1216,8 @@ export interface NativeLintOptions {
   invalidUtility?: string
   /** Settings for `unknown-utility`. */
   unknownUtility?: string
+  /** Settings for `invalid-marker-use`. */
+  invalidMarkerUse?: string
   /** Settings for `invalid-variant`. */
   invalidVariant?: string
   /** Settings for `unknown-variant`. */

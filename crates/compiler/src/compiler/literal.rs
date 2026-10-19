@@ -6,12 +6,13 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, VariantContext, compatibility_marker_class,
-    is_tailwind_relationship_candidate, repeated_subject_selector, resolve_variant,
+    MarkerUse, ThemeIndex, UtilityFailureReason, VariantApplication, VariantContext,
+    is_tailwind_relationship_candidate, marker_use, repeated_subject_selector, resolve_variant,
     unsatisfiable_variants, utility_value_range,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
+    MarkerUseErrorKind,
 };
 use stillwind_source::{ReplaceText, Span, Spanned};
 use stillwind_syntax::{Utility, Variant, parse_candidate};
@@ -62,8 +63,11 @@ impl LiteralContribution {
     /// Lowers one utility literal into its canonical input, resolved utilities, and
     /// classes.
     ///
-    /// A compatibility marker is emitted instead of utilities when the candidate only
-    /// marks a Tailwind relationship. An unresolved candidate is omitted from class
+    /// A candidate that names a marker class adds the class as written when it has no
+    /// variants, and it still contributes the utilities that it resolves to. Variants
+    /// of `plan`, including ref conditions, prevent the class. An unresolved candidate
+    /// that only names a marker reports `invalid-marker-use` when it cannot add the
+    /// class and nothing otherwise. Any other unresolved candidate is omitted from class
     /// output and canonical input; enabled lint rules report it. A resolved candidate
     /// whose own variants would apply to the document is reported without changing its
     /// output, because the host decides that policy's severity. A candidate with a
@@ -117,11 +121,12 @@ impl LiteralContribution {
                     utility.span,
                 ));
             }
+            let mut adds_marker = false;
             if !plan.has_refs
-                && let Some(marker) = compatibility_marker_class(&raw, theme)
+                && let Some(MarkerUse::Class(class)) = marker_use(&raw, theme)
             {
-                contribution.markers.push((marker).into());
-                continue;
+                contribution.markers.push(class.as_str().into());
+                adds_marker = true;
             }
             match resolve_utility_targets(&raw, theme, VariantContext::Element) {
                 Ok(Ok(mut resolved)) => {
@@ -152,7 +157,15 @@ impl LiteralContribution {
                     }
                     contribution.utilities.append(&mut resolved);
                 }
-                Ok(Err(failure)) => {
+                Ok(Err(mut failure)) => {
+                    if let UtilityFailureReason::Marker { reason, .. } = &mut failure.reason
+                        && *reason == MarkerUseErrorKind::Placement
+                    {
+                        if adds_marker {
+                            continue;
+                        }
+                        *reason = MarkerUseErrorKind::Conditional;
+                    }
                     if lint_settings.enabled_for_detection(unresolved_lint_kind(&failure)) {
                         lint_findings.push(unresolved_utility_finding(
                             &raw,

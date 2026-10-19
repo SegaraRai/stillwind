@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use stillwind_source::ModuleId;
 
 use super::super::LintKind;
-use super::RuleGroupInputErrorKind;
 use super::candidate::{DidYouMean, DocumentScopedMessage, PropertyValueMessage};
 use super::variables::VariableTypeMessage;
 use super::variants::{RedundantVariantMessage, UnsatisfiableMessage, VariantDirectiveMessage};
+use super::{MarkerUseErrorKind, RuleGroupInputErrorKind};
 
 /// Concrete values and message templates for a detected lint.
 ///
@@ -22,7 +22,8 @@ pub enum LintDiagnostic {
     /// A projection receiver is not an identity created by a ref declaration.
     #[error("ref projections must use an identity returned by style.ref()")]
     InvalidRefProjection,
-    /// A ref condition resolves to an empty set of ref declarations. Its condition is false.
+    /// A ref condition resolves to an empty set of ref declarations. Its condition is
+    /// false.
     #[error("ref condition resolves to no style.ref() declaration")]
     EmptyRefCondition,
     /// A ref variant receiver resolves to a value that is not a ref declaration.
@@ -91,7 +92,8 @@ pub enum LintDiagnostic {
     /// A keyframes use receiver branch resolves to a value that is not keyframes.
     #[error("keyframes uses require a receiver returned by style.keyframes()")]
     InvalidKeyframesReceiver,
-    /// A keyframes use does not supply one literal options string. The use has empty options.
+    /// A keyframes use does not supply one literal options string. The use has empty
+    /// options.
     #[error("a keyframes use requires one literal options string")]
     InvalidKeyframesOptions,
     /// A keyframes declaration does not supply one static frame object.
@@ -246,7 +248,8 @@ pub enum LintDiagnostic {
         variant: LeanStr,
         /// Explanation that names the unknown text.
         detail: LeanStr,
-        /// Complete spelling of the utility or variant prefix with the likely correction.
+        /// Complete spelling of the utility or variant prefix with the likely
+        /// correction.
         suggestion: Option<LeanStr>,
     },
     /// A variant exists, but it rejects its value, its modifier, or its inner variant,
@@ -419,7 +422,8 @@ pub enum LintDiagnostic {
         "macro arguments must be pure; perform assignments, updates, and deletes before the macro call"
     )]
     MutatingMacroArgument,
-    /// A macro expression suspends execution or loads a module; default severity is error.
+    /// A macro expression suspends execution or loads a module; default severity is
+    /// error.
     #[error(
         "evaluate await, yield, and dynamic imports outside macro arguments, then pass their values"
     )]
@@ -455,7 +459,8 @@ pub enum LintDiagnostic {
     /// A style rule would apply to the document instead of to the styled element.
     #[error("{}", DocumentScopedMessage { selector, branch: branch.as_deref() })]
     DocumentScopedSelector {
-        /// Resolved selector that references neither the element nor a declaration identity.
+        /// Resolved selector that references neither the element nor a declaration
+        /// identity.
         selector: LeanStr,
         /// The branch of a selector list that keeps the list document-wide, when the
         /// other branches could select the styled element on their own.
@@ -489,13 +494,14 @@ pub enum LintDiagnostic {
         "view-transition-class is one property: this call's list replaces the one its composed base declares, so declare the transitions in one call"
     )]
     SplitViewTransitionClass,
-    /// Two composition bases declare one declaration slot and neither precedes the other.
+    /// Two composition bases declare one declaration slot and neither precedes the
+    /// other.
     #[error(
         "two composition bases declare `{properties}`; neither base precedes the other, so which declaration wins is undefined"
     )]
     AmbiguousStyleBaseOrder {
-        /// The competing declarations, as `property` or `property and property` when one
-        /// side is a shorthand of the other.
+        /// The competing declarations, as `property` or `property and property` when
+        /// one side is a shorthand of the other.
         properties: LeanStr,
     },
     /// A base owned by another module declares a property this call also declares.
@@ -505,6 +511,17 @@ pub enum LintDiagnostic {
         module: ModuleId,
         /// The competing declarations, as `property` or `property and property`.
         properties: LeanStr,
+    },
+    /// A candidate names a marker class in a form that cannot add the class, and no
+    /// utility resolves the candidate (`invalid-marker-use`).
+    #[error("`{utility}` cannot add the marker class `{class}` {reason}")]
+    InvalidMarkerUse {
+        /// Utility text as authored, including variants.
+        utility: LeanStr,
+        /// Marker class name that the candidate names.
+        class: LeanStr,
+        /// Form of the candidate that prevents the class from being added.
+        reason: MarkerUseErrorKind,
     },
     /// No utility definition or theme token has the written name, so the utility
     /// contributes nothing (`unknown-utility`).
@@ -526,8 +543,8 @@ pub enum LintDiagnostic {
         /// Explanation that names the rejected part and the reason.
         detail: LeanStr,
     },
-    /// An arbitrary value that the grammar of its property rejects is emitted as written
-    /// (`invalid-property-value`).
+    /// An arbitrary value that the grammar of its property rejects is emitted as
+    /// written (`invalid-property-value`).
     #[error("{}", PropertyValueMessage {
         utility,
         property,
@@ -542,8 +559,8 @@ pub enum LintDiagnostic {
         /// Decoded value text as emitted.
         value: LeanStr,
         /// The utility with a type hint for each value type it accepts, when `property`
-        /// was chosen as a fallback because the value has no hint and its type cannot be
-        /// inferred; empty otherwise.
+        /// was chosen as a fallback because the value has no hint and its type cannot
+        /// be inferred; empty otherwise.
         alternatives: Vec<LeanStr>,
     },
     /// A `var()` value without a type hint refers to a variable of a known type that
@@ -582,8 +599,8 @@ pub enum LintDiagnostic {
         /// Percentage that the declaration emits.
         percentage: LeanStr,
     },
-    /// A variant has no effect because another variant of the candidate already requires
-    /// its condition (`redundant-variant`).
+    /// A variant has no effect because another variant of the candidate already
+    /// requires its condition (`redundant-variant`).
     #[error("{}", RedundantVariantMessage { variant, kept, implied: *implied })]
     RedundantVariant {
         /// Text of the redundant variant, without its `:`.
@@ -645,8 +662,8 @@ pub enum LintDiagnostic {
     /// as `@variant <variant>` (`prefer-variant-directive`).
     #[error("{}", VariantDirectiveMessage { header, variant, px_to_rem: *px_to_rem })]
     PreferVariantDirective {
-        /// Header text as written, such as `@media (width >= 40rem)`. Two nested headers
-        /// are joined with ` { `.
+        /// Header text as written, such as `@media (width >= 40rem)`. Two nested
+        /// headers are joined with ` { `.
         header: LeanStr,
         /// Variant spelling that the fix writes, such as `sm`.
         variant: LeanStr,
@@ -689,8 +706,8 @@ pub enum LintDiagnostic {
         /// Name of an active token with a close spelling.
         suggestion: Option<LeanStr>,
     },
-    /// Every `--value()` domain of a `@utility` reads a theme namespace that provides no
-    /// value, so no candidate resolves (`invalid-theme-reference`).
+    /// Every `--value()` domain of a `@utility` reads a theme namespace that provides
+    /// no value, so no candidate resolves (`invalid-theme-reference`).
     #[error(
         "`@utility {utility}` reads values only from `{namespaces}`, but no theme token provides a value there, so no candidate can use it"
     )]
@@ -803,6 +820,7 @@ impl LintDiagnostic {
             Self::SplitViewTransitionClass => LintKind::SplitViewTransitionClass,
             Self::AmbiguousStyleBaseOrder { .. } => LintKind::AmbiguousStyleBaseOrder,
             Self::InterferingImportedStyleBase { .. } => LintKind::InterferingImportedStyleBase,
+            Self::InvalidMarkerUse { .. } => LintKind::InvalidMarkerUse,
             Self::UnknownUtility { .. } => LintKind::UnknownUtility,
             Self::InvalidUtility { .. } => LintKind::InvalidUtility,
             Self::InvalidPropertyValue { .. }

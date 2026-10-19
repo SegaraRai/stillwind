@@ -23,7 +23,7 @@ pub use config::{
     RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule,
     VariantDirectiveConfig, VariantDirectiveOverride,
 };
-pub use diagnostic::{LintDiagnostic, RuleGroupInputErrorKind};
+pub use diagnostic::{LintDiagnostic, MarkerUseErrorKind, RuleGroupInputErrorKind};
 pub use finding::LintFinding;
 pub use suppression::{
     LintDirective, LintDirectiveKind, LintDirectiveRules, collect_lint_directives,

@@ -31,7 +31,7 @@ pub use application::{
     VariantApplication, VariantDeclaration, VariantObstacle, document_scoped_selector,
     repeated_subject_selector,
 };
-pub use compatibility::{compatibility_marker_class, is_tailwind_relationship_candidate};
+pub use compatibility::{MarkerUse, is_tailwind_relationship_candidate, marker_use};
 pub use conditions::{
     RedundantVariant, UnsatisfiableVariants, VariantRedundancy, redundant_variants,
     unsatisfiable_variants,

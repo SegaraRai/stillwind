@@ -12,7 +12,7 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{CustomPropertyDefinition, ValueType};
 
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::{MarkerClasses, ThemeIndex, ThemeNamespace};
 
 /// Every `@stillwind-property` definition selected by the theme, in authored order.
 pub fn builtin_property_definitions(
@@ -44,9 +44,9 @@ pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(LeanStr, LeanS
     entries
 }
 
-/// Names of utilities that emit a compatibility marker class.
-pub(in crate::evaluation) fn builtin_marker_utilities(theme: &ThemeIndex) -> &BTreeSet<LeanStr> {
-    theme.registry().marker_utilities()
+/// Marker classes declared or selected by the selected built-ins.
+pub(in crate::evaluation) fn builtin_markers(theme: &ThemeIndex) -> &MarkerClasses {
+    theme.registry().markers()
 }
 
 /// Declaration-format metadata declared by the selected built-ins.

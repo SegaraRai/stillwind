@@ -214,6 +214,38 @@ decoded, so `@utility tab-1\/2` defines the static utility `tab-1/2`.
 To remove a built-in utility, a stylesheet currently has no directive; a definition can
 only add to it.
 
+## Marker classes
+
+A selector that names another class, such as `.card &` or `[class~="not-prose"] *`,
+needs that class on some element as written. A marker class is a class that a
+candidate adds to the element as written, beside its generated classes, so separately
+compiled `style()` calls agree on the class that such a selector matches.
+
+The design system collects marker classes from two sources:
+
+- `@stillwind-marker name;` declares one. `@stillwind-marker name (modifiable);` also
+  accepts a named modifier and adds the class as written, so `group/menu` adds
+  `group/menu`. The package declares `group` and `peer` this way.
+- Every class that the style rule selectors of a `@utility`, `@custom-variant`, or
+  `@variant` definition name is an exact marker. This includes classes inside `:not()`
+  and `:has()` and whole class attribute matches such as `[class~="name"]`. A utility's
+  own name is excluded. A partial attribute match such as `[class*="name"]` names no
+  class.
+
+Definitions from stylesheets, native plugins, and Tailwind plugins contribute in the same
+way. `@utility card-title { .card & { color: red; } }` makes `card` a marker, so
+`style("card")` adds the class `card`.
+
+A marker name can also be a utility. The candidate then adds the class and contributes the
+utility's CSS: with `@utility card { & .card-title { margin: 0; } }`, `style("card")`
+adds both `card` and the generated class of `card`.
+
+A marker class is unconditional. A candidate with variants, `!`, a leading `-`, or a
+modifier that the marker does not accept adds no class, and neither does a candidate in
+`@apply` or in a document-level style. When no utility resolves such a candidate,
+`invalid-marker-use` reports it. `hover:card` still applies the `card` utility under
+`:hover` without the class, as in Tailwind.
+
 ## Plugins
 
 A plugin is JavaScript that generates Stillwind CSS. A stylesheet loads it with
@@ -291,14 +323,18 @@ Callbacks run in the host, and the compiler receives ordinary `@utility` definit
 A static utility from `addUtilities` keeps its name. As in Tailwind, each selector
 registers every class that it contains outside attribute selectors and outside the
 arguments of `:not()`, `:nth-child()`, and `:nth-last-child()`: `.outer .inner`
-registers `outer` with `& .inner` and `inner` with `.outer &`. A top-level `@keyframes`
+registers `outer` with `& .inner` and `inner` with `.outer &`. Each registration names
+the other class, so both are [marker classes](#marker-classes). A top-level `@keyframes`
 or `@property` rule of `addUtilities` is global CSS. Such a rule inside a utility, including
 one that a `matchUtilities` callback returns, follows [Utility bodies](#utility-bodies). An empty at-rule object, such as `"@apply p-4": {}`,
 becomes the statement `@apply p-4;`. The CSS that a `matchUtilities`
 callback returns for one candidate becomes `@utility <candidate> (functional) { ... }`,
 which belongs to the functional utility of its root, so `duration-300` from
 `tailwindcss-animate` adds `animation-duration` to the built-in `transition-duration`.
-Two more descriptors reproduce Tailwind's exceptions. A registration whose types
+When the plugin registers a `matchUtilities` or `matchVariant` callback, the host runs it
+for each value in `values` and declares the classes that its selectors name with
+`@stillwind-marker`. These classes are therefore markers before any candidate requests a
+value. Two more descriptors reproduce Tailwind's exceptions. A registration whose types
 include `any` and another type becomes `(functional, fallback)`, which applies only when
 no other definition resolves. When a typed callback rejects an arbitrary value because
 of an invalid modifier, `(functional, stop)` ends the evaluation of the definitions that

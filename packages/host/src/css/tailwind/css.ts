@@ -144,21 +144,7 @@ function utilityClasses(selector: string): { name: string; start: number; end: n
     } else if (char === ")") {
       excluded -= parentheses.pop() ? 1 : 0;
     } else if (char === "." && !excluded && !attribute) {
-      let end = index + 1;
-      let name = "";
-      while (end < selector.length) {
-        const next = selector[end];
-        if (next === "\\") {
-          const hex = /^[0-9a-f]{1,6}\s?/i.exec(selector.slice(end + 1));
-          name += hex ? String.fromCodePoint(Number.parseInt(hex[0], 16)) : selector[end + 1];
-          end += 1 + (hex ? hex[0].length : 1);
-        } else if (/[\w\u0080-￿-]/u.test(next)) {
-          name += next;
-          end++;
-        } else {
-          break;
-        }
-      }
+      const { name, end } = readIdentifier(selector, index + 1);
       if (IS_VALID_UTILITY_NAME.test(name)) {
         classes.push({
           name,
@@ -170,6 +156,115 @@ function utilityClasses(selector: string): { name: string; start: number; end: n
     }
   }
   return classes;
+}
+
+/**
+ * Reads a CSS identifier and decodes its escapes.
+ *
+ * @param text - Text that contains the identifier.
+ * @param start - Index of the first character of the identifier.
+ * @returns The decoded name, empty when no identifier starts at `start`, and the index after it.
+ */
+function readIdentifier(text: string, start: number): { name: string; end: number } {
+  let end = start;
+  let name = "";
+  while (end < text.length) {
+    const next = text[end];
+    if (next === "\\") {
+      const hex = /^[0-9a-f]{1,6}\s?/i.exec(text.slice(end + 1));
+      name += hex ? String.fromCodePoint(Number.parseInt(hex[0], 16)) : text[end + 1];
+      end += 1 + (hex ? hex[0].length : 1);
+    } else if (/[\w\u0080-￿-]/u.test(next)) {
+      name += next;
+      end++;
+    } else {
+      break;
+    }
+  }
+  return {
+    name,
+    end,
+  };
+}
+
+/** Body of an attribute selector that matches one whole class name, such as `class~="name"`. */
+const CLASS_ATTRIBUTE = /^\s*class\s*~=\s*(?:"([^"]*)"|'([^']*)'|([^\s"']+))\s*(?:[is]\s*)?$/i;
+
+/**
+ * Finds the class names that a selector matches by name, as the compiler does when it collects
+ * marker classes: `.name` at any position, including inside `:not()` and `:has()`, and
+ * `[class~="name"]`. Partial attribute matches such as `[class*="name"]` are skipped.
+ *
+ * @param selector - Selector list.
+ * @returns The decoded class names in source order, each once.
+ */
+export function selectorClassNames(selector: string): string[] {
+  const names = new Set<string>();
+  let quote = "";
+  for (let index = 0; index < selector.length; index++) {
+    const char = selector[index];
+    if (char === "\\") {
+      index++;
+    } else if (quote) {
+      quote = char === quote ? "" : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "/" && selector[index + 1] === "*") {
+      const close = selector.indexOf("*/", index + 2);
+      index = close < 0 ? selector.length : close + 1;
+    } else if (char === "[") {
+      const close = selector.indexOf("]", index);
+      const match = CLASS_ATTRIBUTE.exec(selector.slice(index + 1, close < 0 ? undefined : close));
+      const name = match?.[1] ?? match?.[2] ?? match?.[3];
+      if (name) {
+        names.add(name);
+      }
+      index = close < 0 ? selector.length : close;
+    } else if (char === "." && !/\d/.test(selector[index + 1] ?? "")) {
+      const { name, end } = readIdentifier(selector, index + 1);
+      if (name) {
+        names.add(name);
+      }
+      index = end - 1;
+    }
+  }
+  return [...names];
+}
+
+/**
+ * Finds the class names that the style rule selectors of CSS text match by name. At-rule
+ * preludes and declarations are skipped.
+ *
+ * @param css - Rules and declarations, such as a utility body or a variant body.
+ * @returns The decoded class names in source order, each once.
+ */
+export function cssClassNames(css: string): string[] {
+  const names = new Set<string>();
+  let prelude = "";
+  let quote = "";
+  for (let index = 0; index < css.length; index++) {
+    const char = css[index];
+    if (char === "\\") {
+      prelude += css.slice(index, index + 2);
+      index++;
+      continue;
+    }
+    if (quote) {
+      quote = char === quote ? "" : quote;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "{" || char === "}" || char === ";") {
+      if (char === "{" && !prelude.trim().startsWith("@")) {
+        for (const name of selectorClassNames(prelude)) {
+          names.add(name);
+        }
+      }
+      prelude = "";
+      continue;
+    }
+    prelude += char;
+  }
+  return [...names];
 }
 
 /**

@@ -115,6 +115,8 @@ pub struct LintOverrides {
     pub invalid_utility: Option<LintSeverity>,
     /// Reporting level for `unknown-utility`.
     pub unknown_utility: Option<LintSeverity>,
+    /// Reporting level for `invalid-marker-use`.
+    pub invalid_marker_use: Option<LintSeverity>,
     /// Reporting level for `invalid-variant`.
     pub invalid_variant: Option<LintSeverity>,
     /// Reporting level for `unknown-variant`.
@@ -288,6 +290,7 @@ impl LintOverrides {
             ),
             (LintKind::InvalidUtility, self.invalid_utility),
             (LintKind::UnknownUtility, self.unknown_utility),
+            (LintKind::InvalidMarkerUse, self.invalid_marker_use),
             (LintKind::InvalidVariant, self.invalid_variant),
             (LintKind::UnknownVariant, self.unknown_variant),
             (

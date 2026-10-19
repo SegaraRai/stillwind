@@ -47,6 +47,41 @@ test("registrations become ordinary utilities and functional definitions of thei
   expect(tailwind.resolve(["probe-4"])).toBe(false);
 });
 
+test("dynamic registrations declare the classes that their named values select as markers", () => {
+  const tailwind = runtime(
+    plugin((api) => {
+      api.matchUtilities(
+        {
+          stack: (value) => ({
+            [`.stack-root &`]: {
+              gap: value,
+            },
+          }),
+        },
+        {
+          values: {
+            sm: "4px",
+          },
+        },
+      );
+      api.matchVariant("theme", (value) => `.theme-${String(value)} &`, {
+        values: {
+          dark: "dark",
+        },
+      });
+    }),
+  );
+
+  expect(tailwind.css(0)).toBe(
+    [
+      "@stillwind-plugin-family utility stack;",
+      "@stillwind-marker stack-root;",
+      "@stillwind-plugin-family variant theme;",
+      "@stillwind-marker theme-dark;",
+    ].join("\n"),
+  );
+});
+
 test("typed registrations stop on invalid arbitrary modifiers, and any-typed ones are fallbacks", () => {
   const tailwind = runtime(
     plugin((api) => {
@@ -115,6 +150,8 @@ function callbackArguments(options: object, candidates: string[]) {
       ),
     ),
   );
+  // Registration runs the named values to find marker classes; only requests count here.
+  calls.length = 0;
   tailwind.resolve(candidates);
   return calls;
 }

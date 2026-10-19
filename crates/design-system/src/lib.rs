@@ -54,7 +54,7 @@ mod theme;
 
 pub use conditionals::{RuntimeCondition, is_runtime_condition, runtime_if_arguments};
 pub use evaluation::{
-    ConditionContext, DocumentTargetFailure, InvalidPropertyValue, InvalidValueReason,
+    ConditionContext, DocumentTargetFailure, InvalidPropertyValue, InvalidValueReason, MarkerUse,
     NestedUtilityAtRule, NestedUtilityRule, RedundantVariant, ResolvedUtility,
     ResolvedUtilityTarget, ResolvedVariant, ThemeValueMismatch, UnsatisfiableVariants,
     UntypedVariable, UtilityArbitraryUse, UtilityDiagnosticData, UtilityFailure,
@@ -65,10 +65,10 @@ pub use evaluation::{
     VariantValueSource, builtin_declaration_formats, builtin_definitions,
     builtin_omit_token_prefixes, builtin_property_definitions, builtin_theme_order,
     builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
-    compatibility_marker_class, compound_variant_inner, document_scoped_selector, document_target,
-    exact_variant_definition_resolves, is_tailwind_relationship_candidate, redundant_variants,
-    repeated_subject_selector, resolve_animation_option, resolve_utility, resolve_variant,
-    resolve_variant_with_usage, suggested_theme_token, theme_value_mismatch,
+    compound_variant_inner, document_scoped_selector, document_target,
+    exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
+    redundant_variants, repeated_subject_selector, resolve_animation_option, resolve_utility,
+    resolve_variant, resolve_variant_with_usage, suggested_theme_token, theme_value_mismatch,
     unresolvable_value_namespaces, unsatisfiable_variants, utility_value_range,
 };
 pub use loading::{
@@ -81,12 +81,12 @@ pub use output::parse_output_template;
 pub use registry::{
     BuiltinArbitraryPropertyOrder, BuiltinDefinitions, BuiltinVariantModifierType,
     BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, CustomUtility,
-    CustomVariant, UtilityRole, VariantScope, declaration_format,
+    CustomVariant, MarkerClasses, MarkerForm, UtilityRole, VariantScope, declaration_format,
     parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
     parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
-    parse_builtin_variant_definitions, parse_declaration_formats, parse_marker_utilities,
-    parse_omit_token_prefixes, parse_relationship_patterns, parse_theme_order,
-    parse_utility_definitions, parse_variant_definitions,
+    parse_builtin_variant_definitions, parse_declaration_formats, parse_omit_token_prefixes,
+    parse_relationship_patterns, parse_theme_order, parse_utility_definitions,
+    parse_variant_definitions,
 };
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,

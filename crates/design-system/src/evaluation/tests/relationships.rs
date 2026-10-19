@@ -6,10 +6,12 @@
 
 use lean_string::ToLeanStr;
 
+use stillwind_diagnostics::MarkerUseErrorKind;
 use stillwind_test_support::{CssAssertions as _, assert_css_eq, css_tokens};
 
 use super::*;
 use crate::parse_utility_definitions;
+use crate::test_support::parse_fixture_theme;
 use crate::theme::ThemeBuilder;
 
 #[test]
@@ -23,6 +25,57 @@ fn preserves_supports_and_media_conditions_from_css_utilities() {
                 .declaration
                 .contains_css("outline:2px solid transparent;")
     }));
+}
+
+#[test]
+fn marker_use_reports_forms_that_cannot_add_the_class() {
+    let theme = theme();
+
+    for (candidate, class, reason) in [
+        ("hover:group", "group", MarkerUseErrorKind::Conditional),
+        ("!group", "group", MarkerUseErrorKind::Important),
+        ("-peer", "peer", MarkerUseErrorKind::Negative),
+        ("group/[menu]", "group", MarkerUseErrorKind::Modifier),
+    ] {
+        assert_eq!(
+            marker_use(candidate, &theme),
+            Some(MarkerUse::Invalid {
+                class: class.into(),
+                reason
+            }),
+            "{candidate}"
+        );
+    }
+    assert_eq!(marker_use("group-hover:flex", &theme), None);
+}
+
+#[test]
+fn classes_selected_by_user_definitions_are_exact_markers() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "@utility card { .dark & { color: red; } & .card-title { margin: 0; } }
+         @custom-variant open (.is-open &);",
+    )
+    .unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
+
+    for class in ["dark", "card-title", "is-open"] {
+        assert_eq!(
+            marker_use(class, &theme),
+            Some(MarkerUse::Class(class.into())),
+            "{class}"
+        );
+    }
+    assert_eq!(marker_use("card", &theme), None);
+    assert_eq!(
+        marker_use("dark/x", &theme),
+        Some(MarkerUse::Invalid {
+            class: "dark".into(),
+            reason: MarkerUseErrorKind::Modifier,
+        })
+    );
 }
 
 #[test]
@@ -45,12 +98,12 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
     }
     assert!(!is_tailwind_relationship_candidate("max-w-lg", &theme));
     assert_eq!(
-        compatibility_marker_class("group", &theme).as_deref(),
-        Some("group")
+        marker_use("group", &theme),
+        Some(MarkerUse::Class("group".into()))
     );
     assert_eq!(
-        compatibility_marker_class("peer/field", &theme).as_deref(),
-        Some("peer/field")
+        marker_use("peer/field", &theme),
+        Some(MarkerUse::Class("peer/field".into()))
     );
     assert_css_eq!(
         resolve_utility("@container", &theme).unwrap().declaration,

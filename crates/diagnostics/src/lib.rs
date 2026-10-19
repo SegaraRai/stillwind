@@ -57,12 +57,12 @@ pub use lint::{
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
     LintCategory, LintConfig, LintDiagnostic, LintDirective, LintDirectiveKind, LintDirectiveRules,
     LintFinding, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity, LintSurface,
-    RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
-    RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
-    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, RuleGroupInputErrorKind,
-    VariantDirectiveConfig, VariantDirectiveOverride, collect_lint_directives,
-    filter_lint_findings, finish_lint_findings,
+    MarkerUseErrorKind, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
+    RestrictedDeclarationsOverride, RestrictedLengthUnitRule, RestrictedLengthUnitsConfig,
+    RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule,
+    RuleGroupInputErrorKind, VariantDirectiveConfig, VariantDirectiveOverride,
+    collect_lint_directives, filter_lint_findings, finish_lint_findings,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

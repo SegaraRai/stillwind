@@ -15,11 +15,13 @@ React, Preact, Solid, and Vue.
 `stillwind/macro` (`packages/core/src/macro/`) owns shared argument types and
 declaration identities. `packages/core/src/runtime/` combines compiled props.
 
-Utility literals contribute only candidates resolved by the CSS snapshot. Unresolved
-candidates are omitted from generated classes, CSS, and canonical class inputs.
-The `unknown-utility`, `invalid-utility`, `unknown-variant`, and `invalid-variant`
-rules report these candidates. Severity settings and suppression affect reporting
-without changing omission. Supply external class values through `{ class: expression }`.
+Utility literals contribute only candidates resolved by the CSS snapshot and the
+[marker classes](css-emission.md#marker-classes) that candidates add as written.
+Other candidates are omitted from generated classes, CSS, and canonical class inputs.
+The `unknown-utility`, `invalid-utility`, `unknown-variant`, `invalid-variant`, and
+`invalid-marker-use` rules report these candidates. Severity settings and suppression
+affect reporting without changing omission. Supply external class values through
+`{ class: expression }`.
 
 ## Unsupported input
 
@@ -61,13 +63,16 @@ candidate appears:
   as `min-[foo]:`, `min-(--x):`, `not-before:`, `group-sm:`, or `[color:red;]:`.
 - `missing-document-target` reports a candidate of a document-level style whose
   variants do not select an element, as [Variant targets](#variant-targets) describes.
+- `invalid-marker-use` reports a candidate that names a
+  [marker class](css-emission.md#marker-classes) but cannot add it and resolves to no
+  utility, such as `hover:group`, `!peer`, or `group/[x]`.
 
 Each finding covers the failing part of the candidate, such as the value `red-999` or
 the inner variant `sm`. An unknown name gets a spelling suggestion when a close
 spelling resolves: `bg-red-999` suggests `bg-red-900`. Valid runtime conditions that
 the selected `useCssIf` mode cannot lower use `runtime-condition-requires-css-if`.
-Other input lints use `invalid-*` rules. Input lints other than `unknown-utility` and
-`unknown-variant` default to `deny`.
+Other input lints use `invalid-*` rules. Input lints other than `unknown-utility`,
+`unknown-variant`, and `invalid-marker-use` default to `deny`.
 
 The same contract applies to authored stylesheets. A declaration whose `--theme()` call
 names an inactive token without a fallback is omitted, and `invalid-theme-reference`
