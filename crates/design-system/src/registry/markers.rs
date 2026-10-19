@@ -67,30 +67,48 @@ impl MarkerClasses {
     ///
     /// A `@stillwind-marker` statement with an argument other than `(modifiable)`
     /// declares nothing, and a `@stillwind-marker-source` statement whose argument is
-    /// not one string supplies nothing. A
-    /// selected class whose name cannot be written as a variant-free candidate, such as
-    /// `hover:x` or `-x`, is skipped, because no candidate could add it.
+    /// not one string supplies nothing. Other selected classes follow
+    /// [`Self::selected_by`].
     pub(crate) fn collect<'a>(
         css: &str,
         utilities: impl IntoIterator<Item = &'a CustomUtility>,
         variants: impl IntoIterator<Item = &'a CustomVariant>,
     ) -> Self {
-        let mut markers = Self::default();
+        let mut markers = Self::selected_by(utilities, variants);
+        // Each scan tokenizes all of `css`, which includes the whole built-in registry.
+        if !css.contains("@stillwind-marker") {
+            return markers;
+        }
         for (_, header) in extract_named_statements(css, "@stillwind-marker") {
             if let Some((name, form)) = parse_marker_statement(&header) {
                 markers.insert(name, form);
             }
         }
-        for (_, header) in extract_named_statements(css, "@stillwind-marker-source") {
-            let mut parser = Parser::new(&header);
-            if let Ok(source) = parser.expect_string().map(ToString::to_string)
-                && parser.is_exhausted()
-            {
-                for name in body_class_names(&source) {
-                    markers.insert_selected(name);
+        if css.contains("@stillwind-marker-source") {
+            for (_, header) in extract_named_statements(css, "@stillwind-marker-source") {
+                let mut parser = Parser::new(&header);
+                if let Ok(source) = parser.expect_string().map(ToString::to_string)
+                    && parser.is_exhausted()
+                {
+                    for name in body_class_names(&source) {
+                        markers.insert_selected(name);
+                    }
                 }
             }
         }
+        markers
+    }
+
+    /// Collects the classes that `utilities` and `variants` select by name, except each
+    /// utility's own name.
+    ///
+    /// A selected class whose name cannot be written as a variant-free candidate, such
+    /// as `hover:x` or `-x`, is skipped, because no candidate could add it.
+    pub(crate) fn selected_by<'a>(
+        utilities: impl IntoIterator<Item = &'a CustomUtility>,
+        variants: impl IntoIterator<Item = &'a CustomVariant>,
+    ) -> Self {
+        let mut markers = Self::default();
         for utility in utilities {
             for name in body_class_names(&utility.body) {
                 if name != utility.name {

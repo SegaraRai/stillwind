@@ -40,7 +40,6 @@ test("registrations become ordinary utilities and functional definitions of thei
     [
       "@utility tidy{margin:0;}",
       "@stillwind-plugin-family utility probe;",
-      '@stillwind-marker-source "&{width:4px;}";',
       "@utility probe-4 (functional){width:4px;}",
     ].join("\n"),
   );
@@ -48,7 +47,7 @@ test("registrations become ordinary utilities and functional definitions of thei
   expect(tailwind.resolve(["probe-4"])).toBe(false);
 });
 
-test("dynamic registrations pass the CSS of their named values as marker sources", () => {
+test("dynamic registrations pass the selectors of their named values as marker sources", () => {
   const tailwind = runtime(
     plugin((api) => {
       api.matchUtilities(
@@ -76,9 +75,9 @@ test("dynamic registrations pass the CSS of their named values as marker sources
   expect(tailwind.css(0)).toBe(
     [
       "@stillwind-plugin-family utility stack;",
-      '@stillwind-marker-source "&{.stack-root &{gap:4px;}}";',
+      '@stillwind-marker-source ".stack-root &{}";',
       "@stillwind-plugin-family variant theme;",
-      '@stillwind-marker-source "&{.theme-dark &{@slot;}}";',
+      '@stillwind-marker-source ".theme-dark &{@slot;}";',
     ].join("\n"),
   );
 });

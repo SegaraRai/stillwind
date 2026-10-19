@@ -337,8 +337,8 @@ callback returns for one candidate becomes `@utility <candidate> (functional) { 
 which belongs to the functional utility of its root, so `duration-300` from
 `tailwindcss-animate` adds `animation-duration` to the built-in `transition-duration`.
 When the plugin registers a `matchUtilities` or `matchVariant` callback, the host runs it
-for each value in `values`, except keys that start with `__`, and passes the generated CSS
-in `@stillwind-marker-source`. The classes that its selectors name are therefore markers
+for each value in `values`, except keys that start with `__`, and passes the selectors of
+the generated CSS in `@stillwind-marker-source` as empty rules. The classes that its selectors name are therefore markers
 before any candidate requests a value, so the class that a candidate adds does not depend
 on which module the host compiles first. Two more descriptors reproduce Tailwind's exceptions. A registration whose types
 include `any` and another type becomes `(functional, fallback)`, which applies only when

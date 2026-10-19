@@ -264,8 +264,8 @@ impl ThemeIndex {
         &self.inner.declarations.properties
     }
 
-    /// Marker classes that the stylesheet declares and that user definitions select.
-    /// [`BuiltinDefinitions::markers`] holds the markers of the selected built-ins.
+    /// Marker classes that user definitions select. [`BuiltinDefinitions::markers`]
+    /// holds the markers that the stylesheet declares and that built-ins select.
     pub fn markers(&self) -> &MarkerClasses {
         &self.inner.declarations.markers
     }

@@ -132,7 +132,8 @@ fn parse_theme_contents(
         .collect();
     theme.variants = extract_custom_variants(source.text());
     theme.properties = extract_property_definitions(source.text());
-    theme.markers = MarkerClasses::collect(source.text(), &theme.utilities, &theme.variants);
+    // `theme.registry` reads the marker statements of the same text.
+    theme.markers = MarkerClasses::selected_by(&theme.utilities, &theme.variants);
     theme.declaration_formats = extract_declaration_formats(source.text());
     theme.relationship_patterns = extract_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());

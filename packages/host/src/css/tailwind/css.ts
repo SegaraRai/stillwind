@@ -294,6 +294,42 @@ export function utilityRules(
 }
 
 /**
+ * Lists the selectors of the nested rules in CSS-in-JS input, each as an empty rule, so that
+ * the compiler can collect the classes that they name without the declarations.
+ *
+ * @param input - CSS-in-JS body, or an array of them.
+ * @returns Each selector key as written followed by `{}`, in source order. Selectors inside
+ * conditional at-rules are included, and `@keyframes` and `@property` rules are skipped.
+ */
+export function selectorRules(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    return input.flatMap(selectorRules);
+  }
+  if (!input || typeof input !== "object") {
+    return [];
+  }
+  const rules: string[] = [];
+  for (const [key, value] of Object.entries(input)) {
+    // An array of strings is a declaration with fallback values, as in `utilityBodies`.
+    if (
+      !value ||
+      typeof value !== "object" ||
+      statement(key, value) ||
+      (Array.isArray(value) && !value.some((entry) => entry && typeof entry === "object")) ||
+      key.startsWith("@keyframes ") ||
+      key.startsWith("@property ")
+    ) {
+      continue;
+    }
+    if (!key.startsWith("@")) {
+      rules.push(`${key}{}`);
+    }
+    rules.push(...selectorRules(value));
+  }
+  return rules;
+}
+
+/**
  * Flattens nested selector rules into utility bodies with one selector block each, which the
  * compiler composes as independent targets.
  *

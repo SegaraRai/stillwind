@@ -48,7 +48,7 @@ pub(crate) struct ThemeBuilder {
     pub(crate) variants: Vec<CustomVariant>,
     /// Compiler-owned `@stillwind-property` definitions in authored order.
     pub(crate) properties: Vec<CustomPropertyDefinition>,
-    /// Marker classes that the stylesheet declares and that user definitions select.
+    /// Marker classes that user definitions select.
     pub(crate) markers: MarkerClasses,
     /// Generic serialization formats attached to CSS declarations.
     pub(crate) declaration_formats: BTreeMap<LeanStr, LeanStr>,

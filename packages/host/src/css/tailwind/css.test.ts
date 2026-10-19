@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { utilityRules, withAlpha } from "./css.ts";
+import { selectorRules, utilityRules, withAlpha } from "./css.ts";
 
 /** Collects the utility bodies that `utilityRules` registers. */
 function rules(input: unknown): [string, string][] {
@@ -124,4 +124,30 @@ test("alpha values follow Tailwind's withAlpha", () => {
   expect(withAlpha("red", "50")).toBe("color-mix(in oklab, red 5000%, transparent)");
   expect(withAlpha("red", "1")).toBe("red");
   expect(withAlpha("red", "var(--a)")).toBe("color-mix(in oklab, red var(--a), transparent)");
+});
+
+test("selector rules keep nested selectors and skip declarations, fallbacks, and keyframes", () => {
+  expect(
+    selectorRules({
+      width: "1px",
+      display: ["-webkit-box", "flex"],
+      ".a &": {
+        color: "red",
+        "&:hover": {
+          color: "blue",
+        },
+      },
+      "@media (width >= 40rem)": {
+        ".b &": {
+          margin: "0",
+        },
+      },
+      "@keyframes spin": {
+        to: {
+          rotate: "1turn",
+        },
+      },
+      "@apply p-4": {},
+    }),
+  ).toEqual([".a &{}", "&:hover{}", ".b &{}"]);
 });

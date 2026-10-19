@@ -92,7 +92,8 @@ impl BuiltinDefinitions {
         &self.relationships
     }
 
-    /// Marker classes that the CSS declares and that built-in definitions select.
+    /// Marker classes that the CSS declares, including `@stillwind-marker-source`
+    /// statements, and that built-in definitions select.
     pub fn markers(&self) -> &MarkerClasses {
         &self.markers
     }

@@ -13,6 +13,7 @@ import {
   cssString,
   identifier,
   pluginOptions,
+  selectorRules,
   serializeCss,
   splitTopLevel,
   utilityBodies,
@@ -90,7 +91,7 @@ interface DynamicUtility {
   name: string;
   callback: UtilityCallback;
   options: MatchOptions;
-  /** CSS that the callback generates for the values in `options.values`, for marker classes. */
+  /** Rules that carry the selectors of the callback's results for `options.values`, for marker classes. */
   markerSource: string;
   /** Generated bodies by request, null when the callback stops evaluation. */
   results: Map<string, string[] | null | undefined>;
@@ -256,7 +257,7 @@ export class TailwindRuntime {
           callback,
           options,
           markerSource: probeCss(options.values, (value) =>
-            utilityBodies(
+            selectorRules(
               (
                 callback as (
                   value: unknown,
@@ -267,7 +268,7 @@ export class TailwindRuntime {
               )(value, {
                 modifier: null,
               }),
-            ).join(""),
+            ),
           ),
           results: new Map(),
         });
@@ -313,13 +314,13 @@ export class TailwindRuntime {
           name,
           callback: callback as VariantCallback,
           options: options as VariantOptions,
-          markerSource: probeCss((options as VariantOptions).values, (value) =>
+          markerSource: probeCss((options as VariantOptions).values, (value) => [
             variantBody(
               (callback as VariantCallback)(value, {
                 modifier: null,
               }),
             ),
-          ),
+          ]),
           results: new Map(),
         });
       },
@@ -562,33 +563,37 @@ export class TailwindRuntime {
 }
 
 /**
- * Runs a `matchUtilities()` or `matchVariant()` callback for each named value and joins the CSS
- * that it generates.
+ * Runs a `matchUtilities()` or `matchVariant()` callback for each named value and joins the rules
+ * that carry its selectors.
  *
  * The compiler collects marker classes from the selectors of callback results that candidates
- * request. The host passes this CSS in `@stillwind-marker-source`, so these classes are markers
- * before any candidate requests a value, and the class that a candidate adds does not depend on
- * which module the host compiles first. A value whose callback throws contributes nothing.
+ * request. The host passes these rules in `@stillwind-marker-source`, so these classes are
+ * markers before any candidate requests a value, and the class that a candidate adds does not
+ * depend on which module the host compiles first. A value whose callback throws contributes
+ * nothing.
  *
  * @param values - Named values of the registration. Keys that start with `__` are skipped, as
  * Tailwind skips them when it lists candidates.
- * @param run - Returns the CSS that the callback generates for one value.
- * @returns Each distinct result in its own `&` rule, or an empty string when no value generates CSS.
+ * @param run - Returns the CSS rules that carry the selectors of the callback's result for one
+ * value.
+ * @returns The distinct rules, or an empty string when no value has a selector.
  */
-function probeCss(values: Record<string, unknown> | undefined, run: (value: unknown) => string) {
-  const results = new Set<string>();
+function probeCss(
+  values: Record<string, unknown> | undefined,
+  run: (value: unknown) => readonly string[],
+): string {
+  const rules = new Set<string>();
   for (const [key, value] of Object.entries(values ?? {})) {
     if (key.startsWith("__")) {
       continue;
     }
     try {
-      results.add(run(value));
+      for (const rule of run(value)) {
+        rules.add(rule);
+      }
     } catch {}
   }
-  return [...results]
-    .filter(Boolean)
-    .map((css) => `&{${css}}`)
-    .join("");
+  return [...rules].join("");
 }
 
 /**
