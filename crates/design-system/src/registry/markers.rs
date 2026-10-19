@@ -7,7 +7,9 @@
 //! `@stillwind-marker name;` declares a marker explicitly, and `@stillwind-marker name
 //! (modifiable);` declares one that also accepts a named modifier, as `group/menu`
 //! does. Every class that a utility or variant definition selects by name is also a
-//! marker, except the utility's own name.
+//! marker. This includes a utility's own name when its body writes it, as
+//! `:where(.prose > :first-child)` does inside `prose`. Only the literal class
+//! satisfies such a selector. `&` names no class.
 //!
 //! `@stillwind-marker-source "css";` supplies rules whose selected classes are markers
 //! without defining anything. A host passes the CSS that a plugin would generate for
@@ -99,8 +101,8 @@ impl MarkerClasses {
         markers
     }
 
-    /// Collects the classes that `utilities` and `variants` select by name, except each
-    /// utility's own name.
+    /// Collects the classes that `utilities` and `variants` select by name, including a
+    /// utility's own name when its body writes it.
     ///
     /// A selected class whose name cannot be written as a variant-free candidate, such
     /// as `hover:x` or `-x`, is skipped, because no candidate could add it.
@@ -111,9 +113,7 @@ impl MarkerClasses {
         let mut markers = Self::default();
         for utility in utilities {
             for name in body_class_names(&utility.body) {
-                if name != utility.name {
-                    markers.insert_selected(name);
-                }
+                markers.insert_selected(name);
             }
         }
         for variant in variants {
@@ -245,6 +245,7 @@ mod tests {
             [
                 ("a".into(), MarkerForm::Exact),
                 ("b".into(), MarkerForm::Exact),
+                ("d".into(), MarkerForm::Exact),
                 ("dark".into(), MarkerForm::Exact),
                 ("is-open".into(), MarkerForm::Exact),
                 ("not-c".into(), MarkerForm::Exact),

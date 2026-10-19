@@ -14,6 +14,7 @@ export default defineConfig({
     "scrollbar-hide",
     "scrollbar",
     "tw-animate",
+    "typography",
   ].map((name) => ({
     name,
     root: `projects/${name}`,

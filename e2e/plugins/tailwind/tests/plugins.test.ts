@@ -20,6 +20,8 @@ const cases: [string, Record<string, string>][] = [
   ["scrollbar-hide", { "scrollbar-width": "none" }],
   ["animated", { "animation-duration": "0.7s" }],
   ["tw-animate", { "animation-duration": "0.3s", "--tw-enter-opacity": ".5" }],
+  // The article's color reaches `#target`, but `not-prose` removes the paragraph margin.
+  ["typography", { color: "oklch(0.373 0.034 259.733)", "margin-top": "0px" }],
 ];
 
 registerScenario("tailwind-plugins", new URL("../", import.meta.url), (context) => {

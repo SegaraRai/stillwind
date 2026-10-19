@@ -232,8 +232,9 @@ The design system collects marker classes from two sources:
 - Every class that the style rule selectors of a `@utility`, `@custom-variant`, or
   `@variant` definition name is an exact marker. This includes classes inside `:not()`
   and `:has()` and whole class attribute matches such as `[class~="name"]`. A utility's
-  own name is excluded. A partial attribute match such as `[class*="name"]` names no
-  class.
+  own name is a marker when its body writes it, as `:where(.prose > :first-child)` does
+  in the `prose` utility of `@tailwindcss/typography`. `&` names no class. A partial
+  attribute match such as `[class*="name"]` names no class.
 - `@stillwind-marker-source "css";` makes the classes that the rules in the string select
   exact markers, as a definition body does. It defines and emits nothing, and directives
   inside the string have no effect.

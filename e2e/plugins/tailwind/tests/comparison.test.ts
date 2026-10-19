@@ -13,6 +13,7 @@ const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, "..");
 const { compile } = require("tailwindcss") as typeof import("tailwindcss");
 const tailwindRoot = path.dirname(require.resolve("tailwindcss/package.json"));
+const typography = require("@tailwindcss/typography") as unknown;
 const tailwindIconify = (
   (await import(pathToFileURL(require.resolve("@iconify/tailwind4")).href)) as {
     default: unknown;
@@ -34,8 +35,11 @@ interface ComparisonCase {
   preflight?: boolean;
   /** Imports both frameworks without their default theme. */
   themeless?: boolean;
-  /** Markup that contains `#target`, given the class attribute of the candidates. */
-  html?: (classes: string) => string;
+  /**
+   * Markup that contains `#target`, given the class attribute of the candidates and the class
+   * attribute of each `style()` call.
+   */
+  html?: (classes: string, calls: string[]) => string;
   /** Element that receives focus before the measurement. */
   focus?: string;
   /** Computed properties of `#target`. */
@@ -53,6 +57,8 @@ interface ComparisonCase {
 interface Output {
   css: string;
   classes: string;
+  /** Class attribute of each `style()` call, in candidate order, including marker classes. */
+  calls: string[];
 }
 
 const box = (classes: string) =>
@@ -388,6 +394,22 @@ const cases: ComparisonCase[] = [
     preflight: true,
     properties: ["font-family", "font-feature-settings", "font-variation-settings"],
   })),
+  {
+    name: "marker classes: typography styles the descendants of prose",
+    extension: typography,
+    candidates: ["prose"],
+    html: (_, [article]) => `<article class="${article}"><p id="target">x</p></article>`,
+    properties: ["margin-top", "color"],
+  },
+  {
+    name: "marker classes: not-prose from another call excludes descendants of prose",
+    extension: typography,
+    separate: true,
+    candidates: ["prose", "not-prose"],
+    html: (_, [article, excluded]) =>
+      `<article class="${article}"><div class="${excluded}"><p id="target">x</p></div></article>`,
+    properties: ["margin-top", "color"],
+  },
 ];
 
 /**
@@ -420,6 +442,7 @@ async function tailwind(entry: ComparisonCase): Promise<Output> {
   return {
     css: compiler.build(entry.candidates),
     classes: entry.candidates.join(" "),
+    calls: entry.separate ? entry.candidates : [entry.candidates.join(" ")],
   };
 }
 
@@ -489,6 +512,8 @@ async function stillwind(entry: ComparisonCase): Promise<Output> {
   return {
     css: session.css().css,
     classes: module.classes.map((generated) => generated.className).join(" "),
+    // Generated classes omit the marker classes that a call adds as written.
+    calls: [...module.code!.matchAll(/className:"([^"]*)"/g)].map((match) => match[1]),
   };
 }
 
@@ -506,7 +531,7 @@ async function measure(page: Page, entry: ComparisonCase, output: Output): Promi
     height: 600,
   });
   await page.setContent(
-    `<style>@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0}}</style><style>${output.css}</style>${(entry.html ?? box)(output.classes)}`,
+    `<style>@layer base{*,::before,::after{box-sizing:border-box;margin:0;padding:0}}</style><style>${output.css}</style>${(entry.html ?? box)(output.classes, output.calls)}`,
   );
   if (entry.focus) {
     await page.locator(entry.focus).focus();
