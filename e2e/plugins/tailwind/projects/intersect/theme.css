@@ -1,0 +1,6 @@
+@import "stillwind";
+@import "tailwindcss-intersect";
+
+@theme {
+  --color-brand: #123456;
+}

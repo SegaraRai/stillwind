@@ -4,10 +4,13 @@ export default defineConfig({
   projects: [
     "animate",
     "animated",
+    "daisyui",
     "forms",
     "headless",
     "iconify",
+    "intersect",
     "motion",
+    "preline",
     "radix",
     "react-aria",
     "safe-area",

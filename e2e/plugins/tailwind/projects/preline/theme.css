@@ -1,0 +1,6 @@
+@import "stillwind";
+@import "preline/variants.css";
+
+@theme {
+  --color-brand: #123456;
+}

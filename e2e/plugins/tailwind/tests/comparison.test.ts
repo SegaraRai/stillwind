@@ -14,6 +14,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const { compile } = require("tailwindcss") as typeof import("tailwindcss");
 const tailwindRoot = path.dirname(require.resolve("tailwindcss/package.json"));
 const typography = require("@tailwindcss/typography") as unknown;
+const daisyui = (require("daisyui") as { default: unknown }).default;
 const tailwindIconify = (
   (await import(pathToFileURL(require.resolve("@iconify/tailwind4")).href)) as {
     default: unknown;
@@ -409,6 +410,20 @@ const cases: ComparisonCase[] = [
     html: (_, [article, excluded]) =>
       `<article class="${article}"><div class="${excluded}"><p id="target">x</p></div></article>`,
     properties: ["margin-top", "color"],
+  },
+  {
+    name: "daisyUI: a button component uses the primary theme color",
+    extension: daisyui,
+    candidates: ["btn", "btn-primary"],
+    html: (_, [classes]) => `<button id="target" class="${classes}">x</button>`,
+    properties: ["background-color", "height", "border-start-start-radius", "font-weight"],
+  },
+  {
+    name: "marker classes: btn rules select btn-disabled, which is also a utility",
+    extension: daisyui,
+    candidates: ["btn", "btn-disabled"],
+    html: (_, [classes]) => `<button id="target" class="${classes}">x</button>`,
+    properties: ["background-color", "color", "pointer-events"],
   },
 ];
 
