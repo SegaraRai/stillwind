@@ -10,7 +10,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-lean_string.workspace = true
 stillwind-compiler = { path = "../compiler" }
 stillwind-css = { path = "../css" }
 stillwind-design-system = { path = "../design-system" }
@@ -19,6 +18,7 @@ stillwind-ir = { path = "../ir" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 cssparser.workspace = true
+lean_string.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

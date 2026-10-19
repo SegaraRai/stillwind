@@ -13,13 +13,13 @@ workspace = true
 minify = ["lightningcss/sourcemap", "dep:parcel_sourcemap", "dep:serde_json"]
 
 [dependencies]
-lean_string.workspace = true
 stillwind-source = { path = "../source" }
 cssparser.workspace = true
+lean_string.workspace = true
 lightningcss.workspace = true
-thiserror.workspace = true
-parcel_sourcemap = { version = "2.1.1", features = ["json"], optional = true }
+parcel_sourcemap = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

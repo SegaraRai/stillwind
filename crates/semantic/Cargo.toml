@@ -10,9 +10,9 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-lean_string.workspace = true
 stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-source = { path = "../source" }
+lean_string.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

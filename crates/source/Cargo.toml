@@ -10,11 +10,11 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-lean_string.workspace = true
 blake3.workspace = true
+lean_string.workspace = true
+oxc_sourcemap.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-oxc_sourcemap.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

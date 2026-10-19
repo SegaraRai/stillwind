@@ -10,8 +10,8 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-lean_string.workspace = true
 stillwind-source = { path = "../source" }
+lean_string.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

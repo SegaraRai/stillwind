@@ -14,7 +14,6 @@ workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-lean_string.workspace = true
 stillwind-compiler = { path = "../compiler" }
 stillwind-css = { path = "../css", features = ["minify"] }
 stillwind-design-system = { path = "../design-system" }
@@ -25,8 +24,9 @@ stillwind-project = { path = "../project" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
 stillwind-syntax = { path = "../syntax" }
-napi-derive.workspace = true
+lean_string.workspace = true
 napi.workspace = true
+napi-derive.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

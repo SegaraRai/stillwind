@@ -14,7 +14,6 @@ workspace = true
 parallel = ["dep:rayon"]
 
 [dependencies]
-lean_string.workspace = true
 stillwind-css = { path = "../css", features = ["minify"] }
 stillwind-design-system = { path = "../design-system" }
 stillwind-diagnostics = { path = "../diagnostics" }
@@ -24,6 +23,7 @@ stillwind-source = { path = "../source" }
 stillwind-syntax = { path = "../syntax" }
 blake3.workspace = true
 cssparser.workspace = true
+lean_string.workspace = true
 rayon = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true

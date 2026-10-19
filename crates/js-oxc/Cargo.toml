@@ -10,11 +10,11 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-lean_string.workspace = true
 stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-ir = { path = "../ir" }
 stillwind-semantic = { path = "../semantic" }
 stillwind-source = { path = "../source" }
+lean_string.workspace = true
 oxc.workspace = true
 
 [[test]]

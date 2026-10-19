@@ -10,12 +10,12 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-lean_string.workspace = true
 stillwind-css = { path = "../css" }
 stillwind-diagnostics = { path = "../diagnostics" }
 stillwind-source = { path = "../source" }
 stillwind-syntax = { path = "../syntax" }
 cssparser.workspace = true
+lean_string.workspace = true
 lightningcss.workspace = true
 serde.workspace = true
 thiserror.workspace = true
