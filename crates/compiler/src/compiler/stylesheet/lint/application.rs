@@ -12,7 +12,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::{declaration_ranges, properties_interfere, property_covers};
 use stillwind_design_system::VariantContext;
 use stillwind_diagnostics::{
-    FixAction, Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind, SourceEdit,
+    FixAction, Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind,
+    MarkerUseErrorKind, SourceEdit,
 };
 use stillwind_source::{JoinText, Span};
 
@@ -20,7 +21,8 @@ use super::analysis::Checker;
 use crate::candidate_fixes::{WrittenSource, detect as detect_fixes};
 use crate::compiler::literal::{resolved_candidate_lints, variant_selector_lints};
 use crate::compiler::utilities::{
-    CompiledUtility, resolve_utility_targets, unresolved_lint_kind, unresolved_utility_finding,
+    CompiledUtility, marker_use_finding, resolve_utility_targets, unresolved_lint_kind,
+    unresolved_utility_finding,
 };
 
 /// Checks the `candidates` of one `@apply` statement, which are byte ranges of the
@@ -44,6 +46,17 @@ pub(super) fn check_application(
         let span = checker.span(range.clone());
         match resolve_utility_targets(raw, theme, VariantContext::Element) {
             Ok(Ok(utilities)) => {
+                if checker.enabled(LintKind::InvalidMarkerUse)
+                    && let Some(finding) = marker_use_finding(
+                        raw,
+                        raw.len(),
+                        span,
+                        theme,
+                        Some(MarkerUseErrorKind::Placement),
+                    )
+                {
+                    checker.report(finding);
+                }
                 checker.report_all(variant_selector_lints(raw, theme, settings, span, 0));
                 for prefix in prefixes {
                     let combined = format_args!("{prefix}{raw}").to_lean_string();

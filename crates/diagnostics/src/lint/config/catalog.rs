@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig,
+    ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig, MarkerUseConfig,
     RestrictedDeclarationsConfig, RestrictedLengthUnitsConfig, RestrictedThemeTokensConfig,
     RestrictedUtilitiesConfig, VariantDirectiveConfig,
 };
@@ -158,6 +158,9 @@ macro_rules! lint_config_type {
     (PreferVariantDirective) => {
         VariantDirectiveConfig
     };
+    (InvalidMarkerUse) => {
+        MarkerUseConfig
+    };
     ($variant:ident) => {
         LintSeverity
     };
@@ -212,6 +215,12 @@ macro_rules! lint_config_value {
             px_to_rem: false,
         }
     };
+    (InvalidMarkerUse, $severity:expr) => {
+        MarkerUseConfig {
+            severity: $severity,
+            ignored_classes: Vec::new(),
+        }
+    };
     ($variant:ident, $severity:expr) => {
         $severity
     };
@@ -240,6 +249,9 @@ macro_rules! lint_config_severity {
         $config.severity
     };
     (PreferVariantDirective, $config:expr) => {
+        $config.severity
+    };
+    (InvalidMarkerUse, $config:expr) => {
         $config.severity
     };
     ($variant:ident, $config:expr) => {

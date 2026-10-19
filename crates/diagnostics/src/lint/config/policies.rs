@@ -24,7 +24,8 @@ impl Default for CanonicalUtilitiesConfig {
     }
 }
 
-/// Project fields that override only the explicitly supplied parts of canonical lint policy.
+/// Project fields that override only the explicitly supplied parts of canonical lint
+/// policy.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CanonicalUtilitiesOverride {
@@ -32,6 +33,36 @@ pub struct CanonicalUtilitiesOverride {
     pub severity: Option<LintSeverity>,
     /// Omission keeps the default conversion policy.
     pub px_to_rem: Option<bool>,
+}
+
+/// Effective policy for `invalid-marker-use` after compiler defaults and project
+/// settings.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkerUseConfig {
+    /// Off skips detection and reporting.
+    pub severity: LintSeverity,
+    /// Marker class names whose findings are not reported, compared exactly with the
+    /// decoded class name, such as `group` or `foo/bar`.
+    pub ignored_classes: Vec<LeanStr>,
+}
+
+impl MarkerUseConfig {
+    /// Returns whether findings about the marker class `class` are reported.
+    pub fn reports_class(&self, class: &str) -> bool {
+        !self.ignored_classes.iter().any(|ignored| ignored == class)
+    }
+}
+
+/// Project fields that override only the explicitly supplied parts of the
+/// `invalid-marker-use` policy.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct MarkerUseOverride {
+    /// Omission uses the rule default.
+    pub severity: Option<LintSeverity>,
+    /// Omission preserves existing names; a supplied list replaces them.
+    pub ignored_classes: Option<Vec<LeanStr>>,
 }
 
 /// Effective policy for `prefer-variant-directive` after compiler defaults and project

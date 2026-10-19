@@ -7,7 +7,7 @@ use stillwind_diagnostics::LintOverrides;
 
 use super::{
     NativeArbitrarySpacingOptions, NativeCanonicalUtilitiesOptions,
-    NativeConflictingUtilitiesOptions, NativeRestrictedDeclarationsOptions,
+    NativeConflictingUtilitiesOptions, NativeMarkerUseOptions, NativeRestrictedDeclarationsOptions,
     NativeRestrictedLengthUnitsOptions, NativeRestrictedThemeTokensOptions,
     NativeRestrictedUtilitiesOptions, NativeVariantDirectiveOptions, lint_severity,
 };
@@ -52,7 +52,7 @@ pub struct NativeLintOptions {
     /// Settings for `unknown-utility`.
     pub unknown_utility: Option<String>,
     /// Settings for `invalid-marker-use`.
-    pub invalid_marker_use: Option<String>,
+    pub invalid_marker_use: Option<NativeMarkerUseOptions>,
     /// Settings for `invalid-variant`.
     pub invalid_variant: Option<String>,
     /// Settings for `unknown-variant`.
@@ -225,7 +225,7 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_marker_use: input
                 .invalid_marker_use
-                .map(|value| lint_severity(&value))
+                .map(TryInto::try_into)
                 .transpose()?,
             invalid_variant: input
                 .invalid_variant

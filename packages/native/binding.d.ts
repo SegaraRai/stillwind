@@ -1217,7 +1217,7 @@ export interface NativeLintOptions {
   /** Settings for `unknown-utility`. */
   unknownUtility?: string
   /** Settings for `invalid-marker-use`. */
-  invalidMarkerUse?: string
+  invalidMarkerUse?: NativeMarkerUseOptions
   /** Settings for `invalid-variant`. */
   invalidVariant?: string
   /** Settings for `unknown-variant`. */
@@ -1349,6 +1349,14 @@ export interface NativeMapSource {
    * file again.
    */
   content: string
+}
+
+/** Policy for candidates that cannot add the marker class that they name. */
+export interface NativeMarkerUseOptions {
+  /** Reporting severity; omission uses the rule default. */
+  severity?: string
+  /** Exact decoded marker class names whose findings are not reported. */
+  ignoredClasses?: Array<string>
 }
 
 /** CSS and optional debugging metadata from final asset processing. */

@@ -64,8 +64,9 @@ candidate appears:
 - `missing-document-target` reports a candidate of a document-level style whose
   variants do not select an element, as [Variant targets](#variant-targets) describes.
 - `invalid-marker-use` reports a candidate that names a
-  [marker class](css-emission.md#marker-classes) but cannot add it and resolves to no
-  utility, such as `hover:group`, `!peer`, or `group/[x]`.
+  [marker class](css-emission.md#marker-classes) but cannot add it, such as
+  `hover:group`, `!peer`, or `group/[x]`. It also reports a candidate that resolves to a
+  utility of the same name, which keeps its utility output.
 
 Each finding covers the failing part of the candidate, such as the value `red-999` or
 the inner variant `sm`. An unknown name gets a spelling suggestion when a close

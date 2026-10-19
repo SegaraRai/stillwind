@@ -21,8 +21,8 @@ use super::conditionals::{UnsupportedCondition, check_candidate};
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
 use super::utilities::{
-    CompiledUtility, clamped_value, invalid_property_value_finding, resolve_utility_targets,
-    unresolved_lint_kind, unresolved_utility_finding, written_span,
+    CompiledUtility, clamped_value, invalid_property_value_finding, marker_use_finding,
+    resolve_utility_targets, unresolved_lint_kind, unresolved_utility_finding, written_span,
 };
 use super::variants::document_scoped_selector;
 
@@ -65,17 +65,17 @@ impl LiteralContribution {
     ///
     /// A candidate that names a marker class adds the class as written when it has no
     /// variants, and it still contributes the utilities that it resolves to. Variants
-    /// of `plan`, including ref conditions, prevent the class. An unresolved candidate
-    /// that only names a marker reports `invalid-marker-use` when it cannot add the
-    /// class and nothing otherwise. Any other unresolved candidate is omitted from class
-    /// output and canonical input; enabled lint rules report it. A resolved candidate
-    /// whose own variants would apply to the document is reported without changing its
-    /// output, because the host decides that policy's severity. A candidate with a
-    /// malformed capture of a CSS-registered runtime condition or a malformed `--if()`
-    /// function is omitted as an invalid utility. With `use_css_if` false, a runtime
-    /// condition that the fallback strategy cannot represent omits its candidate and
-    /// reports `runtime-condition-requires-css-if`. A malformed utility requirement in
-    /// the design system appends a fatal diagnostic, and callers must discard the
+    /// of `plan`, including ref conditions, prevent the class, and `invalid-marker-use`
+    /// reports a candidate that cannot add its class whether or not it resolves. Any
+    /// other unresolved candidate is omitted from class output and canonical input;
+    /// enabled lint rules report it. A resolved candidate whose own variants would
+    /// apply to the document is reported without changing its output, because the host
+    /// decides that policy's severity. A candidate with a malformed capture of a
+    /// CSS-registered runtime condition or a malformed `--if()` function is omitted as
+    /// an invalid utility. With `use_css_if` false, a runtime condition that the
+    /// fallback strategy cannot represent omits its candidate and reports
+    /// `runtime-condition-requires-css-if`. A malformed utility requirement in the
+    /// design system appends a fatal diagnostic, and callers must discard the
     /// compilation if diagnostics are present.
     pub(super) fn resolve(
         value: &Spanned<LeanStr>,
@@ -121,12 +121,15 @@ impl LiteralContribution {
                     utility.span,
                 ));
             }
-            let mut adds_marker = false;
-            if !plan.has_refs
-                && let Some(MarkerUse::Class(class)) = marker_use(&raw, theme)
-            {
-                contribution.markers.push(class.as_str().into());
-                adds_marker = true;
+            contribution.markers.extend(added_marker(&raw, theme, plan));
+            if lint_settings.enabled_for_detection(LintKind::InvalidMarkerUse) {
+                lint_findings.extend(marker_use_finding(
+                    &raw,
+                    utility.value.raw.len(),
+                    utility.span,
+                    theme,
+                    plan.has_refs.then_some(MarkerUseErrorKind::Conditional),
+                ));
             }
             match resolve_utility_targets(&raw, theme, VariantContext::Element) {
                 Ok(Ok(mut resolved)) => {
@@ -157,16 +160,11 @@ impl LiteralContribution {
                     }
                     contribution.utilities.append(&mut resolved);
                 }
-                Ok(Err(mut failure)) => {
-                    if let UtilityFailureReason::Marker { reason, .. } = &mut failure.reason
-                        && *reason == MarkerUseErrorKind::Placement
+                // `marker_use_finding` above reports a candidate that names a marker.
+                Ok(Err(failure)) => {
+                    if !matches!(failure.reason, UtilityFailureReason::Marker { .. })
+                        && lint_settings.enabled_for_detection(unresolved_lint_kind(&failure))
                     {
-                        if adds_marker {
-                            continue;
-                        }
-                        *reason = MarkerUseErrorKind::Conditional;
-                    }
-                    if lint_settings.enabled_for_detection(unresolved_lint_kind(&failure)) {
                         lint_findings.push(unresolved_utility_finding(
                             &raw,
                             utility.value.raw.len(),
@@ -186,6 +184,15 @@ impl LiteralContribution {
             }
         }
         contribution
+    }
+}
+
+/// Returns the marker class that the candidate `raw` adds to the element, or `None`
+/// when it names no marker class, cannot add it, or `plan` applies ref conditions.
+fn added_marker(raw: &str, theme: &ThemeIndex, plan: &StyleVariantPlan) -> Option<LeanStr> {
+    match marker_use(raw, theme)? {
+        MarkerUse::Class(class) if !plan.has_refs => Some(class.as_str().into()),
+        _ => None,
     }
 }
 

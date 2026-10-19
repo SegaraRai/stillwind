@@ -11,12 +11,12 @@ use std::ops::Range;
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    InvalidPropertyValue, InvalidValueReason, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex,
-    UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
+    InvalidPropertyValue, InvalidValueReason, MarkerUse, NestedUtilityRule, ResolvedUtilityTarget,
+    ThemeIndex, UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
     UtilityResolutionError, UtilityTokenUse, VariableTypeSource, VariantApplication,
-    VariantContext, check_candidate_variants, resolve_utility,
+    VariantContext, check_candidate_variants, marker_use, resolve_utility,
 };
-use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, MarkerUseErrorKind};
 use stillwind_source::Span;
 use stillwind_syntax::{Variant, parse_candidate};
 
@@ -220,6 +220,38 @@ pub(crate) fn unresolved_utility_finding(
         _ => LintDiagnostic::InvalidUtility { utility, detail },
     };
     LintFinding::new(diagnostic, span)
+}
+
+/// Returns the `invalid-marker-use` finding for a candidate that names a
+/// [marker class](stillwind_design_system::MarkerClasses) but cannot add it, whether or
+/// not a utility resolves the candidate. Returns `None` when the candidate names no
+/// marker class or adds it.
+///
+/// `candidate`, `written`, and `span` have the meanings that
+/// [`unresolved_utility_finding`] describes, and the finding covers all of `span`.
+/// `context` is `None` where a valid marker form adds its class to the element.
+/// Otherwise it is the reason that also rejects a valid form, such as
+/// [`MarkerUseErrorKind::Placement`] for `@apply`.
+pub(crate) fn marker_use_finding(
+    candidate: &str,
+    written: usize,
+    span: Span,
+    theme: &ThemeIndex,
+    context: Option<MarkerUseErrorKind>,
+) -> Option<LintFinding> {
+    let (class, reason) = match marker_use(candidate, theme)? {
+        MarkerUse::Class(class) => (class, context?),
+        MarkerUse::Invalid { class, reason } => (class, reason),
+    };
+    let prefix = candidate.len().saturating_sub(written);
+    Some(LintFinding::new(
+        LintDiagnostic::InvalidMarkerUse {
+            utility: candidate[prefix..].to_lean_str(),
+            class: class.as_str().into(),
+            reason,
+        },
+        span,
+    ))
 }
 
 /// Returns the rule that reports `failure`: `missing-document-target` for a

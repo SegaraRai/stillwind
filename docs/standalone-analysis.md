@@ -638,6 +638,10 @@ part of a shorthand. Two different values for the same property still conflict.
 Logical and physical longhands still conflict when their relationship depends on
 writing mode.
 
+`invalid-marker-use` defaults to `warn`. Its `ignoredClasses` option lists exact
+decoded marker class names, such as `group` or `foo/bar`, whose findings are not
+reported. A supplied list replaces the inherited list.
+
 The other utility policies default to off. Supplying a policy object enables it at
 `warn` unless it inherits a severity from a preset or specifies one in that object.
 

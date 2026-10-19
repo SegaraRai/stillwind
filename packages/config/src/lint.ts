@@ -19,6 +19,8 @@ export type LintRules = Partial<Record<SimpleLintRule, LintSeverity>> & {
   "no-restricted-declarations"?: LintSeverity | RestrictedDeclarationsOptions;
   /** Severity or exceptions for a narrower property overriding a shorthand. */
   "conflicting-utilities"?: LintSeverity | ConflictingUtilitiesOptions;
+  /** Severity or marker class names whose misuse is not reported. */
+  "invalid-marker-use"?: LintSeverity | MarkerUseOptions;
   /** Severity or ordered restrictions on nonzero CSS length units. */
   "no-restricted-length-units"?: LintSeverity | LengthUnitsOptions;
   /** Severity or patterns restricting direct references to theme custom properties. */
@@ -94,6 +96,14 @@ export type ConflictingUtilitiesOptions = {
   severity?: LintSeverity;
   /** Allows a narrower property to override part of a shorthand. Defaults to false. */
   allowShorthandOverrides?: boolean;
+};
+
+/** Controls reports of candidates that cannot add the marker class that they name. */
+export type MarkerUseOptions = {
+  /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
+  severity?: LintSeverity;
+  /** Exact decoded marker class names, such as `group` or `foo/bar`, whose findings are not reported. */
+  ignoredClasses?: readonly string[];
 };
 
 /** Controls nonzero CSS lengths; later matching rules replace earlier restrictions. */
@@ -260,6 +270,10 @@ const ruleOptions = {
   "conflicting-utilities": strictObject({
     severity: v.optional(severitySchema),
     allowShorthandOverrides: v.optional(v.boolean()),
+  }),
+  "invalid-marker-use": strictObject({
+    severity: v.optional(severitySchema),
+    ignoredClasses: v.optional(v.array(nonemptyText)),
   }),
   "no-restricted-length-units": strictObject({
     severity: v.optional(severitySchema),

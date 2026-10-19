@@ -21,11 +21,11 @@ pub use overrides::LintOverrides;
 pub use policies::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    RestrictedDeclarationRule, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
-    RestrictedLengthUnitRule, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
-    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, VariantDirectiveConfig,
-    VariantDirectiveOverride,
+    MarkerUseConfig, MarkerUseOverride, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
+    RestrictedDeclarationsOverride, RestrictedLengthUnitRule, RestrictedLengthUnitsConfig,
+    RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule,
+    VariantDirectiveConfig, VariantDirectiveOverride,
 };
 pub use presets::LintPreset;
 pub use settings::LintSettings;

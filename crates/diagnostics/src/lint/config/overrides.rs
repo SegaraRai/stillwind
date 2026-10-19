@@ -5,10 +5,11 @@ use serde::{Deserialize, Serialize};
 use super::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LintConfig, LintKind, LintSettings, LintSeverity, RestrictedDeclarationsConfig,
-    RestrictedDeclarationsOverride, RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride,
-    RestrictedThemeTokensConfig, RestrictedThemeTokensOverride, RestrictedUtilitiesConfig,
-    RestrictedUtilitiesOverride, VariantDirectiveConfig, VariantDirectiveOverride,
+    LintConfig, LintKind, LintSettings, LintSeverity, MarkerUseConfig, MarkerUseOverride,
+    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedLengthUnitsConfig,
+    RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
+    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, VariantDirectiveConfig,
+    VariantDirectiveOverride,
 };
 
 /// Project lint settings applied to compiler defaults.
@@ -115,8 +116,8 @@ pub struct LintOverrides {
     pub invalid_utility: Option<LintSeverity>,
     /// Reporting level for `unknown-utility`.
     pub unknown_utility: Option<LintSeverity>,
-    /// Reporting level for `invalid-marker-use`.
-    pub invalid_marker_use: Option<LintSeverity>,
+    /// Field-wise `invalid-marker-use` policy overrides.
+    pub invalid_marker_use: Option<MarkerUseOverride>,
     /// Reporting level for `invalid-variant`.
     pub invalid_variant: Option<LintSeverity>,
     /// Reporting level for `unknown-variant`.
@@ -151,6 +152,22 @@ impl LintOverrides {
         let mut settings = defaults.clone();
         self.resolve_reporting_levels(&mut settings);
         self.resolve_source_restrictions(&mut settings);
+        if let Some(overrides) = &self.invalid_marker_use {
+            let mut config = match settings.get(LintKind::InvalidMarkerUse) {
+                Some(LintConfig::InvalidMarkerUse(config)) => config.clone(),
+                _ => MarkerUseConfig {
+                    severity: LintSeverity::Warn,
+                    ignored_classes: Vec::new(),
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = &overrides.ignored_classes {
+                config.ignored_classes.clone_from(value);
+            }
+            settings.insert(LintConfig::InvalidMarkerUse(config));
+        }
         if let Some(overrides) = &self.conflicting_utilities {
             let mut config = match settings.get(LintKind::ConflictingUtilities) {
                 Some(LintConfig::ConflictingUtilities(config)) => config.clone(),
@@ -290,7 +307,6 @@ impl LintOverrides {
             ),
             (LintKind::InvalidUtility, self.invalid_utility),
             (LintKind::UnknownUtility, self.unknown_utility),
-            (LintKind::InvalidMarkerUse, self.invalid_marker_use),
             (LintKind::InvalidVariant, self.invalid_variant),
             (LintKind::UnknownVariant, self.unknown_variant),
             (

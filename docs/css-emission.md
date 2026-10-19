@@ -242,9 +242,11 @@ adds both `card` and the generated class of `card`.
 
 A marker class is unconditional. A candidate with variants, `!`, a leading `-`, or a
 modifier that the marker does not accept adds no class, and neither does a candidate in
-`@apply` or in a document-level style. When no utility resolves such a candidate,
-`invalid-marker-use` reports it. `hover:card` still applies the `card` utility under
-`:hover` without the class, as in Tailwind.
+`@apply` or in a document-level style. `invalid-marker-use` reports such a candidate.
+When a utility of the same name resolves, the candidate still contributes that utility:
+`hover:card` applies the `card` utility under `:hover` without the class, as in Tailwind,
+and the rule still reports it. `ignoredClasses` lists the marker classes that the rule
+does not report.
 
 ## Plugins
 

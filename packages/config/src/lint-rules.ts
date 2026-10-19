@@ -119,8 +119,11 @@ export const lintRules = {
   "invalid-marker-use": {
     category: "input",
     nativeName: "invalidMarkerUse",
-    defaults: null,
-    options: null,
+    defaults: {
+      severity: "warn",
+      ignoredClasses: [],
+    },
+    options: ["severity", "ignoredClasses"],
   },
   "invalid-variant": {
     category: "input",

@@ -41,6 +41,7 @@ export {
   type LintPreset,
   type LintRules,
   type LintSeverity,
+  type MarkerUseOptions,
   type ResolvedLintRules,
   type RestrictedDeclarationsOptions,
   type RestrictedThemeTokensOptions,

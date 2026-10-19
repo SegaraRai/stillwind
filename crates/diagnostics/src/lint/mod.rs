@@ -17,11 +17,11 @@ pub use config::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
     LintCategory, LintConfig, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity,
-    LintSurface, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
-    RestrictedDeclarationsOverride, RestrictedLengthUnitRule, RestrictedLengthUnitsConfig,
-    RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, RestrictedUtilityRule,
-    VariantDirectiveConfig, VariantDirectiveOverride,
+    LintSurface, MarkerUseConfig, MarkerUseOverride, RestrictedDeclarationRule,
+    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedLengthUnitRule,
+    RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig,
+    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
+    RestrictedUtilityRule, VariantDirectiveConfig, VariantDirectiveOverride,
 };
 pub use diagnostic::{LintDiagnostic, MarkerUseErrorKind, RuleGroupInputErrorKind};
 pub use finding::LintFinding;

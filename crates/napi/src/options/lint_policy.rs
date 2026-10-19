@@ -5,7 +5,7 @@ use napi_derive::napi;
 
 use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
-    LintSeverity, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
+    LintSeverity, MarkerUseOverride, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
     RestrictedLengthUnitRule, RestrictedLengthUnitsOverride, RestrictedThemeTokensOverride,
     RestrictedUtilitiesOverride, RestrictedUtilityRule, VariantDirectiveOverride,
 };
@@ -54,6 +54,30 @@ impl TryFrom<NativeVariantDirectiveOptions> for VariantDirectiveOverride {
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             px_to_rem: value.px_to_rem,
+        })
+    }
+}
+
+/// Policy for candidates that cannot add the marker class that they name.
+#[napi(object)]
+pub struct NativeMarkerUseOptions {
+    /// Reporting severity; omission uses the rule default.
+    pub severity: Option<String>,
+    /// Exact decoded marker class names whose findings are not reported.
+    pub ignored_classes: Option<Vec<String>>,
+}
+
+impl TryFrom<NativeMarkerUseOptions> for MarkerUseOverride {
+    type Error = Error;
+
+    fn try_from(value: NativeMarkerUseOptions) -> napi::Result<Self> {
+        Ok(Self {
+            severity: value
+                .severity
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            ignored_classes: (value.ignored_classes)
+                .map(|values| values.into_iter().map(Into::into).collect()),
         })
     }
 }

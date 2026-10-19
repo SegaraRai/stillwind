@@ -18,7 +18,9 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_source::{SourceFile, Span};
 
-use super::{LintDiagnostic, LintFinding, LintKind, LintSettings, LintSeverity, LintSurface};
+use super::{
+    LintConfig, LintDiagnostic, LintFinding, LintKind, LintSettings, LintSeverity, LintSurface,
+};
 
 /// What a directive switches off, as determined by its keyword.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -149,11 +151,31 @@ pub(crate) fn suppressing_directive(
     active.or(local)
 }
 
+/// Removes the findings that `settings` never reports: every finding when no rule is
+/// enabled, and the `invalid-marker-use` findings whose marker class the rule's
+/// `ignoredClasses` lists. Returns whether any rule is enabled.
+fn remove_unreported_findings(settings: &LintSettings, findings: &mut Vec<LintFinding>) -> bool {
+    if !settings.has_enabled_rules() {
+        findings.clear();
+        return false;
+    }
+    if let Some(LintConfig::InvalidMarkerUse(config)) = settings.get(LintKind::InvalidMarkerUse)
+        && !config.ignored_classes.is_empty()
+    {
+        findings.retain(|finding| match &finding.diagnostic {
+            LintDiagnostic::InvalidMarkerUse { class, .. } => config.reports_class(class),
+            _ => true,
+        });
+    }
+    true
+}
+
 /// Validates suppression comments, detects unused disables after complete analysis, and
-/// filters findings. `complete` must be false when analysis stopped before all
-/// producers ran. Only enabled rules or rules with reported findings participate in
-/// unused checks. Validation findings do not make their own suppression directives
-/// count as used.
+/// filters findings. Findings about the marker classes that `invalid-marker-use`
+/// ignores are removed first, so they neither report nor count as suppressed.
+/// `complete` must be false when analysis stopped before all producers ran. Only
+/// enabled rules or rules with reported findings participate in unused checks.
+/// Validation findings do not make their own suppression directives count as used.
 ///
 /// `surface` selects the comment syntax of `source`. A rule name that does not check
 /// `surface` is invalid, and only rules that check it participate in unused checks.
@@ -164,8 +186,7 @@ pub fn finish_lint_findings(
     findings: &mut Vec<LintFinding>,
     complete: bool,
 ) {
-    if !settings.has_enabled_rules() {
-        findings.clear();
+    if !remove_unreported_findings(settings, findings) {
         return;
     }
     let directives = collect_lint_directives(source.text(), surface);

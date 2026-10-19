@@ -8,7 +8,7 @@
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
 use stillwind_diagnostics::{
-    LintDiagnostic, LintKind, LintOverrides, LintSeverity, MarkerUseErrorKind,
+    LintDiagnostic, LintKind, LintOverrides, LintSeverity, MarkerUseErrorKind, MarkerUseOverride,
 };
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -122,10 +122,17 @@ export const hovered = style({ "hover:": "card-title" });"#,
     );
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert!(
-        result.lint_findings.is_empty(),
-        "{:#?}",
-        result.lint_findings
+    assert_eq!(
+        result
+            .lint_findings
+            .iter()
+            .map(|finding| &finding.diagnostic)
+            .collect::<Vec<_>>(),
+        [&LintDiagnostic::InvalidMarkerUse {
+            utility: "card-title".into(),
+            class: "card-title".into(),
+            reason: MarkerUseErrorKind::Conditional,
+        }]
     );
     let transformed = result.apply_to_source(&component).unwrap();
     for (name, class) in [("card", "card"), ("title", "card-title")] {
@@ -145,6 +152,55 @@ export const hovered = style({ "hover:": "card-title" });"#,
     assert!(!hovered.contains("card"), "{hovered}");
     assert!(result.css.contains(" .card-title{"), "{}", result.css);
     assert!(result.css.contains(".card ."), "{}", result.css);
+}
+
+#[test]
+fn ignored_marker_classes_are_not_reported() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+export const a = style("hover:group hover:card-title !peer");"#,
+    )
+    .unwrap();
+    let theme = css_source(
+        FileId(2),
+        "@import \"stillwind\";
+         @utility card-title { .card & { color: red; } }",
+    )
+    .unwrap();
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            invalid_marker_use: Some(MarkerUseOverride {
+                ignored_classes: Some(vec!["group".into(), "card-title".into()]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &options,
+    );
+
+    let classes: Vec<_> = result
+        .lint_findings
+        .iter()
+        .map(|finding| match &finding.diagnostic {
+            LintDiagnostic::InvalidMarkerUse { class, .. } => class.as_str(),
+            other => panic!("unexpected finding {other:?}"),
+        })
+        .collect();
+    assert_eq!(classes, ["peer"]);
 }
 
 #[test]

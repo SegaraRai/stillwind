@@ -459,3 +459,31 @@ test("variant directive replacements keep px lengths separate unless enabled", (
     ),
   ).toThrow();
 });
+
+test("invalid-marker-use keeps its preset severity when only ignored classes are supplied", () => {
+  const resolved = resolveLintConfig({
+    extends: [lintPresets.recommended],
+    rules: {
+      "invalid-marker-use": {
+        ignoredClasses: ["group", "foo/bar"],
+      },
+    },
+  });
+  expect(resolved.rules["invalid-marker-use"]).toEqual({
+    severity: "warn",
+    ignoredClasses: ["group", "foo/bar"],
+  });
+  expect(() =>
+    validateLintConfig(
+      {
+        rules: {
+          "invalid-marker-use": {
+            ignoredClasses: [""],
+          },
+        },
+      },
+      "config.lint",
+      false,
+    ),
+  ).toThrow("config.lint.rules.invalid-marker-use.ignoredClasses");
+});

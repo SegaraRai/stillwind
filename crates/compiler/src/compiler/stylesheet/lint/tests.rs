@@ -122,6 +122,13 @@ fn applied_marker_classes_are_reported_as_marker_uses() {
             finding(LintKind::InvalidMarkerUse, "hover:peer"),
         ]
     );
+    assert_eq!(
+        default_findings(
+            "@utility tab { .tabs & { color: red; } } @utility tabs { gap: 0; }
+             .nav { @apply tabs; }"
+        ),
+        [finding(LintKind::InvalidMarkerUse, "tabs")]
+    );
 }
 
 #[test]
