@@ -43,7 +43,7 @@ fn completes_partial_directives_applications_variants_and_slots() {
     assert!(labels(".a { @variant ").contains(&"hover".into()));
     assert_eq!(labels(".a { @apply hover:bg-br"), ["hover:bg-brand"]);
     assert_eq!(labels(".a { @variant ho"), ["hover"]);
-    assert_eq!(labels(".a { @variant hover "), ["hover"]);
+    assert_eq!(labels(".a { @variant hover "), [] as [LeanStr; 0]);
     assert_eq!(labels(".a { @variant dark:ho"), ["dark:hover"]);
     assert_eq!(labels(".a { @variant dark, ho"), ["hover"]);
     assert_eq!(labels("@variant ho"), [] as [LeanStr; 0]);

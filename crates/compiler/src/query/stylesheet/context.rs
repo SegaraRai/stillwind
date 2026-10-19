@@ -77,7 +77,8 @@ pub(super) enum Kind {
 /// Invalid offsets and positions inside comments, strings, or URLs return `None`.
 /// At other positions, the returned range covers a whole name, candidate, variant
 /// sequence, or slot argument. Theme arguments take precedence over enclosing
-/// candidates. Unsupported syntax and variant definition headers return `None`.
+/// candidates. Unsupported syntax, variant definition headers, and whitespace after
+/// an applied variant sequence return `None`.
 pub(super) fn context(css: &str, offset: usize) -> Option<Context> {
     if !css.is_char_boundary(offset) || protected(&mut Parser::new(css), css, offset) {
         return None;
@@ -262,7 +263,7 @@ fn at_rule_context(
         });
     }
     if applied {
-        return Some(variant_context(css, prelude, offset, positions, enclosing));
+        return variant_context(css, prelude, offset, positions, enclosing);
     }
     let directive = match name.as_str() {
         "stillwind-require-properties" => "stillwind-require-properties",
@@ -289,26 +290,32 @@ fn at_rule_context(
 /// Returns the applied `@variant` input at `offset` in the header whose `prelude`
 /// addresses the original `css`. `positions` and `enclosing` describe the parent, and
 /// the cursor must lie inside the header.
+///
+/// Returns `None` when only whitespace separates the cursor from the end of a sequence
+/// before it, because whitespace does not start another sequence.
 fn variant_context(
     css: &str,
     prelude: &Range<usize>,
     offset: usize,
     positions: Positions,
     enclosing: &[Vec<Range<usize>>],
-) -> Context {
+) -> Option<Context> {
     let sequences = sequences(css, prelude);
+    if sequences
+        .iter()
+        .any(|range| range.end < offset && css[range.end..offset].trim().is_empty())
+    {
+        return None;
+    }
     // An empty sequence inserts at the cursor. Extending its range over adjacent
     // whitespace would make editors filter labels by that whitespace or reject a
     // range that crosses a line break.
     let current = sequences.iter().find(|range| {
         (range.start <= offset && offset <= range.end)
             || (offset < range.start && css[offset..range.start].trim().is_empty())
-            || (range.end < offset && css[range.end..offset].trim().is_empty())
     });
-    Context {
-        range: current.map_or(offset..offset, |range| {
-            range.start.min(offset)..range.end.max(offset)
-        }),
+    Some(Context {
+        range: current.map_or(offset..offset, |range| range.start.min(offset)..range.end),
         kind: Kind::Variant,
         positions,
         applied: AppliedVariants {
@@ -319,7 +326,7 @@ fn variant_context(
                 .cloned()
                 .collect(),
         },
-    }
+    })
 }
 
 /// Returns the trimmed, non-empty comma-separated sequences of a `@variant` `prelude`
@@ -497,7 +504,6 @@ mod tests {
     #[test]
     fn cursor_whitespace_extends_incomplete_headers() {
         assert_context(".a { @apply flex |", "", Kind::Apply);
-        assert_context(".a { @variant hover |", "hover ", Kind::Variant);
         assert_context(".a { @variant dark, |", "", Kind::Variant);
         assert_context(
             ".a {
@@ -514,6 +520,18 @@ mod tests {
                 declarations: false,
             },
         );
+    }
+
+    #[test]
+    fn whitespace_after_a_variant_sequence_has_no_context() {
+        for marked in [
+            ".a { @variant hover |",
+            ".a { @variant hover
+  | {} }",
+        ] {
+            let (css, offset) = cursor(marked);
+            assert_eq!(context(&css, offset), None, "{marked}");
+        }
     }
 
     #[test]
