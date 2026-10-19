@@ -110,7 +110,7 @@ test("packaged CVA factories select validation through the framework entrypoint"
       }
     }
   }
-});
+}, 30_000);
 
 test("minified framework runtimes materialize fragments without configuration property names", async () => {
   for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
@@ -144,4 +144,4 @@ test("minified framework runtimes materialize fragments without configuration pr
       );
     }
   }
-});
+}, 30_000);

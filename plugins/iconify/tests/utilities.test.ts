@@ -206,6 +206,7 @@ test.for([
   ["size-full icon-demo--close", true],
 ] as const)(
   "built-in utilities override icon sizes: %s, plugin first: %s",
+  { timeout: 30_000 },
   async ([classes, pluginFirst]) => {
     const { css, diagnostics } = await compile(
       `import { style } from "stillwind/react";

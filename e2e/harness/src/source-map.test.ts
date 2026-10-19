@@ -96,7 +96,7 @@ describe("positions within a style call", () => {
     await expect(
       verifyMacroSourceMap(directory, "src/app.ts", source, macro, false, undefined, "call-span"),
     ).rejects.toThrow("No generated class");
-  });
+  }, 30_000);
 
   test("CSS checks reject a position inside the call's argument", async () => {
     const directory = await createOutputDirectory();

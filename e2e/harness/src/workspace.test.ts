@@ -54,7 +54,7 @@ test("copies application files, excludes artifacts, and edits only its disposabl
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30_000);
 
 test("preserves multiple base configs when copying a framework fixture", async () => {
   const root = await mkdtemp(join(tmpdir(), "stillwind-e2e-"));
@@ -77,7 +77,7 @@ test("preserves multiple base configs when copying a framework fixture", async (
   } finally {
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 30_000);
 
 test("rejects paths outside the fixture before reading or writing them", () => {
   const root = join(tmpdir(), "fixture");

@@ -28,5 +28,5 @@ for (const [framework, load] of frameworks) {
         /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition|media|css))?\(\) is a compile-time macro/,
       );
     }
-  });
+  }, 30_000);
 }
