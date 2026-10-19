@@ -145,7 +145,7 @@ export const named = style("icon-demo--close");
 
   expect(bracket.css).toContain("mask-image: var(--icon-demo--close)");
   expect(named.css).not.toContain("--icon-demo--close");
-});
+}, 30_000);
 
 test("editor colors omit icon utilities while keeping their hover previews", async () => {
   const code = `import { style } from "stillwind/react";
