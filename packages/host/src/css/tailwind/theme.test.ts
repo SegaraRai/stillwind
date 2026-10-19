@@ -83,6 +83,30 @@ test("only the plugins' own configuration is written back as CSS", () => {
   expect(new PluginTheme([{}], []).css()).toBe("");
 });
 
+test("values that refer to their own variable are inlined instead of declared", () => {
+  expect(
+    new PluginTheme(
+      [
+        {
+          theme: {
+            extend: {
+              colors: {
+                primary: "var(--color-primary)",
+                accent: "var(--color-accent, red)",
+                brand: "var(--color-primary)",
+              },
+            },
+          },
+        },
+      ],
+      [],
+    ).css(),
+  ).toBe(
+    "@stillwind-plugin-theme{--color-brand:var(--color-primary);}" +
+      "@stillwind-plugin-theme inline{--color-primary:var(--color-primary);--color-accent:var(--color-accent, red);}",
+  );
+});
+
 test("fontFamily.sans and fontFamily.mono set the preflight fonts unless CSS defines the family", () => {
   const css = (tokens: ReturnType<typeof token>[]) =>
     new PluginTheme(

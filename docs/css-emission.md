@@ -355,10 +355,12 @@ places its utilities before the other utilities.
 Plugin theme configuration supports functions and `extend`, and `theme()` reads the CSS
 theme with the same key mapping as Tailwind, such as `colors` to `--color-*` and
 `transitionDuration.DEFAULT` to `--default-transition-duration`. Values that the plugins
-configure are written back as CSS theme variables. Ordinary `@theme` values take
-precedence over them, and they take precedence over `@theme default` values. Tailwind's
-v3 default theme answers `theme()` reads without CSS or plugin values, but it is never
-written back.
+configure are written back as CSS theme variables. A value that refers to its own
+variable, such as daisyUI's `colors.primary: "var(--color-primary)"`, would make that
+variable invalid through a cycle, so utilities inline it and no variable is declared.
+Ordinary `@theme` values take precedence over them, and they take precedence over
+`@theme default` values. Tailwind's v3 default theme answers `theme()` reads without CSS
+or plugin values, but it is never written back.
 
 A configured `fontFamily.sans` also sets `--default-font-family`,
 `--default-font-feature-settings`, and `--default-font-variation-settings`, which the

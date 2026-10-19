@@ -183,6 +183,20 @@ function read(value: unknown, path: readonly string[]): unknown {
 }
 
 /**
+ * Whether a theme value is a `var()` reference to the variable that it would define.
+ * @param name - Variable name without the leading `--`, such as `color-primary`.
+ * @param value - Configured value.
+ * @returns Whether `value` contains `var(--name)` or `var(--name, ...)`, which makes a declaration
+ * of `--name` a cycle.
+ */
+function selfReference(name: string, value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    [...value.matchAll(/var\(\s*--([^\s,)]+)\s*[,)]/g)].some((reference) => reference[1] === name)
+  );
+}
+
+/**
  * Whether a value is a plain object rather than null or an array.
  * @param value - Any value.
  * @returns Whether `value` can hold config keys.
@@ -329,7 +343,8 @@ export class PluginTheme {
 
   /**
    * Emits the plugins' own theme configuration, which native utility resolution also needs.
-   * @returns A `@stillwind-plugin-theme` block with the configured variables and keyframes, or an
+   * @returns A `@stillwind-plugin-theme` block with the configured variables and keyframes, and a
+   * `@stillwind-plugin-theme inline` block with the values that refer to their own variable, or an
    * empty string when the plugins configure nothing.
    */
   css(): string {
@@ -345,6 +360,7 @@ export class PluginTheme {
       configured[key] = this.#resolve(key, layers);
     }
     let declarations = "";
+    let inline = "";
     // A replaced section clears the `@theme default` values of its namespace, as Tailwind's
     // `clearNamespace(..., ThemeOptions.DEFAULT)` does. Ordinary definitions stay.
     for (const key of replaced) {
@@ -368,7 +384,15 @@ export class PluginTheme {
         }
       }
       const name = keyPathToCssProperty(path);
-      if (name) {
+      if (!name) {
+        continue;
+      }
+      // A value such as daisyUI's `colors.primary: "var(--color-primary)"` names the variable
+      // that it would define. Emitting it would make the variable invalid through a cycle, so
+      // utilities inline the reference and the plugin's own CSS keeps defining the variable.
+      if (selfReference(name, value)) {
+        inline += `--${name}:${String(value)};`;
+      } else {
         declarations += `--${name}:${String(value)};`;
       }
     }
@@ -397,7 +421,10 @@ export class PluginTheme {
         frames += `@keyframes ${name}{${serializeCss(body)}}`;
       }
     }
-    return declarations || frames ? `@stillwind-plugin-theme{${declarations}${frames}}` : "";
+    return [
+      declarations || frames ? `@stillwind-plugin-theme{${declarations}${frames}}` : "",
+      inline ? `@stillwind-plugin-theme inline{${inline}}` : "",
+    ].join("");
   }
 
   /**

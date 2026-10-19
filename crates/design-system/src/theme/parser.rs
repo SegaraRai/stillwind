@@ -493,6 +493,18 @@ mod tests {
             ),
             Some("red".into())
         );
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@theme default { --color-brand: blue; }              @stillwind-plugin-theme inline { --color-brand: var(--color-brand); }",
+        )
+        .unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
+        let token = theme.token("color", "brand").unwrap();
+        assert_eq!(token.value.value, "var(--color-brand)");
+        assert_eq!(token.mode, ThemeTokenMode::Inline);
+        assert_eq!(token.precedence, crate::ThemeTokenPrecedence::Plugin);
         // A reset removes definitions of its own and lower precedence only.
         assert_eq!(
             value("@theme { --color-brand: red; } @theme default { --color-*: initial; }"),

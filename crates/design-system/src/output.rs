@@ -172,7 +172,7 @@ pub(crate) type ThemeBlock = (Range<usize>, LeanString, ThemeTokenPrecedence);
 ///
 /// Callers use this to extract declarations per block, so a block's mode (`inline`,
 /// `static`, or default) and precedence can be attributed to its own tokens. A plugin
-/// theme block has no modifier.
+/// theme block accepts the same mode modifiers and always has plugin precedence.
 ///
 /// # Errors
 ///
@@ -323,12 +323,13 @@ fn parse_nodes(
                 nodes.push(node);
             }
             (Some(directive @ ("theme" | "stillwind-plugin-theme")), Some((open, close))) => {
-                let (modifier, precedence) = if directive == "stillwind-plugin-theme" {
-                    (LeanString::new(), ThemeTokenPrecedence::Plugin)
+                let modifier = css[header_end..open].trim();
+                let precedence = if directive == "stillwind-plugin-theme" {
+                    ThemeTokenPrecedence::Plugin
                 } else {
-                    let modifier = css[header_end..open].trim();
-                    (modifier.into(), ThemeTokenPrecedence::parse(modifier))
+                    ThemeTokenPrecedence::parse(modifier)
                 };
+                let modifier = LeanString::from(modifier);
                 theme_blocks.push((base + open + 1..base + close, modifier, precedence));
                 nodes.push(CssOutputNode::Theme {
                     origin,
