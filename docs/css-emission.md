@@ -383,8 +383,11 @@ rule in a rule with that selector, so `p-4` matches only inside `#app`. Neither 
 changes `@apply`, and keyframes stay at the stylesheet root. `theme.container` adds a
 `container` definition after the built-in one, as Tailwind does: `center` adds
 `margin-inline: auto`, `padding` adds `padding-inline` for the default and for each
-breakpoint, and `screens` replaces the maximum widths. `prefix` is not applied, because
-generated class names are unique without it.
+breakpoint, and `screens` replaces the maximum widths.
+
+`config()` returns `prefix`, `darkMode`, and `blocklist`, but these keys do not change
+the output. Generated class names are unique without `prefix`. The `dark` variant keeps
+its definition from CSS, and blocked candidates still generate CSS.
 
 Editor catalogs list finite candidates without running their callbacks. Selecting a
 completion resolves its CSS without adding that candidate to the application's used CSS.
@@ -394,9 +397,10 @@ CSS distributions load through `@import`. Their `--spacing(<value>)` becomes
 every plain number in `--alpha()` by 100, so `--alpha(red / 50)` is 5000%, which
 `color-mix()` rejects; write `50%` or `0.5`.
 
-Plugins that depend on literal utility class names in descendant selectors, such as
-daisyUI and Typography's `not-prose` behavior, are outside this compatibility contract.
-Browser hosts also require packages that can execute without Node APIs.
+Plugin selectors that name other classes, such as the component classes of daisyUI and
+the `not-prose` class of `@tailwindcss/typography`, match through
+[marker classes](#marker-classes). Browser hosts require plugin packages that can execute
+without Node APIs.
 
 The projects in [`e2e/plugins/tailwind`](../e2e/plugins/tailwind/stillwind.config.ts)
 exercise installed plugins in development and production. The package's
