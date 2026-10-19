@@ -120,46 +120,52 @@ test("production watch reloads an imported configuration helper", async () => {
   if (Array.isArray(watcher) || !("on" in watcher)) {
     expect.fail("Expected a build watcher");
   }
-  let builds = 0;
+  let building = false;
   let error: Error | undefined;
   watcher.on("event", (event) => {
-    if (event.code === "END") {
-      builds++;
+    if (event.code === "START") {
+      building = true;
+      error = undefined;
     }
     if (event.code === "ERROR") {
+      building = false;
       error = event.error;
     }
+    if (event.code === "END") {
+      building = false;
+    }
   });
-  const wait = async (count: number) =>
-    await expect
-      .poll(
-        () => {
-          if (error) {
-            throw error;
-          }
-          return builds;
-        },
-        {
-          timeout: 10_000,
-        },
-      )
-      .toBeGreaterThanOrEqual(count);
+  // Each rebuild empties `dist` before it writes files, and one helper edit can start several
+  // rebuilds. The poll reads `dist` only between builds and retries until the expected CSS appears.
   const output = async () => {
+    if (building) {
+      return "";
+    }
+    if (error) {
+      throw error;
+    }
     const directory = path.join(root, "dist");
-    const files = (await readdir(directory)).filter((file) => file.endsWith(".js"));
+    const files = await readdir(directory).catch(() => []);
     return (
-      await Promise.all(files.map((file) => readFile(path.join(directory, file), "utf8")))
+      await Promise.all(
+        files
+          .filter((file) => file.endsWith(".js"))
+          .map((file) => readFile(path.join(directory, file), "utf8")),
+      )
     ).join("\n");
   };
+  const expectColor = async (color: string) =>
+    await expect
+      .poll(output, {
+        timeout: 10_000,
+      })
+      .toMatch(new RegExp(`color:\\s*${color}`));
   try {
-    await wait(1);
-    expect(await output()).toMatch(/color:\s*red/);
+    await expectColor("red");
     await writeFile(helper, settings("blue.css"));
-    await wait(2);
-    expect(await output()).toMatch(/color:\s*blue/);
+    await expectColor("blue");
     await writeFile(helper, settings("red.css"));
-    await wait(3);
-    expect(await output()).toMatch(/color:\s*red/);
+    await expectColor("red");
   } finally {
     await watcher.close();
     await rm(root, { recursive: true, force: true });
