@@ -47,6 +47,8 @@ pub struct NativeDesignSystemLoader {
     loader: DesignSystemLoader,
     options: CompilerOptions,
     snapshot: Option<DesignSystemSnapshot>,
+    /// Whether completion prepares the canonical spelling index.
+    prepare_canonical: bool,
 }
 
 #[napi]
@@ -138,7 +140,9 @@ impl NativeDesignSystemLoader {
                     .collect(),
             }),
             DesignSystemLoadStep::Complete(Ok(snapshot)) => {
-                prepare_canonical_index(&snapshot, &self.options);
+                if self.prepare_canonical {
+                    prepare_canonical_index(&snapshot, &self.options);
+                }
                 let output = NativeCssLoadStep::Complete {
                     revision: snapshot.revision().0.to_string(),
                     resources: snapshot
@@ -215,6 +219,25 @@ impl NativeDesignSystemLoader {
         stylesheet_reports(&self.completed()?, &self.options, self.loader.sources())
     }
 
+    /// Skips preparing the canonical spelling index when loading completes.
+    ///
+    /// A host calls this for a design system that only serves as an intermediate load,
+    /// such as the load whose theme a later load reuses. Canonical queries still
+    /// prepare the index on first use, so results do not change.
+    #[napi]
+    pub fn defer_canonical_index(&mut self) {
+        self.prepare_canonical = false;
+    }
+
+    /// Prepares the canonical spelling index of the completed design system, which
+    /// loading skips after [`Self::defer_canonical_index`]. Repeated calls reuse the
+    /// prepared index. Returns an error while CSS loading is incomplete.
+    #[napi]
+    pub fn prepare_canonical_index(&self) -> napi::Result<()> {
+        prepare_canonical_index(&self.completed()?, &self.options);
+        Ok(())
+    }
+
     /// Creates editor queries pinned to this completed design system and its compiler
     /// options. Returns an error while CSS loading is incomplete.
     #[napi]
@@ -242,6 +265,7 @@ impl NativeDesignSystemLoader {
             loader: DesignSystemLoader::new(options.design_system(), sources),
             options,
             snapshot: None,
+            prepare_canonical: true,
         })
     }
 

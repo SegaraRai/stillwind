@@ -252,6 +252,14 @@ export class PluginRuntime {
     return this.#generation;
   }
 
+  /**
+   * Whether a loaded statement selects a Tailwind plugin, so that {@link PluginRuntime.initialize}
+   * loads the graph again and the original load can skip its canonical spelling index.
+   */
+  get tailwind(): boolean {
+    return [...this.#instances.values()].some((instance) => instance.tailwind);
+  }
+
   /** Whether any loaded plugin declares a dynamic family. */
   get dynamic(): boolean {
     return (
@@ -348,13 +356,15 @@ export class PluginRuntime {
 
   /**
    * Evaluates Tailwind handlers with the complete CSS theme, then resolves the candidates that
-   * the graph's own CSS uses, such as `@apply` inputs.
+   * the graph's CSS applies with `@apply` and `@variant`.
    *
    * Tailwind handlers run after the first load because their `theme()` calls read the complete
    * CSS theme. Their output then needs one more load of the recorded graph, and a second one when
-   * the graph's CSS uses dynamic candidates.
+   * the graph's CSS uses dynamic candidates. Only the returned loader prepares its canonical
+   * spelling index, which takes most of the time of a load.
    *
-   * @param loader - Loader of the completed original load.
+   * @param loader - Loader of the completed original load. With Tailwind plugins, it can skip its
+   * canonical spelling index, as {@link PluginRuntime.tailwind} allows.
    * @returns `loader` without Tailwind plugins, and otherwise a loader with their CSS.
    * @throws If a handler or a callback fails, or the native loader rejects the generated CSS.
    */
@@ -374,14 +384,19 @@ export class PluginRuntime {
       await this.resolve(this.previous.#requested);
     }
     this.#updateTailwindCss();
-    let current = this.replay();
-    const text = [
-      this.#root?.content,
-      ...[...this.#answers.values()].map((answer) => answer.content),
-    ].join("\n");
-    if (await this.resolve(current.editorQuery().dynamicCandidates(text))) {
-      current = this.replay();
+    let current = this.replay(undefined, true);
+    // Only `@apply` and `@variant` uses count. A scan of the whole text would also report the
+    // names in definition headers and registry metadata, such as `@stillwind-utility duration-*`,
+    // so every graph that imports Stillwind would load once more.
+    const query = current.editorQuery();
+    const sources = [
+      this.#root?.content ?? "",
+      ...[...this.#answers.values()].map((a) => a.content),
+    ];
+    if (await this.resolve(sources.flatMap((css) => query.stylesheetDynamicCandidates(css)))) {
+      current = this.replay(undefined, true);
     }
+    current.prepareCanonicalIndex();
     return current;
   }
 
@@ -392,9 +407,9 @@ export class PluginRuntime {
    * @throws If a plugin fails or the native loader rejects the generated CSS.
    */
   async query(candidate: string): Promise<NativeEditorQuery> {
-    const query = this.replay().editorQuery();
+    const query = this.replay(undefined, true).editorQuery();
     return (await this.resolve(query.dynamicCandidates(candidate)))
-      ? this.replay().editorQuery()
+      ? this.replay(undefined, true).editorQuery()
       : query;
   }
 
@@ -492,17 +507,22 @@ export class PluginRuntime {
    *
    * @param session - Session whose source IDs the new loader shares. Omission shares the
    * original loader's source IDs.
+   * @param intermediate - Skips preparing the canonical spelling index for a loader that only
+   * serves a later load or a short query. Canonical queries still prepare it on first use.
    * @returns A complete loader with the load's compiler options, for
    * {@link NativeProjectSession.reload}.
    * @throws If the recorded graph is incomplete or the native loader rejects it.
    */
-  replay(session?: NativeProjectSession): NativeDesignSystemLoader {
+  replay(session?: NativeProjectSession, intermediate = false): NativeDesignSystemLoader {
     if (!this.#root) {
       throw new Error("Stillwind plugin runtime has no recorded CSS graph");
     }
     const loader = session
       ? session.newLoader(this.options)
       : (this.#loader?.newLoader(this.options) ?? new NativeDesignSystemLoader(this.options));
+    if (intermediate) {
+      loader.deferCanonicalIndex();
+    }
     let step: NativeCssLoadStep = loader.provide(
       0,
       this.#root.name,

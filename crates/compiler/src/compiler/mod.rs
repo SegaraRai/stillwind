@@ -59,7 +59,7 @@ pub(crate) use animation_options::{OptionVariants, resolve_options};
 pub(crate) use conditionals::lower as lower_conditionals;
 pub(crate) use definitions::{emit_view_transition_utilities, resolve_frame};
 pub(crate) use document::emit_document_style;
-pub(crate) use dynamic::dynamic_candidates;
+pub(crate) use dynamic::{dynamic_candidates, stylesheet_dynamic_candidates};
 pub(crate) use editor::{preview_resource_urls, reserve_preview_names};
 pub(crate) use media::media_argument_query;
 pub(crate) use rule_boundaries::RuleBoundaries;

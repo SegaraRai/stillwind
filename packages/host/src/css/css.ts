@@ -303,6 +303,11 @@ export async function loadCssGraph(
         const read = async () => {
           if (request.pluginOptions !== undefined) {
             const answer = await plugins.answerPlugin(request);
+            if (plugins.tailwind) {
+              // `PluginRuntime.initialize` loads the graph again, so this load only provides its
+              // theme and recorded answers.
+              loader.deferCanonicalIndex();
+            }
             if (!stopped) {
               ready.push({
                 id: request.id,

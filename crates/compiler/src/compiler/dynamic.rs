@@ -1,15 +1,19 @@
 //! Discovery of candidates of utility families that a host plugin defines on demand.
 //!
 //! A host resolves such candidates outside the compiler and adds their definitions to
-//! the design system, so the compiler reports which ones a module needs. Discovery
-//! scans the whole source text, as Tailwind's content scanner does: a candidate in
-//! a comment or an unrelated string is also reported. Its definition is unused until
-//! a module styles with it, so over-reporting costs only resolution work.
+//! the design system, so the compiler reports which ones a module needs.
+//! [`dynamic_candidates`] scans the whole source text of a module, as Tailwind's
+//! content scanner does: a candidate in a comment or an unrelated string is also
+//! reported. Its definition is unused until a module styles with it, so
+//! over-reporting costs only resolution work. [`stylesheet_dynamic_candidates`]
+//! reads only the candidates that CSS applies, because stylesheets also contain
+//! definition headers and registry metadata that name utilities without using them.
 
 use std::collections::BTreeSet;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
+use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{
     DynamicFamilyKind, ThemeIndex, compound_variant_inner, resolve_utility,
 };
@@ -24,12 +28,72 @@ use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix, utility_r
 /// `icon-mdi--close`, when its family accepts both forms, and as written otherwise. A
 /// theme without dynamic families returns nothing without scanning.
 pub(crate) fn dynamic_candidates(text: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
-    let families = theme.dynamic_utilities();
-    if families.is_empty() {
+    if theme.dynamic_utilities().is_empty() {
         return Vec::new();
     }
+    requests(candidate_tokens(text), theme)
+}
+
+/// Returns sorted, unique requests for host plugin families that `css` applies, in the
+/// forms that [`dynamic_candidates`] returns.
+///
+/// The candidates of every `@apply` statement and the variant sequences of every
+/// `@variant` rule count, at any nesting depth, including the bodies of definitions.
+/// A sequence requests its variants, as a `data-[open]:` style key does in a module.
+/// Comments, strings, declarations, and at-rule preludes other than `@variant` are not
+/// read. Incomplete CSS reports the uses that its structure contains.
+pub(crate) fn stylesheet_dynamic_candidates(css: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
+    if theme.dynamic_utilities().is_empty() {
+        return Vec::new();
+    }
+    let mut tokens = Vec::new();
+    applied_tokens(css, &parse_structure(css), &mut tokens);
+    requests(tokens.iter().map(LeanStr::as_str), theme)
+}
+
+/// Appends the candidates and variant prefixes that `nodes` apply to `tokens`.
+/// Node ranges must address `css`. A variant sequence gains a trailing `:`, so it
+/// parses as variants without a utility.
+fn applied_tokens(css: &str, nodes: &[CssNode], tokens: &mut Vec<LeanStr>) {
+    for node in nodes {
+        match &node.kind {
+            CssNodeKind::Apply { candidates } => {
+                tokens.extend(
+                    candidates
+                        .iter()
+                        .map(|range| LeanStr::from(&css[range.clone()])),
+                );
+            }
+            CssNodeKind::AtRule {
+                name,
+                prelude,
+                block,
+            } => {
+                if name == "variant" {
+                    let prelude = &css[prelude.clone()];
+                    tokens.extend(
+                        super::variant_sequences(prelude)
+                            .into_iter()
+                            .filter(|range| !range.is_empty())
+                            .map(|range| format_args!("{}:", &prelude[range]).to_lean_str()),
+                    );
+                }
+                if let Some(block) = block {
+                    applied_tokens(css, &block.children, tokens);
+                }
+            }
+            CssNodeKind::StyleRule { block, .. } => applied_tokens(css, &block.children, tokens),
+            CssNodeKind::Declaration { .. } => {}
+        }
+    }
+}
+
+/// Returns sorted, unique requests for the family members among `tokens`. The theme
+/// must declare at least one dynamic family.
+fn requests<'a>(tokens: impl IntoIterator<Item = &'a str>, theme: &ThemeIndex) -> Vec<LeanStr> {
+    let families = theme.dynamic_utilities();
     let mut names = BTreeSet::new();
-    for token in candidate_tokens(text) {
+    for token in tokens {
         if !families
             .iter()
             .any(|family| token.contains(family.prefix.as_str()))
@@ -205,6 +269,35 @@ mod tests {
         );
         assert_eq!(
             dynamic_candidates(text, &ThemeIndex::default()),
+            [] as [LeanStr; 0]
+        );
+    }
+
+    #[test]
+    fn stylesheets_report_only_applied_candidates_and_variant_sequences() {
+        let theme = theme(
+            "@stillwind-plugin-family utility probe; @stillwind-plugin-family variant state; @stillwind-dynamic icon-*;",
+        );
+        let css = r#"
+/* @apply probe-comment; */
+@stillwind-utility probe-* { width: --value(integer)px; }
+.a { content: "@apply probe-string"; @apply probe-4 hover:icon-mdi--close bg-[url('a;b')]; }
+@media print { .b { @variant state-[open], dark:state-[closed] { color: red; } } }
+@custom-variant x { @variant state-[x] { @slot; } }
+.c { @apply probe-[1px] "#;
+        assert_eq!(
+            stylesheet_dynamic_candidates(css, &theme),
+            [
+                "@variant state-[closed]",
+                "@variant state-[open]",
+                "@variant state-[x]",
+                "icon-mdi--close",
+                "probe-4",
+                "probe-[1px]",
+            ]
+        );
+        assert_eq!(
+            stylesheet_dynamic_candidates(css, &ThemeIndex::default()),
             [] as [LeanStr; 0]
         );
     }

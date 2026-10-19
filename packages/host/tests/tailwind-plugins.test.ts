@@ -550,7 +550,7 @@ test("source and CSS directive discovery resolve modifiers, negative values, fra
   const files = new Map([
     [
       "/workspace/theme.css",
-      '@plugin "test"; @stillwind-slot utilities; .applied { @apply probe-4/mirror; }',
+      '@plugin "test"; @stillwind-slot utilities; .applied { @apply probe-4/mirror; } .varied { @variant state-[closed] { color: red; } }',
     ],
     [
       "/workspace/entry.tsx",
@@ -584,6 +584,7 @@ test("source and CSS directive discovery resolve modifiers, negative values, fra
     expect(css).toContain("color-mix(");
     expect(css).toContain('data-state="open"');
     expect(css).toContain(".applied");
+    expect(css).toContain('.varied { &[data-state="closed"]{ color: red; } }');
   } finally {
     await project.close();
   }

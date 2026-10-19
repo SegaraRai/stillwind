@@ -9,12 +9,19 @@ use stillwind_css::{
 use stillwind_design_system::{ThemeNamespace, ThemeToken, UtilityResolutionError};
 
 use super::{DesignSystemQuery, QueryContext};
-use crate::compiler::dynamic_candidates;
+use crate::compiler::{dynamic_candidates, stylesheet_dynamic_candidates};
 
 impl DesignSystemQuery {
     /// Reports host plugin utility keys and `@variant ` requests found in source text.
     pub fn dynamic_candidates(&self, text: &str) -> Vec<LeanStr> {
         dynamic_candidates(text, self.context.design_system.theme())
+    }
+
+    /// Reports host plugin utility keys and `@variant ` requests that a stylesheet
+    /// applies with `@apply` and `@variant`. Comments, strings, definition headers, and
+    /// other directives are not read.
+    pub fn stylesheet_dynamic_candidates(&self, css: &str) -> Vec<LeanStr> {
+        stylesheet_dynamic_candidates(css, self.context.design_system.theme())
     }
 
     /// Returns active token definitions, including their output and fallback policies.

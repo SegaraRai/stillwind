@@ -1,7 +1,14 @@
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { compileModule, fileModuleDescriptor, TypeScriptFactsService } from "@stillwind/host";
+import {
+  compileModule,
+  fileModuleDescriptor,
+  loadCssGraph,
+  TypeScriptFactsService,
+} from "@stillwind/host";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test, type BenchRunOptions } from "vite-plus/test";
 
@@ -128,3 +135,78 @@ test("host/semantic/new-service-and-session", async ({ bench, task }) => {
   expect(output?.code).toBeTruthy();
   expect(output!.diagnostics).toEqual([]);
 });
+
+/** A Tailwind plugin handler with a static utility and a utility family. */
+const tailwindPlugin = (api: {
+  addUtilities: (utilities: Record<string, Record<string, string>>) => void;
+  matchUtilities: (
+    utilities: Record<string, (value: string) => Record<string, string>>,
+    options: {
+      values: Record<string, string>;
+    },
+  ) => void;
+}) => {
+  api.addUtilities({
+    ".probe": {
+      color: "red",
+    },
+  });
+  api.matchUtilities(
+    {
+      tone: (value) => ({
+        color: value,
+      }),
+    },
+    {
+      values: {
+        blue: "blue",
+        green: "green",
+      },
+    },
+  );
+};
+
+for (const [name, css] of [
+  ["none", '@import "stillwind";'],
+  ["tailwind", '@import "stillwind"; @plugin "probe";'],
+  ["tailwind-apply", '@import "stillwind"; @plugin "probe"; .a { @apply probe tone-blue; }'],
+] as const) {
+  test(`host/plugin-load/${name}`, async ({ bench, task }) => {
+    const file = path.join(root, "plugin-load.css");
+    const load = () =>
+      loadCssGraph(
+        file,
+        {},
+        {
+          resolve: async (request, importer) => createRequire(importer).resolve(request),
+          read: async (id) => (id === file ? css : readFile(id, "utf8")),
+          documentUri: (id) => pathToFileURL(id).href,
+          sourceMapSource: (id) => id,
+          watch: () => {},
+          plugins: {
+            load: async () => tailwindPlugin,
+            resolve: async () => undefined,
+            read: (id) => readFile(id, "utf8"),
+          },
+        },
+        undefined,
+        undefined,
+        {
+          root,
+        },
+      );
+    const options = {
+      ...repeated,
+      iterations: 5,
+      warmupIterations: 1,
+    };
+    task.meta.measurement = options;
+    task.meta.notes =
+      "Loads the Stillwind framework CSS graph from disk with the plugin statement and the CSS uses of the case.";
+    let loaded = await load();
+    await bench(`host/plugin-load/${name}`, { async: true }, async () => {
+      loaded = await load();
+    }).run(options);
+    expect(loaded.loader.editorQuery().previewCandidate("flex")).toBeTruthy();
+  });
+}

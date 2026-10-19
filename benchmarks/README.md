@@ -8,7 +8,7 @@ processes do not compete for CPU time.
 | `vp run bench:compiler`         | Native loading, compilation, graph updates, stylesheet planning, canonical queries |
 | `vp run bench:compiler:wasm`    | Canonical queries through the Node WASI binding                                    |
 | `vp run bench:compiler:browser` | Browser WASM canonical queries and CSS revision preparation                        |
-| `vp run bench:host`             | Fresh and reused checker services; script, Vue, Svelte, and Astro inputs           |
+| `vp run bench:host`             | Checker services; script, Vue, Svelte, and Astro inputs; `@plugin` graph loads     |
 | `vp run bench:sorting`          | Native candidate comparisons and editor input sorting                              |
 | `vp run bench:sorting:wasm`     | The same sorting workloads through Node WASI                                       |
 | `vp run bench:sorting:profile`  | Identity lookup counts for ref and base input grouping                             |

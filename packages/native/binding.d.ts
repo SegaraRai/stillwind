@@ -56,6 +56,20 @@ export declare class NativeDesignSystemLoader {
    */
   stylesheetReports(): Array<BindingReport>
   /**
+   * Skips preparing the canonical spelling index when loading completes.
+   *
+   * A host calls this for a design system that only serves as an intermediate load,
+   * such as the load whose theme a later load reuses. Canonical queries still
+   * prepare the index on first use, so results do not change.
+   */
+  deferCanonicalIndex(): void
+  /**
+   * Prepares the canonical spelling index of the completed design system, which
+   * loading skips after [`Self::defer_canonical_index`]. Repeated calls reuse the
+   * prepared index. Returns an error while CSS loading is incomplete.
+   */
+  prepareCanonicalIndex(): void
+  /**
    * Creates editor queries pinned to this completed design system and its compiler
    * options. Returns an error while CSS loading is incomplete.
    */
@@ -185,6 +199,12 @@ export declare class NativeEditorQuery {
   themeTokens(): Array<NativeThemeToken>
   /** Reports dynamic utility keys and `@variant ` requests in CSS or source text. */
   dynamicCandidates(text: string): Array<string>
+  /**
+   * Reports dynamic utility keys and `@variant ` requests that one stylesheet
+   * applies with `@apply` and `@variant`, at any nesting depth. Comments, strings,
+   * definition headers, and other directives are not read.
+   */
+  stylesheetDynamicCandidates(css: string): Array<string>
   /** Returns the authored spacing scale, or null when no scale is active. */
   spacingScale(): string | null
   /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */

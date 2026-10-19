@@ -734,6 +734,18 @@ impl NativeEditorQuery {
             .collect()
     }
 
+    /// Reports dynamic utility keys and `@variant ` requests that one stylesheet
+    /// applies with `@apply` and `@variant`, at any nesting depth. Comments, strings,
+    /// definition headers, and other directives are not read.
+    #[napi]
+    pub fn stylesheet_dynamic_candidates(&self, css: String) -> Vec<String> {
+        self.query
+            .stylesheet_dynamic_candidates(&css)
+            .into_iter()
+            .map(|value| value.to_string())
+            .collect()
+    }
+
     /// Returns the authored spacing scale, or null when no scale is active.
     #[napi(ts_return_type = "string | null")]
     pub fn spacing_scale(&self) -> Option<NativeText> {

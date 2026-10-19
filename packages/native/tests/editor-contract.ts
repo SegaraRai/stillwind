@@ -38,6 +38,11 @@ export function registerEditorContract(specifier: string): void {
     expect(query.dynamicCandidates('"duration-300 -probe-[3px]/mirror state-[open]:safe"')).toEqual(
       ["-probe-[3px]/mirror", "@variant state-[open]", "duration-300"],
     );
+    expect(
+      query.stylesheetDynamicCandidates(
+        "@utility duration-* {} /* @apply probe-1; */ .a { @apply duration-300; @variant state-[open] { color: red; } }",
+      ),
+    ).toEqual(["@variant state-[open]", "duration-300"]);
     // A plugin's functional definition adds to the stylesheet's `duration-*` and comes first,
     // because Tailwind registers plugins before the stylesheet's utilities.
     expect(query.previewCandidate("duration-300")).toBe(
@@ -553,6 +558,22 @@ export function registerEditorContract(specifier: string): void {
         },
       }).canonicalCandidate("p-[16px]"),
     ).toBeNull();
+  });
+
+  test("a loader that defers its canonical index answers canonical queries the same way", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.deferCanonicalIndex();
+    expect(() => loader.prepareCanonicalIndex()).toThrow();
+    loader.provide(
+      0,
+      "theme.css",
+      "@theme {--spacing:0.25rem;} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;",
+      "file:///theme.css",
+    );
+    expect(loader.editorQuery().canonicalCandidate("p-[16px]")).toBe("p-4");
+    loader.prepareCanonicalIndex();
+    expect(loader.editorQuery().canonicalCandidate("p-[16px]")).toBe("p-4");
   });
 
   test("ordering batches preserve compiler order, duplicates, unresolved candidates, and theme revisions", async () => {
