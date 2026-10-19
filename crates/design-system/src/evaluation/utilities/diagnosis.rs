@@ -11,10 +11,10 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_syntax::{Candidate, Utility, Value, parse_candidate};
+use stillwind_syntax::{Candidate, Utility, Value, decode_arbitrary_value, parse_candidate};
 
 use super::super::suggestions::closest_spelling;
-use super::super::values::{decode_arbitrary, named_domain_values};
+use super::super::values::named_domain_values;
 use super::super::variants::{
     DocumentTargetFailure, VariantContext, VariantFailureReason, document_target, resolve_variant,
 };
@@ -435,7 +435,7 @@ fn diagnose_named_utility(
             range,
             reason: UtilityFailureReason::UnsupportedValue {
                 utility,
-                value: decode_arbitrary(arbitrary).into(),
+                value: decode_arbitrary_value(arbitrary).into(),
             },
         };
     }

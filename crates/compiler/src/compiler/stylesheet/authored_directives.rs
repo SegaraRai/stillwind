@@ -24,7 +24,7 @@ use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
-use super::super::utilities::resolve_utility;
+use super::super::utilities::resolve_first_target;
 use super::super::utilities::{order_utilities, prepend_missing_declarations};
 use super::super::variants::{VariantStep, variant_paths};
 use crate::identifiers::IdentifierContext;
@@ -121,7 +121,7 @@ fn expand_application<'a>(
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut utilities = Vec::new();
     for candidate in candidates {
-        match resolve_utility(candidate, theme) {
+        match resolve_first_target(candidate, theme) {
             Ok(Ok(utility)) => utilities.push(utility),
             Ok(Err(_)) => {}
             Err(error) => {

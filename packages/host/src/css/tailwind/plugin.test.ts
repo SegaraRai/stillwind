@@ -222,7 +222,9 @@ test("config() reads Tailwind's resolved keys with bracket paths, and the last c
   );
   expect(observed).toEqual(["red", "red", "missing", "#app", "first"]);
   // The prefix is not applied to candidates.
-  expect(tailwind.css(0)).toBe("@stillwind-plugin-important #app;");
+  expect(tailwind.css(0)).toBe(
+    "@stillwind-plugin-theme{--color-*:initial;--color-brand:red;}\n@stillwind-plugin-important #app;",
+  );
   expect(
     runtime(
       plugin(() => {}, {

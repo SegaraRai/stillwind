@@ -8,11 +8,11 @@ use std::sync::Arc;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_design_system::{
-    ThemeIndex, UtilityOrder, UtilityResolutionError, VariantSequenceOrder, resolve_variant,
+    ThemeIndex, UtilityOrder, UtilityResolutionError, VariantSequenceOrder, resolve_utility,
+    resolve_variant,
 };
 
 use super::DesignSystemQuery;
-use crate::candidate::CandidateResolver;
 
 impl DesignSystemQuery {
     /// Compares candidates using the compiler's variant and utility order.
@@ -87,7 +87,7 @@ impl CandidateOrdering {
         if let Some(key) = self.keys.borrow().get(raw) {
             return Ok(key.clone());
         }
-        let key = CandidateResolver::resolve(raw, theme)?
+        let key = resolve_utility(raw, theme)?
             .ok()
             .filter(|resolved| {
                 resolved

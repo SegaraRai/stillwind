@@ -9,10 +9,10 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_source::ReplaceText;
+use stillwind_syntax::decode_arbitrary_value;
 
 use super::super::super::builtins::builtin_variants;
 use super::super::super::context::EvaluationContext;
-use super::super::super::values::decode_arbitrary;
 use super::super::application::VariantApplication;
 use super::super::body::{resolve_scoped_variant_body, resolve_variant_body};
 use super::super::negation::{negate, negation_obstacle};
@@ -395,7 +395,7 @@ fn decode_variant_capture(value: &str) -> LeanString {
     value
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'))
-        .map_or_else(|| value.replace_char('_', " "), decode_arbitrary)
+        .map_or_else(|| value.replace_char('_', " "), decode_arbitrary_value)
 }
 
 /// Turns a bare property name in a `@supports` capture into a declaration test.
@@ -429,7 +429,7 @@ fn attribute_variant_selector(
     let arbitrary = capture
         .strip_prefix('[')
         .and_then(|value| value.strip_suffix(']'));
-    let value = arbitrary.map_or_else(|| capture.to_lean_string(), decode_arbitrary);
+    let value = arbitrary.map_or_else(|| capture.to_lean_string(), decode_arbitrary_value);
     if value.is_empty() {
         return None;
     }

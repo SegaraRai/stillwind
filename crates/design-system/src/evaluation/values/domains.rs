@@ -10,9 +10,10 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueDomain, value_is_well_formed};
+use stillwind_syntax::decode_arbitrary_value;
 
 use super::super::context::{ArbitraryValueCheck, EvaluationContext};
-use super::arbitrary::{decode_arbitrary, parse_css_variable};
+use super::arbitrary::parse_css_variable;
 use super::expansion::expand_placeholder;
 use super::theme::{PatternNamespace, ViewportAxis, axis_size_value, fraction_value, theme_value};
 use crate::conditionals::accepts_runtime_value;
@@ -86,7 +87,7 @@ pub(in crate::evaluation) fn resolve_value_domains(
         }
         let arbitrary = capture?.strip_prefix('[')?.strip_suffix(']')?;
         let (hint, value) = arbitrary_hint(arbitrary);
-        let value = theme.inline_theme_functions(&decode_arbitrary(value))?;
+        let value = theme.inline_theme_functions(&decode_arbitrary_value(value))?;
         let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
         let accepted = accepts_runtime_value(expected, &value)
             || (hint.is_empty()

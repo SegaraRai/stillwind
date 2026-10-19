@@ -12,7 +12,7 @@ use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_o
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    combine_declarations_for_theme, invalid_property_value_finding, resolve_utility,
+    combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
     unresolved_utility_finding,
 };
 use super::super::variants::{condition_paths, wrap_conditions};
@@ -98,7 +98,7 @@ pub(crate) fn emit_view_transition_utilities(
     let mut conditional = LeanString::new();
     for utility in lex_utilities(input, diagnostics) {
         let raw = &utility.value.raw;
-        let resolved = match resolve_utility(raw, theme) {
+        let resolved = match resolve_first_target(raw, theme) {
             Ok(Ok(resolved)) => resolved,
             Ok(Err(failure)) => {
                 lint_findings.push(unresolved_utility_finding(

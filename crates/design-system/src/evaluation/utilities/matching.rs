@@ -17,12 +17,10 @@ use std::collections::HashSet;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueType, declaration_ranges};
-use stillwind_syntax::{Value, utility_registration_key};
+use stillwind_syntax::{Value, decode_arbitrary_value, utility_registration_key};
 
 use super::super::context::ArbitraryValueCheck;
-use super::super::values::{
-    decode_arbitrary, expand_placeholder, split_domains, theme_domain_pattern,
-};
+use super::super::values::{expand_placeholder, split_domains, theme_domain_pattern};
 use super::body::{
     UtilityResolution, UtilityResolutionDiagnosticData, UtilityResolutionError,
     resolve_css_utility_body,
@@ -171,7 +169,10 @@ fn resolve_registry_layers(
             )
         };
         let mut resolution = resolve_exact(theme.registry().matching_utilities(&key))?;
-        let (plugins, stylesheet) = plugin_groups(theme.matching_utilities(&key));
+        let (plugins, stylesheet): (Vec<_>, Vec<_>) = theme
+            .matching_utilities(&key)
+            .into_iter()
+            .partition(|definition| definition.plugin);
         for group in [plugins, stylesheet] {
             if let Some(next) = resolve_exact(group)? {
                 append_resolution(&mut resolution, next);
@@ -204,7 +205,10 @@ fn resolve_registry_layers(
             append_resolution(&mut resolution, plugin);
         }
     }
-    let (plugins, stylesheet) = plugin_groups(theme.matching_utilities(lookup));
+    let (plugins, stylesheet): (Vec<_>, Vec<_>) = theme
+        .matching_utilities(lookup)
+        .into_iter()
+        .partition(|definition| definition.plugin);
     for group in [plugins, stylesheet] {
         if let Some(next) = resolve_group(group)? {
             append_resolution(&mut resolution, next);
@@ -224,14 +228,6 @@ fn resolve_registry_layers(
         }
     }
     Ok(resolution)
-}
-
-/// Splits project definitions into the definitions from `@plugin` statements and the
-/// stylesheet's own definitions, keeping the order of each.
-fn plugin_groups(definitions: Vec<&CustomUtility>) -> (Vec<&CustomUtility>, Vec<&CustomUtility>) {
-    definitions
-        .into_iter()
-        .partition(|definition| definition.plugin)
 }
 
 /// Adds the CSS of a later definition to the resolution of earlier ones.
@@ -534,7 +530,7 @@ fn unhinted_arbitrary_value(name: &str) -> Option<LeanString> {
         && let Some(value) = name[start + 2..].strip_suffix(']')
     {
         let (hint, value) = value.split_once(':').unwrap_or(("", value));
-        return hint.is_empty().then(|| decode_arbitrary(value));
+        return hint.is_empty().then(|| decode_arbitrary_value(value));
     }
     let start = name.rfind("-(")?;
     let variable = name[start + 2..].strip_suffix(')')?;

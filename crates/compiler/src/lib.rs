@@ -15,9 +15,9 @@
 //!
 //! `module_compiler` compiles one analyzed module through the lowering passes in
 //! `compiler`. `compiled_module` applies the resulting edits, and `module_css` owns
-//! CSS occurrences and rule identities. `candidate` centralizes utility resolution.
-//! `identifiers` allocates names, and `options` configures compilation. `imports`
-//! plans macro import removal, while `runtime` allocates framework helper bindings.
+//! CSS occurrences and rule identities. `identifiers` allocates names, and `options`
+//! configures compilation. `imports` plans macro import removal, while `runtime`
+//! allocates framework helper bindings.
 //!
 //! `style_analysis` resolves composed supplies and checks their properties and markers.
 //! `generated` composes JavaScript fragments with expression provenance. `transforms`
@@ -39,7 +39,6 @@
     )
 )]
 
-mod candidate;
 mod candidate_fixes;
 mod compiled_module;
 mod compiler;

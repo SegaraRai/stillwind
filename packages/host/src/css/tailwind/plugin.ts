@@ -358,14 +358,6 @@ export class TailwindRuntime {
   }
 
   /**
-   * Returns the plugins' theme configuration as CSS, which native utility resolution also reads.
-   * @returns A `@stillwind-plugin-theme` block, or an empty string without configuration.
-   */
-  themeCss(): string {
-    return this.#theme.css();
-  }
-
-  /**
    * Reports whether a compiler discovery request belongs to one of this runtime's callbacks.
    * @param candidate - Utility key, or variant name with an `@variant ` prefix.
    * @returns Whether a `matchUtilities()` or `matchVariant()` root matches it.
@@ -462,11 +454,15 @@ export class TailwindRuntime {
    * `any` and another type is a Tailwind fallback, and a callback that rejects an arbitrary value
    * with an invalid modifier stops the evaluation of later definitions.
    *
+   * The first statement also carries the settings that apply to every statement: the plugins'
+   * theme configuration as a `@stillwind-plugin-theme` block, which native utility resolution
+   * also reads, and the `important` setting.
+   *
    * @param owner - Index of the statement among the configured handlers.
    * @returns Stillwind CSS for the statement's position.
    */
   css(owner: number): string {
-    const output = owner === 0 && this.#important ? [this.#important] : [];
+    const output = owner === 0 ? [this.#theme.css(), this.#important].filter(Boolean) : [];
     output.push(
       ...[...this.#globals, ...this.#utilities]
         .filter((entry) => entry.owner === owner)

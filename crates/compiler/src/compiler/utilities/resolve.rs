@@ -14,13 +14,11 @@ use stillwind_design_system::{
     InvalidPropertyValue, InvalidValueReason, NestedUtilityRule, ResolvedUtilityTarget, ThemeIndex,
     UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
     UtilityResolutionError, UtilityTokenUse, VariableTypeSource, VariantApplication,
-    VariantContext, check_candidate_variants,
+    VariantContext, check_candidate_variants, resolve_utility,
 };
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_source::Span;
 use stillwind_syntax::{Variant, parse_candidate};
-
-use crate::candidate::CandidateResolver;
 
 /// One resolved utility rule, ready to be ordered and rendered.
 #[derive(Clone, Debug)]
@@ -80,7 +78,7 @@ pub(in crate::compiler) struct CompiledUtilityDiagnosticData {
 /// # Errors
 ///
 /// Returns a malformed requirement from a matching utility definition.
-pub(in crate::compiler) fn resolve_utility(
+pub(in crate::compiler) fn resolve_first_target(
     utility: &str,
     theme: &ThemeIndex,
 ) -> Result<Result<CompiledUtility, UtilityFailure>, UtilityResolutionError> {
@@ -111,7 +109,7 @@ pub(crate) fn resolve_utility_targets(
     theme: &ThemeIndex,
     context: VariantContext,
 ) -> Result<Result<Vec<CompiledUtility>, UtilityFailure>, UtilityResolutionError> {
-    let resolved = match CandidateResolver::resolve(utility, theme)? {
+    let resolved = match resolve_utility(utility, theme)? {
         Ok(resolved) => resolved,
         Err(failure) => {
             let variants = parse_candidate(utility).map_or(Ok(()), |candidate| {

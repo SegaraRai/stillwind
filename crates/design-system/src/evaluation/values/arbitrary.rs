@@ -6,8 +6,6 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_syntax::decode_arbitrary_value;
-
 /// A CSS-variable capture: `(--name)` or `(hint:--name)`.
 pub(in crate::evaluation) struct CssVariable<'a> {
     /// Value-type hint written before the colon, when present.
@@ -26,12 +24,6 @@ pub(in crate::evaluation) fn parse_css_variable(value: &str) -> Option<CssVariab
         .split_once(':')
         .map_or((None, value), |(hint, name)| (Some(hint), name));
     name.starts_with("--").then_some(CssVariable { hint, name })
-}
-
-/// Decodes an arbitrary value into the text it stands for, as Tailwind does; see
-/// [`decode_arbitrary_value`].
-pub(in crate::evaluation) fn decode_arbitrary(value: &str) -> LeanString {
-    decode_arbitrary_value(value)
 }
 
 /// An alpha modifier converted into a percentage.
@@ -90,8 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn decoding_preserves_escaped_underscores_and_alpha_units() {
-        assert_eq!(decode_arbitrary(r"one_two\_three"), "one two_three");
+    fn alpha_modifiers_become_percentages() {
         let alpha = |value| alpha(value).map(|alpha| (alpha.value, alpha.out_of_range));
         assert_eq!(alpha(".25"), Some(("25%".into(), false)));
         assert_eq!(alpha("75"), Some(("75%".into(), false)));

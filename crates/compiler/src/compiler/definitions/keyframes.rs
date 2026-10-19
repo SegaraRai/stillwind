@@ -12,7 +12,7 @@ use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    combine_declarations_for_theme, invalid_property_value_finding, resolve_utility,
+    combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
     unresolved_utility_finding,
 };
 use super::super::variants::{OptionCondition, application_condition_paths, wrap_conditions};
@@ -184,7 +184,7 @@ pub(crate) fn resolve_frame(
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
         let raw = &utility.value.raw;
-        match resolve_utility(raw, theme) {
+        match resolve_first_target(raw, theme) {
             Ok(Ok(resolved)) if resolved.variants.is_empty() => {
                 if let Some(value) = &resolved.diagnostic_data.invalid_value {
                     lint_findings.push(invalid_property_value_finding(

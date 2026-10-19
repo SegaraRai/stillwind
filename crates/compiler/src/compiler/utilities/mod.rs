@@ -30,7 +30,7 @@ pub(super) use declaration_order::{
 };
 pub(super) use policy::{check, check_variant, spacing_property};
 pub(super) use render::render_utility_rule;
-pub(super) use resolve::{CompiledUtilityDiagnosticData, resolve_utility};
+pub(super) use resolve::{CompiledUtilityDiagnosticData, resolve_first_target};
 
 #[cfg(test)]
 pub(super) use render::render_utility_rule_path;

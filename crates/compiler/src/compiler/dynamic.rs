@@ -13,7 +13,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 use stillwind_design_system::{
     DynamicFamilyKind, ThemeIndex, compound_variant_inner, resolve_utility,
 };
-use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix};
+use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix, utility_registration_key};
 
 /// Returns sorted, unique requests for host plugin families found in `text`.
 /// Native families report unresolved utility names without modifiers. Tailwind utility
@@ -65,14 +65,15 @@ pub(crate) fn dynamic_candidates(text: &str, theme: &ThemeIndex) -> Vec<LeanStr>
         let Some(candidate) = candidate else {
             continue;
         };
-        let Utility::Named { name, .. } = &candidate.utility else {
+        let Utility::Named { name, modifier } = &candidate.utility else {
             continue;
         };
         if families.iter().any(|family| {
             family.kind == DynamicFamilyKind::Utility && family_member(name, &family.prefix)
-        }) && let Some(key) = candidate.utility.registration_key(candidate.negative)
-        {
-            names.insert(key.to_lean_str());
+        }) {
+            names.insert(
+                utility_registration_key(name, modifier.as_ref(), candidate.negative).to_lean_str(),
+            );
         }
         if theme.dynamic_family(name).is_none() {
             continue;

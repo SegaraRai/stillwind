@@ -3,9 +3,8 @@
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{selector_is_subject_condition, selector_is_valid, selector_uses_subject};
-use stillwind_syntax::{Variant, VariantKind};
+use stillwind_syntax::{Variant, VariantKind, decode_arbitrary_value};
 
-use super::super::super::values::decode_arbitrary;
 use super::super::application::VariantApplication;
 use super::super::body::{resolve_scoped_variant_body, resolve_variant_body};
 use super::{VariantFailure, VariantFailureReason, resolve_variant};
@@ -125,7 +124,7 @@ pub(in crate::evaluation) fn parse_nested_variant(value: &str) -> Variant {
         .and_then(|value| value.strip_suffix(']'))
         .map_or_else(
             || VariantKind::Named(value.into()),
-            |value| VariantKind::Arbitrary(decode_arbitrary(value).into()),
+            |value| VariantKind::Arbitrary(decode_arbitrary_value(value).into()),
         );
     Variant { kind, raw }
 }

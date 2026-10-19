@@ -5,9 +5,9 @@ use std::cmp::Ordering;
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::selector_uses_subject;
-use stillwind_syntax::{Variant, VariantKind};
+use stillwind_syntax::{Variant, VariantKind, decode_arbitrary_value};
 
-use super::super::super::values::{decode_arbitrary, theme_arbitrary_types};
+use super::super::super::values::theme_arbitrary_types;
 use super::super::resolve::{decode_variant_template, split_variant_modifier};
 use super::compare_variant_sequences;
 use super::position::{builtin_variant_for_order, compound_inner_variant, variant_sort_namespace};
@@ -74,7 +74,7 @@ pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
         .strip_prefix('[')
         .and_then(|capture| capture.strip_suffix(']'))
     {
-        let arbitrary = decode_arbitrary(arbitrary);
+        let arbitrary = decode_arbitrary_value(arbitrary);
         return theme_arbitrary_types(namespace, theme)
             .iter()
             .any(|value_type| value_type.accepts(&arbitrary))

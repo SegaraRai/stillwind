@@ -12,10 +12,11 @@
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueType, value_is_well_formed};
+use stillwind_syntax::decode_arbitrary_value;
 
 use super::super::builtins::builtin_theme_namespace_types;
 use super::super::context::{ArbitraryValueCheck, EvaluationContext};
-use super::arbitrary::{decode_arbitrary, parse_css_variable};
+use super::arbitrary::parse_css_variable;
 use crate::{ThemeIndex, ThemeNamespace, ThemeToken, ThemeTokenKind, ThemeTokenMode};
 
 /// The namespace that a theme namespace pattern such as `--color-*` reads.
@@ -214,7 +215,7 @@ fn typed_theme_arbitrary(
 ) -> Option<LeanStr> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
-    let value = theme.inline_theme_functions(&decode_arbitrary(value))?;
+    let value = theme.inline_theme_functions(&decode_arbitrary_value(value))?;
     let types = theme_arbitrary_types(namespace, theme);
     let hint_is_compatible = hint.is_empty()
         || types.is_empty()

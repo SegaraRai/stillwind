@@ -68,17 +68,6 @@ pub enum Utility {
     },
 }
 
-impl Utility {
-    /// Returns the key for a named utility, retaining negativity and the modifier, as
-    /// [`utility_registration_key`] spells it. Arbitrary properties have no key.
-    pub fn registration_key(&self, negative: bool) -> Option<LeanString> {
-        let Self::Named { name, modifier } = self else {
-            return None;
-        };
-        Some(utility_registration_key(name, modifier.as_ref(), negative))
-    }
-}
-
 /// Serializes a named utility and its modifier as one candidate spelling for exact
 /// plugin registration.
 ///
@@ -249,7 +238,7 @@ fn parse_utility(raw: &str) -> Option<Utility> {
     {
         return Some(Utility::ArbitraryProperty {
             property: property.into(),
-            value: decode_arbitrary(value),
+            value: decode_arbitrary_value(value).into(),
         });
     }
     let (before_modifier, modifier) = split_once_top_level(raw, '/');
@@ -269,7 +258,7 @@ fn parse_utility(raw: &str) -> Option<Utility> {
 /// other parenthesized text is rejected rather than kept as a name.
 fn parse_value(value: &str) -> Option<Value> {
     if let Some(value) = arbitrary(value) {
-        return Some(Value::Arbitrary(decode_arbitrary(value)));
+        return Some(Value::Arbitrary(decode_arbitrary_value(value).into()));
     }
     if let Some(value) = value
         .strip_prefix('(')
@@ -390,12 +379,6 @@ fn strip_unescaped_suffix(value: &str, suffix: char) -> Option<&str> {
         .take_while(|character| *character == '\\')
         .count();
     (slash_count % 2 == 0).then_some(value)
-}
-
-/// Decodes the text inside an arbitrary value or property as Tailwind does; see
-/// [`decode_arbitrary_value`].
-fn decode_arbitrary(value: &str) -> LeanStr {
-    decode_arbitrary_value(value).into()
 }
 
 #[cfg(test)]
@@ -590,13 +573,12 @@ mod boundary_tests {
         assert_eq!(split_once_top_level("a/[b/c]", '/'), ("a", Some("[b/c]")));
         assert!(balanced("[f(']')]"));
         assert!(!balanced("[x)"));
-        assert_eq!(decode_arbitrary(r"a_b\_c"), "a b_c");
         let key = |raw| {
             let candidate = parse_candidate(raw).unwrap();
-            candidate
-                .utility
-                .registration_key(candidate.negative)
-                .unwrap()
+            let Utility::Named { name, modifier } = candidate.utility else {
+                panic!("expected a named utility");
+            };
+            utility_registration_key(&name, modifier.as_ref(), candidate.negative)
         };
         assert_eq!(key("-probe-one/[foo_bar]"), "-probe-one/[foo_bar]");
         assert_eq!(key(r"probe-one/[foo\_bar]"), r"probe-one/[foo\_bar]");

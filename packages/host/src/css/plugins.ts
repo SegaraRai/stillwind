@@ -192,8 +192,6 @@ export class PluginRuntime {
   #generation = 0;
   /** Runtime of every Tailwind plugin of the graph, which share one config and theme. */
   #tailwind?: TailwindRuntime;
-  /** The plugins' theme configuration as CSS, answered with the first Tailwind statement. */
-  #themeCss = "";
   /** Loader of the original load, whose source IDs replays share without a session. */
   #loader?: NativeDesignSystemLoader;
   /** Tailwind statements in stylesheet order; an index is the statement's owner index. */
@@ -343,7 +341,6 @@ export class PluginRuntime {
       instances.map((instance) => instance.tailwind!),
       loader.editorQuery().themeTokens(),
     );
-    this.#themeCss = this.#tailwind.themeCss();
     if (this.previous) {
       await this.resolve(this.previous.#requested);
     }
@@ -496,11 +493,7 @@ export class PluginRuntime {
   #pluginAnswer(key: string, instance: PluginInstance): RecordedAnswer {
     return {
       name: `stillwind-plugin:${key.replaceAll("\0", "#")}#${this.#generation}#${instance.definitions.length}`,
-      content: [
-        instance === this.#tailwindInstances[0] ? this.#themeCss : "",
-        instance.css,
-        ...instance.definitions,
-      ].join("\n"),
+      content: [instance.css, ...instance.definitions].join("\n"),
     };
   }
 
