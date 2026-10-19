@@ -158,7 +158,10 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     arbitrary_check: ArbitraryValueCheck,
 ) -> Option<ResolvedCssDeclarations> {
     let lowered;
-    let body = if body.contains("--spacing(") || body.contains("--alpha(") {
+    let body = if body.contains("--alpha(")
+        || theme.namespaces().scales().any(|namespace| {
+            body.contains(format_args!("--{}(", namespace.name).to_lean_str().as_str())
+        }) {
         lowered = theme.resolve_css_functions(body)?;
         lowered.as_str()
     } else {

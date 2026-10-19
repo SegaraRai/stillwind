@@ -6,8 +6,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 use stillwind_design_system::{
-    BuiltinVariantValueType, DesignSystemRevision, ThemeNamespace, ThemeTokenKind,
-    UtilityResolutionError, builtin_utility_token_prefixes,
+    BuiltinVariantValueType, DesignSystemRevision, UtilityResolutionError,
+    builtin_utility_token_prefixes, named_domain_values,
 };
 use stillwind_syntax::parse_candidate;
 
@@ -84,12 +84,8 @@ impl DesignSystemQuery {
             let theme = self.context.design_system.theme();
             for definition in theme.registry().animation_options() {
                 if let Some(root) = definition.name.strip_suffix('*') {
-                    for namespace in value_namespaces(&definition.body, "--value") {
-                        for token in theme.active_tokens() {
-                            if let Some(value) = token.name.value.strip_prefix(namespace.as_str()) {
-                                vocabulary.insert(format_args!("{root}{value}").to_lean_str());
-                            }
-                        }
+                    for value in named_domain_values(&definition.body, theme) {
+                        vocabulary.insert(format_args!("{root}{value}").to_lean_str());
                     }
                 } else {
                     vocabulary.insert(definition.name.to_lean_str());
@@ -343,12 +339,8 @@ impl DesignSystemQuery {
                     continue;
                 }
                 for definition in definitions {
-                    for namespace in value_namespaces(&definition.body, "--value") {
-                        for token in theme.active_tokens() {
-                            if let Some(value) = token.name.value.strip_prefix(namespace.as_str()) {
-                                vocabulary.insert(format_args!("{root}{value}").to_lean_str());
-                            }
-                        }
+                    for value in named_domain_values(&definition.body, theme) {
+                        vocabulary.insert(format_args!("{root}{value}").to_lean_str());
                     }
                 }
             }
@@ -359,7 +351,7 @@ impl DesignSystemQuery {
 
     /// Returns every variant spelling that completion offers without a compound
     /// argument: names without a capture, wildcard names with each matching theme
-    /// value, and breakpoint names.
+    /// value, and the token keys that bare variants such as breakpoints accept.
     pub(crate) fn variant_vocabulary(&self) -> BTreeSet<LeanStr> {
         let theme = self.context.design_system.theme();
         let mut variant_names: BTreeSet<_> = self
@@ -388,16 +380,24 @@ impl DesignSystemQuery {
                 }
             }
         }
-        {
-            variant_names.extend(theme.active_tokens().iter().filter_map(
-                |token| match &token.kind {
-                    ThemeTokenKind::Token {
-                        namespace: ThemeNamespace::Breakpoint,
-                        name,
-                    } => Some(name.clone()),
-                    _ => None,
-                },
-            ));
+        for (_, definitions) in self.context.design_system.variants().iter() {
+            for namespace in definitions.iter().filter_map(|definition| {
+                definition
+                    .sort
+                    .as_ref()
+                    .filter(|sort| sort.bare)?
+                    .key
+                    .as_deref()?
+                    .strip_prefix("--")?
+                    .strip_suffix("-*")
+            }) {
+                variant_names.extend(
+                    theme
+                        .tokens_in(namespace)
+                        .into_iter()
+                        .map(|(key, _)| key.to_lean_str()),
+                );
+            }
         }
         variant_names
     }

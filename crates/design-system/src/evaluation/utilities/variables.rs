@@ -11,9 +11,8 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{CssProperty, ValueType};
 
-use super::super::values::theme_arbitrary_types;
 use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::ThemeIndex;
 
 /// How the type of a custom property is known.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -127,9 +126,9 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
             samples,
         });
     }
-    let namespace = ThemeNamespace::of_token(name)?;
+    let namespace = theme.namespaces().of_token(name)?;
     theme.custom_property(name)?;
-    let types = theme_arbitrary_types(namespace, theme);
+    let types = &namespace.types;
     let mut samples = Vec::new();
     for &value_type in types {
         samples.extend(type_samples(value_type)?);
@@ -141,7 +140,7 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
             .collect::<Vec<_>>()
             .join(" or ")
             .to_lean_str(),
-        source: VariableTypeSource::Theme(namespace.css_name().into()),
+        source: VariableTypeSource::Theme(namespace.name.clone()),
         samples,
     })
 }

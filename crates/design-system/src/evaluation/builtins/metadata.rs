@@ -10,9 +10,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{CustomPropertyDefinition, ValueType};
+use stillwind_css::CustomPropertyDefinition;
 
-use crate::{MarkerClasses, ThemeIndex, ThemeNamespace};
+use crate::{MarkerClasses, ThemeIndex};
 
 /// Every `@stillwind-property` definition selected by the theme, in authored order.
 pub fn builtin_property_definitions(
@@ -62,13 +62,6 @@ pub fn builtin_omit_token_prefixes(theme: &ThemeIndex) -> &[(LeanStr, LeanStr)] 
 /// The authored theme-namespace order used when serializing the theme layer.
 pub fn builtin_theme_order(theme: &ThemeIndex) -> &[LeanStr] {
     theme.registry().theme_order()
-}
-
-/// Value types accepted per theme namespace, as declared by the built-ins.
-pub(in crate::evaluation) fn builtin_theme_namespace_types(
-    theme: &ThemeIndex,
-) -> &BTreeMap<ThemeNamespace, Vec<ValueType>> {
-    theme.registry().theme_namespace_types()
 }
 
 /// Color space used for generated opacity expressions.

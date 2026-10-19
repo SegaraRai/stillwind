@@ -11,9 +11,9 @@ use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
     split_css_function_arguments, take_property_requirements,
 };
-use stillwind_design_system::SPACING_VALUE_DOMAIN;
 
-use super::super::preview::{SpacingUnit, convert_pixel_dimensions, dimension};
+use super::super::index::uses_rem;
+use super::super::preview::convert_pixel_dimensions;
 use crate::query::QueryContext;
 use crate::query::completion::value_namespaces;
 
@@ -341,10 +341,21 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
                 if argument.starts_with(['\'', '"']) {
                     return false;
                 }
+                let numeric = capture.trim_end_matches('%').parse::<f64>().is_ok();
+                if let Some(namespace) = query
+                    .design_system
+                    .theme()
+                    .namespaces()
+                    .scale_domain(argument)
+                {
+                    return !numeric
+                        && namespace
+                            .scale
+                            .as_ref()
+                            .is_none_or(|scale| !scale.keys.contains_key(capture));
+                }
                 match argument {
-                    "number" | "integer" | "percentage" | SPACING_VALUE_DOMAIN => {
-                        capture != "px" && capture.trim_end_matches('%').parse::<f64>().is_err()
-                    }
+                    "number" | "integer" | "percentage" => !numeric,
                     "--fraction()" => !capture.contains('/'),
                     "--stillwind-builtin-width()" | "--stillwind-builtin-height()" => ![
                         "auto", "full", "screen", "svw", "lvw", "dvw", "svh", "lvh", "dvh", "min",
@@ -360,19 +371,13 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
 
 /// Builds candidate lookup keys by minifying `value` in several declaration contexts.
 ///
-/// Adds a pixel-to-rem form when the query permits it and its spacing scale uses rem.
-/// These keys can admit extra candidates, so callers must compare complete CSS and
+/// Adds a pixel-to-rem form when the query permits it and one of its theme scales uses
+/// rem. These keys can admit extra candidates, so callers must compare complete CSS and
 /// registration requirements before accepting a replacement.
 fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
     let options = query.canonical_options();
     let mut values = vec![fold_calc_expressions(value, None)];
-    if options.px_to_rem
-        && query
-            .spacing_scale()
-            .as_deref()
-            .and_then(dimension)
-            .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
-    {
+    if options.px_to_rem && query.theme_scales().iter().any(uses_rem) {
         let converted = convert_pixel_dimensions(value, query.options.root_font_size.get());
         if converted != values[0] {
             values.push(converted);

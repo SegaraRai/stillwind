@@ -9,15 +9,15 @@ use std::sync::Arc;
 
 use lean_string::LeanStr;
 
-use stillwind_css::{CustomPropertyDefinition, ValueType, parse_property_definitions};
+use stillwind_css::{CustomPropertyDefinition, parse_property_definitions};
 
 use super::utility_lookup::UtilityLookup;
 use crate::{
-    BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespace,
+    BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
     parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
     parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
     parse_builtin_variant_definitions, parse_declaration_formats, parse_omit_token_prefixes,
-    parse_relationship_patterns, parse_theme_namespace_types, parse_theme_order,
+    parse_relationship_patterns, parse_theme_order,
 };
 
 /// Immutable registries parsed from the CSS supplied by a host.
@@ -39,7 +39,7 @@ pub struct BuiltinDefinitions {
     markers: MarkerClasses,
     omit_token_prefixes: Vec<(LeanStr, LeanStr)>,
     theme_order: Vec<LeanStr>,
-    theme_namespace_types: BTreeMap<ThemeNamespace, Vec<ValueType>>,
+    theme_namespaces: ThemeNamespaces,
 }
 
 impl BuiltinDefinitions {
@@ -108,9 +108,9 @@ impl BuiltinDefinitions {
         &self.theme_order
     }
 
-    /// CSS-authored value types per namespace.
-    pub fn theme_namespace_types(&self) -> &BTreeMap<ThemeNamespace, Vec<ValueType>> {
-        &self.theme_namespace_types
+    /// Theme namespaces that the CSS declares.
+    pub fn theme_namespaces(&self) -> &ThemeNamespaces {
+        &self.theme_namespaces
     }
 
     /// Returns the built-in definitions whose names match the utility name `name`: the
@@ -163,7 +163,7 @@ impl BuiltinDefinitions {
             markers,
             omit_token_prefixes: parse_omit_token_prefixes(css),
             theme_order: parse_theme_order(css),
-            theme_namespace_types: parse_theme_namespace_types(css),
+            theme_namespaces: ThemeNamespaces::parse(css),
         }
     }
 }

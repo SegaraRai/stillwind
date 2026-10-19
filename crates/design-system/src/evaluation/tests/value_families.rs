@@ -168,11 +168,7 @@ fn resolves_text_lengths_and_additional_discrete_layout_keywords() {
         .unwrap(),
     )
     .unwrap();
-    assert!(
-        custom_theme
-            .token_in(ThemeNamespace::FontStretch, "superbold")
-            .is_some()
-    );
+    assert!(custom_theme.token_in("font-stretch", "superbold").is_some());
     assert_css_eq!(
         resolve_utility("font-stretch-superbold", &custom_theme)
             .unwrap()

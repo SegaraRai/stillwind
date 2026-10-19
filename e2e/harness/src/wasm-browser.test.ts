@@ -32,7 +32,7 @@ test("the root browser entry compiles and minifies CSS with WASI", () => {
 test("browser CSS colors, picker edits, and statement sorting use WASI queries", async () => {
   const id = "/workspace/theme.css";
   const source =
-    "@theme { --color-brand:red; } @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);}\n/* 日本語 🦀 */ .a { @apply b; @apply a; @apply bg-brand; color:var(--color-brand); }";
+    "@stillwind-theme-namespace --color-* [color]; @theme { --color-brand:red; } @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);}\n/* 日本語 🦀 */ .a { @apply b; @apply a; @apply bg-brand; color:var(--color-brand); }";
   const project = new BrowserProject({
     root: "/workspace",
     files: new Map([[id, source]]),

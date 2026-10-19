@@ -7,24 +7,24 @@
 //!
 //! Typed captures - `[hint:value]`, parenthesized variables, and arbitrary lengths -
 //! are validated against the namespace's CSS-declared value types, so the accepted
-//! grammar follows the registry rather than this file.
+//! grammar follows the registry rather than this file. Numeric captures use the
+//! namespace's scale only when the registry declares one.
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueType, value_is_well_formed};
 use stillwind_syntax::decode_arbitrary_value;
 
-use super::super::builtins::builtin_theme_namespace_types;
 use super::super::context::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::parse_css_variable;
-use crate::{ThemeIndex, ThemeNamespace, ThemeToken, ThemeTokenKind, ThemeTokenMode};
+use crate::{ThemeIndex, ThemeNamespace, ThemeToken, ThemeTokenMode};
 
 /// The namespace that a theme namespace pattern such as `--color-*` reads.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(in crate::evaluation) enum PatternNamespace<'a> {
-    /// A namespace with built-in meaning. [`theme_value`] resolves its captures, so its
-    /// declared value types, typed arbitrary values, and the `--spacing` scale apply.
-    Builtin(ThemeNamespace),
+    /// A namespace that the registry declares. [`theme_value`] resolves its captures,
+    /// so its declared value types, typed arbitrary values, and its scale apply.
+    Declared(&'a ThemeNamespace),
     /// Any other namespace name, such as `size` or `color-red`, without the leading
     /// `--` and the trailing `-`. Only named tokens resolve, as
     /// [`ThemeIndex::namespace_token`] describes, and no value types are declared.
@@ -32,9 +32,13 @@ pub(in crate::evaluation) enum PatternNamespace<'a> {
 }
 
 impl<'a> PatternNamespace<'a> {
-    /// Reads the namespace name `name`, such as `color` or `size-lg`.
-    pub(in crate::evaluation) fn parse(name: &'a str) -> Self {
-        ThemeNamespace::parse(name).map_or(Self::Other(name), Self::Builtin)
+    /// Reads the namespace name `name`, such as `color` or `size-lg`, against the
+    /// namespaces that `theme` declares.
+    pub(in crate::evaluation) fn parse(name: &'a str, theme: &'a ThemeIndex) -> Self {
+        theme
+            .namespaces()
+            .get(name)
+            .map_or(Self::Other(name), Self::Declared)
     }
 
     /// Resolves the capture `key` with the pattern suffix `suffix`, such as `--alt` of
@@ -47,7 +51,7 @@ impl<'a> PatternNamespace<'a> {
         theme: &EvaluationContext<'_>,
     ) -> Option<LeanStr> {
         match self {
-            Self::Builtin(namespace) => theme_value(
+            Self::Declared(namespace) => theme_value(
                 namespace,
                 &format_args!("{key}{suffix}").to_lean_str(),
                 theme,
@@ -61,7 +65,7 @@ impl<'a> PatternNamespace<'a> {
     /// Returns the active token that the capture `key` with the pattern suffix `suffix`
     /// selects.
     ///
-    /// A [`Self::Builtin`] namespace reads the token named by `key` followed by
+    /// A [`Self::Declared`] namespace reads the token named by `key` followed by
     /// `suffix`. A [`Self::Other`] namespace with a suffix first requires the token
     /// that `key` selects, such as `--size-x`, and then reads the token whose name adds
     /// `suffix`, such as `--size-x--alt`, as Tailwind does.
@@ -72,9 +76,10 @@ impl<'a> PatternNamespace<'a> {
         theme: &'t ThemeIndex,
     ) -> Option<&'t ThemeToken> {
         match self {
-            Self::Builtin(namespace) => {
-                theme.token_in(namespace, &format_args!("{key}{suffix}").to_lean_str())
-            }
+            Self::Declared(namespace) => theme.token_in(
+                &namespace.name,
+                &format_args!("{key}{suffix}").to_lean_str(),
+            ),
             Self::Other(namespace) => {
                 let token = theme.namespace_token(namespace, key)?;
                 if suffix.is_empty() {
@@ -86,22 +91,24 @@ impl<'a> PatternNamespace<'a> {
     }
 
     /// Returns the captures that select an active token with the pattern suffix
-    /// `suffix`, as [`Self::token`] describes. Captures can repeat, and a scale such as
-    /// `--spacing` is not included.
-    pub(in crate::evaluation) fn keys<'t>(
-        self,
-        suffix: &str,
-        theme: &'t ThemeIndex,
-    ) -> Vec<&'t str> {
+    /// `suffix`, as [`Self::token`] describes. An active scale adds its fixed keys when
+    /// `suffix` is empty. Captures can repeat, and the scale token is not included.
+    pub(in crate::evaluation) fn keys(self, suffix: &str, theme: &'a ThemeIndex) -> Vec<&'a str> {
         match self {
-            Self::Builtin(namespace) => theme
-                .tokens_in(namespace)
-                .into_iter()
-                .filter_map(|token| match &token.kind {
-                    ThemeTokenKind::Token { name, .. } => name.strip_suffix(suffix),
-                    _ => None,
-                })
-                .collect(),
+            Self::Declared(namespace) => {
+                let mut keys: Vec<_> = theme
+                    .tokens_in(&namespace.name)
+                    .into_iter()
+                    .filter_map(|(key, _)| key.strip_suffix(suffix))
+                    .collect();
+                if suffix.is_empty()
+                    && theme.scale(&namespace.name).is_some()
+                    && let Some(scale) = &namespace.scale
+                {
+                    keys.extend(scale.keys.keys().map(LeanStr::as_str));
+                }
+                keys
+            }
             Self::Other(namespace) => {
                 let keys = theme
                     .namespace_tokens(namespace)
@@ -117,9 +124,9 @@ impl<'a> PatternNamespace<'a> {
     }
 
     /// The value types declared for the namespace, which are empty for [`Self::Other`].
-    pub(in crate::evaluation) fn value_types(self, theme: &ThemeIndex) -> &[ValueType] {
+    pub(in crate::evaluation) fn value_types(self) -> &'a [ValueType] {
         match self {
-            Self::Builtin(namespace) => theme_arbitrary_types(namespace, theme),
+            Self::Declared(namespace) => &namespace.types,
             Self::Other(_) => &[],
         }
     }
@@ -139,12 +146,12 @@ fn token_reference(token: &ThemeToken, theme: &EvaluationContext<'_>) -> LeanStr
 /// Resolves a value in `namespace` to the text a declaration should contain.
 ///
 /// Order matters: a typed arbitrary or variable capture wins over a named token, a
-/// named token wins over the numeric spacing scale, and a value that matches nothing
+/// named token wins over the namespace's scale, and a value that matches nothing
 /// returns [`None`]. The named-token path rejects non-ASCII captures; this is a
 /// restriction of this lookup, not of the general candidate parser. Typed arbitrary
 /// and variable captures are attempted before that restriction.
 pub(in crate::evaluation) fn theme_value(
-    namespace: ThemeNamespace,
+    namespace: &ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
 ) -> Option<LeanStr> {
@@ -156,19 +163,21 @@ pub(in crate::evaluation) fn theme_value(
         // This named-token lookup is ASCII-only; the earlier arbitrary-value and
         // variable paths do not share that restriction.
         _ if !value.is_ascii() => return None,
-        _ if let Some(token) = theme.token_in(namespace, value) => token_reference(token, theme),
-        _ if namespace == ThemeNamespace::Spacing
-            && theme.scale(ThemeNamespace::Spacing).is_some() =>
+        _ if let Some(token) = theme.token_in(&namespace.name, value) => {
+            token_reference(token, theme)
+        }
+        _ if let Some(scale) = namespace.scale.as_ref()
+            && let Some(token) = theme.scale(&namespace.name) =>
         {
-            if value == "px" {
-                "1px".to_lean_str()
+            if let Some(value) = scale.keys.get(value) {
+                theme.record_value_tokens(value);
+                value.clone()
             } else if value.parse::<f64>().is_ok() {
                 if value.parse::<f64>().is_ok_and(|number| number == 0.0) {
                     return Some("0".to_lean_str());
                 }
-                let scale_name = theme.scale(ThemeNamespace::Spacing)?.name.value.as_str();
-                theme.record_token(scale_name);
-                return Some(format_args!("calc(var({scale_name}) * {value})").to_lean_str());
+                let scale = token_reference(token, theme);
+                return Some(format_args!("calc({scale} * {value})").to_lean_str());
             } else {
                 return None;
             }
@@ -183,7 +192,7 @@ pub(in crate::evaluation) fn theme_value(
 /// Shadow color overrides read the authored value to find the colors they replace.
 /// Falls back to [`theme_value`] when no token matches.
 pub(in crate::evaluation) fn theme_value_literal(
-    namespace: ThemeNamespace,
+    namespace: &ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
 ) -> Option<LeanStr> {
@@ -192,7 +201,7 @@ pub(in crate::evaluation) fn theme_value_literal(
         _ if let Some(value) = typed_css_variable(namespace, value, theme) => {
             format_args!("var({value})").to_lean_str()
         }
-        _ if let Some(token) = theme.token_in(namespace, value) => {
+        _ if let Some(token) = theme.token_in(&namespace.name, value) => {
             theme.record_token(&token.name.value);
             token.value.value.clone()
         }
@@ -209,14 +218,14 @@ pub(in crate::evaluation) fn theme_value_literal(
 /// [`ArbitraryValueCheck::WellFormed`] values, every well-formed value without a hint is
 /// accepted.
 fn typed_theme_arbitrary(
-    namespace: ThemeNamespace,
+    namespace: &ThemeNamespace,
     value: &str,
     theme: &EvaluationContext<'_>,
 ) -> Option<LeanStr> {
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
     let value = theme.inline_theme_functions(&decode_arbitrary_value(value))?;
-    let types = theme_arbitrary_types(namespace, theme);
+    let types = &namespace.types;
     let hint_is_compatible = hint.is_empty()
         || types.is_empty()
         || ValueType::from_hint(hint)
@@ -231,16 +240,6 @@ fn typed_theme_arbitrary(
         theme.record_arbitrary_value(&value, types.contains(&ValueType::Color));
         value.into()
     })
-}
-
-/// The value types declared for a namespace by the selected built-ins.
-pub(in crate::evaluation) fn theme_arbitrary_types(
-    namespace: ThemeNamespace,
-    theme: &ThemeIndex,
-) -> &[ValueType] {
-    builtin_theme_namespace_types(theme)
-        .get(&namespace)
-        .map_or(&[], Vec::as_slice)
 }
 
 /// Resolves a `n/d` fraction capture into a percentage.
@@ -300,12 +299,12 @@ pub(in crate::evaluation) fn axis_size_value(
 }
 
 fn typed_css_variable<'a>(
-    namespace: ThemeNamespace,
+    namespace: &ThemeNamespace,
     value: &'a str,
     theme: &EvaluationContext<'_>,
 ) -> Option<&'a str> {
     let variable = parse_css_variable(value)?;
-    let types = theme_arbitrary_types(namespace, theme);
+    let types = &namespace.types;
     (variable.hint.is_none()
         || types.is_empty()
         || variable
@@ -320,13 +319,46 @@ fn typed_css_variable<'a>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
     use std::sync::Arc;
 
+    use stillwind_source::{CssSourceName, FileId, SourceFile};
     use stillwind_test_support::BUILTIN_REGISTRY_CSS;
 
     use super::*;
-    use crate::BuiltinDefinitions;
     use crate::theme::ThemeBuilder;
+    use crate::{BuiltinDefinitions, parse_theme};
+
+    #[test]
+    fn scales_use_inline_values_and_track_fixed_key_dependencies() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@stillwind-theme-namespace --step-* [length] scale(hair: var(--hairline, 1px));\
+             @theme inline { --step: 2px; }",
+        )
+        .unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("theme.css")).unwrap();
+        let namespace = theme.namespaces().get("step").unwrap();
+        let context = EvaluationContext::tracked(&theme, ArbitraryValueCheck::Grammar);
+        assert_eq!(
+            theme_value(namespace, "2", &context).as_deref(),
+            Some("calc(2px * 2)")
+        );
+        assert_eq!(
+            context.take_selections().tokens,
+            BTreeSet::from(["--step".into()])
+        );
+        assert_eq!(
+            theme_value(namespace, "hair", &context).as_deref(),
+            Some("var(--hairline, 1px)")
+        );
+        assert_eq!(
+            context.take_selections().tokens,
+            BTreeSet::from(["--hairline".into()])
+        );
+    }
 
     #[test]
     fn fractions_reject_zero_negative_and_overflowing_denominators() {
@@ -353,28 +385,30 @@ mod tests {
             ..Default::default()
         }
         .finish();
+        let spacing = configured.namespaces().get("spacing").unwrap().clone();
+        let color = configured.namespaces().get("color").unwrap().clone();
         let configured = EvaluationContext::untracked(&configured);
         assert_eq!(
-            typed_theme_arbitrary(ThemeNamespace::Spacing, "[length:2px]", &configured),
+            typed_theme_arbitrary(&spacing, "[length:2px]", &configured),
             Some("2px".into())
         );
         assert_eq!(
-            typed_theme_arbitrary(ThemeNamespace::Spacing, "[time:2s]", &configured),
+            typed_theme_arbitrary(&spacing, "[time:2s]", &configured),
             None
         );
         assert_eq!(
-            typed_css_variable(ThemeNamespace::Color, "(color:--x)", &configured),
+            typed_css_variable(&color, "(color:--x)", &configured),
             Some("--x")
         );
         assert_eq!(
-            typed_css_variable(ThemeNamespace::Color, "(length:--x)", &configured),
+            typed_css_variable(&color, "(length:--x)", &configured),
             None
         );
         let theme = ThemeIndex::default();
         let theme = EvaluationContext::untracked(&theme);
-        assert_eq!(theme_value(ThemeNamespace::Color, "missing", &theme), None);
+        assert_eq!(theme_value(&color, "missing", &theme), None);
         assert_eq!(
-            theme_value_literal(ThemeNamespace::Color, "[red]", &theme),
+            theme_value_literal(&color, "[red]", &theme),
             Some("red".into())
         );
     }

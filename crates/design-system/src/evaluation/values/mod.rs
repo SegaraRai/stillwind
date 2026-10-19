@@ -21,14 +21,11 @@ mod placeholders;
 mod theme;
 mod token_values;
 
-pub use domains::unresolvable_value_namespaces;
+pub use domains::{named_domain_values, unresolvable_value_namespaces};
 pub use token_values::{ThemeValueMismatch, theme_value_mismatch};
 
 pub(crate) use colors::color_fallback;
 
-pub(super) use domains::{
-    named_domain_values, resolve_value_domains, split_domains, theme_domain_pattern,
-};
+pub(super) use domains::{resolve_value_domains, split_domains, theme_domain_pattern};
 pub(super) use expansion::expand_placeholder;
 pub(super) use placeholders::{PreparedValues, resolve_css_placeholders};
-pub(super) use theme::theme_arbitrary_types;

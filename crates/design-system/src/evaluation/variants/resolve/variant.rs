@@ -351,11 +351,11 @@ fn resolve_named_variant(
             .as_ref()
             .filter(|sort| sort.bare)
             .and_then(|sort| sort.key.as_deref())
-            .and_then(variant_sort_namespace)
+            .and_then(|key| variant_sort_namespace(key, theme))
         else {
             continue;
         };
-        if theme.token_in(namespace, value).is_none() {
+        if theme.token_in(&namespace.name, value).is_none() {
             continue;
         }
         let Some((prefix, suffix)) = custom.wildcard_parts() else {
@@ -401,14 +401,14 @@ fn variant_names(theme: &ThemeIndex) -> Vec<LeanString> {
             .as_ref()
             .filter(|sort| sort.bare)
             .and_then(|sort| sort.key.as_deref())
-            .and_then(variant_sort_namespace)
+            .and_then(|key| variant_sort_namespace(key, theme))
         {
-            names.extend(theme.tokens_in(namespace).into_iter().filter_map(
-                |token| match &token.kind {
-                    crate::ThemeTokenKind::Token { name, .. } => Some(name.to_lean_string()),
-                    _ => None,
-                },
-            ));
+            names.extend(
+                theme
+                    .tokens_in(&namespace.name)
+                    .into_iter()
+                    .map(|(key, _)| key.to_lean_string()),
+            );
         }
     }
     names

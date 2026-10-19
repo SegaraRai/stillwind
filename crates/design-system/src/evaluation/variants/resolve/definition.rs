@@ -48,11 +48,11 @@ pub(in crate::evaluation) fn resolve_named_variant_with<T>(
             .as_ref()
             .filter(|sort| sort.bare)
             .and_then(|sort| sort.key.as_deref())
-            .and_then(variant_sort_namespace)
+            .and_then(|key| variant_sort_namespace(key, theme))
         else {
             continue;
         };
-        if theme.token_in(namespace, value).is_none() {
+        if theme.token_in(&namespace.name, value).is_none() {
             continue;
         }
         let Some((prefix, suffix)) = custom.wildcard_parts() else {

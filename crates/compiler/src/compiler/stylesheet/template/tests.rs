@@ -291,6 +291,7 @@ fn slots_relocate_definitions_without_hoisting_conditions_or_layers() {
         @media print { @layer motion { @stillwind-slot keyframes; } }
         @stillwind-slot properties;
     *,:before,:after,::backdrop { @stillwind-slot property-initials; }
+        @stillwind-theme-namespace --animate-* [animation];
         @theme { --color-brand: red; --animate-spin: spin 1s;
             @keyframes spin { to { opacity: 0; } }
         }

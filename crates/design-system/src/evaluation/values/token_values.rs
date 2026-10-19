@@ -10,14 +10,13 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{ValueType, find_css_functions};
 
-use super::theme::theme_arbitrary_types;
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::ThemeIndex;
 
 /// A theme token value that every value type of its namespace rejects.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeValueMismatch {
-    /// Namespace of the token.
-    pub namespace: ThemeNamespace,
+    /// Name of the token's namespace, such as `color`.
+    pub namespace: LeanStr,
     /// Type hints that the namespace accepts, joined with ` or `, such as `color` or
     /// `number or length`.
     pub expected: LeanStr,
@@ -30,18 +29,18 @@ pub struct ThemeValueMismatch {
 /// of a shadow namespace may be a comma-separated list of shadows.
 ///
 /// Returns `None` when `value` matches, and also when the check does not apply: `name`
-/// belongs to no namespace as [`ThemeNamespace::of_token`] describes, the namespace has
-/// no declared types, or `value` contains `var()`, `theme()`, or `--theme()`, whose
-/// result is unknown before substitution. A CSS-wide keyword such as `initial` always
-/// matches.
+/// belongs to no namespace as [`crate::ThemeNamespaces::of_token`] describes, the
+/// namespace has no declared types, or `value` contains `var()`, `theme()`, or
+/// `--theme()`, whose result is unknown before substitution. A CSS-wide keyword such as
+/// `initial` always matches.
 #[must_use]
 pub fn theme_value_mismatch(
     name: &str,
     value: &str,
     theme: &ThemeIndex,
 ) -> Option<ThemeValueMismatch> {
-    let namespace = ThemeNamespace::of_token(name)?;
-    let types = theme_arbitrary_types(namespace, theme);
+    let namespace = theme.namespaces().of_token(name)?;
+    let types = &namespace.types;
     let value = value.trim();
     if types.is_empty()
         || value.is_empty()
@@ -59,7 +58,7 @@ pub fn theme_value_mismatch(
         }
     };
     (!types.iter().any(accepts)).then(|| ThemeValueMismatch {
-        namespace,
+        namespace: namespace.name.clone(),
         expected: types
             .iter()
             .map(|value_type| value_type.hint())

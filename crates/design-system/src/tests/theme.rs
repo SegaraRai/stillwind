@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use lean_string::{ToLeanStr, ToLeanString};
+use lean_string::ToLeanString;
 
 use stillwind_css::CssOutputNode;
 
@@ -124,7 +124,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
         individual.registry().utilities(),
         [] as [Arc<CustomUtility>; 0]
     );
-    assert!(individual.scale(ThemeNamespace::Spacing).is_none());
+    assert!(individual.scale("spacing").is_none());
 
     let with_builtins = parse_fixture_theme(&SourceFile::new(
             FileId(7), None, None,
@@ -137,7 +137,7 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     );
     assert_eq!(
         with_builtins
-            .scale(ThemeNamespace::Spacing)
+            .scale("spacing")
             .map(|token| token.value.value.as_str()),
         Some("0.25rem")
     );
@@ -204,42 +204,63 @@ fn retains_default_tokens_after_nested_theme_keyframes() {
     )
     .unwrap();
 
-    assert!(theme.token_in(ThemeNamespace::Blur, "sm").is_some());
-    assert!(
-        theme
-            .token_in(ThemeNamespace::Perspective, "normal")
-            .is_some()
-    );
-    assert!(theme.token_in(ThemeNamespace::Color, "brand").is_some());
+    assert!(theme.token_in("blur", "sm").is_some());
+    assert!(theme.token_in("perspective", "normal").is_some());
+    assert!(theme.token_in("color", "brand").is_some());
 }
 
 #[test]
-fn classifies_tailwind_theme_namespaces_without_losing_source_spans() {
+fn classifies_declared_theme_namespaces_without_losing_source_spans() {
     let source = SourceFile::new(
         FileId(7),
         None,
         None,
-        "@theme { --spacing: .25rem; --color-accent: oklch(.6 .2 250); --vendor-value: 1; }",
+        "@stillwind-theme-namespace --color-* [color];\
+         @stillwind-theme-namespace --spacing-* [length] scale;\
+         @theme { --spacing: .25rem; --color-accent: oklch(.6 .2 250); --vendor-value: 1; }",
     )
     .unwrap();
 
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-    let color = theme.token_in(ThemeNamespace::Color, "accent").unwrap();
+    let color = theme.token_in("color", "accent").unwrap();
 
-    assert_eq!(
-        color.kind,
-        ThemeTokenKind::Token {
-            namespace: ThemeNamespace::Color,
-            name: "accent".to_lean_str(),
-        }
-    );
     assert_eq!(source.slice(color.name.span).unwrap(), "--color-accent");
+    assert_eq!(theme.scale("spacing").unwrap().value.value, ".25rem");
     assert_eq!(
-        theme.scale(ThemeNamespace::Spacing).unwrap().value.value,
-        ".25rem"
+        theme
+            .tokens_in("color")
+            .into_iter()
+            .map(|(key, token)| (key, token.name.value.as_str()))
+            .collect::<Vec<_>>(),
+        [("accent", "--color-accent")]
     );
-    assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
-    assert_eq!(theme.tokens()[2].kind, ThemeTokenKind::Custom);
+    assert!(theme.namespaces().classify("--vendor-value").is_none());
+    assert!(theme.token("vendor", "value").is_some());
+}
+
+#[test]
+fn a_stylesheet_can_declare_its_own_scale_namespace() {
+    let source = SourceFile::new(
+        FileId(7),
+        None,
+        None,
+        "@stillwind-theme-namespace --gap-* [length] scale(hair: 0.5px);\
+         @theme { --gap: 3px; --gap-wide: 2rem; }",
+    )
+    .unwrap();
+    let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
+    assert_eq!(
+        theme.resolve_css_functions("--gap(4)").as_deref(),
+        Some("calc(var(--gap) * 4)")
+    );
+    assert_eq!(
+        theme
+            .resolve_css_functions("--spacing(4) --value(--gap())")
+            .as_deref(),
+        Some("--spacing(4) --value(--gap())")
+    );
+    assert_eq!(theme.scale("gap").unwrap().value.value, "3px");
+    assert!(theme.token_in("gap", "wide").is_some());
 }
 
 #[test]

@@ -3,19 +3,20 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use lean_string::{LeanStr, ToLeanString};
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
-use crate::{ThemeNamespace, ThemeToken, ThemeTokenKind};
+use crate::{ThemeNamespaces, ThemeToken};
 
 /// Positions of the active tokens in a theme's token list.
 #[derive(Debug)]
 pub(super) struct TokenLookup {
     /// Active definition of each custom-property name.
     pub(super) active: BTreeMap<LeanStr, usize>,
-    /// Active named tokens of each namespace, by name within the namespace.
-    pub(super) named: BTreeMap<ThemeNamespace, BTreeMap<LeanStr, usize>>,
-    /// Active scale token of each namespace, such as `--spacing`.
-    pub(super) scales: BTreeMap<ThemeNamespace, usize>,
+    /// Active named tokens of each declared namespace, by namespace name and then by
+    /// key within the namespace.
+    pub(super) named: BTreeMap<LeanStr, BTreeMap<LeanStr, usize>>,
+    /// Active scale token of each declared namespace, by namespace name.
+    pub(super) scales: BTreeMap<LeanStr, usize>,
 }
 
 impl TokenLookup {
@@ -23,7 +24,10 @@ impl TokenLookup {
     /// of the same name unless the earlier one has higher precedence. `--*: initial`
     /// and `--namespace-*: initial` remove the earlier definitions of the same or lower
     /// precedence, and after `--*: initial` only custom properties are kept.
-    pub(super) fn new(tokens: &[Arc<ThemeToken>]) -> Self {
+    ///
+    /// `namespaces` classifies each active token: a namespace's bare name is its scale,
+    /// and a longer name is a named token of the longest matching namespace.
+    pub(super) fn new(tokens: &[Arc<ThemeToken>], namespaces: &ThemeNamespaces) -> Self {
         let mut values = BTreeMap::new();
         let mut clear_all = false;
         for (index, token) in tokens.iter().enumerate() {
@@ -61,17 +65,17 @@ impl TokenLookup {
         let mut named: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
         let mut scales = BTreeMap::new();
         for index in values.values() {
-            match &tokens[*index].kind {
-                ThemeTokenKind::Token { namespace, name } => {
+            match namespaces.classify(&tokens[*index].name.value) {
+                Some((namespace, Some(key))) => {
                     named
-                        .entry(*namespace)
+                        .entry(namespace.name.clone())
                         .or_default()
-                        .insert(name.clone(), *index);
+                        .insert(key.to_lean_str(), *index);
                 }
-                ThemeTokenKind::Scale(namespace) => {
-                    scales.insert(*namespace, *index);
+                Some((namespace, None)) => {
+                    scales.insert(namespace.name.clone(), *index);
                 }
-                ThemeTokenKind::Custom => {}
+                None => {}
             }
         }
         Self {

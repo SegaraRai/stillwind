@@ -6,7 +6,7 @@ import { BrowserAnalysisWorkspace } from "./browser.ts";
 test("CSS colors recover cold buffers while sorting requires original CSS after recovery", async () => {
   const uri = "file:///workspace/theme.css";
   const definitions =
-    "@theme {--color-brand:red;} @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);}";
+    "@stillwind-theme-namespace --color-* [color]; @theme {--color-brand:red;} @utility a {display:block;} @utility b {padding:1px;} @utility bg-* {background-color:--value(--color-*);}";
   const source = `${definitions} /* 日本語 🦀 */ .a { @apply bg-brand`;
   const workspace = new BrowserAnalysisWorkspace({
     config: "config",
@@ -136,7 +136,7 @@ test("browser editor requests keep project policies separate and discard superse
   const code =
     'import {style} from "stillwind/react"; export const card=style("p-[16px] flex block");';
   const css =
-    "@theme { --spacing:.25rem; } @utility p-* { padding:--value(--spacing(),[length]); } @utility block { display:block; } @utility flex { display:flex; } @stillwind-slot utilities;";
+    "@stillwind-theme-namespace --spacing-* [length] scale; @theme { --spacing:.25rem; } @utility p-* { padding:--value(--spacing(),[length]); } @utility block { display:block; } @utility flex { display:flex; } @stillwind-slot utilities;";
   const workspace = new BrowserAnalysisWorkspace({
     config: "file:///workspace/stillwind.config.ts",
     projects: [

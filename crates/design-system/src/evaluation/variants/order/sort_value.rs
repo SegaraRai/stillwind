@@ -7,7 +7,6 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 use stillwind_css::selector_uses_subject;
 use stillwind_syntax::{Variant, VariantKind, decode_arbitrary_value};
 
-use super::super::super::values::theme_arbitrary_types;
 use super::super::resolve::{decode_variant_template, split_variant_modifier};
 use super::compare_variant_sequences;
 use super::position::{builtin_variant_for_order, compound_inner_variant, variant_sort_namespace};
@@ -52,16 +51,20 @@ pub(super) fn compare_sort_values(
 
 /// The sort value of a variant: the theme token value named by its capture.
 ///
-/// A wildcard capture is the text between the definition's literal boundaries, a bare variant is the
-/// whole name, and an arbitrary capture is accepted only when the group's namespace
-/// value types accept it. A capture's `/modifier` part takes no part in ordering.
+/// A wildcard capture is the text between the definition's literal boundaries, a bare
+/// variant is the whole name, and an arbitrary capture is accepted only when the
+/// group's namespace value types accept it. A capture's `/modifier` part takes no part
+/// in ordering.
 pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Option<LeanString> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
     let definition = builtin_variant_for_order(variant, theme)?;
     let sort = definition.sort.as_ref()?;
-    let namespace = sort.key.as_deref().and_then(variant_sort_namespace)?;
+    let namespace = sort
+        .key
+        .as_deref()
+        .and_then(|key| variant_sort_namespace(key, theme))?;
     let capture = if definition.wildcard.is_some() {
         definition.capture(value).or(sort.bare.then_some(value))?
     } else if sort.bare {
@@ -75,13 +78,14 @@ pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
         .and_then(|capture| capture.strip_suffix(']'))
     {
         let arbitrary = decode_arbitrary_value(arbitrary);
-        return theme_arbitrary_types(namespace, theme)
+        return namespace
+            .types
             .iter()
             .any(|value_type| value_type.accepts(&arbitrary))
             .then_some(arbitrary);
     }
     (theme
-        .token_in(namespace, capture)
+        .token_in(&namespace.name, capture)
         .map(|token| token.value.value.clone()))
     .map(Into::into)
 }

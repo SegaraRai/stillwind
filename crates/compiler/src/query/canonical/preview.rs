@@ -13,18 +13,13 @@ use stillwind_source::ReplaceText;
 
 use crate::compiler::FLATTEN_COLOR_COMPATIBILITY;
 use crate::query::QueryContext;
+use crate::query::theme::ScaleReference;
 use crate::{GeneratedRule, RootFontSize};
-
-/// Complete CSS reference replaced when a query normalizes numeric spacing.
-pub(super) const SPACING_SCALE_REFERENCE: &str = "var(--spacing)";
-
-/// Prefix used to recognize references to named tokens in the spacing namespace.
-pub(super) const SPACING_TOKEN_REFERENCE_PREFIX: &str = "var(--spacing-";
 
 /// Spacing transformations that affect equality within one query's fixed lint policy.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(super) struct Normalization {
-    /// Whether to substitute the owning query's spacing scale.
+    /// Whether to substitute the owning query's theme scales.
     pub(super) resolve_scale: bool,
     /// Property names whose pixel dimensions use the query's root font size.
     pub(super) properties: BTreeSet<LeanStr>,
@@ -49,17 +44,17 @@ pub(in crate::query) struct CanonicalPreview {
 impl CanonicalPreview {
     /// Returns cached normalized CSS under the owning query's spacing policy.
     ///
-    /// `scale`, when present, and `root_font_size` must match the owning query's
-    /// values. Only `properties` and the presence of `scale` may vary between calls.
+    /// `scales`, when not empty, and `root_font_size` must match the owning query's
+    /// values. Only `properties` and whether `scales` is empty may vary between calls.
     /// Caches `None` when theme substitution or CSS normalization fails.
     pub(super) fn signature(
         &self,
-        scale: Option<&str>,
+        scales: &[ScaleReference],
         properties: &BTreeSet<LeanStr>,
         root_font_size: RootFontSize,
     ) -> Option<LeanStr> {
         let key = Normalization {
-            resolve_scale: scale.is_some(),
+            resolve_scale: !scales.is_empty(),
             properties: properties.clone(),
         };
         if let Some(cached) = self
@@ -73,7 +68,7 @@ impl CanonicalPreview {
         let result = self
             .resolved_css
             .as_deref()
-            .and_then(|css| normalized_signature(css, scale, properties, root_font_size));
+            .and_then(|css| normalized_signature(css, scales, properties, root_font_size));
         self.signatures
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -84,18 +79,18 @@ impl CanonicalPreview {
 
 /// Normalizes CSS whose known theme variables have already been substituted.
 ///
-/// Replaces spacing scale references with `scale` when supplied, and converts pixel
+/// Replaces the reference to each scale of `scales` with its value, and converts pixel
 /// dimensions in `properties` using `root_font_size`. Folds calculations and minifies
 /// the result. Returns `None` when the normalized CSS cannot be minified.
 pub(super) fn normalized_signature(
     css: &str,
-    scale: Option<&str>,
+    scales: &[ScaleReference],
     properties: &BTreeSet<LeanStr>,
     root_font_size: RootFontSize,
 ) -> Option<LeanStr> {
     let mut normalized = css.to_lean_string();
-    if let Some(scale) = scale {
-        normalized = normalized.replace_text(SPACING_SCALE_REFERENCE, scale);
+    for scale in scales {
+        normalized = normalized.replace_text(&scale.reference, &scale.value);
     }
     if !properties.is_empty() {
         normalized = convert_spacing_declarations(&normalized, properties, root_font_size.get(), 0);
@@ -172,7 +167,12 @@ pub(super) fn dimension(value: &str) -> Option<(f64, SpacingUnit)> {
     number.is_finite().then_some((number, unit))
 }
 
-pub(super) fn spacing_properties(css: &str, properties: &mut BTreeSet<LeanStr>, depth: usize) {
+pub(super) fn spacing_properties(
+    css: &str,
+    scales: &[ScaleReference],
+    properties: &mut BTreeSet<LeanStr>,
+    depth: usize,
+) {
     if depth > 64 {
         return;
     }
@@ -181,15 +181,16 @@ pub(super) fn spacing_properties(css: &str, properties: &mut BTreeSet<LeanStr>, 
             declarations
                 .into_iter()
                 .filter(|declaration| {
-                    declaration.css.contains(SPACING_SCALE_REFERENCE)
-                        || declaration.css.contains(SPACING_TOKEN_REFERENCE_PREFIX)
+                    scales
+                        .iter()
+                        .any(|scale| scale.referenced_by(&declaration.css))
                 })
                 .map(|declaration| declaration.property),
         );
     } else if let Ok(rules) = CssRule::parse(css) {
         for rule in rules {
             if let Some(body) = rule.body {
-                spacing_properties(&body, properties, depth + 1);
+                spacing_properties(&body, scales, properties, depth + 1);
             }
         }
     }
@@ -277,21 +278,4 @@ pub(super) fn convert_pixel_dimensions(value: &str, root: f64) -> LeanString {
         result.replace_range(range, &replacement);
     }
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use stillwind_design_system::ThemeNamespace;
-
-    use super::*;
-
-    #[test]
-    fn spacing_references_use_the_spacing_namespace() {
-        let namespace = ThemeNamespace::Spacing.css_name();
-        assert_eq!(SPACING_SCALE_REFERENCE, format!("var(--{namespace})"));
-        assert_eq!(
-            SPACING_TOKEN_REFERENCE_PREFIX,
-            format!("var(--{namespace}-")
-        );
-    }
 }

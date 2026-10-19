@@ -375,8 +375,12 @@ test("CSS LSP requests complete cold incomplete buffers and resolve dialect and 
   const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
   const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
   const uri = "file:///workspace/theme.css";
-  const definitions =
-    "@theme { --color-brand:red; }\n@utility flex {display:flex;}\n@utility bg-* {background-color:--value(--color-*);}\n@custom-variant hover (&:hover);\n";
+  const definitions = `@stillwind-theme-namespace --color-* [color];
+@theme { --color-brand:red; }
+@utility flex {display:flex;}
+@utility bg-* {background-color:--value(--color-*);}
+@custom-variant hover (&:hover);
+`;
   let text = `${definitions}/* 日本語 🦀 */ .a { @apply fl`;
   let version = 1;
   const service = createLanguageServer(server, {
@@ -571,7 +575,8 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
               ["/workspace/entry.tsx", source],
               [
                 "/workspace/theme.css",
-                `@theme { --spacing:.25rem; --color-brand:red; }
+                `@stillwind-theme-namespace --spacing-* [length] scale;
+@theme { --spacing:.25rem; --color-brand:red; }
 @utility p-* { padding:--value(--spacing-*, --spacing(), [length]); }
 @utility block { display:block; } @utility flex { display:flex; }
 @utility bg-* { background-color:--value(--color-*, [color]); }

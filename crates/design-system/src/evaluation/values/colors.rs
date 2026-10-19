@@ -11,7 +11,7 @@ use super::super::builtins::COMPAT_COLOR_MODERN_SPACE;
 use super::super::context::EvaluationContext;
 use super::domains::{resolve_value_domains, split_domains};
 use super::theme::theme_value_literal;
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::ThemeIndex;
 
 /// Resolves a color and an alpha, optionally followed by another alpha, to oklab mixing.
 /// A 100% first alpha keeps the original color. Compatibility emission follows resolution.
@@ -241,7 +241,7 @@ pub(in crate::evaluation) fn resolve_shadow_color(
             .trim()
             .strip_prefix("--")
             .and_then(|domain| domain.strip_suffix("-*"))
-            .and_then(ThemeNamespace::parse)?;
+            .and_then(|name| theme.namespaces().get(name))?;
         theme_value_literal(namespace, capture?, theme)?
     };
     let color_property = color_property.trim();

@@ -9,13 +9,12 @@
 //! Extraction is syntax-level. Namespace resets and duplicate resolution are decided
 //! later, because they depend on the whole token list rather than on one declaration.
 
-use lean_string::{LeanStr, ToLeanStr, ToLeanString};
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::matching_brace;
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{FileId, Span, Spanned};
 
-use super::namespace::ThemeNamespace;
 use super::parser::offset;
 
 /// How a `@theme` block's declarations are emitted.
@@ -73,22 +72,6 @@ impl ThemeTokenPrecedence {
     }
 }
 
-/// The semantic identity of one custom property in a `@theme` block.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ThemeTokenKind {
-    /// `--spacing` is a scalar used by numeric spacing utilities.
-    Scale(ThemeNamespace),
-    /// A named token such as `--color-accent` or `--breakpoint-md`.
-    Token {
-        /// Namespace the token was declared under.
-        namespace: ThemeNamespace,
-        /// Token name without its namespace prefix.
-        name: LeanStr,
-    },
-    /// A property that Stillwind emits unchanged but does not use for built-ins.
-    Custom,
-}
-
 /// One custom-property declaration from a `@theme` block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeToken {
@@ -96,8 +79,6 @@ pub struct ThemeToken {
     pub name: Spanned<LeanStr>,
     /// Authored value with its span in the parsed buffer.
     pub value: Spanned<LeanStr>,
-    /// Which namespace and name the declaration resolved to.
-    pub kind: ThemeTokenKind,
     /// Emission policy: ordinary referenced token, inline value, or static retention.
     pub mode: ThemeTokenMode,
     /// Which definition of the token wins, independent of source order.
@@ -190,61 +171,11 @@ pub(crate) fn extract_theme_declarations(
                     offset(value_start + value.len())?,
                 ),
             ),
-            kind: classify_theme_token(name),
             mode,
             precedence: ThemeTokenPrecedence::Ordinary,
         });
     }
     Ok(tokens)
-}
-
-/// Classifies a custom-property name by theme namespace.
-///
-/// A bare namespace name is the namespace's scale, a namespaced name is a named token,
-/// and anything else is custom: a custom property stays available as authored CSS but
-/// creates no value for a built-in utility or variant.
-fn classify_theme_token(name: &str) -> ThemeTokenKind {
-    let Some(name) = name.strip_prefix("--") else {
-        return ThemeTokenKind::Custom;
-    };
-    for namespace in [
-        ThemeNamespace::AspectRatio,
-        ThemeNamespace::FontWeight,
-        ThemeNamespace::FontStretch,
-        ThemeNamespace::InsetShadow,
-        ThemeNamespace::DropShadow,
-        ThemeNamespace::TextShadow,
-        ThemeNamespace::Breakpoint,
-        ThemeNamespace::Perspective,
-        ThemeNamespace::Container,
-        ThemeNamespace::Tracking,
-        ThemeNamespace::Duration,
-        ThemeNamespace::Animate,
-        ThemeNamespace::Color,
-        ThemeNamespace::Spacing,
-        ThemeNamespace::Radius,
-        ThemeNamespace::Shadow,
-        ThemeNamespace::Leading,
-        ThemeNamespace::Font,
-        ThemeNamespace::Text,
-        ThemeNamespace::Blur,
-        ThemeNamespace::Ease,
-        ThemeNamespace::ZIndex,
-    ] {
-        let namespace_name = namespace.css_name();
-        if name == namespace_name {
-            return ThemeTokenKind::Scale(namespace);
-        }
-        if let Some(token_name) =
-            name.strip_prefix(format_args!("{namespace_name}-").to_lean_string().as_str())
-        {
-            return ThemeTokenKind::Token {
-                namespace,
-                name: token_name.to_lean_str(),
-            };
-        }
-    }
-    ThemeTokenKind::Custom
 }
 
 #[cfg(test)]
@@ -282,14 +213,6 @@ mod tests {
         assert_eq!(tokens[0].name.span.start.0, 10);
         assert_eq!(tokens[0].value.value, "red");
         assert_eq!(tokens[0].mode, ThemeTokenMode::Inline);
-        assert!(matches!(
-            classify_theme_token("--color-a"),
-            ThemeTokenKind::Token {
-                namespace: ThemeNamespace::Color,
-                ..
-            }
-        ));
-        assert_eq!(classify_theme_token("--unknown-a"), ThemeTokenKind::Custom);
         assert_eq!(ThemeTokenMode::parse("static"), ThemeTokenMode::Static);
         assert_eq!(ThemeTokenMode::parse("unknown"), ThemeTokenMode::Default);
     }

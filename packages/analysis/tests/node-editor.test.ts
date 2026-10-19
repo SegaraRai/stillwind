@@ -14,7 +14,8 @@ test("Node workers answer editor queries from unsaved source and stylesheet buff
   const cssUri = pathToFileURL(path.join(root, "theme.css")).href;
   const source =
     'import {style} from "stillwind/react"; export const card=style("p-[16px] bg-brand");';
-  const css = `@theme { --spacing:.25rem; --color-brand:red; }
+  const css = `@stillwind-theme-namespace --spacing-* [length] scale;
+@theme { --spacing:.25rem; --color-brand:red; }
 @utility p-* { padding:--value(--spacing(), [length]); }
 @utility bg-* { background-color:--value(--color-*, [color]); }
 @variant hover { &:hover { @slot; } } @stillwind-slot utilities;`;

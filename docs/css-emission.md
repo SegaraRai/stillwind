@@ -393,9 +393,19 @@ Editor catalogs list finite candidates without running their callbacks. Selectin
 completion resolves its CSS without adding that candidate to the application's used CSS.
 CSS distributions load through `@import`. Their `--spacing(<value>)` becomes
 `calc(<spacing scale> * <value>)` with the theme's spacing scale, and
-`--alpha(<color> / <alpha>)` becomes a `color-mix()` as in Tailwind. Tailwind multiplies
-every plain number in `--alpha()` by 100, so `--alpha(red / 50)` is 5000%, which
-`color-mix()` rejects; write `50%` or `0.5`.
+`--alpha(<color> / <alpha>)` becomes a `color-mix()` as in Tailwind. The scale function
+comes from the registry statement `@stillwind-theme-namespace --spacing-* [length] scale;`,
+which makes `--spacing` the scale of the `spacing` namespace. Any stylesheet can declare
+another namespace with a scale in the same way. Tailwind multiplies every plain number in
+`--alpha()` by 100, so `--alpha(red / 50)` is 5000%, which `color-mix()` rejects; write
+`50%` or `0.5`.
+
+`scale(px: 1px)` also declares fixed captures. Both `--value(--spacing())` and
+`--value(--spacing-*)` try named tokens before fixed captures and numeric multiples.
+Fixed captures require an active scale token and participate in completion and
+canonical replacements. A later namespace declaration replaces its types and scale.
+`@stillwind-theme-exclude --font-* --font-weight-*;` excludes a narrower namespace
+from the wider namespace's `--value()` patterns.
 
 Plugin selectors that name other classes, such as the component classes of daisyUI and
 the `not-prose` class of `@tailwindcss/typography`, match through

@@ -1,12 +1,12 @@
 //! Theme queries expose authored values and resolve concrete colors in candidate previews.
 
-use lean_string::{LeanStr, ToLeanString};
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
     CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure,
     split_css_function_arguments,
 };
-use stillwind_design_system::{ThemeNamespace, ThemeToken, UtilityResolutionError};
+use stillwind_design_system::{ThemeToken, UtilityResolutionError};
 
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{dynamic_candidates, stylesheet_dynamic_candidates};
@@ -45,11 +45,6 @@ impl DesignSystemQuery {
             .flat_map(|(_, tokens)| tokens)
             .map(|token| (token.name.value.clone(), token.value.value.clone()))
             .collect()
-    }
-
-    /// Returns the scale used by spacing utilities, or `None` when it is absent.
-    pub fn spacing_scale(&self) -> Option<LeanStr> {
-        self.context.spacing_scale()
     }
 
     /// Returns a concrete color for a candidate whose ordinary declarations only set
@@ -145,13 +140,42 @@ fn declaration_value(value: &str) -> &str {
     value.trim().trim_end_matches("!important").trim()
 }
 
+/// An active theme scale, such as `--spacing`, that canonical comparisons substitute.
+#[derive(Clone, Debug)]
+pub(super) struct ScaleReference {
+    /// Complete reference to the scale token, such as `var(--spacing)`.
+    pub(super) reference: LeanStr,
+    /// Prefix of references to named tokens of the scale's namespace, such as
+    /// `var(--spacing-`.
+    pub(super) token_prefix: LeanStr,
+    /// Authored value of the scale token, such as `0.25rem`.
+    pub(super) value: LeanStr,
+}
+
+impl ScaleReference {
+    /// Whether `css` refers to the scale token or to a named token of its namespace.
+    pub(super) fn referenced_by(&self, css: &str) -> bool {
+        css.contains(self.reference.as_str()) || css.contains(self.token_prefix.as_str())
+    }
+}
+
 impl QueryContext {
-    /// Returns the scale used by spacing utilities, or `None` when it is absent.
-    pub(super) fn spacing_scale(&self) -> Option<LeanStr> {
-        self.design_system
-            .theme()
-            .scale(ThemeNamespace::Spacing)
-            .map(|token| token.value.value.clone())
+    /// Returns the active scale token of each declared namespace with a scale, ordered
+    /// by namespace name.
+    pub(super) fn theme_scales(&self) -> Vec<ScaleReference> {
+        let theme = self.design_system.theme();
+        theme
+            .namespaces()
+            .scales()
+            .filter_map(|namespace| {
+                let token = theme.scale(&namespace.name)?;
+                Some(ScaleReference {
+                    reference: format_args!("var({})", token.name.value).to_lean_str(),
+                    token_prefix: format_args!("var({}-", token.name.value).to_lean_str(),
+                    value: token.value.value.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Substitutes known theme variables in `input`. Unknown variables retain their

@@ -12,7 +12,7 @@ use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property
 
 use super::builder::ThemeBuilder;
 use super::declarations::ThemeToken;
-use super::namespace::{ThemeNamespace, excluded_from_namespace, namespace_key_names};
+use super::namespace::namespace_key_names;
 use super::parser::{DynamicFamily, UtilityImportance};
 use super::references::{inline_theme_functions, resolve_css_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
@@ -20,7 +20,7 @@ use crate::evaluation::{UtilityPrograms, color_fallback};
 use crate::registry::UtilityLookup;
 use crate::{
     BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, DynamicFamilyKind,
-    MarkerClasses, ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
+    MarkerClasses, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
 };
 
 /// Everything that one stylesheet declares, as the parser collected it. Equality of two
@@ -108,7 +108,10 @@ impl ThemeIndex {
             utility_order: builder.utility_order,
             target: builder.target,
         };
-        let tokens = TokenLookup::new(&declarations.tokens);
+        let tokens = TokenLookup::new(
+            &declarations.tokens,
+            declarations.registry.theme_namespaces(),
+        );
         let utilities = UtilityLookup::new(&declarations.utilities);
         let theme = Self {
             inner: Arc::new(ThemeData {
@@ -319,44 +322,58 @@ impl ThemeIndex {
         color_fallback(declaration, self)
     }
 
-    /// The named token in `namespace`, or `None` when it is not active.
+    /// Theme namespaces that the selected built-in definitions declare.
     #[must_use]
-    pub fn token_in(&self, namespace: ThemeNamespace, name: &str) -> Option<&ThemeToken> {
-        let index = self.inner.tokens.named.get(&namespace)?.get(name)?;
+    pub fn namespaces(&self) -> &ThemeNamespaces {
+        self.registry().theme_namespaces()
+    }
+
+    /// The named token with the key `name` in the declared namespace `namespace`, or
+    /// `None` when it is not active.
+    #[must_use]
+    pub fn token_in(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
+        let index = self.inner.tokens.named.get(namespace)?.get(name)?;
         Some(&self.inner.declarations.tokens[*index])
     }
 
-    /// Every active named token in `namespace`, ordered by custom-property name.
+    /// Every active named token in the declared namespace `namespace` with its key,
+    /// ordered by key.
     #[must_use]
-    pub fn tokens_in(&self, namespace: ThemeNamespace) -> Vec<&ThemeToken> {
+    pub fn tokens_in(&self, namespace: &str) -> Vec<(&str, &ThemeToken)> {
         self.inner
             .tokens
             .named
-            .get(&namespace)
+            .get(namespace)
             .into_iter()
-            .flat_map(BTreeMap::values)
-            .map(|index| self.inner.declarations.tokens[*index].as_ref())
+            .flatten()
+            .map(|(key, index)| {
+                (
+                    key.as_str(),
+                    self.inner.declarations.tokens[*index].as_ref(),
+                )
+            })
             .collect()
     }
 
-    /// The namespace's scalar scale token, when one is active.
+    /// The scale token of the declared namespace `namespace`, such as `--spacing`,
+    /// when one is active.
     #[must_use]
-    pub fn scale(&self, namespace: ThemeNamespace) -> Option<&ThemeToken> {
+    pub fn scale(&self, namespace: &str) -> Option<&ThemeToken> {
         self.inner
             .tokens
             .scales
-            .get(&namespace)
+            .get(namespace)
             .map(|index| self.inner.declarations.tokens[*index].as_ref())
     }
 
     /// Looks up a token by authored namespace text and bare name.
     ///
-    /// A namespace that is not a known theme namespace falls back to treating the
+    /// A namespace that is not a declared theme namespace falls back to treating the
     /// arguments as a custom-property name, so callers may query an arbitrary property
     /// without knowing whether it participates in a namespace.
     #[must_use]
     pub fn token(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
-        if let Some(namespace) = ThemeNamespace::parse(namespace) {
+        if self.namespaces().get(namespace).is_some() {
             return self.token_in(namespace, name);
         }
         let expected = format_args!("--{namespace}-{name}").to_lean_string();
@@ -368,15 +385,15 @@ impl ThemeIndex {
     ///
     /// `namespace` is any namespace name without the leading `--` and the trailing `-`,
     /// such as `size` or `size-lg`. The lookup does not use the classification of
-    /// [`ThemeNamespace`]. It also accepts `_` in a token name for `.` in `key`, and it
-    /// skips a token of a narrower namespace that Tailwind excludes, such as
-    /// `--font-weight-bold` for `font`.
+    /// declared namespaces. It also accepts `_` in a token name for `.` in `key`, and
+    /// it skips a token of a narrower namespace that [`ThemeNamespaces::excludes`]
+    /// excludes, such as `--font-weight-bold` for `font`.
     #[must_use]
     pub fn namespace_token(&self, namespace: &str, key: &str) -> Option<&ThemeToken> {
         let token = namespace_key_names(namespace, key)
             .iter()
             .find_map(|name| self.custom_property(name))?;
-        (!excluded_from_namespace(namespace, &token.name.value)).then_some(token)
+        (!self.namespaces().excludes(namespace, &token.name.value)).then_some(token)
     }
 
     /// Returns every active token in the namespace `namespace` with its key, ordered by
@@ -389,7 +406,7 @@ impl ThemeIndex {
     pub fn namespace_tokens(&self, namespace: &str) -> Vec<(&str, &ThemeToken)> {
         let prefix = format_args!("--{namespace}-").to_lean_string();
         self.active_token_definitions()
-            .filter(|token| !excluded_from_namespace(namespace, &token.name.value))
+            .filter(|token| !self.namespaces().excludes(namespace, &token.name.value))
             .filter_map(|token| {
                 let key = token.name.value.strip_prefix(prefix.as_str())?;
                 (!key.is_empty()).then_some((key, token.as_ref()))
@@ -445,21 +462,28 @@ impl ThemeIndex {
         })
     }
 
-    /// Lowers Tailwind's public `--spacing(<value>)` and `--alpha(<color> / <alpha>)`
-    /// functions with this theme's spacing scale. An inline scale contributes its
-    /// value, and any other scale a `var()` reference.
+    /// Lowers the scale functions of declared namespaces, such as `--spacing(<value>)`,
+    /// and Tailwind's public `--alpha(<color> / <alpha>)` function. An inline scale
+    /// contributes its value, and any other scale a `var()` reference.
     ///
-    /// Returns `None` for a malformed call, for `--spacing(<value>)` when the theme has
-    /// no spacing scale, and for expansion beyond the size or nesting limits.
+    /// Returns `None` for a malformed call, for a scale function whose scale token is
+    /// not active, and for expansion beyond the size or nesting limits.
     pub fn resolve_css_functions(&self, value: &str) -> Option<LeanString> {
-        let spacing = self.scale(ThemeNamespace::Spacing).map(|token| {
-            if matches!(token.mode, ThemeTokenMode::Inline) {
-                token.value.value.to_lean_string()
-            } else {
-                format_args!("var({})", token.name.value).to_lean_string()
-            }
-        });
-        resolve_css_functions(value, spacing.as_deref())
+        let scales = self
+            .namespaces()
+            .scales()
+            .map(|namespace| {
+                let scale = self.scale(&namespace.name).map(|token| {
+                    if matches!(token.mode, ThemeTokenMode::Inline) {
+                        token.value.value.to_lean_string()
+                    } else {
+                        format_args!("var({})", token.name.value).to_lean_string()
+                    }
+                });
+                (namespace.scale_token(), scale)
+            })
+            .collect::<Vec<_>>();
+        resolve_css_functions(value, &scales)
     }
 
     /// Returns the effective CSS custom properties after v4 namespace resets.
@@ -606,7 +630,6 @@ mod tests {
         assert_eq!(theme.active_tokens().len(), 1);
         assert_eq!(theme.value("color", "old"), None);
         assert_eq!(theme.value("color", "new"), Some("green"));
-        assert_eq!(theme.tokens_in(ThemeNamespace::Color).len(), 1);
         assert_eq!(
             theme
                 .resolve_theme_references("--theme(--color-new)")

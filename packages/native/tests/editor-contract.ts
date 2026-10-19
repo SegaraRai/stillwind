@@ -7,6 +7,28 @@ import { expect, test } from "vite-plus/test";
  * @param specifier - Module specifier of the binding that the tests import.
  */
 export function registerEditorContract(specifier: string): void {
+  test("CSS declarations define scale functions, fixed keys, completions, and canonical values", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `@stillwind-theme-namespace --unit-* [length] scale(hair: 1px);
+@theme { --unit: .5rem; --unit-wide: 2rem; }
+@utility space-* { padding: --value(--unit(), [length]); }
+@utility inset-* { margin: --value(--unit-*); }
+@utility fixed { width: --unit(2); }`,
+    );
+    const query = loader.editorQuery();
+    expect(query.previewCandidate("fixed")).toBe("&{width: calc(var(--unit) * 2);}");
+    expect(query.previewCandidate("space-hair")).toBe("&{padding: 1px;}");
+    expect(query.previewCandidate("inset-hair")).toBe("&{margin: 1px;}");
+    expect(query.completeCandidate("space-")).toEqual(["space-hair", "space-wide"]);
+    expect(query.completeCandidate("inset-h")).toEqual(["inset-hair"]);
+    expect(query.canonicalCandidate("space-[16px]")).toBe("space-2");
+    expect(query.canonicalCandidate("space-[1px]")).toBe("space-hair");
+  });
+
   test("functional registrations preserve modifiers, nested targets, theme defaults, and CSS functions", async () => {
     const { NativeDesignSystemLoader, NativeProjectSession, decodeArbitraryValue } = await import(
       specifier
@@ -16,6 +38,7 @@ export function registerEditorContract(specifier: string): void {
       0,
       "theme.css",
       `
+@stillwind-theme-namespace --spacing-* [length] scale;
 @theme { --spacing: .25rem; --color-brand: blue; }
 @theme default { --color-brand: red; }
 @utility duration-* { transition-duration: --value(integer)ms; }
@@ -277,6 +300,8 @@ export function registerEditorContract(specifier: string): void {
       0,
       "theme.css",
       `${motion}
+@stillwind-theme-namespace --duration-* [time];
+@stillwind-theme-namespace --ease-* [easing];
 @theme { --duration-normal:180ms; --ease-soft:ease-in; }
 @utility block { display:block; }
 @stillwind-variant hover { &:hover { @slot; } }
@@ -513,7 +538,7 @@ export function registerEditorContract(specifier: string): void {
   test("canonical replacements obey token and unit restrictions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const css =
-      "@theme {--color-red-500:red;--spacing:0.25rem;} @utility bg-* {background-color:--value(--color-*,[color]);} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;";
+      "@stillwind-theme-namespace --spacing-* [length] scale; @theme {--color-red-500:red;--spacing:0.25rem;} @utility bg-* {background-color:--value(--color-*,[color]);} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;";
     /**
      * Loads the shared stylesheet with compiler options.
      * @param options - Options under test.
@@ -568,7 +593,7 @@ export function registerEditorContract(specifier: string): void {
     loader.provide(
       0,
       "theme.css",
-      "@theme {--spacing:0.25rem;} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;",
+      "@stillwind-theme-namespace --spacing-* [length] scale; @theme {--spacing:0.25rem;} @utility p-* {padding:--value(--spacing(),[length]);} @stillwind-slot utilities;",
       "file:///theme.css",
     );
     expect(loader.editorQuery().canonicalCandidate("p-[16px]")).toBe("p-4");
@@ -695,7 +720,8 @@ export function registerEditorContract(specifier: string): void {
     loader.provide(
       0,
       "theme.css",
-      `@theme { --spacing:.25rem; --color-brand:red; --text-body:1rem; --leading-tight:1.25rem; --breakpoint-narrow:40rem; }
+      `@stillwind-theme-namespace --spacing-* [length] scale;
+@theme { --spacing:.25rem; --color-brand:red; --text-body:1rem; --leading-tight:1.25rem; --breakpoint-narrow:40rem; }
 @utility p-* { padding:--value(--spacing-*, --spacing(), [length]); }
 @utility bg-* { background-color:--value(--color-*, [color]); }
 @utility text-* { font-size:--value(--text-*, [length]); line-height:--modifier(--leading-*, [length]); }

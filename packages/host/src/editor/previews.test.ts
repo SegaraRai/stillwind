@@ -41,6 +41,9 @@ const declarations = (async () => {
   return {
     files,
     css: `${motion}\n${variants}\n
+@stillwind-theme-namespace --duration-* [time];
+@stillwind-theme-namespace --ease-* [easing];
+@stillwind-theme-namespace --breakpoint-* [length];
 @theme { --duration-normal:180ms; --ease-soft:ease-in; --breakpoint-md:40rem; }
 @utility block { display:block; } @utility opacity-* { opacity:calc(--value(integer) / 100); }
 @stillwind-variant hover { &:hover { @slot; } }

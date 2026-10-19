@@ -33,7 +33,9 @@ pub use utilities::{
     UtilityResolutionError, UtilityTokenUse, VariableMismatch, VariableTypeSource,
     check_candidate_variants, resolve_animation_option, resolve_utility, utility_value_range,
 };
-pub use values::{ThemeValueMismatch, theme_value_mismatch, unresolvable_value_namespaces};
+pub use values::{
+    ThemeValueMismatch, named_domain_values, theme_value_mismatch, unresolvable_value_namespaces,
+};
 pub use variants::{
     ConditionContext, DocumentTargetFailure, MarkerUse, RedundantVariant, ResolvedVariant,
     UnsatisfiableVariants, VariantApplication, VariantContext, VariantDeclaration,

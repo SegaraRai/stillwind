@@ -9,6 +9,8 @@ import { EditorSnapshot } from "./snapshot.ts";
 import { applyEdits } from "./sort.ts";
 
 const theme = `
+@stillwind-theme-namespace --spacing-* [length] scale;
+@stillwind-theme-namespace --color-* [color];
 @theme { --spacing: .25rem; --color-brand: #123456; --color-bright: red; }
 @utility block { display: block; }
 @utility flex { display: flex; }

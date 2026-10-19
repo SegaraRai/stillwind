@@ -13,23 +13,31 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{find_css_functions, split_css_function_arguments};
 
-/// Lowers Tailwind's public `--spacing(<value>)` and `--alpha(<color> / <alpha>)`
-/// functions outside CSS strings, as Tailwind 4.3 lowers them.
+/// Lowers scale functions such as `--spacing(<value>)` and Tailwind's public
+/// `--alpha(<color> / <alpha>)` function outside CSS strings, as Tailwind 4.3 lowers
+/// them.
 ///
-/// `spacing` is the text that refers to the spacing scale token, such as
-/// `var(--spacing)`, or `None` when the theme has no scale. `--spacing(n)` becomes
-/// `calc(<spacing> * n)`, except that `0` becomes `0px` and `1` becomes the scale
-/// itself. Empty `--spacing()` is the spacing value domain of `--value()` and
-/// `--modifier()`, so it is kept. `--alpha()` without a top-level `/` is Stillwind's
-/// alpha placeholder of utility bodies, so it is also kept.
+/// Each entry of `scales` names a scale function, such as `--spacing`, and the text
+/// that refers to its scale token, such as `var(--spacing)`, or `None` when the scale
+/// token is not active. `--spacing(n)` becomes `calc(<scale> * n)`, except that `0`
+/// becomes `0px` and `1` becomes the scale itself. Empty `--spacing()` is the value
+/// domain of `--value()` and `--modifier()`, so it is kept. `--alpha()` without a
+/// top-level `/` is Stillwind's alpha placeholder of utility bodies, so it is also
+/// kept.
 ///
-/// Returns `None` for a malformed call, for `--spacing(n)` without a scale, and for
-/// expansion beyond the size or nesting limits.
-pub(crate) fn resolve_css_functions(value: &str, spacing: Option<&str>) -> Option<LeanString> {
+/// Returns `None` for a malformed call, for a scale function without an active scale,
+/// and for expansion beyond the size or nesting limits.
+pub(crate) fn resolve_css_functions(
+    value: &str,
+    scales: &[(LeanString, Option<LeanString>)],
+) -> Option<LeanString> {
+    let names = std::iter::once("--alpha")
+        .chain(scales.iter().map(|(name, _)| name.as_str()))
+        .collect::<Vec<_>>();
     let mut output = LeanString::from(value);
     for _ in 0..32 {
         let mut changed = false;
-        let calls = find_css_functions(&output, &["--spacing", "--alpha"], 0);
+        let calls = find_css_functions(&output, &names, 0);
         let leaves: Vec<_> = calls
             .iter()
             .enumerate()
@@ -43,17 +51,21 @@ pub(crate) fn resolve_css_functions(value: &str, spacing: Option<&str>) -> Optio
         for call in leaves.into_iter().rev() {
             let end = call.end?;
             let arguments = output[call.arguments.clone()].trim();
-            let replacement = if call.name_index == 0 {
+            let replacement = if let Some((_, scale)) = call
+                .name_index
+                .checked_sub(1)
+                .and_then(|index| scales.get(index))
+            {
                 if arguments.is_empty() {
                     continue;
                 }
-                let spacing = spacing?;
+                let scale = scale.as_deref()?;
                 // Tailwind replaces 0 with `0px` to keep a <length> for `calc()`, and 1
                 // with the scale itself. Other values keep the authored argument text.
                 match arguments.parse::<f64>() {
                     Ok(0.0) => "0px".to_owned(),
-                    Ok(1.0) => spacing.to_owned(),
-                    _ => format!("calc({spacing} * {arguments})"),
+                    Ok(1.0) => scale.to_owned(),
+                    _ => format!("calc({scale} * {arguments})"),
                 }
             } else {
                 let mut depth = 0_u32;
@@ -255,7 +267,8 @@ mod tests {
 
     #[test]
     fn public_css_functions_respect_nesting_strings_and_opacity() {
-        let spacing = Some("var(--spacing)");
+        let scale = |value: Option<&str>| [("--spacing".into(), value.map(Into::into))];
+        let spacing = scale(Some("var(--spacing)"));
         for (source, expected) in [
             ("--spacing(4)", "calc(var(--spacing) * 4)"),
             ("--spacing(0)", "0px"),
@@ -281,18 +294,22 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                resolve_css_functions(source, spacing).as_deref(),
+                resolve_css_functions(source, &spacing).as_deref(),
                 Some(expected),
                 "{source}"
             );
         }
         assert_eq!(
-            resolve_css_functions("--spacing(4)", Some("0.25rem")).as_deref(),
+            resolve_css_functions("--spacing(4)", &scale(Some("0.25rem"))).as_deref(),
             Some("calc(0.25rem * 4)")
         );
-        assert!(resolve_css_functions("--spacing(4)", None).is_none());
-        assert!(resolve_css_functions("--spacing(", spacing).is_none());
-        assert!(resolve_css_functions("--alpha(red / )", spacing).is_none());
+        assert_eq!(
+            resolve_css_functions("--gap(4)", &spacing).as_deref(),
+            Some("--gap(4)")
+        );
+        assert!(resolve_css_functions("--spacing(4)", &scale(None)).is_none());
+        assert!(resolve_css_functions("--spacing(", &spacing).is_none());
+        assert!(resolve_css_functions("--alpha(red / )", &spacing).is_none());
     }
 
     #[test]

@@ -272,8 +272,16 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         purpose: Purpose::Registry,
         family: Family::Stillwind,
         positions: Positions::RULES,
-        syntax: "@stillwind-theme-namespace --namespace-* [type];",
-        description: "Declares the value types accepted by a theme namespace.",
+        syntax: "@stillwind-theme-namespace --namespace-* [type] ... scale(key: value, ...);",
+        description: "Declares a theme namespace, the value types it accepts, and optionally its scale and the fixed keys of the scale.",
+    },
+    Directive {
+        name: "stillwind-theme-exclude",
+        purpose: Purpose::Registry,
+        family: Family::Stillwind,
+        positions: Positions::RULES,
+        syntax: "@stillwind-theme-exclude --namespace-* --namespace-narrower-* ...;",
+        description: "Excludes the tokens of narrower namespaces from `--value()` patterns of a namespace.",
     },
     Directive {
         name: "stillwind-theme-order",

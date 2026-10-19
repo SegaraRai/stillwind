@@ -495,9 +495,9 @@ fn declared_value_types(utility: &CustomUtility, theme: &ThemeIndex) -> Vec<Valu
     let _ = expand_placeholder(&mut body, "--value", |domains| {
         for (namespace, _) in split_domains(domains)
             .into_iter()
-            .filter_map(|domain| theme_domain_pattern(domain.trim()))
+            .filter_map(|domain| theme_domain_pattern(domain.trim(), theme))
         {
-            for &value_type in namespace.value_types(theme) {
+            for &value_type in namespace.value_types() {
                 if !types.contains(&value_type) {
                     types.push(value_type);
                 }
@@ -538,9 +538,9 @@ fn fallback_type_hints(lookup: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
         let _ = expand_placeholder(&mut body, "--value", |domains| {
             for (namespace, _) in split_domains(domains)
                 .into_iter()
-                .filter_map(|domain| theme_domain_pattern(domain.trim()))
+                .filter_map(|domain| theme_domain_pattern(domain.trim(), theme))
             {
-                for &value_type in namespace.value_types(theme) {
+                for &value_type in namespace.value_types() {
                     namespaced.push((value_type, properties.clone()));
                 }
             }

@@ -111,7 +111,7 @@ test("lint fixes report final findings and conflicting projects cannot write", a
     );
     await writeFile(
       path.join(root, "root.css"),
-      "@theme { --spacing: .25rem; } @utility block { display: block; } @utility flex { display: flex; } @utility p-* { padding: --value(--spacing-*, --spacing(), [length]); } @stillwind-slot utilities;",
+      "@stillwind-theme-namespace --spacing-* [length] scale; @theme { --spacing: .25rem; } @utility block { display: block; } @utility flex { display: flex; } @utility p-* { padding: --value(--spacing-*, --spacing(), [length]); } @stillwind-slot utilities;",
     );
     const source =
       'import {style} from "stillwind/react";export const value=style("p-[16px] flex block");';

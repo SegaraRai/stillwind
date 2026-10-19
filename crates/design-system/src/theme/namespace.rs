@@ -1,136 +1,176 @@
-//! The Tailwind theme namespaces that participate in utility and variant resolution,
-//! their CSS-authored value types, and the token names that a key selects in any
-//! namespace.
+//! The theme namespaces that CSS declares, their value types and scales, and the token
+//! names that a key selects in any namespace.
 //!
-//! [`ThemeNamespace`] is a closed list of the namespaces that have built-in meaning:
-//! value types, a scale, or classification of `@theme` tokens. A custom property
-//! outside it never creates a value for a built-in utility. An authored
+//! `@stillwind-theme-namespace` declares each namespace that has built-in meaning:
+//! value types, a scale, or classification of `@theme` tokens. Rust code knows only
+//! these kinds of meaning. It never names a namespace, so a stylesheet can add, change,
+//! or remove a namespace without a Rust change. A custom property outside every
+//! declared namespace never creates a value for a declared namespace. An authored
 //! `--value(--size-*)` pattern can still read any namespace through
 //! [`namespace_key_names`].
-//!
-//! Value types are declared in CSS, not here, so a registry update can change which
-//! arbitrary values a namespace accepts without a Rust change.
 
 use std::collections::BTreeMap;
 
-use lean_string::{LeanString, ToLeanString};
+use cssparser::Token;
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::ValueType;
+use stillwind_css::{ValueType, extract_named_statements, split_top_level};
 use stillwind_source::ReplaceText;
 
-/// CSS value domain for named spacing tokens and numeric multiples of the spacing scale.
-pub const SPACING_VALUE_DOMAIN: &str = "--spacing()";
-
-/// Parses the CSS-authored type set for each Tailwind theme namespace.
-///
-/// Each statement names one namespace pattern and the value types it accepts; unknown
-/// namespaces, types, and statements without any recognized type are skipped, and a
-/// later statement replaces an earlier one for the same namespace.
-#[must_use]
-pub fn parse_theme_namespace_types(css: &str) -> BTreeMap<ThemeNamespace, Vec<ValueType>> {
-    css.split('@')
-        .filter_map(|segment| segment.strip_prefix("stillwind-theme-namespace"))
-        .filter_map(|segment| {
-            segment
-                .split_once(';')
-                .map(|(definition, _)| definition.trim())
-        })
-        .filter_map(|definition| {
-            let mut parts = definition.split_whitespace();
-            let namespace = parts
-                .next()?
-                .strip_prefix("--")?
-                .strip_suffix("-*")
-                .and_then(ThemeNamespace::parse)?;
-            let types = parts
-                .filter_map(|value| value.strip_prefix('[')?.strip_suffix(']'))
-                .filter_map(ValueType::from_hint)
-                .collect::<Vec<_>>();
-            (!types.is_empty()).then_some((namespace, types))
-        })
-        .collect()
-}
-
-/// Tailwind v4 theme namespaces that participate in built-in utility and variant
-/// resolution. A custom property outside these namespaces creates no value for a
-/// built-in utility.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum ThemeNamespace {
-    /// `--animate-*`: animation shorthand values.
-    Animate,
-    /// `--aspect-ratio-*`: `aspect-ratio` values.
-    AspectRatio,
-    /// `--blur-*`: blur radii for filter utilities.
-    Blur,
-    /// `--breakpoint-*`: media-query minimum widths for responsive variants.
-    Breakpoint,
-    /// `--color-*`: color values.
-    Color,
-    /// `--container-*`: container-query widths for `@container` variants.
-    Container,
-    /// `--drop-shadow-*`: `drop-shadow()` filter values.
-    DropShadow,
-    /// `--ease-*`: transition timing functions.
-    Ease,
-    /// `--font-*`: font family lists.
-    Font,
-    /// `--font-stretch-*`: `font-stretch` percentages.
-    FontStretch,
-    /// `--font-weight-*`: numeric font weights.
-    FontWeight,
-    /// `--inset-shadow-*`: inset box-shadow values.
-    InsetShadow,
-    /// `--leading-*`: line heights.
-    Leading,
-    /// `--perspective-*`: 3D perspective distances.
-    Perspective,
-    /// `--radius-*`: corner radii.
-    Radius,
-    /// `--shadow-*`: box-shadow values.
-    Shadow,
-    /// `--spacing-*`: the spacing scale used by padding, margin, gap, and size utilities.
-    Spacing,
-    /// `--text-*`: font sizes.
-    Text,
-    /// `--text-shadow-*`: text-shadow values.
-    TextShadow,
-    /// `--tracking-*`: letter spacing.
-    Tracking,
-    /// `--z-index-*`: stacking order values.
-    ZIndex,
-    /// `--duration-*`: transition durations.
-    Duration,
+/// A theme namespace that a `@stillwind-theme-namespace` statement declares.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ThemeNamespace {
+    /// Namespace name without the leading `--` and the trailing `-*`, such as `spacing`
+    /// for `--spacing-*`.
+    pub name: LeanStr,
+    /// Value types that arbitrary values and typed variables in this namespace must
+    /// match, in authored order. When it is empty, every value is accepted.
+    pub types: Vec<ValueType>,
+    /// The numeric scale of this namespace, or `None` when the statement declares no
+    /// scale.
+    pub scale: Option<ThemeScale>,
 }
 
 impl ThemeNamespace {
-    /// The namespace's name as it appears in CSS custom properties, for example `color`
-    /// for `--color-*`.
+    /// Returns the custom-property name of the scale token, such as `--spacing`. The
+    /// public CSS function that multiplies the scale has the same name.
     #[must_use]
-    pub const fn css_name(self) -> &'static str {
-        match self {
-            Self::Animate => "animate",
-            Self::AspectRatio => "aspect-ratio",
-            Self::Blur => "blur",
-            Self::Breakpoint => "breakpoint",
-            Self::Color => "color",
-            Self::Container => "container",
-            Self::DropShadow => "drop-shadow",
-            Self::Ease => "ease",
-            Self::Font => "font",
-            Self::FontStretch => "font-stretch",
-            Self::FontWeight => "font-weight",
-            Self::InsetShadow => "inset-shadow",
-            Self::Leading => "leading",
-            Self::Perspective => "perspective",
-            Self::Radius => "radius",
-            Self::Shadow => "shadow",
-            Self::Spacing => "spacing",
-            Self::Text => "text",
-            Self::TextShadow => "text-shadow",
-            Self::Tracking => "tracking",
-            Self::ZIndex => "z-index",
-            Self::Duration => "duration",
+    pub fn scale_token(&self) -> LeanString {
+        format_args!("--{}", self.name).to_lean_string()
+    }
+}
+
+/// The numeric scale of a namespace.
+///
+/// The token whose name is the namespace name, such as `--spacing`, holds the scale.
+/// A numeric key `n` resolves to a multiple of the scale, `--spacing(n)` lowers to the
+/// same multiple, and the empty call `--spacing()` is a value domain of `--value()` and
+/// `--modifier()`.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ThemeScale {
+    /// Keys that resolve to a fixed value instead of a multiple of the scale, such as
+    /// `px` to `1px`. They resolve only while the scale token is active.
+    pub keys: BTreeMap<LeanStr, LeanStr>,
+}
+
+/// The theme namespaces that one stylesheet declares, and the narrower namespaces that
+/// `--value()` patterns exclude.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ThemeNamespaces {
+    /// Declared namespaces by name.
+    namespaces: BTreeMap<LeanStr, ThemeNamespace>,
+    /// Names of narrower namespaces after `--{namespace}-`, by namespace name, such as
+    /// `weight` for `font`.
+    exclusions: BTreeMap<LeanStr, Vec<LeanStr>>,
+}
+
+impl ThemeNamespaces {
+    /// Parses the `@stillwind-theme-namespace` and `@stillwind-theme-exclude`
+    /// statements of `css`.
+    ///
+    /// `@stillwind-theme-namespace --name-* [type] ... scale(key: value, ...);`
+    /// declares one namespace. Each `[type]` item adds an accepted value type, and
+    /// unknown types and items are skipped. A `scale` item declares the namespace's
+    /// scale, and its optional arguments add fixed keys. A later statement for the
+    /// same namespace replaces an earlier one.
+    ///
+    /// `@stillwind-theme-exclude --name-* --name-narrower-* ...;` excludes the tokens
+    /// of each narrower namespace from the first namespace. A narrower pattern that
+    /// does not extend the first one is skipped.
+    #[must_use]
+    pub fn parse(css: &str) -> Self {
+        let mut namespaces = Self::default();
+        for (directive, definition) in ["stillwind-theme-namespace", "stillwind-theme-exclude"]
+            .into_iter()
+            .flat_map(|directive| {
+                extract_named_statements(css, directive)
+                    .into_iter()
+                    .map(move |(_, definition)| (directive, definition))
+            })
+        {
+            let mut items = top_level_items(&definition).into_iter();
+            let Some(name) = items.next().and_then(pattern_name) else {
+                continue;
+            };
+            match directive {
+                "stillwind-theme-namespace" => {
+                    let mut namespace = ThemeNamespace {
+                        name: name.to_lean_str(),
+                        types: Vec::new(),
+                        scale: None,
+                    };
+                    for item in items {
+                        if let Some(hint) = item
+                            .strip_prefix('[')
+                            .and_then(|item| item.strip_suffix(']'))
+                        {
+                            namespace.types.extend(ValueType::from_hint(hint));
+                        } else if let Some(scale) = parse_scale(item) {
+                            namespace.scale = Some(scale);
+                        }
+                    }
+                    namespaces
+                        .namespaces
+                        .insert(namespace.name.clone(), namespace);
+                }
+                "stillwind-theme-exclude" => {
+                    let narrower = items
+                        .filter_map(pattern_name)
+                        .filter_map(|narrower| narrower.strip_prefix(name)?.strip_prefix('-'))
+                        .filter(|narrower| !narrower.is_empty())
+                        .map(LeanStr::from);
+                    namespaces
+                        .exclusions
+                        .entry(name.to_lean_str())
+                        .or_default()
+                        .extend(narrower);
+                }
+                _ => {}
+            }
         }
+        namespaces
+    }
+
+    /// Returns the declared namespace named `name`, such as `color`.
+    #[must_use]
+    pub fn get(&self, name: &str) -> Option<&ThemeNamespace> {
+        self.namespaces.get(name)
+    }
+
+    /// Returns every declared namespace, ordered by name.
+    pub fn iter(&self) -> impl Iterator<Item = &ThemeNamespace> {
+        self.namespaces.values()
+    }
+
+    /// Returns every declared namespace that has a scale, ordered by name.
+    pub fn scales(&self) -> impl Iterator<Item = &ThemeNamespace> {
+        self.iter().filter(|namespace| namespace.scale.is_some())
+    }
+
+    /// Returns the namespace with a scale whose value domain is `domain`, such as
+    /// `spacing` for `--spacing()`.
+    #[must_use]
+    pub fn scale_domain(&self, domain: &str) -> Option<&ThemeNamespace> {
+        let name = domain.strip_prefix("--")?.strip_suffix("()")?;
+        self.get(name).filter(|namespace| namespace.scale.is_some())
+    }
+
+    /// Classifies the custom property `name` by the longest declared namespace that it
+    /// starts with.
+    ///
+    /// Returns the namespace and the token key after `--{namespace}-`, or the namespace
+    /// and `None` when `name` is the namespace's bare name, such as `--spacing`.
+    /// Returns `None` for a name outside every declared namespace.
+    #[must_use]
+    pub fn classify<'a>(&self, name: &'a str) -> Option<(&ThemeNamespace, Option<&'a str>)> {
+        let rest = name.strip_prefix("--")?;
+        if let Some(namespace) = self.get(rest) {
+            return Some((namespace, None));
+        }
+        rest.match_indices('-').rev().find_map(|(index, _)| {
+            let namespace = self.get(&rest[..index])?;
+            Some((namespace, Some(&rest[index + 1..])))
+        })
     }
 
     /// Returns the namespace with the longest name that the theme token `name` belongs
@@ -141,52 +181,93 @@ impl ThemeNamespace {
     /// holds a different property of `--text-sm`, and for a namespace reset such as
     /// `--color-*`.
     #[must_use]
-    pub fn of_token(name: &str) -> Option<Self> {
+    pub fn of_token(&self, name: &str) -> Option<&ThemeNamespace> {
         let rest = name.strip_prefix("--")?;
         if rest.contains("--") || rest.contains('*') {
             return None;
         }
-        rest.match_indices('-')
-            .map(|(index, _)| &rest[..index])
-            .chain(std::iter::once(rest))
-            .filter_map(Self::parse)
-            .next_back()
+        self.classify(name).map(|(namespace, _)| namespace)
     }
 
-    /// Parses a namespace name; matching is case-sensitive.
+    /// Returns whether the token `name` is excluded from the namespace `namespace`
+    /// because it belongs to a narrower namespace that `@stillwind-theme-exclude`
+    /// names.
     ///
-    /// The order of the candidates is checked by the test suite against
-    /// [`Self::css_name`] for every variant, so a new namespace must be added to both
-    /// lists.
+    /// For example, `--font-weight-bold` is excluded from `font` when `font` excludes
+    /// `--font-weight-*`. `namespace` is written as in [`namespace_key_names`].
     #[must_use]
-    pub fn parse(value: &str) -> Option<Self> {
-        [
-            Self::AspectRatio,
-            Self::FontWeight,
-            Self::FontStretch,
-            Self::InsetShadow,
-            Self::DropShadow,
-            Self::TextShadow,
-            Self::Breakpoint,
-            Self::Perspective,
-            Self::Container,
-            Self::Tracking,
-            Self::Duration,
-            Self::Animate,
-            Self::Color,
-            Self::Spacing,
-            Self::Radius,
-            Self::Shadow,
-            Self::Leading,
-            Self::Font,
-            Self::Text,
-            Self::Blur,
-            Self::Ease,
-            Self::ZIndex,
-        ]
-        .into_iter()
-        .find(|namespace| namespace.css_name() == value)
+    pub fn excludes(&self, namespace: &str, name: &str) -> bool {
+        let Some(narrower) = self.exclusions.get(namespace) else {
+            return false;
+        };
+        let Some(key) = name
+            .strip_prefix("--")
+            .and_then(|name| name.strip_prefix(namespace))
+            .and_then(|name| name.strip_prefix('-'))
+        else {
+            return false;
+        };
+        narrower.iter().any(|narrower| {
+            key.strip_prefix(narrower.as_str())
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
+        })
     }
+}
+
+/// Reads a namespace pattern such as `--color-*` and returns its name, such as `color`.
+fn pattern_name(pattern: &str) -> Option<&str> {
+    let name = pattern.strip_prefix("--")?.strip_suffix("-*")?;
+    (!name.is_empty()
+        && name
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_')))
+    .then_some(name)
+}
+
+/// Reads a `scale` item: `scale` alone, or `scale(key: value, ...)` with fixed keys.
+/// Returns `None` for another item or for an argument without `:`.
+fn parse_scale(item: &str) -> Option<ThemeScale> {
+    if item == "scale" {
+        return Some(ThemeScale::default());
+    }
+    let arguments = item.strip_prefix("scale(")?.strip_suffix(')')?;
+    let mut scale = ThemeScale::default();
+    for argument in split_top_level(arguments, |token| matches!(token, Token::Comma))
+        .into_iter()
+        .map(str::trim)
+        .filter(|argument| !argument.is_empty())
+    {
+        let (key, value) = argument.split_once(':')?;
+        scale
+            .keys
+            .insert(key.trim().to_lean_str(), value.trim().to_lean_str());
+    }
+    Some(scale)
+}
+
+/// Splits `text` at whitespace outside parentheses and brackets.
+fn top_level_items(text: &str) -> Vec<&str> {
+    let mut items = Vec::new();
+    let mut depth = 0_usize;
+    let mut start = None;
+    for (index, character) in text.char_indices() {
+        match character {
+            '(' | '[' => depth += 1,
+            ')' | ']' => depth = depth.saturating_sub(1),
+            _ if character.is_whitespace() && depth == 0 => {
+                if let Some(begin) = start.take() {
+                    items.push(&text[begin..index]);
+                }
+                continue;
+            }
+            _ => {}
+        }
+        start.get_or_insert(index);
+    }
+    if let Some(begin) = start {
+        items.push(&text[begin..]);
+    }
+    items
 }
 
 /// Returns the custom-property names that the candidate key `key` can select in the
@@ -230,120 +311,97 @@ fn escape_key(key: &str) -> LeanString {
     escaped
 }
 
-/// Returns whether Tailwind excludes the token `name` from the namespace `namespace`
-/// because it belongs to a narrower namespace.
-///
-/// For example, `--font-weight-bold` is excluded from `font`, and `--inset-shadow-sm`
-/// is excluded from `inset`. `namespace` is written as in [`namespace_key_names`].
-pub(super) fn excluded_from_namespace(namespace: &str, name: &str) -> bool {
-    let narrower: &[&str] = match namespace {
-        "font" => &["weight", "size"],
-        "inset" => &["shadow", "ring"],
-        "text" => &[
-            "color",
-            "decoration-color",
-            "decoration-thickness",
-            "indent",
-            "shadow",
-            "underline-offset",
-        ],
-        "grid-column" | "grid-row" => &["start", "end"],
-        _ => &[],
-    };
-    let Some(key) = name
-        .strip_prefix("--")
-        .and_then(|name| name.strip_prefix(namespace))
-        .and_then(|name| name.strip_prefix('-'))
-    else {
-        return false;
-    };
-    narrower.iter().any(|narrower| {
-        key.strip_prefix(narrower)
-            .is_some_and(|rest| rest.is_empty() || rest.starts_with('-'))
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn spacing_value_domain_uses_the_spacing_namespace() {
+    fn parses_namespace_value_types_and_scales() {
+        let namespaces = ThemeNamespaces::parse(
+            "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
+             @stillwind-theme-namespace --duration-* [time] [unknown];\
+             @stillwind-theme-namespace --leading-* [number] [length];\
+             @stillwind-theme-namespace --gap-* [length] scale(px: 1px, hair: 0.5px);\
+             @stillwind-theme-namespace --step-* scale;\
+             @stillwind-theme-namespace --bad scale;",
+        );
+        assert_eq!(namespaces.get("duration").unwrap().types, [ValueType::Time]);
         assert_eq!(
-            SPACING_VALUE_DOMAIN,
-            format!("--{}()", ThemeNamespace::Spacing.css_name())
+            namespaces.get("leading").unwrap().types,
+            [ValueType::Number, ValueType::Length]
+        );
+        assert_eq!(namespaces.get("leading").unwrap().scale, None);
+        let gap = namespaces.get("gap").unwrap();
+        assert_eq!(
+            gap.scale.as_ref().unwrap().keys,
+            BTreeMap::from([("hair".into(), "0.5px".into()), ("px".into(), "1px".into())])
+        );
+        assert_eq!(gap.scale_token(), "--gap");
+        assert_eq!(namespaces.get("step").unwrap().types, []);
+        assert_eq!(
+            namespaces
+                .scales()
+                .map(|namespace| namespace.name.as_str())
+                .collect::<Vec<_>>(),
+            ["gap", "step"]
+        );
+        assert_eq!(namespaces.scale_domain("--gap()").unwrap().name, "gap");
+        assert_eq!(namespaces.scale_domain("--leading()"), None);
+        assert_eq!(namespaces.get("bad"), None);
+    }
+
+    #[test]
+    fn declarations_skip_comments_and_strings_and_keep_function_arguments() {
+        let namespaces = ThemeNamespaces::parse(
+            r#"/* @stillwind-theme-namespace --comment-* scale; */
+               .example { content: "@stillwind-theme-namespace --quoted-* scale;"; }
+               @stillwind-theme-namespace --step-* [length]
+                   scale(hair: calc(1px + var(--hair, 1px)));
+               @stillwind-theme-namespace --step-* [length]
+                   scale(hair: var(--hair, 2px));
+               /* @stillwind-theme-exclude --step-* --step-small-*; */"#,
+        );
+        assert!(namespaces.get("comment").is_none());
+        assert!(namespaces.get("quoted").is_none());
+        assert!(!namespaces.excludes("step", "--step-small-1"));
+        assert_eq!(
+            namespaces.get("step").unwrap().scale.as_ref().unwrap().keys["hair"],
+            "var(--hair, 2px)"
         );
     }
 
     #[test]
-    fn parses_multiple_namespace_value_types() {
-        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
-                       @stillwind-animation-option-property transition-duration: animation-duration;\
-                       @stillwind-theme-namespace --duration-* [time];\
-                       @stillwind-theme-namespace --leading-* [number] [length];";
-        let namespaces = parse_theme_namespace_types(css);
-        assert_eq!(namespaces[&ThemeNamespace::Duration], vec![ValueType::Time]);
-        assert_eq!(
-            namespaces[&ThemeNamespace::Leading],
-            vec![ValueType::Number, ValueType::Length]
+    fn tokens_belong_to_the_longest_declared_namespace() {
+        let namespaces = ThemeNamespaces::parse(
+            "@stillwind-theme-namespace --text-*; @stillwind-theme-namespace --text-shadow-*;\
+             @stillwind-theme-namespace --spacing-* scale;",
         );
-    }
-
-    #[test]
-    fn tokens_belong_to_the_longest_namespace_without_token_properties() {
-        assert_eq!(
-            ThemeNamespace::of_token("--text-sm"),
-            Some(ThemeNamespace::Text)
-        );
-        assert_eq!(
-            ThemeNamespace::of_token("--text-shadow-sm"),
-            Some(ThemeNamespace::TextShadow)
-        );
-        assert_eq!(
-            ThemeNamespace::of_token("--spacing"),
-            Some(ThemeNamespace::Spacing)
-        );
-        for name in ["--text-sm--line-height", "--my-len", "--color-*", "--*"] {
-            assert_eq!(ThemeNamespace::of_token(name), None, "{name}");
+        let name = |token| {
+            namespaces
+                .of_token(token)
+                .map(|namespace| namespace.name.as_str())
+        };
+        assert_eq!(name("--text-sm"), Some("text"));
+        assert_eq!(name("--text-shadow-sm"), Some("text-shadow"));
+        assert_eq!(name("--spacing"), Some("spacing"));
+        for token in ["--text-sm--line-height", "--my-len", "--text-*", "--*"] {
+            assert_eq!(name(token), None, "{token}");
         }
-    }
-
-    #[test]
-    fn namespace_names_round_trip_and_metadata_ignores_unknown_types() {
-        for name in [
-            "animate",
-            "aspect-ratio",
-            "blur",
-            "breakpoint",
-            "color",
-            "container",
-            "drop-shadow",
-            "ease",
-            "font",
-            "font-stretch",
-            "font-weight",
-            "inset-shadow",
-            "leading",
-            "perspective",
-            "radius",
-            "shadow",
-            "spacing",
-            "text",
-            "text-shadow",
-            "tracking",
-            "z-index",
-            "duration",
-        ] {
-            assert_eq!(ThemeNamespace::parse(name).unwrap().css_name(), name);
-        }
-        assert_eq!(ThemeNamespace::parse("Color"), None);
-        let types = parse_theme_namespace_types(
-            "@stillwind-theme-namespace --duration-* [time] [unknown]; @stillwind-theme-namespace --bogus-* [length];",
+        let classify = |token| {
+            namespaces
+                .classify(token)
+                .map(|(namespace, key)| (namespace.name.as_str(), key))
+        };
+        assert_eq!(classify("--spacing"), Some(("spacing", None)));
+        assert_eq!(
+            classify("--text-shadow-sm"),
+            Some(("text-shadow", Some("sm")))
         );
         assert_eq!(
-            types,
-            BTreeMap::from([(ThemeNamespace::Duration, vec![ValueType::Time])])
+            classify("--text-sm--line-height"),
+            Some(("text", Some("sm--line-height")))
         );
+        assert_eq!(classify("--textual"), None);
     }
 
     #[test]
@@ -360,12 +418,17 @@ mod tests {
     }
 
     #[test]
-    fn narrower_namespaces_are_excluded_like_tailwind() {
-        assert!(excluded_from_namespace("font", "--font-weight-bold"));
-        assert!(excluded_from_namespace("inset", "--inset-shadow-sm"));
-        assert!(excluded_from_namespace("grid-row", "--grid-row-start-2"));
-        assert!(!excluded_from_namespace("font", "--font-weighty"));
-        assert!(!excluded_from_namespace("font", "--font-sans"));
-        assert!(!excluded_from_namespace("size", "--size-weight-1"));
+    fn excluded_narrower_namespaces_follow_the_declared_patterns() {
+        let namespaces = ThemeNamespaces::parse(
+            "@stillwind-theme-exclude --font-* --font-weight-* --size-*;\
+             @stillwind-theme-exclude --grid-row-* --grid-row-start-*;",
+        );
+        assert!(namespaces.excludes("font", "--font-weight-bold"));
+        assert!(namespaces.excludes("font", "--font-weight"));
+        assert!(namespaces.excludes("grid-row", "--grid-row-start-2"));
+        assert!(!namespaces.excludes("font", "--font-weighty"));
+        assert!(!namespaces.excludes("font", "--font-sans"));
+        assert!(!namespaces.excludes("font", "--font-size-1"));
+        assert!(!namespaces.excludes("size", "--size-weight-1"));
     }
 }

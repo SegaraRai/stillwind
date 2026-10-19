@@ -5,17 +5,14 @@ use std::collections::BTreeSet;
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{CssRule, Declaration};
-use stillwind_design_system::UtilityResolutionError;
+use stillwind_design_system::{UtilityResolutionError, named_domain_values};
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, parse_candidate};
 
 use super::conditions::canonical_conditions;
-use super::index;
-use super::preview::{
-    CanonicalPreview, SPACING_SCALE_REFERENCE, SPACING_TOKEN_REFERENCE_PREFIX, SpacingUnit,
-    dimension, spacing_properties,
-};
+use super::index::{rank, uses_rem};
+use super::preview::{CanonicalPreview, SpacingUnit, dimension, spacing_properties};
 use crate::compiler::candidate_allowed;
 use crate::query::{DesignSystemQuery, QueryContext, last_top_level};
 
@@ -103,8 +100,7 @@ impl DesignSystemQuery {
             return Ok(None);
         };
         let options = self.canonical_options();
-        let scale = self.spacing_scale();
-        let scale_dimension = scale.as_deref().and_then(dimension);
+        let scales = self.context.theme_scales();
         let split = last_top_level(raw, ':').map_or(0, |index| index + 1);
         let prefix = &raw[..split];
         let utility = raw[split..].trim_matches('!').trim_start_matches('-');
@@ -171,18 +167,16 @@ impl DesignSystemQuery {
                 continue;
             }
             let conversion = options.px_to_rem
-                && scale_dimension.is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
-                && (preview.css.contains(SPACING_SCALE_REFERENCE)
-                    || preview.css.contains(SPACING_TOKEN_REFERENCE_PREFIX));
+                && scales
+                    .iter()
+                    .any(|scale| uses_rem(scale) && scale.referenced_by(&preview.css));
             let mut properties = BTreeSet::new();
             if conversion {
-                spacing_properties(&preview.css, &mut properties, 0);
+                spacing_properties(&preview.css, &scales, &mut properties, 0);
             }
             let root = self.context.options.root_font_size;
-            let signature = original.signature(scale.as_deref(), &properties, root);
-            if signature.is_some()
-                && preview.signature(scale.as_deref(), &properties, root) == signature
-            {
+            let signature = original.signature(&scales, &properties, root);
+            if signature.is_some() && preview.signature(&scales, &properties, root) == signature {
                 return Ok(Some(replacement));
             }
         }
@@ -203,8 +197,7 @@ impl DesignSystemQuery {
             modifier,
         } = *search;
         let options = self.canonical_options();
-        let scale = self.spacing_scale();
-        let scale_dimension = scale.as_deref().and_then(dimension);
+        let scales = self.context.theme_scales();
         let mut labels = BTreeSet::new();
         for root in roots {
             labels.insert(format_args!("{root}-{bare_value}").to_lean_str());
@@ -213,7 +206,7 @@ impl DesignSystemQuery {
             for root in roots {
                 labels.insert(format_args!("{root}-{number}").to_lean_str());
             }
-            if let Some((step, scale_unit)) = scale_dimension {
+            for (step, scale_unit) in scales.iter().filter_map(|scale| dimension(&scale.value)) {
                 let amount = if unit == scale_unit {
                     Some(number)
                 } else if unit == SpacingUnit::Px
@@ -276,7 +269,7 @@ impl DesignSystemQuery {
             );
         }
         let mut labels: Vec<_> = labels.into_iter().collect();
-        labels.sort_by(|left, right| index::rank(left, right));
+        labels.sort_by(|left, right| rank(left, right));
         labels
     }
 
@@ -313,7 +306,7 @@ impl DesignSystemQuery {
         }
         let properties = BTreeSet::new();
         let Some(signature) =
-            original.signature(None, &properties, self.context.options.root_font_size)
+            original.signature(&[], &properties, self.context.options.root_font_size)
         else {
             return Ok(None);
         };
@@ -339,7 +332,7 @@ impl DesignSystemQuery {
                 if let Some(preview) = self.context.canonical_preview(&replacement)?
                     && preview.required_properties == original.required_properties
                     && preview
-                        .signature(None, &properties, self.context.options.root_font_size)
+                        .signature(&[], &properties, self.context.options.root_font_size)
                         .as_ref()
                         == Some(&signature)
                 {
@@ -400,6 +393,17 @@ fn eligible_label<'a>(
                         })
                     })
             })
+            || query
+                .design_system
+                .utilities()
+                .get(&family)
+                .is_some_and(|definitions| {
+                    definitions.iter().any(|definition| {
+                        named_domain_values(&definition.body, query.design_system.theme())
+                            .iter()
+                            .any(|name| name == capture)
+                    })
+                })
     }) || property.is_some_and(|property| {
         query
             .design_system
@@ -443,8 +447,8 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId};
     use stillwind_test_support::css_source;
 
+    use super::super::index::{policy, rank};
     use super::super::preview::convert_pixel_dimensions;
-    use super::index::{policy, rank};
     use crate::query::QueryContext;
     use crate::{CompilerOptions, DesignSystemQuery, RootFontSize, prepare_canonical_index};
 
@@ -967,7 +971,7 @@ mod tests {
             let raw = format_args!("{root}-[{value}]{modifier}").to_lean_str();
             let original = query.context.canonical_preview(&raw).unwrap().unwrap();
             let options = query.canonical_options();
-            let scale = query.spacing_scale();
+            let scales = query.context.theme_scales();
             let mut labels: Vec<_> = index
                 .labels
                 .iter()
@@ -984,16 +988,16 @@ mod tests {
                     return None;
                 }
                 let preview = query.context.canonical_preview(&replacement).unwrap()?;
-                let normalization = policy(&preview.css, &options, scale.as_deref());
+                let normalization = policy(&preview.css, &options, &scales);
                 let signature = original.signature(
-                    scale.as_deref(),
+                    &scales,
                     &normalization.properties,
                     query.context.options.root_font_size,
                 );
                 (signature.is_some()
                     && preview.required_properties == original.required_properties
                     && preview.signature(
-                        scale.as_deref(),
+                        &scales,
                         &normalization.properties,
                         query.context.options.root_font_size,
                     ) == signature)

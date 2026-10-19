@@ -24,7 +24,8 @@ use super::{
 };
 use crate::{
     BuiltinDefinitions, CssFileRequest, CssSourceGraph, DesignSystemLoadError,
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, builtin_theme_order,
+    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, ThemeToken,
+    builtin_theme_order,
 };
 
 /// Reports why a snapshot could not be created from supplied CSS.
@@ -293,7 +294,10 @@ impl DesignSystemSnapshot {
                     Fingerprint::of(
                         format_args!(
                             "{:?}\0{:?}\0{:?}\0{}\0",
-                            token.kind, token.mode, token.precedence, token.value.value
+                            token_class(&theme, token),
+                            token.mode,
+                            token.precedence,
+                            token.value.value
                         )
                         .to_lean_string(),
                     ),
@@ -304,7 +308,15 @@ impl DesignSystemSnapshot {
         let tokens: Vec<_> = theme
             .tokens()
             .iter()
-            .map(|t| (&t.name.value, &t.value.value, &t.kind, t.mode, t.precedence))
+            .map(|t| {
+                (
+                    &t.name.value,
+                    &t.value.value,
+                    token_class(&theme, t),
+                    t.mode,
+                    t.precedence,
+                )
+            })
             .collect();
         let content = Fingerprint::of(format_args!(
             "{}\0{config:?}\0{tokens:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{:?}\0{}\0",
@@ -478,6 +490,18 @@ impl DesignSystemSnapshot {
     pub fn theme(&self) -> &ThemeIndex {
         &self.inner.theme
     }
+}
+
+/// Records the declared namespace and optional key so fingerprints change when token
+/// classification changes. A bare scale token has no key.
+fn token_class<'a>(
+    theme: &'a ThemeIndex,
+    token: &'a ThemeToken,
+) -> Option<(&'a str, Option<&'a str>)> {
+    theme
+        .namespaces()
+        .classify(&token.name.value)
+        .map(|(namespace, key)| (namespace.name.as_str(), key))
 }
 
 #[cfg(test)]

@@ -7,18 +7,15 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_design_system::UtilityResolutionError;
+use stillwind_design_system::{UtilityResolutionError, named_domain_values};
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 
-use super::super::completion::value_namespaces;
 use super::parallel;
-use super::preview::{
-    CanonicalPreview, Normalization, SPACING_SCALE_REFERENCE, SPACING_TOKEN_REFERENCE_PREFIX,
-    SpacingUnit, dimension, spacing_properties,
-};
+use super::preview::{CanonicalPreview, Normalization, SpacingUnit, dimension, spacing_properties};
 use super::values::ThemeValueIndex;
 use super::variants::VariantIndex;
 use crate::query::QueryContext;
+use crate::query::theme::ScaleReference;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct Signature {
@@ -43,12 +40,9 @@ impl CanonicalIndex {
         for (name, definitions) in query.design_system.utilities().iter() {
             if let Some(root) = name.strip_suffix('*') {
                 for definition in definitions {
-                    for namespace in value_namespaces(&definition.body, "--value") {
-                        for token in query.design_system.tokens().names_with_prefix(&namespace) {
-                            if let Some(value) = token.strip_prefix(namespace.as_str()) {
-                                labels.insert(format_args!("{root}{value}").to_lean_str());
-                            }
-                        }
+                    for value in named_domain_values(&definition.body, query.design_system.theme())
+                    {
+                        labels.insert(format_args!("{root}{value}").to_lean_str());
                     }
                 }
             } else {
@@ -105,10 +99,10 @@ impl CanonicalIndex {
 
     fn insert(&mut self, query: &QueryContext, label: LeanStr, preview: &CanonicalPreview) {
         let options = query.canonical_options();
-        let scale = query.spacing_scale();
-        let normalization = policy(&preview.css, &options, scale.as_deref());
+        let scales = query.theme_scales();
+        let normalization = policy(&preview.css, &options, &scales);
         let signature = preview.signature(
-            scale.as_deref(),
+            &scales,
             &normalization.properties,
             query.options.root_font_size,
         );
@@ -167,11 +161,11 @@ impl CanonicalIndex {
         query: &QueryContext,
         original: &CanonicalPreview,
     ) -> Vec<LeanStr> {
-        let scale = query.spacing_scale();
+        let scales = query.theme_scales();
         let mut records = self.values.matching(query, original);
         for (normalization, signatures) in &self.policies {
             if let Some(css) = original.signature(
-                scale.as_deref(),
+                &scales,
                 &normalization.properties,
                 query.options.root_font_size,
             ) && let Some(matches) = signatures.get(&Signature {
@@ -194,19 +188,23 @@ pub(super) fn rank(left: &str, right: &str) -> std::cmp::Ordering {
 pub(super) fn policy(
     css: &str,
     options: &CanonicalUtilitiesConfig,
-    scale: Option<&str>,
+    scales: &[ScaleReference],
 ) -> Normalization {
     let mut properties = BTreeSet::new();
     if options.px_to_rem
-        && scale
-            .and_then(dimension)
-            .is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
-        && (css.contains(SPACING_SCALE_REFERENCE) || css.contains(SPACING_TOKEN_REFERENCE_PREFIX))
+        && scales
+            .iter()
+            .any(|scale| uses_rem(scale) && scale.referenced_by(css))
     {
-        spacing_properties(css, &mut properties, 0);
+        spacing_properties(css, scales, &mut properties, 0);
     }
     Normalization {
-        resolve_scale: scale.is_some(),
+        resolve_scale: !scales.is_empty(),
         properties,
     }
+}
+
+/// Whether the value of `scale` is a rem dimension.
+pub(super) fn uses_rem(scale: &ScaleReference) -> bool {
+    dimension(&scale.value).is_some_and(|(_, unit)| unit == SpacingUnit::Rem)
 }

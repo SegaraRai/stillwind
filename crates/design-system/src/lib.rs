@@ -67,9 +67,10 @@ pub use evaluation::{
     builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
     compound_variant_inner, document_scoped_selector, document_target,
     exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
-    redundant_variants, repeated_subject_selector, resolve_animation_option, resolve_utility,
-    resolve_variant, resolve_variant_with_usage, suggested_theme_token, theme_value_mismatch,
-    unresolvable_value_namespaces, unsatisfiable_variants, utility_value_range,
+    named_domain_values, redundant_variants, repeated_subject_selector, resolve_animation_option,
+    resolve_utility, resolve_variant, resolve_variant_with_usage, suggested_theme_token,
+    theme_value_mismatch, unresolvable_value_namespaces, unsatisfiable_variants,
+    utility_value_range,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
@@ -95,9 +96,9 @@ pub use snapshot::{
 };
 pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{
-    DynamicFamily, DynamicFamilyKind, SPACING_VALUE_DOMAIN, ThemeIndex, ThemeNamespace,
-    ThemeReferenceError, ThemeToken, ThemeTokenKind, ThemeTokenMode, ThemeTokenPrecedence,
-    UtilityImportance, parse_theme, parse_theme_namespace_types,
+    DynamicFamily, DynamicFamilyKind, ThemeIndex, ThemeNamespace, ThemeNamespaces,
+    ThemeReferenceError, ThemeScale, ThemeToken, ThemeTokenMode, ThemeTokenPrecedence,
+    UtilityImportance, parse_theme,
 };
 
 #[cfg(test)]

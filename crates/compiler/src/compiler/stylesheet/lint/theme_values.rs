@@ -51,7 +51,7 @@ fn check_token(checker: &mut Checker<'_>, node: &CssNode) {
         LintDiagnostic::InvalidThemeValue {
             token: token.to_lean_str(),
             value: written.to_lean_str(),
-            namespace: mismatch.namespace.css_name().into(),
+            namespace: mismatch.namespace.as_str().into(),
             expected: mismatch.expected,
         },
         checker.span(value.clone()),

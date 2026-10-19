@@ -746,12 +746,6 @@ impl NativeEditorQuery {
             .collect()
     }
 
-    /// Returns the authored spacing scale, or null when no scale is active.
-    #[napi(ts_return_type = "string | null")]
-    pub fn spacing_scale(&self) -> Option<NativeText> {
-        (self.query.spacing_scale()).map(Into::into)
-    }
-
     /// Converts a fully determined CSS color to RGBA components in 0..=1, or null.
     #[napi]
     #[allow(clippy::unused_self)] // Color conversion shares the editor query transport.

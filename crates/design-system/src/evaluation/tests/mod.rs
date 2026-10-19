@@ -14,9 +14,8 @@ use stillwind_css::ValueType;
 use stillwind_source::{FileId, SourceFile};
 use stillwind_syntax::parse_candidate;
 
-use super::values::theme_arbitrary_types;
 use super::*;
-use crate::{ThemeIndex, ThemeNamespace};
+use crate::ThemeIndex;
 
 mod support;
 use support::{

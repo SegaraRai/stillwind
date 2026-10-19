@@ -205,8 +205,6 @@ export declare class NativeEditorQuery {
    * definition headers, and other directives are not read.
    */
   stylesheetDynamicCandidates(css: string): Array<string>
-  /** Returns the authored spacing scale, or null when no scale is active. */
-  spacingScale(): string | null
   /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */
   colorRgba(value: string): Array<number> | null
   /**

@@ -12,10 +12,9 @@ use std::fmt::Write;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssOutputNode, CssOutputTemplate, custom_property_usage};
+use stillwind_css::{CssOutputNode, CssOutputTemplate, ValueType, custom_property_usage};
 use stillwind_design_system::{
-    CssSourceGraph, ThemeIndex, ThemeNamespace, ThemeTokenKind, builtin_omit_token_prefixes,
-    builtin_property_definitions,
+    CssSourceGraph, ThemeIndex, builtin_omit_token_prefixes, builtin_property_definitions,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::Span;
@@ -116,19 +115,23 @@ impl<'a> SupportSelection<'a> {
                     .then_some(index)
             })
             .collect();
+        // A named token of a namespace that holds animations starts with the name of
+        // the `@keyframes` rule it runs.
         let animations: Vec<LeanStr> = required
             .iter()
-            .filter_map(|token| match token.kind {
-                ThemeTokenKind::Token {
-                    namespace: ThemeNamespace::Animate,
-                    ..
-                } => token
+            .filter(|token| {
+                matches!(
+                    theme.namespaces().classify(&token.name.value),
+                    Some((namespace, Some(_))) if namespace.types.contains(&ValueType::Animation)
+                )
+            })
+            .filter_map(|token| {
+                token
                     .value
                     .value
                     .split_whitespace()
                     .next()
-                    .map(LeanStr::from),
-                _ => None,
+                    .map(LeanStr::from)
             })
             .collect();
         let mut definitions = Vec::new();

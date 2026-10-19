@@ -169,33 +169,14 @@ fn simple_utility_domains_follow_csswg_formal_syntax() {
 
 #[test]
 fn every_tailwind_theme_namespace_has_a_typed_arbitrary_value_domain() {
-    for namespace in [
-        ThemeNamespace::Animate,
-        ThemeNamespace::AspectRatio,
-        ThemeNamespace::Blur,
-        ThemeNamespace::Breakpoint,
-        ThemeNamespace::Color,
-        ThemeNamespace::Container,
-        ThemeNamespace::DropShadow,
-        ThemeNamespace::Ease,
-        ThemeNamespace::Font,
-        ThemeNamespace::FontStretch,
-        ThemeNamespace::FontWeight,
-        ThemeNamespace::InsetShadow,
-        ThemeNamespace::Leading,
-        ThemeNamespace::Perspective,
-        ThemeNamespace::Radius,
-        ThemeNamespace::Shadow,
-        ThemeNamespace::Spacing,
-        ThemeNamespace::Text,
-        ThemeNamespace::TextShadow,
-        ThemeNamespace::Tracking,
-        ThemeNamespace::ZIndex,
-        ThemeNamespace::Duration,
-    ] {
+    let theme = theme();
+    let namespaces = theme.namespaces().iter().collect::<Vec<_>>();
+    assert!(namespaces.len() >= 22, "{namespaces:?}");
+    for namespace in namespaces {
         assert!(
-            !theme_arbitrary_types(namespace, &theme()).is_empty(),
-            "{namespace:?} must not fall back to an unchecked arbitrary value"
+            !namespace.types.is_empty(),
+            "{} must not fall back to an unchecked arbitrary value",
+            namespace.name
         );
     }
 }

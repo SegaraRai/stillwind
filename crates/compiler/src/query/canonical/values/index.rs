@@ -22,6 +22,7 @@ use super::super::preview::{CanonicalPreview, Normalization, normalized_signatur
 use super::direct::DirectValues;
 use crate::query::QueryContext;
 use crate::query::completion::value_namespaces;
+use crate::query::theme::ScaleReference;
 
 #[derive(Debug, Default)]
 pub(in super::super) struct ThemeValueIndex {
@@ -87,11 +88,11 @@ impl ThemeValueIndex {
         query: &QueryContext,
         original: &CanonicalPreview,
     ) -> Vec<LeanStr> {
-        let scale = query.spacing_scale();
+        let scales = query.theme_scales();
         let mut labels = Vec::new();
         for (normalization, signatures) in &self.groups {
             if let Some(signature) = original.signature(
-                scale.as_deref(),
+                &scales,
                 &normalization.properties,
                 query.options.root_font_size,
             ) && let Some(names) = signatures
@@ -108,7 +109,7 @@ impl ThemeValueIndex {
 struct ValuePreparation<'a> {
     query: &'a QueryContext,
     options: CanonicalUtilitiesConfig,
-    scale: Option<LeanStr>,
+    scales: Vec<ScaleReference>,
     values: BTreeMap<LeanStr, Option<LeanStr>>,
     registered: Vec<LeanStr>,
     required_values: BTreeMap<LeanStr, Vec<bool>>,
@@ -130,7 +131,7 @@ struct PendingValue {
 impl<'a> ValuePreparation<'a> {
     fn new(query: &'a QueryContext) -> Self {
         let options = query.canonical_options();
-        let scale = query.spacing_scale();
+        let scales = query.theme_scales();
         let values: BTreeMap<_, _> = query
             .design_system
             .tokens()
@@ -174,7 +175,7 @@ impl<'a> ValuePreparation<'a> {
         Self {
             query,
             options,
-            scale: (scale),
+            scales,
             values,
             registered,
             required_values,
@@ -222,10 +223,10 @@ impl<'a> ValuePreparation<'a> {
                     keys.len() - 1
                 });
         }
-        let scale = self.scale.as_deref();
+        let scales = &self.scales;
         let root_font_size = self.query.options.root_font_size;
         let signatures = parallel::map(&keys, |(css, normalization)| {
-            normalized_signature(css, scale, &normalization.properties, root_font_size)
+            normalized_signature(css, scales, &normalization.properties, root_font_size)
         });
         for value in std::mem::take(&mut self.pending) {
             let position = positions[&(value.resolved_css, value.normalization.clone())];
@@ -302,7 +303,7 @@ impl<'a> ValuePreparation<'a> {
                     .as_ref()
                     .map(|value| css.replace_text(&template.placeholder, value))
             });
-            let normalization = policy(&css, &self.options, self.scale.as_deref());
+            let normalization = policy(&css, &self.options, &self.scales);
             if let Some(resolved_css) = resolved_css {
                 self.pending.push(PendingValue {
                     label: label.clone(),

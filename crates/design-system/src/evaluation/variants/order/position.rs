@@ -33,9 +33,14 @@ pub(super) fn direct_builtin_variant<'a>(
         .map(|(_, variant)| variant.as_ref())
 }
 
-/// The theme namespace named by a sort key such as `--breakpoint-*`.
-pub(in crate::evaluation) fn variant_sort_namespace(key: &str) -> Option<ThemeNamespace> {
-    ThemeNamespace::parse(key.strip_prefix("--")?.strip_suffix("-*")?)
+/// The declared theme namespace named by a sort key such as `--breakpoint-*`.
+pub(in crate::evaluation) fn variant_sort_namespace<'a>(
+    key: &str,
+    theme: &'a ThemeIndex,
+) -> Option<&'a ThemeNamespace> {
+    theme
+        .namespaces()
+        .get(key.strip_prefix("--")?.strip_suffix("-*")?)
 }
 
 /// A variant that names a theme token without its prefix, as a bare breakpoint variant
@@ -51,10 +56,14 @@ pub(super) fn bare_builtin_variant<'a>(
             let Some(sort) = variant.sort.as_ref().filter(|sort| sort.bare) else {
                 return false;
             };
-            let Some(namespace) = sort.key.as_deref().and_then(variant_sort_namespace) else {
+            let Some(namespace) = sort
+                .key
+                .as_deref()
+                .and_then(|key| variant_sort_namespace(key, theme))
+            else {
                 return false;
             };
-            theme.token_in(namespace, value).is_some()
+            theme.token_in(&namespace.name, value).is_some()
         })
 }
 

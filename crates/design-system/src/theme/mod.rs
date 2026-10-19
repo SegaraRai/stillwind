@@ -12,8 +12,8 @@
 //! [`parser`] reads supplied CSS, and [`builder`] collects definitions until origins
 //! are mapped. [`index`] owns immutable declarations and evaluation data. [`tokens`]
 //! selects effective declarations after resets. [`declarations`] parses token modes
-//! and spans, [`namespace`] identifies token families,
-//! and [`references`] lowers build-time theme references.
+//! and spans, [`namespace`] reads the declared token families, and [`references`]
+//! lowers build-time theme references.
 
 mod builder;
 mod declarations;
@@ -23,13 +23,14 @@ mod parser;
 mod references;
 mod tokens;
 
-pub use declarations::{ThemeToken, ThemeTokenKind, ThemeTokenMode, ThemeTokenPrecedence};
+pub use declarations::{ThemeToken, ThemeTokenMode, ThemeTokenPrecedence};
 pub use index::ThemeIndex;
-pub use namespace::{SPACING_VALUE_DOMAIN, ThemeNamespace, parse_theme_namespace_types};
+pub use namespace::{ThemeNamespace, ThemeNamespaces, ThemeScale};
 pub use parser::{DynamicFamily, DynamicFamilyKind, UtilityImportance, parse_theme};
 pub use references::ThemeReferenceError;
 
 pub(crate) use parser::extract_keyframe_blocks;
+
 pub(super) use parser::parse_theme_builder;
 
 #[cfg(test)]

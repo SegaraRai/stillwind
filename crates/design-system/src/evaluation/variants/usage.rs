@@ -241,6 +241,7 @@ mod tests {
                 vec!["--spacing-gutter"],
                 VariantValueSource::ThemeToken("--spacing-gutter".into()),
             ),
+            ("4", vec!["--spacing"], VariantValueSource::Explicit),
             ("[3rem]", vec![], VariantValueSource::Explicit),
         ] {
             let resolved = resolve_variant_with_usage(
@@ -255,15 +256,23 @@ mod tests {
                 "{capture}"
             );
         }
-        // A media query cannot evaluate `var()`, including the one in a numeric
-        // spacing value.
-        for capture in ["4", "[var(--spacing-ref-small)]", "(--spacing-ref-small)"] {
+        // A media query cannot evaluate `var()`.
+        for capture in ["[var(--spacing-ref-small)]", "(--spacing-ref-small)"] {
             let variant = parse_nested_variant(&format_args!("scaled-{capture}").to_lean_string());
             assert!(
                 resolve_variant_with_usage(&variant, &theme).is_none(),
                 "{capture}"
             );
         }
+        let source = SourceFile::new(
+            FileId(2),
+            None,
+            None,
+            source.text().replace("@theme inline", "@theme"),
+        )
+        .unwrap();
+        let theme = parse_fixture_theme(&source).unwrap();
+        assert!(resolve_variant_with_usage(&parse_nested_variant("scaled-4"), &theme).is_none());
     }
 
     #[test]

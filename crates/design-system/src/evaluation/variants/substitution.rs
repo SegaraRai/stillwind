@@ -21,7 +21,7 @@ use super::super::values::{
 use super::application::{VariantApplication, VariantDeclaration, VariantObstacle};
 use super::body::resolve_variant_body;
 use super::usage::VariantValueSource;
-use crate::{BuiltinVariantModifierType, CustomVariant, SPACING_VALUE_DOMAIN, ThemeNamespace};
+use crate::{BuiltinVariantModifierType, CustomVariant};
 
 /// Substitutes a typed modifier into a definition's quoted macro.
 ///
@@ -393,7 +393,7 @@ pub(super) fn resolve_variant_value_with_source(
 ) -> Option<(LeanStr, VariantValueSource)> {
     split_domains(domains).into_iter().find_map(|domain| {
         let domain = domain.trim();
-        if let Some((namespace, suffix)) = theme_domain_pattern(domain) {
+        if let Some((namespace, suffix)) = theme_domain_pattern(domain, theme) {
             return capture.and_then(|name| {
                 namespace.token(name, suffix, theme).map(|token| {
                     theme.record_token(&token.name.value);
@@ -410,9 +410,8 @@ pub(super) fn resolve_variant_value_with_source(
         if find_css_function(&value, "var", 0).is_some() {
             return None;
         }
-        let source = if domain == SPACING_VALUE_DOMAIN
-            && let Some(token) =
-                capture.and_then(|name| theme.token_in(ThemeNamespace::Spacing, name))
+        let source = if let Some(namespace) = theme.namespaces().scale_domain(domain)
+            && let Some(token) = capture.and_then(|name| theme.token_in(&namespace.name, name))
         {
             VariantValueSource::ThemeToken(token.name.value.clone())
         } else {

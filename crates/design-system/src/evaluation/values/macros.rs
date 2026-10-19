@@ -28,7 +28,7 @@ pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
     let [domain, suffix] = arguments.as_slice() else {
         return None;
     };
-    let (namespace, domain_suffix) = theme_domain_pattern(domain.trim())?;
+    let (namespace, domain_suffix) = theme_domain_pattern(domain.trim(), theme)?;
     let capture = capture?;
     let suffix = suffix.trim().strip_prefix("--")?;
     namespace.resolve(

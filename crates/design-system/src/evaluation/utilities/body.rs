@@ -26,7 +26,7 @@ use super::nested::{
 };
 use super::resolve::{ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse};
 use super::variables::VariableMismatch;
-use crate::{CustomUtility, ThemeIndex, ThemeNamespace, UtilityOrderMode};
+use crate::{CustomUtility, ThemeIndex, UtilityOrderMode};
 
 /// A failed utility resolution caused by a malformed requirement in the matched definition.
 #[derive(Clone, Debug, thiserror::Error)]
@@ -428,11 +428,15 @@ fn expand_theme_wildcard_nested(
     let Some(namespace) = marker
         .strip_prefix("--value(--")
         .and_then(|value| value.strip_suffix("-*)"))
-        .and_then(ThemeNamespace::parse)
+        .and_then(|name| theme.namespaces().get(name))
     else {
         return vec![(condition.to_lean_string(), body.to_lean_string())];
     };
-    let mut tokens = theme.tokens_in(namespace);
+    let mut tokens = theme
+        .tokens_in(&namespace.name)
+        .into_iter()
+        .map(|(_, token)| token)
+        .collect::<Vec<_>>();
     tokens.sort_by(|left, right| {
         css_length_sort_key(&left.value.value)
             .partial_cmp(&css_length_sort_key(&right.value.value))
