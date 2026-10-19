@@ -296,8 +296,16 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         purpose: Purpose::Registry,
         family: Family::Stillwind,
         positions: Positions::RULES,
-        syntax: "@stillwind-marker name;",
-        description: "Registers a utility that emits a marker class.",
+        syntax: "@stillwind-marker name (modifiable);",
+        description: "Registers a class that candidates add to elements as written.",
+    },
+    Directive {
+        name: "stillwind-marker-source",
+        purpose: Purpose::Registry,
+        family: Family::Stillwind,
+        positions: Positions::RULES,
+        syntax: "@stillwind-marker-source \"css\";",
+        description: "Registers the classes that the rules in a string select as marker classes, without emitting the rules.",
     },
     Directive {
         name: "stillwind-relationship",

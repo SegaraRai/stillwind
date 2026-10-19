@@ -10,7 +10,7 @@ import type { PluginAPI, PluginCreator, PluginWithConfig } from "tailwindcss/plu
 import type { TailwindPlugin } from "../plugins.ts";
 import { containerUtility } from "./container.ts";
 import {
-  cssClassNames,
+  cssString,
   identifier,
   pluginOptions,
   serializeCss,
@@ -90,8 +90,8 @@ interface DynamicUtility {
   name: string;
   callback: UtilityCallback;
   options: MatchOptions;
-  /** Classes that the callback's selectors name for the values in `options.values`. */
-  markers: string[];
+  /** CSS that the callback generates for the values in `options.values`, for marker classes. */
+  markerSource: string;
   /** Generated bodies by request, null when the callback stops evaluation. */
   results: Map<string, string[] | null | undefined>;
 }
@@ -116,8 +116,8 @@ interface DynamicVariant {
   name: string;
   callback: VariantCallback;
   options: VariantOptions;
-  /** Classes that the callback's selectors name for the values in `options.values`. */
-  markers: string[];
+  /** CSS that the callback generates for the values in `options.values`, for marker classes. */
+  markerSource: string;
   /** Generated variants by complete name. */
   results: Map<string, VariantResult>;
 }
@@ -255,7 +255,7 @@ export class TailwindRuntime {
           name,
           callback,
           options,
-          markers: probeClassNames(options.values, (value) =>
+          markerSource: probeCss(options.values, (value) =>
             utilityBodies(
               (
                 callback as (
@@ -313,7 +313,7 @@ export class TailwindRuntime {
           name,
           callback: callback as VariantCallback,
           options: options as VariantOptions,
-          markers: probeClassNames((options as VariantOptions).values, (value) =>
+          markerSource: probeCss((options as VariantOptions).values, (value) =>
             variantBody(
               (callback as VariantCallback)(value, {
                 modifier: null,
@@ -505,7 +505,9 @@ export class TailwindRuntime {
       }
       output.push(
         `@stillwind-plugin-family utility ${registration.name};`,
-        ...registration.markers.map((name) => `@stillwind-marker ${identifier(name)};`),
+        ...(registration.markerSource
+          ? [`@stillwind-marker-source ${cssString(registration.markerSource)};`]
+          : []),
       );
       const types = Array.isArray(registration.options.type)
         ? registration.options.type
@@ -527,7 +529,9 @@ export class TailwindRuntime {
       }
       output.push(
         `@stillwind-plugin-family variant ${registration.name};`,
-        ...registration.markers.map((name) => `@stillwind-marker ${identifier(name)};`),
+        ...(registration.markerSource
+          ? [`@stillwind-marker-source ${cssString(registration.markerSource)};`]
+          : []),
       );
       const candidates = [...registration.results.values()];
       candidates.sort((a, b) => {
@@ -558,34 +562,33 @@ export class TailwindRuntime {
 }
 
 /**
- * Runs a `matchUtilities()` or `matchVariant()` callback for each named value and collects the
- * classes that its selectors name.
+ * Runs a `matchUtilities()` or `matchVariant()` callback for each named value and joins the CSS
+ * that it generates.
  *
- * The compiler also collects these classes from callback results that candidates request. Running
- * the named values when the plugin registers makes the classes markers before any candidate
- * requests them, so the class that a candidate adds does not depend on which module the host
- * compiles first. A value whose callback throws contributes nothing.
+ * The compiler collects marker classes from the selectors of callback results that candidates
+ * request. The host passes this CSS in `@stillwind-marker-source`, so these classes are markers
+ * before any candidate requests a value, and the class that a candidate adds does not depend on
+ * which module the host compiles first. A value whose callback throws contributes nothing.
  *
- * @param values - Named values of the registration, whose `__`-prefixed keys are skipped.
+ * @param values - Named values of the registration. Keys that start with `__` are skipped, as
+ * Tailwind skips them when it lists candidates.
  * @param run - Returns the CSS that the callback generates for one value.
- * @returns The decoded class names, each once.
+ * @returns Each distinct result in its own `&` rule, or an empty string when no value generates CSS.
  */
-function probeClassNames(
-  values: Record<string, unknown> | undefined,
-  run: (value: unknown) => string,
-): string[] {
-  const names = new Set<string>();
+function probeCss(values: Record<string, unknown> | undefined, run: (value: unknown) => string) {
+  const results = new Set<string>();
   for (const [key, value] of Object.entries(values ?? {})) {
     if (key.startsWith("__")) {
       continue;
     }
     try {
-      for (const name of cssClassNames(run(value))) {
-        names.add(name);
-      }
+      results.add(run(value));
     } catch {}
   }
-  return [...names];
+  return [...results]
+    .filter(Boolean)
+    .map((css) => `&{${css}}`)
+    .join("");
 }
 
 /**

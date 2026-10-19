@@ -7,8 +7,16 @@
 //! `@stillwind-marker name;` declares a marker explicitly, and `@stillwind-marker name
 //! (modifiable);` declares one that also accepts a named modifier, as `group/menu`
 //! does. Every class that a utility or variant definition selects by name is also a
-//! marker, except the utility's own name. This module records the markers; candidate
-//! classification lives with variant compatibility in the evaluator.
+//! marker, except the utility's own name.
+//!
+//! `@stillwind-marker-source "css";` supplies rules whose selected classes are markers
+//! without defining anything. A host passes the CSS that a plugin would generate for
+//! candidates that no one has requested yet, so a class is a marker before any module
+//! requests the candidate that selects it. The CSS is a string so that no other
+//! directive scanner reads the rules inside it, and the statement emits nothing.
+//!
+//! This module records the markers; candidate classification lives with variant
+//! compatibility in the evaluator.
 
 use std::collections::BTreeMap;
 
@@ -53,10 +61,13 @@ impl MarkerClasses {
         self.forms.iter().map(|(name, form)| (name.as_str(), *form))
     }
 
-    /// Collects the markers that `css` declares with `@stillwind-marker` and the
-    /// classes that `utilities` and `variants` select by name.
+    /// Collects the markers that `css` declares with `@stillwind-marker`, and the
+    /// classes that `utilities`, `variants`, and the `@stillwind-marker-source`
+    /// statements of `css` select by name.
     ///
-    /// A statement with an argument other than `(modifiable)` declares nothing. A
+    /// A `@stillwind-marker` statement with an argument other than `(modifiable)`
+    /// declares nothing, and a `@stillwind-marker-source` statement whose argument is
+    /// not one string supplies nothing. A
     /// selected class whose name cannot be written as a variant-free candidate, such as
     /// `hover:x` or `-x`, is skipped, because no candidate could add it.
     pub(crate) fn collect<'a>(
@@ -68,6 +79,16 @@ impl MarkerClasses {
         for (_, header) in extract_named_statements(css, "@stillwind-marker") {
             if let Some((name, form)) = parse_marker_statement(&header) {
                 markers.insert(name, form);
+            }
+        }
+        for (_, header) in extract_named_statements(css, "@stillwind-marker-source") {
+            let mut parser = Parser::new(&header);
+            if let Ok(source) = parser.expect_string().map(ToString::to_string)
+                && parser.is_exhausted()
+            {
+                for name in body_class_names(&source) {
+                    markers.insert_selected(name);
+                }
             }
         }
         for utility in utilities {
@@ -211,6 +232,14 @@ mod tests {
                 ("not-c".into(), MarkerForm::Exact),
             ]
         );
+    }
+
+    #[test]
+    fn collects_classes_selected_by_marker_sources_without_defining_them() {
+        let css = r#"@stillwind-marker-source ".stack-root &{gap:4px}@property --x{syntax:'*'}";
+            @stillwind-marker-source ".a &{color:red}" extra;"#;
+        assert_eq!(collect(css), [("stack-root".into(), MarkerForm::Exact)]);
+        assert_eq!(parse_utility_definitions(css), []);
     }
 
     #[test]

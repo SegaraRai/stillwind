@@ -231,6 +231,9 @@ The design system collects marker classes from two sources:
   and `:has()` and whole class attribute matches such as `[class~="name"]`. A utility's
   own name is excluded. A partial attribute match such as `[class*="name"]` names no
   class.
+- `@stillwind-marker-source "css";` makes the classes that the rules in the string select
+  exact markers, as a definition body does. It defines and emits nothing, and directives
+  inside the string have no effect.
 
 Definitions from stylesheets, native plugins, and Tailwind plugins contribute in the same
 way. `@utility card-title { .card & { color: red; } }` makes `card` a marker, so
@@ -334,9 +337,10 @@ callback returns for one candidate becomes `@utility <candidate> (functional) { 
 which belongs to the functional utility of its root, so `duration-300` from
 `tailwindcss-animate` adds `animation-duration` to the built-in `transition-duration`.
 When the plugin registers a `matchUtilities` or `matchVariant` callback, the host runs it
-for each value in `values` and declares the classes that its selectors name with
-`@stillwind-marker`. These classes are therefore markers before any candidate requests a
-value. Two more descriptors reproduce Tailwind's exceptions. A registration whose types
+for each value in `values`, except keys that start with `__`, and passes the generated CSS
+in `@stillwind-marker-source`. The classes that its selectors name are therefore markers
+before any candidate requests a value, so the class that a candidate adds does not depend
+on which module the host compiles first. Two more descriptors reproduce Tailwind's exceptions. A registration whose types
 include `any` and another type becomes `(functional, fallback)`, which applies only when
 no other definition resolves. When a typed callback rejects an arbitrary value because
 of an invalid modifier, `(functional, stop)` ends the evaluation of the definitions that
