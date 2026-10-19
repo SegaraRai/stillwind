@@ -73,6 +73,40 @@ fn session_generators_name_generated_classes() {
     );
 }
 
+#[test]
+fn a_generated_name_belongs_to_one_published_module_at_a_time() {
+    let mut session = ProjectSession::new(
+        brand_snapshot("red"),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::new(Some(Rc::new(FixedClassGenerator)), IdentifierMode::Release),
+    );
+    let collides = |diagnostics: &[CompileError]| {
+        diagnostics.iter().any(|error| {
+            matches!(
+                error.diagnostic,
+                CompileDiagnostic::GeneratedIdentifierCollision { .. }
+            )
+        })
+    };
+    // The generator derives the class name from the length of the candidate spelling,
+    // so `flex` and `grid` share a name while their identities differ.
+    let update = session.update_module(module("first.tsx", "flex"));
+    assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+    // Republishing `first.tsx` with a longer spelling releases its earlier name.
+    let update = session.update_module(module("first.tsx", "block"));
+    assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+    let update = session.update_module(module("second.tsx", "grid"));
+    assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+    let update = session.update_module(module("third.tsx", "flex"));
+    assert!(collides(&update.diagnostics), "{:?}", update.diagnostics);
+    // Removing `second.tsx` releases the name for `third.tsx`.
+    assert!(session.remove_module(&ModuleId::from("second.tsx")));
+    let update = session.update_module(module("third.tsx", "flex"));
+    assert!(update.diagnostics.is_empty(), "{:?}", update.diagnostics);
+}
+
 /// Names the keyframes family with one fixed body so it can collide with authored CSS.
 #[derive(Debug)]
 struct FixedKeyframesGenerator;

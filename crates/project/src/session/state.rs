@@ -19,7 +19,7 @@ use stillwind_diagnostics::{
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
-use super::{DiagnosticState, DocumentNames};
+use super::{CompositionConsumers, DiagnosticState, DocumentNames, ModuleNames, SymbolIndex};
 use crate::{DependencyIndex, ProjectStylesheet, ReservedNames};
 
 /// Why a design-system reload could not be applied.
@@ -105,6 +105,12 @@ pub struct ProjectSession {
     /// `Arc` shares CSS and transforms when sessions are cloned. Lint updates use
     /// [`Arc::make_mut`] to keep other clones unchanged.
     artifacts: BTreeMap<ModuleId, Arc<CompiledModule>>,
+    /// Symbol owners in `artifacts`. Only artifact publication and removal change it.
+    /// `Arc` shares it between session clones until one clone changes it.
+    symbols: Arc<SymbolIndex>,
+    /// Composition consumers in `artifacts`. Only artifact publication and removal
+    /// change it. `Arc` shares it between session clones until one clone changes it.
+    consumers: Arc<CompositionConsumers>,
     /// Shared stylesheet assembled from published artifacts.
     stylesheet: ProjectStylesheet,
     /// Maps definitions and assets to compiled modules. `OnceLock` builds the index
@@ -161,6 +167,8 @@ impl ProjectSession {
             analyses: BTreeMap::new(),
             analysis_keys: BTreeMap::new(),
             artifacts: BTreeMap::new(),
+            symbols: Arc::default(),
+            consumers: Arc::default(),
             stylesheet: ProjectStylesheet::default(),
             dependencies: Arc::default(),
             load_error: None,
@@ -438,7 +446,11 @@ impl ProjectSession {
         }
         let module_id = analysis.module_id.clone();
         let mut compiled = backend.compile(&analysis, &self.identifiers);
-        let mut symbols = self.document_names(Some(&module_id));
+        let mut symbols = ModuleNames::new(
+            &module_id,
+            &self.symbols,
+            std::iter::once(&self.reserved).chain(self.authored.values()),
+        );
         for symbol in &compiled.symbols {
             if let Some(collision) = symbols.insert(symbol) {
                 compiled
@@ -459,7 +471,7 @@ impl ProjectSession {
             self.dependencies = Arc::default();
             self.stylesheet.replace(module_id.clone(), &compiled.css);
             let dependents = self.composition_dependents(&module_id);
-            self.artifacts.insert(module_id.clone(), Arc::new(compiled));
+            self.publish_artifact(module_id.clone(), compiled);
             self.refresh_style_lints(std::iter::once(module_id).chain(dependents));
         } else {
             update.diagnostics = compiled.diagnostics;
@@ -584,29 +596,28 @@ impl ProjectSession {
     /// Returns published modules that directly or indirectly depend on `module`.
     /// It uses dependency edges from published artifacts, including output kept after
     /// watch failures. The result excludes `module` and lists each consumer once.
-    /// Cycles do not cause an infinite loop. The result does not define stylesheet order.
+    /// Cycles do not cause an infinite loop. The result does not define stylesheet
+    /// order.
     fn composition_dependents(&self, module: &ModuleId) -> Vec<ModuleId> {
-        let mut pending = vec![module.clone()];
-        let mut seen = BTreeSet::from([module.clone()]);
-        let mut dependents = Vec::new();
-        while let Some(base) = pending.pop() {
-            for (id, artifact) in &self.artifacts {
-                if artifact
-                    .composition
-                    .iter()
-                    .any(|edge| edge.base.module_id() == &base)
-                    && seen.insert(id.clone())
-                {
-                    dependents.push(id.clone());
-                    pending.push(id.clone());
-                }
-            }
+        self.consumers.transitive(module)
+    }
+
+    /// Replaces the artifact of `module` with `compiled` and updates the artifact
+    /// indexes. The caller updates the stylesheet and dependency index.
+    fn publish_artifact(&mut self, module: ModuleId, compiled: CompiledModule) {
+        if let Some(previous) = self.artifacts.get(&module) {
+            Arc::make_mut(&mut self.symbols).remove(&module, &previous.symbols);
+            Arc::make_mut(&mut self.consumers).remove(&module, previous);
         }
-        dependents
+        Arc::make_mut(&mut self.symbols).insert(&module, &compiled.symbols);
+        Arc::make_mut(&mut self.consumers).insert(&module, &compiled);
+        self.artifacts.insert(module, Arc::new(compiled));
     }
 
     fn remove_artifact(&mut self, module: &ModuleId) {
-        if self.artifacts.remove(module).is_some() {
+        if let Some(previous) = self.artifacts.remove(module) {
+            Arc::make_mut(&mut self.symbols).remove(module, &previous.symbols);
+            Arc::make_mut(&mut self.consumers).remove(module, &previous);
             self.stylesheet.remove(module);
             self.dependencies = Arc::default();
         }
@@ -638,6 +649,8 @@ impl ProjectSession {
                 self.load_error = Some(error.clone());
                 if self.mode == SessionMode::Build {
                     self.artifacts.clear();
+                    self.symbols = Arc::default();
+                    self.consumers = Arc::default();
                     self.stylesheet = ProjectStylesheet::default();
                     self.dependencies = Arc::default();
                 }
@@ -659,6 +672,8 @@ impl ProjectSession {
             && next.options == self.options
         {
             next.artifacts = self.artifacts.clone();
+            next.symbols = self.symbols.clone();
+            next.consumers = self.consumers.clone();
             next.stylesheet = self.stylesheet.clone();
             next.dependencies = self.dependencies.clone();
         }
@@ -699,22 +714,20 @@ impl ProjectSession {
 
     /// The names the document already uses, by CSS namespace.
     ///
-    /// `except` names one module whose symbols are left out, so it can be checked against the rest
-    /// of the document. An authored name already owns its namespace, so a generated name equal to
-    /// one is reported even when no producer generated it.
-    fn document_names(&self, except: Option<&ModuleId>) -> DocumentNames<'_> {
+    /// An authored name already owns its namespace, so a generated name equal to one is
+    /// reported even when no producer generated it.
+    fn document_names(&self) -> DocumentNames<'_> {
         DocumentNames::new(
             self.artifacts
-                .iter()
-                .filter(|(id, _)| except != Some(*id))
-                .flat_map(|(_, artifact)| artifact.symbols.iter()),
+                .values()
+                .flat_map(|artifact| artifact.symbols.iter()),
             std::iter::once(&self.reserved).chain(self.authored.values()),
         )
     }
 
     /// Checks every published artifact against the document's names, in module order.
     fn recheck_artifacts(&self) -> BTreeMap<ModuleId, Vec<CompileError>> {
-        let mut names = self.document_names(None);
+        let mut names = self.document_names();
         let mut reported = BTreeMap::new();
         for (id, artifact) in &self.artifacts {
             let mut diagnostics = Vec::new();
@@ -746,7 +759,7 @@ impl ProjectSession {
         &self,
         symbols: &[GeneratedSymbol],
     ) -> Result<(), CompileDiagnostic> {
-        let mut names = self.document_names(None);
+        let mut names = self.document_names();
         for symbol in symbols {
             if let Some(collision) = names.insert(symbol) {
                 return Err(collision);
