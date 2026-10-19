@@ -18,9 +18,9 @@ import ts from "typescript-6";
 
 import type { ModuleAnalysis } from "../compilation/compiler.ts";
 import { pluginLoader, type PluginRuntime } from "../css/plugins.ts";
-import { CandidateQueries, segments } from "./candidates.ts";
+import { CandidateQueries, markerDocumentation, segments } from "./candidates.ts";
 import { colorReplacement } from "./colors.ts";
-import { completionSnippet } from "./completion.ts";
+import { completionSnippet, markerModifierSnippet } from "./completion.ts";
 import type { GeneratedPreview } from "./previews.ts";
 import { escapeContent, sortSource } from "./sort.ts";
 import { SourceIndex, type UtilityLiteral } from "./source-index.ts";
@@ -44,6 +44,8 @@ export interface EditorCompletion extends EditorEdit {
   keyword?: boolean;
   /** True for a variant, including CSS variant labels without a trailing colon. */
   variant?: boolean;
+  /** True for a label that adds a marker class or starts the modifier of a modifiable marker. */
+  marker?: boolean;
   /** Static description for a CSS directive or plugin path. CSS summaries load on resolve. */
   detail?: string;
   /** Replacement encoded as an LSP snippet when the requesting client supports snippets. */
@@ -168,7 +170,7 @@ export interface EditorResult {
     css: string;
     /** Short CSS summary or plugin description for the selected completion. */
     detail?: string;
-    /** Markdown for CSS directives, output slots, theme references, or plugin paths. */
+    /** Markdown for CSS directives, output slots, theme references, plugin paths, or marker classes. */
     documentation?: string;
     /** Authored runtime key expressions, deduplicated in dependency traversal order.
      * Absent when the preview has no runtime key expression to explain.
@@ -392,20 +394,26 @@ export class EditorSnapshot {
         (literal) => literal.source === source && literal.boundaries[0] === request.input,
       );
       const candidates = this.#resolved.get(request.candidate) ?? this.#candidates;
-      const css =
-        literal && request.snapshot === this.#revision
-          ? request.candidate.endsWith(":")
-            ? candidates.variant(request.candidate, literal.context)
-            : (this.#preview(literal, request.candidate.slice(literal.prefix.length)) ??
-              candidates.preview(request.candidate, literal.context))
-          : undefined;
-      if (css) {
-        const formatted = this.#query.formatCss(css, this.#annotations);
+      const current = literal && request.snapshot === this.#revision;
+      const css = current
+        ? request.candidate.endsWith(":")
+          ? candidates.variant(request.candidate, literal.context)
+          : (this.#preview(literal, request.candidate.slice(literal.prefix.length)) ??
+            candidates.preview(request.candidate, literal.context))
+        : undefined;
+      const marker = current ? candidates.marker(request.candidate, literal.context) : null;
+      if (css || marker) {
+        const formatted = css ? this.#query.formatCss(css, this.#annotations) : "";
         result.hover = {
           start: 0,
           end: 0,
           css: formatted,
-          detail: this.#candidates.detail(formatted),
+          detail: css ? this.#candidates.detail(formatted) : "marker class",
+          ...(marker
+            ? {
+                documentation: markerDocumentation(marker),
+              }
+            : {}),
         };
       }
       return result;
@@ -466,11 +474,20 @@ export class EditorSnapshot {
     if (request.kind === "hover") {
       if (token) {
         const css = this.#preview(token.literal, token.text);
-        if (css) {
+        const marker = this.#candidates.marker(
+          token.literal.prefix + token.text,
+          token.literal.context,
+        );
+        if (css || marker) {
           result.hover = {
             start: token.start,
             end: token.end,
-            css: this.#query.formatCss(css, this.#annotations),
+            css: css ? this.#query.formatCss(css, this.#annotations) : "",
+            ...(marker
+              ? {
+                  documentation: markerDocumentation(marker),
+                }
+              : {}),
           };
         }
       } else {
@@ -488,33 +505,43 @@ export class EditorSnapshot {
     const native = this.#candidates
       .complete(literal.prefix + prefix, literal.context, request.snippets === true)
       .filter(
-        (candidate) =>
-          candidate.endsWith(":") ||
+        ({ label, marker }) =>
+          marker ||
+          label.endsWith(":") ||
           !literal.site ||
-          this.#preview(literal, candidate.slice(literal.prefix.length)),
+          this.#preview(literal, label.slice(literal.prefix.length)),
       );
-    const known = new Set(native);
+    const known = new Set(native.map(({ label }) => label));
     result.completions = [
       ...native,
-      ...this.#catalogCompletions(literal.prefix + prefix, literal.context).filter(
-        (candidate) => !known.has(candidate),
-      ),
-    ].map((candidate) => ({
-      label: candidate.slice(literal.prefix.length),
-      candidate,
-      input: literal.boundaries[0],
-      snapshot: this.#revision,
-      start,
-      end,
-      newText: escapeContent(candidate.slice(literal.prefix.length), literal),
-      snippet:
-        request.snippets && candidate.endsWith(":")
-          ? completionSnippet(candidate.slice(literal.prefix.length), (text) =>
-              escapeContent(text, literal),
-            )
-          : undefined,
-      retrigger: candidate.endsWith(":") || candidate.endsWith("-"),
-    }));
+      ...this.#catalogCompletions(literal.prefix + prefix, literal.context)
+        .filter((candidate) => !known.has(candidate))
+        .map((label) => ({
+          label,
+          marker: false,
+        })),
+    ].map(({ label: candidate, marker }) => {
+      const label = candidate.slice(literal.prefix.length);
+      const source = (text: string) => escapeContent(text, literal);
+      return {
+        label,
+        candidate,
+        input: literal.boundaries[0],
+        snapshot: this.#revision,
+        start,
+        end,
+        newText: escapeContent(label, literal),
+        ...(marker ? { marker } : {}),
+        snippet: !request.snippets
+          ? undefined
+          : marker && candidate.endsWith("/")
+            ? markerModifierSnippet(label, source)
+            : candidate.endsWith(":")
+              ? completionSnippet(label, source)
+              : undefined,
+        retrigger: candidate.endsWith(":") || candidate.endsWith("-"),
+      };
+    });
 
     return result;
   }

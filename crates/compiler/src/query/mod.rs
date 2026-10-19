@@ -3,7 +3,8 @@
 //! [`DesignSystemQuery`] pins each answer to a revision so hosts can discard stale
 //! results. [`resolution`] generates candidate previews and diagnostics. [`ordering`]
 //! compares candidates using compiler order. [`completion`] offers utility, variant,
-//! and theme labels, and [`canonical`] finds equivalent spellings under the active lint
+//! marker, and theme labels, and [`markers`] describes the marker class that a
+//! candidate adds. [`canonical`] finds equivalent spellings under the active lint
 //! policy. [`theme`] exposes theme values and resolves colors for editor decorations,
 //! and [`annotations`] adds comments with resolved values to preview CSS.
 //! [`stylesheet`] locates CSS inputs and reuses candidate queries for completion,
@@ -19,6 +20,7 @@ mod canonical;
 mod completion;
 mod context;
 mod input;
+mod markers;
 mod ordering;
 mod resolution;
 mod state;
@@ -29,6 +31,7 @@ mod theme;
 pub use annotations::{ColorEquivalents, PreviewAnnotations};
 pub use completion::{CompletionInput, CompletionItem, completion_detail};
 pub use input::CandidateContext;
+pub use markers::AddedMarker;
 pub use resolution::{CandidateFailure, CandidateHover, CandidateResolution};
 pub use state::{DesignSystemQuery, prepare_canonical_index};
 pub use stylesheet::{

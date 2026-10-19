@@ -822,7 +822,10 @@ without inspecting its body or CSS.
 
 `sort.stringLiterals` defaults to true and sorts utility tokens inside each static
 string or template segment using compiler order. This does not reorder separate utility
-array elements. Unknown utility tokens delimit sortable string runs.
+array elements. Unknown utility tokens delimit sortable string runs. A token that adds a
+[marker class](css-emission.md#marker-classes) and resolves no utility sorts before the
+utilities of its run, as Tailwind sorts classes without CSS first. Such tokens keep their
+relative order.
 
 `sort: false` disables all sorting targets in scripts and stylesheets.
 It also disables sorting diagnostics and sorting fixes. Other lint rules and fixes
@@ -837,6 +840,7 @@ The CSS targets are independent:
 
 - `sort.applyUtilities` defaults to true. It sorts utility arguments inside each complete
   `@apply` statement using compiler order. Unknown utilities and comments delimit sortable runs.
+  A marker class name that resolves no utility sorts first, as in scripts.
 - `sort.applyStatements` defaults to false. It orders adjacent `@apply` statements by their
   utilities' compiler order. It keeps each statement intact and leaves argument sorting to
   `applyUtilities`.

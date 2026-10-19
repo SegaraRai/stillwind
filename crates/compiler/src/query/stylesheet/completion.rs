@@ -184,6 +184,7 @@ impl DesignSystemQuery {
                     CandidateContext::Utility
                 },
                 snippets,
+                markers: false,
             })?
             .into_iter()
             .filter_map(|item| {

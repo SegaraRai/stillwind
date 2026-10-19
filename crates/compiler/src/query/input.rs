@@ -404,6 +404,7 @@ mod tests {
                     prefix: "w".into(),
                     context: CandidateContext::MediaVariants,
                     snippets: false,
+                    markers: false,
                 })
                 .unwrap()
                 .into_iter()

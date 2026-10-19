@@ -8,16 +8,21 @@ use std::sync::Arc;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_design_system::{
-    ThemeIndex, UtilityOrder, UtilityResolutionError, VariantSequenceOrder, resolve_utility,
-    resolve_variant,
+    MarkerUse, ThemeIndex, UtilityOrder, UtilityResolutionError, VariantSequenceOrder, marker_use,
+    resolve_utility, resolve_variant,
 };
 
 use super::DesignSystemQuery;
 
 impl DesignSystemQuery {
     /// Compares candidates using the compiler's variant and utility order.
-    /// Returns `None` if either candidate cannot resolve. Each valid candidate's key
-    /// and each unresolved spelling are retained for this immutable query.
+    /// A candidate that adds a [marker class](stillwind_design_system::MarkerClasses)
+    /// and resolves no utility comes before every utility and equals every other such
+    /// candidate, as Tailwind sorts classes without CSS first.
+    ///
+    /// Returns `None` if either candidate cannot resolve and adds no marker class. Each
+    /// valid candidate's key and each unresolved spelling are retained for this
+    /// immutable query.
     ///
     /// # Errors
     ///
@@ -37,8 +42,9 @@ impl DesignSystemQuery {
         Ok(Some(left_key.compare(left, &right_key, right)))
     }
 
-    /// Assigns relative ranks to `candidates` using one batch of prepared keys.
-    /// Output positions match the input. Unresolved candidates return `None`, and
+    /// Assigns relative ranks to `candidates` using one batch of prepared keys. Output
+    /// positions match the input. Candidates that add marker classes and resolve no
+    /// utility share the first rank. Other unresolved candidates return `None`, and
     /// candidates with equal ordering keys and spellings share a rank. Ranks apply
     /// only to this batch and cannot be compared with ranks from another call.
     ///
@@ -97,10 +103,14 @@ impl CandidateOrdering {
                     .all(|variant| resolve_variant(variant, theme).is_ok())
             })
             .map(|resolved| {
-                Arc::new(CandidateOrder {
+                Arc::new(CandidateOrder::Utility {
                     variants: VariantSequenceOrder::new(&resolved.candidate.variants, theme),
                     utility: resolved.order,
                 })
+            })
+            .or_else(|| {
+                matches!(marker_use(raw, theme), Some(MarkerUse::Class(_)))
+                    .then(|| Arc::new(CandidateOrder::Marker))
             });
         self.keys
             .borrow_mut()
@@ -111,16 +121,33 @@ impl CandidateOrdering {
 
 /// Holds the resolved metadata needed to compare one candidate.
 #[derive(Debug)]
-struct CandidateOrder {
-    variants: VariantSequenceOrder,
-    utility: UtilityOrder,
+enum CandidateOrder {
+    /// The candidate adds a marker class and resolves no utility. It has no CSS to
+    /// order, so it precedes every utility and keeps its position among markers.
+    Marker,
+    /// The candidate resolves a utility, and all its variants resolve.
+    Utility {
+        variants: VariantSequenceOrder,
+        utility: UtilityOrder,
+    },
 }
 
 impl CandidateOrder {
     fn compare(&self, left: &str, other: &Self, right: &str) -> Ordering {
-        self.variants
-            .compare(&other.variants)
-            .then_with(|| self.utility.compare(left, &other.utility, right))
+        match (self, other) {
+            (Self::Marker, Self::Marker) => Ordering::Equal,
+            (Self::Marker, Self::Utility { .. }) => Ordering::Less,
+            (Self::Utility { .. }, Self::Marker) => Ordering::Greater,
+            (
+                Self::Utility { variants, utility },
+                Self::Utility {
+                    variants: other_variants,
+                    utility: other_utility,
+                },
+            ) => variants
+                .compare(other_variants)
+                .then_with(|| utility.compare(left, other_utility, right)),
+        }
     }
 }
 
@@ -257,5 +284,36 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn markers_without_utilities_come_first_and_keep_their_relative_order() {
+        let theme = css_source(
+            FileId(1),
+            "@utility card-title { .card & { color: red; } }
+            @utility panel-title { .panel & { color: blue; } }
+            @utility a { color: green; }",
+        )
+        .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &theme,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+        let values = ["a", "panel", "hover:card", "card", "flex"];
+        assert_eq!(
+            query.candidate_ranks(&values).unwrap(),
+            [Some(2), Some(0), None, Some(0), Some(1)]
+        );
+        assert_eq!(
+            query.compare_candidates("panel", "card").unwrap(),
+            Some(std::cmp::Ordering::Equal)
+        );
+        assert_eq!(
+            query.compare_candidates("flex", "card").unwrap(),
+            Some(std::cmp::Ordering::Greater)
+        );
     }
 }

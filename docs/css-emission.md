@@ -255,6 +255,13 @@ When a utility of the same name resolves, the candidate still contributes that u
 and the rule still reports it. `ignoredClasses` lists the marker classes that the rule
 does not report.
 
+Editors complete marker class names in ordinary utility inputs whose candidate has no
+variants, `!`, or leading `-`. They do not complete them in `@apply` or in document-level
+styles. Clients with snippet support also receive `name/` for a modifiable marker. A hover
+over a candidate that adds a marker class names the class. It also names the
+`@stillwind-marker` statement, the utilities and variants, or the plugin CSS that make
+the class a marker.
+
 ## Plugins
 
 A plugin is JavaScript that generates Stillwind CSS. A stylesheet loads it with

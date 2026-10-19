@@ -392,6 +392,7 @@ mod tests {
                     prefix: "br".into(),
                     context: CandidateContext::Utility,
                     snippets: false,
+                    markers: false,
                 })
                 .unwrap()
                 .iter()

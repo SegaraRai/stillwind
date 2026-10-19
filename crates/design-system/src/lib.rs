@@ -82,12 +82,12 @@ pub use output::parse_output_template;
 pub use registry::{
     BuiltinArbitraryPropertyOrder, BuiltinDefinitions, BuiltinVariantModifierType,
     BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, CustomUtility,
-    CustomVariant, MarkerClasses, MarkerForm, UtilityRole, VariantScope, declaration_format,
-    parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
-    parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
-    parse_builtin_variant_definitions, parse_declaration_formats, parse_omit_token_prefixes,
-    parse_relationship_patterns, parse_theme_order, parse_utility_definitions,
-    parse_variant_definitions,
+    CustomVariant, MarkerClasses, MarkerForm, MarkerOrigin, UtilityRole, VariantScope,
+    declaration_format, parse_animation_option_property_mappings,
+    parse_builtin_animation_option_definitions, parse_builtin_arbitrary_property_order,
+    parse_builtin_utility_definitions, parse_builtin_variant_definitions,
+    parse_declaration_formats, parse_omit_token_prefixes, parse_relationship_patterns,
+    parse_theme_order, parse_utility_definitions, parse_variant_definitions,
 };
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,

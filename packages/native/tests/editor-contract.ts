@@ -3,6 +3,23 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "vite-plus/test";
 
 /**
+ * Returns the labels of a native candidate completion.
+ * @param query - Native editor query of the binding under test.
+ * @param args - Prefix, optional context, and optional snippet support.
+ * @returns Labels in the order that the query returns them.
+ */
+function completionLabels(
+  query: {
+    completeCandidate(...args: unknown[]): {
+      label: string;
+    }[];
+  },
+  ...args: unknown[]
+): string[] {
+  return query.completeCandidate(...args).map((item) => item.label);
+}
+
+/**
  * Registers editor and canonical lint contracts for the selected native or WASM loader.
  * @param specifier - Module specifier of the binding that the tests import.
  */
@@ -23,10 +40,43 @@ export function registerEditorContract(specifier: string): void {
     expect(query.previewCandidate("fixed")).toBe("&{width: calc(var(--unit) * 2);}");
     expect(query.previewCandidate("space-hair")).toBe("&{padding: 1px;}");
     expect(query.previewCandidate("inset-hair")).toBe("&{margin: 1px;}");
-    expect(query.completeCandidate("space-")).toEqual(["space-hair", "space-wide"]);
-    expect(query.completeCandidate("inset-h")).toEqual(["inset-hair"]);
+    expect(completionLabels(query, "space-")).toEqual(["space-hair", "space-wide"]);
+    expect(completionLabels(query, "inset-h")).toEqual(["inset-hair"]);
     expect(query.canonicalCandidate("space-[16px]")).toBe("space-2");
     expect(query.canonicalCandidate("space-[1px]")).toBe("space-hair");
+  });
+
+  test("marker classes complete, describe their origins, and sort before utilities", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `@stillwind-marker menu (modifiable);
+@utility card-title { .card & { color: red; } }
+@utility box { color: blue; }`,
+    );
+    const query = loader.editorQuery();
+    expect(query.completeCandidate("card")).toEqual([
+      { label: "card", marker: true },
+      { label: "card-title", marker: false },
+    ]);
+    expect(query.completeCandidate("menu", "utility", true)).toEqual([
+      { label: "menu", marker: true },
+      { label: "menu/", marker: true },
+    ]);
+    expect(completionLabels(query, "hover:card")).not.toContain("hover:card");
+    expect(query.addedMarker("card")).toEqual({
+      class: "card",
+      origins: [{ kind: "utility", name: "card-title" }],
+    });
+    expect(query.addedMarker("menu/main")).toEqual({
+      class: "menu/main",
+      origins: [{ kind: "declared" }],
+    });
+    expect(query.addedMarker("hover:card")).toBeNull();
+    expect(query.addedMarker("card", "document")).toBeNull();
+    expect(query.candidateRanks(["box", "card", "menu", "hover:card"])).toEqual([1, 0, 0, null]);
   });
 
   test("functional registrations preserve modifiers, nested targets, theme defaults, and CSS functions", async () => {
@@ -95,9 +145,9 @@ export function registerEditorContract(specifier: string): void {
 @stillwind-variant nth-* (value: [nth]) { &:--value(":nth-child({value})") { @slot; } }`,
     );
     const query = loader.editorQuery();
-    expect(query.completeCandidate("hover:", "utility", true)).toContain("hover:nth-[]:");
-    expect(query.completeCandidate("hover:")).not.toContain("hover:hover:");
-    expect(query.completeCandidate("nth-")).not.toContain("nth-[]:");
+    expect(completionLabels(query, "hover:", "utility", true)).toContain("hover:nth-[]:");
+    expect(completionLabels(query, "hover:")).not.toContain("hover:hover:");
+    expect(completionLabels(query, "nth-")).not.toContain("nth-[]:");
     expect(query.previewVariant("hover:", "mediaVariants")).toBeNull();
     expect(completionDetail(query.previewVariant("hover:"))).toBe("&:hover");
     const css = '/* 日本語 🦀 */ @plugin "./loc';
@@ -325,8 +375,8 @@ export function registerEditorContract(specifier: string): void {
       "&{animation-timing-function:linear;}",
     );
     expect(query.previewCandidate("[transition-delay:75ms]", "animationOptions")).toBeNull();
-    expect(query.completeCandidate("duration-no", "animationOptions")).toEqual(["duration-normal"]);
-    expect(query.completeCandidate("ease-(--ease-so", "animationOptions")).toContain(
+    expect(completionLabels(query, "duration-no", "animationOptions")).toEqual(["duration-normal"]);
+    expect(completionLabels(query, "ease-(--ease-so", "animationOptions")).toContain(
       "ease-(--ease-soft)",
     );
     for (const candidate of ["hover:block", "media:block"]) {
@@ -337,7 +387,7 @@ export function registerEditorContract(specifier: string): void {
     }
     for (const context of ["animationOptions", "keyframesFrame"]) {
       expect(
-        query.completeCandidate("", context).some((label: string) => label.endsWith(":")),
+        completionLabels(query, "", context).some((label: string) => label.endsWith(":")),
       ).toBe(false);
     }
     for (const context of [
@@ -345,7 +395,7 @@ export function registerEditorContract(specifier: string): void {
       "viewTransitionUtilities",
       "definitionVariants",
     ]) {
-      const labels = query.completeCandidate("", context);
+      const labels = completionLabels(query, "", context);
       expect(labels).toEqual(expect.arrayContaining(["media:", "supports:", "sequence:"]));
       for (const label of ["hover:", "container:", "mixed:"]) {
         expect(labels).not.toContain(label);
@@ -359,9 +409,9 @@ export function registerEditorContract(specifier: string): void {
     );
     expect(query.previewCandidate("hover:block", "viewTransitionUtilities")).toBeNull();
     expect(
-      query
-        .completeCandidate("", "definitionVariants")
-        .every((label: string) => label.endsWith(":")),
+      completionLabels(query, "", "definitionVariants").every((label: string) =>
+        label.endsWith(":"),
+      ),
     ).toBe(true);
   });
 
@@ -758,18 +808,18 @@ export function registerEditorContract(specifier: string): void {
         colorEquivalents: true as unknown as false,
       }),
     ).toThrow("colorEquivalents");
-    expect(query.completeCandidate("bg-br")).toContain("bg-brand");
-    expect(query.completeCandidate("bg-(--color-br")).toContain("bg-(--color-brand)");
+    expect(completionLabels(query, "bg-br")).toContain("bg-brand");
+    expect(completionLabels(query, "bg-(--color-br")).toContain("bg-(--color-brand)");
     expect(query.colorRgba("oklch(60% 0 0)")).toHaveLength(4);
     expect(query.colorRgba("currentColor")).toBeNull();
     expect(query.candidateColor("hover:bg-brand")).toEqual([1, 0, 0, 1]);
     expect(query.candidateColor("bg-[currentColor]")).toBeNull();
-    expect(query.completeCandidate("hov")).toContain("hover:");
-    expect(query.completeCandidate("group-hov")).toContain("group-hover:");
-    expect(query.completeCandidate("!bg-br")).toContain("!bg-brand");
-    expect(query.completeCandidate("text-body/ti")).toContain("text-body/tight");
-    expect(query.completeCandidate("narrow-na")).toContain("narrow-narrow:");
-    expect(query.completeCandidate("bg-[var(--color-br")).toContain("bg-[var(--color-brand)]");
+    expect(completionLabels(query, "hov")).toContain("hover:");
+    expect(completionLabels(query, "group-hov")).toContain("group-hover:");
+    expect(completionLabels(query, "!bg-br")).toContain("!bg-brand");
+    expect(completionLabels(query, "text-body/ti")).toContain("text-body/tight");
+    expect(completionLabels(query, "narrow-na")).toContain("narrow-narrow:");
+    expect(completionLabels(query, "bg-[var(--color-br")).toContain("bg-[var(--color-brand)]");
     const code = String.raw`import {style} from 'stillwind/react';
 const 日本語='🦀'; const card=style('p-\u005b20.5px\u005d');
 // swlint-disable-next-line prefer-canonical-utilities

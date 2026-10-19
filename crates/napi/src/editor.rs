@@ -12,7 +12,9 @@ use stillwind_compiler::{
     PreviewAnnotations, StylesheetCompletionOptions,
 };
 use stillwind_css::{color_rgba, format_css};
-use stillwind_design_system::{DesignSystemSnapshot, ThemeTokenMode, ThemeTokenPrecedence};
+use stillwind_design_system::{
+    DesignSystemSnapshot, MarkerOrigin, ThemeTokenMode, ThemeTokenPrecedence,
+};
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, LintSurface, Reporter, SourceEdit,
     SourceRange, filter_lint_findings,
@@ -169,6 +171,65 @@ pub struct NativeEditorLintEdit {
     pub end: u32,
     /// Replacement text for this source operation.
     pub replacement: String,
+}
+
+/// One label that candidate completion offers.
+#[napi(object, object_from_js = false)]
+pub struct NativeCandidateCompletion {
+    /// Text to insert. A variant label ends in `:`, and the modifier of a modifiable
+    /// marker ends in `/`.
+    pub label: String,
+    /// Whether the label adds a marker class to the element, or ends in `/` and starts
+    /// the modifier of a modifiable marker. A marker label need not have a preview.
+    pub marker: bool,
+}
+
+/// A statement or definition kind that makes a class a marker.
+#[napi(string_enum = "camelCase")]
+pub enum NativeMarkerOriginKind {
+    /// Serialized as `declared` for a `@stillwind-marker` statement.
+    Declared,
+    /// Serialized as `source` for a rule in a `@stillwind-marker-source` string, which
+    /// hosts generate from plugin CSS.
+    Source,
+    /// Serialized as `utility` for a selector in a utility definition.
+    Utility,
+    /// Serialized as `variant` for the selector or body of a variant definition.
+    Variant,
+}
+
+/// A statement or definition that makes a class a marker.
+#[napi(object, object_from_js = false)]
+pub struct NativeMarkerOrigin {
+    /// Kind of the statement or definition.
+    pub kind: NativeMarkerOriginKind,
+    /// Definition name for `utility` and `variant`, including a trailing `*` for a
+    /// functional definition. Absent for other kinds.
+    pub name: Option<String>,
+}
+
+impl From<MarkerOrigin> for NativeMarkerOrigin {
+    fn from(value: MarkerOrigin) -> Self {
+        let (kind, name) = match value {
+            MarkerOrigin::Declared => (NativeMarkerOriginKind::Declared, None),
+            MarkerOrigin::Source => (NativeMarkerOriginKind::Source, None),
+            MarkerOrigin::Utility(name) => (NativeMarkerOriginKind::Utility, Some(name)),
+            MarkerOrigin::Variant(name) => (NativeMarkerOriginKind::Variant, Some(name)),
+        };
+        Self {
+            kind,
+            name: name.map(|name| name.to_string()),
+        }
+    }
+}
+
+/// The marker class that a candidate adds to the element as written.
+#[napi(object, object_from_js = false)]
+pub struct NativeAddedMarker {
+    /// Decoded class name, including a named modifier of a modifiable marker.
+    pub class: String,
+    /// Origins of the marker name, without duplicates. They are never empty.
+    pub origins: Vec<NativeMarkerOrigin>,
 }
 
 /// A CSS completion whose replacement range counts original UTF-8 bytes.
@@ -639,30 +700,64 @@ impl NativeEditorQuery {
     /// Completes decoded `prefix` text using the registries and variant constraints of
     /// `context`. The prefix is one partial candidate including any preceding variants;
     /// omitted context selects ordinary utilities. Returns unique labels in lexical
-    /// order, retaining existing prefixes and ending variant labels with `:`.
+    /// order, retaining existing prefixes and ending variant labels with `:`. An
+    /// ordinary utility prefix without variants, `!`, or `-` also offers marker class
+    /// names.
     ///
-    /// When `snippets` is true, arbitrary variants include empty `[]` placeholders.
-    /// Omitted snippet support is false.
+    /// When `snippets` is true, arbitrary variants include empty `[]` placeholders, and
+    /// each modifiable marker `name` also offers `name/`. Omitted snippet support is
+    /// false.
     ///
     /// # Errors
     ///
     /// Returns a malformed requirement while validating a matching ordinary utility
     /// label.
-    #[napi(ts_return_type = "Array<string>")]
+    #[napi]
     pub fn complete_candidate(
         &self,
         prefix: String,
         context: Option<NativeCandidateContext>,
         snippets: Option<bool>,
-    ) -> napi::Result<Vec<NativeText>> {
+    ) -> napi::Result<Vec<NativeCandidateCompletion>> {
         self.query
             .complete_candidate(CompletionInput {
                 prefix: (prefix).into(),
                 context: context.map_or(CandidateContext::Utility, Into::into),
                 snippets: snippets.unwrap_or(false),
+                markers: true,
             })
-            .map(|items| items.into_iter().map(|item| item.label.into()).collect())
+            .map(|items| {
+                items
+                    .into_iter()
+                    .map(|item| NativeCandidateCompletion {
+                        label: item.label.to_string(),
+                        marker: item.marker,
+                    })
+                    .collect()
+            })
             .map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    /// Returns the marker class that decoded `candidate` adds to the element in an
+    /// input of `context`, or null when it adds none. Omitted context selects ordinary
+    /// utilities, the only role that adds marker classes. The candidate must include
+    /// enclosing variants. A ref condition of an enclosing style object also prevents
+    /// the class, and this query does not detect it.
+    #[napi]
+    pub fn added_marker(
+        &self,
+        candidate: String,
+        context: Option<NativeCandidateContext>,
+    ) -> Option<NativeAddedMarker> {
+        self.query
+            .added_marker(
+                &candidate,
+                context.map_or(CandidateContext::Utility, Into::into),
+            )
+            .map(|marker| NativeAddedMarker {
+                class: marker.class.to_string(),
+                origins: marker.origins.into_iter().map(Into::into).collect(),
+            })
     }
 
     /// Returns -1, 0, or 1 in compiler order, or null if either candidate is

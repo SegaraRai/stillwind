@@ -148,7 +148,9 @@ export function registerEditorFeatures(
               ? CompletionItemKind.File
               : item.category === "module" || item.variant || item.candidate.endsWith(":")
                 ? CompletionItemKind.Module
-                : CompletionItemKind.Value,
+                : item.marker
+                  ? CompletionItemKind.Class
+                  : CompletionItemKind.Value,
         textEdit: {
           range: offsets(document, item),
           newText: item.snippet ?? item.newText,

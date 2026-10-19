@@ -979,3 +979,76 @@ test("aria and data variant wrappers remain utility inputs when attribute name s
     await current.close();
   }
 });
+
+test("marker classes complete, describe their origins on hover, and sort before utilities", async () => {
+  const css = `${theme}
+@stillwind-marker menu (modifiable);
+@utility card-title { .card & { color: red; } }
+`;
+  const source =
+    'import {style} from "stillwind/react"; const a=style("flex card"); const b=style({"hover:":"card"}); const c=style("car';
+  const current = project(source, {}, css);
+  try {
+    const items = (await current.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: source.length,
+      snippets: true,
+    }))!.completions!;
+    expect(items.find((item) => item.label === "card")).toMatchObject({
+      marker: true,
+    });
+    expect(items.find((item) => item.label === "card-title")?.marker).toBeUndefined();
+    const hover = (await current.query("/workspace/entry.tsx", {
+      kind: "hover",
+      offset: source.indexOf("card"),
+    }))!.hover!;
+    expect(hover).toMatchObject({
+      start: source.indexOf("card"),
+      end: source.indexOf("card") + 4,
+      css: "",
+      documentation:
+        "Adds the marker class `card` to the element as written.\n\nSelectors in the `card-title` utility select this class.",
+    });
+    expect(
+      (await current.query("/workspace/entry.tsx", {
+        kind: "hover",
+        offset: source.indexOf('"card"}'),
+      }))!.hover,
+    ).toBeUndefined();
+    const item = items.find((item) => item.label === "card")!;
+    expect(
+      (await current.query("/workspace/entry.tsx", {
+        kind: "resolve",
+        candidate: item.candidate,
+        input: item.input,
+        snapshot: item.snapshot,
+      }))!.hover,
+    ).toMatchObject({ css: "", detail: "marker class" });
+    const sorted = applyEdits(
+      source,
+      (await current.query("/workspace/entry.tsx", {
+        kind: "sort",
+      }))!.edits!,
+    );
+    expect(sorted).toContain('style("card flex")');
+  } finally {
+    await current.close();
+  }
+  const modifier = 'import {style} from "stillwind/react"; const a=style("men';
+  const next = project(modifier, {}, css);
+  try {
+    const items = (await next.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: modifier.length,
+      snippets: true,
+    }))!.completions!;
+    expect(
+      items.filter((item) => item.marker).map(({ label, snippet }) => [label, snippet]),
+    ).toEqual([
+      ["menu", undefined],
+      ["menu/", "menu/${1:name}"],
+    ]);
+  } finally {
+    await next.close();
+  }
+});

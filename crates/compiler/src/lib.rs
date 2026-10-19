@@ -80,11 +80,11 @@ pub use module_compiler::ModuleCompiler;
 pub use module_css::{GeneratedRule, ModuleCssArtifact, RuleKey};
 pub use options::{CompilerOptions, RootFontSize};
 pub use query::{
-    CandidateContext, CandidateFailure, CandidateHover, CandidateResolution, ColorEquivalents,
-    CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations, StylesheetColor,
-    StylesheetCompletion, StylesheetCompletionOptions, StylesheetEdit, StylesheetHover,
-    StylesheetPluginPath, StylesheetSortOptions, completion_detail, editor_css_source,
-    prepare_canonical_index, stylesheet_plugin_paths,
+    AddedMarker, CandidateContext, CandidateFailure, CandidateHover, CandidateResolution,
+    ColorEquivalents, CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations,
+    StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions, StylesheetEdit,
+    StylesheetHover, StylesheetPluginPath, StylesheetSortOptions, completion_detail,
+    editor_css_source, prepare_canonical_index, stylesheet_plugin_paths,
 };
 pub use renderer::{
     RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,

@@ -770,3 +770,77 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     output.destroy();
   }
 });
+
+test("LSP marker completions use the class kind and resolve to their documentation", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/entry.tsx";
+  const text = 'import {style} from "stillwind/react"; const value=style("car");';
+  const document = TextDocument.create(uri, "typescriptreact", 1, text);
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "config",
+          new BrowserAnalysisWorkspace({
+            config: "config",
+            projects: [
+              {
+                root: "/workspace",
+                css: "theme.css",
+                files: ["*.tsx"],
+                typeFacts: false,
+              },
+            ],
+            files: new Map([
+              ["/workspace/entry.tsx", text],
+              ["/workspace/theme.css", "@utility card-title { .card & { color: red; } }"],
+            ]),
+          }),
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  try {
+    await client.sendRequest("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: document.languageId,
+        version: 1,
+        text,
+      },
+    });
+    const items = await client.sendRequest<CompletionItem[]>("textDocument/completion", {
+      textDocument: {
+        uri,
+      },
+      position: document.positionAt(text.indexOf('");')),
+    });
+    const marker = items.find((item) => item.label === "card")!;
+    expect(marker.kind).toBe(7);
+    expect(items.find((item) => item.label === "card-title")?.kind).toBe(12);
+    const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", marker);
+    expect(resolved).toMatchObject({
+      detail: "marker class",
+      documentation: {
+        kind: "markdown",
+        value:
+          "Adds the marker class `card` to the element as written.\n\nSelectors in the `card-title` utility select this class.",
+      },
+    });
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});

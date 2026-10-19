@@ -1,5 +1,7 @@
 import {
   completionDetail,
+  type NativeAddedMarker,
+  type NativeCandidateCompletion,
   type NativeCandidateContext,
   type NativeEditorQuery,
 } from "@stillwind/native";
@@ -13,7 +15,9 @@ export class CandidateQueries {
   /** Successful and failed CSS previews keyed by preview kind, input role, and decoded candidate. */
   readonly #previews = new Map<string, string | null>();
   /** Shared completion arrays keyed by input role, decoded prefix, and snippet support. */
-  readonly #completions = new Map<string, readonly string[]>();
+  readonly #completions = new Map<string, readonly NativeCandidateCompletion[]>();
+  /** Added marker classes and null results keyed by input role and decoded candidate. */
+  readonly #markers = new Map<string, NativeAddedMarker | null>();
   /** Summaries and empty results keyed by the full generated CSS, including preview annotations. */
   readonly #details = new Map<string, string | undefined>();
 
@@ -43,6 +47,22 @@ export class CandidateQueries {
       this.#previews.set(key, this.#query.previewCandidate(candidate, context));
     }
     return this.#previews.get(key)!;
+  }
+
+  /**
+   * Caches the marker class that one candidate adds to the element as written.
+   *
+   * @param candidate - Decoded candidate text, including enclosing variants.
+   * @param context - Input role of the candidate. Only ordinary utilities add marker classes.
+   * @returns The class and its origins, or null when the candidate adds no marker class.
+   * Ref conditions of an enclosing style object are not checked.
+   */
+  marker(candidate: string, context: NativeCandidateContext = "utility"): NativeAddedMarker | null {
+    const key = `${context}\0${candidate}`;
+    if (!this.#markers.has(key)) {
+      this.#markers.set(key, this.#query.addedMarker(candidate, context));
+    }
+    return this.#markers.get(key)!;
   }
 
   /**
@@ -100,12 +120,15 @@ export class CandidateQueries {
   /**
    * Caches unique labels in lexical order for one decoded partial candidate and its role.
    * Existing variant prefixes remain present, and variant labels end in `:`.
-   * Suggestions do not append a variant already present in the prefix.
+   * Suggestions do not append a variant already present in the prefix. An ordinary utility
+   * prefix without variants, `!`, or `-` also receives marker class names, which may have no
+   * preview.
    *
    * @param prefix - Decoded partial candidate, including any enclosing variants.
    * @param context - Input role that selects the candidate registry and permitted variants.
    * Defaults to ordinary utilities.
-   * @param snippets - Whether to include empty brackets for arbitrary variant values. Defaults to false.
+   * @param snippets - Whether to include empty brackets for arbitrary variant values and `name/`
+   * labels for modifiable markers. Defaults to false.
    * @returns A shared readonly array of matching labels.
    * @throws If a matching ordinary utility definition has a malformed requirement.
    */
@@ -113,7 +136,7 @@ export class CandidateQueries {
     prefix: string,
     context: NativeCandidateContext = "utility",
     snippets = false,
-  ): readonly string[] {
+  ): readonly NativeCandidateCompletion[] {
     const key = `${context}\0${prefix}\0${snippets}`;
     if (!this.#completions.has(key)) {
       this.#completions.set(key, this.#query.completeCandidate(prefix, context, snippets));
@@ -193,4 +216,45 @@ export function segments(text: string, delimiter: string): string[] {
   }
   result.push(text.slice(start));
   return result;
+}
+
+/**
+ * Describes an added marker class and the definitions that make it a marker.
+ *
+ * @param marker - Marker class returned by {@link CandidateQueries.marker}.
+ * @returns Markdown with the class name first, followed by one line for each kind of origin.
+ */
+export function markerDocumentation(marker: NativeAddedMarker): string {
+  const code = (text: string) => {
+    const ticks = "`".repeat(
+      Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length)) + 1,
+    );
+    return `${ticks}${text.startsWith("`") || text.endsWith("`") ? ` ${text} ` : text}${ticks}`;
+  };
+  const definitions = marker.origins.flatMap((origin) =>
+    origin.kind === "utility" || origin.kind === "variant"
+      ? [`the ${code(origin.name!)} ${origin.kind}`]
+      : [],
+  );
+  const kinds = new Set(marker.origins.map((origin) => origin.kind));
+  return [
+    `Adds the marker class ${code(marker.class)} to the element as written.`,
+    kinds.has("declared") ? "A `@stillwind-marker` statement declares this class." : undefined,
+    definitions.length ? `Selectors in ${list(definitions)} select this class.` : undefined,
+    kinds.has("source") ? "Selectors in plugin CSS select this class." : undefined,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Joins phrases into an English list.
+ *
+ * @param items - At least one phrase, in display order.
+ * @returns The phrases separated by commas, with "and" before the last one.
+ */
+function list(items: readonly string[]): string {
+  return items.length < 3
+    ? items.join(" and ")
+    : `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
 }

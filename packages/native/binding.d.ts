@@ -167,17 +167,28 @@ export declare class NativeEditorQuery {
    * Completes decoded `prefix` text using the registries and variant constraints of
    * `context`. The prefix is one partial candidate including any preceding variants;
    * omitted context selects ordinary utilities. Returns unique labels in lexical
-   * order, retaining existing prefixes and ending variant labels with `:`.
+   * order, retaining existing prefixes and ending variant labels with `:`. An
+   * ordinary utility prefix without variants, `!`, or `-` also offers marker class
+   * names.
    *
-   * When `snippets` is true, arbitrary variants include empty `[]` placeholders.
-   * Omitted snippet support is false.
+   * When `snippets` is true, arbitrary variants include empty `[]` placeholders, and
+   * each modifiable marker `name` also offers `name/`. Omitted snippet support is
+   * false.
    *
    * # Errors
    *
    * Returns a malformed requirement while validating a matching ordinary utility
    * label.
    */
-  completeCandidate(prefix: string, context?: NativeCandidateContext | undefined | null, snippets?: boolean | undefined | null): Array<string>
+  completeCandidate(prefix: string, context?: NativeCandidateContext | undefined | null, snippets?: boolean | undefined | null): Array<NativeCandidateCompletion>
+  /**
+   * Returns the marker class that decoded `candidate` adds to the element in an
+   * input of `context`, or null when it adds none. Omitted context selects ordinary
+   * utilities, the only role that adds marker classes. The candidate must include
+   * enclosing variants. A ref condition of an enclosing style object also prevents
+   * the class, and this query does not detect it.
+   */
+  addedMarker(candidate: string, context?: NativeCandidateContext | undefined | null): NativeAddedMarker | null
   /**
    * Returns -1, 0, or 1 in compiler order, or null if either candidate is
    * unresolved.
@@ -655,6 +666,14 @@ export interface HostRegion {
  */
 export declare function minifyCss(css: string, options?: NativeCssMinifyOptions | undefined | null): NativeMinifiedCss
 
+/** The marker class that a candidate adds to the element as written. */
+export interface NativeAddedMarker {
+  /** Decoded class name, including a named modifier of a modifiable marker. */
+  class: string
+  /** Origins of the marker name, without duplicates. They are never empty. */
+  origins: Array<NativeMarkerOrigin>
+}
+
 /** Arbitrary spacing restrictions, including optional additional property domains. */
 export interface NativeArbitrarySpacingOptions {
   /** Reporting severity; omission uses the rule default. */
@@ -686,6 +705,20 @@ export interface NativeAssetRecord {
 
 /** Quote character that delimited a converted attribute value. */
 export type NativeAttributeQuote = 'single' | 'double'
+
+/** One label that candidate completion offers. */
+export interface NativeCandidateCompletion {
+  /**
+   * Text to insert. A variant label ends in `:`, and the modifier of a modifiable
+   * marker ends in `/`.
+   */
+  label: string
+  /**
+   * Whether the label adds a marker class to the element, or ends in `/` and starts
+   * the modifier of a modifiable marker. A marker label need not have a preview.
+   */
+  marker: boolean
+}
 
 /**
  * Selects the compiler contract of a candidate's source position.
@@ -1348,6 +1381,20 @@ export interface NativeMapSource {
    */
   content: string
 }
+
+/** A statement or definition that makes a class a marker. */
+export interface NativeMarkerOrigin {
+  /** Kind of the statement or definition. */
+  kind: NativeMarkerOriginKind
+  /**
+   * Definition name for `utility` and `variant`, including a trailing `*` for a
+   * functional definition. Absent for other kinds.
+   */
+  name?: string
+}
+
+/** A statement or definition kind that makes a class a marker. */
+export type NativeMarkerOriginKind = 'declared' | 'source' | 'utility' | 'variant'
 
 /** Policy for candidates that cannot add the marker class that they name. */
 export interface NativeMarkerUseOptions {

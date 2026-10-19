@@ -20,7 +20,7 @@
 //! This module records the markers; candidate classification lives with variant
 //! compatibility in the evaluator.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::LeanStr;
@@ -43,24 +43,57 @@ pub enum MarkerForm {
     Modifiable,
 }
 
-/// Marker class names and the candidate forms that add them.
+/// A statement or definition that makes a class a marker.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum MarkerOrigin {
+    /// A `@stillwind-marker` statement declares the class.
+    Declared,
+    /// A rule in a `@stillwind-marker-source` string selects the class.
+    Source,
+    /// A selector in the body of the utility with this definition name selects the
+    /// class.
+    Utility(LeanStr),
+    /// The selector or body of the variant with this definition name selects the class.
+    Variant(LeanStr),
+}
+
+/// Marker class names, the candidate forms that add them, and their origins.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MarkerClasses {
     /// Decoded class name, which contains a `/` when a definition names a class such as
-    /// `.foo\/bar`. A name has one entry, and [`MarkerForm::Modifiable`] wins when
-    /// sources disagree.
-    forms: BTreeMap<LeanStr, MarkerForm>,
+    /// `.foo\/bar`. A name has one entry.
+    entries: BTreeMap<LeanStr, MarkerEntry>,
+}
+
+/// The form and origins that [`MarkerClasses`] records for one class name.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MarkerEntry {
+    /// [`MarkerForm::Modifiable`] wins when origins disagree.
+    form: MarkerForm,
+    /// Every origin of the class. It is never empty.
+    origins: BTreeSet<MarkerOrigin>,
 }
 
 impl MarkerClasses {
     /// Returns the form of the marker class `name`, or `None` when `name` is not one.
     pub fn get(&self, name: &str) -> Option<MarkerForm> {
-        self.forms.get(name).copied()
+        self.entries.get(name).map(|entry| entry.form)
     }
 
     /// Returns every marker class name and its form, ordered by name.
     pub fn iter(&self) -> impl Iterator<Item = (&str, MarkerForm)> {
-        self.forms.iter().map(|(name, form)| (name.as_str(), *form))
+        self.entries
+            .iter()
+            .map(|(name, entry)| (name.as_str(), entry.form))
+    }
+
+    /// Returns the origins of the marker class `name` in [`MarkerOrigin`] order. The
+    /// iterator is empty when `name` is not a marker class.
+    pub fn origins(&self, name: &str) -> impl Iterator<Item = &MarkerOrigin> {
+        self.entries
+            .get(name)
+            .into_iter()
+            .flat_map(|entry| entry.origins.iter())
     }
 
     /// Collects the markers that `css` declares with `@stillwind-marker`, and the
@@ -83,7 +116,7 @@ impl MarkerClasses {
         }
         for (_, header) in extract_named_statements(css, "@stillwind-marker") {
             if let Some((name, form)) = parse_marker_statement(&header) {
-                markers.insert(name, form);
+                markers.insert(name, form, MarkerOrigin::Declared);
             }
         }
         if css.contains("@stillwind-marker-source") {
@@ -93,7 +126,7 @@ impl MarkerClasses {
                     && parser.is_exhausted()
                 {
                     for name in body_class_names(&source) {
-                        markers.insert_selected(name);
+                        markers.insert_selected(name, &MarkerOrigin::Source);
                     }
                 }
             }
@@ -112,34 +145,40 @@ impl MarkerClasses {
     ) -> Self {
         let mut markers = Self::default();
         for utility in utilities {
+            let origin = MarkerOrigin::Utility(utility.name.clone());
             for name in body_class_names(&utility.body) {
-                markers.insert_selected(name);
+                markers.insert_selected(name, &origin);
             }
         }
         for variant in variants {
+            let origin = MarkerOrigin::Variant(variant.name.clone());
             for branch in split_top_level(&variant.selector, |token| matches!(token, Token::Comma))
             {
                 if !branch.trim_start().starts_with('@') {
                     for name in selector_class_names(branch) {
-                        markers.insert_selected(name);
+                        markers.insert_selected(name, &origin);
                     }
                 }
             }
             for name in body_class_names(&variant.body) {
-                markers.insert_selected(name);
+                markers.insert_selected(name, &origin);
             }
         }
         markers
     }
 
-    fn insert(&mut self, name: LeanStr, form: MarkerForm) {
-        let entry = self.forms.entry(name).or_insert(form);
-        *entry = (*entry).max(form);
+    fn insert(&mut self, name: LeanStr, form: MarkerForm, origin: MarkerOrigin) {
+        let entry = self.entries.entry(name).or_insert_with(|| MarkerEntry {
+            form,
+            origins: BTreeSet::new(),
+        });
+        entry.form = entry.form.max(form);
+        entry.origins.insert(origin);
     }
 
-    fn insert_selected(&mut self, name: LeanStr) {
+    fn insert_selected(&mut self, name: LeanStr, origin: &MarkerOrigin) {
         if candidate_name(&name) {
-            self.insert(name, MarkerForm::Exact);
+            self.insert(name, MarkerForm::Exact, origin.clone());
         }
     }
 }

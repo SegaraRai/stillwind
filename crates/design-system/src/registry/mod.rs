@@ -34,7 +34,7 @@ pub use formats::{
     declaration_format, parse_animation_option_property_mappings, parse_declaration_formats,
     parse_omit_token_prefixes, parse_relationship_patterns, parse_theme_order,
 };
-pub use markers::{MarkerClasses, MarkerForm};
+pub use markers::{MarkerClasses, MarkerForm, MarkerOrigin};
 pub use order::{BuiltinArbitraryPropertyOrder, parse_builtin_arbitrary_property_order};
 pub use utilities::{
     CustomUtility, UtilityRole, parse_builtin_animation_option_definitions,

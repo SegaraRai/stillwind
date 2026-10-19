@@ -6,7 +6,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 use stillwind_design_system::{
-    BuiltinVariantValueType, DesignSystemRevision, UtilityResolutionError,
+    BuiltinVariantValueType, DesignSystemRevision, MarkerForm, UtilityResolutionError,
     builtin_utility_token_prefixes, named_domain_values,
 };
 use stillwind_syntax::parse_candidate;
@@ -22,14 +22,22 @@ pub struct CompletionInput {
     /// Input role used to validate labels and select their registry.
     pub context: CandidateContext,
     /// Includes variant labels with an empty `[]` for a client to turn into a snippet.
+    /// With `markers`, it also includes `name/` for each modifiable marker `name`.
     pub snippets: bool,
+    /// Includes the names of marker classes. Set it only for inputs whose candidates
+    /// add classes to an element, which excludes `@apply`.
+    pub markers: bool,
 }
 
 /// One label the editor may insert.
 #[derive(Clone, Debug)]
 pub struct CompletionItem {
-    /// Text to insert, ending in `:` for a variant.
+    /// Text to insert, ending in `:` for a variant and in `/` for the modifier of a
+    /// modifiable marker.
     pub label: LeanStr,
+    /// Whether the label adds a marker class to the element, or ends in `/` and starts
+    /// the modifier of a modifiable marker.
+    pub marker: bool,
     /// Snapshot revision the label is valid for.
     pub revision: DesignSystemRevision,
 }
@@ -38,10 +46,12 @@ impl DesignSystemQuery {
     /// Offers labels that continue `input.prefix`.
     ///
     /// The input role selects utility or animation-option names and their theme tokens.
-    /// Definition branches and `style.media()` arguments offer only variant prefixes,
-    /// and the `template` option of `style.css()` offers template names. Every label
-    /// must resolve under the role's variant constraints. Compound variants complete
-    /// their nested argument, and the existing variant prefix is retained.
+    /// With `input.markers`, an ordinary utility input without variants, `!`, or `-`
+    /// also offers marker class names, which need not resolve as utilities. Definition
+    /// branches and `style.media()` arguments offer only variant prefixes, and the
+    /// `template` option of `style.css()` offers template names. Every other label must
+    /// resolve under the role's variant constraints. Compound variants complete their
+    /// nested argument, and the existing variant prefix is retained.
     ///
     /// Returns unique labels in lexical order, each pinned to this query's
     /// design-system revision. Variant labels end in `:` so the caller can continue the
@@ -67,6 +77,7 @@ impl DesignSystemQuery {
                 .filter(|name| name.starts_with(prefix.as_str()))
                 .map(|name| CompletionItem {
                     label: name.clone(),
+                    marker: false,
                     revision: self.context.design_system.revision(),
                 })
                 .collect());
@@ -111,6 +122,20 @@ impl DesignSystemQuery {
             }
         }
         completions.extend(self.variant_completion_labels(variants, partial, context, snippets));
+        let mut markers = BTreeSet::new();
+        if input.markers
+            && context == CandidateContext::Utility
+            && variants.is_empty()
+            && utility_flags.is_empty()
+        {
+            for (name, form) in self.marker_names(partial) {
+                if snippets && form == MarkerForm::Modifiable {
+                    markers.insert(format_args!("{name}/").to_lean_str());
+                }
+                markers.insert(name);
+            }
+            completions.extend(markers.iter().cloned());
+        }
         let used: BTreeSet<_> = parse_candidate(&format_args!("{variants}utility").to_lean_str())
             .into_iter()
             .flat_map(|candidate| candidate.variants)
@@ -125,6 +150,7 @@ impl DesignSystemQuery {
                 })
             })
             .map(|label| CompletionItem {
+                marker: markers.contains(&label),
                 label,
                 revision: self.context.design_system.revision(),
             })
@@ -619,6 +645,7 @@ mod tests {
                     prefix: prefix.into(),
                     context,
                     snippets,
+                    markers: false,
                 })
                 .unwrap()
                 .into_iter()
@@ -716,6 +743,7 @@ mod tests {
                     prefix: prefix.into(),
                     context: CandidateContext::Utility,
                     snippets: false,
+                    markers: false,
                 })
                 .unwrap();
             assert!(
@@ -742,6 +770,7 @@ mod tests {
                     prefix: prefix.into(),
                     context: CandidateContext::Utility,
                     snippets: false,
+                    markers: false,
                 })
                 .unwrap()
                 .into_iter()
@@ -762,6 +791,7 @@ mod tests {
                     prefix: "missing:bg-br".into(),
                     context: CandidateContext::Utility,
                     snippets: false,
+                    markers: false,
                 })
                 .unwrap()
                 .is_empty()
@@ -790,6 +820,7 @@ mod tests {
                     prefix: prefix.into(),
                     context: CandidateContext::Document,
                     snippets: false,
+                    markers: false,
                 })
                 .unwrap()
                 .into_iter()
@@ -829,5 +860,52 @@ mod tests {
                 .unwrap(),
             None
         );
+    }
+
+    #[test]
+    fn utility_completions_offer_marker_names_only_where_they_add_the_class() {
+        let source = css_source(
+            FileId(1),
+            "@stillwind-marker menu (modifiable);
+            @utility card-title { .card & { color: red; } }
+            @utility box { color: blue; }",
+        )
+        .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let query = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+        let items = |prefix: &str, markers: bool, snippets: bool| {
+            query
+                .complete_candidate(CompletionInput {
+                    prefix: prefix.into(),
+                    context: CandidateContext::Utility,
+                    snippets,
+                    markers,
+                })
+                .unwrap()
+                .into_iter()
+                .map(|item| (item.label.to_string(), item.marker))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            items("card", true, false),
+            [("card".into(), true), ("card-title".into(), false)]
+        );
+        assert_eq!(
+            items("menu", true, true),
+            [("menu".into(), true), ("menu/".into(), true)]
+        );
+        assert_eq!(items("menu", true, false), [("menu".into(), true)]);
+        assert_eq!(items("card", false, false), [("card-title".into(), false)]);
+        for prefix in ["!card", "-card"] {
+            assert!(
+                items(prefix, true, false).iter().all(|(_, marker)| !marker),
+                "{prefix}"
+            );
+        }
     }
 }
