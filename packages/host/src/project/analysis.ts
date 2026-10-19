@@ -370,7 +370,7 @@ export class AnalysisProject {
         }
       }
       const snapshot = this.#editors.get(entry)?.snapshot;
-      await snapshot?.prepare(request);
+      await snapshot?.prepare(entry, request);
       const result = snapshot?.query(entry, request);
       return this.#discardReason(revision, signal) ? undefined : result;
     });

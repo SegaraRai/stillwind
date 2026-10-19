@@ -221,3 +221,70 @@ export const icon = style(${JSON.stringify(classes)});
     expect(rule.indexOf("height:100%")).toBeGreaterThan(rule.indexOf("height: 1em"));
   },
 );
+
+test("editors complete @iconify/json set names, then the icons of the typed set", async () => {
+  const code = `import { style } from "stillwind/react";
+export const icons = style("icon-");
+export const named = style("hover:icon-demo--");`;
+  const css = `@plugin "@stillwind/plugin-iconify";
+.probe { @apply icon-demo--close; }
+@stillwind-slot utilities;`;
+  const packages = new Map([
+    [
+      "/workspace/node_modules/@iconify/json/collections.json",
+      JSON.stringify({
+        demo: {},
+      }),
+    ],
+    ["/workspace/node_modules/@iconify/json/json/demo.json", JSON.stringify(demo)],
+  ]);
+  const project = new BrowserProject({
+    root: "/workspace",
+    files: new Map([
+      ["/workspace/entry.tsx", code],
+      ["/workspace/design.css", css],
+    ]),
+    config: {
+      css: "design.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+      plugins: [iconify()],
+    },
+    plugins: {
+      load: async () => expect.fail("unexpected plugin load"),
+      resolve: async (specifier) =>
+        packages.has(`/workspace/node_modules/${specifier}`)
+          ? `/workspace/node_modules/${specifier}`
+          : undefined,
+      read: async (file) => packages.get(file) ?? expect.fail(`unexpected read of ${file}`),
+    },
+  });
+  try {
+    const complete = async (file: string, text: string, after: string) =>
+      (
+        await project.query(file, {
+          kind: "completion",
+          offset: text.indexOf(after) + after.length,
+        })
+      )?.completions?.map((item) => [item.label, item.retrigger === true]) ?? [];
+    expect(await complete("/workspace/entry.tsx", code, '"icon-')).toContainEqual([
+      "icon-demo--",
+      true,
+    ]);
+    expect(await complete("/workspace/entry.tsx", code, '"hover:icon-demo--')).toEqual(
+      expect.arrayContaining([
+        ["hover:icon-demo--close", false],
+        ["hover:icon-demo--flag", false],
+      ]),
+    );
+    expect(await complete("/workspace/design.css", css, "@apply icon-de")).toEqual(
+      expect.arrayContaining([["icon-demo--", true]]),
+    );
+    expect(await complete("/workspace/design.css", css, "@apply icon-demo--")).toContainEqual([
+      "icon-demo--flag",
+      false,
+    ]);
+  } finally {
+    await project.close();
+  }
+});

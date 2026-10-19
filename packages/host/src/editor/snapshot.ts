@@ -197,6 +197,8 @@ export class EditorSnapshot {
   readonly #candidates: CandidateQueries;
   /** Dynamic-family candidates that plugins list for completion, sorted. */
   readonly #catalog: readonly string[];
+  /** Plugin suggestions for editor inputs that {@link EditorSnapshot.prepare} loaded, keyed by input. */
+  readonly #inputCatalogs = new Map<string, readonly string[]>();
   /** Fingerprint of captures, graph dependencies, and configuration used for lazy resolution. */
   readonly #revision: string;
   /** Targets for explicit sorting and sorting fixes. False disables both. */
@@ -265,14 +267,28 @@ export class EditorSnapshot {
   }
 
   /**
-   * Loads callback-generated CSS for a selected completion from this captured snapshot, so that
-   * a following {@link EditorSnapshot.query} can preview it. Other requests are ignored.
+   * Loads plugin suggestions for a completion input, and callback-generated CSS for a selected
+   * completion from this captured snapshot, so that a following {@link EditorSnapshot.query} can
+   * use them. Other requests are ignored.
    *
-   * @param request - Editor request. Only a `resolve` request for this snapshot's revision loads
-   * CSS, once for each candidate.
+   * @param id - Full resolver identity of the requested source.
+   * @param request - Editor request. A `completion` request loads the plugin suggestions for the
+   * candidate at its cursor. A `resolve` request for this snapshot's revision loads CSS, once for
+   * each candidate.
    * @throws If a plugin fails or the native loader rejects the generated CSS.
    */
-  async prepare(request: EditorRequest): Promise<void> {
+  async prepare(id: string, request: EditorRequest): Promise<void> {
+    const source = this.#sources.find((source) => source.resolverId === id);
+    if (request.kind === "completion" && source && this.#plugins) {
+      const input = this.#completionInput(source, request.offset);
+      const partial =
+        input && this.#catalogContext(input.literal.context)
+          ? segments(input.literal.prefix + input.prefix, ":").pop()!
+          : "";
+      if (partial && !this.#inputCatalogs.has(partial)) {
+        this.#inputCatalogs.set(partial, await this.#plugins.catalog(partial));
+      }
+    }
     if (
       request.kind === "resolve" &&
       request.snapshot === this.#revision &&
@@ -395,10 +411,7 @@ export class EditorSnapshot {
       return result;
     }
 
-    const literals = this.#index.literals.filter((literal) => literal.source === source);
-    const tokens = literals.flatMap((literal) =>
-      this.#tokens(literal).map((token) => ({ ...token, literal })),
-    );
+    const tokens = this.#sourceTokens(source);
     if (request.kind === "colors") {
       result.colors = tokens.flatMap((token) => {
         if (!this.#colorInput(token.literal) || !this.#preview(token.literal, token.text)) {
@@ -466,21 +479,12 @@ export class EditorSnapshot {
       return result;
     }
 
-    const literal =
-      token?.literal ??
-      literals.find(
-        (literal) =>
-          literal.boundaries[0] <= request.offset && request.offset <= literal.boundaries.at(-1)!,
-      );
-    if (!literal) {
+    const input = this.#completionInput(source, request.offset);
+    if (!input) {
       return result;
     }
 
-    const start = token?.start ?? request.offset;
-    const end = token?.end ?? request.offset;
-    const decoded = literal.boundaries.findIndex((position) => position >= request.offset);
-    const decodedStart = literal.boundaries.indexOf(start);
-    const prefix = literal.text.slice(Math.max(0, decodedStart), Math.max(0, decoded));
+    const { literal, start, end, prefix } = input;
     const native = this.#candidates
       .complete(literal.prefix + prefix, literal.context, request.snippets === true)
       .filter(
@@ -509,7 +513,7 @@ export class EditorSnapshot {
               escapeContent(text, literal),
             )
           : undefined,
-      retrigger: candidate.endsWith(":"),
+      retrigger: candidate.endsWith(":") || candidate.endsWith("-"),
     }));
 
     return result;
@@ -611,7 +615,7 @@ export class EditorSnapshot {
    * utility, at most {@link CATALOG_COMPLETIONS} of them in catalog order.
    */
   #catalogCompletions(text: string, context: NativeCandidateContext): string[] {
-    if (!this.#catalog.length || !["utility", "document", "anchoredDocument"].includes(context)) {
+    if (!this.#catalogContext(context)) {
       return [];
     }
     const parts = segments(text, ":");
@@ -620,10 +624,73 @@ export class EditorSnapshot {
       return [];
     }
     const variants = parts.map((part) => `${part}:`).join("");
-    return this.#catalog
+    return [...new Set([...this.#catalog, ...(this.#inputCatalogs.get(partial) ?? [])])]
       .filter((name) => name.startsWith(partial))
       .slice(0, CATALOG_COMPLETIONS)
       .map((name) => variants + name);
+  }
+
+  /**
+   * Reports whether an input role completes plugin catalog names.
+   * @param context - Input role of a literal.
+   * @returns Whether the role accepts utilities.
+   */
+  #catalogContext(context: NativeCandidateContext): boolean {
+    return ["utility", "document", "anchoredDocument"].includes(context);
+  }
+
+  /**
+   * Lists the utility tokens of every literal in one source.
+   * @param source - Captured source.
+   * @returns Tokens with their literals, in literal order.
+   */
+  #sourceTokens(source: PreparedSource) {
+    return this.#index.literals
+      .filter((literal) => literal.source === source)
+      .flatMap((literal) =>
+        this.#tokens(literal).map((token) => ({
+          ...token,
+          literal,
+        })),
+      );
+  }
+
+  /**
+   * Finds the completion input at a cursor: the token that contains it, or an empty position in a
+   * literal.
+   * @param source - Captured source.
+   * @param offset - Original UTF-16 cursor offset.
+   * @returns The literal, the replaced UTF-16 range, and the decoded text before the cursor, or
+   * undefined outside every literal.
+   */
+  #completionInput(
+    source: PreparedSource,
+    offset: number,
+  ): { literal: UtilityLiteral; start: number; end: number; prefix: string } | undefined {
+    const token = this.#sourceTokens(source).find(
+      (token) => token.start <= offset && offset <= token.end,
+    );
+    const literal =
+      token?.literal ??
+      this.#index.literals.find(
+        (literal) =>
+          literal.source === source &&
+          literal.boundaries[0] <= offset &&
+          offset <= literal.boundaries.at(-1)!,
+      );
+    if (!literal) {
+      return undefined;
+    }
+    const start = token?.start ?? offset;
+    const end = token?.end ?? offset;
+    const decoded = literal.boundaries.findIndex((position) => position >= offset);
+    const decodedStart = literal.boundaries.indexOf(start);
+    return {
+      literal,
+      start,
+      end,
+      prefix: literal.text.slice(Math.max(0, decodedStart), Math.max(0, decoded)),
+    };
   }
 
   /**

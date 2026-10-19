@@ -45,6 +45,7 @@ export class Collections {
   readonly #sources: Readonly<Record<string, CollectionSource>>;
   readonly #context: CollectionContext;
   readonly #loaded = new Map<string, Promise<LoadedCollection>>();
+  #bundled?: Promise<string[]>;
 
   /**
    * @param sources - Configured icon sets keyed by set prefix.
@@ -76,9 +77,9 @@ export class Collections {
   }
 
   /**
-   * Lists the set prefixes that editors complete: the configured sets and the `@iconify-json/*`
-   * packages in the dependencies of the project's `package.json`. The sets of the `@iconify/json`
-   * package are omitted, because that package contains every Iconify set.
+   * Lists the set prefixes whose icons editors always complete: the configured sets and the
+   * `@iconify-json/*` packages in the dependencies of the project's `package.json`. The sets of the
+   * `@iconify/json` package are omitted, because that package contains every Iconify set.
    *
    * @returns Set prefixes without duplicates.
    */
@@ -101,6 +102,30 @@ export class Collections {
       }
     }
     return [...prefixes];
+  }
+
+  /**
+   * Lists the set prefixes of the `@iconify/json` package from its `collections.json` file, and
+   * registers that file with the host.
+   *
+   * @returns Set prefixes, or an empty array when the package is not installed or its file cannot
+   * be read.
+   */
+  bundledPrefixes(): Promise<string[]> {
+    this.#bundled ??= (async () => {
+      const file = await this.#context.resolve("@iconify/json/collections.json");
+      if (!file) {
+        return [];
+      }
+      this.#context.watch(file);
+      try {
+        return Object.keys(JSON.parse(await this.#context.read(file)) as Record<string, unknown>);
+      } catch {
+        // An unreadable list leaves completion with the sets from other sources.
+        return [];
+      }
+    })();
+    return this.#bundled;
   }
 
   /**

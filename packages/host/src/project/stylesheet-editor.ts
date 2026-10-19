@@ -1,7 +1,7 @@
 import type { BaseConfig, PreviewOptions } from "@stillwind/config";
 import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillwind/native";
 
-import type { PluginRuntime } from "../css/plugins.ts";
+import { catalogInput, type PluginRuntime } from "../css/plugins.ts";
 import { CandidateQueries } from "../editor/candidates.ts";
 import { colorReplacement, cssColor } from "../editor/colors.ts";
 import { completionSnippet } from "../editor/completion.ts";
@@ -31,6 +31,8 @@ export class StylesheetEditor {
   readonly #resolved = new Map<string, NativeEditorQuery>();
   /** Finite plugin suggestions captured with this stylesheet's design system. */
   readonly #catalog: readonly string[];
+  /** Plugin suggestions for editor inputs that {@link StylesheetEditor.prepare} loaded, keyed by input. */
+  readonly #inputCatalogs = new Map<string, readonly string[]>();
   /** Resolves completion CSS without changing reports or a session's used utilities. */
   readonly #plugins: PluginRuntime | undefined;
 
@@ -72,14 +74,35 @@ export class StylesheetEditor {
   }
 
   /**
-   * Resolves callback CSS for a selected completion without changing the captured source or
-   * reports, so that a following query can preview it. Other requests are ignored.
+   * Loads plugin suggestions for a completion input, and resolves callback CSS for a selected
+   * completion without changing the captured source or reports, so that a following query can
+   * use them. Other requests are ignored.
    *
-   * @param request - Editor request. Only a `resolve` request for this stylesheet's completion
-   * snapshot loads CSS, once for each candidate. A variant completion is resolved with its `:`.
+   * @param id - Resolver identity of the requested source. Another identity is ignored.
+   * @param request - Editor request. A `completion` request, and a `resolve` request for this
+   * stylesheet's completion snapshot, load the plugin suggestions for the candidate at their input.
+   * A `resolve` request also loads CSS, once for each candidate. A variant completion is resolved
+   * with its `:`.
    * @throws If a plugin fails or the native loader rejects the generated CSS.
    */
-  async prepare(request: EditorRequest): Promise<void> {
+  async prepare(id: string, request: EditorRequest): Promise<void> {
+    if (id !== this.#id) {
+      return;
+    }
+    if (
+      this.#plugins &&
+      (request.kind === "completion" ||
+        (request.kind === "resolve" &&
+          request.snapshot ===
+            this.#completionSnapshot(request.registryDirectives, request.snippets)))
+    ) {
+      const input = catalogInput(
+        this.#text.slice(0, request.kind === "completion" ? request.offset : request.input),
+      );
+      if (input && !this.#inputCatalogs.has(input)) {
+        this.#inputCatalogs.set(input, await this.#plugins.catalog(input));
+      }
+    }
     if (
       request.kind === "resolve" &&
       request.snapshot === this.#completionSnapshot(request.registryDirectives, request.snippets) &&
@@ -88,7 +111,7 @@ export class StylesheetEditor {
     ) {
       const variant = this.#query
         .completeStylesheet(this.#text, this.#byteOffset(request.input), {
-          catalog: [...this.#catalog],
+          catalog: this.#catalogAt(request.input),
         })
         .some((item) => item.label === request.candidate && item.variant);
       this.#resolved.set(
@@ -171,7 +194,7 @@ export class StylesheetEditor {
         .completeStylesheet(this.#text, this.#byteOffset(request.offset), {
           registryDirectives: request.registryDirectives === true,
           snippets: request.snippets === true,
-          catalog: [...this.#catalog],
+          catalog: this.#catalogAt(request.offset),
         })
         .map((item) => ({
           start: this.#utf16(item.start),
@@ -180,7 +203,7 @@ export class StylesheetEditor {
           candidate: item.label,
           newText: item.label,
           snippet: request.snippets && item.variant ? completionSnippet(item.label) : undefined,
-          retrigger: item.label.endsWith(":"),
+          retrigger: item.label.endsWith(":") || (!item.keyword && item.label.endsWith("-")),
           keyword: item.keyword,
           variant: item.variant,
           detail: item.detail ?? undefined,
@@ -200,7 +223,7 @@ export class StylesheetEditor {
         .completeStylesheet(this.#text, this.#byteOffset(request.input), {
           registryDirectives: request.registryDirectives === true,
           snippets: request.snippets === true,
-          catalog: [...this.#catalog],
+          catalog: this.#catalogAt(request.input),
         })
         .find((item) => item.label === request.candidate);
       if (item) {
@@ -280,6 +303,17 @@ export class StylesheetEditor {
    */
   #completionSnapshot(registryDirectives = false, snippets = false): string {
     return fingerprint(JSON.stringify([this.#snapshot, registryDirectives, snippets]));
+  }
+
+  /**
+   * Returns the plugin suggestions for the candidate before a cursor.
+   * @param offset - UTF-16 character boundary within the captured text.
+   * @returns The finite catalog and the suggestions that {@link StylesheetEditor.prepare} loaded
+   * for the candidate's input, without duplicates.
+   */
+  #catalogAt(offset: number): string[] {
+    const input = catalogInput(this.#text.slice(0, offset));
+    return [...new Set([...this.#catalog, ...(this.#inputCatalogs.get(input) ?? [])])];
   }
 
   /**

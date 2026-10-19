@@ -37,6 +37,8 @@ The plugin finds a set in this order:
 The host resolves packages from the stylesheet that contains the `@plugin` statement. A change
 to a set's JSON file reloads the design system. Editors complete the icons of configured sets
 and of the `@iconify-json/*` packages in the dependencies of the project's `package.json`.
+When `@iconify/json` is installed, editors also complete its set names, such as `icon-mdi--`,
+and list the icons of a set after the input names it.
 
 ## Options
 

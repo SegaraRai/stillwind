@@ -512,7 +512,7 @@ export class BrowserProject {
           );
         }
         const editor = this.#editors.get(id);
-        await editor?.prepare(request);
+        await editor?.prepare(id, request);
         return this.#closed ? undefined : editor?.query(id, request);
       });
       this.#queue = task.catch(() => {});
@@ -525,7 +525,7 @@ export class BrowserProject {
     }
     const editor = this.#editors.get(id);
     if (editor instanceof EditorSnapshot) {
-      await editor.prepare(request);
+      await editor.prepare(id, request);
     }
     return editor?.query(id, request);
   }

@@ -68,7 +68,7 @@ describe("iconify", () => {
     expect(css).toContain("@utility icon-[demo--close] {");
     expect(css).toContain("mask-image: var(--icon-demo--close);");
     expect(css).not.toContain("icon-demo--flag");
-    expect(await plugin.catalog!(context())).toContain("icon-[demo--close]");
+    expect(await plugin.catalog!(context(), "")).toContain("icon-[demo--close]");
   });
 
   test("paints currentColor icons through a mask and colored icons as a background", async () => {
@@ -129,7 +129,7 @@ describe("iconify", () => {
       },
     });
 
-    expect(await plugin.catalog!(context())).toEqual(
+    expect(await plugin.catalog!(context(), "")).toEqual(
       expect.arrayContaining(["icon-demo--close", "icon-demo--flag", "icon-demo--cross"]),
     );
   });
@@ -155,8 +155,46 @@ describe("iconify", () => {
     expect(await plugin.resolve!(["icon-demo--close"], host)).toContain(
       "@utility icon-demo--close",
     );
-    expect(await plugin.catalog!(host)).toContain("icon-demo--flag");
+    expect(await plugin.catalog!(host, "")).toContain("icon-demo--flag");
     expect(watched).toContain("/project/node_modules/@iconify-json/demo/icons.json");
+  });
+
+  test("@iconify/json completes set names, then the icons of the set that the input names", async () => {
+    const files = new Map([
+      ["/project/package.json", "{}"],
+      [
+        "/project/node_modules/@iconify/json/collections.json",
+        JSON.stringify({
+          demo: {},
+          other: {},
+        }),
+      ],
+      ["/project/node_modules/@iconify/json/json/demo.json", JSON.stringify(collection)],
+    ]);
+    const watched: string[] = [];
+    const host: PluginContext = {
+      options: {},
+      root: "/project",
+      watch: (path) => watched.push(path),
+      resolve: async (specifier) =>
+        files.has(`/project/node_modules/${specifier}`)
+          ? `/project/node_modules/${specifier}`
+          : undefined,
+      read: async (path) => files.get(path) ?? expect.fail(`unexpected read of ${path}`),
+    };
+    const plugin = iconify();
+
+    expect(await plugin.catalog!(host, "")).toEqual([]);
+    expect(await plugin.catalog!(host, "icon-")).toEqual(["icon-demo--", "icon-other--"]);
+    expect(await plugin.catalog!(host, "icon-[")).toEqual(["icon-[demo--", "icon-[other--"]);
+    expect(await plugin.catalog!(host, "icon-demo--cl")).toEqual([
+      "icon-demo--close",
+      "icon-demo--flag",
+      "icon-demo--cross",
+    ]);
+    expect(await plugin.catalog!(host, "icon-[demo--")).toContain("icon-[demo--close]");
+    expect(await plugin.catalog!(host, "icon-missing--")).toEqual([]);
+    expect(watched).toContain("/project/node_modules/@iconify/json/collections.json");
   });
 
   test("rejects invalid options", async () => {

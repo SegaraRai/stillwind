@@ -140,6 +140,33 @@ export function defaultPluginExport(module: unknown, specifier: string): LoadedP
   return plugin as StillwindPlugin;
 }
 
+/** Number of nonempty editor inputs whose catalogs a runtime keeps. */
+const CATALOG_INPUTS = 16;
+
+/**
+ * Returns the utility text that an editor input contains before its cursor, for
+ * {@link PluginRuntime.catalog}.
+ *
+ * @param text - Text before the cursor. The candidate ends at the cursor and starts after the
+ * last whitespace, quote, backtick, `;`, `{`, or `}`.
+ * @returns The candidate without its variants, such as `icon-mdi--cl` for `hover:icon-mdi--cl`.
+ */
+export function catalogInput(text: string): string {
+  const candidate = /[^\s"'`;{}]*$/.exec(text)![0];
+  let depth = 0;
+  for (let index = candidate.length - 1; index >= 0; index--) {
+    const character = candidate[index];
+    if (character === "]" || character === ")") {
+      depth++;
+    } else if ((character === "[" || character === "(") && depth > 0) {
+      depth--;
+    } else if (character === ":" && depth === 0) {
+      return candidate.slice(index + 1);
+    }
+  }
+  return candidate;
+}
+
 /** Matches `@stillwind-dynamic <prefix>*;` or `<prefix>[*];` and captures the prefix. */
 const DYNAMIC = /@stillwind-dynamic\s+([^\s;*[\]]+)(?:\[\*\]|\*)\s*;/g;
 
@@ -185,8 +212,8 @@ export class PluginRuntime {
   #root?: RecordedAnswer;
   /** Candidates already passed to a plugin, including ones it left undefined. */
   readonly #requested = new Set<string>();
-  /** Editor catalogs of each instance, loaded on first use. */
-  #catalog?: Promise<readonly string[]>;
+  /** Editor catalogs keyed by input, oldest first. The empty input is never evicted. */
+  readonly #catalogs = new Map<string, Promise<readonly string[]>>();
   /**
    * Number of {@link PluginRuntime.resolve} calls that added CSS. The loader of the original
    * load contains the definitions of generation zero.
@@ -424,18 +451,40 @@ export class PluginRuntime {
   /**
    * Lists the candidates that editors complete for the loaded dynamic families.
    *
-   * @returns Candidate names from every plugin with a catalog, sorted and deduplicated. The
-   * catalog is loaded once per runtime.
+   * @param input - Utility text before an editor's cursor, without variants, or an empty string
+   * for the candidates that editors always offer.
+   * @returns Candidate names that start with `input`, from every plugin with a catalog, sorted
+   * and deduplicated. Names that end with `-` are incomplete. The runtime keeps the answers for
+   * the empty input and for the {@link CATALOG_INPUTS} most recent other inputs.
    */
-  catalog(): Promise<readonly string[]> {
-    this.#catalog ??= Promise.all(
-      [...this.#instances.values()].map(async (instance): Promise<readonly string[]> =>
-        nativePlugin(instance.plugin) && instance.plugin.catalog
-          ? await instance.plugin.catalog(instance.context)
-          : [],
-      ),
-    ).then((lists) => [...new Set([...lists.flat(), ...(this.#tailwind?.catalog() ?? [])])].sort());
-    return this.#catalog;
+  catalog(input = ""): Promise<readonly string[]> {
+    let names = this.#catalogs.get(input);
+    if (names) {
+      // Moves the input to the end, so eviction removes the least recently used input.
+      this.#catalogs.delete(input);
+    } else {
+      names = Promise.all(
+        [...this.#instances.values()].map(async (instance): Promise<readonly string[]> =>
+          nativePlugin(instance.plugin) && instance.plugin.catalog
+            ? await instance.plugin.catalog(instance.context, input)
+            : [],
+        ),
+      ).then((lists) =>
+        [...new Set([...lists.flat(), ...(this.#tailwind?.catalog() ?? [])])]
+          .filter((name) => name.startsWith(input))
+          .sort(),
+      );
+    }
+    this.#catalogs.set(input, names);
+    for (const key of this.#catalogs.keys()) {
+      if (this.#catalogs.size <= CATALOG_INPUTS + 1) {
+        break;
+      }
+      if (key) {
+        this.#catalogs.delete(key);
+      }
+    }
+    return names;
   }
 
   /**

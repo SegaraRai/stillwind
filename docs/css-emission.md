@@ -260,6 +260,11 @@ spelling then stays undefined. Plugin CSS is an internal source, so source maps 
 diagnostics do not point into it.
 
 The `catalog()` of a plugin lists the candidates that editors complete for its families.
+The host calls it once with an empty input for the candidates that editors always offer.
+It calls it again with the utility text before the cursor, without variants, so a large
+family can be listed after the input narrows it. The host keeps only names that start
+with the input. A name that ends with `-` is incomplete: editors insert it and request
+completion again.
 [`@stillwind/plugin-iconify`](../plugins/iconify/README.md) is the official plugin.
 
 Tailwind CSS v4 JavaScript plugins use the same `@plugin` statement. The host accepts

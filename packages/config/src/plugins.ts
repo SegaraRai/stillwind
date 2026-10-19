@@ -41,10 +41,18 @@ export interface StillwindPlugin {
   /**
    * Lists the candidates that editors complete for the plugin's dynamic families.
    *
+   * The host calls it once with an empty `input` for the candidates that editors always offer,
+   * and again with the text of an editor input. A plugin can therefore list a large family only
+   * after the input narrows it.
+   *
    * @param context - Options of the statement and host operations.
-   * @returns Utility names in the form that {@link StillwindPlugin.resolve} accepts.
+   * @param input - Utility text before the editor's cursor, without variants, such as
+   * `icon-mdi--cl`, or an empty string.
+   * @returns Utility names in the form that {@link StillwindPlugin.resolve} accepts. The host
+   * keeps only names that start with `input`. A name that ends with `-` is incomplete, such as
+   * `icon-mdi--`. Editors insert it and request completion again.
    */
-  catalog?(context: PluginContext): readonly string[] | Promise<readonly string[]>;
+  catalog?(context: PluginContext, input: string): readonly string[] | Promise<readonly string[]>;
 }
 
 /** Inputs of one loaded `@plugin` statement. */

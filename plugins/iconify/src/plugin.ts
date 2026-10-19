@@ -109,25 +109,63 @@ export function iconify(options: IconifyOptions = {}): StillwindPlugin {
       );
       return rules.filter((rule) => rule !== undefined).join("");
     },
-    async catalog(context) {
+    async catalog(context, input = "") {
       const { prefix, syntax } = statementSettings(defaults, context);
-      const sets = await collections(context).prefixes();
+      const store = collections(context);
+      const bracket =
+        syntax === "bracket" || (syntax === "both" && input.startsWith(`${prefix}-[`));
+      const spell = (set: string, name: string) =>
+        bracket ? `${prefix}-[${set}--${name}]` : `${prefix}-${set}--${name}`;
+      const listed = await store.prefixes();
+      const sets = new Set(listed);
+      // An input that names a set completes its icons from any source, including `@iconify/json`.
+      const typed = typedSet(input, prefix);
+      if (typed && !sets.has(typed) && (await store.get(typed))) {
+        sets.add(typed);
+      }
       const lists = await Promise.all(
-        sets.map(async (set) => {
-          const collection = await collections(context).get(set);
+        [...sets].map(async (set) => {
+          const collection = await store.get(set);
           return collection
             ? [...Object.keys(collection.icons), ...Object.keys(collection.aliases ?? {})].map(
-                (name) =>
-                  syntax === "bracket"
-                    ? `${prefix}-[${set}--${name}]`
-                    : `${prefix}-${set}--${name}`,
+                (name) => spell(set, name),
               )
             : [];
         }),
       );
-      return lists.flat();
+      // Before an input names a set, the `@iconify/json` sets complete as incomplete names that
+      // end with `--`.
+      const names = lists.flat();
+      if (!typed && input && (`${prefix}-`.startsWith(input) || input.startsWith(`${prefix}-`))) {
+        for (const set of await store.bundledPrefixes()) {
+          if (!sets.has(set)) {
+            names.push(bracket ? `${prefix}-[${set}--` : `${prefix}-${set}--`);
+          }
+        }
+      }
+      return names;
     },
   };
+}
+
+/**
+ * Returns the icon set that an editor input names.
+ *
+ * @param input - Utility text before the cursor, such as `icon-mdi--cl` or `icon-[mdi--`.
+ * @param prefix - Utility prefix without the trailing hyphen.
+ * @returns The set prefix, or undefined when the input does not contain `<prefix>-<set>--`.
+ */
+function typedSet(input: string, prefix: string): string | undefined {
+  if (!input.startsWith(`${prefix}-`)) {
+    return undefined;
+  }
+  let rest = input.slice(prefix.length + 1);
+  if (rest.startsWith("[")) {
+    rest = rest.slice(1);
+  }
+  const separator = rest.indexOf("--");
+  const set = rest.slice(0, separator);
+  return separator > 0 && ICONIFY_NAME.test(set) ? set : undefined;
 }
 
 /**
