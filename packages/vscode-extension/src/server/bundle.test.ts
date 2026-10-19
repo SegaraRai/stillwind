@@ -21,7 +21,13 @@ test("browser configurations bundle captured TypeScript, JSON, and browser packa
     ["/workspace/node_modules/preset/browser.js", 'export const css = "first.css";'],
   ]);
   const evaluate = async () => {
-    const code = await bundleModule(files, entry);
+    const { code, modules } = await bundleModule(files, entry);
+    expect(modules.toSorted()).toEqual([
+      "/workspace/defaults.json",
+      "/workspace/node_modules/preset/browser.js",
+      "/workspace/settings.ts",
+      entry,
+    ]);
     const module = await import(
       `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
     );

@@ -16,6 +16,7 @@ import {
   ProposedFeatures,
 } from "vscode-languageserver/browser";
 
+import type { BundledModule } from "./bundle.ts";
 import { installLibraries } from "./libraries.ts";
 import { browserPluginHost } from "./plugins.ts";
 
@@ -35,10 +36,10 @@ let libraries: Promise<[string, string][]> | undefined;
  * Bundles a module of the captured inventory. The bundler loads on first use.
  * @param files - Virtual absolute paths and text.
  * @param entry - Module path present in `files`.
- * @returns One ESM source.
+ * @returns One ESM source and the files that it contains.
  * @throws If an import is unavailable, uses a Node builtin, or fails compilation.
  */
-async function bundle(files: ReadonlyMap<string, string>, entry: string): Promise<string> {
+async function bundle(files: ReadonlyMap<string, string>, entry: string): Promise<BundledModule> {
   return (await import("./bundle.ts")).bundleModule(files, entry);
 }
 
@@ -100,7 +101,7 @@ const server = createLanguageServer(connection, {
             exists: (id) => files.has(id),
             evaluate: async (id) =>
               (
-                (await evaluate(await bundle(files, id))) as {
+                (await evaluate((await bundle(files, id)).code)) as {
                   default?: unknown;
                 }
               ).default,

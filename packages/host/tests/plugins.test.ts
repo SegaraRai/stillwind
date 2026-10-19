@@ -266,3 +266,35 @@ export const props = style("demo-missing");
 
   expect(calls).toStrictEqual([["demo-missing"]]);
 });
+
+test("files that a plugin host loads for a statement are watched with the graph", async () => {
+  const { plugin } = demoPlugin();
+  const watched: string[] = [];
+  const design = path.join(root, "design.css");
+  await loadCssGraph(
+    design,
+    {},
+    {
+      resolve: async () => expect.fail("unexpected import"),
+      read: async () => '@plugin "./demo.js";\n@stillwind-slot utilities;\n',
+      documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
+      sourceMapSource: (id) => id,
+      watch: (id) => watched.push(id),
+      plugins: {
+        load: async (specifier, importer, watch) => {
+          expect([specifier, importer]).toStrictEqual(["./demo.js", design]);
+          watch(path.join(root, "demo.js"));
+          return plugin;
+        },
+        resolve: async () => undefined,
+        read: async () => expect.fail("unexpected read"),
+      },
+    },
+    undefined,
+    undefined,
+    {
+      root,
+    },
+  );
+  expect(watched).toContain(path.join(root, "demo.js"));
+});

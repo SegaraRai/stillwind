@@ -77,7 +77,7 @@ test("the packaged browser bundler evaluates and reloads virtual configurations 
         ["/workspace/node_modules/preset/browser.js", 'export const css = "first.css";'],
       ]);
       const evaluate = async () => {
-        const code = await bundleModule(files, entry);
+        const { code } = await bundleModule(files, entry);
         const blob = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
         try {
           const module = await importModule(blob);

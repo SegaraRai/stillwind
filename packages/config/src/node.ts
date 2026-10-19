@@ -1,10 +1,12 @@
 /**
  * Node configuration discovery, evaluation, and project selection. `loadConfiguration` opens an
  * explicit file. `resolveIntegrationConfig` also discovers files and applies build overrides.
- * Consumers retaining compiler state use the returned dependency paths for change tracking.
+ * `evaluateModule` bundles and evaluates other local modules, such as plugin files. Consumers
+ * retaining compiler state use the returned dependency paths for change tracking.
  */
 
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -65,20 +67,35 @@ export function findConfiguration(directory: string): string | undefined {
   return candidates(directory, path).find((file) => existsSync(file));
 }
 
+/** An evaluated module and the files that its evaluation read. */
+export interface EvaluatedModule {
+  /** Default export, or the module value when it has no default export. */
+  exported: unknown;
+  /** Distinct absolute paths of the entry, bundled local imports, and resolved external imports. */
+  dependencies: string[];
+  /** Text of each bundled local file, keyed by absolute path, as the bundler read it. */
+  sources: Map<string, string>;
+}
+
 /**
- * Bundles local configuration imports in memory, evaluates the export, and validates its settings.
- * Local sources are read again on each call. External packages use runtime module loading.
- * Configuration runs as trusted Node code and can perform side effects.
+ * Bundles local imports of a module in memory and evaluates the bundle without module caches.
+ * Local sources are read again on each call, so a changed local import takes effect. External
+ * packages use runtime module loading, and Node keeps them cached. The module runs as trusted Node
+ * code and can perform side effects.
  *
- * @param file - JS, TS, or JSON configuration path. Relative paths use the process working directory.
- * @returns Evaluated settings and the file paths observed while resolving and bundling imports.
- * Runtime file reads and imports that cannot be statically resolved are not added to dependencies.
- * @throws If bundling, module evaluation, factory execution, or configuration validation fails.
+ * `import.meta.url`, `import.meta.filename`, `import.meta.dirname`, `__filename`, and `__dirname`
+ * describe the original source file of each bundled module.
+ *
+ * @param file - JS, TS, or JSON module path. Relative paths use the process working directory.
+ * @returns The export and the file paths observed while resolving and bundling imports. Runtime
+ * file reads and imports that cannot be statically resolved are not added to dependencies.
+ * @throws If a package cannot be resolved, or bundling or module evaluation fails.
  */
-export async function loadConfiguration(file: string): Promise<LoadedConfiguration> {
+export async function evaluateModule(file: string): Promise<EvaluatedModule> {
   file = path.resolve(file);
 
   const dependencies = new Set([file]);
+  const sources = new Map<string, string>();
   const bundle = await rolldown({
     input: file,
     cwd: path.dirname(file),
@@ -88,16 +105,16 @@ export async function loadConfiguration(file: string): Promise<LoadedConfigurati
     transform: {
       target: "node22",
       define: {
-        "import.meta.url": "__stillwind_config_url",
-        "import.meta.filename": "__stillwind_config_filename",
-        "import.meta.dirname": "__stillwind_config_dirname",
-        __filename: "__stillwind_config_filename",
-        __dirname: "__stillwind_config_dirname",
+        "import.meta.url": "__stillwind_module_url",
+        "import.meta.filename": "__stillwind_module_filename",
+        "import.meta.dirname": "__stillwind_module_dirname",
+        __filename: "__stillwind_module_filename",
+        __dirname: "__stillwind_module_dirname",
       },
     },
     plugins: [
       {
-        name: "stillwind-configuration",
+        name: "stillwind-module",
         /**
          * Resolves external packages from their importer and records their paths for watching.
          * @param id - Import request before resolution.
@@ -121,7 +138,7 @@ export async function loadConfiguration(file: string): Promise<LoadedConfigurati
             kind: options.kind,
           });
           if (!resolved) {
-            throw new Error(`Cannot resolve configuration import ${id} from ${importer}`);
+            throw new Error(`Cannot resolve import ${id} from ${importer}`);
           }
           dependencies.add(resolved.id);
           return {
@@ -129,20 +146,33 @@ export async function loadConfiguration(file: string): Promise<LoadedConfigurati
             external: "absolute",
           };
         },
+        /**
+         * Reads a bundled local file and records its text.
+         * @param id - Absolute path of a local file, or a virtual module ID.
+         * @returns The file's text, or undefined for a virtual module.
+         */
+        async load(id) {
+          if (id.startsWith("\0")) {
+            return;
+          }
+          const code = await readFile(id, "utf8");
+          sources.set(id, code);
+          return code;
+        },
         transform: {
           filter: {
             id: /\.[cm]?[jt]sx?$/,
           },
           /**
            * Keeps file location expressions relative to each original source.
-           * @param code - Local configuration source.
+           * @param code - Local module source.
            * @param id - Absolute source path.
            * @returns Source with its file location constants before ordinary syntax lowering.
            */
           handler(code, id) {
-            return `const __stillwind_config_url = ${JSON.stringify(pathToFileURL(id).href)};
-const __stillwind_config_filename = ${JSON.stringify(id)};
-const __stillwind_config_dirname = ${JSON.stringify(path.dirname(id))};
+            return `const __stillwind_module_url = ${JSON.stringify(pathToFileURL(id).href)};
+const __stillwind_module_filename = ${JSON.stringify(id)};
+const __stillwind_module_dirname = ${JSON.stringify(path.dirname(id))};
 ${code}`;
           },
         },
@@ -158,7 +188,7 @@ ${code}`;
     });
     const entry = result.output.find((output) => output.type === "chunk" && output.isEntry);
     if (entry?.type !== "chunk") {
-      throw new Error(`Configuration bundle has no entry: ${file}`);
+      throw new Error(`Module bundle has no entry: ${file}`);
     }
     for (const id of entry.moduleIds) {
       if (!id.startsWith("\0")) {
@@ -179,13 +209,30 @@ ${code}`;
     async: true,
     forceTranspile: true,
   });
-  const exported =
-    value !== null && typeof value === "object" && "default" in value ? value.default : value;
+  return {
+    exported:
+      value !== null && typeof value === "object" && "default" in value ? value.default : value,
+    dependencies: [...dependencies],
+    sources,
+  };
+}
 
+/**
+ * Evaluates a configuration module with {@link evaluateModule} and validates its settings.
+ * Configuration runs as trusted Node code and can perform side effects.
+ *
+ * @param file - JS, TS, or JSON configuration path. Relative paths use the process working directory.
+ * @returns Evaluated settings and the file paths observed while resolving and bundling imports.
+ * Runtime file reads and imports that cannot be statically resolved are not added to dependencies.
+ * @throws If bundling, module evaluation, factory execution, or configuration validation fails.
+ */
+export async function loadConfiguration(file: string): Promise<LoadedConfiguration> {
+  file = path.resolve(file);
+  const { exported, dependencies } = await evaluateModule(file);
   return {
     config: await resolveConfig(exported),
     configFile: file,
-    dependencies: [...dependencies],
+    dependencies,
   };
 }
 

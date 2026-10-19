@@ -224,6 +224,13 @@ resolution. The browser language server bundles the package from the captured wo
 as it bundles configurations, so the package must not import Node modules. A
 `BrowserProject` without plugin operations accepts only configured plugins.
 
+Node hosts import a package name with Node's module cache, so a changed package takes
+effect only in a new process. A relative or absolute path names a local plugin file. Node
+hosts bundle that file with its local imports, as they bundle configurations, and register
+the bundled files and resolved packages as dependencies of the design system. A change to
+a bundled file evaluates the plugin again at the next load. The browser language server
+evaluates a package again when the text of any file in its bundle changes.
+
 A plugin reads files through its context: `resolve()` resolves a module request from the
 stylesheet with the host's resolution, and `read()` reads a file. Plugins that use these
 operations instead of Node APIs also run in browser hosts.

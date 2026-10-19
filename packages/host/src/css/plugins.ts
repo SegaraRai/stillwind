@@ -90,10 +90,12 @@ export interface PluginHost {
    *
    * @param specifier - Package specifier or path from the statement.
    * @param importer - Resolved identity of the stylesheet that contains the statement.
+   * @param watch - Registers each file whose change must load the plugin again. A host that
+   * returns the same plugin for unchanged files still registers them on every call.
    * @returns The plugin that the module exports by default, as {@link defaultPluginExport} checks.
    * @throws If resolution or evaluation fails, or the default export is not a plugin.
    */
-  load(specifier: string, importer: string): Promise<LoadedPlugin>;
+  load(specifier: string, importer: string, watch: (path: string) => void): Promise<LoadedPlugin>;
   /**
    * Resolves a module request for plugin file reads and editor navigation without evaluating it.
    *
@@ -265,7 +267,7 @@ export class PluginRuntime {
     if (!instance) {
       const plugin =
         this.plugins.find((candidate) => candidate.name === request.specifier) ??
-        (await this.host?.load(request.specifier, request.importer));
+        (await this.host?.load(request.specifier, request.importer, this.watch));
       if (!plugin) {
         throw new Error(
           `Stillwind plugin ${request.specifier} is not configured, and this host cannot load packages`,

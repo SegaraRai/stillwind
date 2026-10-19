@@ -37,11 +37,13 @@ afterEach(async () => {
 test("packages resolve from the stylesheet and must export a plugin by default", async () => {
   const importer = path.join(root, "src", "app.css");
 
-  expect(await nodePluginHost.load("valid", importer)).toMatchObject({ name: "valid" });
-  await expect(nodePluginHost.load("invalid", importer)).rejects.toThrow(
+  expect(await nodePluginHost.load("valid", importer, () => {})).toMatchObject({
+    name: "valid",
+  });
+  await expect(nodePluginHost.load("invalid", importer, () => {})).rejects.toThrow(
     "must export a plugin object by default",
   );
-  await expect(nodePluginHost.load("missing", importer)).rejects.toThrow();
+  await expect(nodePluginHost.load("missing", importer, () => {})).rejects.toThrow();
 });
 
 test("plugin files resolve from the stylesheet and missing requests resolve to nothing", async () => {
@@ -51,4 +53,34 @@ test("plugin files resolve from the stylesheet and missing requests resolve to n
   expect(file).toBe(path.join(root, "node_modules", "valid", "package.json"));
   expect(JSON.parse(await nodePluginHost.read(file!)).name).toBe("valid");
   expect(await nodePluginHost.resolve("missing/package.json", importer)).toBe(undefined);
+});
+
+test("plugin files are evaluated again after they or their imports change", async () => {
+  const importer = path.join(root, "src", "app.css");
+  const entry = path.join(root, "src", "plugin.js");
+  const name = path.join(root, "src", "name.js");
+  await mkdir(path.dirname(entry), { recursive: true });
+  await writeFile(
+    entry,
+    'import { name } from "./name.js"; import valid from "valid"; export default { name, css: () => valid.name };',
+  );
+  await writeFile(name, 'export const name = "first";');
+  const watched = new Set<string>();
+  const watch = (file: string) => watched.add(file);
+
+  const first = await nodePluginHost.load("./plugin.js", importer, watch);
+  expect(first).toMatchObject({ name: "first" });
+  expect(watched).toEqual(
+    new Set([entry, name, path.join(root, "node_modules", "valid", "index.js")]),
+  );
+  expect(await nodePluginHost.load("./plugin.js", importer, watch)).toBe(first);
+
+  await writeFile(name, 'export const name = "second";');
+  expect(await nodePluginHost.load("./plugin.js", importer, watch)).toMatchObject({
+    name: "second",
+  });
+  await writeFile(entry, 'export default { name: "third", css: () => "" };');
+  expect(await nodePluginHost.load("./plugin.js", importer, watch)).toMatchObject({
+    name: "third",
+  });
 });
