@@ -68,6 +68,14 @@ complete path before assigning application latency guarantees.
 Sources: [architecture benchmarks](../benchmarks/research/architecture.bench.ts),
 [host benchmarks](../benchmarks/compiler/host.bench.ts).
 
+Browser WASM preparation of the standard CSS registry can exceed its 500ms hard
+budget. Profile CSS loading and canonical index preparation, then reduce their
+cost while preserving preparation once per revision. Recheck the preparation
+median and uncached query percentiles with `vp run bench:compiler:browser`.
+
+Sources: [browser measurement](../benchmarks/compiler/canonical.browser.test.ts),
+[operation budgets](../benchmarks/performance/README.md#budget-policy).
+
 ## Removing utility definitions
 
 `@utility` definitions of one name add to each other, as in Tailwind, so a stylesheet

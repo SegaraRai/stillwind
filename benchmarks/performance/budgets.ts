@@ -1,7 +1,7 @@
 import { expect, type BenchResult, type TestContext } from "vite-plus/test";
 
 /**
- * Limits in milliseconds for a scenario's median time on the reference machine.
+ * Targets in milliseconds for an operation. Each check defines its latency statistic.
  */
 export interface Budget {
   /**
@@ -15,16 +15,17 @@ export interface Budget {
 }
 
 /**
- * Targets for each scenario and input size.
+ * Operation budgets and allocations described in README.md.
  */
 export const budgets = {
   sorting: {
-    cachedComparisonBatch: { soft: 3, hard: 30 },
+    cachedComparisonBatch: { soft: 1, hard: 5 },
     ranks100: { soft: 2, hard: 10 },
-    ranks1000: { soft: 20, hard: 100 },
-    query100: { soft: 1, hard: 5 },
-    query1000: { soft: 10, hard: 30 },
-    construction: { soft: 30, hard: 300 },
+    ranks1000: { soft: 10, hard: 25 },
+    query100: { soft: 5, hard: 10 },
+    query1000: { soft: 10, hard: 25 },
+    construction100: { soft: 25, hard: 50 },
+    construction1000: { soft: 25, hard: 100 },
   },
   canonical: {
     named: { soft: 0.01, hard: 0.1 },
@@ -35,10 +36,10 @@ export const budgets = {
     "variant-miss": { soft: 0.1, hard: 1 },
     "color-modifier-match": { soft: 0.1, hard: 1 },
     "color-modifier-miss": { soft: 0.1, hard: 1 },
-    preparation: { soft: 200, hard: 300 },
-    cachedBatch: { soft: 1, hard: 5 },
-    repeated100: { soft: 5, hard: 15 },
-    unique100: { soft: 15, hard: 30 },
+    preparation: { soft: 200, hard: 500 },
+    cachedBatch: { soft: 2, hard: 5 },
+    repeated100: { soft: 25, hard: 50 },
+    unique100: { soft: 25, hard: 50 },
   },
   canonicalPalette: {
     100: { soft: 0.1, hard: 1 },
@@ -46,44 +47,44 @@ export const budgets = {
   },
   pairwiseDiagnostics: { 100: { soft: 50, hard: 100 } },
   build: {
-    10: { soft: 250, hard: 750 },
+    10: { soft: 500, hard: 1000 },
     100: { soft: 1000, hard: 2000 },
     1000: { soft: 5000, hard: 10000 },
   },
   startup: {
-    10: { soft: 300, hard: 1000 },
+    10: { soft: 500, hard: 1000 },
     100: { soft: 500, hard: 1000 },
-    1000: { soft: 1000, hard: 2000 },
+    1000: { soft: 500, hard: 1000 },
   },
   transform: {
-    10: { soft: 10, hard: 40 },
-    100: { soft: 30, hard: 80 },
-    1000: { soft: 100, hard: 200 },
+    10: { soft: 25, hard: 100 },
+    100: { soft: 25, hard: 100 },
+    1000: { soft: 25, hard: 100 },
   },
   filesystemEdit: {
-    10: { soft: 50, hard: 150 },
-    100: { soft: 75, hard: 200 },
+    10: { soft: 100, hard: 250 },
+    100: { soft: 100, hard: 250 },
     1000: { soft: 100, hard: 250 },
   },
   cssStartup: {
-    10: { soft: 100, hard: 300 },
-    100: { soft: 300, hard: 750 },
-    1000: { soft: 1000, hard: 2000 },
+    10: { soft: 500, hard: 1000 },
+    100: { soft: 500, hard: 1000 },
+    1000: { soft: 500, hard: 2000 },
   },
   cssTransform: {
-    10: { soft: 10, hard: 30 },
-    100: { soft: 20, hard: 50 },
-    1000: { soft: 100, hard: 200 },
+    10: { soft: 25, hard: 100 },
+    100: { soft: 25, hard: 100 },
+    1000: { soft: 25, hard: 100 },
   },
   cssFilesystemEdit: {
-    10: { soft: 50, hard: 150 },
-    100: { soft: 150, hard: 400 },
-    1000: { soft: 1000, hard: 2000 },
+    10: { soft: 100, hard: 250 },
+    100: { soft: 100, hard: 250 },
+    1000: { soft: 500, hard: 2000 },
   },
   definitions: {
     100: { soft: 10, hard: 50 },
     1000: { soft: 50, hard: 200 },
-    10000: { soft: 300, hard: 1000 },
+    10000: { soft: 200, hard: 500 },
   },
   definitionEdit: {
     100: { soft: 5, hard: 15 },

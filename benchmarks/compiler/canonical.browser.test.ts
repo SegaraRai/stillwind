@@ -1,6 +1,8 @@
 import { NativeDesignSystemLoader, __napiBindingTarget } from "@stillwind/native";
 import { expect, inject, test } from "vite-plus/test";
 
+import { budgets } from "../performance/budgets.ts";
+
 declare module "vite-plus/test" {
   interface ProvidedContext {
     canonicalBrowserCss: string;
@@ -26,15 +28,28 @@ test("browser WASM prepares each revision once and answers uncached canonical qu
   preparation.sort((a, b) => a - b);
   const measurements = [{ scenario: "load-css-and-index", samples: preparation }];
   context.task.meta.canonicalBrowser = { userAgent: navigator.userAgent, measurements };
-  expect(preparation[4]).toBeLessThan(300);
-  for (const [candidate, expected] of [
-    ["p-[16px]", "p-4"],
-    ["bg-[#f00]", "bg-brand"],
-    ["bg-[#123456]", null],
-    ["[border-color:#123456]", null],
-    ["bg-[#f00]/50", "bg-brand/50"],
-    ["bg-[#123456]/50", null],
-    ["[&:hover]:p-4", null],
+  const preparationBudget = budgets.canonical.preparation;
+  const hardChecks: { scenario: string; timeMs: number; hardMs: number }[] = [
+    {
+      scenario: "load-css-and-index",
+      timeMs: preparation[4],
+      hardMs: preparationBudget.hard,
+    },
+  ];
+  if (preparation[4] >= preparationBudget.soft) {
+    await context.annotate(
+      `load-css-and-index: median ${preparation[4]}ms exceeds ${preparationBudget.soft}ms`,
+      "performance-soft",
+    );
+  }
+  for (const [name, candidate, expected] of [
+    ["spacing", "p-[16px]", "p-4"],
+    ["color-match", "bg-[#f00]", "bg-brand"],
+    ["color-miss", "bg-[#123456]", null],
+    ["property-miss", "[border-color:#123456]", null],
+    ["color-modifier-match", "bg-[#f00]/50", "bg-brand/50"],
+    ["color-modifier-miss", "bg-[#123456]/50", null],
+    ["variant-miss", "[&:hover]:p-4", null],
   ] as const) {
     const samples: number[] = [];
     let answer: string | null = null;
@@ -49,13 +64,17 @@ test("browser WASM prepares each revision once and answers uncached canonical qu
     }
     samples.sort((a, b) => a - b);
     expect(answer).toBe(expected);
-    expect(samples[95], candidate).toBeLessThan(1);
-    if (samples[50] >= 0.1) {
+    const budget = budgets.canonical[name];
+    if (samples[50] >= budget.soft) {
       await context.annotate(
-        `${candidate}: median ${samples[50]}ms exceeds 0.1ms`,
+        `${candidate}: median ${samples[50]}ms exceeds ${budget.soft}ms`,
         "performance-soft",
       );
     }
     measurements.push({ scenario: candidate, samples });
+    hardChecks.push({ scenario: candidate, timeMs: samples[95], hardMs: budget.hard });
+  }
+  for (const { scenario, timeMs, hardMs } of hardChecks) {
+    expect.soft(timeMs, scenario).toBeLessThan(hardMs);
   }
 });

@@ -232,6 +232,7 @@ function registerSource(
   options = repeated,
   attributes = false,
 ): void {
+  const count = Number(name.split("/").at(-1));
   let prepared: ReturnType<typeof prepareSortingSource> | undefined;
   for (const reuse of ["fresh", "repeated", "construction"] as const) {
     test(`sorting/source/${name}/${reuse}`, async (context) => {
@@ -316,8 +317,10 @@ function registerSource(
         reuse === "construction" ? "editor construction" : "editor sort",
         results,
         reuse === "construction"
-          ? budgets.sorting.construction
-          : Number(name.split("/").at(-1)) <= 100
+          ? count <= 100
+            ? budgets.sorting.construction100
+            : budgets.sorting.construction1000
+          : count <= 100
             ? budgets.sorting.query100
             : budgets.sorting.query1000,
       );

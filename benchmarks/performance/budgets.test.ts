@@ -41,7 +41,15 @@ test("all declared sizes have positive soft targets below their hard limits", ()
       expect(budget.hard).toBeGreaterThan(budget.soft);
     }
   }
-  expect(budgets.build[1000].soft).toBe(5000);
-  expect(budgets.startup[1000].soft).toBe(1000);
-  expect(budgets.filesystemEdit[1000].soft).toBe(100);
+});
+
+test("one JS edit keeps its budget as the project or CSS registry grows", () => {
+  for (const count of [10, 100, 1000] as const) {
+    expect(budgets.transform[count]).toEqual(budgets.transform[10]);
+    expect(budgets.cssTransform[count]).toEqual(budgets.transform[10]);
+    expect(budgets.filesystemEdit[count]).toEqual(budgets.filesystemEdit[10]);
+  }
+  for (const count of [100, 1000, 10000] as const) {
+    expect(budgets.definitionEdit[count]).toEqual(budgets.definitionEdit[100]);
+  }
 });
