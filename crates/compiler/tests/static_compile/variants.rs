@@ -204,6 +204,47 @@ export const a = style("hover:group hover:card-title !peer");"#,
 }
 
 #[test]
+fn layer_blocks_in_utility_bodies_keep_their_braces_with_color_fallbacks() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+export const probe = style("probe");"#,
+    )
+    .unwrap();
+    let theme = css_source(
+        FileId(2),
+        "@import \"stillwind\";
+         @utility probe { &:hover { @layer x { background-color: color-mix(in oklab, var(--c) 10%, transparent); } } }",
+    )
+    .unwrap();
+
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    let utilities = &result.css[result.css.find("@layer utilities").unwrap()..];
+    assert_eq!(
+        utilities.matches('{').count(),
+        utilities.matches('}').count(),
+        "{utilities}"
+    );
+    assert!(
+        utilities.contains("color-mix(in oklab, var(--c) 10%, transparent)"),
+        "{utilities}"
+    );
+}
+
+#[test]
 fn reports_marker_classes_that_a_candidate_cannot_add() {
     let component = SourceFile::new(
         FileId(1),

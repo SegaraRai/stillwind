@@ -314,13 +314,18 @@ fn record_tokens(
     }
 }
 
-/// Splits a declaration list without mistaking a semicolon in a string or a function
-/// argument for a CSS declaration boundary.
+/// Splits a declaration list without mistaking a semicolon in a string, a function
+/// argument, or a block for a CSS declaration boundary.
+///
+/// An at-rule block such as `@layer x { color: red; }` is one item that ends at its
+/// closing brace. A custom property value that contains braces still ends at the next
+/// top-level semicolon.
 fn split_css_declarations(body: &str) -> Vec<&str> {
     let mut declarations = Vec::new();
     let mut start = 0;
     let mut paren_depth = 0_u32;
     let mut bracket_depth = 0_u32;
+    let mut brace_depth = 0_u32;
     let mut quote = None;
     let mut escaped = false;
 
@@ -341,7 +346,19 @@ fn split_css_declarations(body: &str) -> Vec<&str> {
             ')' => paren_depth = paren_depth.saturating_sub(1),
             '[' => bracket_depth += 1,
             ']' => bracket_depth = bracket_depth.saturating_sub(1),
-            ';' if paren_depth == 0 && bracket_depth == 0 => {
+            '{' => brace_depth += 1,
+            '}' => {
+                brace_depth = brace_depth.saturating_sub(1);
+                if brace_depth == 0
+                    && paren_depth == 0
+                    && bracket_depth == 0
+                    && body[start..index].trim_start().starts_with('@')
+                {
+                    declarations.push(&body[start..=index]);
+                    start = index + 1;
+                }
+            }
+            ';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
                 declarations.push(&body[start..=index]);
                 start = index + 1;
             }
@@ -368,6 +385,15 @@ mod tests {
             vec!["content:'a;b';", "x:f(a;b);", "last:1"]
         );
         assert_eq!(split_css_declarations(" "), Vec::<&str>::new());
+        assert_eq!(
+            split_css_declarations("@layer x{color:red;gap:0;}top:0;--x:{a;b};last:1"),
+            vec![
+                "@layer x{color:red;gap:0;}",
+                "top:0;",
+                "--x:{a;b};",
+                "last:1"
+            ]
+        );
     }
 
     #[test]
