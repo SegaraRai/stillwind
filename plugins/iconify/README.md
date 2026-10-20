@@ -45,6 +45,12 @@ sets the height of the icon on the same element:
 <span {...style("icon-mdi--close icon-lg")} />
 ```
 
+`icon-full` needs a parent with a definite height. In a parent whose height depends on its
+content, the icon is 0 high. To size an icon by its width instead, override the height:
+`icon-mdi--close w-full h-auto` fills the parent's width and keeps the icon's aspect ratio.
+When other utilities, such as `size-full` or `max-w-full`, change the box, the SVG keeps its
+aspect ratio and stays centered in the box.
+
 The size does not reach descendants or the element's `::before` and `::after` boxes. Apply the
 size with the same variant as the icon, such as `before:icon-mdi--close before:icon-lg`.
 `--icon-size-*` is a theme namespace that accepts lengths and percentages, so lint reports
