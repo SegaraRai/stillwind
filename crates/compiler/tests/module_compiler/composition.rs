@@ -46,12 +46,12 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
 }
 
 #[test]
-fn composition_rejects_props_and_nested_calls() {
+fn composition_reports_inline_styles_and_nested_calls() {
     let theme = css_source(FileId(2), "").unwrap();
     for (code, expected) in [
         (
-            "const a=style({'data-x':1});const b=style(a,'flex');",
-            LintDiagnostic::StyleBaseWithProps,
+            "const a=style({'--x':value});const b=style(a,'flex');",
+            LintDiagnostic::StyleBaseWithInlineStyle,
         ),
         (
             "const a=style(style('flex'),'block');",

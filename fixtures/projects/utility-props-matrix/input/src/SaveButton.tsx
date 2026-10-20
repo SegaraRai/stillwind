@@ -10,11 +10,13 @@ export const buttonProps = style({
   ],
   ":": emphasized ? "bg-accent" : "bg-muted",
   class: ["legacy-button", loading && "is-loading"],
-  "aria-busy": loading,
-  "data-emphasis": emphasized ? "high" : "normal",
   "hover:": "bg-accent/90",
 });
 
 export function SaveButton() {
-  return <button {...buttonProps}>Save</button>;
+  return (
+    <button {...buttonProps} aria-busy={loading} data-emphasis={emphasized ? "high" : "normal"}>
+      Save
+    </button>
+  );
 }

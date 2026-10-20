@@ -40,8 +40,9 @@ pub struct GeneratedClass {
 }
 
 /// One contribution plus its original-source ordering anchor.
-/// Variants keep ordinary attributes, custom properties, and whole-style payloads
-/// separate because their merge semantics differ. Parts need not arrive sorted.
+///
+/// Variants keep custom properties and whole-style payloads separate because their
+/// merge semantics differ. Parts need not arrive sorted.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum StyleEmissionPart {
     /// A source branch selecting all contribution channels together.
@@ -64,13 +65,6 @@ pub(crate) enum StyleEmissionPart {
     Class {
         /// Class-expression subtree preserving branch structure.
         emitted: Emitted,
-        /// Original-source UTF-8 byte offset used for stable ordering before folding.
-        position: u32,
-    },
-    /// A single attribute entry, rendered as `"name": value`.
-    Attributes {
-        /// Ordinary property identity and source value.
-        property: Property,
         /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },

@@ -9,16 +9,6 @@ use super::{
     AnchorScope, AssetReference, RefDefinition, RefProjection, StyleVariant, ViewTransitionName,
 };
 
-/// A non-class entry of an object literal, such as `"aria-busy": loading`.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AttributeEntry {
-    /// Attribute name as written. It is emitted as a prop, not as a class.
-    pub name: Spanned<LeanStr>,
-    /// The attribute value expression, emitted verbatim.
-    pub value: Span,
-}
-
 /// Branches selected by a source conditional operator. The operator determines whether
 /// a falsy branch exists throughout parsing, lowering, and rendering. Deserialization
 /// rejects an `alternate` on `And` and requires it on `Ternary`.
@@ -142,16 +132,18 @@ pub enum ClassExpression {
         /// Rule subtree permitted beneath a CSS variant.
         Box<RuleExpression>,
     ),
-    /// An object literal: attributes become props, other entries are classes.
+    /// An object literal containing class and custom-property entries.
     Group {
         /// Span of the whole object literal, used for diagnostics.
         span: Span,
-        /// Source order is preserved; attributes and classes may interleave.
+        /// Source order is preserved; custom properties and classes may interleave.
         entries: Vec<GroupEntry>,
     },
-    /// The `class` key's value, normalized into clsx arguments under the macro contract.
+    /// The `class` key's value, normalized into clsx arguments under the macro
+    /// contract.
     ClassValue {
-        /// Whole original value, retained as a contribution-order and helper-import anchor.
+        /// Whole original value, retained as a contribution-order and helper-import
+        /// anchor.
         span: Span,
         /// Original expression occurrences in class order. Array literals without
         /// spread are expanded and holes omitted; spread arrays and guards remain
@@ -163,9 +155,6 @@ pub enum ClassExpression {
 /// The reason a class expression cannot become a CSS rule expression.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum RuleExpressionErrorKind {
-    /// An object entry supplies an element attribute.
-    #[error("an attribute cannot be placed under a CSS variant")]
-    Attribute,
     /// An object entry supplies an inline custom property.
     #[error("a custom property cannot be placed under a CSS variant")]
     CustomProperty,
@@ -320,10 +309,6 @@ impl TryFrom<ClassExpression> for RuleExpression {
                     .into_iter()
                     .map(|entry| match entry {
                         GroupEntry::Class(expression) => Self::try_from(*expression),
-                        GroupEntry::Attribute(attribute) => Err(RuleExpressionError {
-                            reason: RuleExpressionErrorKind::Attribute,
-                            span: attribute.name.span,
-                        }),
                         GroupEntry::CustomProperty(property) => Err(RuleExpressionError {
                             reason: RuleExpressionErrorKind::CustomProperty,
                             span: property.name.span,
@@ -354,11 +339,6 @@ pub enum GroupEntry {
     Class(
         /// Class expression supplied by this object entry.
         Box<ClassExpression>,
-    ),
-    /// An entry emitted as a prop rather than a class.
-    Attribute(
-        /// Authored attribute key and source value.
-        AttributeEntry,
     ),
     /// A custom CSS property evaluated at runtime and emitted into inline style.
     CustomProperty(

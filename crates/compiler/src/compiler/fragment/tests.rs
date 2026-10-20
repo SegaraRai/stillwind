@@ -58,14 +58,6 @@ fn custom(name: &str, index: u32) -> StyleEmissionPart {
     }
 }
 
-/// Builds an ordinary attribute contribution whose value evaluation is observable in the harness.
-fn attribute(name: &str, index: u32) -> StyleEmissionPart {
-    StyleEmissionPart::Attributes {
-        property: property(name, index),
-        position: index,
-    }
-}
-
 /// Builds a finalized call fixture with an optional static class and no allocated CSS records.
 fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
     StyleEmission {
@@ -87,7 +79,9 @@ fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
 fn record_layout_combines_interleaved_calls_under_the_contract() {
     let atoms = vec![
         Atom::Custom(property("--x", 1)),
-        Atom::Attribute(property("data-x", 2)),
+        Atom::Class(Emitted::Leaf {
+            names: vec!["class".into()],
+        }),
         Atom::Custom(property("--y", 3)),
     ];
     assert!(record_fields(&atoms, Demand::Props, AdapterKind::React.spec()).is_some());
@@ -108,20 +102,6 @@ fn duplicate_custom_names_require_object_representation() {
     assert!(record_fields(&atoms, Demand::Fragment, AdapterKind::Svelte.spec()).is_some());
 }
 
-/// Checks the overlay boundary where an ordinary style value coexists with custom properties.
-#[test]
-fn record_channels_do_not_confuse_ordinary_style_with_custom_properties() {
-    let atoms = vec![
-        Atom::Attribute(property("style", 1)),
-        Atom::Custom(property("--x", 2)),
-    ];
-    assert_eq!(
-        record_fields(&atoms, Demand::Props, AdapterKind::React.spec()),
-        None
-    );
-    assert!(record_fields(&atoms, Demand::Fragment, AdapterKind::React.spec()).is_some());
-}
-
 /// Keeps a base props conversion outside a neighboring folded custom-property record.
 #[test]
 fn partial_folding_stops_at_opaque_props_and_is_idempotent() {
@@ -136,11 +116,11 @@ fn partial_folding_stops_at_opaque_props_and_is_idempotent() {
         ],
         false,
     ));
-    let folded = fold(source, AdapterKind::Svelte.spec());
+    let folded = fold(source);
     assert!(
         matches!(&folded, Fragment::Sequence(children) if matches!(&children[..], [Fragment::FromProps(_), Fragment::Record(atoms)] if atoms.len() == 2))
     );
-    assert_eq!(fold(folded.clone(), AdapterKind::Svelte.spec()), folded);
+    assert_eq!(fold(folded.clone()), folded);
 }
 
 /// Exercises a 4096-entry record and verifies a second fold leaves its structure unchanged.
@@ -156,9 +136,9 @@ fn large_records_fold_without_candidate_growth() {
             })
             .collect(),
     );
-    let folded = fold(source, AdapterKind::React.spec());
+    let folded = fold(source);
     assert!(matches!(&folded, Fragment::Record(atoms) if atoms.len() == 4096));
-    assert_eq!(fold(folded.clone(), AdapterKind::React.spec()), folded);
+    assert_eq!(fold(folded.clone()), folded);
 }
 
 /// Enumerates channel, branch, and opaque-value combinations for every framework runtime.
@@ -186,13 +166,11 @@ fn folded_javascript_matches_runtime_materialization() {
     let mut cases = Vec::new();
     // Exhaust all three-contribution channel combinations, including overwrites.
     for fw in FRAMEWORKS {
-        for mask in 0..64u32 {
+        for mask in 0..8u32 {
             let parts = (0..3)
-                .map(|i| match (mask >> (2 * i)) & 3 {
+                .map(|i| match (mask >> i) & 1 {
                     0 => custom("--x", i + 1),
-                    1 => custom("--y", i + 1),
-                    2 => attribute("data-value", i + 1),
-                    _ => attribute("style", i + 1),
+                    _ => custom("--y", i + 1),
                 })
                 .collect();
             let input = emission(parts, mask % 2 == 0);
@@ -206,7 +184,7 @@ fn folded_javascript_matches_runtime_materialization() {
                         ternary,
                         Some(Box::new(Emitted::Group(vec![
                             Some(EmittedEntry::CustomProperty(property("--x", 2))),
-                            Some(EmittedEntry::Attribute(property("data-state", 3))),
+                            Some(EmittedEntry::StylePayload("payload()".into())),
                         ]))),
                         Some(Box::new(Emitted::Group(vec![Some(
                             EmittedEntry::CustomProperty(property("--y", 4)),
@@ -287,7 +265,7 @@ fn folded_javascript_matches_runtime_materialization() {
                             emitted: external,
                             position: 1,
                         },
-                        attribute("data-after", 2),
+                        custom("--after", 2),
                         custom("--x", 3),
                     ],
                     base,
@@ -467,8 +445,8 @@ fn class_branches_and_single_style_payloads_match_runtime_materialization() {
                 }];
                 let input = emission(parts, base);
                 let fragment = Fragment::from_emission(&input);
-                let folded = fold(fragment, fw);
-                assert_eq!(fold(folded.clone(), fw), folded);
+                let folded = fold(fragment);
+                assert_eq!(fold(folded.clone()), folded);
                 append_case(&mut cases, &input, fw, &analysis);
             }
             for payload in [

@@ -134,8 +134,8 @@ fn invalid_arguments_match_nothing_at_every_reporting_level() {
 fn calls_inside_other_macro_calls_omit_the_input_that_contains_them() {
     for (input, expected) in [
         (
-            "{ '--query': style.media('sm'), 'data-state': 'open' }",
-            "{ 'data-state': 'open' }",
+            "{ '--query': style.media('sm'), '--state': 'open' }",
+            "{ '--state': 'open' }",
         ),
         ("style.media('sm'), 'p-4'", "'p-4'"),
         ("style.media('sm') ? 'p-4' : 'm-4', 'block'", "'block'"),
@@ -169,7 +169,7 @@ fn calls_inside_other_macro_calls_omit_the_input_that_contains_them() {
             result.lint_findings
         );
         let code = render_transforms(&source, &result.transforms).unwrap().code;
-        assert!(!code.contains("style"), "{input}: {code}");
+        assert!(!code.contains("style.media"), "{input}: {code}");
         let (_, expected) = compile_body(expected);
         assert_eq!(result.module_css, expected.module_css, "{input}");
     }

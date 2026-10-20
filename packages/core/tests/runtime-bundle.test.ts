@@ -52,11 +52,13 @@ test("each packaged framework keeps only the requested style conversion", async 
 });
 
 test("packaged production merges exclude validation and unused conversion", async () => {
-  const code = await bundle('export { stillwindMerge as merge } from "stillwind/runtime/react";');
+  const code = await bundle(
+    'export { stillwindMerge as merge, stillwindClassKey as key } from "stillwind/runtime/react";',
+  );
   const runtime = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
   );
-  expect(runtime.merge({ title: "ready" })).toEqual({ title: "ready" });
+  expect(runtime.merge({ [runtime.key]: "ready" })).toEqual({ className: "ready" });
   expect(code).not.toMatch(/function toFragment\b|Checked|NODE_ENV|different runtime instance/);
 });
 

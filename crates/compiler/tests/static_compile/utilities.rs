@@ -244,7 +244,7 @@ export { props };"#,
 }
 
 #[test]
-fn compiles_nested_arrays_attributes_and_element_local_selectors() {
+fn compiles_nested_arrays_custom_properties_and_element_local_selectors() {
     let component = SourceFile::new(
         FileId(1),
         None,
@@ -253,7 +253,7 @@ fn compiles_nested_arrays_attributes_and_element_local_selectors() {
 declare const loading: boolean;
 const props = style(
   ["bg-accent", ["px-4"], loading && "opacity-60"],
-  { "aria-busy": loading, "hover:": "bg-accent/90" },
+  { "--busy": loading, "hover:": "bg-accent/90" },
 );"#,
     )
     .unwrap();
@@ -287,7 +287,9 @@ const props = style(
     assert!(
         result.transforms[0]
             .replacement
-            .contains("\"aria-busy\":loading")
+            .contains("\"--busy\":stillwindCssValue(loading)"),
+        "{}",
+        result.transforms[0].replacement
     );
 }
 

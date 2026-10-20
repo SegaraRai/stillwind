@@ -274,7 +274,7 @@ fn literal_inline_variables_are_checked_only_with_unambiguous_local_consumers() 
 
 #[test]
 fn class_property_policy_preserves_runtime_and_composition_channels() {
-    let source = "const a=style({class:['legacy',enabled && 'active']}); const b=style(a,{'--progress':progress,'data-active':enabled});";
+    let source = "const a=style({class:['legacy',enabled && 'active']}); const b=style(a,{'--progress':progress,'--active':enabled});";
     let options = policy_options(LintOverrides {
         no_class_property: Some(LintSeverity::Warn),
         ..LintOverrides::default()

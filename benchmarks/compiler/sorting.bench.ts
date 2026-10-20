@@ -127,8 +127,8 @@ for (const mode of ["authored", "tailwind"] as const) {
   for (const count of [10, 100, 1000]) {
     const declarations = 'const base=style({"hover:":"p-4"}); const ref=style.ref();';
     const groups = Array.from(
-      { length: Math.ceil(count / 6) },
-      (_, i) => `{"data-value":${i}},{"--value":${i}},"p-${i + 1}",base,ref.asContainer(),ref`,
+      { length: Math.ceil(count / 5) },
+      (_, i) => `{"--value":${i}},"p-${i + 1}",base,ref.asContainer(),ref`,
     );
     registerSource(
       `${mode}/array/mixed/${count}`,
@@ -175,22 +175,6 @@ for (const mode of ["authored", "tailwind"] as const) {
     }
   }
 
-  for (const count of [100, 1000]) {
-    const names = Array.from(
-      { length: count },
-      (_, i) => `data-${String(i).padStart(4, "0")}`,
-    ).reverse();
-    registerSource(
-      `${mode}/object/attributes/${count}`,
-      loader,
-      `const value=style({${names.map((name) => `${JSON.stringify(name)}:1`).join(",")}});`,
-      "array",
-      true,
-      count === 1000 ? stress : repeated,
-      true,
-    );
-  }
-
   if (mode === "authored") {
     const properties = publishedProperties(100);
     for (const count of [10, 30, 100]) {
@@ -230,7 +214,6 @@ function registerSource(
   shape: "string" | "array",
   changes: boolean,
   options = repeated,
-  attributes = false,
 ): void {
   const count = Number(name.split("/").at(-1));
   let prepared: ReturnType<typeof prepareSortingSource> | undefined;
@@ -245,7 +228,7 @@ function registerSource(
           .filter((report) => report.severity === "error"),
       ).toEqual([]);
       const config = {
-        sort: { stringLiterals: shape === "string", arrays: shape === "array", attributes },
+        sort: { stringLiterals: shape === "string", arrays: shape === "array" },
       };
       const create = () => new EditorSnapshot(graph, session, loader, config);
       let snapshot = create();

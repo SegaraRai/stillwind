@@ -36,26 +36,19 @@ pub(super) enum Field {
         /// Nonempty, increasing indices of custom-property atoms in the candidate record.
         Vec<usize>,
     ),
-    /// One ordinary property field.
-    Attribute(
-        /// Zero-based index of its attribute atom in the candidate record.
-        usize,
-    ),
 }
 
 /// Plans a shared field layout for a record under the requested consumer.
 ///
 /// Inputs must satisfy the macro purity contract and the class-atom invariants of
 /// [`Fragment::from_emission`]. Returned indices address this exact slice and preserve
-/// contribution order within each channel. Props layouts group class, ordinary, and
+/// contribution order within each channel. Props layouts group class and
 /// custom-property fields in that order. Dynamic class fields can remain present when
 /// empty.
 ///
-/// Returns `None` for ordinary `__proto__` or framework class keys, or an opaque source
-/// class sharing a field with another class. Props demand additionally rejects custom
-/// properties beside an ordinary framework style field and duplicate custom names in
-/// string style format. An empty record yields an empty layout.
-#[allow(clippy::too_many_lines)] // One proof over record fields and their runtime channels.
+/// Returns `None` for an opaque source class sharing a field with another class. Props
+/// demand additionally rejects duplicate custom names in string style format. An empty
+/// record yields an empty layout.
 pub(super) fn record_fields(
     atoms: &[Atom],
     demand: Demand,
@@ -74,19 +67,13 @@ pub(super) fn record_fields(
     let class_at = classes.first().copied();
     let custom_at = custom.first().copied();
     let mut fields = Vec::new();
-    for (i, atom) in atoms.iter().enumerate() {
+    for i in 0..atoms.len() {
         if Some(i) == class_at {
             fields.push(Field::Classes(classes.clone()));
         }
         if Some(i) == custom_at {
             fields.push(Field::Custom(custom.clone()));
         }
-        if matches!(atom, Atom::Attribute(_)) {
-            fields.push(Field::Attribute(i));
-        }
-    }
-    if atoms.iter().any(|atom| matches!(atom, Atom::Attribute(p) if p.name == "__proto__" || p.name == fw.class_property)) {
-        return None;
     }
     if atoms
         .iter()
@@ -95,30 +82,20 @@ pub(super) fn record_fields(
     {
         return None;
     }
-    if demand == Demand::Props {
-        if !custom.is_empty()
-            && atoms
-                .iter()
-                .any(|atom| matches!(atom, Atom::Attribute(p) if p.name == fw.style_property))
+    if demand == Demand::Props && fw.style_format == StyleFormat::String {
+        let mut names = BTreeSet::new();
+        if custom
+            .iter()
+            .any(|i| matches!(&atoms[*i], Atom::Custom(p) if !names.insert(&p.name)))
         {
             return None;
-        }
-        if fw.style_format == StyleFormat::String {
-            let mut names = BTreeSet::new();
-            if custom
-                .iter()
-                .any(|i| matches!(&atoms[*i], Atom::Custom(p) if !names.insert(&p.name)))
-            {
-                return None;
-            }
         }
     }
     if demand == Demand::Props {
         // Match runtime property insertion order independently of pure evaluations.
         fields.sort_by_key(|field| match field {
             Field::Classes(_) => 0,
-            Field::Attribute(_) => 1,
-            Field::Custom(_) => 2,
+            Field::Custom(_) => 1,
         });
     }
     Some(fields)
@@ -131,14 +108,14 @@ pub(super) fn record_fields(
 /// conditions selecting retained values. Opaque props and whole-style payloads remain
 /// boundaries. The result still needs [`record_fields`] validation for its consumer,
 /// because grouping alone does not establish a valid final-props layout.
-pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
+pub(super) fn fold(fragment: Fragment) -> Fragment {
     match fragment {
         Fragment::Sequence(children) => {
             let mut output = Vec::new();
             let mut pending = Vec::new();
             let mut channels = Channels::default();
             for child in children {
-                let child = fold(child, fw);
+                let child = fold(child);
                 let children = match child {
                     Fragment::Sequence(children) => children,
                     other => vec![other],
@@ -146,12 +123,12 @@ pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
                 for child in children {
                     if let Fragment::Record(atoms) = child {
                         for atom in atoms {
-                            if !channels.append(&atom, fw) {
+                            if !channels.append(&atom) {
                                 if !pending.is_empty() {
                                     output.push(Fragment::Record(std::mem::take(&mut pending)));
                                 }
                                 channels = Channels::default();
-                                channels.append(&atom, fw);
+                                channels.append(&atom);
                             }
                             pending.push(atom);
                         }
@@ -174,7 +151,7 @@ pub(super) fn fold(fragment: Fragment, fw: &FrameworkSpec) -> Fragment {
             }
         }
         Fragment::Branch { test, branches } => {
-            let branches = branches.map(|value| Box::new(fold(*value, fw)));
+            let branches = branches.map(|value| Box::new(fold(*value)));
             let classes = branches.as_ref().try_map(|value| {
                 class_branch(value)
                     .map(|class| Some(Box::new(class)))
@@ -202,7 +179,7 @@ struct Channels {
 
 impl Channels {
     /// A rejected atom must be retried with fresh state before appending it.
-    fn append(&mut self, atom: &Atom, fw: &FrameworkSpec) -> bool {
+    fn append(&mut self, atom: &Atom) -> bool {
         if self.closed {
             return false;
         }
@@ -213,10 +190,6 @@ impl Channels {
             }
             Atom::Class(_) => {
                 self.has_class = true;
-                true
-            }
-            Atom::Attribute(p) => {
-                self.closed = p.name == "__proto__" || p.name == fw.class_property;
                 true
             }
             Atom::Custom(_) => true,
@@ -262,9 +235,8 @@ fn class_branch(fragment: &Fragment) -> Option<Emitted> {
     let mut values = atoms
         .into_iter()
         .map(|atom| match atom {
-            Atom::Class(Emitted::Expression(ValueExpr::Source(_))) => None,
+            Atom::Class(Emitted::Expression(ValueExpr::Source(_))) | Atom::Custom(_) => None,
             Atom::Class(value) => Some(Some(value)),
-            _ => None,
         })
         .collect::<Option<Vec<_>>>()?;
     if values.len() == 1 {

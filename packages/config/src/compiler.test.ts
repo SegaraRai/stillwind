@@ -77,7 +77,6 @@ test("false disables all sorting targets and remains disabled after normalizatio
   expect(normalized.sort).toEqual({
     stringLiterals: false,
     arrays: false,
-    attributes: false,
     applyUtilities: false,
     applyStatements: false,
     variantBlocks: false,
@@ -106,7 +105,6 @@ test("sorting targets are validated independently of lint reporting", () => {
     sort: {
       stringLiterals: false,
       arrays: true,
-      attributes: true,
       applyUtilities: false,
       applyStatements: true,
       variantBlocks: true,
@@ -117,7 +115,7 @@ test("sorting targets are validated independently of lint reporting", () => {
   expect(() =>
     validateCompilerConfig({
       sort: {
-        attributes: "yes",
+        arrays: "yes",
       },
     }),
   ).toThrow();

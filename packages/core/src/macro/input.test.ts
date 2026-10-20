@@ -29,7 +29,7 @@ function checkCompletions(code: string, check: (completions: (text: string) => s
   try {
     expect(service.getSemanticDiagnostics(fileName)).toEqual([]);
     check((text) => {
-      const start = code.indexOf(JSON.stringify(text));
+      const start = code.lastIndexOf(JSON.stringify(text));
       expect(start).toBeGreaterThanOrEqual(0);
       const result = service.getCompletionsAtPosition(fileName, start + 2, {});
       return (result?.entries ?? [])
@@ -41,7 +41,7 @@ function checkCompletions(code: string, check: (completions: (text: string) => s
   }
 }
 
-test("utility inputs do not suggest their inferred literals and retain ref template inputs", () => {
+test("style inputs do not suggest their inferred literals and retain ref template inputs", () => {
   checkCompletions(
     `import { style } from "stillwind/react";
 declare const active: boolean;
@@ -50,6 +50,7 @@ style("flex gap-2");
 style({ "hover:": "underline", "focus:": ["text-red-500"] });
 style(["px-2 py-1", { "active:": "opacity-50" }]);
 style(active ? "block" : "hidden");
+style({ class: ["external-class", active && "external-active"], "--tone": active ? "red" : "blue" });
 style(
   \`\${ref()}:flex\`,
   { "hover:": \`\${ref.in(ref)}:grid\` },
@@ -65,6 +66,10 @@ style(
         "opacity-50",
         "block",
         "hidden",
+        "external-class",
+        "external-active",
+        "red",
+        "blue",
       ]) {
         expect(completions(text)).toEqual([]);
       }
@@ -82,12 +87,16 @@ const button = style.cva("flex", {
   defaultVariants: { size: "sm" },
 });
 button({ size: "lg" });
+style<readonly [{ class: "external-a" | "external-b" }]>({ class: "external-a" });
+style<readonly [{ "--theme": "theme-a" | "theme-b" }]>({ "--theme": "theme-a" });
 `,
     (completions) => {
       expect(completions("all")).toEqual(expect.arrayContaining(["all", "none"]));
       expect(completions("size")).toEqual(expect.arrayContaining(["size", "inline-size"]));
       expect(completions("sm")).toEqual(expect.arrayContaining(["sm", "lg"]));
       expect(completions("lg")).toEqual(expect.arrayContaining(["sm", "lg"]));
+      expect(completions("external-a")).toEqual(["external-a", "external-b"]);
+      expect(completions("theme-a")).toEqual(["theme-a", "theme-b"]);
     },
   );
 });

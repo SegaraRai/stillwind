@@ -7,11 +7,7 @@ and the runtime operations required by conditions and dynamic values.
 ```tsx
 import { style } from "stillwind/react";
 
-<button
-  {...style("rounded-md bg-accent px-4 py-2", loading && "opacity-60", {
-    "aria-busy": loading,
-  })}
->
+<button aria-busy={loading} {...style("rounded-md bg-accent px-4 py-2", loading && "opacity-60")}>
   Save
 </button>;
 ```

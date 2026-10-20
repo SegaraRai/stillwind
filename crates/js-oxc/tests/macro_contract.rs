@@ -102,7 +102,7 @@ fn visible_mutations_produce_findings_even_in_empty_branches_or_pure_calls() {
 #[test]
 fn execution_boundaries_must_be_evaluated_outside_macros() {
     for value in ["await read()", "yield read()", "import('module')"] {
-        let source = SourceFile::new(FileId(1), None, None, format!("import {{style}} from 'stillwind/react'; async function* render() {{ return style({{ 'data-value': {value} }}); }}")).unwrap();
+        let source = SourceFile::new(FileId(1), None, None, format!("import {{style}} from 'stillwind/react'; async function* render() {{ return style({{ '--value': {value} }}); }}")).unwrap();
         let parsed = parse(
             &source,
             &ModuleId::from("test.tsx"),
@@ -241,7 +241,7 @@ fn projections_and_ref_variants_require_exact_consumption_positions() {
     ] {
         for usage in [
             format!("const x={expression};"),
-            format!("const x=style({{'data-value':{expression}}});"),
+            format!("const x=style({{'--value':{expression}}});"),
             format!("const x=style({{class: consume({expression})}});"),
         ] {
             let source = SourceFile::new(

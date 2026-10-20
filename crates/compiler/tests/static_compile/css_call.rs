@@ -122,7 +122,7 @@ fn named_templates_choose_placement_and_omit_missing_slots() {
 #[test]
 fn unsupported_inputs_and_options_are_omitted_with_findings() {
     let (css, result) = compile(
-        r#"export const sheet = style.css("host:block", flag && "host:p-4", { "data-state": "open" }, { "--size": "1px" }, ...rest);"#,
+        r#"export const sheet = style.css("host:block", flag && "host:p-4", { "unknown": "open" }, { "--size": "1px" }, ...rest);"#,
         "",
     );
     assert!(css.ends_with(":host{display:block;}"), "{css}");
@@ -149,7 +149,7 @@ fn unsupported_inputs_and_options_are_omitted_with_findings() {
 
 #[test]
 fn calls_inside_style_inputs_omit_the_input() {
-    let text = "import { style } from 'stillwind/react'; export const props = style({ '--sheet': style.css('host:block'), 'data-state': 'open' });";
+    let text = "import { style } from 'stillwind/react'; export const props = style({ '--sheet': style.css('host:block'), 'unknown': 'open' });";
     let source = SourceFile::new(FileId(1), None, None, text).unwrap();
     let theme = css_source(FileId(2), "@import 'stillwind';").unwrap();
     let result = Compiler::compile_source(

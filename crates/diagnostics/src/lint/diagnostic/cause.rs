@@ -55,7 +55,7 @@ pub enum LintDiagnostic {
     StyleArraySpread,
     /// An expression is outside the supported static style-input forms.
     #[error(
-        "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, attributes, and variant wrappers"
+        "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, and variant wrappers"
     )]
     InvalidStyleInput,
     /// A CVA configuration cannot be enumerated statically or contains invalid choices.
@@ -69,20 +69,20 @@ pub enum LintDiagnostic {
         "style.cva() values require static utilities, arrays, branches, CSS variants, or custom properties"
     )]
     InvalidCvaInput,
-    /// An attribute object contains a spread whose properties cannot be resolved.
+    /// A style object contains a spread whose properties cannot be resolved.
     #[error("style() object spreads require a literal object")]
-    AttributeSpread,
-    /// An attribute entry is not a plain key-value property.
-    #[error("style() attributes must be plain key-value properties")]
-    InvalidAttributeProperty,
-    /// A computed attribute key cannot be resolved as a literal name or ref variant.
+    StyleObjectSpread,
+    /// A style object entry is not a plain key-value property.
+    #[error("style() object entries must be plain key-value properties")]
+    InvalidStyleProperty,
+    /// A computed style key cannot be resolved as a literal name or ref variant.
     #[error("computed style() keys must be literal strings or ref variants")]
-    InvalidComputedAttribute,
-    /// An object key is neither an attribute, a class entry, nor a variant prefix.
+    InvalidComputedStyleKey,
+    /// An object key is neither a class entry, a custom property, nor a variant prefix.
     #[error(
-        "style() object keys must be `class`, quoted aria-*/data-* attributes, --* custom properties, `\"\"`, or variant prefixes ending in `:`"
+        "style() object keys must be `class`, --* custom properties, `\"\"`, or variant prefixes ending in `:`"
     )]
-    InvalidAttributeKey,
+    InvalidStyleKey,
     /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
     #[error("utility templates require direct ref variants in complete `variant:utility` segments")]
     InvalidUtilityTemplate,
@@ -187,10 +187,9 @@ pub enum LintDiagnostic {
     /// merged at runtime, but its CSS has no ordering dependency on the derived call.
     #[error("the style base cannot be identified, so its CSS may follow this call's CSS")]
     UnverifiedStyleBase,
-    /// A composition base carries attributes or inline style. The base contributes only
-    /// its class.
-    #[error("a style base contributes only its class; its attributes and inline style are ignored")]
-    StyleBaseWithProps,
+    /// A composition base carries inline style. The base contributes only its class.
+    #[error("a style base contributes only its class; its inline style is ignored")]
+    StyleBaseWithInlineStyle,
     /// A composition base uses another framework's class property and contributes no
     /// class.
     #[error("a style base from another framework contributes no class")]
@@ -305,7 +304,7 @@ pub enum LintDiagnostic {
     },
     /// A style object passes through an external class value.
     #[error(
-        "`class` contributions are forbidden in style objects; use utilities, custom properties, or state attributes"
+        "`class` contributions are forbidden in style objects; use utilities, custom properties, or CSS variants"
     )]
     ClassProperty,
     /// A source utility matches a project restriction.
@@ -742,10 +741,10 @@ impl LintDiagnostic {
             | Self::NestedMacroCall { .. }
             | Self::StyleArraySpread
             | Self::InvalidStyleInput
-            | Self::AttributeSpread
-            | Self::InvalidAttributeProperty
-            | Self::InvalidComputedAttribute
-            | Self::InvalidAttributeKey
+            | Self::StyleObjectSpread
+            | Self::InvalidStyleProperty
+            | Self::InvalidComputedStyleKey
+            | Self::InvalidStyleKey
             | Self::InvalidUtilityTemplate
             | Self::StyleArgumentSpread => LintKind::InvalidStyleInput,
             Self::InvalidCvaConfig { .. } => LintKind::InvalidCvaConfig,
@@ -785,7 +784,7 @@ impl LintDiagnostic {
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
             Self::RuntimeConditionRequiresCssIf { .. } => LintKind::RuntimeConditionRequiresCssIf,
             Self::UnverifiedStyleBase => LintKind::UnverifiedStyleBase,
-            Self::StyleBaseWithProps | Self::StyleBaseFrameworkMismatch => {
+            Self::StyleBaseWithInlineStyle | Self::StyleBaseFrameworkMismatch => {
                 LintKind::InvalidStyleComposition
             }
             Self::InvalidRuleGroupInput { .. } => LintKind::InvalidRuleGroupInput,

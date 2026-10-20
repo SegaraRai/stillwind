@@ -109,7 +109,7 @@ const expressionCases = [
     name: "authored context and dollars receivers",
     script: "const __VLS_ctx={active:true}, __VLS_dollars={label:'authored'};",
     template:
-      "<div v-bind=\"style(__VLS_ctx.active ? 'flex' : 'grid',{'data-label':__VLS_dollars.label})\"/>",
+      "<div v-bind=\"style(__VLS_ctx.active ? 'flex' : 'grid',{'--label':__VLS_dollars.label})\"/>",
     retained: ["__VLS_ctx.active", "__VLS_dollars.label"],
   },
   {

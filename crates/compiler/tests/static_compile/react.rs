@@ -95,9 +95,13 @@ fn residual_macro_references_fail_the_entire_compilation() {
         assert_eq!(result.symbols, [] as [GeneratedSymbol; 0]);
         assert_eq!(result.css, "");
     }
-    let component = SourceFile::new(FileId(1), None, None,
-        "import {style} from 'stillwind/react'; const props = style('flex', {'aria-label': style});"
-    ).unwrap();
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "import {style} from 'stillwind/react'; const props = style('flex', {class: style});",
+    )
+    .unwrap();
     let result = Compiler::compile_source(
         &OxcSourceAnalyzer,
         &component,
@@ -390,49 +394,12 @@ const props = style(n() > 0 ? "bg-accent" : "bg-muted");"#
 }
 
 #[test]
-fn plans_react_props_for_classes_a_conditional_and_an_aria_attribute() {
-    let component = SourceFile::new(
-        FileId(1),
-        None,
-        None,
-        r#"import { style } from "stillwind/react";
-declare const loading: boolean;
-const props = style("bg-accent", loading && "opacity-60", { "aria-busy": loading });"#,
-    )
-    .unwrap();
-    let theme = css_source(FileId(2), "@theme { --color-accent: red; }").unwrap();
-
-    let result = Compiler::compile_source(
-        &OxcSourceAnalyzer,
-        &component,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &CompilerOptions::default(),
-    );
-
-    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
-    assert_eq!(result.transforms.len(), 2);
-    let transform = &result.transforms[0];
-    assert_eq!(transform.call_span, result.classes[0].call_span);
-    assert_eq!(
-        transform.replacement,
-        format!(
-            "{{className:stillwindClsx(\"{}\",(loading) && (\"{}\")),\"aria-busy\":loading}}",
-            result.classes[0].class_name, result.classes[1].class_name,
-        ),
-    );
-}
-
-#[test]
 fn keeps_external_classes_in_an_explicit_clsx_class_entry() {
     let component = SourceFile::new(
         FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 declare const loading: boolean;
-const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "aria-busy": loading, "hover:": "bg-muted" });"#,
+const props = style("bg-accent", { class: ["legacy-button", loading && "is-loading", { "legacy-enabled": loading, "legacy-disabled": false }], "hover:": "bg-muted" });"#,
     ).unwrap();
     let theme = css_source(
         FileId(2),
@@ -462,11 +429,6 @@ const props = style("bg-accent", { class: ["legacy-button", loading && "is-loadi
         result.transforms[0].replacement.contains("legacy-enabled"),
         "{}",
         result.transforms[0].replacement
-    );
-    assert!(
-        result.transforms[0]
-            .replacement
-            .contains("\"aria-busy\":loading")
     );
     assert!(result.css.contains(":hover"));
 }
@@ -499,7 +461,7 @@ const props = style({ "legacy-loading": loading });"#,
         result
             .lint_findings
             .iter()
-            .any(|item| item.diagnostic == LintDiagnostic::InvalidAttributeKey),
+            .any(|item| item.diagnostic == LintDiagnostic::InvalidStyleKey),
         "{:#?}",
         result.diagnostics
     );

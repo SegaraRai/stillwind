@@ -87,7 +87,7 @@ fn ordinary_calls_fold_across_channels_without_pure_annotations() {
     for fw in ["react", "svelte"] {
         let (_, result) = compile(
             fw,
-            r#"const props = style({ "--x": f() }, { "data-value": g() }, { "--y": h() });"#,
+            r#"const props = style({ "--x": f() }, { "--value": g() }, { "--y": h() });"#,
         );
         assert_eq!(result.lint_findings, [] as [LintFinding; 0]);
         let code = &result.transforms[0].replacement;
@@ -203,7 +203,7 @@ fn pure_records_can_reorder_evaluations_but_keep_runtime_key_order() {
             let (_, result) = compile(
                 fw,
                 &format!(
-                    "const props = style({{ '--x': {value} }}, {{ 'data-value': data }}, {{ '--y': y }}, 'flex');"
+                    "const props = style({{ '--x': {value} }}, {{ '--value': data }}, {{ '--y': y }}, 'flex');"
                 ),
             );
             let code = &result.transforms[0].replacement;
@@ -213,11 +213,13 @@ fn pure_records_can_reorder_evaluations_but_keep_runtime_key_order() {
                 result.lint_findings
             );
             assert!(
-                code.find("class").unwrap() < code.find("data-value").unwrap(),
+                code.find("class").unwrap() < code.find("--value").unwrap(),
                 "{code}"
             );
             assert!(
-                code.find("data-value").unwrap() < code.find("style:").unwrap(),
+                code.find("style:").unwrap() < code.find("--x").unwrap()
+                    && code.find("--x").unwrap() < code.find("--value").unwrap()
+                    && code.find("--value").unwrap() < code.find("--y").unwrap(),
                 "{code}"
             );
         }
@@ -259,7 +261,7 @@ fn empty_conditions_are_removed_recursively_under_the_contract() {
 fn source_mappings_follow_reordered_occurrences_and_conditional_tests() {
     for fw in ["react", "preact", "solid", "vue", "svelte", "astro"] {
         for body in [
-            "// 😀\r\nconst props = style({ '--x': same },\r\n { 'data-value': other },\r\n { '--y': same }, 'flex');",
+            "// 😀\r\nconst props = style({ '--x': same },\r\n { class: other },\r\n { '--y': same }, 'flex');",
             "const props = style(test() ? { '--x': f() } : { '--y': g() });",
             "const props = style('flex', flag && 'block', { class: classes });",
             "const base = style('flex'); const props = style(base, { '--x': value });",

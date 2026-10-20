@@ -81,7 +81,6 @@ fn collect_static_class(
                             .and_modify(|value| *value = None)
                             .or_insert(value);
                     }
-                    GroupEntry::Attribute(_) => {}
                 }
             }
         }

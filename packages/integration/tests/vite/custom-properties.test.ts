@@ -12,7 +12,7 @@ import { expect, test } from "vite-plus/test";
 test("compiled custom properties preserve evaluation order and inactive branches", () => {
   const result = compileSource({
     source: `import {style} from "stillwind/react";
-    const props = style({"--x": next("first")}, active && {"--x": next("second"), "data-x": next("third")}, {"--y": next("last")});`,
+    const props = style({"--x": next("first")}, active && {"--x": next("second"), "--extra": next("third")}, {"--y": next("last")});`,
     moduleId: "src/custom.ts",
     uri: "untitled:src/custom.ts",
     sourceMapSource: "untitled:src/custom.ts",
@@ -42,9 +42,9 @@ test("compiled custom properties preserve evaluation order and inactive branches
     expect(calls).toStrictEqual(active ? ["first", "second", "third", "last"] : ["first", "last"]);
     expect(props.style).toStrictEqual({
       "--x": active ? "second" : "first",
+      ...(active ? { "--extra": "third" } : {}),
       "--y": "last",
     });
-    expect(props["data-x"]).toBe(active ? "third" : undefined);
   }
 });
 

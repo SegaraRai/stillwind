@@ -6,11 +6,8 @@ identifies a remaining limitation and the evidence needed to resolve it.
 
 ## String literal completions
 
-CVA variant utility inputs still suggest their own inferred strings. External class,
-custom-property, and attribute values in `style()` objects do the same. Evaluate which
-of these inputs need completion suppression while preserving inferred attribute values,
-dynamic expressions, and finite CVA choices. Utility strings passed directly to
-`style()` already suppress these suggestions.
+CVA variant utility inputs still suggest their own inferred strings. Evaluate completion
+suppression while preserving dynamic expressions and finite CVA choices.
 
 Sources: [style inputs](../packages/core/src/macro/input.ts),
 [CVA inputs](../packages/core/src/macro/cva.ts).

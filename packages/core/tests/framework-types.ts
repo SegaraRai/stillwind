@@ -27,18 +27,35 @@ export type FrameworkSpreadContracts = [
 function variantWrapperTypes(active: boolean) {
   const anchor = react.ref("anchor");
   const transition = react.viewTransition({ old: "opacity-0" });
-  react({ "hover:": [anchor.positionAnchor(), active && transition.for("hero")] });
+  react({
+    "hover:": [anchor.positionAnchor(), active && transition.for("hero")],
+  });
   react([
     anchor,
-    { "aria-busy": active, "--size": 4, class: "external" },
+    {
+      "--size": 4,
+      class: "external",
+    },
     active && transition.for("hero"),
   ]);
-  react({ "hover:": ["text-red", { "[&:where(.mod)]:": "text-blue" }, false, null, undefined] });
-  vue({ "aria-busy:": active && "opacity-60" });
+  react({
+    "hover:": [
+      "text-red",
+      {
+        "[&:where(.mod)]:": "text-blue",
+      },
+      false,
+      null,
+      undefined,
+    ],
+  });
+  vue({
+    "aria-busy:": active && "opacity-60",
+  });
   // @ts-expect-error Raw CSS selectors are not variant wrappers.
-  react({ "&:hover": "text-red" });
-  // @ts-expect-error Attributes cannot be nested inside a variant wrapper.
-  react({ "hover:": { "aria-busy": true } });
+  react({
+    "&:hover": "text-red",
+  });
 }
 void variantWrapperTypes;
 
@@ -292,8 +309,8 @@ function explicitRefUses(flag: boolean) {
   );
   void sheet;
   react.css("p-4", { selector: ":host" });
-  // @ts-expect-error style.css() inputs cannot contain attributes
-  react.css({ "data-state": "open" });
+  // @ts-expect-error style.css() inputs require recognized rule keys
+  react.css({ unknown: "open" });
   // @ts-expect-error style.css() inputs cannot contain custom properties
   react.css({ "--size": "1px" });
 }

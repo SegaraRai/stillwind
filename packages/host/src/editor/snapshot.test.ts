@@ -232,7 +232,7 @@ test("lint false disables reports and fixes while explicit sorting remains avail
 
 test("sort false disables explicit and lint sorting while preserving other lint fixes", async () => {
   const source =
-    'import {style} from "stillwind/react"; const base=style("p-4"); const ref=style.ref(); const value=style([base,ref,"p-[16px] flex block",{"data-z":1,"aria-label":"x"}]);';
+    'import {style} from "stillwind/react"; const base=style("p-4"); const ref=style.ref(); const value=style([base,ref,"p-[16px] flex block",{"--z":value}]);';
   const current = project(source, {
     sort: false,
     lint: {
@@ -257,7 +257,7 @@ test("sort false disables explicit and lint sorting while preserving other lint 
         kind: "fixes",
       }))!.edits!,
     );
-    expect(fixed).toContain('style([base,ref,"p-4 flex block",{"data-z":1,"aria-label":"x"}])');
+    expect(fixed).toContain('style([base,ref,"p-4 flex block",{"--z":value}])');
   } finally {
     await current.close();
   }
@@ -693,7 +693,7 @@ test("empty rule keys retain completion prefixes, hover selectors, and utility g
     } finally {
       await current.close();
     }
-    const source = `import {style} from "stillwind/react"; const card=style({"data-z":1,${name}:"flex block","hover:":{${name}:"bg-brand"}});`;
+    const source = `import {style} from "stillwind/react"; const card=style({"--z":value,${name}:"flex block","hover:":{${name}:"bg-brand"}});`;
     const complete = project(source, { sort: { stringLiterals: true, arrays: true } });
     try {
       expect(
@@ -709,7 +709,7 @@ test("empty rule keys retain completion prefixes, hover selectors, and utility g
         }))!.edits!,
       );
       expect(sorted).toContain(
-        `style({${name}:"block flex","hover:":{${name}:"bg-brand"},"data-z":1})`,
+        `style({${name}:"block flex","hover:":{${name}:"bg-brand"},"--z":value})`,
       );
     } finally {
       await complete.close();
@@ -819,7 +819,7 @@ test("input groups retain category order and place each ref marker before its pr
 // 日本語 🦀
 const z=style({"hover:":"p-4"}); const a=style(["p-8", {"--x":1}]);
 const first=style.ref(); const alias=first; const second=style.ref();
-const value=style([{ "data-z":1 }, {"--z":2}, "flex block", z, second.asContainer(),
+const value=style([{ "--z":1 }, {"--z":2}, "flex block", z, second.asContainer(),
  first.positionAnchor(), a, alias, second, first.asAnchor(), "p-4"]);`;
   const current = project(source);
   try {
@@ -830,7 +830,7 @@ const value=style([{ "data-z":1 }, {"--z":2}, "flex block", z, second.asContaine
       }))!.edits!,
     );
     expect(result.replace(/\s+/g, " ")).toContain(
-      'style([ second, second.asContainer(), alias, first.positionAnchor(), first.asAnchor(), z, a, "block flex", "p-4", {"--z":2},{ "data-z":1 }])',
+      'style([ second, second.asContainer(), alias, first.positionAnchor(), first.asAnchor(), z, a, "block flex", "p-4",{ "--z":1 }, {"--z":2}])',
     );
     const next = project(result);
     try {
@@ -844,43 +844,6 @@ const value=style([{ "data-z":1 }, {"--z":2}, "flex block", z, second.asContaine
     }
   } finally {
     await current.close();
-  }
-});
-
-test("attribute names sort only when enabled, independently from input grouping and utilities", async () => {
-  const source = `import {style} from "stillwind/react"; const value=style({"data-z":0,"aria-label":"label","data-a":1,"hover:":"flex block","--z":2,"--a":3});`;
-  for (const [sort, expected] of [
-    [{}, '{"hover:":"block flex","--z":2,"--a":3,"data-z":0,"aria-label":"label","data-a":1}'],
-    [
-      {
-        attributes: true,
-      },
-      '{"hover:":"block flex","--z":2,"--a":3,"aria-label":"label","data-a":1,"data-z":0}',
-    ],
-    [
-      {
-        arrays: false,
-        stringLiterals: false,
-        attributes: true,
-      },
-      '{"aria-label":"label","data-a":1,"data-z":0,"hover:":"flex block","--z":2,"--a":3}',
-    ],
-  ] as const) {
-    const current = project(source, {
-      sort,
-    });
-    try {
-      expect(
-        applyEdits(
-          source,
-          (await current.query("/workspace/entry.tsx", {
-            kind: "sort",
-          }))!.edits!,
-        ),
-      ).toContain(expected);
-    } finally {
-      await current.close();
-    }
   }
 });
 
@@ -952,16 +915,12 @@ const value=style(["flex",changed,ref,"block",base,left,"p-4",ref]);`;
   }
 });
 
-test("aria and data variant wrappers remain utility inputs when attribute name sorting is enabled", async () => {
+test("aria and data variant wrappers remain utility inputs", async () => {
   const source =
-    'import {style} from "stillwind/react"; const value=style({"data-z":1,"aria-checked:":"flex block","--x":2,"data-active:":"block","aria-label":"x"});';
+    'import {style} from "stillwind/react"; const value=style({"aria-checked:":"flex block","--x":2,"data-active:":"block"});';
   const current = project(
     source,
-    {
-      sort: {
-        attributes: true,
-      },
-    },
+    {},
     `${theme} @variant aria-checked { &[aria-checked=true] { @slot; } } @variant data-active { &[data-active] { @slot; } }`,
   );
   try {
@@ -972,9 +931,7 @@ test("aria and data variant wrappers remain utility inputs when attribute name s
           kind: "sort",
         }))!.edits!,
       ),
-    ).toContain(
-      'style({"aria-checked:":"block flex","data-active:":"block","--x":2,"aria-label":"x","data-z":1})',
-    );
+    ).toContain('style({"aria-checked:":"block flex","data-active:":"block","--x":2})');
   } finally {
     await current.close();
   }

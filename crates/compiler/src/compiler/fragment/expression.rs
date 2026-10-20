@@ -208,11 +208,6 @@ pub(crate) enum EmittedEntry {
     ),
     /// A whole-style value selected under the same source branch as its class.
     StylePayload(ValueExpr),
-    /// An ordinary property awaiting serialization.
-    Attribute(
-        /// Decoded property name, source value, and original value span.
-        Property,
-    ),
     /// A nested class expression.
     Class(
         /// Class-expression subtree to materialize within the object.
@@ -228,12 +223,7 @@ pub(super) enum Atom {
         /// Class-only subtree or an opaque value requiring runtime interpretation.
         Emitted,
     ),
-    /// An ordinary property, including an authored `style` attribute.
-    Attribute(
-        /// One occurrence; repeated names retain their evaluation order.
-        Property,
-    ),
-    /// A custom property merged independently of ordinary `style` and style payloads.
+    /// A custom property merged independently of whole-style payloads.
     Custom(
         /// One occurrence; repeated names are resolved by the consumer's representation.
         Property,
@@ -319,7 +309,6 @@ impl Fragment {
         parts.sort_by_key(|part| match part {
             StyleEmissionPart::Conditional { position, .. }
             | StyleEmissionPart::Class { position, .. }
-            | StyleEmissionPart::Attributes { position, .. }
             | StyleEmissionPart::CustomProperties { position, .. }
             | StyleEmissionPart::Base { position, .. } => *position,
         });
@@ -334,9 +323,6 @@ impl Fragment {
                             .map(|parts| Box::new(Self::from_parts(parts))),
                     },
                     StyleEmissionPart::Class { emitted, .. } => Self::from_class(emitted),
-                    StyleEmissionPart::Attributes { property, .. } => {
-                        Self::Record(vec![Atom::Attribute(property.clone())])
-                    }
                     StyleEmissionPart::CustomProperties { property, .. } => {
                         Self::Record(vec![Atom::Custom(property.clone())])
                     }
@@ -366,9 +352,6 @@ impl Fragment {
                     .flatten()
                     .map(|entry| match entry {
                         EmittedEntry::Class(value) => Self::from_class(value),
-                        EmittedEntry::Attribute(value) => {
-                            Self::Record(vec![Atom::Attribute(value.clone())])
-                        }
                         EmittedEntry::CustomProperty(value) => {
                             Self::Record(vec![Atom::Custom(value.clone())])
                         }

@@ -255,7 +255,7 @@ export const item = style({ "hover:": motion.for(id) });"#,
 }
 
 #[test]
-fn mixed_array_keeps_props_inputs_and_conditional_transition() {
+fn mixed_array_keeps_custom_properties_and_conditional_transition() {
     let component = SourceFile::new(
         FileId(1), None, None,
         r#"import { style } from "stillwind/react";
@@ -263,7 +263,7 @@ declare const enabled: boolean;
 declare const id: string;
 const anchor = style.ref();
 const motion = style.viewTransition({ old: "opacity-0" });
-export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "external" }, enabled && motion.for(id)]);"#,
+export const item = style([anchor, { "--size": 4, class: "external" }, enabled && motion.for(id)]);"#,
     ).unwrap();
     let theme = css_source(FileId(2), "@theme {}").unwrap();
     let result = Compiler::compile_source(
@@ -278,7 +278,6 @@ export const item = style([anchor, { "aria-busy": enabled, "--size": 4, class: "
     );
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     let transformed = result.apply_to_source(&component).unwrap();
-    assert!(transformed.contains("aria-busy"), "{transformed}");
     assert!(transformed.contains("--size"), "{transformed}");
     assert!(transformed.contains("external"), "{transformed}");
     assert!(transformed.contains("(enabled) &&"), "{transformed}");

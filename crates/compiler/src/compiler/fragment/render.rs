@@ -41,7 +41,7 @@ pub(in super::super) fn render_style_call(
     {
         return renderer.record(&atoms, &fields, Demand::Props);
     }
-    let folded = fold(source, fw);
+    let folded = fold(source);
     if let Some(atoms) = known_record(&folded)
         && let Some(fields) = record_fields(&atoms, Demand::Props, fw)
     {
@@ -70,7 +70,7 @@ pub(in super::super) fn render_cva_value(
     fw: &FrameworkSpec,
     runtime: &mut RuntimeBindings<'_>,
 ) -> Code {
-    let folded = fold(Fragment::from_emission(emission), fw);
+    let folded = fold(Fragment::from_emission(emission));
     let mut renderer = Renderer {
         fw,
         runtime,
@@ -83,7 +83,7 @@ pub(in super::super) fn render_cva_value(
             .iter()
             .filter_map(|atom| match atom {
                 Atom::Class(value) => Some(value),
-                _ => None,
+                Atom::Custom(_) => None,
             })
             .collect::<Vec<_>>();
         if let Some(names) = classes
@@ -139,14 +139,6 @@ impl Renderer<'_, '_> {
                             atoms
                                 .iter()
                                 .map(|atom| match atom {
-                                    Atom::Attribute(p) => code![
-                                        "{",
-                                        Self::property(
-                                            p,
-                                            Code::source((p.value.clone()).into(), p.span)
-                                        ),
-                                        "}"
-                                    ],
                                     Atom::Class(_) => self.record(
                                         std::slice::from_ref(atom),
                                         &[Field::Classes(vec![0])],
@@ -234,20 +226,12 @@ impl Renderer<'_, '_> {
         let mut entries = Vec::new();
         for field in fields {
             match field {
-                Field::Attribute(i) => {
-                    if let Atom::Attribute(p) = &atoms[*i] {
-                        entries.push(Self::property(
-                            p,
-                            Code::source((p.value.clone()).into(), p.span),
-                        ));
-                    }
-                }
                 Field::Classes(indices) => {
                     let values = indices
                         .iter()
                         .filter_map(|i| match &atoms[*i] {
                             Atom::Class(value) => Some(value),
-                            _ => None,
+                            Atom::Custom(_) => None,
                         })
                         .collect::<Vec<_>>();
                     if let Some(entry) = self.class_field(&values, demand) {
@@ -259,7 +243,7 @@ impl Renderer<'_, '_> {
                         .iter()
                         .filter_map(|i| match &atoms[*i] {
                             Atom::Custom(p) => Some(p),
-                            _ => None,
+                            Atom::Class(_) => None,
                         })
                         .collect::<Vec<_>>();
                     let value =
@@ -347,10 +331,10 @@ impl Renderer<'_, '_> {
     ///
     /// The payload must be a direct child of the input sequence or the input itself.
     /// Returns `None` without registering helpers for missing or multiple payloads,
-    /// non-record siblings, custom-property overlays, an ordinary framework style field,
-    /// or a rejected props layout. Success registers helpers and appends the framework
-    /// style field after the record fields. Unknown payloads use runtime format conversion
-    /// and can leave that field present with an undefined value.
+    /// non-record siblings, custom-property overlays, or a rejected props layout.
+    /// Success registers helpers and appends the framework style field after the record
+    /// fields. Unknown payloads use runtime format conversion and can leave that field
+    /// present with an undefined value.
     ///
     /// # Panics
     ///
@@ -369,10 +353,7 @@ impl Renderer<'_, '_> {
             }
         }
         let payload = payload?;
-        if atoms.iter().any(|atom| {
-            matches!(atom, Atom::Custom(_))
-                || matches!(atom, Atom::Attribute(p) if p.name == self.fw.style_property)
-        }) {
+        if atoms.iter().any(|atom| matches!(atom, Atom::Custom(_))) {
             return None;
         }
         let fields = record_fields(&atoms, Demand::Props, self.fw)?;

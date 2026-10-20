@@ -13,74 +13,28 @@ type Same<A, B> = [keyof A, keyof B] extends [keyof B, keyof A]
     : false
   : false;
 type Props<T> = Omit<T, "data-__stillwindStyleIdentity">;
-type Required<T, Key extends keyof T> = T extends Record<Key, unknown> ? true : false;
 
-function attributeOutputs(active: boolean, count: number, value: { id: number }) {
-  const plain = react("block");
+function classOutputs(active: boolean) {
   const empty = react();
-  const attributes = react({ "data-count": count, "aria-busy": active, "data-value": value });
-  const literals = react({ "data-mode": "card", "aria-hidden": false, "data-empty": undefined });
-  const conditional = react(active && { "data-count": count });
-  const selected = react(active ? { "data-mode": "card" } : { "aria-hidden": true });
-  const alternatives = react(active ? { "data-value": 1 } : { "data-value": "two" });
-  const nested = react(["block", [{ "data-count": count }, active && { "aria-busy": active }]]);
-  const overwritten = react({ "data-value": 1 }, { "data-value": "two" });
-  const maybeOverwritten = react({ "data-value": 1 }, active && { "data-value": "two" });
-  const undefinedOverwrite = react({ "data-value": 1 }, { "data-value": undefined });
-  const conditionalUndefined = react({ "data-value": 1 }, active && { "data-value": undefined });
-  const classInput = react({ class: { "external-class": active } });
-  const attributeVariants = react({ "aria-busy:": "block", "data-active:": "flex" });
-  const objectRules = react({
-    "": ["block", active && "flex"],
-    ":": { "hover:": "hidden" },
-    "data-count": count,
+  const external = react({
+    class: {
+      external: active,
+    },
   });
+  const branches = react(active ? "block" : "hidden", [
+    "flex",
+    {
+      "aria-busy:": "opacity-50",
+    },
+  ]);
   type Contracts = [
-    Assert<Same<Props<typeof plain>, { className?: string }>>,
     Assert<Same<Props<typeof empty>, { className?: string }>>,
-    Assert<
-      Same<
-        Props<typeof attributes>,
-        {
-          className?: string;
-          "data-count": number;
-          "aria-busy": boolean;
-          "data-value": { id: number };
-        }
-      >
-    >,
-    Assert<
-      Same<
-        Props<typeof literals>,
-        { className?: string; "data-mode": "card"; "aria-hidden": false; "data-empty": undefined }
-      >
-    >,
-    Assert<Same<Props<typeof conditional>, { className?: string; "data-count"?: number }>>,
-    Assert<
-      Same<
-        Props<typeof selected>,
-        { className?: string; "data-mode"?: "card"; "aria-hidden"?: true }
-      >
-    >,
-    Assert<Same<(typeof alternatives)["data-value"], 1 | "two">>,
-    Assert<Required<typeof alternatives, "data-value">>,
-    Assert<
-      Same<Props<typeof nested>, { className?: string; "data-count": number; "aria-busy"?: true }>
-    >,
-    Assert<Same<(typeof overwritten)["data-value"], "two">>,
-    Assert<Same<(typeof maybeOverwritten)["data-value"], 1 | "two">>,
-    Assert<Required<typeof maybeOverwritten, "data-value">>,
-    Assert<Same<(typeof undefinedOverwrite)["data-value"], undefined>>,
-    Assert<Required<typeof undefinedOverwrite, "data-value">>,
-    Assert<Same<(typeof conditionalUndefined)["data-value"], 1 | undefined>>,
-    Assert<Required<typeof conditionalUndefined, "data-value">>,
-    Assert<Same<Props<typeof classInput>, { className?: string }>>,
-    Assert<Same<Props<typeof attributeVariants>, { className?: string }>>,
-    Assert<Same<Props<typeof objectRules>, { className?: string; "data-count": number }>>,
+    Assert<Same<Props<typeof external>, { className?: string }>>,
+    Assert<Same<Props<typeof branches>, { className?: string }>>,
   ];
   return null as unknown as Contracts;
 }
-void attributeOutputs;
+void classOutputs;
 
 function inlineStyleOutputs(active: boolean, key: string) {
   const transition = react.viewTransition({ old: "opacity-0" });
@@ -128,22 +82,13 @@ function composedOutputs(active: boolean) {
   const selected = react(active ? base : styled);
   const chain = react(composed, styled);
   const identity = react(base, { __stillwindDeclarationIdentity: "derived" });
-  const attributes = react({ "data-mode": "card", "aria-hidden": false });
   const inline = react({ "--size": 4 });
-  // @ts-expect-error Attribute-bearing results cannot be composition bases.
-  react(attributes);
-  // @ts-expect-error A conditional base can still carry attributes.
-  react(active && attributes);
-  const mixed = react(active ? base : attributes);
-  // @ts-expect-error Arrays retain the restrictions on each composition base.
-  react([base, attributes]);
   // @ts-expect-error Results with inline style cannot be composition bases.
   react(inline);
   type Contracts = [
     Assert<Same<Props<typeof composed>, { className?: string }>>,
     Assert<Same<Props<typeof conditional>, { className?: string }>>,
     Assert<Same<Props<typeof selected>, { className?: string }>>,
-    Assert<Same<Props<typeof mixed>, { className?: string }>>,
     Assert<Same<Props<typeof chain>, { className?: string }>>,
     Assert<Same<(typeof identity)["data-__stillwindStyleIdentity"], "derived">>,
     Assert<Same<Props<typeof identity>, Props<typeof base>>>,
@@ -193,24 +138,17 @@ void broadInputs;
 
 function variableInputs(
   inputs: readonly StyleResult<string, { className?: string }>[],
-  attributes: { "data-count"?: number; "aria-busy": boolean },
   rules: StyleVariantValue,
   tuple: readonly [StyleResult<string, { className?: string }>?],
 ) {
   const array = react(...inputs);
-  const arrayAfterBase = react({ "data-value": "base" }, ...inputs);
-  const optional = react(attributes);
+  const base = react("block");
+  const arrayAfterBase = react(base, ...inputs);
   const wrapper = react({ "hover:": rules });
   const optionalTuple = react(...tuple);
   type Contracts = [
     Assert<Same<Props<typeof array>, { className?: string }>>,
-    Assert<Same<Props<typeof arrayAfterBase>, { className?: string; "data-value": "base" }>>,
-    Assert<
-      Same<
-        Props<typeof optional>,
-        { className?: string; "data-count"?: number; "aria-busy": boolean }
-      >
-    >,
+    Assert<Same<Props<typeof arrayAfterBase>, { className?: string }>>,
     Assert<Same<Props<typeof wrapper>, { className?: string; style?: Record<string, string> }>>,
     Assert<Same<Props<typeof optionalTuple>, { className?: string }>>,
   ];
@@ -221,14 +159,12 @@ void variableInputs;
 function invalidInputs() {
   const ref = react.ref();
   const base = react("block");
-  // @ts-expect-error Only data and ARIA attributes are accepted as ordinary props.
+  // @ts-expect-error Unknown object entries are rejected.
   react({ title: "card" });
   // @ts-expect-error Authored inline style is not a macro input.
   react({ style: { color: "red" } });
   // @ts-expect-error Inline properties cannot occur in a variant wrapper.
   react({ "hover:": [{ "--size": 4 }] });
-  // @ts-expect-error Attributes cannot occur in a nested variant wrapper.
-  react({ "hover:": { "focus:": { "data-state": "active" } } });
   // @ts-expect-error Empty rule groups accept the same inputs as variant wrappers.
   react({ "": { "--size": 4 } });
   // @ts-expect-error Ref attachments require positions outside rule groups.

@@ -11,8 +11,8 @@ use oxc::syntax::operator::{LogicalOperator, UnaryOperator};
 
 use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, LintFinding};
 use stillwind_ir::{
-    AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
-    RuleExpression, StyleInput, StyleVariant,
+    ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry, RuleExpression,
+    StyleInput, StyleVariant,
 };
 use stillwind_source::Span;
 
@@ -199,14 +199,14 @@ impl<'a> MacroExtractor<'a> {
         self.class_expression(expression).into_iter().collect()
     }
 
-    /// Lowers a `style({...})` object into attribute entries and wrappers.
+    /// Lowers a `style({...})` object into class entries, custom properties, and
+    /// wrappers.
     ///
-    /// Keys are interpreted by shape: `class` passes a user value through, quoted
-    /// `aria-*`/`data-*` keys become attributes, `--*` keys become inline custom
-    /// properties, and a key ending in `:` becomes a variant wrapper. The keys `""` and
-    /// `":"` group rule inputs without adding variants. Computed keys resolve to
-    /// literal names or ref variants. Literal object spreads are expanded with the last
-    /// value of each known key.
+    /// Keys are interpreted by shape: `class` passes a user value through, `--*` keys
+    /// become inline custom properties, and a key ending in `:` becomes a variant
+    /// wrapper. The keys `""` and `":"` group rule inputs without adding variants.
+    /// Computed keys resolve to literal names or ref variants. Literal object spreads
+    /// are expanded with the last value of each known key.
     fn object_class_expression(
         &mut self,
         object: &ObjectExpression<'a>,
@@ -218,7 +218,7 @@ impl<'a> MacroExtractor<'a> {
             if property.method || property.kind != PropertyKind::Init {
                 self.omit_input(property.span);
                 self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidAttributeProperty,
+                    LintDiagnostic::InvalidStyleProperty,
                     self.source_span(property.span),
                 ));
                 continue;
@@ -230,14 +230,12 @@ impl<'a> MacroExtractor<'a> {
             {
                 continue;
             }
-            // Class, attribute, and custom-property values are kept as JavaScript;
-            // rule-group values are lowered as inputs.
-            if name.as_ref().is_some_and(|name| {
-                name.value == "class"
-                    || name.value.starts_with("--")
-                    || (!name.value.ends_with(':')
-                        && (name.value.starts_with("aria-") || name.value.starts_with("data-")))
-            }) && self.omit_nested_macro(&property.value, property.span)
+            // Class and custom-property values are kept as JavaScript; rule-group
+            // values are lowered as inputs.
+            if name
+                .as_ref()
+                .is_some_and(|name| name.value == "class" || name.value.starts_with("--"))
+                && self.omit_nested_macro(&property.value, property.span)
             {
                 continue;
             }
@@ -259,7 +257,7 @@ impl<'a> MacroExtractor<'a> {
             let Some(name) = name else {
                 self.omit_input(property.span);
                 self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidAttributeKey,
+                    LintDiagnostic::InvalidStyleKey,
                     self.source_span(property.key.span()),
                 ));
                 continue;
@@ -272,15 +270,6 @@ impl<'a> MacroExtractor<'a> {
                 }));
                 continue;
             }
-            if !name.value.ends_with(':')
-                && (name.value.starts_with("aria-") || name.value.starts_with("data-"))
-            {
-                entries.push(GroupEntry::Attribute(AttributeEntry {
-                    name,
-                    value: self.source_span(property.value.span()),
-                }));
-                continue;
-            }
             if name.value.is_empty() || name.value == ":" {
                 if let Some(entry) = self.rule_entry(None, &property.value) {
                     entries.push(entry);
@@ -289,10 +278,8 @@ impl<'a> MacroExtractor<'a> {
             }
             if !name.value.ends_with(':') {
                 self.omit_input(property.span);
-                self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidAttributeKey,
-                    name.span,
-                ));
+                self.lint_findings
+                    .push(LintFinding::new(LintDiagnostic::InvalidStyleKey, name.span));
                 continue;
             }
             if let Some(entry) = self.rule_entry(Some(StyleVariant::Prefix(name)), &property.value)
@@ -330,7 +317,7 @@ impl<'a> MacroExtractor<'a> {
                 && self.diagnostics.len() == previous_errors
             {
                 self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidComputedAttribute,
+                    LintDiagnostic::InvalidComputedStyleKey,
                     self.source_span(property.key.span()),
                 ));
             }
@@ -355,7 +342,7 @@ impl<'a> MacroExtractor<'a> {
                     } else {
                         self.omit_input(spread.span);
                         self.lint_findings.push(LintFinding::new(
-                            LintDiagnostic::AttributeSpread,
+                            LintDiagnostic::StyleObjectSpread,
                             self.source_span(spread.span),
                         ));
                     }

@@ -108,7 +108,7 @@ fn class_plans(class: &ClassExpression) -> Vec<ClassPlan> {
             .iter()
             .flat_map(|entry| match entry {
                 GroupEntry::Class(class) => class_plans(class),
-                _ => Vec::new(),
+                GroupEntry::CustomProperty(_) => Vec::new(),
             })
             .collect(),
         ClassExpression::ClassValue { .. } => Vec::new(),

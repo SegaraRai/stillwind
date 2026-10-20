@@ -20,11 +20,8 @@ const scriptProps = style("p-[7px]");
   <div data-testid="main-diamond" v-bind="style(probeDiamond)">Diamond</div>
   <div
     data-testid="main-conditional"
-    v-bind="
-      style('m-[40px]', phase > 0 && (phase > 1 ? 'm-[16px]' : 'm-[24px]'), {
-        'aria-busy': phase > 0 ? 'true' : 'false',
-      })
-    "
+    :aria-busy="phase > 0 ? 'true' : 'false'"
+    v-bind="style('m-[40px]', phase > 0 && (phase > 1 ? 'm-[16px]' : 'm-[24px]'))"
   >
     Conditional
   </div>

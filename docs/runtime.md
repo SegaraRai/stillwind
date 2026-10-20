@@ -82,7 +82,7 @@ conditions must name declared axes and literal options.
 
 Style values accept literal utility strings, expression-free templates, arrays,
 boolean/null/undefined values, conjunctions, ternaries, ordinary CSS variant objects,
-and root custom properties. Attributes, external-class objects, stored input values,
+and root custom properties. External-class objects, stored input values,
 declaration uses, and style composition are unsupported. CSS variants accept only
 rule inputs. Dynamic utility construction is rejected.
 
@@ -100,8 +100,8 @@ Additional `class` and `className` inputs are external class values and generate
 
 ## Lowering and materialization
 
-`StyleInput` retains arrays, JavaScript conditionals, props, composition, and rule
-inputs. CSS variants contain only `RuleExpression` children. Attributes, external
+`StyleInput` retains arrays, JavaScript conditionals, custom properties, composition, and rule
+inputs. CSS variants contain only `RuleExpression` children. External
 classes, ref attachments, custom properties, and composition cannot occur below
 a CSS variant. Conditional branches distinguish conjunctions from ternaries.
 
@@ -120,11 +120,11 @@ Fragments carry three framework-owned symbol channels:
 | `stillwindStyleKey`            | A whole style payload; the last non-null payload wins   |
 | `stillwindCustomPropertiesKey` | Individual custom properties; later values win per name |
 
-Other keys are ordinary props. `stillwindMerge` recursively visits arrays and
+`stillwindMerge` recursively visits arrays and
 fragments, joins class text without deduplication, and materializes framework props.
 Custom properties overlay the whole style payload. `stillwindToFragment` converts a
 materialized composition base to a fragment that holds only the base's class. A base
-contributes the receiving framework's class prop; its attributes, style, custom
+contributes the receiving framework's class prop; its style, custom
 properties, and another framework's class prop are ignored. The development variant
 rejects nonobjects.
 An existing string style payload is passed through without parsing.

@@ -259,7 +259,6 @@ export class EditorSnapshot {
         : {
             stringLiterals: config.sort?.stringLiterals ?? true,
             arrays: config.sort?.arrays ?? true,
-            attributes: config.sort?.attributes ?? false,
           };
     this.#sortSeverity = (css["prefer-sorted-utilities"] as LintSeverity) ?? "off";
     this.#annotations = {

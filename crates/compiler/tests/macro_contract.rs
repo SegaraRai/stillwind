@@ -11,7 +11,7 @@ fn suspending_value_expressions_stay_in_the_original_scope() {
     for framework in ["react", "solid", "vue", "svelte", "astro"] {
         for value in ["await read()", "yield read()", "import('module')"] {
             let source = SourceFile::new(FileId(1), None, None, format!(
-                "import {{style}} from 'stillwind/{framework}'; async function* render() {{ return style({{class: {value}, '--x': ({value}), 'data-x': ({value})}}, (await ready()) && {{'data-y': true}}); }}"
+                "import {{style}} from 'stillwind/{framework}'; async function* render() {{ return style({{class: {value}, '--x': ({value}), '--other': ({value})}}, (await ready()) && {{'--ready': true}}); }}"
             )).unwrap();
             let css = SourceFile::new(FileId(2), None, None, "@stillwind-slot utilities;").unwrap();
             let result = Compiler::compile_source(

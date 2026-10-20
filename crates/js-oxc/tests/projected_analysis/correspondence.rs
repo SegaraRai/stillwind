@@ -251,7 +251,7 @@ fn static_spreads_preserve_projected_raw_and_decoded_spans() {
     let input = projected_script(
         r"import {style} from 'stillwind/svelte'; const 前置 = '😀'; const props = style(
           [...[/*😀*/ 'fl\u0065x']],
-          {...{[`data-項目`]: /* retained value */ 前置}});",
+          {...{[`--項目`]: /* retained value */ 前置}});",
     );
     let original = Arc::clone(input.document().file());
     let analysis = OxcSourceAnalyzer.finalize(OxcSourceAnalyzer.scan_input(input), None);
@@ -281,11 +281,11 @@ fn static_spreads_preserve_projected_raw_and_decoded_spans() {
     let StyleInput::Class(ClassExpression::Group { entries, .. }) = &inputs[1] else {
         panic!("group");
     };
-    let GroupEntry::Attribute(attribute) = &entries[0] else {
-        panic!("attribute");
+    let GroupEntry::CustomProperty(property) = &entries[0] else {
+        panic!("custom property");
     };
-    assert_eq!(attribute.name.value, "data-項目");
-    assert_eq!(original.slice(attribute.value).unwrap(), "前置");
+    assert_eq!(property.name.value, "--項目");
+    assert_eq!(original.slice(property.value).unwrap(), "前置");
 }
 
 #[test]

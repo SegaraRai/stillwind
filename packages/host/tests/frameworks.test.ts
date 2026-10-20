@@ -267,7 +267,7 @@ const extra = [
   {
     extension: "vue",
     name: "nested template expressions",
-    source: `<script setup lang="ts">import { style } from "stillwind/vue"; const active = true, label = "hello", suffix="!", names=["a"];</script><template><div v-bind="style(active ? 'flex' : 'grid', { class: names.map(name => name + suffix), 'aria-label': JSON.stringify({ label }), 'data-note': '__VLS_ctx.label' })" /></template>`,
+    source: `<script setup lang="ts">import { style } from "stillwind/vue"; const active = true, label = "hello", suffix="!", names=["a"]; const note=(x:string)=>x;</script><template><div v-bind="style(active ? 'flex' : 'grid', { class: names.map(name => name + suffix), '--label': JSON.stringify({ label }), '--note': note('__VLS_ctx.label') })" /></template>`,
     imports: 1,
   },
   {
@@ -285,7 +285,7 @@ const extra = [
   {
     extension: "svelte",
     name: "store and reactive expressions",
-    source: `<script lang="ts">import { style } from "stillwind/svelte"; import {writable} from "svelte/store"; const enabled = writable(true); let label = "hello"; $: external = label + "!";</script><div {...style($enabled ? "flex" : "grid", { class: external, "aria-label": label })}></div>`,
+    source: `<script lang="ts">import { style } from "stillwind/svelte"; import {writable} from "svelte/store"; const enabled = writable(true); let label = "hello"; $: external = label + "!";</script><div {...style($enabled ? "flex" : "grid", { class: external, "--label": label })}></div>`,
     imports: 1,
   },
   {

@@ -23,7 +23,7 @@ export type {
   StyleKeyframesFrames,
   StyleKeyframesUse,
 } from "./keyframes.ts";
-export type { StyleAttributeName, StyleResult } from "./output.ts";
+export type { StyleResult } from "./output.ts";
 export type { StyleRefProjection } from "./projection.ts";
 export type {
   AnchorScope,

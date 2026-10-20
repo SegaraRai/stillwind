@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum RuleGroupInputErrorKind {
-    /// Element attribute supplied by an object entry.
-    #[error("element attribute")]
-    Attribute,
     /// Inline custom property supplied by an object entry.
     #[error("inline custom property")]
     CustomProperty,

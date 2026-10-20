@@ -31,7 +31,7 @@ fn parser_diagnostics_keep_external_detail_as_notes() {
 /// retry with another map without repairing state.
 #[test]
 fn ir_span_mapping_relocates_nested_expressions_transactionally() {
-    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const ref = style.ref('target'); const props = style(ref, active ? 'flex' : 'grid', {class: external, 'aria-label': label});").unwrap();
+    let source = SourceFile::new(FileId(1), None, None, "import {style} from 'stillwind/react'; const ref = style.ref('target'); const props = style(ref, active ? 'flex' : 'grid', {class: external, '--label': label});").unwrap();
     let parsed = parse(
         &source,
         &ModuleId::from("test.tsx"),

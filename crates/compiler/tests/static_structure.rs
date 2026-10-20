@@ -87,8 +87,8 @@ fn literal_spreads_and_fixed_keys_preserve_object_overwrites() {
         );
     }
     let (_, result) = compile(
-        "export const x = style({ ...{class: 'discarded', 'data-項目': 'old'}, \
-         [`data-項目`]: 'new', ['class']: 'kept', \
+        "export const x = style({ ...{class: 'discarded', '--項目': oldValue}, \
+         [`--項目`]: newValue, ['class']: 'kept', \
          ...{ 'hover:': 'a', ...{['hover:']: 'b'} } });",
         &format!("{css} @variant hover {{ &:hover {{ @slot; }} }}"),
     );
@@ -98,8 +98,11 @@ fn literal_spreads_and_fixed_keys_preserve_object_overwrites() {
     assert!(!result.css.contains("color:red;"), "{}", result.css);
     let code = &result.transforms[0].replacement;
     assert!(!code.contains("discarded"), "{code}");
-    assert!(!code.contains("'old'"), "{code}");
-    assert!(code.contains("'new'") && code.contains("'kept'"), "{code}");
+    assert!(!code.contains("oldValue"), "{code}");
+    assert!(
+        code.contains("newValue") && code.contains("'kept'"),
+        "{code}"
+    );
 }
 
 #[test]
@@ -111,7 +114,7 @@ fn inline_custom_properties_combine_with_variant_utilities() {
         let (_, result) = compile(
             &format!(
                 "const x = style({{'hover:': ['a', {{'--x': {value}}}], \
-                     'focus:': 'b', 'data-kept': 1}});"
+                     'focus:': 'b', '--kept': kept}});"
             ),
             css,
         );
@@ -126,7 +129,7 @@ fn inline_custom_properties_combine_with_variant_utilities() {
         assert!(result.css.contains(":focus{color:blue;}"), "{}", result.css);
         assert!(!result.css.contains("color:red;"), "{}", result.css);
         let output = &result.transforms[0].replacement;
-        assert!(output.contains("data-kept"), "{output}");
+        assert!(output.contains("--kept"), "{output}");
         assert!(!output.contains("--x"), "{output}");
     }
     let (_, result) = compile(
@@ -160,9 +163,9 @@ fn malformed_utility_requirement_keeps_its_definition_cause() {
 fn nested_variant_failure_labels_the_first_incompatible_leaf() {
     for (input, reason, label) in [
         (
-            "const x = style({'hover:': [flag && {'aria-busy': true}]});",
-            RuleGroupInputErrorKind::Attribute,
-            "aria-busy",
+            "const x = style({'hover:': [flag && {'--busy': true}]});",
+            RuleGroupInputErrorKind::CustomProperty,
+            "--busy",
         ),
         (
             "const x = style({'hover:': [{class: external}]});",
@@ -188,8 +191,8 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
                @variant hover { &:hover { @slot; } }";
     for key in ["hover:", "", ":"] {
         let code = format!(
-            "const x = style({{'{key}': ['a', {{'data-dropped': value}}], \
-                           'data-kept': 1}}, 'b');"
+            "const x = style({{'{key}': ['a', {{'--dropped': value}}], \
+                           '--kept': kept}}, 'b');"
         );
         for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
             let options = CompilerOptions {
@@ -211,9 +214,9 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
             assert!(result.css.contains("color:blue;"), "{}", result.css);
             assert!(!result.css.contains("color:red;"), "{}", result.css);
             let output = &result.transforms[0].replacement;
-            assert!(output.contains("data-kept"), "{output}");
+            assert!(output.contains("--kept"), "{output}");
             assert!(
-                !output.contains("data-dropped") && !output.contains("value"),
+                !output.contains("--dropped") && !output.contains("value"),
                 "{output}"
             );
         }
@@ -223,11 +226,7 @@ fn invalid_rule_groups_are_omitted_independently_of_lint_reporting() {
         );
         assert!(suppressed.diagnostics.is_empty(), "{suppressed:#?}");
         assert!(suppressed.lint_findings.is_empty(), "{suppressed:#?}");
-        assert!(
-            !suppressed.transforms[0]
-                .replacement
-                .contains("data-dropped")
-        );
+        assert!(!suppressed.transforms[0].replacement.contains("--dropped"));
     }
 }
 
@@ -236,8 +235,8 @@ fn opaque_spreads_and_dynamic_keys_remain_diagnostics() {
     for (input, expected) in [
         ("[...values]", LintDiagnostic::StyleArraySpread),
         ("...values", LintDiagnostic::StyleArgumentSpread),
-        ("{...values}", LintDiagnostic::AttributeSpread),
-        ("{[key]: 'a'}", LintDiagnostic::InvalidComputedAttribute),
+        ("{...values}", LintDiagnostic::StyleObjectSpread),
+        ("{[key]: 'a'}", LintDiagnostic::InvalidComputedStyleKey),
     ] {
         let (_, result) = compile(&format!("const x = style({input});"), "");
         assert!(
@@ -255,7 +254,7 @@ fn opaque_spreads_and_dynamic_keys_remain_diagnostics() {
 #[test]
 fn spread_values_keep_original_source_mappings() {
     let (source, result) = compile(
-        "const x = style({...{['data-項目']: label, [`--値`]: amount}}, [...['a']]);",
+        "const x = style({...{['--項目']: label, [`--値`]: amount}}, [...['a']]);",
         "@utility a { color:red; }",
     );
     assert!(result.diagnostics.is_empty(), "{result:#?}");

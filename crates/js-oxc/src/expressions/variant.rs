@@ -22,7 +22,6 @@ struct VariantInputError {
 impl From<RuleExpressionError> for VariantInputError {
     fn from(failure: RuleExpressionError) -> Self {
         let reason = match failure.reason {
-            RuleExpressionErrorKind::Attribute => RuleGroupInputErrorKind::Attribute,
             RuleExpressionErrorKind::CustomProperty => RuleGroupInputErrorKind::CustomProperty,
             RuleExpressionErrorKind::ExternalClass => RuleGroupInputErrorKind::ExternalClass,
         };

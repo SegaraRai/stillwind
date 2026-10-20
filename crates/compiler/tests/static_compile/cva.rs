@@ -105,7 +105,7 @@ fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
         "style.cva(null, { variants: { className: { a: 'p-2' } } })",
         "style.cva(null, { compoundVariants: [{ missing: 'a', class: 'block' }] })",
         "style.cva(null, { ...config })",
-        "style.cva({ 'data-state': 'ready' })",
+        "style.cva({ 'unknown': 'ready' })",
         "style.cva({ class: classes })",
         "style.cva(style('block'))",
         "style.cva(`p-${size}`)",

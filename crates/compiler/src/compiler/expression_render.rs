@@ -42,10 +42,11 @@ pub(crate) fn collect_class_arguments<'a>(value: &'a Emitted, arguments: &mut Ve
 /// Serializes a class-value tree without introducing framework property keys.
 ///
 /// Source mappings and branch/array order are retained; missing slots become `null`.
-/// Returns `None` for groups with ordinary/custom properties or no retained class
-/// entries. Opaque expressions are emitted verbatim, not normalized or type-checked.
-/// Deferred helpers visited before a failure may already have been registered, so
-/// production callers establish structural compatibility before rendering.
+/// Returns `None` for groups with custom properties, style payloads, or no retained
+/// class entries. Opaque expressions are emitted verbatim, not normalized or
+/// type-checked. Deferred helpers visited before a failure may already have been
+/// registered, so production callers establish structural compatibility before
+/// rendering.
 pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -> Option<Code> {
     match value {
         Emitted::Expression(expression) => Some(expression.render(runtime)),
@@ -89,12 +90,7 @@ pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -
             let mut parts = Vec::new();
             for entry in entries {
                 match entry {
-                    // Props and inline styles cannot live inside one class property.
-                    Some(
-                        EmittedEntry::Attribute(_)
-                        | EmittedEntry::CustomProperty(_)
-                        | EmittedEntry::StylePayload(_),
-                    ) => {
+                    Some(EmittedEntry::CustomProperty(_) | EmittedEntry::StylePayload(_)) => {
                         return None;
                     }
                     Some(EmittedEntry::Class(value)) => {

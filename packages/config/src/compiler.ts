@@ -18,12 +18,10 @@ export type UtilitySortOptions = {
   stringLiterals?: boolean;
   /**
    * Groups arrays, argument lists, and object entries by input kind. Defaults to true.
-   * Each ref's marker precedes its projections; bases, utilities, custom properties,
-   * and attributes follow. Each group retains its original order.
+   * Each ref's marker precedes its projections. Bases, utilities, and custom
+   * properties follow. Each group retains its original order.
    */
   arrays?: boolean;
-  /** Sorts aria-/data- names within adjacent attribute entries. Defaults to false. */
-  attributes?: boolean;
   /** Sorts utilities within each CSS `@apply` statement. Defaults to true. */
   applyUtilities?: boolean;
   /** Orders adjacent CSS `@apply` statements while preserving competing writes. Defaults to false. */
@@ -145,7 +143,6 @@ const namespace = v.pipe(
 const sortOptionsSchema = strictObject({
   stringLiterals: v.optional(v.boolean()),
   arrays: v.optional(v.boolean()),
-  attributes: v.optional(v.boolean()),
   applyUtilities: v.optional(v.boolean()),
   applyStatements: v.optional(v.boolean()),
   variantBlocks: v.optional(v.boolean()),
@@ -321,7 +318,6 @@ export function normalizeCompilerConfig(
         ? {
             stringLiterals: false,
             arrays: false,
-            attributes: false,
             applyUtilities: false,
             applyStatements: false,
             variantBlocks: false,
@@ -329,7 +325,6 @@ export function normalizeCompilerConfig(
         : {
             stringLiterals: config.sort?.stringLiterals ?? true,
             arrays: config.sort?.arrays ?? true,
-            attributes: config.sort?.attributes ?? false,
             applyUtilities: config.sort?.applyUtilities ?? true,
             applyStatements: config.sort?.applyStatements ?? false,
             variantBlocks: config.sort?.variantBlocks ?? false,

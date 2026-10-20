@@ -49,47 +49,6 @@ function local(s: (value: string) => unknown) { s("not-a-style-call"); }"#,
     assert_eq!(source.slice(first.span).unwrap(), "px-4 text-center");
 }
 
-/// Attribute entries keep the span of the value expression.
-#[test]
-fn extracts_aria_and_data_attributes_with_value_expression_spans() {
-    let source = SourceFile::new(
-        FileId(1),
-        None,
-        None,
-        r#"import { style } from "stillwind/react";
-const props = style({ "aria-busy": loading, "data-state": state });"#,
-    )
-    .unwrap();
-
-    let parsed = parse(
-        &source,
-        &ModuleId::from("test.tsx"),
-        &[],
-        &BTreeMap::default(),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-    );
-
-    assert!(parsed.diagnostics.is_empty(), "{:#?}", parsed.diagnostics);
-    let Some(StyleInput::Class(ClassExpression::Group { entries, .. })) =
-        parsed.module.style_calls[0].inputs.first()
-    else {
-        panic!("the first input should be an attribute object");
-    };
-    let entries = entries
-        .iter()
-        .map(|entry| match entry {
-            GroupEntry::Attribute(attribute) => attribute,
-            GroupEntry::Class(_) | GroupEntry::CustomProperty(_) => panic!("expected attributes"),
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(entries.len(), 2);
-    assert_eq!(entries[0].name.value, "aria-busy");
-    assert_eq!(source.slice(entries[0].value).unwrap(), "loading");
-    assert_eq!(entries[1].name.value, "data-state");
-    assert_eq!(source.slice(entries[1].value).unwrap(), "state");
-}
-
 /// Arrays stay arrays and variant wrappers keep their prefix text.
 #[test]
 fn flattens_arrays_and_retains_variant_prefixes() {
@@ -147,10 +106,6 @@ fn invalid_object_entries_report_errors_or_omit_variant_values_with_lints() {
     for (argument, reason) in [
         (r#"{ "&:hover": "flex" }"#, None),
         (
-            r#"{ "hover:": { "aria-busy": true } }"#,
-            Some(RuleGroupInputErrorKind::Attribute),
-        ),
-        (
             r#"{ "hover:": { class: "external" } }"#,
             Some(RuleGroupInputErrorKind::ExternalClass),
         ),
@@ -184,7 +139,7 @@ fn invalid_object_entries_report_errors_or_omit_variant_values_with_lints() {
             assert_eq!(parsed.lint_findings.len(), 1);
             assert_eq!(
                 parsed.lint_findings[0].diagnostic,
-                LintDiagnostic::InvalidAttributeKey
+                LintDiagnostic::InvalidStyleKey
             );
         }
     }

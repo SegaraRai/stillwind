@@ -1,7 +1,7 @@
 /** Rule and prop inputs, with checks for the positions that accept them. */
 
 import type { StyleKeyframesUse } from "./keyframes.ts";
-import type { StyleAttributeName, StyleResult } from "./output.ts";
+import type { StyleResult } from "./output.ts";
 import type { StyleRefProjection } from "./projection.ts";
 import type { StyleRef, StyleVariantKey } from "./refs.ts";
 import type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
@@ -13,8 +13,8 @@ import type { StyleViewTransition, StyleViewTransitionUse } from "./view-transit
  * Arrays and nested wrappers compose. False, null, and undefined contribute no rules.
  * Projection and animation-use calls must be written directly in the wrapper. The type
  * does not permit storing those calls for later use. Ref attachments, props
- * composition, attributes, external classes, and inline custom properties require
- * positions outside variant wrappers.
+ * composition, external classes, and inline custom properties require positions outside
+ * variant wrappers.
  */
 export type StyleVariantValue =
   | string
@@ -59,10 +59,9 @@ export interface StyleVariantObject {
 export type StyleCustomProperties = Readonly<Record<`--${string}`, StyleCustomPropertyValue>>;
 
 // Keep computed ref-variant objects valid when TypeScript widens their keys to string.
-type StyleObject = Partial<Record<StyleAttributeName, unknown>> &
-  (StyleVariantObject | (StyleVariantObject & Partial<StyleCustomProperties>)) & {
-    readonly class?: StillwindClassValue;
-  };
+type StyleObject = (StyleVariantObject | (StyleVariantObject & Partial<StyleCustomProperties>)) & {
+  readonly class?: StillwindClassValue;
+};
 
 /**
  * Inputs accepted by `style()`, including recursive arrays and conditional branches.
@@ -122,9 +121,7 @@ type CheckedVariantInput<Input> = StyleVariantValue extends Input
           }
         : StyleVariantValue;
 
-type StyleBaseProperties<Input> = Input extends StyleResult
-  ? Exclude<keyof Input, "data-__stillwindStyleIdentity" | "class" | "className">
-  : never;
+type StyleBaseProperties<Input> = Input extends StyleResult ? Extract<keyof Input, "style"> : never;
 
 type CheckedStyleInput<Input> = StyleArgument extends Input
   ? StyleArgument
@@ -157,13 +154,11 @@ type CheckedClassInput<Input> = Input extends readonly unknown[]
                 ? StyleVariantValue
                 : Key extends "" | StyleVariant | StyleVariantKey
                   ? CheckedVariantInput<Input[Key]>
-                  : Key extends StyleAttributeName
-                    ? unknown
-                    : Key extends `--${string}`
-                      ? StyleCustomPropertyValue
-                      : Key extends "class"
-                        ? StillwindClassValue
-                        : never;
+                  : Key extends `--${string}`
+                    ? StyleCustomPropertyValue
+                    : Key extends "class"
+                      ? StillwindClassValue
+                      : never;
             }
           : StyleArgument;
 

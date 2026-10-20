@@ -9,9 +9,7 @@ export function App() {
   if (typeof window !== "undefined") {
     window.setState = setState;
   }
-  const props = style("m-10", state.enabled && (state.nested ? "m-4" : "m-6"), {
-    "aria-busy": state.enabled,
-  });
+  const props = style("m-10", state.enabled && (state.nested ? "m-4" : "m-6"));
   if (typeof window !== "undefined") {
     window.classes = props.className;
   }
@@ -19,6 +17,7 @@ export function App() {
     "div",
     {
       id: "sample",
+      "aria-busy": state.enabled,
       ...props,
       style: {
         width: 300,

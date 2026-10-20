@@ -97,8 +97,6 @@ fn unsupported_operands_preserve_supported_siblings_at_every_reporting_level() {
             "...style('b')",
             "{...style('b')}",
             "[1 + style('b')]",
-            "{'hover:': {'data-ignored':style('b')} }",
-            "{'data-state':style('b')}",
             "{'--value':style('b')}",
             "{class:style('b')}",
             "{class:style.cva('b')}",
@@ -262,9 +260,9 @@ fn cva_removes_invalid_conditions_as_whole_compounds() {
 }
 
 #[test]
-fn props_bearing_bases_keep_their_class_and_report_ignored_props() {
+fn inline_styles_on_bases_keep_their_class_and_report_the_ignored_style() {
     let (_, result) = compile(
-        "const base=style({'data-value':1}); const x=style(base,'a');",
+        "const base=style({'--value':value}); const x=style(base,'a');",
         CSS,
         &CompilerOptions::default(),
     );
@@ -273,7 +271,7 @@ fn props_bearing_bases_keep_their_class_and_report_ignored_props() {
         result
             .lint_findings
             .iter()
-            .any(|finding| finding.diagnostic == LintDiagnostic::StyleBaseWithProps),
+            .any(|finding| finding.diagnostic == LintDiagnostic::StyleBaseWithInlineStyle),
         "{result:#?}"
     );
     assert!(result.css.contains("color:red"), "{}", result.css);

@@ -207,10 +207,6 @@ impl CallEmitter<'_> {
                         GroupEntry::Class(expression) => self
                             .emit_expression(expression, guard, wrappers, fold)
                             .map(EmittedEntry::Class),
-                        GroupEntry::Attribute(attribute) => {
-                            let property = self.render_attribute(attribute)?;
-                            Some(EmittedEntry::Attribute(property))
-                        }
                         GroupEntry::CustomProperty(property) => {
                             let custom_property = self.render_custom_property(property)?;
                             Some(EmittedEntry::CustomProperty(custom_property))

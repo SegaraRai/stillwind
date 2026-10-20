@@ -326,7 +326,6 @@ test("Node and browser preserve disabling and reenable explicit lint and sort op
       {
         stringLiterals: false,
         arrays: false,
-        attributes: false,
         applyUtilities: false,
         applyStatements: false,
         variantBlocks: false,
@@ -339,14 +338,13 @@ test("Node and browser preserve disabling and reenable explicit lint and sort op
           extends: [lintPresets.strict],
         },
         sort: {
-          attributes: true,
+          applyStatements: true,
         },
       },
       disabled,
       {
         stringLiterals: false,
         arrays: false,
-        attributes: false,
         applyUtilities: false,
         applyStatements: false,
         variantBlocks: false,
@@ -362,15 +360,14 @@ test("Node and browser preserve disabling and reenable explicit lint and sort op
           },
         },
         sort: {
-          attributes: true,
+          applyStatements: true,
         },
       },
       {
         stringLiterals: true,
         arrays: true,
-        attributes: true,
         applyUtilities: true,
-        applyStatements: false,
+        applyStatements: true,
         variantBlocks: false,
       },
       "deny",

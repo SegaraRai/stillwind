@@ -49,5 +49,5 @@ test("production and development runtimes share keys and valid materialization",
       [svelte.stillwindStyleKey]: {},
     }),
   ).toThrow(/different runtime/);
-  expect(react.stillwindMerge({ className: "a" })).toEqual({ className: "a" });
+  expect(react.stillwindMerge({ [react.stillwindClassKey]: "a" })).toEqual({ className: "a" });
 });

@@ -15,7 +15,7 @@ export type CvaRuleInput =
 /**
  * Statically written utilities, arrays, branches, CSS variants, and custom properties.
  * Custom properties remain inline, including literal values. Stored input objects,
- * spreads, declaration uses, attributes, and composed style results are unsupported.
+ * spreads, declaration uses, and composed style results are unsupported.
  */
 export type CvaInput =
   | string

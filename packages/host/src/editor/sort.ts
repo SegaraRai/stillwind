@@ -118,12 +118,9 @@ export function sortSource(
     }
   }
 
-  if (options.arrays !== false || options.attributes === true) {
+  if (options.arrays !== false) {
     const containers = index.containers
       .filter((container) => container.source === source)
-      .filter(
-        (container) => options.arrays !== false || ts.isObjectLiteralExpression(container.node),
-      )
       .sort((a, b) => a.node.end - a.node.pos - (b.node.end - b.node.pos));
     for (const container of containers) {
       const elements = ts.isArrayLiteralExpression(container.node)
@@ -149,12 +146,6 @@ export function sortSource(
             )
           : "";
         const order: InputOrderItem["order"] = index.inputOrder(source, node);
-        const enabledOrder =
-          options.arrays !== false || order.kind === "attributes"
-            ? order
-            : {
-                kind: "barrier" as const,
-              };
         const ambiguousComment = /^[^\r\n]*(?:\/\/|\/\*)/.test(text) && node.pos > elements.pos;
         return {
           node,
@@ -166,7 +157,7 @@ export function sortSource(
             !ambiguousComment &&
             source.document.code.slice(start, end) ===
               node.getSourceFile().text.slice(node.getFullStart(), node.end)
-              ? enabledOrder
+              ? order
               : {
                   kind: "barrier" as const,
                 },
@@ -193,7 +184,7 @@ export function sortSource(
         }
       }
 
-      const sorted = orderInputs(items, options.attributes === true, allows);
+      const sorted = orderInputs(items, allows);
       if (sorted.every((item, position) => item === items[position])) {
         continue;
       }

@@ -150,11 +150,6 @@ fn clsx_flattens_outer_arrays_but_keeps_guarded_arrays_and_objects() {
         replacement.contains("stillwindClsx((a) ? (["),
         "{replacement}"
     );
-    let attributes =
-        compile("const props = style(a ? { \"aria-busy\": f() } : { \"data-x\": 1 });");
-    let replacement = emitted(&attributes);
-    assert!(replacement.contains("\"aria-busy\":f()"), "{replacement}");
-    assert!(replacement.contains("\"data-x\":1"), "{replacement}");
 }
 
 #[test]
@@ -275,7 +270,7 @@ fn unsupported_forms_are_omitted_only_when_resolution_is_complete() {
 #[test]
 fn custom_properties_preserve_order_and_conditional_evaluation() {
     let result = compile(
-        r#"const props = style({"--x": first()}, a && {"--x": second(), "data-x": third()}, {"--y": fourth()});"#,
+        r#"const props = style({"--x": first()}, a && {"--x": second(), "--extra": third()}, {"--y": fourth()});"#,
     );
     let code = emitted(&result);
     for value in ["first()", "second()", "third()", "fourth()"] {

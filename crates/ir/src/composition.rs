@@ -114,8 +114,8 @@ pub fn validate_composition(
 /// Composition edges whose base supplies only part of its value to the derived call.
 ///
 /// The runtime merges only the class of a base in the receiving framework's class prop.
-/// A base that carries attributes or inline style keeps its class and loses the rest. A
-/// base from another framework contributes no class. Lowering keeps these operands,
+/// A base that carries inline style keeps its class and loses the rest. A base from
+/// another framework contributes no class. Lowering keeps these operands,
 /// [`Self::findings`] reports them, and [`Self::remove_foreign_bases`] removes the
 /// bases that contribute no class from CSS ordering.
 #[derive(Clone, Debug, Default)]
@@ -133,8 +133,8 @@ impl IncompatibleComposition {
         let mut edges = BTreeMap::new();
         for (derived, bases) in &graph.edges {
             for base in bases {
-                let reason = if graph.props.contains(base) {
-                    Some(LintDiagnostic::StyleBaseWithProps)
+                let reason = if graph.inline_styles.contains(base) {
+                    Some(LintDiagnostic::StyleBaseWithInlineStyle)
                 } else if graph
                     .frameworks
                     .get(base)
@@ -274,8 +274,8 @@ fn remove_bases(
 struct CompositionGraph {
     /// Bases consumed by each derived call. Calls without bases have an empty set.
     edges: BTreeMap<IdentityId, BTreeSet<IdentityId>>,
-    /// Calls whose payload carries attributes or inline style.
-    props: BTreeSet<IdentityId>,
+    /// Calls whose payload carries inline style.
+    inline_styles: BTreeSet<IdentityId>,
     /// Framework class property, such as `className`, of each call.
     frameworks: BTreeMap<IdentityId, &'static str>,
     /// Modules that each module depends on through cross-module composition edges.
@@ -288,7 +288,7 @@ impl CompositionGraph {
     fn new(modules: &[&ModuleAnalysis]) -> Self {
         let mut graph = Self {
             edges: BTreeMap::new(),
-            props: BTreeSet::new(),
+            inline_styles: BTreeSet::new(),
             frameworks: BTreeMap::new(),
             modules: BTreeMap::new(),
         };
@@ -297,7 +297,7 @@ impl CompositionGraph {
                 let derived = identity(module, call);
                 let mut dependencies = BTreeSet::new();
                 if inputs(&call.inputs, &mut dependencies) {
-                    graph.props.insert(derived.clone());
+                    graph.inline_styles.insert(derived.clone());
                 }
                 graph
                     .frameworks
@@ -379,13 +379,13 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
     props
 }
 
-/// Returns whether the expression carries non-class props (attributes).
+/// Returns whether the expression carries inline style.
 fn class_expression(expression: &ClassExpression) -> bool {
     match expression {
         ClassExpression::Rule(rule) => rule_expression(rule),
         ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
             GroupEntry::Class(expression) => class_expression(expression),
-            GroupEntry::Attribute(_) | GroupEntry::CustomProperty(_) => true,
+            GroupEntry::CustomProperty(_) => true,
         }),
         ClassExpression::Array(elements) => elements.iter().any(class_expression),
         ClassExpression::Conditional { branches, .. } => branches

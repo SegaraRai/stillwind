@@ -1191,8 +1191,8 @@
         {
           "path": "src/SaveButton.tsx",
           "language": "tsx",
-          "before": "import { style } from \"stillwind/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = style({\n  \"\": [\n    \"inline-flex items-center rounded-md px-4 progress-[.5] authored-progress\",\n    loading && \"opacity-60\",\n  ],\n  \":\": emphasized ? \"bg-accent\" : \"bg-muted\",\n  class: [\"legacy-button\", loading && \"is-loading\"],\n  \"aria-busy\": loading,\n  \"data-emphasis\": emphasized ? \"high\" : \"normal\",\n  \"hover:\": \"bg-accent/90\",\n});\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
-          "after": "import { stillwindClsx } from \"stillwind/runtime/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"sw_hpdco\",(loading) && (\"sw_hmw23\"),(emphasized) ? (\"sw_96vzq\") : (\"sw_ke6ey\"),\"legacy-button\",loading && \"is-loading\"),\"aria-busy\":loading,\"data-emphasis\":emphasized ? \"high\" : \"normal\"};\n\nexport function SaveButton() {\n  return <button {...buttonProps}>Save</button>;\n}\n",
+          "before": "import { style } from \"stillwind/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = style({\n  \"\": [\n    \"inline-flex items-center rounded-md px-4 progress-[.5] authored-progress\",\n    loading && \"opacity-60\",\n  ],\n  \":\": emphasized ? \"bg-accent\" : \"bg-muted\",\n  class: [\"legacy-button\", loading && \"is-loading\"],\n  \"hover:\": \"bg-accent/90\",\n});\n\nexport function SaveButton() {\n  return (\n    <button {...buttonProps} aria-busy={loading} data-emphasis={emphasized ? \"high\" : \"normal\"}>\n      Save\n    </button>\n  );\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/runtime/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"sw_hpdco\",(loading) && (\"sw_hmw23\"),(emphasized) ? (\"sw_96vzq\") : (\"sw_ke6ey\"),\"legacy-button\",loading && \"is-loading\")};\n\nexport function SaveButton() {\n  return (\n    <button {...buttonProps} aria-busy={loading} data-emphasis={emphasized ? \"high\" : \"normal\"}>\n      Save\n    </button>\n  );\n}\n",
           "css": ".sw_hpdco {\n  display: inline-flex;\n  padding-inline: var(--spacing-4);\n  align-items: center;\n  border-radius: var(--radius-md);\n  --button-progress: 0.5;\n  --authored-progress: 1;\n}\n@media (hover: hover) {\n  .sw_hpdco:hover {\n    background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);\n    @supports (color: color-mix(in lab, red, red)) {\n      background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);\n    }\n  }\n}\n.sw_hmw23 {\n  opacity: calc(60 * 1%);\n}\n.sw_96vzq {\n  background-color: var(--color-accent);\n}\n.sw_ke6ey {\n  background-color: var(--color-muted);\n}\n",
           "minifiedCss": ".sw_hpdco {\n  padding-inline: var(--spacing-4);\n  border-radius: var(--radius-md);\n  --button-progress: 0.5;\n  --authored-progress: 1;\n  align-items: center;\n  display: inline-flex;\n}\n@media (hover: hover) {\n  .sw_hpdco:hover {\n    background-color: #1187eee6;\n    @supports (color: color-mix(in lab, red, red)) {\n      background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);\n    }\n  }\n}\n.sw_hmw23 {\n  opacity: 0.6;\n}\n.sw_96vzq {\n  background-color: var(--color-accent);\n}\n.sw_ke6ey {\n  background-color: var(--color-muted);\n}\n",
           "diff": [
@@ -1204,9 +1204,9 @@
             },
             {
               "fromA": 160,
-              "toA": 494,
+              "toA": 419,
               "fromB": 176,
-              "toB": 389
+              "toB": 322
             }
           ]
         }

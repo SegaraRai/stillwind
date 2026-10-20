@@ -43,8 +43,8 @@ react.cva(null, {
 });
 // @ts-expect-error Class names cannot be selection axes.
 react.cva(null, { variants: { className: { small: "p-2" } } });
-// @ts-expect-error Attributes are outside the CVA input subset.
-react.cva({ "data-state": "ready" });
+// @ts-expect-error CVA inputs require recognized rule keys.
+react.cva({ unknown: "ready" });
 // @ts-expect-error Custom properties cannot occur under CSS variants.
 react.cva({ "hover:": { "--tone": "red" } });
 // @ts-expect-error Empty rule groups also exclude custom properties.

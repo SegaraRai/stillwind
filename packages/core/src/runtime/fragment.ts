@@ -42,14 +42,14 @@ export function serializeStyle(payload: unknown, styleFormat: "object" | "string
 }
 
 /**
- * Materializes fragments and ordinary props without mutating the inputs.
+ * Materializes class and style fragments without mutating the inputs.
  *
  * @param options - Framework conventions and the keys of the runtime that created the fragments.
- * @param values - Fragments, ordinary prop records without an own class prop, or nested arrays.
+ * @param values - Fragments or nested arrays.
  * Nonobjects are ignored. Materialized bases must first be converted with `toFragment`.
- * @returns Props with classes joined in traversal order. Later ordinary props and authored style payloads
- * replace earlier values. The last non-null fragment style overrides ordinary style props, and generated
- * custom properties are combined and applied last. Fragment symbol channels do not appear in the result.
+ * @returns Props with classes joined in traversal order. The last non-null fragment
+ * style supplies inline style, and generated custom properties are combined and applied
+ * last. Fragment symbol channels do not appear in the result.
  */
 export function mergeFragments(
   options: FragmentRuntimeOptions,
@@ -63,7 +63,6 @@ export function mergeFragments(
     stillwindCustomPropertiesKey,
   ] = options;
   const classes: string[] = [];
-  const props: Record<string, unknown> = {};
   const customProperties: Record<string, string> = {};
   let style: unknown;
   let hasStyle = false;
@@ -102,9 +101,6 @@ export function mergeFragments(
         }
       }
     }
-    for (const [key, entry] of Object.entries(value)) {
-      props[key] = entry;
-    }
   };
 
   for (const value of values) {
@@ -115,7 +111,6 @@ export function mergeFragments(
   if (classes.length > 0) {
     result[classProperty] = classes.join(" ");
   }
-  Object.assign(result, props);
   if (hasStyle) {
     const materialized = serializeStyle(style, styleFormat);
     if (materialized !== undefined) {
@@ -137,9 +132,8 @@ export function mergeFragments(
  * Converts a composition base to a fragment that contributes only its class.
  *
  * A base contributes the receiving framework's class prop, or the class channel of a
- * fragment from this runtime. Attributes, style payloads, custom properties, and the
- * class prop of another framework are ignored, so a base never changes props other than
- * the class.
+ * fragment from this runtime. Style payloads, custom properties, and the class prop of
+ * another framework are ignored, so a base never changes props other than the class.
  *
  * @param options - The receiving framework's prop conventions and fragment keys.
  * @param value - A non-null object containing materialized props or this runtime's

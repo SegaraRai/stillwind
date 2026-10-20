@@ -28,7 +28,7 @@ affect reporting without changing omission. Supply external class values through
 Each macro call lowers one to one into a runtime form. Optimizations apply only to the
 generated form. Invalid input also has a defined runtime meaning:
 
-- An invalid contribution, such as a utility, attribute, option, or entry, is empty.
+- An invalid contribution, such as a utility, option, or entry, is empty.
 - An invalid condition, such as a variant, a ref condition, or a media argument, is false.
 
 Omission is the result of this lowering. It is not recovery from an error, so lint
@@ -177,7 +177,7 @@ the use lowers into one use per branch. When every branch is supported, one use 
 its declaration from the receiver value.
 
 A composition operand passes its value to the runtime, which merges only the base's class
-in the receiving framework's class prop. A base with attributes or inline style keeps its
+in the receiving framework's class prop. A base with inline style keeps its
 class and loses the rest. A base from another framework contributes no class and has no
 CSS ordering dependency. Both cases report `invalid-style-composition` at the operand,
 including when only one candidate base is incompatible.
@@ -204,7 +204,7 @@ A call of `style()`, `style.cva()`, `style.ref()`, `style.keyframes()`,
 input is unsupported input. The enclosing lowering would keep the call in JavaScript
 without its own lowering. It therefore omits the smallest input that contains the call:
 the input itself, the whole conditional for a call in its test, or the object property
-for a call in its key or in a `class`, attribute, or custom-property value. A call
+for a call in its key or in a `class` or custom-property value. A call
 inside a function in the input is also omitted, because the copied source contains it. A
 nested `style()` call reports `NestedStyleCall`, and the other macros report
 `NestedMacroCall`. Both belong to `invalid-style-input`. Declaration macros accept only
@@ -220,7 +220,7 @@ Consume the following syntax directly at its supported input position in `style(
   `ref.at(query?)`, and ref.at tags belong in computed variant-object keys or
   supported utility-template interpolations.
 
-Attribute values and arguments to arbitrary functions cannot consume these uses,
+Arguments to arbitrary functions cannot consume these uses,
 even inside `style()`. Unconsumed keyframes calls, projections, and ref variants
 produce `SW10004`. Validation uses resolved bindings and checker receiver information.
 Public use types describe accepted input syntax; they do not guarantee independently
@@ -245,7 +245,7 @@ Do not store a projection such as `const use = transition.for(key)`.
 
 ## Runtime value expressions
 
-Conditions, `class`, custom properties, `aria-*` and `data-*` values, composition
+Conditions, `class`, custom properties, composition
 bases, dynamic identity selections, and the receiver and key of `transition.for(key)`
 must meet these conditions:
 
@@ -287,7 +287,7 @@ style(
     class: classes,
   },
   {
-    "data-value": (classes.active = false),
+    "--active": (classes.active = false),
   },
 );
 ```
@@ -334,7 +334,7 @@ variants, and container queries directly inside `style()`; do not store them in 
 
 Variant values accept utilities, ref projections, view-transition uses, keyframes
 uses, and arrays, conditionals, or variant objects containing those inputs.
-Ref attachments, external `class` values, inline custom properties, attributes,
+Ref attachments, external `class` values, inline custom properties,
 and style composition cannot occur in variant values. They can occur in other
 `style()` arrays and conditional branches. A dynamic view-transition name inside
 a CSS variant is stored in a conditional inline custom property; the variant's
@@ -342,7 +342,7 @@ rule emits `view-transition-name: var(...)`.
 
 The object keys `""` and `":"` group the same rule inputs without adding variants.
 Nested groups retain their enclosing variants. These keys also work in CVA values,
-which retain the CVA input restrictions. Attributes, custom properties, and external
+which retain the CVA input restrictions. Custom properties and external
 classes can be supplied beside the rule groups in a `style()` object.
 
 An incompatible input in a rule group produces `invalid-rule-group-input`, which
@@ -490,10 +490,9 @@ const selected = style(flag ? base : compact, "hover:m-30");
 ```
 
 Composing completed styles places base CSS before derived CSS. Ordinary
-specificity and importance still apply. Bases with additional props or runtime
-style payloads are omitted from the composition. Each omitted operand produces
-`invalid-style-composition`, which defaults to `deny`. The public types reject bases
-whose output contains known attributes or inline style. Dependency cycles remain
+specificity and importance still apply. Bases with inline style contribute only their
+class and report `invalid-style-composition`, which defaults to `deny`. The public types
+reject these bases. Dependency cycles remain
 compilation errors because the compiler cannot order their CSS. See
 [CSS emission](css-emission.md) and [CSS ordering](css-ordering.md) for transport
 and output order.
@@ -676,7 +675,7 @@ names of defined templates, and its preview shows the template.
 
 ## Custom properties
 
-`style()` accepts quoted `--*` fields alongside utility strings, attributes,
+`style()` accepts quoted `--*` fields alongside utility strings,
 external classes, and variant wrappers. Values remain JavaScript expressions:
 conditional values retain their short-circuiting. Evaluation is governed by the
 macro purity contract above.
@@ -749,8 +748,7 @@ the variant's utility reference it.
 React, Preact, Solid, and Vue receive an object in the returned `style` prop.
 Svelte and Astro receive a serialized style string. Custom properties overlay
 the generated style payload, preserving an unrelated view transition name.
-A composition base containing custom properties contributes only its class, as for
-other props-bearing bases.
+A composition base containing inline custom properties contributes only its class.
 
 ## Runtime CSS conditions
 

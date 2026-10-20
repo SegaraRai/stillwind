@@ -397,7 +397,6 @@ export class SourceIndex {
   /**
    * Classifies direct input syntax and bound identities without reading base bodies or CSS.
    * Arrays and objects receive a category only when all children share one non-ref category.
-   * Attribute containers omit a single name so name sorting cannot cross their boundary.
    *
    * @param source - Prepared source stored in this index.
    * @param node - Input or property in that source's checker AST.
@@ -415,12 +414,6 @@ export class SourceIndex {
       if (name.startsWith("--")) {
         return {
           kind: "customProperties",
-        };
-      }
-      if (!name.endsWith(":") && /^(?:aria|data)-/.test(name)) {
-        return {
-          kind: "attributes",
-          name,
         };
       }
       return name === "" || name.endsWith(":") || name === "class"
@@ -481,11 +474,7 @@ export class SourceIndex {
         first.kind !== "ref" &&
         orders.every((order) => order.kind === first.kind)
       ) {
-        return first.kind === "attributes"
-          ? {
-              kind: "attributes",
-            }
-          : first;
+        return first;
       }
     }
     return {
@@ -666,7 +655,7 @@ export class SourceIndex {
 
   /**
    * Indexes the static utility literals of one `style.css()` input with their group keys.
-   * Runtime values, attributes, and computed keys add no literals.
+   * Runtime values and computed keys add no literals.
    *
    * @param source - Prepared source stored in this index.
    * @param node - Input in that source's checker AST.

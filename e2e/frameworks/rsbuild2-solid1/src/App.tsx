@@ -26,9 +26,8 @@ export default function App() {
       </div>
       <div
         data-testid="main-conditional"
-        {...style("m-[40px]", phase() > 0 && (phase() > 1 ? "m-[16px]" : "m-[24px]"), {
-          "aria-busy": phase() > 0 ? "true" : "false",
-        })}
+        aria-busy={phase() > 0 ? "true" : "false"}
+        {...style("m-[40px]", phase() > 0 && (phase() > 1 ? "m-[16px]" : "m-[24px]"))}
       >
         Conditional
       </div>

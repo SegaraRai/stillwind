@@ -159,7 +159,7 @@ async function createPreprocessedProject() {
   const source = `import { style } from 'stillwind/react';
 // 日本語 🧭
 export const props = style('red', { '--x': progress },
-  { 'data-value': data },
+  { '--value': data },
   { '--y': progress });`;
   const entryFile = path.join(root, "entry.ts");
   writeFileSync(path.join(root, "root.css"), "@utility red {color:red} @stillwind-slot utilities;");

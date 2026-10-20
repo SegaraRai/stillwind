@@ -57,31 +57,30 @@ export type StyleMacro<Props = object> = {
    *
    * @internal
    */
-  <const Inputs extends readonly StyleArgument[], Id extends string>(
+  <Inputs extends readonly StyleArgument[], Id extends string>(
     ...inputs: [...Inputs, StillwindDeclarationIdentity<Id>] &
       [...CheckedStyleInputs<Inputs>, StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, StyleOutput<Props, Inputs>>;
 
   /**
-   * Compiles static utility branches and combines them with attributes, inline custom
+   * Compiles static utility branches and combines them with inline custom
    * properties, external classes, and completed style props.
    *
    * Value expressions must obey the purity contract of {@link StyleMacro}. Projection
    * and animation-use calls must appear directly at supported input positions. Ref
    * variants require computed keys or utility template substitutions.
    *
-   * @param inputs - Rule and prop inputs in composition order. Later prop values
+   * @param inputs - Rule and class inputs in composition order. Custom properties
    * replace earlier values, and classes are concatenated. Utility construction must be
    * static, and invalid utilities or unsupported syntax cause compilation errors.
    * @returns Framework props that may be stored, exported, passed, returned, or spread
    * onto an element. Store this result before passing it to another `style()` call.
-   * Direct nested calls are rejected. Attribute names and values follow the inputs, and
-   * conditional attributes are optional. The class prop is optional. The optional style
+   * Direct nested calls are rejected. The class prop is optional. The optional style
    * prop is present in the type when inputs include custom properties, participant
    * naming, or composed props that may contain inline style. CSS is emitted at build
    * time.
    */
-  <const Inputs extends readonly StyleArgument[]>(
+  <Inputs extends readonly StyleArgument[]>(
     ...inputs: Inputs & CheckedStyleInputs<Inputs>
   ): StyleResult<string, StyleOutput<Props, Inputs>>;
 

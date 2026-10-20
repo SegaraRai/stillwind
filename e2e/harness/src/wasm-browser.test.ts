@@ -91,7 +91,7 @@ test("browser editor sorting groups inputs and orders utility and attribute name
   const source = `import {style} from "stillwind/react";
 // 日本語 🦀
 const base=style({"hover:":"flex"}); const ref=style.ref();
-const value=style(["flex block",base,ref.asContainer(),ref,{"data-z":1,"aria-label":"x","data-a":2},{"--x":1}]);`;
+const value=style(["flex block",base,ref.asContainer(),ref,{"--x":1}]);`;
   const make = (code: string) =>
     new BrowserProject({
       root: "/workspace",
@@ -106,9 +106,7 @@ const value=style(["flex block",base,ref.asContainer(),ref,{"data-z":1,"aria-lab
         css: "theme.css",
         files: ["*.tsx"],
         typeFacts: false,
-        sort: {
-          attributes: true,
-        },
+        sort: {},
       },
     });
   const project = make(source);
@@ -120,9 +118,7 @@ const value=style(["flex block",base,ref.asContainer(),ref,{"data-z":1,"aria-lab
     for (const edit of [...result.edits!].reverse()) {
       sorted = sorted.slice(0, edit.start) + edit.newText + sorted.slice(edit.end);
     }
-    expect(sorted).toContain(
-      'style([ref,ref.asContainer(),base,"block flex",{"--x":1},{"aria-label":"x","data-a":2,"data-z":1}])',
-    );
+    expect(sorted).toContain('style([ref,ref.asContainer(),base,"block flex",{"--x":1}])');
     expect(
       (await project.query("/workspace/entry.tsx", {
         kind: "sort",

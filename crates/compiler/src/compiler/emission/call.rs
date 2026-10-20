@@ -1,9 +1,8 @@
 //! The walk over one call's style inputs.
 //!
 //! This file owns the entry point, the input dispatch, and the helpers every arm
-//! shares: source slicing, diagnostics, deferred runtime parts, and the attribute and
-//! custom-property captures. Class expressions and per-kind arms live in the sibling
-//! files.
+//! shares: source slicing, diagnostics, deferred runtime parts, and the custom-property
+//! captures. Class expressions and per-kind arms live in the sibling files.
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
@@ -14,8 +13,8 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintFinding, LintSettings, SourceFailureContext,
 };
 use stillwind_ir::{
-    AssetReference, AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry,
-    GroupEntry, StyleCall, StyleInput,
+    AssetReference, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
+    StyleCall, StyleInput,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, SourceError, SourceFile, Span};
@@ -264,13 +263,6 @@ impl<'a> CallEmitter<'a> {
                             let position = expression_position(expression);
                             self.emit_item(expression, position, guard);
                         }
-                        GroupEntry::Attribute(attribute) => {
-                            let property = self.render_attribute(attribute)?;
-                            self.parts.push(StyleEmissionPart::Attributes {
-                                property,
-                                position: attribute.value.start.0,
-                            });
-                        }
                         GroupEntry::CustomProperty(property) => {
                             let custom_property = self.render_custom_property(property)?;
                             self.parts.push(StyleEmissionPart::CustomProperties {
@@ -473,19 +465,6 @@ impl<'a> CallEmitter<'a> {
             name: (property.name.value.clone()),
             value: (self.slice(property.value)?).into(),
             span: property.value,
-        })
-    }
-
-    /// Captures an ordinary property and its original value occurrence without
-    /// conversion. An authored `style` stays an ordinary property. Returns `None` for
-    /// an unreadable value span.
-    pub(super) fn render_attribute(&mut self, attribute: &AttributeEntry) -> Option<Property> {
-        Some(Property {
-            static_value: None,
-            computed_value: None,
-            name: (attribute.name.value.clone()),
-            value: (self.slice(attribute.value)?).into(),
-            span: attribute.value,
         })
     }
 

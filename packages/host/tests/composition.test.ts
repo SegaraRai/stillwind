@@ -99,7 +99,7 @@ const props = style(
   { class: (events.push("external"), "outside") },
   select(),
   "blue",
-  { "data-x": (events.push("attribute"), 1) }
+  { "--x": (events.push("custom"), 1) }
 );
 globalThis.result = { props, events };`,
   });
@@ -109,8 +109,8 @@ globalThis.result = { props, events };`,
     events: string[];
     props: Record<string, unknown>;
   };
-  expect(Array.from(result.events)).toStrictEqual(["external", "base", "attribute"]);
-  expect(result.props["data-x"]).toBe(1);
+  expect(Array.from(result.events)).toStrictEqual(["external", "base", "custom"]);
+  expect((result.props.style as Record<string, string>)["--x"]).toBe("1");
   expect(String(result.props.className).split(" ").length).toBe(3);
   expect(JSON.parse(output.compositionTopology).length).toBe(2);
   await expect(
@@ -119,7 +119,7 @@ globalThis.result = { props, events };`,
 import { style} from "stillwind/react";
 
 const a = style("red");
-const b = style("green", { "data-x": 1 });
+const b = style("green", { "--x": flag });
 let selected: typeof a | typeof b = a;
 if (flag) {
   selected = b;
@@ -164,7 +164,7 @@ test("retains mutable candidates through exports and factories", async () => {
 import { style } from "stillwind/react";
 
 const a = style("red");
-const b = style("green", { "data-x": 1 } );
+const b = style("green", { "--x": flag } );
 let selected: typeof a | typeof b = a;
 if (flag) {
   selected = b;
@@ -194,7 +194,7 @@ const props = style(selected, "blue");
 import { style} from "stillwind/react";
 
 const a = style("red");
-const b = style("green", { "data-x": 1 });
+const b = style("green", { "--x": flag });
 
 export let selected: typeof a | typeof b = a;
 
@@ -220,7 +220,7 @@ test("parameterized factories preserve all base origins", async () => {
 import { style } from "stillwind/react";
 
 const a = style("red");
-const b = style("green", { "data-x": 1 });
+const b = style("green", { "--x": flag });
 
 function select(flag) {
   return flag ? a : b;
@@ -255,7 +255,7 @@ const props = style(identity(flag ? a : b), "blue");`,
     compile({
       "entry.ts": `
 import { style } from "stillwind/react";
-const a = style("red", { "data-x": 1 });
+const a = style("red", { "--x": flag });
 const b = style("green");
 const choice : { value: typeof a | typeof b } = { value: a };
 if (flag) {
@@ -342,7 +342,7 @@ globalThis.result = { a, b, props };
   }
 });
 
-test("omits unsupported bases and attributes that contain nested macro calls", async () => {
+test("omits unsupported bases and custom properties that contain nested macro calls", async () => {
   await expect(
     compile({
       "entry.ts":
@@ -357,7 +357,7 @@ test("omits unsupported bases and attributes that contain nested macro calls", a
   await expect(
     compile({
       "entry.ts":
-        'import { style } from "stillwind/react";\nconst props = style({ "data-x": style("red") });\n',
+        'import { style } from "stillwind/react";\nconst props = style({ "--x": style("red") });\n',
     }),
   ).resolves.toMatchObject({
     diagnostics: [],
@@ -427,7 +427,7 @@ test("composition follows imported and re-exported style producers", async () =>
     expect(result!.css).not.toMatch(/color:\s*red|color:\s*green/);
     files.set(
       "base.ts",
-      'import { style } from "stillwind/react";\nexport const a = style("red", { "data-x": 1 });\nexport const b = style("green");\n',
+      'import { style } from "stillwind/react";\nexport const a = style("red", { "--x": flag });\nexport const b = style("green");\n',
     );
     await expect(compile()).resolves.toMatchObject({
       diagnostics: [],

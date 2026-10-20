@@ -19,7 +19,7 @@ const selected = condition ? first : second;
 selected;
 export const selectedStyle = style('block');
 selectedStyle;`;
-  const code = `${sourceCode}\nconst ordinary={value:42};\nordinary;\nordinary.value;\nconst factory=()=>42;\nfactory();\nconst attributes=style({'data-ready':true});\nconst composed=style(attributes,'block');\nattributes;`;
+  const code = `${sourceCode}\nconst ordinary={value:42};\nordinary;\nordinary.value;\nconst factory=()=>42;\nfactory();\nconst inline=style({'--ready':true});\nconst composed=style(inline,'block');\ninline;`;
   const file = path.join(root, ".test-browser-facts.ts");
   const virtual = "/workspace/.test-browser-facts.ts";
   const assets = summarizeSource(code, "entry.ts", "ts", "module").assets;
@@ -60,7 +60,7 @@ selectedStyle;`;
         start: sourceCode.lastIndexOf("selectedStyle;"),
         end: sourceCode.lastIndexOf("selectedStyle;") + "selectedStyle".length,
       },
-      ...["ordinary", "ordinary.value", "factory()", "attributes"].map((expression) => ({
+      ...["ordinary", "ordinary.value", "factory()", "inline"].map((expression) => ({
         start: code.lastIndexOf(`${expression};`),
         end: code.lastIndexOf(`${expression};`) + expression.length,
       })),

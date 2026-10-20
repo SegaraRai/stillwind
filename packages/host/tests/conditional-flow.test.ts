@@ -265,7 +265,7 @@ test("inactive transition payloads preserve preceding styles in both formats", a
   }
 });
 
-test("common input branches select transitions, props, refs, and composed styles", async () => {
+test("common input branches select transitions, custom properties, refs, and composed styles", async () => {
   for (const framework of ["react", "svelte"]) {
     const output = await compile(
       [
@@ -274,7 +274,7 @@ test("common input branches select transitions, props, refs, and composed styles
         "const enabled = Boolean(globalThis.enabled), outer = Boolean(globalThis.outer);",
         'const transition = style.viewTransition({ old: "red" }); const key = "selected";',
         'const ref = style.ref("target"); const base = style("blue");',
-        'const props = style("green", enabled ? transition.for(key) : { "data-state": "off", "--progress": "1" }, outer && (enabled ? ref : base));',
+        'const props = style("green", enabled ? transition.for(key) : { "--progress": "1" }, outer && (enabled ? ref : base));',
       ].join("\n"),
     );
     for (const enabled of [false, true]) {
@@ -284,7 +284,6 @@ test("common input branches select transitions, props, refs, and composed styles
           enabled,
           outer,
         });
-        expect(props["data-state"]).toBe(enabled ? undefined : "off");
         const style = props.style;
         if (enabled) {
           const name =
@@ -352,19 +351,19 @@ test("short-circuiting leaves an unselected nested value unread", async () => {
   expect(String(enabled.props.className).split(" ").length).toBe(2);
 });
 
-test("pure attribute and guard calls materialize directly", async () => {
+test("pure custom-property and guard calls materialize directly", async () => {
   const output = await compile(
     [
       'import { style } from "stillwind/react";',
       "const events = [];",
       "const read = (value) => value;",
-      'const props = style({ "aria-busy": read(true) }, read(enabled) ? "blue" : "green");',
+      'const props = style({ "--busy": read(true) }, read(enabled) ? "blue" : "green");',
     ].join("\n"),
   );
   expect(output.code!).not.toMatch(/stillwindMerge/);
   const { props } = evaluate(output.code!, { enabled: true });
-  expect(Object.keys(props)).toStrictEqual(["className", "aria-busy"]);
-  expect(props["aria-busy"]).toBe(true);
+  expect(Object.keys(props)).toStrictEqual(["className", "style"]);
+  expect((props.style as Record<string, string>)["--busy"]).toBe(" ");
 });
 
 test("direct props and fragment materialization produce the same classes", async () => {
@@ -411,7 +410,7 @@ test("fragments stay inside the call expression", async () => {
     [
       'import {style} from "stillwind/react";',
       "const events = [];",
-      'const props = style({ "aria-busy": true }, enabled ? "blue" : "green", nested && "red");',
+      'const props = style({ "--busy": enabled }, enabled ? "blue" : "green", nested && "red");',
     ].join("\n"),
   );
   expect(output.code!).not.toMatch(/Symbol\(/);
@@ -422,7 +421,7 @@ test("fragments stay inside the call expression", async () => {
   const keyUses = nonImport.match(/stillwindClassKey/g)?.length ?? 0;
   expect(nonImport.match(/\[stillwindClassKey\]/g)?.length ?? 0).toBe(keyUses);
   const { props } = evaluate(output.code!, { enabled: true, nested: false });
-  expect(props["aria-busy"]).toBe(true);
+  expect((props.style as Record<string, string>)["--busy"]).toBe(" ");
   expect(String(props.className).split(" ").length).toBe(1);
 });
 
@@ -471,14 +470,14 @@ test("interleaved pure calls fold into one property record", async () => {
       'import { style } from "stillwind/react";',
       "const events = [];",
       "const read = (value) => value;",
-      'const props = style({ "--x": read(1) }, { "data-value": read(2) }, { "--y": read(3) });',
+      'const props = style({ "--x": read(1) }, { "--value": read(2) }, { "--y": read(3) });',
     ].join("\n"),
   );
   expect(output.code!).not.toMatch(/stillwindMerge/);
   const { props } = evaluate(output.code!, {});
-  expect(props["data-value"]).toBe(2);
   expect(Object.entries(props.style as object)).toStrictEqual([
     ["--x", "1"],
+    ["--value", "2"],
     ["--y", "3"],
   ]);
 });
@@ -516,22 +515,21 @@ test("pure folding and empty-branch removal preserve materialized values", async
       [
         `import { style } from "stillwind/${framework}";`,
         "const events = []; const read = (value) => value;",
-        'const props = style({ "--x": read(x) }, { "data-value": x }, { "--y": x + 1 }, enabled && [], "red");',
+        'const props = style({ "--x": read(x) }, { "--value": x }, { "--y": x + 1 }, enabled && [], "red");',
       ].join("\n"),
     );
     expect(output.code!).not.toMatch(/stillwindMerge|enabled/);
     const { props } = evaluate(output.code!, { ...helpers, x: 3 });
     expect(Object.keys(props)).toStrictEqual([
       framework === "react" ? "className" : "class",
-      "data-value",
       "style",
     ]);
-    expect(props["data-value"]).toBe(3);
     if (framework === "svelte") {
-      expect(props.style).toBe("--x:3;--y:4");
+      expect(props.style).toBe("--x:3;--value:3;--y:4");
     } else {
       expect(Object.entries(props.style as object)).toStrictEqual([
         ["--x", "3"],
+        ["--value", "3"],
         ["--y", "4"],
       ]);
     }
@@ -564,7 +562,7 @@ test("folded expressions map to distinct original occurrences through native out
   });
   for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
     for (const call of [
-      'style({ "--x": same },\r\n { "data-value": other },\r\n { "--y": same }, "red")',
+      'style({ "--x": same },\r\n { class: other },\r\n { "--y": same }, "red")',
       'style({ "--x": other }, { class: [same, [,, "😀日本", same]] }, "red")',
       'style(check() ? { "--x": first() } : { "--y": last() })',
       'style("red", enabled && "blue", { class: extra })',

@@ -292,7 +292,7 @@ export const props = style(named, "flex");"#,
         result
             .lint_findings
             .iter()
-            .any(|error| matches!(error.diagnostic, LintDiagnostic::StyleBaseWithProps)),
+            .any(|error| matches!(error.diagnostic, LintDiagnostic::StyleBaseWithInlineStyle)),
         "{:#?}",
         result.diagnostics
     );

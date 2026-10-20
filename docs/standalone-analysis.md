@@ -815,8 +815,8 @@ suppression uses the same rule names, for example
 
 `sort.arrays` groups direct arrays, `style()` argument lists, and object entries by
 input kind. It defaults to true. Ref groups retain their first appearance order, with
-each ref's marker before its projections. Bases, utilities, custom properties, and
-attributes follow. Entries in each category retain their original order. A base can
+each ref's marker before its projections. Bases, utilities, and custom properties
+follow. Entries in each category retain their original order. A base can
 contain variants, custom properties, or composed styles; the sorter uses its identity
 without inspecting its body or CSS.
 
@@ -832,9 +832,8 @@ It also disables sorting diagnostics and sorting fixes. Other lint rules and fix
 remain active. An inline `sort: false` replaces the project's sort options; an object
 override of false uses the default targets for omitted fields.
 
-`sort.attributes` defaults to false. Set it to true to sort adjacent `aria-` and `data-`
-property names. Duplicate names keep their original order. Spreads, unsupported
-expressions, ambiguous comments, and unmapped source regions delimit sortable input runs.
+Spreads, unsupported expressions, ambiguous comments, and unmapped source regions
+delimit sortable input runs.
 
 The CSS targets are independent:
 
@@ -866,7 +865,6 @@ export default defineConfig({
       sort: {
         arrays: true,
         stringLiterals: true,
-        attributes: true,
         applyUtilities: true,
         applyStatements: true,
         variantBlocks: true,

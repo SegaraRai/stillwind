@@ -27,8 +27,8 @@ pub use assets::{
     RefDefinition, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };
 pub use expression::{
-    AttributeEntry, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
-    RuleExpression, RuleExpressionError, RuleExpressionErrorKind,
+    ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry, RuleExpression,
+    RuleExpressionError, RuleExpressionErrorKind,
 };
 pub use module::{
     CssCall, CssInput, CvaCall, CvaReplacement, MacroImport, MacroImportSpecifier, MediaCall,

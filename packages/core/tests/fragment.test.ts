@@ -10,7 +10,6 @@ test("react merges fragments, arrays, and falsy values in argument order", () =>
   const frozenNext = Object.freeze({ className: "b" });
   const delta = Object.freeze({
     [react.stillwindClassKey]: "own",
-    "data-state": "ready",
   });
   expect(
     react.stillwindMerge(
@@ -20,7 +19,6 @@ test("react merges fragments, arrays, and falsy values in argument order", () =>
     ),
   ).toStrictEqual({
     className: "a b own",
-    "data-state": "ready",
   });
   expect(
     react.stillwindMerge(
@@ -33,7 +31,7 @@ test("react merges fragments, arrays, and falsy values in argument order", () =>
   expect(
     Object.getOwnPropertySymbols(react.stillwindMerge(react.stillwindToFragment(frozenBase))),
   ).toStrictEqual([]);
-  const first = { [react.stillwindClassKey]: "_a", "data-state": "ready" };
+  const first = { [react.stillwindClassKey]: "_a" };
   const second = { [react.stillwindClassKey]: "_b" };
   expect(
     react.stillwindMerge(first, null, [
@@ -49,27 +47,23 @@ test("react merges fragments, arrays, and falsy values in argument order", () =>
     ]),
   ).toStrictEqual({
     className: "_a _b _c",
-    "data-state": "ready",
   });
   expect(react.stillwindMerge()).toStrictEqual({});
   expect(react.stillwindMerge(undefined, false)).toStrictEqual({});
 });
 
-test("later props and style payloads win without leaking symbol keys", () => {
+test("later style payloads win without leaking symbol keys", () => {
   const merged = react.stillwindMerge(
     {
       [react.stillwindClassKey]: "_a",
       [react.stillwindStyleKey]: { "--x": "1", "--y": "1" },
-      title: "a",
     },
     {
       [react.stillwindStyleKey]: { "--y": "2" },
-      title: "b",
     },
   );
   expect(merged).toStrictEqual({
     className: "_a",
-    title: "b",
     style: { "--y": "2" },
   });
   expect(Object.getOwnPropertySymbols(merged)).toStrictEqual([]);
@@ -107,7 +101,6 @@ test("toFragment keeps only the class of a composition base", () => {
     style: {
       "--x": "1",
     },
-    "data-a": "1",
   });
   expect(fragment).toStrictEqual({
     [react.stillwindClassKey]: "_base",
@@ -166,13 +159,6 @@ test("class concatenation keeps falsy and non-string fragments empty", () => {
       },
     ),
   ).toStrictEqual({});
-  expect(
-    react.stillwindMerge({
-      title: "only",
-    }),
-  ).toStrictEqual({
-    title: "only",
-  });
 });
 
 test("custom properties merge independently and coexist with generated styles", () => {
