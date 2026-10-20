@@ -24,6 +24,14 @@ test("styles are inserted before a closing head tag split across stream chunks",
   expect(await response.text()).toBe(html.replace("</HEAD>", `${stylesheet}</HEAD>`));
 });
 
+test("styles are inserted before the closing head tag after text whose lowercase form is longer", async () => {
+  const html = "<html><head><title>İstanbul</title></head><body></body></html>";
+
+  const response = insertStyles(new Response(html), "<style></style>");
+
+  expect(await response.text()).toBe(html.replace("</head>", "<style></style></head>"));
+});
+
 test("inserting styles keeps the response status and cookies and drops stale body headers", () => {
   const html = "<html><head></head></html>";
   const originalResponse = new Response(html, {

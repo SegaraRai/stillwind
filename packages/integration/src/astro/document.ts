@@ -29,7 +29,7 @@ export function insertStyles(response: Response, styles: string): Response {
           return;
         }
         pending += text;
-        const index = pending.toLowerCase().indexOf("</head>");
+        const index = pending.search(/<\/head>/i);
         if (index < 0) {
           return;
         }
