@@ -66,7 +66,7 @@ pub enum LintDiagnostic {
     },
     /// A CVA value is outside the supported utility and custom-property forms.
     #[error(
-        "style.cva() values require static utilities, arrays, branches, CSS variants, or custom properties"
+        "style.cva() values require static utilities, arrays, CSS variants, or custom properties. Utility inputs cannot use && or ternary expressions"
     )]
     InvalidCvaInput,
     /// A style object contains a spread whose properties cannot be resolved.

@@ -1,6 +1,6 @@
 import type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
 
-/** Rule inputs accepted by variant keys and the keys `""` and `":"` in a CVA definition. */
+/** Static rule inputs accepted by variant keys and the keys `""` and `":"` in a CVA definition. */
 export type CvaRuleInput =
   | string
   | boolean
@@ -13,7 +13,10 @@ export type CvaRuleInput =
     };
 
 /**
- * Statically written utilities, arrays, branches, CSS variants, and custom properties.
+ * Statically written utilities, arrays, CSS variants, and custom properties.
+ * The compiler rejects `&&` and ternary expressions in utility inputs, including
+ * arrays and CSS variants. TypeScript checks value types and cannot enforce these
+ * syntax restrictions. Custom-property values may contain expressions.
  * Custom properties remain inline, including literal values. Stored input objects,
  * spreads, declaration uses, and composed style results are unsupported.
  */

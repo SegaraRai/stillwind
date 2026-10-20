@@ -23,13 +23,13 @@ const button = react.cva(
     variants: {
       size: {
         small: {
-          ":": active ? "p-2" : "p-3",
+          ":": ["p-2", { "focus:": "p-3" }],
         },
         large: "p-4",
       },
       disabled: {
         false: null,
-        true: active && "opacity-50",
+        true: "opacity-50",
       },
       count: {
         0: "p-0",
@@ -46,7 +46,7 @@ const button = react.cva(
         size: ["small", "large"],
         disabled: false,
         count: [0, 1],
-        className: "hover:shadow-md",
+        className: { "hover:": ["shadow-md", { "focus:": "underline" }] },
       },
     ],
   },
@@ -70,6 +70,7 @@ export type InferredSelection = Assert<
 >;
 
 button(selection);
+button({ disabled: active });
 button({
   size: undefined,
   class: ["external"],
@@ -168,7 +169,7 @@ react.cva([
   undefined,
   {
     "hover:": "shadow-md",
-    "--tone": "red",
+    "--tone": active ? "red" : "pink",
   },
 ]);
 react.cva();

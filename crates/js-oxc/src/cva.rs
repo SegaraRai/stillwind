@@ -12,7 +12,7 @@ use oxc::ast::ast::{
     ObjectPropertyKind, PropertyKey, PropertyKind,
 };
 use oxc::span::GetSpan;
-use oxc::syntax::{number::ToJsString, operator::LogicalOperator};
+use oxc::syntax::number::ToJsString;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::{CvaCall, CvaReplacement, StyleCall};
@@ -355,13 +355,6 @@ impl<'a> MacroExtractor<'a> {
                     .as_expression()
                     .is_some_and(|value| self.valid_cva_value(value))
             }),
-            Expression::ConditionalExpression(conditional) => {
-                self.valid_cva_value(&conditional.consequent)
-                    && self.valid_cva_value(&conditional.alternate)
-            }
-            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
-                self.valid_cva_value(&logical.right)
-            }
             Expression::ObjectExpression(object) => object.properties.iter().all(|entry| {
                 let ObjectPropertyKind::ObjectProperty(property) = entry else {
                     return false;

@@ -100,7 +100,7 @@ const button = style.cva("rounded", {
   },
   defaultVariants: { size: "sm", disabled: false, count: 0 },
   compoundVariants: [
-    { size: "sm", disabled: true, class: "shadow-md" },
+    { size: "sm", disabled: true, class: { "hover:": "shadow-md" } },
     { size: ["lg"], count: [0, 1], className: "underline" },
   ],
 });
@@ -116,6 +116,8 @@ style.cva<LimitedVariants>(null, { variants: { size: { sm: "text-xs" } } });
         "opacity-50",
         "p-0",
         "p-1",
+        "shadow-md",
+        "underline",
         "red",
         "pink",
       ]) {

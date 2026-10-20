@@ -236,8 +236,10 @@ export type StyleMacro<Props = object> = {
 
   /**
    * Compiles a CVA definition and returns a function that selects element props.
-   * Write the configuration and utility inputs directly in the call. Custom properties
-   * remain inline and value expressions obey this macro's purity contract.
+   * Write the configuration and utility inputs directly in the call. Utility inputs
+   * cannot contain `&&` or ternary expressions. Pass runtime conditions as variant
+   * selections. Custom properties remain inline and value expressions obey this
+   * macro's purity contract.
    *
    * @param base - Optional styles included in every selection.
    * @param config - Static variants, defaults, and compound conditions.

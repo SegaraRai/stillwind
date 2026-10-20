@@ -4,14 +4,14 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
-## Conditional CVA completions
+## Conditional utility completions
 
-CVA utility strings in conditional expressions, such as `enabled && "opacity-50"`,
-still suggest their own inferred strings. Evaluate suppression while preserving
-finite selection, default, and compound choices.
+Utility strings in `style()` conjunctions, such as `style(enabled && "opacity-50")`,
+still suggest their own inferred strings. Evaluate suppression while preserving ref
+template inputs and finite macro choices.
 
-Sources: [CVA declaration](../packages/core/src/macro/style.ts),
-[CVA inputs](../packages/core/src/macro/cva.ts).
+Sources: [style declaration](../packages/core/src/macro/style.ts),
+[input checks](../packages/core/src/macro/input.ts).
 
 ## Playground editor state
 

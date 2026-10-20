@@ -523,8 +523,10 @@ compiler does not validate document-wide pairing or name uniqueness at capture t
 
 `style.cva(base?, config?)` generates CSS for every option at compile time and
 creates a factory that returns selected props at runtime. Write its static
-configuration object directly in the call. Completed-style composition and
-declaration uses are not accepted as CVA inputs. See
+configuration object directly in the call. Utility inputs cannot contain JavaScript
+`&&` or ternary expressions, including inside arrays and CSS variants. Pass runtime
+conditions as variant selections. Completed-style composition and declaration uses
+are not accepted as CVA inputs. See
 [runtime](runtime.md#cva-factories) for selection, defaults, compounds, and examples.
 
 ## Media queries

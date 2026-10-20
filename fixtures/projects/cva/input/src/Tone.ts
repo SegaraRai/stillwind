@@ -1,6 +1,6 @@
 import { style } from "stillwind/svelte";
 
-export function createTone(tone: string, active: boolean) {
+export function createTone(tone: string) {
   return style.cva(
     [
       "text-[var(--tone)]",
@@ -15,7 +15,7 @@ export function createTone(tone: string, active: boolean) {
           fixed: {
             "--tone": "red",
           },
-          guarded: [active && "font-bold", { "hover:": "underline" }],
+          emphasized: ["font-bold", { "hover:": "underline" }],
         },
       },
       defaultVariants: {

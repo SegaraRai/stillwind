@@ -1,14 +1,14 @@
-import { stillwindClassKey, stillwindClsx, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva } from "stillwind/runtime/svelte";
+import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva } from "stillwind/runtime/svelte";
 
-export function createTone(tone: string, active: boolean) {
+export function createTone(tone: string) {
   return stillwindCva(
-    {[stillwindClassKey]:"sw_eloo8",[stillwindCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},
+    {[stillwindClassKey]:"sw_nr42u",[stillwindCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},
     {
       variants: {
         kind: {
           inherited: "",
           fixed: {[stillwindCustomPropertiesKey]:{"--tone":"red"}},
-          guarded: stillwindClsx("sw_b9uo2",(active) && ("sw_jqgrh")),
+          emphasized: "sw_jtu0n",
         },
       },
       defaultVariants: {

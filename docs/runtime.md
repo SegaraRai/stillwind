@@ -81,14 +81,19 @@ rejected. The class prop names are reserved axis names. Defaults and compound
 conditions must name declared axes and literal options.
 
 Style values accept literal utility strings, expression-free templates, arrays,
-boolean/null/undefined values, conjunctions, ternaries, ordinary CSS variant objects,
-and root custom properties. External-class objects, stored input values,
-declaration uses, and style composition are unsupported. CSS variants accept only
-rule inputs. Dynamic utility construction is rejected.
+boolean/null/undefined literals, ordinary CSS variant objects, and root custom
+properties. Utility inputs in the base, variant options, and compound classes cannot
+contain JavaScript `&&` or ternary expressions, including inside arrays and CSS
+variants. Pass runtime conditions as variant selections. The compiler enforces these
+syntax restrictions. TypeScript declarations check value types and cannot distinguish
+equivalent expressions. External-class objects, stored input values, declaration uses,
+and style composition are unsupported. CSS variants accept only rule inputs. Dynamic
+utility construction is rejected.
 
 Custom properties always remain inline, including literals, so later selected
-values replace earlier values without conflicting with CSS extraction. Dynamic
-values are captured when the factory is created and obey the ordinary macro purity
+values replace earlier values without conflicting with CSS extraction. Custom-property
+values may contain expressions, including `&&` and ternaries. Dynamic values are
+captured when the factory is created and obey the ordinary macro purity
 contract. Factory calls select captured values without re-evaluating their expressions.
 Each call returns fresh framework class and optional style props without fragment
 symbols. CVA results cannot be passed to `style()` for composition.

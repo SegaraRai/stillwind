@@ -56,6 +56,11 @@ fn cva_compiles_values_and_preserves_selection_configuration() {
         "{}",
         result.module_css
     );
+    assert!(
+        result.module_css.contains(":hover") && result.module_css.contains("box-shadow"),
+        "{}",
+        result.module_css
+    );
 }
 
 #[test]
@@ -63,12 +68,12 @@ fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
     let (source, result) = compile(
         r"
         import { style } from 'stillwind/svelte';
-        export const choose = style.cva(['block', { '--tone': tone }], {
+        export const choose = style.cva(['block', { '--tone': tone, '--contrast': enabled ? 'black' : 'white' }], {
             variants: {
                 kind: {
                     plain: true,
                     fixed: ['text-[var(--tone)]', { '--tone': 'red' }],
-                    guarded: enabled && { 'hover:': ['p-2', true] },
+                    hovered: { 'hover:': ['p-2', true] },
                 },
             },
         });
@@ -79,7 +84,7 @@ fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
     assert!(output.contains("stillwindCustomPropertiesKey"), "{output}");
     assert!(output.contains("stillwindCssValue(tone)"), "{output}");
     assert!(output.contains("\"red\""), "{output}");
-    assert!(output.contains("enabled"), "{output}");
+    assert!(output.contains("enabled ? 'black' : 'white'"), "{output}");
     assert!(
         result.module_css.contains("var(--tone)"),
         "{}",
@@ -95,6 +100,59 @@ fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
                     == "tone"
             })
     );
+}
+
+#[test]
+fn cva_rejects_javascript_conditionals_in_utility_definitions() {
+    for value in [
+        "enabled && 'p-2'",
+        "enabled ? 'p-2' : 'p-3'",
+        "['block', enabled && 'p-2']",
+        "['block', enabled ? 'p-2' : 'p-3']",
+        "{'hover:': enabled && 'p-2'}",
+        "{'hover:': [{'focus:': enabled ? 'p-2' : 'p-3'}]}",
+    ] {
+        for body in [
+            format!(
+                "style.cva({value}, {{ variants: {{ size: {{ small: {{'hover:': 'block'}} }} }} }})"
+            ),
+            format!(
+                "style.cva({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: {value} }} }} }})"
+            ),
+            format!(
+                "style.cva({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: 'text-sm' }} }}, \
+                 compoundVariants: [{{ size: 'small', class: {value} }}] }})"
+            ),
+            format!(
+                "style.cva({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: 'text-sm' }} }}, \
+                 compoundVariants: [{{ size: 'small', className: {value} }}] }})"
+            ),
+        ] {
+            let (source, result) = compile(&format!(
+                "import {{ style }} from 'stillwind/react'; const choose = {body};"
+            ));
+            assert!(result.diagnostics.is_empty(), "{body}: {result:#?}");
+            assert!(
+                result
+                    .lint_findings
+                    .iter()
+                    .any(|finding| finding.diagnostic == LintDiagnostic::InvalidCvaInput),
+                "{body}: {result:#?}"
+            );
+            assert!(
+                result.module_css.contains(":hover") && result.module_css.contains("display:block"),
+                "{body}: {}",
+                result.module_css
+            );
+            assert!(
+                !result.module_css.contains("padding:"),
+                "{body}: {}",
+                result.module_css
+            );
+            let output = render_transforms(&source, &result.transforms).unwrap().code;
+            assert!(!output.contains("enabled"), "{body}: {output}");
+        }
+    }
 }
 
 #[test]
