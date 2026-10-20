@@ -244,7 +244,7 @@ export type StyleMacro<Props = object> = {
    * @returns A reusable factory returning fresh framework class and style props.
    * Its results cannot be passed to style() for composition.
    */
-  cva<const Variants extends CvaVariants = Record<never, never>>(
+  cva<Variants extends CvaVariants = Record<never, never>>(
     base?: CvaInput,
     config?: CvaConfig<Variants>,
   ): (props?: CvaSelection<Variants> & CvaClassProps) => CvaResult<Props>;

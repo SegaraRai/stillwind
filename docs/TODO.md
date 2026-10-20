@@ -4,12 +4,13 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
-## String literal completions
+## Conditional CVA completions
 
-CVA variant utility inputs still suggest their own inferred strings. Evaluate completion
-suppression while preserving dynamic expressions and finite CVA choices.
+CVA utility strings in conditional expressions, such as `enabled && "opacity-50"`,
+still suggest their own inferred strings. Evaluate suppression while preserving
+finite selection, default, and compound choices.
 
-Sources: [style inputs](../packages/core/src/macro/input.ts),
+Sources: [CVA declaration](../packages/core/src/macro/style.ts),
 [CVA inputs](../packages/core/src/macro/cva.ts).
 
 ## Playground editor state

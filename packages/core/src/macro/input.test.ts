@@ -3,7 +3,10 @@ import path from "node:path";
 import ts from "typescript";
 import { expect, test } from "vite-plus/test";
 
-function checkCompletions(code: string, check: (completions: (text: string) => string[]) => void) {
+function checkCompletions(
+  code: string,
+  check: (completions: (text: string, after?: string) => string[]) => void,
+) {
   const fileName = path.join(import.meta.dirname, "completion.fixture.ts").replaceAll("\\", "/");
   const options: ts.CompilerOptions = {
     strict: true,
@@ -28,8 +31,15 @@ function checkCompletions(code: string, check: (completions: (text: string) => s
   });
   try {
     expect(service.getSemanticDiagnostics(fileName)).toEqual([]);
-    check((text) => {
-      const start = code.lastIndexOf(JSON.stringify(text));
+    check((text, after) => {
+      const context = after === undefined ? undefined : code.indexOf(after);
+      if (context !== undefined) {
+        expect(context).toBeGreaterThanOrEqual(0);
+      }
+      const start =
+        context === undefined
+          ? code.lastIndexOf(JSON.stringify(text))
+          : code.indexOf(JSON.stringify(text), context);
       expect(start).toBeGreaterThanOrEqual(0);
       const result = service.getCompletionsAtPosition(fileName, start + 2, {});
       return (result?.entries ?? [])
@@ -73,6 +83,53 @@ style(
       ]) {
         expect(completions(text)).toEqual([]);
       }
+    },
+  );
+});
+
+test("literal CVA values omit self-completions while selections, defaults, and compounds retain choices", () => {
+  checkCompletions(
+    `import { style } from "stillwind/react";
+declare const active: boolean;
+const button = style.cva("rounded", {
+  variants: {
+    size: { sm: "text-sm", lg: ["text-lg", { "hover:": "font-bold" }] },
+    disabled: { false: null, true: "opacity-50" },
+    count: { 0: "p-0", 1: "p-1" },
+    tone: { warm: { "--tone": active ? "red" : "pink" }, cool: null },
+  },
+  defaultVariants: { size: "sm", disabled: false, count: 0 },
+  compoundVariants: [
+    { size: "sm", disabled: true, class: "shadow-md" },
+    { size: ["lg"], count: [0, 1], className: "underline" },
+  ],
+});
+button({ size: "lg", disabled: true, count: 1 });
+type LimitedVariants = { size: { sm: "text-xs" | "text-base" } };
+style.cva<LimitedVariants>(null, { variants: { size: { sm: "text-xs" } } });
+`,
+    (completions) => {
+      for (const text of [
+        "text-sm",
+        "text-lg",
+        "font-bold",
+        "opacity-50",
+        "p-0",
+        "p-1",
+        "red",
+        "pink",
+      ]) {
+        expect(completions(text), text).toEqual([]);
+      }
+      for (const [text, after] of [
+        ["lg", "button("],
+        ["sm", "defaultVariants:"],
+        ["sm", "compoundVariants:"],
+        ["lg", "compoundVariants:"],
+      ] as const) {
+        expect(completions(text, after).toSorted(), after).toEqual(["lg", "sm"]);
+      }
+      expect(completions("text-xs").toSorted()).toEqual(["text-base", "text-xs"]);
     },
   );
 });
