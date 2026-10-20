@@ -16,9 +16,9 @@
 use stillwind_source::{Span, Spanned};
 
 use crate::{
-    AnchorScope, AssetReference, ClassExpression, ConditionalBranches, GroupEntry, KeyframesBody,
-    KeyframesDefinition, ModuleIr, RefDefinition, RefProjection, RuleExpression, StyleInput,
-    StyleVariant, ViewTransitionKey, ViewTransitionName,
+    AnchorScope, AssetReference, ClassExpression, GroupEntry, KeyframesBody, KeyframesDefinition,
+    ModuleIr, RefDefinition, RefProjection, RuleExpression, StyleInput, StyleVariant,
+    ViewTransitionKey, ViewTransitionName,
 };
 
 impl ModuleIr {
@@ -238,20 +238,8 @@ fn map_input<E>(
         }
         StyleInput::Conditional { test, branches } => {
             *test = map(*test)?;
-            match branches {
-                ConditionalBranches::And { consequent } => {
-                    for input in consequent {
-                        map_input(input, map)?;
-                    }
-                }
-                ConditionalBranches::Ternary {
-                    consequent,
-                    alternate,
-                } => {
-                    for input in consequent.iter_mut().chain(alternate) {
-                        map_input(input, map)?;
-                    }
-                }
+            for input in branches.values_mut().into_iter().flatten() {
+                map_input(input, map)?;
             }
         }
         StyleInput::Class(expression) => map_class_expression(expression, map)?,
@@ -335,20 +323,8 @@ fn map_class_expression<E>(
         }
         ClassExpression::Conditional { test, branches } => {
             *test = map(*test)?;
-            match branches {
-                ConditionalBranches::And { consequent } => {
-                    for expression in consequent {
-                        map_class_expression(expression, map)?;
-                    }
-                }
-                ConditionalBranches::Ternary {
-                    consequent,
-                    alternate,
-                } => {
-                    for expression in consequent.iter_mut().chain(alternate.iter_mut()) {
-                        map_class_expression(expression, map)?;
-                    }
-                }
+            for expression in branches.values_mut().into_iter().flatten() {
+                map_class_expression(expression, map)?;
             }
         }
         ClassExpression::Group { span, entries } => {
@@ -394,20 +370,8 @@ fn map_rule_expression<E>(
         }
         RuleExpression::Conditional { test, branches } => {
             *test = map(*test)?;
-            match branches {
-                ConditionalBranches::And { consequent } => {
-                    for element in consequent {
-                        map_rule_expression(element, map)?;
-                    }
-                }
-                ConditionalBranches::Ternary {
-                    consequent,
-                    alternate,
-                } => {
-                    for element in consequent.iter_mut().chain(alternate.iter_mut()) {
-                        map_rule_expression(element, map)?;
-                    }
-                }
+            for element in branches.values_mut().into_iter().flatten() {
+                map_rule_expression(element, map)?;
             }
         }
         RuleExpression::Variant { variant, inputs } => {
@@ -510,6 +474,7 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
+    use crate::ConditionalBranches;
 
     fn utilities(text: &str, start: u32) -> ClassExpression {
         RuleExpression::Utilities(Spanned::new(
@@ -560,7 +525,9 @@ mod tests {
             panic!("conditional")
         };
         assert_eq!(*test, Span::new(FileId(1), 110, 114));
-        let ClassExpression::Array(inner) = &branches.consequent()[0] else {
+        let Some(ClassExpression::Array(inner)) =
+            branches.values().next().and_then(|values| values.first())
+        else {
             panic!("array")
         };
         let nested = utility(&inner[0]);

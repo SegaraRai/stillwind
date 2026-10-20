@@ -10,11 +10,13 @@
 //! (when it cannot be a class value at all). Every produced span is a span of the
 //! analysed source.
 //!
-//! `input` dispatches style arguments and checker probes. `class` lowers class and
-//! object expressions. `variant` validates inputs allowed beneath CSS variants.
-//! `nested` omits inputs that would keep another macro call in JavaScript.
+//! [`input`] dispatches style arguments and checker probes. [`class`] lowers class and
+//! object expressions. [`table`] lowers lookups in array and object literals.
+//! [`variant`] validates inputs allowed beneath CSS variants. [`nested`] omits inputs
+//! that would keep another macro call in JavaScript.
 
 mod class;
 mod input;
 mod nested;
+mod table;
 mod variant;

@@ -36,9 +36,8 @@ fn collect_static_inputs(
             }
             StyleInput::Class(expression) => collect_static_class(expression, guarded, properties),
             StyleInput::Conditional { branches, .. } => {
-                collect_static_inputs(branches.consequent(), true, properties, composition);
-                if let Some(alternate) = branches.alternate() {
-                    collect_static_inputs(alternate, true, properties, composition);
+                for values in branches.values() {
+                    collect_static_inputs(values, true, properties, composition);
                 }
             }
             StyleInput::Composition { .. } => *composition = true,
@@ -59,11 +58,7 @@ fn collect_static_class(
             }
         }
         ClassExpression::Conditional { branches, .. } => {
-            for element in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for element in branches.values().flatten() {
                 collect_static_class(element, true, properties);
             }
         }

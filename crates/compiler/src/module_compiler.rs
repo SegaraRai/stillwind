@@ -409,9 +409,8 @@ fn collect(inputs: &[StyleInput], prefix: &str, candidates: &mut BTreeSet<LeanSt
                 collect_class(expression, prefix, candidates);
             }
             StyleInput::Conditional { branches, .. } => {
-                collect(branches.consequent(), prefix, candidates);
-                if let Some(alternate) = branches.alternate() {
-                    collect(alternate, prefix, candidates);
+                for values in branches.values() {
+                    collect(values, prefix, candidates);
                 }
             }
             _ => {}
@@ -430,11 +429,7 @@ fn collect_class(expression: &ClassExpression, prefix: &str, candidates: &mut BT
             }
         }
         ClassExpression::Conditional { branches, .. } => {
-            for expression in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for expression in branches.values().flatten() {
                 collect_class(expression, prefix, candidates);
             }
         }
@@ -471,11 +466,7 @@ fn collect_rule(expression: &RuleExpression, prefix: &str, candidates: &mut BTre
             }
         }
         RuleExpression::Conditional { branches, .. } => {
-            for expression in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for expression in branches.values().flatten() {
                 collect_rule(expression, prefix, candidates);
             }
         }

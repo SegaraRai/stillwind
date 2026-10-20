@@ -212,9 +212,9 @@ pub enum StyleInput {
     /// Selects complete style contributions, including classes, names, refs, and
     /// composition.
     Conditional {
-        /// Original condition expression.
+        /// Original condition expression or lookup key.
         test: Span,
-        /// Contributions selected by the source operator, in source order.
+        /// Contributions selected by the source form, in source order.
         branches: ConditionalBranches<Vec<Self>>,
     },
     /// `style(base)`: this call derives from another style call's payload.

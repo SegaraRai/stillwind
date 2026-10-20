@@ -190,7 +190,8 @@ Rule - a module emits in this order:
 3. Inside one call: the unconditional base unit first, then the conditional
    units in source order of their literals. Unconditional utilities form one
    base unit whatever argument position they were written in; nested conditions
-   use pre-order (outer before inner, consequent before alternate).
+   use pre-order (outer before inner, consequent before alternate, and
+   [table entries](macro-contract.md#table-lookups) in source order).
    A view transition follows the same rule: the class property is one
    declaration, so the unit that owns the element class list references one
    `var(--slot,)` per guarded use and each guarded unit fills its own slot. The
@@ -252,7 +253,7 @@ style("p-2", a && (b ? "p-4" : "m-2"));
 ```
 
 Tooling note: each class unit records the conditional tests that select it,
-outermost to innermost with polarity, so hosts can invalidate and analyze
+outermost to innermost with polarity or the selected table key, so hosts can invalidate and analyze
 conditional style without re-reading the source expression.
 
 ## L4 - module and chunk order

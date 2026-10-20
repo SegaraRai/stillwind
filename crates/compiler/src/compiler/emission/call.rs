@@ -13,8 +13,7 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintFinding, LintSettings, SourceFailureContext,
 };
 use stillwind_ir::{
-    AssetReference, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,
-    StyleCall, StyleInput,
+    AssetReference, ClassExpression, CustomPropertyEntry, GroupEntry, StyleCall, StyleInput,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, SourceError, SourceFile, Span};
@@ -234,18 +233,13 @@ impl<'a> CallEmitter<'a> {
                         position: test.start.0,
                     });
                 }
-                let branches = match branches {
-                    ConditionalBranches::And { consequent } => ConditionalBranches::And {
-                        consequent: self.emit_branch(consequent, *test, true, guard)?,
-                    },
-                    ConditionalBranches::Ternary {
-                        consequent,
-                        alternate,
-                    } => ConditionalBranches::Ternary {
-                        consequent: self.emit_branch(consequent, *test, true, guard)?,
-                        alternate: self.emit_branch(alternate, *test, false, guard)?,
-                    },
-                };
+                let branches = branches
+                    .as_ref()
+                    .try_map_arms(|arm, inputs| {
+                        self.emit_branch(inputs, GuardStep::new(*test, arm), guard)
+                            .ok_or(())
+                    })
+                    .ok()?;
                 if in_region {
                     self.begin_region();
                 }
@@ -382,19 +376,19 @@ impl<'a> CallEmitter<'a> {
         Some(())
     }
 
-    /// Collects one branch's contributions with its inherited CSS and diagnostic guard
-    /// path. Returns the branch-local parts in source order, or `None` if any required
-    /// input fails to lower. Restores the caller's contribution and guard stacks in
-    /// either case.
+    /// Collects one branch's contributions under `step` and its inherited CSS and
+    /// diagnostic guard path. Returns the branch-local parts in source order, or `None`
+    /// if any required input fails to lower. Restores the caller's contribution and
+    /// guard stacks in either case.
     fn emit_branch(
         &mut self,
         inputs: &[StyleInput],
-        test: Span,
-        when_true: bool,
+        step: GuardStep,
         guard: &mut Vec<GuardStep>,
     ) -> Option<Vec<StyleEmissionPart>> {
+        let test = step.test;
         let outer = std::mem::take(&mut self.parts);
-        guard.push(GuardStep { test, when_true });
+        guard.push(step);
         let outer_region = self.begin_region();
         let result = inputs
             .iter()

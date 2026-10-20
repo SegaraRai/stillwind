@@ -264,10 +264,22 @@ impl CallEmitter<'_> {
 
     /// Appends `node` wrapped in every source test in `guard`, outermost test first.
     /// Guard spans must address the original module source. Falsy uses receive an
-    /// empty truthy arm; truthy uses have no contribution on the falsy path. Repeated
-    /// test occurrences retain their identity so the resolver can compare decisions.
+    /// empty truthy arm; truthy uses have no contribution on the falsy path. A table
+    /// entry becomes one alternative of a choice at the lookup key, with a last
+    /// alternative for a key that names no entry. Repeated test occurrences retain
+    /// their identity so the resolver can compare decisions.
     pub(super) fn record_effect(&mut self, mut node: StyleEffect, guard: &[GuardStep]) {
         for step in guard.iter().rev() {
+            let site = UseId {
+                module: self.module_id.clone(),
+                span: step.test,
+            };
+            if let Some((index, count)) = step.entry {
+                let mut alternatives = vec![StyleEffect::All(Vec::new()); count + 1];
+                alternatives[index] = node;
+                node = StyleEffect::Choice { site, alternatives };
+                continue;
+            }
             let branches = if step.when_true {
                 ConditionalBranches::And {
                     consequent: Box::new(node),
@@ -279,10 +291,7 @@ impl CallEmitter<'_> {
                 }
             };
             node = StyleEffect::Branch {
-                condition: UseId {
-                    module: self.module_id.clone(),
-                    span: step.test,
-                },
+                condition: site,
                 branches,
             };
         }

@@ -1137,10 +1137,15 @@ export interface NativeGeneratedSymbol {
 
 /** One conditional test on the path that selects a generated class. */
 export interface NativeGuardStep {
-  /** The guard expression, which the runtime evaluates as written. */
+  /** The guard expression or lookup key, which the runtime evaluates as written. */
   test: NativeSpan
-  /** Whether the class applies when the guard holds. */
+  /** Whether the class applies when the guard holds. A table entry step uses `true`. */
   whenTrue: boolean
+  /**
+   * Property name of the table entry that the lookup key must select, or `None` for
+   * `&&` and `?:` tests.
+   */
+  key: string | null
 }
 
 /** One host generator function per family, all optional. */

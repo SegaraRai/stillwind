@@ -5,6 +5,8 @@
 //! helpers. Property-bearing groups belong to fragment rendering. These operations
 //! do not analyze source-value types or decide whether evaluations can be reordered.
 
+use lean_string::LeanStr;
+
 use stillwind_ir::ConditionalBranches;
 use stillwind_source::JoinText;
 
@@ -84,6 +86,15 @@ pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -
                         "(", test, ") ? (", consequent, ") : (", alternate, ")"
                     ])
                 }
+                ConditionalBranches::Select { entries } => {
+                    let mut values = Vec::new();
+                    for entry in entries {
+                        if let Some(value) = &entry.value {
+                            values.push((&entry.key, render_plain(value, runtime)?));
+                        }
+                    }
+                    Some(render_select(test, values))
+                }
             }
         }
         Emitted::Group(entries) => {
@@ -108,6 +119,32 @@ pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -
     }
 }
 
+/// Renders a lookup of `test` in a table that maps each key to its rendered value.
+///
+/// The table has no prototype, so a key that names no entry, including an inherited
+/// property name such as `toString`, selects `undefined`. Keys are property names and
+/// keep the entry order.
+pub(crate) fn render_select(test: &Code, entries: Vec<(&LeanStr, Code)>) -> Code {
+    let entries = entries
+        .into_iter()
+        .map(|(key, value)| {
+            // A literal `__proto__` key would set the prototype instead of an entry.
+            if key == "__proto__" {
+                code!["[", js_string(key), "]:", value]
+            } else {
+                code![js_string(key), ":", value]
+            }
+        })
+        .collect::<Vec<_>>();
+    code![
+        "({__proto__:null,",
+        Code::join(entries, ","),
+        "})[",
+        test,
+        "]"
+    ]
+}
+
 /// Checks whether a tree can remain a class-only atom without registering helpers.
 /// Rejects opaque source values and empty or property-bearing groups. Deferred calls
 /// and class-only arrays/branches qualify; this does not imply purity or nonemptiness.
@@ -116,11 +153,9 @@ pub(crate) fn is_plain(value: &Emitted) -> bool {
         Emitted::Expression(ValueExpr::Source(_)) => false,
         Emitted::Expression(_) | Emitted::Leaf { .. } => true,
         Emitted::Array(items) => items.iter().flatten().all(is_plain),
-        Emitted::Conditional { branches, .. } => branches
-            .consequent()
-            .iter()
-            .chain(branches.alternate().into_iter().flatten())
-            .all(|value| is_plain(value)),
+        Emitted::Conditional { branches, .. } => {
+            branches.values().flatten().all(|value| is_plain(value))
+        }
         Emitted::Group(entries) => {
             entries
                 .iter()

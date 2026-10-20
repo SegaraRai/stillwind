@@ -623,6 +623,37 @@ test("incomplete literals and outer variants retain original completion and hove
   }
 });
 
+test("indexed table values complete and hover as utilities, and sorting keeps entry order", async () => {
+  const source =
+    'import {style} from "stillwind/react"; declare const kind: "a" | "b"; declare const index: number; const card=style({"hover:":{a:"bg-brand",b:"block"}[kind]}); const list=style(["p-4","flex"][index]);';
+  const current = project(source);
+  try {
+    const end = source.indexOf("bg-brand") + "bg-br".length;
+    const items = (await current.query("/workspace/entry.tsx", {
+      kind: "completion",
+      offset: end,
+    }))!.completions!;
+    expect(items.find((item) => item.label === "bg-brand")).toMatchObject({
+      candidate: "hover:bg-brand",
+    });
+    expect(
+      (await current.query("/workspace/entry.tsx", {
+        kind: "hover",
+        offset: source.indexOf("bg-brand"),
+      }))!.hover?.css,
+    ).toContain("&:hover");
+    const sorted = applyEdits(
+      source,
+      (await current.query("/workspace/entry.tsx", {
+        kind: "sort",
+      }))!.edits!,
+    );
+    expect(sorted).toContain('["p-4","flex"][index]');
+  } finally {
+    await current.close();
+  }
+});
+
 test("sort targets are independent and base inputs retain their original order", async () => {
   const source =
     'import {style} from "stillwind/react"; const z=style("p-4"); const a=style("block"); const marker=style.ref(); const value=style([z,a,marker,"flex block"]);';

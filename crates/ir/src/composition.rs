@@ -25,8 +25,8 @@ use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, Span};
 
 use crate::{
-    ClassExpression, ConditionalBranches, GroupEntry, ModuleAnalysis, RuleExpression, StyleCall,
-    StyleInput, ViewTransitionKey, ViewTransitionName,
+    ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleCall, StyleInput,
+    ViewTransitionKey, ViewTransitionName,
 };
 
 /// One `derived` style call that consumes the payload of `base`.
@@ -209,18 +209,11 @@ impl IncompatibleComposition {
         for input in values {
             match input {
                 StyleInput::Array(values) => self.collect(values, derived, findings),
-                StyleInput::Conditional { branches, .. } => match branches {
-                    ConditionalBranches::And { consequent } => {
-                        self.collect(consequent, derived, findings);
+                StyleInput::Conditional { branches, .. } => {
+                    for values in branches.values() {
+                        self.collect(values, derived, findings);
                     }
-                    ConditionalBranches::Ternary {
-                        consequent,
-                        alternate,
-                    } => {
-                        self.collect(consequent, derived, findings);
-                        self.collect(alternate, derived, findings);
-                    }
-                },
+                }
                 StyleInput::Composition { candidates, value } => {
                     if let Some(reason) = candidates.iter().find_map(|base| {
                         self.edges.get(&StyleDependency {
@@ -247,18 +240,11 @@ fn remove_bases(
     for input in values {
         match input {
             StyleInput::Array(values) => remove_bases(values, derived, removed),
-            StyleInput::Conditional { branches, .. } => match branches {
-                ConditionalBranches::And { consequent } => {
-                    remove_bases(consequent, derived, removed);
+            StyleInput::Conditional { branches, .. } => {
+                for values in branches.values_mut() {
+                    remove_bases(values, derived, removed);
                 }
-                ConditionalBranches::Ternary {
-                    consequent,
-                    alternate,
-                } => {
-                    remove_bases(consequent, derived, removed);
-                    remove_bases(alternate, derived, removed);
-                }
-            },
+            }
             StyleInput::Composition { candidates, .. } => candidates.retain(|base| {
                 !removed.contains(&StyleDependency {
                     derived: derived.clone(),
@@ -358,9 +344,8 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
                 props |= inputs(values, dependencies);
             }
             StyleInput::Conditional { branches, .. } => {
-                props |= inputs(branches.consequent(), dependencies);
-                if let Some(alternate) = branches.alternate() {
-                    props |= inputs(alternate, dependencies);
+                for values in branches.values() {
+                    props |= inputs(values, dependencies);
                 }
             }
             StyleInput::Composition { candidates, .. } => {
@@ -388,11 +373,9 @@ fn class_expression(expression: &ClassExpression) -> bool {
             GroupEntry::CustomProperty(_) => true,
         }),
         ClassExpression::Array(elements) => elements.iter().any(class_expression),
-        ClassExpression::Conditional { branches, .. } => branches
-            .consequent()
-            .iter()
-            .chain(branches.alternate().into_iter().flatten())
-            .any(class_expression),
+        ClassExpression::Conditional { branches, .. } => {
+            branches.values().flatten().any(class_expression)
+        }
         ClassExpression::ClassValue { .. } => false,
     }
 }
@@ -409,11 +392,9 @@ fn rule_expression(expression: &RuleExpression) -> bool {
         | RuleExpression::Group {
             inputs: elements, ..
         } => elements.iter().any(rule_expression),
-        RuleExpression::Conditional { branches, .. } => branches
-            .consequent()
-            .iter()
-            .chain(branches.alternate().into_iter().flatten())
-            .any(rule_expression),
+        RuleExpression::Conditional { branches, .. } => {
+            branches.values().flatten().any(rule_expression)
+        }
         RuleExpression::Variant { inputs, .. } => inputs.iter().any(rule_expression),
         _ => false,
     }

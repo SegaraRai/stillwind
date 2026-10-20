@@ -134,13 +134,7 @@ impl<'a> MacroExtractor<'a> {
             ),
             _ => return lower(self, receiver),
         };
-        let empty = match &branches {
-            ConditionalBranches::And { consequent } => consequent.is_empty(),
-            ConditionalBranches::Ternary {
-                consequent,
-                alternate,
-            } => consequent.is_empty() && alternate.is_empty(),
-        };
+        let empty = branches.values().all(Vec::is_empty);
         (!empty).then(|| ClassExpression::Conditional {
             test: self.source_span(test),
             branches,

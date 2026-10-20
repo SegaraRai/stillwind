@@ -112,10 +112,14 @@ impl From<ModuleResourceReference> for NativeModuleResource {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeGuardStep {
-    /// The guard expression, which the runtime evaluates as written.
+    /// The guard expression or lookup key, which the runtime evaluates as written.
     pub test: NativeSpan,
-    /// Whether the class applies when the guard holds.
+    /// Whether the class applies when the guard holds. A table entry step uses `true`.
     pub when_true: bool,
+    /// Property name of the table entry that the lookup key must select, or `None` for
+    /// `&&` and `?:` tests.
+    #[napi(ts_type = "string")]
+    pub key: Option<NativeText>,
 }
 
 impl From<GuardStep> for NativeGuardStep {
@@ -123,6 +127,7 @@ impl From<GuardStep> for NativeGuardStep {
         Self {
             test: value.test.into(),
             when_true: value.when_true,
+            key: value.key.map(Into::into),
         }
     }
 }

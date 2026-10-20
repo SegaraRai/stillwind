@@ -10,9 +10,7 @@ use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::repeated_subject_selector;
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
-use stillwind_ir::{
-    ClassExpression, ConditionalBranches, GroupEntry, RuleExpression, StyleVariant,
-};
+use stillwind_ir::{ClassExpression, GroupEntry, RuleExpression, StyleVariant};
 use stillwind_source::{JoinText, Span};
 
 use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
@@ -150,40 +148,12 @@ impl CallEmitter<'_> {
                 let preceding = self.end_region(guard);
                 let test_span = *test;
                 let test = self.source_expression(test_span)?;
-                let branches = match branches {
-                    ConditionalBranches::And { consequent } => {
-                        guard.push(GuardStep {
-                            test: test_span,
-                            when_true: true,
-                        });
-                        let consequent = self.emit_sequence(consequent, guard, wrappers);
-                        guard.pop();
-                        ConditionalBranches::And {
-                            consequent: consequent.map(Box::new),
-                        }
-                    }
-                    ConditionalBranches::Ternary {
-                        consequent,
-                        alternate,
-                    } => {
-                        guard.push(GuardStep {
-                            test: test_span,
-                            when_true: true,
-                        });
-                        let consequent = self.emit_sequence(consequent, guard, wrappers);
-                        guard.pop();
-                        guard.push(GuardStep {
-                            test: test_span,
-                            when_true: false,
-                        });
-                        let alternate = self.emit_sequence(alternate, guard, wrappers);
-                        guard.pop();
-                        ConditionalBranches::Ternary {
-                            consequent: consequent.map(Box::new),
-                            alternate: alternate.map(Box::new),
-                        }
-                    }
-                };
+                let branches = branches.as_ref().map_arms(|arm, values| {
+                    guard.push(GuardStep::new(test_span, arm));
+                    let value = self.emit_sequence(values, guard, wrappers);
+                    guard.pop();
+                    value.map(Box::new)
+                });
                 let conditional = Some(Emitted::Conditional {
                     code: test,
                     branches,
@@ -314,27 +284,12 @@ impl CallEmitter<'_> {
                 let in_region = self.pending_region.is_some();
                 let preceding = self.end_region(guard);
                 let code = self.source_expression(*test)?;
-                let mut emit_arm = |values: &[RuleExpression], when_true| {
-                    guard.push(GuardStep {
-                        test: *test,
-                        when_true,
-                    });
+                let branches = branches.as_ref().map_arms(|arm, values| {
+                    guard.push(GuardStep::new(*test, arm));
                     let value = self.emit_rule_sequence(values, guard, wrappers);
                     guard.pop();
                     value.map(Box::new)
-                };
-                let branches = match branches {
-                    ConditionalBranches::And { consequent } => ConditionalBranches::And {
-                        consequent: emit_arm(consequent, true),
-                    },
-                    ConditionalBranches::Ternary {
-                        consequent,
-                        alternate,
-                    } => ConditionalBranches::Ternary {
-                        consequent: emit_arm(consequent, true),
-                        alternate: emit_arm(alternate, false),
-                    },
-                };
+                });
                 if in_region {
                     self.begin_region();
                 }

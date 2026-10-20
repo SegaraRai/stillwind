@@ -70,11 +70,7 @@ pub(super) fn collect_bases(input: &StyleInput, dependencies: &mut BTreeSet<Iden
             }
         }
         StyleInput::Conditional { branches, .. } => {
-            for input in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for input in branches.values().flatten() {
                 collect_bases(input, dependencies);
             }
         }
@@ -182,32 +178,25 @@ fn rule_plans(rule: &RuleExpression) -> Vec<RulePlan> {
 }
 
 /// Wraps each plan returned by `plans` in the original conditional shape, retaining it
-/// in its original branch and leaving the other branch empty. Consequent plans precede
-/// alternate plans. Neither the original branches nor their values are changed.
+/// in its original branch and leaving the other branches empty. Plans follow the order
+/// of [`ConditionalBranches::arms`]. Neither the original branches nor their values are
+/// changed.
 fn branch_plans<T: Clone>(
     branches: &ConditionalBranches<Vec<T>>,
     plans: impl Fn(&T) -> Vec<(Span, Option<CandidateContext>, T)>,
 ) -> Vec<(Span, Option<CandidateContext>, ConditionalBranches<Vec<T>>)> {
     let mut result = Vec::new();
-    for (when_true, values) in [
-        (true, Some(branches.consequent())),
-        (false, branches.alternate()),
-    ] {
-        for value in values.into_iter().flatten() {
+    for (selected, values) in branches.arms() {
+        for value in values {
             for (span, context, value) in plans(value) {
-                let consequent = if when_true {
-                    vec![value.clone()]
-                } else {
-                    Vec::new()
-                };
-                let branches = match branches {
-                    ConditionalBranches::And { .. } => ConditionalBranches::And { consequent },
-                    ConditionalBranches::Ternary { .. } => ConditionalBranches::Ternary {
-                        consequent,
-                        alternate: if when_true { Vec::new() } else { vec![value] },
-                    },
-                };
-                result.push((span, context, branches));
+                let isolated = branches.as_ref().map_arms(|arm, _| {
+                    if arm == selected {
+                        vec![value.clone()]
+                    } else {
+                        Vec::new()
+                    }
+                });
+                result.push((span, context, isolated));
             }
         }
     }
@@ -346,22 +335,11 @@ fn replace_rule_text(rule: &mut RuleExpression, span: Span, candidate: &str) {
     }
 }
 
-/// Applies `visit` to consequent entries followed by alternate entries, without
-/// changing the conditional shape. The visitor may mutate each entry in place.
+/// Applies `visit` to the entries of every branch in the order of
+/// [`ConditionalBranches::arms`], without changing the conditional shape. The visitor
+/// may mutate each entry in place.
 fn visit_branches<T>(branches: &mut ConditionalBranches<Vec<T>>, mut visit: impl FnMut(&mut T)) {
-    match branches {
-        ConditionalBranches::And { consequent } => {
-            for item in consequent {
-                visit(item);
-            }
-        }
-        ConditionalBranches::Ternary {
-            consequent,
-            alternate,
-        } => {
-            for item in consequent.iter_mut().chain(alternate) {
-                visit(item);
-            }
-        }
+    for item in branches.values_mut().into_iter().flatten() {
+        visit(item);
     }
 }

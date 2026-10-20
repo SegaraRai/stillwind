@@ -72,6 +72,18 @@ pub enum LintDiagnostic {
     /// A style object contains a spread whose properties cannot be resolved.
     #[error("style() object spreads require a literal object")]
     StyleObjectSpread,
+    /// A lookup in an array or object literal uses a table whose entries cannot be
+    /// determined statically. The whole lookup is omitted.
+    #[error(
+        "indexed style() tables require literal spreads and static keys other than `__proto__`"
+    )]
+    InvalidStyleTable,
+    /// An entry of an indexed table is not a plain property with a literal value. The
+    /// entry is omitted, so the lookup selects nothing for its key.
+    #[error(
+        "indexed style() table values must be literal utility strings, null, undefined, or false"
+    )]
+    InvalidStyleTableEntry,
     /// A style object entry is not a plain key-value property.
     #[error("style() object entries must be plain key-value properties")]
     InvalidStyleProperty,
@@ -742,6 +754,8 @@ impl LintDiagnostic {
             | Self::StyleArraySpread
             | Self::InvalidStyleInput
             | Self::StyleObjectSpread
+            | Self::InvalidStyleTable
+            | Self::InvalidStyleTableEntry
             | Self::InvalidStyleProperty
             | Self::InvalidComputedStyleKey
             | Self::InvalidStyleKey

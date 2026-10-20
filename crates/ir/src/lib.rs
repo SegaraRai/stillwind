@@ -60,10 +60,10 @@ pub use input::{
     SourceInput, SourceInputError, SourceProjection,
 };
 pub use model::{
-    AnchorScope, AssetReference, ClassExpression, ConditionalBranches, ContainerType, CssCall,
-    CssInput, CustomPropertyEntry, CvaCall, CvaReplacement, GroupEntry, KeyframesBody,
+    AnchorScope, AssetReference, BranchArm, ClassExpression, ConditionalBranches, ContainerType,
+    CssCall, CssInput, CustomPropertyEntry, CvaCall, CvaReplacement, GroupEntry, KeyframesBody,
     KeyframesBranch, KeyframesDefinition, KeyframesFrame, MacroImport, MacroImportSpecifier,
     MediaCall, ModuleImports, ModuleIr, RefCondition, RefDefinition, RefProjection, RuleExpression,
-    RuleExpressionError, RuleExpressionErrorKind, StyleCall, StyleInput, StyleVariant,
+    RuleExpressionError, RuleExpressionErrorKind, SelectEntry, StyleCall, StyleInput, StyleVariant,
     ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };

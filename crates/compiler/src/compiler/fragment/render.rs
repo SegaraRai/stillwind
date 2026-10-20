@@ -11,7 +11,7 @@ use lean_string::{LeanString, ToLeanString};
 use stillwind_ir::{ConditionalBranches, FrameworkSpec, StyleFormat};
 use stillwind_source::{JoinText, Span};
 
-use super::super::expression_render::{collect_class_arguments, render_plain};
+use super::super::expression_render::{collect_class_arguments, render_plain, render_select};
 use super::super::props::StyleEmission;
 use super::expression::{Atom, Emitted, Fragment, Property, ValueExpr};
 use super::fold::{Demand, Field, fold, known_record, record_fields, static_class};
@@ -185,6 +185,14 @@ impl Renderer<'_, '_> {
                         self.fragment(alternate),
                         ")"
                     ]
+                }
+                ConditionalBranches::Select { entries } => {
+                    let values = entries
+                        .iter()
+                        .filter(|entry| !matches!(&*entry.value, Fragment::Record(atoms) if atoms.is_empty()))
+                        .map(|entry| (&entry.key, self.fragment(&entry.value)))
+                        .collect();
+                    render_select(test, values)
                 }
             },
             Fragment::FromProps(expression) => {

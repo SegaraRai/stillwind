@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use stillwind_ir::BranchArm;
 use stillwind_semantic::IdentityId;
 
 use super::{StyleEffect, StyleEffects, StyleSupply, UseId};
@@ -109,18 +110,23 @@ impl<'a> StyleResolver<'a> {
                 condition,
                 branches,
             } => {
-                let mut visit = |node: &'a StyleEffect, arm| {
+                let mut visit = |node: &'a StyleEffect, arm, choices| {
                     let mut path = decisions.to_vec();
                     path.push(Decision {
                         site: condition.clone(),
                         arm,
-                        choices: 2,
+                        choices,
                     });
                     self.walk(node, owner, &path, base, active, out);
                 };
-                visit(branches.consequent(), 1);
-                if let Some(alternate) = branches.alternate() {
-                    visit(alternate, 0);
+                for (arm, node) in branches.arms() {
+                    let (arm, choices) = match arm {
+                        BranchArm::Truthy => (1, 2),
+                        BranchArm::Falsy => (0, 2),
+                        // A key that names no entry selects the extra arm.
+                        BranchArm::Entry { index, count, .. } => (index, count + 1),
+                    };
+                    visit(node, arm, choices);
                 }
             }
             StyleEffect::Choice { site, alternatives } => {
@@ -251,7 +257,8 @@ struct Decision {
     site: UseId,
     /// Zero-based selected arm, smaller than `choices`.
     arm: usize,
-    /// Number of possible arms; source branches use two.
+    /// Number of possible arms. Source branches use two, and a table lookup uses its
+    /// entry count plus one for a key that names no entry.
     choices: usize,
 }
 
@@ -277,9 +284,8 @@ fn collect_bases<'a>(node: &'a StyleEffect, out: &mut Vec<&'a IdentityId>) {
             }
         }
         StyleEffect::Branch { branches, .. } => {
-            collect_bases(branches.consequent(), out);
-            if let Some(alt) = branches.alternate() {
-                collect_bases(alt, out);
+            for node in branches.values() {
+                collect_bases(node, out);
             }
         }
         StyleEffect::Base(identity) => out.push(identity),

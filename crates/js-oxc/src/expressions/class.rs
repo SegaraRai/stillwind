@@ -129,6 +129,13 @@ impl<'a> MacroExtractor<'a> {
                 None
             }
             _ => {
+                if let Some(mut rules) = self.table_lookup(expression) {
+                    return match rules.len() {
+                        0 => None,
+                        1 => rules.pop().map(Into::into),
+                        _ => Some(RuleExpression::Array(rules).into()),
+                    };
+                }
                 if let Some(StyleInput::Class(class)) = self.collect_ref_projection(expression) {
                     return Some(class);
                 }

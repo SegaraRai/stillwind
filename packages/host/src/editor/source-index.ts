@@ -762,6 +762,10 @@ export class SourceIndex {
       this.#input(source, node.expression, prefix);
       return;
     }
+    if (ts.isElementAccessExpression(node) || ts.isPropertyAccessExpression(node)) {
+      this.#table(source, node.expression, prefix);
+      return;
+    }
     if (ts.isObjectLiteralExpression(node)) {
       this.#containers.push({
         source,
@@ -778,6 +782,42 @@ export class SourceIndex {
           continue;
         }
         this.#input(source, property.initializer, name === ":" ? prefix : prefix + name);
+      }
+    }
+  }
+
+  /**
+   * Records the literal values of an array or object literal that a style input indexes.
+   * Literal spreads are traversed, and keys are not utilities. A table is not a sortable
+   * container, because reordering its entries would change which entry an index selects.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Receiver of the lookup. Other receivers add nothing.
+   * @param prefix - Decoded enclosing group variants, including trailing colons.
+   */
+  #table(source: PreparedSource, node: ts.Node, prefix: string): void {
+    while (
+      ts.isParenthesizedExpression(node) ||
+      ts.isAsExpression(node) ||
+      ts.isSatisfiesExpression(node)
+    ) {
+      node = node.expression;
+    }
+    const values: ts.Node[] = ts.isArrayLiteralExpression(node) ? [...node.elements] : [];
+    if (ts.isObjectLiteralExpression(node)) {
+      for (const property of node.properties) {
+        if (ts.isPropertyAssignment(property)) {
+          values.push(property.initializer);
+        } else if (ts.isSpreadAssignment(property)) {
+          this.#table(source, property.expression, prefix);
+        }
+      }
+    }
+    for (const value of values) {
+      if (ts.isSpreadElement(value)) {
+        this.#table(source, value.expression, prefix);
+      } else if (ts.isStringLiteralLike(value)) {
+        this.#literal(source, value, prefix);
       }
     }
   }

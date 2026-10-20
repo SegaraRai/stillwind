@@ -124,9 +124,8 @@ fn collect_inputs<'a>(
             StyleInput::Array(inputs) => collect_inputs(inputs, prefix, literals),
             StyleInput::Class(expression) => collect_class(expression, prefix, literals),
             StyleInput::Conditional { branches, .. } => {
-                collect_inputs(branches.consequent(), prefix, literals);
-                if let Some(alternate) = branches.alternate() {
-                    collect_inputs(alternate, prefix, literals);
+                for values in branches.values() {
+                    collect_inputs(values, prefix, literals);
                 }
             }
             _ => {}
@@ -147,11 +146,7 @@ fn collect_class<'a>(
             }
         }
         ClassExpression::Conditional { branches, .. } => {
-            for expression in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for expression in branches.values().flatten() {
                 collect_class(expression, prefix, literals);
             }
         }
@@ -182,11 +177,7 @@ fn collect_rule<'a>(
             }
         }
         RuleExpression::Conditional { branches, .. } => {
-            for expression in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for expression in branches.values().flatten() {
                 collect_rule(expression, prefix, literals);
             }
         }

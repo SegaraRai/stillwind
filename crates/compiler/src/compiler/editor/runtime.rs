@@ -20,11 +20,7 @@ pub(super) fn collect_runtime_names(input: &StyleInput, keys: &mut BTreeMap<u32,
             }
         }
         StyleInput::Conditional { branches, .. } => {
-            for input in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for input in branches.values().flatten() {
                 collect_runtime_names(input, keys);
             }
         }
@@ -49,11 +45,7 @@ fn collect_class(class: &ClassExpression, keys: &mut BTreeMap<u32, Span>) {
             }
         }
         ClassExpression::Conditional { branches, .. } => {
-            for class in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for class in branches.values().flatten() {
                 collect_class(class, keys);
             }
         }
@@ -81,11 +73,7 @@ fn collect_rule(rule: &RuleExpression, keys: &mut BTreeMap<u32, Span>) {
             }
         }
         RuleExpression::Conditional { branches, .. } => {
-            for rule in branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-            {
+            for rule in branches.values().flatten() {
                 collect_rule(rule, keys);
             }
         }

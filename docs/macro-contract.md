@@ -497,6 +497,44 @@ compilation errors because the compiler cannot order their CSS. See
 [CSS emission](css-emission.md) and [CSS ordering](css-ordering.md) for transport
 and output order.
 
+## Table lookups
+
+```ts
+const icon = style({ file: "icon-mdi--file", folder: "icon-mdi--folder" }[kind]);
+const stripe = style(["text-red-400", "text-blue-400"][index % 2]);
+```
+
+A `style()` input can read one entry of an array or object literal with `table[key]`
+or `table.name`. This works wherever the input accepts classes or rules, including
+arrays, conditional branches, and variant values. The key selects the entry at
+runtime, and the entry contributes its utilities as if it were the input. A key that
+names no entry contributes nothing. This includes inherited property names such as
+`toString` and array properties such as `length`. A literal key selects its entry at
+compile time.
+
+Each entry has its own class unit. Like a conditional branch, it follows the base unit
+in [CSS order](css-ordering.md#l3---unit-order-inside-one-module), so an entry
+overrides an unconditional utility of the same call regardless of argument position.
+One lookup selects at most one entry, so the entries of one table never conflict
+with each other.
+
+Array entries use their decimal index as the key, and holes have no entry. Object
+keys are lookup keys; they are never read as utilities or variants. Keys can be
+identifiers, strings, numbers, or computed literals. A repeated key keeps the
+position of its first occurrence and the value of its last.
+
+Table values must be literal utility strings, expression-free templates, `null`,
+`undefined`, or `false`. The last three contribute nothing. Literal array and object
+spreads are expanded. Other forms omit part of the table, and `invalid-style-input`
+reports them:
+
+- A spread of a nonliteral value, a computed key that is not a literal, or the key
+  `__proto__` omits the whole lookup.
+- Any other value, a getter, or a method omits its entry.
+
+A table that is stored in a variable, returned by a function, or passed to a
+function is an ordinary value, not a table lookup.
+
 ## View transition
 
 ```tsx

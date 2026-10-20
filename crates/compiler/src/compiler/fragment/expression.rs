@@ -238,11 +238,9 @@ impl Emitted {
         match self {
             Self::Leaf { names } => names.iter().all(LeanStr::is_empty),
             Self::Array(items) => items.iter().flatten().all(Self::is_empty),
-            Self::Conditional { branches, .. } => branches
-                .consequent()
-                .iter()
-                .chain(branches.alternate().into_iter().flatten())
-                .all(|item| item.is_empty()),
+            Self::Conditional { branches, .. } => {
+                branches.values().flatten().all(|item| item.is_empty())
+            }
             Self::Group(entries) => entries
                 .iter()
                 .flatten()

@@ -75,9 +75,9 @@ impl<'a> MacroExtractor<'a> {
     /// Lowers one `style()` argument into zero or more IR inputs.
     ///
     /// The order of the attempts is the precedence order of the accepted forms: inputs
-    /// that would keep a nested macro call are omitted, then style candidates, ref
-    /// attachments, projections, view transitions, utility templates, and finally plain
-    /// class expressions.
+    /// that would keep a nested macro call are omitted, then literal table lookups,
+    /// style candidates, ref attachments, projections, view transitions, utility
+    /// templates, and finally plain class expressions.
     pub(crate) fn collect_style_expression(
         &mut self,
         expression: &Expression<'a>,
@@ -116,6 +116,10 @@ impl<'a> MacroExtractor<'a> {
                 return;
             }
             _ => {}
+        }
+        if let Some(rules) = self.table_lookup(expression) {
+            inputs.extend(rules.into_iter().map(|rule| StyleInput::Class(rule.into())));
+            return;
         }
         // A style result with an unknown declaration has a known runtime form, so it is
         // merged as a base. Its CSS has no ordering dependency on this call.

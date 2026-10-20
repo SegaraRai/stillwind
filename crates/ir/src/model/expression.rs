@@ -9,9 +9,10 @@ use super::{
     AnchorScope, AssetReference, RefDefinition, RefProjection, StyleVariant, ViewTransitionName,
 };
 
-/// Branches selected by a source conditional operator. The operator determines whether
-/// a falsy branch exists throughout parsing, lowering, and rendering. Deserialization
-/// rejects an `alternate` on `And` and requires it on `Ternary`.
+/// Branches selected by a source conditional operator or a lookup in a literal table.
+/// The source form determines which branches exist throughout parsing, lowering, and
+/// rendering. Deserialization rejects an `alternate` on `And` and requires it on
+/// `Ternary`.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(
     deny_unknown_fields,
@@ -32,43 +33,109 @@ pub enum ConditionalBranches<T> {
         /// Values selected when the test is falsy.
         alternate: T,
     },
+    /// `table[test]` for an array or object literal. The test value selects the entry
+    /// whose key equals the value converted to a property name. A value that names no
+    /// entry selects no values.
+    Select {
+        /// Entries in source order with unique keys, possibly empty.
+        entries: Vec<SelectEntry<T>>,
+    },
+}
+
+/// One entry of a literal table that a lookup test selects.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct SelectEntry<T> {
+    /// Property name of the entry. An array element uses its decimal index. The
+    /// JavaScript frontend never produces `__proto__`.
+    pub key: LeanStr,
+    /// Values selected when the lookup reads this entry.
+    pub value: T,
+}
+
+/// The test outcome that selects one branch of [`ConditionalBranches`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BranchArm<'a> {
+    /// The test is truthy.
+    Truthy,
+    /// The test is falsy.
+    Falsy,
+    /// The lookup reads the table entry with `key`.
+    Entry {
+        /// Property name of the selected entry.
+        key: &'a LeanStr,
+        /// Position of the entry in source order, smaller than `count`.
+        index: usize,
+        /// Number of entries in the table.
+        count: usize,
+    },
 }
 
 impl<T> ConditionalBranches<T> {
-    /// Returns the branch evaluated when the test is truthy for either operator.
-    pub fn consequent(&self) -> &T {
+    /// Returns each branch with the outcome that selects it, in source order: the
+    /// truthy branch, then any falsy branch, or the table entries.
+    pub fn arms(&self) -> Vec<(BranchArm<'_>, &T)> {
         match self {
-            Self::And { consequent } | Self::Ternary { consequent, .. } => consequent,
-        }
-    }
-
-    /// Returns the falsy branch for a ternary, or `None` for logical conjunction.
-    pub fn alternate(&self) -> Option<&T> {
-        match self {
-            Self::And { .. } => None,
-            Self::Ternary { alternate, .. } => Some(alternate),
-        }
-    }
-
-    /// Returns branches of `U` by mapping the truthy branch, then any falsy branch,
-    /// without changing the source operator.
-    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> ConditionalBranches<U> {
-        match self {
-            Self::And { consequent } => ConditionalBranches::And {
-                consequent: f(consequent),
-            },
+            Self::And { consequent } => vec![(BranchArm::Truthy, consequent)],
             Self::Ternary {
                 consequent,
                 alternate,
-            } => ConditionalBranches::Ternary {
-                consequent: f(consequent),
-                alternate: f(alternate),
-            },
+            } => vec![
+                (BranchArm::Truthy, consequent),
+                (BranchArm::Falsy, alternate),
+            ],
+            Self::Select { entries } => entries
+                .iter()
+                .enumerate()
+                .map(|(index, entry)| {
+                    (
+                        BranchArm::Entry {
+                            key: &entry.key,
+                            index,
+                            count: entries.len(),
+                        },
+                        &entry.value,
+                    )
+                })
+                .collect(),
         }
     }
 
-    /// Returns branches of `U` by mapping the truthy branch, then any falsy branch,
-    /// without changing the source operator.
+    /// Returns every branch in the order of [`Self::arms`].
+    pub fn values(&self) -> impl Iterator<Item = &T> {
+        self.arms().into_iter().map(|(_, value)| value)
+    }
+
+    /// Returns every branch for mutation in the order of [`Self::arms`].
+    pub fn values_mut(&mut self) -> Vec<&mut T> {
+        match self {
+            Self::And { consequent } => vec![consequent],
+            Self::Ternary {
+                consequent,
+                alternate,
+            } => vec![consequent, alternate],
+            Self::Select { entries } => entries.iter_mut().map(|entry| &mut entry.value).collect(),
+        }
+    }
+
+    /// Returns branches of `U` by mapping each branch in the order of [`Self::arms`],
+    /// without changing the source form or the table keys.
+    pub fn map<U>(self, mut f: impl FnMut(T) -> U) -> ConditionalBranches<U> {
+        self.map_arms(|_, value| f(value))
+    }
+
+    /// Returns branches of `U` by mapping each branch with the outcome that selects it,
+    /// in the order of [`Self::arms`]. The source form and the table keys stay the
+    /// same.
+    pub fn map_arms<U>(self, mut f: impl FnMut(BranchArm<'_>, T) -> U) -> ConditionalBranches<U> {
+        match self.try_map_arms(|arm, value| Ok::<_, std::convert::Infallible>(f(arm, value))) {
+            Ok(branches) => branches,
+            Err(never) => match never {},
+        }
+    }
+
+    /// Returns branches of `U` by mapping each branch in the order of [`Self::arms`],
+    /// without changing the source form or the table keys.
     ///
     /// # Errors
     ///
@@ -77,21 +144,55 @@ impl<T> ConditionalBranches<T> {
         self,
         mut f: impl FnMut(T) -> Result<U, E>,
     ) -> Result<ConditionalBranches<U>, E> {
+        self.try_map_arms(|_, value| f(value))
+    }
+
+    /// Returns branches of `U` by mapping each branch with the outcome that selects it,
+    /// in the order of [`Self::arms`].
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error produced by `f`, in branch order.
+    pub fn try_map_arms<U, E>(
+        self,
+        mut f: impl FnMut(BranchArm<'_>, T) -> Result<U, E>,
+    ) -> Result<ConditionalBranches<U>, E> {
         Ok(match self {
             Self::And { consequent } => ConditionalBranches::And {
-                consequent: f(consequent)?,
+                consequent: f(BranchArm::Truthy, consequent)?,
             },
             Self::Ternary {
                 consequent,
                 alternate,
             } => ConditionalBranches::Ternary {
-                consequent: f(consequent)?,
-                alternate: f(alternate)?,
+                consequent: f(BranchArm::Truthy, consequent)?,
+                alternate: f(BranchArm::Falsy, alternate)?,
             },
+            Self::Select { entries } => {
+                let count = entries.len();
+                ConditionalBranches::Select {
+                    entries: entries
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, SelectEntry { key, value })| {
+                            let value = f(
+                                BranchArm::Entry {
+                                    key: &key,
+                                    index,
+                                    count,
+                                },
+                                value,
+                            )?;
+                            Ok(SelectEntry { key, value })
+                        })
+                        .collect::<Result<_, E>>()?,
+                }
+            }
         })
     }
 
-    /// Returns the same operator and branches as shared references.
+    /// Returns the same source form and branches as shared references. Table keys are
+    /// cloned.
     pub fn as_ref(&self) -> ConditionalBranches<&T> {
         match self {
             Self::And { consequent } => ConditionalBranches::And { consequent },
@@ -101,6 +202,15 @@ impl<T> ConditionalBranches<T> {
             } => ConditionalBranches::Ternary {
                 consequent,
                 alternate,
+            },
+            Self::Select { entries } => ConditionalBranches::Select {
+                entries: entries
+                    .iter()
+                    .map(|entry| SelectEntry {
+                        key: entry.key.clone(),
+                        value: &entry.value,
+                    })
+                    .collect(),
             },
         }
     }
@@ -120,11 +230,12 @@ pub enum ClassExpression {
         /// Source elements in evaluation order, possibly empty.
         Vec<Self>,
     ),
-    /// `test ? a : b` or `test && a`; an empty branch contributes nothing.
+    /// `test ? a : b`, `test && a`, or `table[test]`; an empty branch contributes
+    /// nothing.
     Conditional {
-        /// The guard expression, emitted verbatim.
+        /// The guard expression or lookup key, emitted verbatim.
         test: Span,
-        /// Contributions selected by the source operator, in source order.
+        /// Contributions selected by the source form, in source order.
         branches: ConditionalBranches<Vec<Self>>,
     },
     /// CSS rules, including their variant wrappers and rule-only nested branches.
@@ -192,11 +303,11 @@ pub enum RuleExpression {
         /// Rule elements in source order, possibly empty.
         Vec<Self>,
     ),
-    /// A source condition selecting rule expressions.
+    /// A source condition or table lookup selecting rule expressions.
     Conditional {
-        /// Original condition expression.
+        /// Original condition expression or lookup key.
         test: Span,
-        /// Rules selected by the source operator.
+        /// Rules selected by the source form.
         branches: ConditionalBranches<Vec<Self>>,
     },
     /// A CSS variant applied to rule expressions.

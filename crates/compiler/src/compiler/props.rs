@@ -7,7 +7,7 @@
 use lean_string::LeanStr;
 use serde::Serialize;
 
-use stillwind_ir::ConditionalBranches;
+use stillwind_ir::{BranchArm, ConditionalBranches};
 use stillwind_source::Span;
 
 use super::fragment::{Emitted, Property};
@@ -18,10 +18,39 @@ use crate::{GeneratedSymbol, StyleEffects};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GuardStep {
-    /// The user's test expression, in the original source.
+    /// The user's test expression or lookup key, in the original source.
     pub test: Span,
-    /// Whether the contribution is selected when the test is truthy.
+    /// Whether the contribution is selected when the test is truthy. A table entry step
+    /// uses `true`, and `key` names the entry.
     pub when_true: bool,
+    /// Property name of the table entry that the lookup key must select. Absent for
+    /// `&&` and `?:` tests.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<LeanStr>,
+    /// Position of the selected entry and the number of table entries. Present exactly
+    /// when `key` is present.
+    #[serde(skip)]
+    pub(crate) entry: Option<(usize, usize)>,
+}
+
+impl GuardStep {
+    /// Returns the step that selects `arm` of the conditional or table at `test`.
+    pub(crate) fn new(test: Span, arm: BranchArm<'_>) -> Self {
+        match arm {
+            BranchArm::Truthy | BranchArm::Falsy => Self {
+                test,
+                when_true: arm == BranchArm::Truthy,
+                key: None,
+                entry: None,
+            },
+            BranchArm::Entry { key, index, count } => Self {
+                test,
+                when_true: true,
+                key: Some(key.clone()),
+                entry: Some((index, count)),
+            },
+        }
+    }
 }
 
 /// One class a callsite can apply, with the tests that select it.
