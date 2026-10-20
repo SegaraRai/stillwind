@@ -262,16 +262,16 @@ pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
 /// is what `compare_variant_sequences` uses as the ordering bit of a variant stack.
 #[must_use]
 pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
-    extract_named_blocks(&strip_css_comments(css), "@stillwind-variant")
+    extract_named_blocks(css, "@stillwind-variant")
         .into_iter()
         .enumerate()
         .filter_map(|(builtin_order, (header, body))| {
-            let header = parse_builtin_variant_header(&header)?;
+            let header = parse_builtin_variant_header(strip_css_comments(&header).trim())?;
             Some(CustomVariant {
                 name: header.name,
                 wildcard: header.wildcard,
                 selector: (LeanString::new()).into(),
-                body,
+                body: strip_css_comments(&body).trim().into(),
                 builtin_order: Some(builtin_order),
                 sort: header.sort,
                 value_type: header.value_type,

@@ -1,35 +1,66 @@
 //! Directive-block scanning for Stillwind's at-rule dialect.
 //!
 //! These helpers read `@directive header { body }` and `@directive name;` forms out of
-//! raw CSS text. Extraction uses cssparser tokens; stripping and brace helpers use
-//! simpler textual scans with different handling of strings, escapes and comments. They
-//! operate without understanding the declarations they carry: callers decide what a
-//! body means.
+//! raw CSS text. Extraction and comment stripping use cssparser tokens; brace helpers
+//! use simpler textual scans with different handling of strings, escapes and comments.
+//! They operate without understanding the declarations they carry: callers decide what
+//! a body means.
 //!
-//! Two behaviours matter for callers. Malformed input is never half-consumed: an
-//! unclosed block is skipped (or, when stripping, preserved from the directive onward)
-//! so the CSS parser can still report it. The textual stripping helpers specially skip
-//! `{modifier}` markers; that exception is not shared by the token scanner.
+//! Malformed input is never half-consumed: an unclosed block is skipped, and an
+//! unterminated comment is kept, so the CSS parser can still report it.
 
 use std::ops::Range;
 
-use cssparser::{ParseError, Parser, Token};
+use cssparser::{ParseError, Parser, SourcePosition, Token};
 use lean_string::{LeanStr, LeanString};
 
-/// Removes complete block comments and preserves an unterminated comment tail.
+/// Removes complete comments and keeps all other text unchanged.
+///
+/// Strings and unquoted URLs are tokens, so `/*` inside them is not a comment. An
+/// unterminated comment is kept.
 pub fn strip_css_comments(css: &str) -> LeanString {
     let mut output = LeanString::with_capacity(css.len());
-    let mut remaining = css;
-    while let Some(start) = remaining.find("/*") {
-        output.push_str(&remaining[..start]);
-        let Some(end) = remaining[start + 2..].find("*/") else {
-            output.push_str(&remaining[start..]);
-            return output;
-        };
-        remaining = &remaining[start + 2 + end + 2..];
-    }
-    output.push_str(remaining);
+    copy_without_comments(&mut Parser::new(css), &mut output);
     output
+}
+
+/// Appends the remaining input of `parser` to `output` without complete comments,
+/// including the contents of nested blocks.
+fn copy_without_comments(parser: &mut Parser<'_>, output: &mut LeanString) {
+    loop {
+        let start = parser.position();
+        let block = match parser.next_including_whitespace_and_comments() {
+            Err(_) => return,
+            Ok(Token::Comment(_)) => {
+                let comment = parser.slice_from(start);
+                // `/*/` ends with `*/` but is unterminated.
+                if comment.len() < 4 || !comment.ends_with("*/") {
+                    output.push_str(comment);
+                }
+                continue;
+            }
+            Ok(
+                Token::Function(_)
+                | Token::ParenthesisBlock
+                | Token::SquareBracketBlock
+                | Token::CurlyBracketBlock,
+            ) => true,
+            Ok(_) => false,
+        };
+        output.push_str(parser.slice_from(start));
+        if block {
+            let mut contents_end: Option<SourcePosition> = None;
+            let _ = parser.parse_nested_block(|nested| {
+                copy_without_comments(nested, output);
+                contents_end = Some(nested.position());
+                Ok::<_, ParseError<()>>(())
+            });
+            if let Some(contents_end) = contents_end {
+                // The closing delimiter, or nothing for a block closed by the end of input.
+                output.push_str(parser.slice(contents_end..parser.position()));
+            }
+        }
+    }
 }
 
 /// Extracts `(header, body)` for every `directive` block, in source order.
@@ -266,77 +297,6 @@ fn scan_directives(
     }
 }
 
-/// Removes every `directive { ... }` block, including nested braces.
-///
-/// `{modifier}` is skipped as literal text rather than counted as an opening brace. An
-/// unterminated body is preserved from the directive onward. This textual helper does
-/// not distinguish strings or comments from directive text and braces.
-pub fn strip_blocks(css: &str, directive: &str) -> LeanString {
-    let mut output = LeanString::new();
-    let mut cursor = 0;
-    while let Some(relative) = css[cursor..].find(directive) {
-        let start = cursor + relative;
-        output.push_str(&css[cursor..start]);
-        let Some(open_relative) = find_block_open(&css[start..]) else {
-            output.push_str(&css[start..]);
-            break;
-        };
-        let open = start + open_relative;
-        let mut depth = 1_u32;
-        let mut close = open + 1;
-        let body = &css[open + 1..];
-        let mut offset = 0;
-        while offset < body.len() {
-            if body[offset..].starts_with("{modifier}") {
-                offset += "{modifier}".len();
-                continue;
-            }
-            let Some(character) = body.get(offset..).and_then(|rest| rest.chars().next()) else {
-                break;
-            };
-            match character {
-                '{' => depth += 1,
-                '}' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        close = open + 1 + offset;
-                        break;
-                    }
-                }
-                _ => {}
-            }
-            offset += character.len_utf8();
-        }
-        if depth != 0 {
-            // Preserve malformed input for the parser instead of advancing past EOF.
-            output.push_str(&css[start..]);
-            return output;
-        }
-        cursor = close.saturating_add(1);
-    }
-    if cursor < css.len() {
-        output.push_str(&css[cursor..]);
-    }
-    output
-}
-
-/// Byte offset of the first `{` that is not the start of a `{modifier}` marker.
-fn find_block_open(value: &str) -> Option<usize> {
-    let mut offset = 0;
-    while offset < value.len() {
-        if value[offset..].starts_with("{modifier}") {
-            offset += "{modifier}".len();
-            continue;
-        }
-        let character = value[offset..].chars().next()?;
-        if character == '{' {
-            return Some(offset);
-        }
-        offset += character.len_utf8();
-    }
-    None
-}
-
 /// Reason a byte-offset delimiter scan cannot return a closing offset.
 ///
 /// The brace and delimiter scanners share it, so a caller can tell an unusable
@@ -491,9 +451,12 @@ mod tests {
     fn stripping_preserves_surroundings_and_malformed_blocks() {
         assert_eq!(strip_css_comments("a/* one */b/*two*/c"), "abc");
         assert_eq!(strip_css_comments("a/* unclosed"), "a/* unclosed");
-        assert_eq!(strip_blocks("a @theme { x {y} } b", "@theme"), "a  b");
-        assert_eq!(strip_blocks("a @theme { x", "@theme"), "a @theme { x");
-        assert_eq!(find_block_open("x-{modifier} { y }"), Some(13));
+        assert_eq!(strip_css_comments("a/*/"), "a/*/");
+        assert_eq!(
+            strip_css_comments(r#"x{content:"/*";/* c */b:url(/*x*/) fn(1/**/2) [a/**/]}"#),
+            r#"x{content:"/*";b:url(/*x*/) fn(12) [a]}"#
+        );
+        assert_eq!(strip_css_comments("x{a:(b/**/"), "x{a:(b");
         assert_eq!(matching_brace("{ '}' {x} }", 0), Ok(10));
         assert_eq!(matching_brace("{x", 0), Err(ScanError::Unclosed));
         assert_eq!(

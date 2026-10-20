@@ -13,11 +13,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use cssparser::{Parser, Token};
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_source::JoinText;
 
-use crate::{extract_named_blocks, strip_css_comments};
+use crate::{extract_named_blocks, parse_declaration_list};
 
 /// One parsed `@stillwind-property` registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -88,39 +89,43 @@ impl CustomPropertyActivation {
 
 /// Parses every `@stillwind-property` block in source order.
 ///
-/// Comments are stripped first, so a commented-out registration is not parsed. Blocks
-/// without a `--` name are skipped rather than reported.
+/// A registration inside a comment is not parsed. Blocks without a `--` name are
+/// skipped rather than reported, and so are body statements that are not `name: value`
+/// declarations.
 pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
-    extract_named_blocks(&strip_css_comments(css), "@stillwind-property")
+    extract_named_blocks(css, "@stillwind-property")
         .into_iter()
         .filter_map(|(header, body)| {
-            let name = header.split_whitespace().next()?;
-            if !name.starts_with("--") {
-                return None;
-            }
+            let name = property_name(&header)?;
             let mut activation = CustomPropertyActivation::default();
             let mut dependencies = Vec::new();
             let mut groups = Vec::new();
             let mut activation_properties = Vec::new();
             let mut standard_descriptors = Vec::new();
-            for descriptor in body.split(';') {
-                let trimmed = descriptor.trim();
-                if let Some(value) = trimmed.strip_prefix("activation:") {
-                    if let Some(parsed) = CustomPropertyActivation::parse(value) {
-                        activation = parsed;
+            for descriptor in parse_declaration_list(&body).into_iter().flatten() {
+                let value = descriptor.value.as_str();
+                match descriptor.name.as_str() {
+                    "activation" => {
+                        if let Some(parsed) = CustomPropertyActivation::parse(value) {
+                            activation = parsed;
+                        }
                     }
-                } else if let Some(value) = trimmed.strip_prefix("depends-on:") {
-                    dependencies.extend(value.split_whitespace().map(LeanStr::from));
-                } else if let Some(value) = trimmed.strip_prefix("group:") {
-                    groups.extend(value.split_whitespace().map(LeanStr::from));
-                } else if let Some(value) = trimmed.strip_prefix("activate-on:") {
-                    activation_properties.extend(value.split_whitespace().map(LeanStr::from));
-                } else if !trimmed.is_empty() {
-                    standard_descriptors.push(format_args!("{trimmed};").to_lean_str());
+                    "depends-on" => {
+                        dependencies.extend(value.split(' ').map(LeanStr::from));
+                    }
+                    "group" => {
+                        groups.extend(value.split(' ').map(LeanStr::from));
+                    }
+                    "activate-on" => {
+                        activation_properties.extend(value.split(' ').map(LeanStr::from));
+                    }
+                    name => {
+                        standard_descriptors.push(format_args!("{name}: {value};").to_lean_str());
+                    }
                 }
             }
             Some(CustomPropertyDefinition {
-                name: name.to_lean_str(),
+                name,
                 body: (standard_descriptors.join_text("\n")).into(),
                 activation,
                 dependencies,
@@ -136,12 +141,9 @@ pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> 
 /// Names are gathered so the compiler can avoid emitting a registration for a property
 /// the author already registers; nothing is removed from the output.
 pub fn extract_authored_property_names(css: &str) -> BTreeSet<LeanStr> {
-    extract_named_blocks(&strip_css_comments(css), "@property")
+    extract_named_blocks(css, "@property")
         .into_iter()
-        .filter_map(|(header, _)| {
-            let name = header.split_whitespace().next()?;
-            name.starts_with("--").then(|| name.to_lean_str())
-        })
+        .filter_map(|(header, _)| property_name(&header))
         .collect()
 }
 
@@ -152,28 +154,35 @@ pub fn extract_authored_property_names(css: &str) -> BTreeSet<LeanStr> {
 /// rule without a quoted `syntax` descriptor is absent. A later rule for the same name
 /// replaces an earlier one.
 pub fn extract_authored_property_syntaxes(css: &str) -> BTreeMap<LeanStr, LeanStr> {
-    extract_named_blocks(&strip_css_comments(css), "@property")
+    extract_named_blocks(css, "@property")
         .into_iter()
         .filter_map(|(header, body)| {
-            let name = header.split_whitespace().next()?;
-            if !name.starts_with("--") {
-                return None;
-            }
-            let syntax = body.split(';').find_map(|descriptor| {
-                let (descriptor, value) = descriptor.split_once(':')?;
-                if !descriptor.trim().eq_ignore_ascii_case("syntax") {
-                    return None;
-                }
-                let value = value.trim();
-                let quote = value
-                    .chars()
-                    .next()
-                    .filter(|quote| matches!(quote, '"' | '\''))?;
-                value[1..].strip_suffix(quote).map(str::trim)
-            })?;
-            Some((name.to_lean_str(), syntax.to_lean_str()))
+            let name = property_name(&header)?;
+            let syntax = parse_declaration_list(&body)
+                .into_iter()
+                .flatten()
+                .find(|descriptor| descriptor.name.eq_ignore_ascii_case("syntax"))?;
+            let mut parser = Parser::new(&syntax.value);
+            let syntax = parser.expect_string().ok()?.trim().to_lean_str();
+            parser.is_exhausted().then_some((name, syntax))
         })
         .collect()
+}
+
+/// Returns the authored spelling of the custom-property name that starts an at-rule
+/// prelude, or `None` when the first token after whitespace and comments is not an
+/// identifier that starts with `--`.
+fn property_name(prelude: &str) -> Option<LeanStr> {
+    let mut parser = Parser::new(prelude);
+    let name = loop {
+        let start = parser.position();
+        match parser.next_including_whitespace_and_comments().ok()? {
+            Token::WhiteSpace(_) | Token::Comment(_) => {}
+            Token::Ident(_) => break parser.slice_from(start),
+            _ => return None,
+        }
+    };
+    (name.len() > 2 && name.starts_with("--")).then(|| name.to_lean_str())
 }
 
 /// Parses compiler-owned custom-property registrations (`@stillwind-property`).
@@ -236,6 +245,31 @@ mod tests {
         assert!(!definitions[0].body.contains("depends-on"));
         assert!(!definitions[0].body.contains("group"));
         assert!(!definitions[0].body.contains("activate-on"));
+    }
+
+    #[test]
+    fn registrations_ignore_comments_in_names_and_descriptors() {
+        let definitions = parse_property_definitions(
+            r#"@stillwind-property /* name */ --example {
+                  /* group: ignored; */
+                  syntax: "*"; /* activation: declared; */
+                  initial-value: url("/*;");
+                  depends-on: --a /* note */ --b;
+                }"#,
+        );
+        assert_eq!(definitions.len(), 1);
+        assert_eq!(definitions[0].name, "--example");
+        assert_eq!(
+            definitions[0].activation,
+            CustomPropertyActivation::Referenced
+        );
+        assert_eq!(definitions[0].groups, [] as [LeanStr; 0]);
+        assert_eq!(definitions[0].dependencies, ["--a", "--b"]);
+        assert_eq!(
+            definitions[0].body,
+            "syntax: \"*\";
+initial-value: url(\"/*;\");"
+        );
     }
 }
 

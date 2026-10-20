@@ -21,7 +21,6 @@ mod imports;
 mod protocol;
 mod state;
 
-pub use imports::PluginOption;
 pub use protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
     CssSourceEdge, CssSourceGraph, CssSourceMapping, DesignSystemLoadStep,

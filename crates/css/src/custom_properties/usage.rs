@@ -3,12 +3,7 @@
 //! Compiler-owned `@property` registrations are emitted only when the output actually
 //! needs them, and that decision is made here rather than from knowledge of
 //! framework-specific property families. [`custom_property_usage`] walks the Lightning
-//! CSS syntax tree and is authoritative; the two lexical helpers exist for callers that
-//! only have text.
-//!
-//! The lexical helpers deliberately ignore everything inside `@property` blocks and
-//! comments, so a registration's own descriptors never look like a use of the property
-//! they describe.
+//! CSS syntax tree.
 
 use std::collections::BTreeSet;
 
@@ -20,9 +15,6 @@ use lightningcss::properties::custom::Variable;
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::visit_types;
 use lightningcss::visitor::{Visit, VisitTypes, Visitor};
-
-use super::references::custom_property_references;
-use crate::blocks::{strip_blocks, strip_css_comments};
 
 /// Failure to parse an emitted stylesheet, even with error recovery enabled.
 #[derive(Debug, thiserror::Error)]
@@ -94,52 +86,6 @@ impl<'i> Visitor<'i> for CustomPropertyUsage {
             .insert(variable.name.ident.0.as_ref().to_lean_str());
         variable.visit_children(self)
     }
-}
-
-/// Returns custom properties used by declarations and values, excluding names
-/// that occur only inside ordinary authored `@property` registration blocks.
-///
-/// This is the lexical union of declarations and references, so it cannot
-/// distinguish the two; use [`custom_property_usage`] when that matters.
-#[must_use]
-pub fn used_custom_properties(css: &str) -> BTreeSet<LeanStr> {
-    custom_property_references(&strip_css_comments(&strip_blocks(css, "@property")))
-}
-
-/// Returns only custom properties consumed through `var(...)` references.
-/// Definitions such as `--tw-shadow: ...` are intentionally excluded; the
-/// caller can use this dependency set to decide which registered properties
-/// must be emitted without knowing any framework-specific property families.
-///
-/// A `var()` whose argument is not a `--` name contributes nothing, and names
-/// inside `@property` blocks or comments are ignored.
-#[must_use]
-pub fn referenced_custom_properties(css: &str) -> BTreeSet<LeanStr> {
-    let css = strip_css_comments(&strip_blocks(css, "@property"));
-    let mut references = BTreeSet::new();
-    let mut cursor = 0;
-    while let Some(relative) = css[cursor..].find("var(") {
-        let start = cursor + relative + 4;
-        let Some(relative_name) = css[start..].find("--") else {
-            cursor = start;
-            continue;
-        };
-        let name_start = start + relative_name;
-        let end = css[name_start..]
-            .char_indices()
-            .take_while(|(_, character)| {
-                character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
-            })
-            .last()
-            .map_or(name_start + 2, |(offset, character)| {
-                name_start + offset + character.len_utf8()
-            });
-        if end > name_start + 2 {
-            references.insert(css[name_start..end].to_lean_str());
-        }
-        cursor = end.max(start);
-    }
-    references
 }
 
 /// Parses emitted CSS and classifies custom-property declarations and
@@ -229,15 +175,6 @@ mod tests {
                 "--snap".to_lean_str(),
                 "--transform".to_lean_str(),
             ])
-        );
-    }
-
-    #[test]
-    fn extracts_only_var_custom_property_dependencies() {
-        let css = "--unused:red;--used:var(--source, var(--fallback));@property --ignored { syntax: '*' }";
-        assert_eq!(
-            referenced_custom_properties(css),
-            BTreeSet::from(["--source".to_lean_str(), "--fallback".to_lean_str()])
         );
     }
 }

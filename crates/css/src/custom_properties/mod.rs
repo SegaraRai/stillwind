@@ -1,8 +1,8 @@
 //! Custom-property discovery, registration metadata, and usage classification.
 //!
-//! Three related questions live here. [`references`] finds `--name` occurrences
-//! lexically, [`registration`] parses compiler-owned `@stillwind-property` blocks and
-//! authored `@property` names and syntaxes, and [`usage`] classifies an emitted
+//! Three related questions live here. [`references`] tokenizes CSS text to find
+//! `--name` idents, [`registration`] parses compiler-owned `@stillwind-property` blocks
+//! and authored `@property` names and syntaxes, and [`usage`] classifies an emitted
 //! stylesheet into declared properties, `var()` references and declaring properties.
 //! The split matters: registration decides what the compiler may emit, while usage
 //! decides which registrations an output actually needs.
@@ -19,7 +19,4 @@ pub use registration::{
     CustomPropertyActivation, CustomPropertyDefinition, extract_authored_property_names,
     extract_authored_property_syntaxes, extract_property_definitions, parse_property_definitions,
 };
-pub use usage::{
-    CustomPropertyUsage, PropertyUsageError, custom_property_usage, referenced_custom_properties,
-    used_custom_properties,
-};
+pub use usage::{CustomPropertyUsage, PropertyUsageError, custom_property_usage};

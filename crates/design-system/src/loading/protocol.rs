@@ -12,9 +12,9 @@ use std::sync::Arc;
 
 use lean_string::LeanStr;
 
+use stillwind_css::ParsedDeclaration;
 use stillwind_source::{CssSourceName, FileId, SourceFile, SourceUri, Span};
 
-use super::imports::PluginOption;
 use super::state::DesignSystemLoadError;
 use crate::DesignSystemSnapshot;
 
@@ -28,7 +28,7 @@ pub enum CssDependencyKind {
     Plugin {
         /// Declarations of the options block in authored order, or empty without a
         /// block. A name may repeat.
-        options: Vec<PluginOption>,
+        options: Vec<ParsedDeclaration>,
     },
 }
 

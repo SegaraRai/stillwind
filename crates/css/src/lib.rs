@@ -17,14 +17,15 @@
 //! source maps independently of Stillwind compilation.
 //!
 //! `functions` finds CSS calls, `lists` splits component value lists, and
-//! `declarations` preserves declaration boundaries. `selectors` instantiates nesting
-//! templates. `structure` parses the rule tree of authored stylesheets, including
-//! `@apply` candidates, with byte ranges. `colors` converts concrete colors and
-//! rewrites shadow colors. `math` folds compatible numeric expressions, and `values`
-//! validates grammars and inspects property effects. `custom_properties` discovers
-//! references and registrations. `emission` preserves rule occurrences and optimizes
-//! declaration order. `format` formats editor previews, while the optional `minify`
-//! module processes final assets.
+//! `declarations` preserves declaration boundaries and parses `name: value` lists.
+//! `selectors` instantiates nesting templates. `structure` parses the rule tree of
+//! authored stylesheets, including `@apply` candidates, with byte ranges. `colors`
+//! converts concrete colors and rewrites shadow colors. `math` folds compatible numeric
+//! expressions, and `values` validates grammars and inspects property effects. `lexer`
+//! tokenizes CSS text and reports state changes to a handler. `custom_properties`
+//! discovers references and registrations. `emission` preserves rule occurrences and
+//! optimizes declaration order. `format` formats editor previews, while the optional
+//! `minify` module processes final assets.
 
 #![cfg_attr(
     not(test),
@@ -45,6 +46,7 @@ mod declarations;
 mod emission;
 mod format;
 mod functions;
+mod lexer;
 mod lists;
 mod math;
 mod output;
@@ -58,8 +60,8 @@ mod minify;
 
 pub use blocks::{
     PropertyRequirementError, ScanError, extract_named_blocks, extract_named_blocks_with_offsets,
-    extract_named_statements, extract_order_statements, matching_brace, strip_blocks,
-    strip_css_comments, take_property_requirements, unterminated_block,
+    extract_named_statements, extract_order_statements, matching_brace, strip_css_comments,
+    take_property_requirements, unterminated_block,
 };
 pub use colors::{
     HexColor, color_hex, color_rgba, color_with_alpha_fallback, css_color_values,
@@ -69,9 +71,11 @@ pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
     custom_property_references, custom_property_usage, extract_authored_property_names,
     extract_authored_property_syntaxes, extract_property_definitions, parse_property_definitions,
-    referenced_custom_properties, used_custom_properties,
 };
-pub use declarations::{declaration_ranges, important_declarations};
+pub use declarations::{
+    DeclarationError, ParsedDeclaration, declaration_ranges, important_declarations,
+    parse_declaration_list,
+};
 pub use emission::{CssRule, Declaration, optimize_rules, stylesheet_fragments};
 pub use format::{CssFormatError, format_css};
 pub use functions::{
