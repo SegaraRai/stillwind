@@ -383,6 +383,7 @@ export class EditorSnapshot {
                       bytes(source.document.code, start),
                       bytes(source.document.code, end),
                       "prefer-sorted-utilities",
+                      this.#index.lintComments(source),
                     ),
             )
           : seed;
@@ -777,6 +778,7 @@ export class EditorSnapshot {
         end: bytes(source.document.code, edit.end),
         replacement: edit.newText,
       })),
+      this.#index.lintComments(source),
     );
     this.#reports.set(source.moduleId, reports);
   }

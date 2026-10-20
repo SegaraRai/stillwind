@@ -33,4 +33,4 @@ mod facts;
 mod input_contracts;
 mod support;
 
-use support::{projected, projected_script, rebuild_projection};
+use support::{projected, projected_script, projected_script_after, rebuild_projection};

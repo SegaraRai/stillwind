@@ -16,13 +16,14 @@ use stillwind_design_system::{
     DesignSystemSnapshot, MarkerOrigin, ThemeTokenMode, ThemeTokenPrecedence,
 };
 use stillwind_diagnostics::{
-    FixAction, LintDiagnostic, LintFinding, LintKind, LintSurface, Reporter, SourceEdit,
-    SourceRange, filter_lint_findings,
+    FixAction, LintDiagnostic, LintDirective, LintFinding, LintKind, LocatedDiagnostic, Reporter,
+    SourceEdit, SourceRange, filter_lint_findings, lint_directives_in_comments,
 };
 use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
 use crate::options::NativeCanonicalUtilitiesOptions;
 use crate::output::{BindingReport, NativeText};
+use crate::semantic::NativeLintComment;
 
 /// An active CSS theme token used by JavaScript plugin theme resolution.
 #[napi(object)]
@@ -555,14 +556,16 @@ impl NativeEditorQuery {
 
     /// Reports sorting suggestions through the effective typed settings and common
     /// Reporter. URI and text must identify the exact original document addressed by
-    /// all byte ranges.
+    /// all byte ranges. `lint_comments` must come from a scan of the same text.
     #[napi]
     pub fn report_sort_edits(
         &self,
         uri: String,
         text: String,
         edits: Vec<NativeEditorLintEdit>,
+        lint_comments: Vec<NativeLintComment>,
     ) -> napi::Result<Vec<BindingReport>> {
+        let directives = lint_directives(&text, &lint_comments)?;
         let mut registry = SourceRegistry::default();
         let uri = SourceUri::parse(uri).map_err(|error| Error::from_reason(error.to_string()))?;
         let source = registry
@@ -583,9 +586,21 @@ impl NativeEditorQuery {
             });
             findings.push(finding);
         }
-        let batch = Reporter::collect(&[], &findings, &registry, self.query.lint_settings())
-            .map_err(|error| Error::from_reason(error.to_string()))?;
-        Ok(batch.diagnostics.into_iter().map(Into::into).collect())
+        let mut reporter =
+            Reporter::new(self.query.lint_settings()).with_lint_directives(source.id(), directives);
+        for finding in &findings {
+            let located = LocatedDiagnostic::from_lint(finding, &registry)
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+            reporter
+                .report(&located)
+                .map_err(|error| Error::from_reason(error.to_string()))?;
+        }
+        Ok(reporter
+            .finish()
+            .diagnostics
+            .into_iter()
+            .map(Into::into)
+            .collect())
     }
 
     /// Returns effective lint severities after stylesheet and project configuration.
@@ -604,7 +619,8 @@ impl NativeEditorQuery {
     }
 
     /// Checks source suppression for an editor lint at an original UTF-8 byte range.
-    /// Returns an error for unknown rules or invalid source bounds.
+    /// `lint_comments` must come from a scan of `source`. Returns an error for unknown
+    /// rules or invalid source bounds.
     #[napi]
     #[allow(clippy::unused_self)] // Suppression is exposed through the same editor query transport.
     pub fn lint_suppressed(
@@ -613,6 +629,7 @@ impl NativeEditorQuery {
         start: u32,
         end: u32,
         rule: String,
+        lint_comments: Vec<NativeLintComment>,
     ) -> napi::Result<bool> {
         let diagnostic = match rule.as_str() {
             "prefer-canonical-utilities" => LintDiagnostic::NonCanonicalUtility,
@@ -622,13 +639,14 @@ impl NativeEditorQuery {
         if start > end || usize::try_from(end).unwrap_or(usize::MAX) > source.len() {
             return Err(Error::from_reason("invalid editor lint range"));
         }
+        let directives = lint_directives(&source, &lint_comments)?;
         let source = SourceFile::new(FileId(0), None, None, source)
             .map_err(|error| Error::from_reason(error.to_string()))?;
         let mut findings = vec![LintFinding::new(
             diagnostic,
             Span::new(FileId(0), start, end),
         )];
-        filter_lint_findings(&source, LintSurface::Script, &mut findings);
+        filter_lint_findings(&source, &directives, &mut findings);
         Ok(findings.is_empty())
     }
 
@@ -857,4 +875,26 @@ impl NativeEditorQuery {
             .map(|value| value.map(|value| value.to_vec()))
             .map_err(|error| Error::from_reason(error.to_string()))
     }
+}
+
+/// Returns the directives in the comment bodies `comments` of `source`.
+///
+/// # Errors
+///
+/// Returns an error when a range is outside `source` or splits a character.
+fn lint_directives(
+    source: &str,
+    comments: &[NativeLintComment],
+) -> napi::Result<Vec<LintDirective>> {
+    let ranges = comments
+        .iter()
+        .map(|comment| {
+            let range = comment.start as usize..comment.end as usize;
+            source
+                .get(range.clone())
+                .map(|_| range)
+                .ok_or_else(|| Error::from_reason("invalid lint comment range"))
+        })
+        .collect::<napi::Result<Vec<_>>>()?;
+    Ok(lint_directives_in_comments(source, ranges))
 }

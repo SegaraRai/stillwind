@@ -12,12 +12,18 @@ pub(super) fn projected() -> SourceInput {
 }
 
 pub(super) fn projected_script(script: &str) -> SourceInput {
+    projected_script_after("", script)
+}
+
+/// Like [`projected_script`], but the original file starts with `markup` before the
+/// script element.
+pub(super) fn projected_script_after(markup: &str, script: &str) -> SourceInput {
     let original = Arc::new(
         SourceFile::new(
             FileId(1),
             None,
             None,
-            format!("<script>{script}</script><div />"),
+            format!("{markup}<script>{script}</script><div />"),
         )
         .unwrap(),
     );
@@ -26,7 +32,7 @@ pub(super) fn projected_script(script: &str) -> SourceInput {
         ScriptSyntax::new(ScriptLanguage::Ts, ScriptModuleKind::Unambiguous),
         ProjectionMap::Volar {
             mappings: vec![VolarMapping {
-                source_offsets: vec![8],
+                source_offsets: vec![u32::try_from(markup.encode_utf16().count() + 8).unwrap()],
                 generated_offsets: vec![0],
                 lengths: vec![u32::try_from(script.encode_utf16().count()).unwrap()],
                 generated_lengths: None,

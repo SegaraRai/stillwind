@@ -124,16 +124,17 @@ export declare class NativeEditorQuery {
   /**
    * Reports sorting suggestions through the effective typed settings and common
    * Reporter. URI and text must identify the exact original document addressed by
-   * all byte ranges.
+   * all byte ranges. `lint_comments` must come from a scan of the same text.
    */
-  reportSortEdits(uri: string, text: string, edits: Array<NativeEditorLintEdit>): Array<BindingReport>
+  reportSortEdits(uri: string, text: string, edits: Array<NativeEditorLintEdit>, lintComments: Array<NativeLintComment>): Array<BindingReport>
   /** Returns effective lint severities after stylesheet and project configuration. */
   lintSettings(): Record<string, string>
   /**
    * Checks source suppression for an editor lint at an original UTF-8 byte range.
-   * Returns an error for unknown rules or invalid source bounds.
+   * `lint_comments` must come from a scan of `source`. Returns an error for unknown
+   * rules or invalid source bounds.
    */
-  lintSuppressed(source: string, start: number, end: number, rule: string): boolean
+  lintSuppressed(source: string, start: number, end: number, rule: string, lintComments: Array<NativeLintComment>): boolean
   /**
    * Renders decoded text under `context`, using `&` as the utility subject. Omitted
    * context selects one ordinary utility candidate. Declaration roles accept a token
@@ -1214,6 +1215,14 @@ export interface NativeLayerContext {
   namespace: string
 }
 
+/** Body of one comment that contains a `swlint-*` directive, without its delimiters. */
+export interface NativeLintComment {
+  /** Inclusive original UTF-8 byte offset. */
+  start: number
+  /** Exclusive original UTF-8 byte offset. */
+  end: number
+}
+
 /** Lint settings applied to compiler defaults. */
 export interface NativeLintOptions {
   /** Settings for `invalid-rule-group-input`. */
@@ -1469,6 +1478,8 @@ export interface NativeModuleSummary {
   assets: Array<NativeAssetRecord>
   /** Values this module exports. */
   exports: Array<NativeExport>
+  /** Bodies of the comments that contain `swlint-*` directives, in source order. */
+  lintComments: Array<NativeLintComment>
 }
 
 /** Half-open UTF-16 offsets in the original document; surrogate interiors are invalid. */

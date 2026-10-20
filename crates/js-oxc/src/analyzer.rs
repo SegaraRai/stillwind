@@ -17,10 +17,7 @@ use std::sync::Arc;
 
 use lean_string::ToLeanStr;
 
-use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSurface,
-    collect_lint_directives,
-};
+use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{
     CheckerProjection, ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe,
 };
@@ -116,11 +113,7 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                             local_ir: ModuleIr::react(),
                             summary: ModuleSummary::new(input.module_id.clone()),
                             type_probes: Vec::new(),
-                            lint_directives: if self.lint {
-                                collect_lint_directives(source.text(), LintSurface::Script)
-                            } else {
-                                Vec::new()
-                            },
+                            lint_directives: Vec::new(),
                             diagnostics: vec![error],
                             lint_findings: Vec::new(),
                             input,
@@ -165,11 +158,7 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                     recognition_only: true,
                 }))
                 .collect(),
-            lint_directives: if self.lint {
-                collect_lint_directives(source.text(), LintSurface::Script)
-            } else {
-                Vec::new()
-            },
+            lint_directives: parsed.lint_directives,
             source,
             local_ir: parsed.module,
             summary: parsed.summary,
@@ -234,6 +223,7 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                             lint_findings: Vec::new(),
                             module: ModuleIr::react(),
                             summary: ModuleSummary::new(scan.module_id.clone()),
+                            lint_directives: Vec::new(),
                         };
                         select_framework(&mut parsed, &scan.input, self.lint);
                         return parsed;

@@ -1082,6 +1082,18 @@ const x=style('max-[900px]:flex');`,
       options,
     );
     expect(suppressed.reports).toEqual([]);
+    const afterJsxText = compileSource(
+      oneShotInput(
+        `import {style} from 'stillwind/react';
+const note=<p>Don't</p>;
+// swlint-disable-next-line no-arbitrary-breakpoints
+const x=style('max-[900px]:flex');`,
+        "suppressed-jsx.tsx",
+        css,
+      ),
+      options,
+    );
+    expect(afterJsxText.reports).toEqual([]);
     const variables = compileSource(
       oneShotInput(
         `import {style} from 'stillwind/react';

@@ -6,7 +6,8 @@ use std::sync::Arc;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_source::{
-    Fingerprint, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri, Span,
+    FileId, Fingerprint, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
+    Span,
 };
 
 use super::{
@@ -16,7 +17,7 @@ use super::{
 use crate::lint::suppressing_directive;
 use crate::{
     CompileError, FixAction, LabelScope, LintDirective, LintFinding, LintSettings, LintSeverity,
-    LintSurface, SourceRange, collect_lint_directives,
+    LintSurface, SourceRange, stylesheet_lint_directives,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
@@ -53,8 +54,10 @@ pub enum AggregateError {
 /// Temporary reporter for a single analysis or update.
 pub struct Reporter {
     lint_settings: LintSettings,
-    /// Comment syntax of the sources whose suppression directives apply.
+    /// Kind of the sources whose suppression directives apply.
     surface: LintSurface,
+    /// Directives supplied by [`Self::with_lint_directives`] for sources not read yet.
+    directives: BTreeMap<FileId, Vec<LintDirective>>,
     revisions: BTreeMap<SourceUri, LeanStr>,
     diagnostics: Vec<ResolvedDiagnostic>,
     sources: BTreeMap<usize, ReportSource>,
@@ -82,26 +85,41 @@ impl Reporter {
         Ok(reporter.finish())
     }
 
-    /// Starts a report with the lint policy in effect for this analysis. Suppression
-    /// directives are read with script comment syntax until [`Self::with_surface`]
-    /// selects another.
+    /// Starts a report with the lint policy in effect for this analysis. Sources are
+    /// scripts until [`Self::with_surface`] selects another kind.
+    ///
+    /// A script source has only the suppression directives that
+    /// [`Self::with_lint_directives`] supplies. Script findings that the compiler
+    /// already filtered need none.
     pub fn new(lint_settings: LintSettings) -> Self {
         Self {
             lint_settings,
             surface: LintSurface::Script,
+            directives: BTreeMap::new(),
             revisions: BTreeMap::new(),
             diagnostics: Vec::new(),
             sources: BTreeMap::new(),
         }
     }
 
-    /// Reads suppression directives of every source with the comment syntax of
-    /// `surface`.
+    /// Selects the kind of every source. For [`LintSurface::Stylesheet`], the reporter
+    /// reads the directives of each source that has no supplied directives with
+    /// [`stylesheet_lint_directives`].
     ///
     /// Call it before reporting, because each source's directives are read once.
     #[must_use]
     pub const fn with_surface(mut self, surface: LintSurface) -> Self {
         self.surface = surface;
+        self
+    }
+
+    /// Supplies the suppression directives of the source `file`, in source order.
+    ///
+    /// Call it before reporting a diagnostic of `file`. The directives replace the ones
+    /// that [`Self::with_surface`] would read.
+    #[must_use]
+    pub fn with_lint_directives(mut self, file: FileId, directives: Vec<LintDirective>) -> Self {
+        self.directives.insert(file, directives);
         self
     }
 
@@ -248,9 +266,18 @@ impl Reporter {
     fn source_info(&mut self, range: &SourceRange) -> &mut ReportSource {
         let source = range.shared_source();
         let surface = self.surface;
+        let supplied = &mut self.directives;
         self.sources
             .entry(Arc::as_ptr(source) as usize)
-            .or_insert_with(|| ReportSource::new(Arc::clone(source), surface))
+            .or_insert_with(|| {
+                let directives = supplied
+                    .remove(&source.id())
+                    .unwrap_or_else(|| match surface {
+                        LintSurface::Script => Vec::new(),
+                        LintSurface::Stylesheet => stylesheet_lint_directives(source.text()),
+                    });
+                ReportSource::new(Arc::clone(source), directives)
+            })
     }
 }
 
@@ -263,10 +290,10 @@ struct ReportSource {
 }
 
 impl ReportSource {
-    fn new(source: Arc<SourceFile>, surface: LintSurface) -> Self {
+    fn new(source: Arc<SourceFile>, directives: Vec<LintDirective>) -> Self {
         Self {
             revision: Fingerprint::of(source.text()).0,
-            directives: collect_lint_directives(source.text(), surface),
+            directives,
             source,
             locations: BTreeMap::new(),
         }
@@ -305,7 +332,10 @@ mod tests {
     use stillwind_source::{Position, SourceFile, SourceRegistry, SourceRegistryError};
 
     use super::*;
-    use crate::{CompileDiagnostic, FixAction, LintConfig, LintDiagnostic, LintKind, SourceEdit};
+    use crate::{
+        CompileDiagnostic, FixAction, LintConfig, LintDiagnostic, LintKind, SourceEdit,
+        lint_directives_in_comments,
+    };
 
     fn document(sources: &mut SourceRegistry, uri: &str, text: &str) -> Arc<SourceFile> {
         sources
@@ -429,6 +459,13 @@ mod tests {
         };
         let kind = LintKind::MissingRefAttachment;
         let mut reporter = Reporter::new(LintSettings::with_defaults());
+        reporter.report(&finding()).unwrap();
+        assert_eq!(reporter.finish().diagnostics.len(), 1);
+        let comment = 2..source.text().len() - 2;
+        let mut reporter = Reporter::new(LintSettings::with_defaults()).with_lint_directives(
+            source.id(),
+            lint_directives_in_comments(source.text(), [comment]),
+        );
         reporter.report(&finding()).unwrap();
         assert_eq!(reporter.finish().diagnostics, [] as [ResolvedDiagnostic; 0]);
         let plain = document(&mut sources, "untitled:plain", "x");

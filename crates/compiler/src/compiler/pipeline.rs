@@ -150,6 +150,7 @@ impl Compiler {
             finish_lint_findings(
                 source,
                 LintSurface::Script,
+                &parsed.lint_directives,
                 &result.lint_settings,
                 &mut result.lint_findings,
                 false,
@@ -168,6 +169,7 @@ impl Compiler {
             finish_lint_findings(
                 source,
                 LintSurface::Script,
+                &parsed.lint_directives,
                 &result.lint_settings,
                 &mut result.lint_findings,
                 false,
@@ -528,6 +530,7 @@ impl Compiler {
         finish_lint_findings(
             source,
             LintSurface::Script,
+            &parsed.lint_directives,
             &result.lint_settings,
             &mut result.lint_findings,
             result.diagnostics.is_empty(),

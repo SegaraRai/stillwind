@@ -244,3 +244,23 @@ fn normal_input_map_does_not_change_the_edit_target_or_parser_language() {
     assert!(Arc::ptr_eq(&scan.source, &source));
     assert_eq!(scan.local_ir.style_calls.len(), 1);
 }
+
+#[test]
+fn lint_directives_come_from_projected_script_comments_at_original_offsets() {
+    let script = "import {style} from 'svelte';
+// swlint-disable-next-line no-important
+const props = style('[display:block]!');";
+    let input = projected_script_after("<p>Don't</p>\n", script);
+    let text = input.document().file().text().to_owned();
+    let scan = OxcSourceAnalyzer.scan_input(input);
+    assert_eq!(scan.lint_directives.len(), 1, "{:#?}", scan.lint_directives);
+    let directive = &scan.lint_directives[0];
+    assert_eq!(directive.line, 2);
+    assert_eq!(
+        &text[directive.offset..directive.end],
+        "swlint-disable-next-line"
+    );
+    let (name, offset) = &directive.names[0];
+    assert_eq!(name, "no-important");
+    assert_eq!(&text[*offset..*offset + name.len()], "no-important");
+}

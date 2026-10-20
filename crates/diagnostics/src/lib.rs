@@ -62,7 +62,8 @@ pub use lint::{
     RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig,
     RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
     RestrictedUtilityRule, RuleGroupInputErrorKind, VariantDirectiveConfig,
-    VariantDirectiveOverride, collect_lint_directives, filter_lint_findings, finish_lint_findings,
+    VariantDirectiveOverride, filter_lint_findings, finish_lint_findings,
+    lint_directives_in_comments, stylesheet_lint_directives,
 };
 pub use report::{
     AggregateError, DiagnosticBatch, DiagnosticCause, DiagnosticSeverity, LocatedDiagnostic,

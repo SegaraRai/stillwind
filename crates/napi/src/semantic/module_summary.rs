@@ -234,6 +234,18 @@ pub struct NativeModuleSummary {
     pub assets: Vec<NativeAssetRecord>,
     /// Values this module exports.
     pub exports: Vec<NativeExport>,
+    /// Bodies of the comments that contain `swlint-*` directives, in source order.
+    pub lint_comments: Vec<NativeLintComment>,
+}
+
+/// Body of one comment that contains a `swlint-*` directive, without its delimiters.
+#[napi(object)]
+#[derive(Clone, Copy, Serialize)]
+pub struct NativeLintComment {
+    /// Inclusive original UTF-8 byte offset.
+    pub start: u32,
+    /// Exclusive original UTF-8 byte offset.
+    pub end: u32,
 }
 
 impl NativeModuleSummary {
@@ -277,6 +289,7 @@ impl NativeModuleSummary {
                     value: value.into(),
                 })
                 .collect(),
+            lint_comments: Vec::new(),
         }
     }
 }

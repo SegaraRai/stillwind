@@ -15,7 +15,8 @@ use stillwind_source::{CoordinateIndex, FileId, ModuleId, SourceFile, SourceRegi
 use super::BindingApiError;
 use crate::output::{NativeDiagnosticBatch, NativeScanResult};
 use crate::semantic::{
-    NativeCheckerBinding, NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe,
+    NativeCheckerBinding, NativeCheckerSpan, NativeLintComment, NativeModuleSummary,
+    NativeTypeProbe,
 };
 use crate::source_input::{
     HostPreparedSource, NativePreparedSource, NativeScriptLanguage, NativeScriptModuleKind,
@@ -94,6 +95,15 @@ pub(crate) fn scan_prepared(
             })
             .collect(),
     );
+    let offset = |offset| {
+        u32::try_from(offset).map_err(|_| Error::from_reason("lint comment offset exceeds u32"))
+    };
+    for directive in &scan.lint_directives {
+        result.lint_comments.push(NativeLintComment {
+            start: offset(directive.comment.start)?,
+            end: offset(directive.comment.end)?,
+        });
+    }
     let index = CoordinateIndex::new(scan.input.parser_source());
     for checked in scan.checker_projection.spans {
         let mapped = checked.provenance;

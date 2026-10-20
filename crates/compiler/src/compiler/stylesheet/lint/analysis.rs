@@ -9,7 +9,7 @@ use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{DesignSystemSnapshot, ThemeIndex};
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, LintSettings, LintSurface, SourceEdit,
-    SourceRange, finish_lint_findings,
+    SourceRange, finish_lint_findings, stylesheet_lint_directives,
 };
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
@@ -127,6 +127,7 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
             finish_lint_findings(
                 &source.source,
                 LintSurface::Stylesheet,
+                &stylesheet_lint_directives(source.source.text()),
                 &lint_settings,
                 &mut source_findings,
                 true,

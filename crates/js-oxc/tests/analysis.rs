@@ -7,7 +7,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_diagnostics::{CheckerFactsSubject, CompileDiagnostic, LintDiagnostic};
+use stillwind_diagnostics::{
+    CheckerFactsSubject, CompileDiagnostic, LintDiagnostic, LintDirectiveKind, LintDirectiveRules,
+    LintKind,
+};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
@@ -346,5 +349,34 @@ fn scan_reports_expression_probes_for_non_local_asset_values() {
         scan.type_probes
             .iter()
             .any(|probe| source.slice(probe.span).unwrap() == "target")
+    );
+}
+
+#[test]
+fn lint_directives_come_from_script_comments() {
+    let text = "import {style} from 'stillwind/react';
+const note = <p>Don't {`${'`'}`}</p>;
+const quote = /'/;
+// swlint-disable-next-line no-important -- reason
+const value = style('[display:block]!');
+const fake = '// swlint-disable no-important';
+const template = `/* swlint-enable no-important */`;";
+    let scan = OxcSourceAnalyzer.scan(
+        Arc::new(SourceFile::new(FileId(1), None, None, text).unwrap()),
+        ModuleId::from("note.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Module,
+    );
+    assert_eq!(scan.lint_directives.len(), 1, "{:#?}", scan.lint_directives);
+    let directive = &scan.lint_directives[0];
+    assert_eq!(directive.kind, LintDirectiveKind::DisableNextLine);
+    assert_eq!(directive.line, 3);
+    assert_eq!(
+        &text[directive.offset..directive.end],
+        "swlint-disable-next-line"
+    );
+    assert_eq!(
+        directive.rules,
+        LintDirectiveRules::Named([LintKind::NoImportant].into())
     );
 }

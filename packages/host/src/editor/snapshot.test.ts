@@ -903,7 +903,9 @@ const active=style(["flex",base,ref]);`;
   const current = project(source, {
     lint: {
       extends: [lintPresets.recommended],
-      rules: { "prefer-sorted-utilities": "warn" },
+      rules: {
+        "prefer-sorted-utilities": "warn",
+      },
     },
   });
   try {
@@ -922,6 +924,38 @@ const active=style(["flex",base,ref]);`;
       }))!.edits!,
     );
     expect(sorted).toContain('const ignored=style([ref,base,"flex"])');
+  } finally {
+    await current.close();
+  }
+});
+
+test("sorting suppression reads directives after JSX text with an apostrophe", async () => {
+  const source = `import {style} from "stillwind/react"; const base=style("block"); const ref=style.ref();
+const note=<p>Don't</p>;
+// swlint-disable-next-line prefer-sorted-utilities
+const ignored=style(["flex",base,ref]);`;
+  const current = project(source, {
+    lint: {
+      extends: [lintPresets.recommended],
+      rules: {
+        "prefer-sorted-utilities": "warn",
+      },
+    },
+  });
+  try {
+    const graph = await current.analyze("/workspace/entry.tsx");
+    expect(
+      graph.batches
+        .flatMap((batch) => batch.reports)
+        .some((report) => report.code === "prefer-sorted-utilities"),
+    ).toBe(false);
+    const fixes = applyEdits(
+      source,
+      (await current.query("/workspace/entry.tsx", {
+        kind: "fixes",
+      }))!.edits!,
+    );
+    expect(fixes).toContain('const ignored=style(["flex",base,ref])');
   } finally {
     await current.close();
   }

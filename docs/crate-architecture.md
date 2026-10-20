@@ -70,8 +70,9 @@ one rule. `LintConfig` has one setting variant for each `LintKind`. `LintSetting
 at most one setting for each rule and prevents keys from disagreeing with their setting
 variants. Unconfigured rules do not enable configured detection, but a producer can still
 detect them; reporting then uses `warn`. `LintKind::checks` tells whether a rule checks a
-`LintSurface`: scripts, stylesheets, or both. The surface of a source also selects the
-comment syntax of its `swlint-*` directives.
+`LintSurface`: scripts, stylesheets, or both. The `swlint-*` directives of a script come
+from the comments that the script parser found, mapped to the original file. The
+directives of a stylesheet come from its `/* */` comments.
 
 Project configuration validates rule names and settings before loading resources.
 Effective settings serialize to the host protocol as a map of rule names to severities.

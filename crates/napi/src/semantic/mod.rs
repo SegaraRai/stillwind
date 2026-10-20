@@ -9,6 +9,7 @@ mod values;
 
 pub use identity::NativeIdentity;
 pub use module_summary::{
-    NativeCheckerBinding, NativeCheckerSpan, NativeModuleSummary, NativeTypeProbe,
+    NativeCheckerBinding, NativeCheckerSpan, NativeLintComment, NativeModuleSummary,
+    NativeTypeProbe,
 };
 pub use values::NativeTypeFact;

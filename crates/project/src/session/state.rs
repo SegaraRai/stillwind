@@ -564,7 +564,7 @@ impl ProjectSession {
         let updates: Vec<_> = modules
             .into_iter()
             .filter_map(|module| {
-                let source = &self.analyses.get(&module)?.source;
+                let analysis = self.analyses.get(&module)?;
                 let artifact = self.current_artifact(&module)?;
                 let mut findings = artifact.source_lint_findings.clone();
                 findings.extend(
@@ -576,8 +576,9 @@ impl ProjectSession {
                         .collect::<Vec<_>>(),
                 );
                 finish_lint_findings(
-                    source,
+                    &analysis.source,
                     LintSurface::Script,
+                    &analysis.lint_directives,
                     &artifact.lint_settings,
                     &mut findings,
                     artifact.diagnostics.is_empty(),

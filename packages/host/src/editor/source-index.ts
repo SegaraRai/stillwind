@@ -1,6 +1,7 @@
 import type {
   NativeAssetRecord,
   NativeCandidateContext,
+  NativeLintComment,
   NativeProjectSession,
 } from "@stillwind/native";
 import type { PreparedSource } from "@stillwind/projection";
@@ -71,6 +72,8 @@ export class SourceIndex {
 
   /** Producers keyed first by module identity, then by `start:end` in original UTF-16 coordinates. */
   readonly #assets = new Map<string, Map<string, NativeAssetRecord>>();
+  /** Comments with `swlint-*` directives keyed by module identity, from each source's scan. */
+  readonly #lintComments = new Map<string, NativeLintComment[]>();
   /** Resolved producers and cached misses for nodes in the captured checker ASTs. */
   readonly #nodeAssets = new WeakMap<ts.Node, NativeAssetRecord | undefined>();
   /** Generated UTF-16 positions mapped to original positions. Null marks conflicting origins. */
@@ -116,6 +119,10 @@ export class SourceIndex {
       this.#assets.set(
         source.moduleId,
         assetRanges(source.document.code, scan.kind === "ready" ? scan.summary.assets : []),
+      );
+      this.#lintComments.set(
+        source.moduleId,
+        scan.kind === "ready" ? scan.summary.lintComments : [],
       );
     }
 
@@ -535,6 +542,17 @@ export class SourceIndex {
       this.#nodeAssets.set(node, this.#resolveAsset(source, node, new Set()));
     }
     return this.#nodeAssets.get(node);
+  }
+
+  /**
+   * Returns the comments that contain `swlint-*` directives in `source`'s original buffer.
+   *
+   * @param source - Prepared source of this index.
+   * @returns Comment bodies in original UTF-8 byte offsets, or an empty list when the scan
+   * failed. Callers must keep the returned list unchanged.
+   */
+  lintComments(source: PreparedSource): NativeLintComment[] {
+    return this.#lintComments.get(source.moduleId) ?? [];
   }
 
   /**

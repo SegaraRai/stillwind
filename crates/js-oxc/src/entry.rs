@@ -14,12 +14,15 @@ use std::collections::BTreeMap;
 
 use lean_string::ToLeanStr;
 use oxc::allocator::Allocator;
+use oxc::ast::Comment;
 use oxc::ast_visit::Visit;
 use oxc::parser::Parser;
 use oxc::semantic::SemanticBuilder;
 use oxc::span::SourceType;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintDirective, LintFinding, lint_directives_in_comments,
+};
 use stillwind_ir::{AdapterKind, ModuleImports, ModuleIr, ScriptLanguage, ScriptModuleKind};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{ModuleId, SourceFile, Span};
@@ -55,6 +58,8 @@ pub struct ParsedJavaScript {
     pub module: ModuleIr,
     /// Cross-module facts published for this module.
     pub summary: ModuleSummary,
+    /// `swlint-*` directives of the parsed comments, at original UTF-8 coordinates.
+    pub lint_directives: Vec<LintDirective>,
 }
 
 /// Parses a module with an explicit language and checker facts.
@@ -143,6 +148,8 @@ pub(crate) fn parse_with_coordinates(
         ));
         &[]
     };
+    let lint_directives =
+        comment_directives(&result.program.comments, source, original, coordinates);
     let semantic = SemanticBuilder::new().build(&result.program).semantic;
     let mut extractor = MacroExtractor::new(
         source,
@@ -209,7 +216,32 @@ pub(crate) fn parse_with_coordinates(
         lint_findings,
         summary,
         module,
+        lint_directives,
     }
+}
+
+/// Returns the `swlint-*` directives of `comments`, which Oxc found in `source`.
+///
+/// `coordinates` maps a span of `source` to `original`. A comment counts only when its
+/// body maps to `original` text with the same content, so a comment that a projection
+/// generated or moved never suppresses findings in the original file.
+fn comment_directives(
+    comments: &[Comment],
+    source: &SourceFile,
+    original: &SourceFile,
+    coordinates: &dyn Fn(Span) -> Option<Span>,
+) -> Vec<LintDirective> {
+    let bodies = comments.iter().filter_map(|comment| {
+        let body = comment.content_span();
+        let text = source.text().get(body.start as usize..body.end as usize)?;
+        if !text.contains("swlint-") {
+            return None;
+        }
+        let mapped = coordinates(Span::new(source.id(), body.start, body.end))?;
+        let range = mapped.start.0 as usize..mapped.end.0 as usize;
+        (original.text().get(range.clone()) == Some(text)).then_some(range)
+    });
+    lint_directives_in_comments(original.text(), bodies.collect::<Vec<_>>())
 }
 
 /// Returns the macro reads inside `omitted` inputs, whose source is erased with them.
