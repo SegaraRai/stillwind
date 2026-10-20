@@ -103,6 +103,29 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     );
     await frame.getByRole("heading", { name: "Updated component" }).waitFor();
     expect(await frame.getByRole("button").innerText()).toBe("Count: 1");
+    const beforeProbe = buffers.get("/workspace/Component.tsx")!;
+    await replace(
+      page,
+      buffers,
+      "Component.tsx",
+      beforeProbe,
+      `${beforeProbe}\nexport const probe = style("flex gap-2");`,
+    );
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Control+Space");
+    const suggestions = page.locator(".suggest-widget .monaco-list-row .label-name");
+    await expect.poll(() => suggestions.allInnerTexts(), { timeout: 30_000 }).toContain("gap-2");
+    expect(await suggestions.allInnerTexts()).not.toContain("flex gap-2");
+    await page.keyboard.press("Escape");
+    await replace(
+      page,
+      buffers,
+      "Component.tsx",
+      buffers.get("/workspace/Component.tsx")!,
+      beforeProbe,
+    );
     await replace(
       page,
       buffers,

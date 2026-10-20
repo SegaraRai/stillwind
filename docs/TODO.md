@@ -4,6 +4,25 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
+## String literal completions
+
+CVA variant utility inputs still suggest their own inferred strings. External class,
+custom-property, and attribute values in `style()` objects do the same. Evaluate which
+of these inputs need completion suppression while preserving inferred attribute values,
+dynamic expressions, and finite CVA choices. Utility strings passed directly to
+`style()` already suppress these suggestions.
+
+Sources: [style inputs](../packages/core/src/macro/input.ts),
+[CVA inputs](../packages/core/src/macro/cva.ts).
+
+## Playground editor state
+
+The Playground reports `Cannot set null/undefined state` browser errors during static
+acceptance. Trace the Monaco state update that receives the missing value. Confirm that
+formatting, completion, and HMR complete with an empty browser error list.
+
+Source: [static acceptance](../e2e/play/src/static.test.ts).
+
 ## Semantic fingerprints and prefix rewriting
 
 Semantic revisions hash `Debug` representations of facts and asset metadata in
