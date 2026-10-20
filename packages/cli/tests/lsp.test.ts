@@ -93,7 +93,7 @@ async function startServer(prefix: string) {
       child.kill();
     }
     await closed;
-    await rm(root, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true, maxRetries: 5 });
   };
   return { root, state, messages, send, wait, closed, stop };
 }

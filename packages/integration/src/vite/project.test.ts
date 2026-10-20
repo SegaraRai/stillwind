@@ -318,7 +318,7 @@ async function pauseFirstRead(file: string) {
 }
 
 /**
- * Creates a temporary Vite project and starts a development server with real file watching.
+ * Starts a temporary Vite project and waits for its file watcher's initial scan.
  * @param files - Root-relative filenames and contents written into the temporary directory.
  * @param options - Optional environment-specific CSS resolution and HMR settings.
  * @returns Project, server, and helpers for compilation and observed CSS changes. Test cleanup closes and removes them.
@@ -339,12 +339,19 @@ async function createWatchedProject(
   }
   const project = createViteProject({ css: "root.css" });
   const plugins = createVitePlugins(project);
+  const watcherReady = Promise.withResolvers<void>();
   const server = await createServer({
     configFile: false,
     root,
     plugins: [
       {
         name: "environment-css",
+        configureServer: {
+          order: "pre",
+          handler(server) {
+            server.watcher.once("ready", watcherReady.resolve);
+          },
+        },
         /**
          * Resolves a fixture import to the current environment's stylesheet.
          * @param id - Requested specifier.
@@ -375,6 +382,7 @@ async function createWatchedProject(
     rmSync(root, { recursive: true, force: true });
   });
   await server.listen();
+  await watcherReady.promise;
   /**
    * Creates hook operations for a named server environment.
    * @param environmentName - Existing Vite environment, normally client or ssr.
