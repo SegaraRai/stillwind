@@ -58,8 +58,10 @@ export interface StillwindPlugin {
 /** Inputs of one loaded `@plugin` statement. */
 export interface PluginContext {
   /**
-   * Declarations of the statement's options block, keyed by name. Values are the trimmed
-   * declaration text without the semicolon. A statement without a block has no options.
+   * Declarations of the statement's options block, keyed by name. A later declaration of a name
+   * replaces an earlier one. Values are the trimmed declaration text without the semicolon. Each
+   * run of whitespace and comments between top-level tokens becomes one space, and strings keep
+   * their quotes. A statement without a block has no options.
    */
   readonly options: Readonly<Record<string, string>>;
   /** Absolute project directory. */
@@ -97,26 +99,4 @@ export interface PluginContext {
  */
 export function definePlugin(plugin: StillwindPlugin): StillwindPlugin {
   return plugin;
-}
-
-/**
- * Parses the options block of a `@plugin` statement.
- *
- * @param text - Trimmed block text without braces, such as `prefix: i; scale: 1.2;`.
- * @returns Declarations keyed by name. A later declaration of a name replaces an earlier one.
- * Text without a colon is ignored. Quotes are kept in values.
- */
-export function parsePluginOptions(text: string): Record<string, string> {
-  const options: Record<string, string> = {};
-  for (const declaration of text.split(";")) {
-    const colon = declaration.indexOf(":");
-    if (colon < 0) {
-      continue;
-    }
-    const name = declaration.slice(0, colon).trim();
-    if (name) {
-      options[name] = declaration.slice(colon + 1).trim();
-    }
-  }
-  return options;
 }

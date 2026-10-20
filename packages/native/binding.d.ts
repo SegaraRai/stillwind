@@ -961,10 +961,10 @@ export interface NativeCssRequest {
   /** Decoded import or plugin specifier, without CSS quoting or escapes. */
   specifier: string
   /**
-   * Options block text of an `@plugin` request, trimmed and empty without a block.
-   * Absent for an `@import`, whose answer is the imported CSS file.
+   * Declarations of an `@plugin` options block in authored order, and empty without
+   * a block. Absent for an `@import`, whose answer is the imported CSS file.
    */
-  pluginOptions?: string
+  pluginOptions?: Array<NativePluginOption>
 }
 
 /** A resource reference found in authored CSS. */
@@ -1475,6 +1475,17 @@ export interface NativeModuleSummary {
 export interface NativeOriginalRange {
   start: number
   end: number
+}
+
+/** One `name: value;` declaration of a `@plugin` options block. */
+export interface NativePluginOption {
+  /** Option name with CSS escapes decoded. */
+  name: string
+  /**
+   * Authored value text without the semicolon, trimmed. Each run of whitespace and
+   * comments between top-level tokens becomes one space.
+   */
+  value: string
 }
 
 /** Host input with an editable document and explicit parser preparation. */

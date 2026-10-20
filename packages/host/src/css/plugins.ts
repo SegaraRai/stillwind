@@ -1,4 +1,4 @@
-import { parsePluginOptions, type PluginContext, type StillwindPlugin } from "@stillwind/config";
+import type { PluginContext, StillwindPlugin } from "@stillwind/config";
 import {
   NativeDesignSystemLoader,
   type NativeCompilerOptions,
@@ -309,7 +309,9 @@ export class PluginRuntime {
         );
       }
       const context: PluginContext = {
-        options: parsePluginOptions(request.pluginOptions ?? ""),
+        options: Object.fromEntries(
+          (request.pluginOptions ?? []).map((option) => [option.name, option.value]),
+        ),
         root: this.root,
         watch: this.watch,
         resolve: async (specifier) => this.host?.resolve(specifier, request.importer),
@@ -345,7 +347,7 @@ export class PluginRuntime {
         definitions: resolved.trim() ? [resolved] : [],
         tailwind: nativePlugin(plugin)
           ? undefined
-          : (await tailwindAdapter()).configurePlugin(plugin, request.pluginOptions ?? ""),
+          : (await tailwindAdapter()).configurePlugin(plugin, request.pluginOptions ?? []),
       };
       this.#instances.set(key, instance);
     }
@@ -627,20 +629,21 @@ export class PluginRuntime {
 /**
  * Identifies one `@plugin` statement independently of its request ID.
  * @param request - Plugin request.
- * @returns Importer, specifier, and options text joined by NUL characters.
+ * @returns Importer, specifier, and JSON options joined by NUL characters.
  */
 function instanceKey(request: NativeCssRequest): string {
-  return `${request.importer}\0${request.specifier}\0${request.pluginOptions ?? ""}`;
+  return `${request.importer}\0${request.specifier}\0${JSON.stringify(request.pluginOptions ?? [])}`;
 }
 
 /**
  * Identifies one request independently of its ID, which changes between loads.
  *
  * @param request - Loader request.
- * @returns Importer, specifier, and plugin options joined by NUL characters.
+ * @returns Importer, specifier, and JSON plugin options joined by NUL characters. An `@import`
+ * has no options part.
  */
 function answerKey(request: NativeCssRequest): string {
-  return `${request.importer}\0${request.specifier}\0${request.pluginOptions ?? "\u0001"}`;
+  return `${request.importer}\0${request.specifier}\0${JSON.stringify(request.pluginOptions) ?? ""}`;
 }
 
 /** A session's plugin runtime and the definition generation that its design system contains. */

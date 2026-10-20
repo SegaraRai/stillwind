@@ -12,6 +12,7 @@ use napi::{Error, Status};
 use napi_derive::napi;
 
 use stillwind_compiler::{RenderedStylesheet, StylesheetMapping, StylesheetRenderError};
+use stillwind_design_system::{CssDependencyKind, CssFileRequest};
 use stillwind_project::{StylesheetCoverage, StylesheetPlan};
 
 use crate::output::{BindingRejectedIdentifier, NativeModuleResource, NativeText};
@@ -78,9 +79,43 @@ pub struct NativeCssRequest {
     /// Decoded import or plugin specifier, without CSS quoting or escapes.
     #[napi(ts_type = "string")]
     pub specifier: NativeText,
-    /// Options block text of an `@plugin` request, trimmed and empty without a block.
-    /// Absent for an `@import`, whose answer is the imported CSS file.
-    pub plugin_options: Option<String>,
+    /// Declarations of an `@plugin` options block in authored order, and empty without
+    /// a block. Absent for an `@import`, whose answer is the imported CSS file.
+    pub plugin_options: Option<Vec<NativePluginOption>>,
+}
+
+impl From<CssFileRequest> for NativeCssRequest {
+    fn from(request: CssFileRequest) -> Self {
+        Self {
+            id: request.id,
+            importer: (request.importer.as_str().to_owned()).into(),
+            specifier: (request.specifier).into(),
+            plugin_options: match request.kind {
+                CssDependencyKind::Import => None,
+                CssDependencyKind::Plugin { options } => Some(
+                    options
+                        .into_iter()
+                        .map(|option| NativePluginOption {
+                            name: option.name.into(),
+                            value: option.value.into(),
+                        })
+                        .collect(),
+                ),
+            },
+        }
+    }
+}
+
+/// One `name: value;` declaration of a `@plugin` options block.
+#[napi(object, object_from_js = false)]
+pub struct NativePluginOption {
+    /// Option name with CSS escapes decoded.
+    #[napi(ts_type = "string")]
+    pub name: NativeText,
+    /// Authored value text without the semicolon, trimmed. Each run of whitespace and
+    /// comments between top-level tokens becomes one space.
+    #[napi(ts_type = "string")]
+    pub value: NativeText,
 }
 
 /// A resource reference found in authored CSS.

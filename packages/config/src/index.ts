@@ -49,11 +49,6 @@ export {
   type VariantDirectiveOptions,
 } from "./lint.ts";
 export { mergeConfig } from "./merge.ts";
-export {
-  definePlugin,
-  parsePluginOptions,
-  type PluginContext,
-  type StillwindPlugin,
-} from "./plugins.ts";
+export { definePlugin, type PluginContext, type StillwindPlugin } from "./plugins.ts";
 export { configurationFiles } from "./resolution.ts";
 export type { InlineConfig, SerializableInlineConfig } from "./resolution.ts";

@@ -5,8 +5,7 @@ use napi_derive::napi;
 
 use stillwind_compiler::{CompilerOptions, lint_stylesheets, prepare_canonical_index};
 use stillwind_design_system::{
-    CssDependencyKind, CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader,
-    DesignSystemSnapshot,
+    CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
 use stillwind_diagnostics::{LintSettings, LintSurface, LocatedDiagnostic, Reporter};
 use stillwind_source::{SourceRegistry, SourceUri};
@@ -126,18 +125,7 @@ impl NativeDesignSystemLoader {
             .collect::<napi::Result<Vec<_>>>()?;
         match self.loader.provide_many(files) {
             DesignSystemLoadStep::NeedFile(requests) => Ok(NativeCssLoadStep::NeedFile {
-                requests: requests
-                    .into_iter()
-                    .map(|request| NativeCssRequest {
-                        id: request.id,
-                        importer: (request.importer.as_str().to_owned()).into(),
-                        specifier: (request.specifier).into(),
-                        plugin_options: match request.kind {
-                            CssDependencyKind::Import => None,
-                            CssDependencyKind::Plugin { options } => Some(options.to_string()),
-                        },
-                    })
-                    .collect(),
+                requests: requests.into_iter().map(NativeCssRequest::from).collect(),
             }),
             DesignSystemLoadStep::Complete(Ok(snapshot)) => {
                 if self.prepare_canonical {

@@ -1,3 +1,5 @@
+import type { NativePluginOption } from "@stillwind/native";
+
 /**
  * Serializes a plugin CSS object, as plugins pass it to Tailwind's API, while preserving
  * repeated declarations and nested rules.
@@ -440,22 +442,19 @@ export function splitTopLevel(value: string, delimiter: string): string[] {
 }
 
 /**
- * Parses a Tailwind `@plugin` options block into the values that `plugin.withOptions()`
- * factories receive.
+ * Converts the declarations of a Tailwind `@plugin` options block into the values that
+ * `plugin.withOptions()` factories receive.
  *
- * @param text - Block text without braces, such as `nocompatible: false; prefix: "x"`.
- * @returns Options by name. `true`, `false`, `null`, numbers, and quoted strings become those
- * values, and a comma-separated list becomes an array.
+ * @param options - Declarations in authored order, such as `prefix` with the value `"x"`.
+ * @returns Options by name. A later declaration of a name replaces an earlier one. `true`,
+ * `false`, `null`, numbers, and quoted strings become those values, and a comma-separated list
+ * becomes an array.
  * @throws If a value is none of these forms.
  */
-export function pluginOptions(text: string): Record<string, unknown> {
+export function pluginOptions(options: readonly NativePluginOption[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  for (const declaration of splitTopLevel(text, ";")) {
-    const [name, ...values] = splitTopLevel(declaration, ":");
-    if (!name.trim() || !values.length) {
-      continue;
-    }
-    const entries = splitTopLevel(values.join(":"), ",").map((part) => {
+  for (const { name, value: text } of options) {
+    const entries = splitTopLevel(text, ",").map((part) => {
       const value = part.trim();
       if (value === "true") {
         return true;
@@ -483,9 +482,9 @@ export function pluginOptions(text: string): Record<string, unknown> {
             })[char] ?? char,
         );
       }
-      throw new Error(`Invalid Tailwind plugin option ${name.trim()}: ${value}`);
+      throw new Error(`Invalid Tailwind plugin option ${name}: ${value}`);
     });
-    result[name.trim()] = entries.length === 1 ? entries[0] : entries;
+    result[name] = entries.length === 1 ? entries[0] : entries;
   }
   return result;
 }

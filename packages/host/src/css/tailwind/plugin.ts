@@ -4,7 +4,11 @@
  * statement selects such a plugin, because it depends on the `tailwindcss` package.
  */
 
-import { decodeArbitraryValue, type NativeThemeToken } from "@stillwind/native";
+import {
+  decodeArbitraryValue,
+  type NativePluginOption,
+  type NativeThemeToken,
+} from "@stillwind/native";
 import type { PluginAPI, PluginCreator, PluginWithConfig } from "tailwindcss/plugin";
 
 import type { TailwindPlugin } from "../plugins.ts";
@@ -28,11 +32,14 @@ import { PluginTheme, toKeyPath } from "./theme.ts";
  * `@plugin` statement.
  *
  * @param plugin - Handler, `{ handler, config }`, or factory from `plugin.withOptions()`.
- * @param options - Options block text of the statement, empty without a block.
- * @returns The factory's result for parsed `options`, or the plugin in object form.
+ * @param options - Declarations of the statement's options block, empty without a block.
+ * @returns The factory's result for converted `options`, or the plugin in object form.
  * @throws If a handler that is not a factory receives options, or an option value is invalid.
  */
-export function configurePlugin(plugin: TailwindPlugin, options: string): PluginWithConfig {
+export function configurePlugin(
+  plugin: TailwindPlugin,
+  options: readonly NativePluginOption[],
+): PluginWithConfig {
   if (
     typeof plugin === "function" &&
     "__isOptionsFunction" in plugin &&
@@ -42,7 +49,7 @@ export function configurePlugin(plugin: TailwindPlugin, options: string): Plugin
       pluginOptions(options),
     );
   }
-  if (options.trim()) {
+  if (options.length) {
     throw new Error("This Tailwind plugin does not accept options");
   }
   return typeof plugin === "function"
@@ -224,7 +231,7 @@ export class TailwindRuntime {
       }
       configs.push((plugin.config ?? {}) as Record<string, unknown>);
       for (const nested of plugin.config?.plugins ?? []) {
-        visit(configurePlugin(nested as TailwindPlugin, ""), owner);
+        visit(configurePlugin(nested as TailwindPlugin, []), owner);
       }
       entries.push([plugin, owner]);
     };

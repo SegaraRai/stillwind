@@ -213,6 +213,37 @@ test("plugin CSS replaces the statement and resolves both spellings of dynamic u
   expect(calls).toStrictEqual([["demo-blue", "demo-red"]]);
 });
 
+test("plugin options keep quoted delimiters and omit comments", async () => {
+  const received: Record<string, string>[] = [];
+  const plugin = definePlugin({
+    name: "demo",
+    css: ({ options }) => {
+      received.push({
+        ...options,
+      });
+      return "";
+    },
+  });
+
+  await load(
+    plugin,
+    `@plugin "demo" {
+  /* note: ignored; */
+  label: "a;b: c";
+  icon: url("data:image/svg+xml;utf8,<svg/>");
+  size: 1 /* inline */ 2;
+}`,
+  );
+
+  expect(received).toStrictEqual([
+    {
+      label: '"a;b: c"',
+      icon: 'url("data:image/svg+xml;utf8,<svg/>")',
+      size: "1 2",
+    },
+  ]);
+});
+
 test("sessions keep added definitions, and reloads resolve the earlier candidates again", async () => {
   const { plugin, calls } = demoPlugin();
   const first = await load(plugin);

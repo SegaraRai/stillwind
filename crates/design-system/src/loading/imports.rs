@@ -12,8 +12,8 @@
 //! right (`theme`, `prefix`, `source`, `reference`, `important`) are rejected instead
 //! of being silently ignored.
 
-use cssparser::{ParseError, Parser, Token};
-use lean_string::{LeanStr, ToLeanStr, ToLeanString};
+use cssparser::{ParseError, ParseErrorKind, Parser, Token};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_diagnostics::CompileDiagnostic;
 
@@ -33,7 +33,19 @@ pub(super) struct Import {
     /// nests them in this order, and an empty vector means no condition.
     pub(super) wrappers: Vec<LeanStr>,
     /// Plugin options when the statement is `@plugin`, or `None` for `@import`.
-    pub(super) plugin: Option<LeanStr>,
+    pub(super) plugin: Option<Vec<PluginOption>>,
+}
+
+/// One `name: value;` declaration of a `@plugin` options block.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PluginOption {
+    /// Option name with CSS escapes decoded.
+    pub name: LeanStr,
+    /// Authored value text without the semicolon, trimmed. Each run of whitespace and
+    /// comments between top-level tokens becomes one space. Strings and the contents of
+    /// parentheses, brackets, and functions keep their authored text, comments
+    /// included.
+    pub value: LeanStr,
 }
 
 /// Finds every authored `@import` at the top level of one buffer, in source
@@ -111,14 +123,15 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
 }
 
 /// Reads the rest of a `@plugin "specifier";` statement or a
-/// `@plugin "specifier" { options }` rule after its keyword. The options are the
-/// trimmed block text, and an absent block gives empty options.
+/// `@plugin "specifier" { options }` rule after its keyword. An absent block gives
+/// empty options.
 ///
 /// # Errors
 ///
 /// Returns [`CompileDiagnostic::InvalidCssImportSpecifier`] for a missing string
-/// specifier or for other tokens before the semicolon or block, and
-/// [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
+/// specifier, for other tokens before the semicolon or block, and for an options block
+/// that [`plugin_options`] rejects. Returns [`CompileDiagnostic::InvalidCssBlock`] for
+/// an unbalanced block.
 fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagnostic> {
     let invalid = |detail: &str| CompileDiagnostic::InvalidCssImportSpecifier {
         offset: start,
@@ -129,21 +142,16 @@ fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagno
         .map_err(|error| invalid(&error.kind.to_lean_str()))?
         .to_lean_string();
     let options = match parser.next() {
-        Ok(Token::Semicolon) | Err(_) => LeanStr::default(),
+        Ok(Token::Semicolon) | Err(_) => Vec::new(),
         Ok(Token::CurlyBracketBlock) => {
-            let open = parser.position();
             parser
-                .parse_nested_block(|nested| {
-                    while nested.next_including_whitespace_and_comments().is_ok() {}
-                    Ok::<_, ParseError<()>>(())
-                })
-                .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
-            let block = parser.slice(open..parser.position());
-            block
-                .strip_suffix('}')
-                .unwrap_or(block)
-                .trim()
-                .to_lean_str()
+                .parse_nested_block(plugin_options)
+                .map_err(|error| match error.kind {
+                    ParseErrorKind::Custom(detail) => invalid(detail),
+                    ParseErrorKind::Basic(_) => {
+                        CompileDiagnostic::InvalidCssBlock { offset: start }
+                    }
+                })?
         }
         Ok(_) => return Err(invalid("expected `;` or an options block after the plugin")),
     };
@@ -154,6 +162,68 @@ fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagno
         wrappers: Vec::new(),
         plugin: Some(options),
     })
+}
+
+/// Reads the `name: value;` declarations of a `@plugin` options block in authored
+/// order. Empty statements are skipped, and the last declaration may omit its
+/// semicolon.
+///
+/// # Errors
+///
+/// Returns a custom error with its explanation when a statement does not start with an
+/// identifier and a colon, when a value is empty, or when a value contains a `{}`
+/// block.
+fn plugin_options(parser: &mut Parser<'_>) -> Result<Vec<PluginOption>, ParseError<&'static str>> {
+    let invalid = |detail| ParseError {
+        kind: ParseErrorKind::Custom(detail),
+    };
+    let mut options = Vec::new();
+    loop {
+        let name = match parser.next() {
+            Err(_) => return Ok(options),
+            Ok(Token::Semicolon) => continue,
+            Ok(Token::Ident(name)) => name.to_lean_str(),
+            Ok(_) => return Err(invalid("expected a plugin option name")),
+        };
+        if parser.expect_colon().is_err() {
+            return Err(invalid("expected `:` after a plugin option name"));
+        }
+        let mut value = LeanString::new();
+        loop {
+            let token_start = parser.position();
+            let block = match parser.next_including_whitespace_and_comments() {
+                Err(_) | Ok(Token::Semicolon) => break,
+                Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {
+                    if !value.is_empty() && !value.ends_with(' ') {
+                        value.push(' ');
+                    }
+                    continue;
+                }
+                Ok(Token::CurlyBracketBlock) => {
+                    return Err(invalid("plugin option values cannot contain `{}`"));
+                }
+                Ok(Token::ParenthesisBlock | Token::SquareBracketBlock | Token::Function(_)) => {
+                    true
+                }
+                Ok(_) => false,
+            };
+            if block {
+                parser.parse_nested_block(|nested| {
+                    while nested.next_including_whitespace_and_comments().is_ok() {}
+                    Ok::<_, ParseError<&'static str>>(())
+                })?;
+            }
+            value.push_str(parser.slice_from(token_start));
+        }
+        let value = value.trim_end();
+        if value.is_empty() {
+            return Err(invalid("expected a plugin option value"));
+        }
+        options.push(PluginOption {
+            name,
+            value: value.to_lean_str(),
+        });
+    }
 }
 
 /// Turns the text after a specifier into the wrapper preludes expansion emits:
@@ -283,15 +353,64 @@ mod tests {
         let found = imports(css).unwrap();
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].specifier, "@stillwind/plugin-iconify");
-        assert_eq!(found[0].plugin.as_deref(), Some(""));
+        assert_eq!(found[0].plugin.as_deref(), Some(&[][..]));
         assert_eq!(
             &css[found[0].start..found[0].end],
             "@plugin \"@stillwind/plugin-iconify\";"
         );
-        assert_eq!(found[1].plugin.as_deref(), Some("prefix: i; scale: 1.2;"));
+        assert_eq!(
+            found[1].plugin.as_deref(),
+            Some(&[option("prefix", "i"), option("scale", "1.2")][..])
+        );
         assert!(css[found[1].start..found[1].end].ends_with("scale: 1.2; }"));
         assert!(imports("@plugin;").is_err());
         assert!(imports("@plugin 'a' b;").is_err());
+    }
+
+    #[test]
+    fn plugin_options_keep_quoted_delimiters_and_omit_comments() {
+        let css = r#"@plugin "p" {
+            /* note: ignored; */
+            label: "a;b: c";
+            icon: url("data:image/svg+xml;utf8,<svg/>");
+            size: 1 /* inline */ 2;
+            list: fn(a; b), [c];
+            last: x
+        }"#;
+        let found = imports(css).unwrap();
+        assert_eq!(
+            found[0].plugin.as_deref(),
+            Some(
+                &[
+                    option("label", "\"a;b: c\""),
+                    option("icon", "url(\"data:image/svg+xml;utf8,<svg/>\")"),
+                    option("size", "1 2"),
+                    option("list", "fn(a; b), [c]"),
+                    option("last", "x"),
+                ][..]
+            )
+        );
+        for invalid in [
+            "@plugin 'p' { prefix }",
+            "@plugin 'p' { prefix: ; }",
+            "@plugin 'p' { 'prefix': i; }",
+            "@plugin 'p' { .a { color: red; } }",
+        ] {
+            assert!(
+                matches!(
+                    imports(invalid),
+                    Err(CompileDiagnostic::InvalidCssImportSpecifier { offset: 0, .. })
+                ),
+                "{invalid}"
+            );
+        }
+    }
+
+    fn option(name: &str, value: &str) -> PluginOption {
+        PluginOption {
+            name: name.into(),
+            value: value.into(),
+        }
     }
 
     #[test]

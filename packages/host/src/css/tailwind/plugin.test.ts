@@ -7,7 +7,7 @@ import { configurePlugin, TailwindRuntime } from "./plugin.ts";
 /** Creates a runtime for configured handlers, one for each `@plugin` statement. */
 function runtime(...plugins: unknown[]) {
   return new TailwindRuntime(
-    plugins.map((entry) => configurePlugin(entry as TailwindPlugin, "")),
+    plugins.map((entry) => configurePlugin(entry as TailwindPlugin, [])),
     [],
   );
 }

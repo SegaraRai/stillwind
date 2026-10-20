@@ -272,6 +272,11 @@ resolution. The browser language server bundles the package from the captured wo
 as it bundles configurations, so the package must not import Node modules. A
 `BrowserProject` without plugin operations accepts only configured plugins.
 
+The options block contains only `name: value;` declarations, and the last semicolon is
+optional. The loader rejects other statements, empty values, and values with `{}`
+blocks. Comments are not part of a value, and strings keep their quotes, so a `;` inside
+a string does not end the declaration.
+
 Node hosts import a package name with Node's module cache, so a changed package takes
 effect only in a new process. A relative or absolute path names a local plugin file. Node
 hosts bundle that file with its local imports, as they bundle configurations, and register

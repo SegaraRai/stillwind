@@ -476,6 +476,13 @@ test("Tailwind export forms and typed options preserve the native plugin contrac
     },
   ]);
   expect(loaded.loader.editorQuery().previewCandidate("test")).toContain("color:red");
+  options.length = 0;
+  await graph('@plugin "test" { /* flag: true; */ label: "a;b", "c,d"; }', extension);
+  expect(options).toEqual([
+    {
+      label: ["a;b", "c,d"],
+    },
+  ]);
   expect(
     defaultPluginExport(
       {
