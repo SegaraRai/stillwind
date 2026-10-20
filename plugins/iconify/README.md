@@ -26,6 +26,32 @@ suggests the named spelling:
 <span {...style("icon-mdi--close", "hover:icon-[mdi--close-circle]")} />
 ```
 
+## Sizes
+
+An icon is `1em` high by default, and its width keeps the icon's aspect ratio. A size utility
+sets the height of the icon on the same element:
+
+- `icon-<name>` uses the `--icon-size-<name>` theme token.
+- `icon-full` uses `100%` of the parent's height.
+- `icon-[<length>]`, `icon-[<percentage>]`, and `icon-(<custom-property>)` use the given value.
+
+```css
+@theme {
+  --icon-size-lg: 1.5rem;
+}
+```
+
+```tsx
+<span {...style("icon-mdi--close icon-lg")} />
+```
+
+The size does not reach descendants or the element's `::before` and `::after` boxes. Apply the
+size with the same variant as the icon, such as `before:icon-mdi--close before:icon-lg`.
+`--icon-size-*` is a theme namespace that accepts lengths and percentages, so lint reports
+other token values. The prefix option renames the utilities but not the namespace.
+
+The SVG of each used icon becomes the `--icon-svg-<set>--<icon>` theme token.
+
 ## Icon sets
 
 The plugin finds a set in this order:
@@ -56,7 +82,7 @@ The options block of the statement sets these options:
 - `prefix`: utility prefix without the trailing hyphen. Defaults to `icon`.
 - `syntax`: spellings that select an icon. `named` accepts `icon-mdi--close`, `bracket` accepts
   `icon-[mdi--close]` as Tailwind's Iconify plugin does, and `both`, the default, accepts both.
-- `scale`: icon height in `em`. The width keeps the icon's aspect ratio. Defaults to `1`.
+- `scale`: icon height in `em` when no size utility applies. Defaults to `1`.
 - `mode`: `mask` paints the text color through the icon's shape, and `background` paints the
   icon's own colors. `auto`, the default, selects `mask` for icons whose SVG uses
   `currentColor`.

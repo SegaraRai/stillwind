@@ -11,9 +11,15 @@ import { svgToURL } from "@iconify/utils/lib/svg/url";
  */
 export type IconMode = "auto" | "mask" | "background";
 
+/**
+ * Custom property that sets the height of an icon box. Size utilities set it, and icon
+ * utilities fall back to {@link IconStyle["scale"]} when it has no value.
+ */
+export const ICON_SIZE = "--sw-icon-size";
+
 /** Settings that apply to every icon utility of a plugin instance. */
 export interface IconStyle {
-  /** Icon height in `em`. The width keeps the icon's aspect ratio. */
+  /** Default icon height in `em`. The width keeps the icon's aspect ratio. */
   readonly scale: number;
   /** Paint method of the icons. */
   readonly mode: IconMode;
@@ -26,7 +32,7 @@ export interface IconStyle {
  * module uses the utility.
  *
  * @param utility - Utility name, such as `icon-mdi--close` or `icon-[mdi--close]`.
- * @param token - Custom property name of the SVG token, such as `--icon-mdi--close`. It must be
+ * @param token - Custom property name of the SVG token, such as `--icon-svg-mdi--close`. It must be
  * a valid CSS identifier.
  * @param collection - Icon set that contains the icon.
  * @param name - Icon name or alias in the set.
@@ -74,8 +80,11 @@ export function iconCss(
     `}`,
     `@utility ${utility} {`,
     `  display: inline-block;`,
-    `  width: ${em((style.scale * width) / height)};`,
-    `  height: ${em(style.scale)};`,
+    // `max-content` derives the width from the height and the aspect ratio. Unlike `auto`,
+    // it keeps a flex or grid container from stretching the box across its cross axis.
+    `  width: max-content;`,
+    `  height: var(${ICON_SIZE}, ${em(style.scale)});`,
+    `  aspect-ratio: ${decimal(width)} / ${decimal(height)};`,
     ...paint.map((declaration) => `  ${declaration}`),
     `}`,
     ``,
@@ -89,5 +98,15 @@ export function iconCss(
  * @returns CSS length text.
  */
 function em(value: number): string {
-  return `${Math.round(value * 10_000) / 10_000}em`;
+  return `${decimal(value)}em`;
+}
+
+/**
+ * Formats a number with at most four fractional digits.
+ *
+ * @param value - Finite number.
+ * @returns CSS number text.
+ */
+function decimal(value: number): string {
+  return `${Math.round(value * 10_000) / 10_000}`;
 }

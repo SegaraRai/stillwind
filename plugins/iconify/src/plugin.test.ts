@@ -45,14 +45,28 @@ describe("iconify", () => {
   test("declares the forms of its prefix that the syntax selects", async () => {
     const plugin = iconify();
 
-    expect(await plugin.css(context())).toBe(
-      "@stillwind-dynamic icon-*;\n@stillwind-dynamic icon-[*];\n",
-    );
-    expect(await plugin.css(context({ prefix: "i", syntax: "named" }))).toBe(
-      "@stillwind-dynamic i-*;\n",
-    );
-    expect(await iconify({ syntax: "bracket" }).css(context())).toBe(
-      "@stillwind-dynamic icon-[*];\n",
+    const dynamic = async (options?: Record<string, string>, instance = plugin) =>
+      (await instance.css(context(options))).match(/^@stillwind-dynamic .*$/gm);
+
+    expect(await dynamic()).toStrictEqual([
+      "@stillwind-dynamic icon-*;",
+      "@stillwind-dynamic icon-[*];",
+    ]);
+    expect(await dynamic({ prefix: "i", syntax: "named" })).toStrictEqual([
+      "@stillwind-dynamic i-*;",
+    ]);
+    expect(await dynamic({}, iconify({ syntax: "bracket" }))).toStrictEqual([
+      "@stillwind-dynamic icon-[*];",
+    ]);
+  });
+
+  test("defines size utilities with its prefix and a shared size namespace", async () => {
+    const css = await iconify().css(context({ prefix: "i" }));
+
+    expect(css).toContain("@stillwind-theme-namespace --icon-size-* [length] [percentage];");
+    expect(css).toContain("@utility i-full {\n  --sw-icon-size: 100%;\n}");
+    expect(css).toContain(
+      "@utility i-* {\n  --sw-icon-size: --value(--icon-size-*, [length], [percentage]);\n}",
     );
   });
 
@@ -66,7 +80,7 @@ describe("iconify", () => {
     const css = await plugin.resolve!(["icon-[demo--close]", "icon-demo--flag"], context());
 
     expect(css).toContain("@utility icon-[demo--close] {");
-    expect(css).toContain("mask-image: var(--icon-demo--close);");
+    expect(css).toContain("mask-image: var(--icon-svg-demo--close);");
     expect(css).not.toContain("icon-demo--flag");
     expect(await plugin.catalog!(context(), "")).toContain("icon-[demo--close]");
   });
@@ -80,11 +94,11 @@ describe("iconify", () => {
     const css = await plugin.resolve!(["icon-demo--close", "icon-demo--flag"], context());
 
     expect(css).toContain("@utility icon-demo--close {");
-    expect(css).toContain('--icon-demo--close: url("data:image/svg+xml,');
-    expect(css).toContain("mask-image: var(--icon-demo--close);");
+    expect(css).toContain('--icon-svg-demo--close: url("data:image/svg+xml,');
+    expect(css).toContain("mask-image: var(--icon-svg-demo--close);");
     expect(css).toContain("@utility icon-demo--flag {");
-    expect(css).toContain("background-image: var(--icon-demo--flag);");
-    expect(css).toContain("width: 2em;");
+    expect(css).toContain("background-image: var(--icon-svg-demo--flag);");
+    expect(css).toContain("aspect-ratio: 48 / 24;");
   });
 
   test("resolves aliases and applies statement options", async () => {
@@ -103,8 +117,8 @@ describe("iconify", () => {
     );
 
     expect(css).toContain("@utility i-demo--cross {");
-    expect(css).toContain("height: 1.5em;");
-    expect(css).toContain("background-image: var(--i-demo--cross);");
+    expect(css).toContain("height: var(--sw-icon-size, 1.5em);");
+    expect(css).toContain("background-image: var(--icon-svg-demo--cross);");
   });
 
   test("leaves candidates without a known icon undefined", async () => {

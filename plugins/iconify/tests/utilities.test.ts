@@ -41,12 +41,14 @@ const demo: IconifyJSON = {
  * @param pluginFirst - Whether the `@plugin` statement precedes `@import "stillwind"`. An
  * options block would end the statements that `@import` may follow, so the plugin then receives
  * no options.
+ * @param theme - Declarations of a `@theme` block after both statements.
  * @returns The rendered document CSS and the module's diagnostic messages.
  */
 async function compile(
   code: string,
   options = "",
   pluginFirst = false,
+  theme = "",
 ): Promise<{
   css: string;
   diagnostics: string[];
@@ -58,9 +60,10 @@ async function compile(
       resolve: async (specifier, importer) => createRequire(importer).resolve(specifier),
       read: async (id) =>
         id === path.join(root, "design.css")
-          ? pluginFirst
-            ? `@plugin "@stillwind/plugin-iconify";\n@import "stillwind";\n`
-            : `@import "stillwind";\n@plugin "@stillwind/plugin-iconify" { ${options} }\n`
+          ? (pluginFirst
+              ? `@plugin "@stillwind/plugin-iconify";\n@import "stillwind";\n`
+              : `@import "stillwind";\n@plugin "@stillwind/plugin-iconify" { ${options} }\n`) +
+            `@theme { ${theme} }\n`
           : readFile(id, "utf8"),
       documentUri: (id) => `untitled:${encodeURIComponent(id)}`,
       sourceMapSource: (id) => id,
@@ -124,8 +127,8 @@ export const bracket = style("hover:icon-[demo--close]");
 `);
 
   expect(diagnostics).toStrictEqual([]);
-  expect(css.match(/--icon-demo--close:/g)).toHaveLength(1);
-  expect(css).toContain("mask-image: var(--icon-demo--close)");
+  expect(css.match(/--icon-svg-demo--close:/g)).toHaveLength(1);
+  expect(css).toContain("mask-image: var(--icon-svg-demo--close)");
   expect(css).toMatch(/:hover/);
 });
 
@@ -143,8 +146,8 @@ export const named = style("icon-demo--close");
     "syntax: bracket;",
   );
 
-  expect(bracket.css).toContain("mask-image: var(--icon-demo--close)");
-  expect(named.css).not.toContain("--icon-demo--close");
+  expect(bracket.css).toContain("mask-image: var(--icon-svg-demo--close)");
+  expect(named.css).not.toContain("--icon-svg-demo--close");
 }, 30_000);
 
 test("editor colors omit icon utilities while keeping their hover previews", async () => {
@@ -217,9 +220,10 @@ export const icon = style(${JSON.stringify(classes)});
     );
     expect(diagnostics).toStrictEqual([]);
     const rule = css.slice(css.indexOf("@layer utilities"));
-    expect(rule.indexOf("width: 1em")).toBeGreaterThan(-1);
-    expect(rule.indexOf("width:100%")).toBeGreaterThan(rule.indexOf("width: 1em"));
-    expect(rule.indexOf("height:100%")).toBeGreaterThan(rule.indexOf("height: 1em"));
+    const height = rule.indexOf("height: var(--sw-icon-size, 1em)");
+    expect(height).toBeGreaterThan(-1);
+    expect(rule.indexOf("width:100%")).toBeGreaterThan(rule.indexOf("width: max-content"));
+    expect(rule.indexOf("height:100%")).toBeGreaterThan(height);
   },
 );
 
@@ -289,3 +293,24 @@ export const named = style("hover:icon-demo--");`;
     await project.close();
   }
 });
+
+test("size utilities set the height of icon boxes without inheritance", async () => {
+  const { css, diagnostics } = await compile(
+    `import { style } from "stillwind/react";
+export const named = style("icon-demo--close icon-lg");
+export const full = style("icon-[demo--flag] icon-full");
+export const before = style("before:icon-demo--close before:icon-[2rem] icon-(--size)");
+`,
+    "",
+    false,
+    "--icon-size-lg: 1.5rem;",
+  );
+
+  expect(diagnostics).toStrictEqual([]);
+  for (const value of ["var(--icon-size-lg)", "100%", "2rem", "var(--size)"]) {
+    expect(css).toContain(`--sw-icon-size: ${value};`);
+  }
+  expect(css).toContain("--icon-size-lg:1.5rem");
+  expect(css).toContain("background-image: var(--icon-svg-demo--flag);");
+  expect(css).toMatch(/@property --sw-icon-size \{\s*syntax: "\*";\s*inherits: false;\s*\}/);
+}, 30_000);

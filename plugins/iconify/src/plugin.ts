@@ -1,7 +1,7 @@
 import type { PluginContext, StillwindPlugin } from "@stillwind/config";
 
 import { Collections, type CollectionSource } from "./collections.ts";
-import { iconCss, type IconMode, type IconStyle } from "./icons.ts";
+import { ICON_SIZE, iconCss, type IconMode, type IconStyle } from "./icons.ts";
 
 /**
  * Spellings that select an icon. `named` accepts `icon-mdi--close`, and `bracket` accepts
@@ -19,7 +19,7 @@ export interface IconifyOptions {
   readonly prefix?: string;
   /** Spellings that select an icon. Defaults to `both`. */
   readonly syntax?: IconSyntax;
-  /** Icon height in `em`. Defaults to `1`. */
+  /** Icon height in `em` when no size utility applies. Defaults to `1`. */
   readonly scale?: number;
   /** Paint method of the icons. Defaults to `auto`. */
   readonly mode?: IconMode;
@@ -47,6 +47,20 @@ const PREFIX = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const SYNTAXES: readonly IconSyntax[] = ["both", "named", "bracket"];
 
 const MODES: readonly IconMode[] = ["auto", "mask", "background"];
+
+/**
+ * CSS that every statement shares. The registration keeps an element's icon size from
+ * reaching its descendants and its `::before` and `::after` boxes, so each icon box sets
+ * its own size.
+ */
+const SIZE_CSS = [
+  "@stillwind-theme-namespace --icon-size-* [length] [percentage];",
+  `@stillwind-property ${ICON_SIZE} {`,
+  "  activation: declared;",
+  '  syntax: "*";',
+  "  inherits: false;",
+  "}",
+].join("\n");
 
 /**
  * Creates the Iconify plugin, which defines a utility for each icon that modules use.
@@ -85,6 +99,13 @@ export function iconify(options: IconifyOptions = {}): StillwindPlugin {
     css(context) {
       const { prefix, syntax } = statementSettings(defaults, context);
       return [
+        SIZE_CSS,
+        `@utility ${prefix}-full {`,
+        `  ${ICON_SIZE}: 100%;`,
+        `}`,
+        `@utility ${prefix}-* {`,
+        `  ${ICON_SIZE}: --value(--icon-size-*, [length], [percentage]);`,
+        `}`,
         ...(syntax !== "bracket" ? [`@stillwind-dynamic ${prefix}-*;`] : []),
         ...(syntax !== "named" ? [`@stillwind-dynamic ${prefix}-[*];`] : []),
         "",
@@ -99,7 +120,7 @@ export function iconify(options: IconifyOptions = {}): StillwindPlugin {
           return collection
             ? iconCss(
                 candidate,
-                `--${current.prefix}-${icon.set}--${icon.name}`,
+                `--icon-svg-${icon.set}--${icon.name}`,
                 collection,
                 icon.name,
                 current,
