@@ -46,8 +46,8 @@ pub use variants::{
     parse_variant_definitions,
 };
 
-pub(super) use formats::{extract_declaration_formats, extract_relationship_patterns};
 pub(crate) use order::registration_positions;
-pub(super) use utilities::extract_custom_utilities;
 pub(crate) use utility_lookup::UtilityLookup;
+
+pub(super) use utilities::extract_custom_utilities;
 pub(super) use variants::extract_custom_variants;

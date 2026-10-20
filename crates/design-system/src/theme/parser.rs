@@ -31,8 +31,8 @@ use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
-    extract_custom_utilities, extract_custom_variants, extract_declaration_formats,
-    extract_relationship_patterns, registration_positions,
+    extract_custom_utilities, extract_custom_variants, parse_declaration_formats,
+    parse_relationship_patterns, registration_positions,
 };
 use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
 
@@ -134,8 +134,8 @@ fn parse_theme_contents(
     theme.properties = extract_property_definitions(source.text());
     // `theme.registry` reads the marker statements of the same text.
     theme.markers = MarkerClasses::selected_by(&theme.utilities, &theme.variants);
-    theme.declaration_formats = extract_declaration_formats(source.text());
-    theme.relationship_patterns = extract_relationship_patterns(source.text());
+    theme.declaration_formats = parse_declaration_formats(source.text());
+    theme.relationship_patterns = parse_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
     theme.authored_property_syntaxes = extract_authored_property_syntaxes(source.text());
     theme.variant_positions = registration_positions(
