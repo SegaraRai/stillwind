@@ -5,7 +5,9 @@ use std::collections::BTreeSet;
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{CssRule, Declaration};
-use stillwind_design_system::{UtilityResolutionError, named_domain_values};
+use stillwind_design_system::{
+    UtilityResolutionError, dynamic_named_spelling, named_domain_values,
+};
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
 use stillwind_syntax::{Utility, parse_candidate};
@@ -44,7 +46,7 @@ impl DesignSystemQuery {
         if let Some(cached) = self.canonical_cache.borrow().get(raw) {
             return Ok(cached.clone());
         }
-        let result = match self.dynamic_named_candidate(raw) {
+        let result = match self.dynamic_named_candidate(raw)? {
             Some(named) => Some(named),
             None => self.find_canonical(raw)?,
         }
@@ -63,25 +65,32 @@ impl DesignSystemQuery {
 
     /// Returns `raw` with its utility name replaced by the named spelling when the name
     /// is the bracket form of a dynamic family that accepts both forms. That family
-    /// resolves both spellings to one definition.
-    fn dynamic_named_candidate(&self, raw: &str) -> Option<LeanStr> {
-        let Utility::Named { name, .. } = parse_candidate(raw)?.utility else {
-            return None;
+    /// resolves both spellings to one definition. A bracket form whose value another
+    /// definition accepts keeps its spelling.
+    ///
+    /// # Errors
+    ///
+    /// Returns malformed requirements in the design system.
+    fn dynamic_named_candidate(
+        &self,
+        raw: &str,
+    ) -> Result<Option<LeanStr>, UtilityResolutionError> {
+        let Some(Utility::Named { name, .. }) = parse_candidate(raw).map(|parsed| parsed.utility)
+        else {
+            return Ok(None);
         };
-        let named = self
-            .context
-            .design_system
-            .theme()
-            .dynamic_named_utility(&name)?;
+        let Some(named) = dynamic_named_spelling(&name, self.context.design_system.theme())? else {
+            return Ok(None);
+        };
         let split = last_top_level(raw, ':').map_or(0, |index| index + 1);
-        Some(
+        Ok(Some(
             format_args!(
                 "{}{}",
                 &raw[..split],
                 raw[split..].replacen(name.as_str(), &named, 1)
             )
             .to_lean_str(),
-        )
+        ))
     }
 
     fn find_canonical(&self, raw: &str) -> Result<Option<LeanStr>, UtilityResolutionError> {
@@ -496,11 +505,12 @@ mod tests {
     #[test]
     fn dynamic_families_with_both_forms_prefer_the_named_spelling() {
         let query = make_query(
-            "@import 'stillwind'; @stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @stillwind-dynamic i-[*];",
+            "@import 'stillwind'; @stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @stillwind-dynamic i-[*]; @utility icon-* { --size: --value([length]); }",
             CompilerOptions::default(),
         );
         for (raw, expected) in [
             ("icon-[mdi--close]", Some("icon-mdi--close")),
+            ("icon-[2rem]", None),
             ("hover:!icon-[mdi--close]", Some("hover:!icon-mdi--close")),
             ("icon-mdi--close", None),
             ("i-[mdi--close]", None),

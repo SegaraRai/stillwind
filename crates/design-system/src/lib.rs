@@ -65,7 +65,7 @@ pub use evaluation::{
     VariantValueSource, builtin_declaration_formats, builtin_definitions,
     builtin_omit_token_prefixes, builtin_property_definitions, builtin_theme_order,
     builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
-    compound_variant_inner, document_scoped_selector, document_target,
+    compound_variant_inner, document_scoped_selector, document_target, dynamic_named_spelling,
     exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
     named_domain_values, redundant_variants, repeated_subject_selector, resolve_animation_option,
     resolve_utility, resolve_variant, resolve_variant_with_usage, suggested_theme_token,

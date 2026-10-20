@@ -30,6 +30,30 @@ use super::resolve::ResolvedUtilityTarget;
 use super::variables::{single_variable, variable_mismatch};
 use crate::{CustomUtility, ThemeIndex};
 
+/// Returns the named spelling that the bracket utility name `name` resolves as, such as
+/// `icon-mdi--close` for `icon-[mdi--close]`.
+///
+/// Returns `None` when `name` is not the bracket form of a candidate of a dynamic
+/// family that accepts both forms, or when a definition accepts the bracket value by
+/// grammar.
+///
+/// # Errors
+///
+/// Returns a malformed requirement from a matching utility definition.
+pub fn dynamic_named_spelling(
+    name: &str,
+    theme: &ThemeIndex,
+) -> Result<Option<LeanString>, UtilityResolutionError> {
+    let Some(named) = theme.dynamic_named_utility(name) else {
+        return Ok(None);
+    };
+    Ok(
+        resolve_registry_layers(name, None, false, theme, ArbitraryValueCheck::Grammar)?
+            .is_none()
+            .then_some(named),
+    )
+}
+
 /// Resolves a named candidate through the registry layers.
 ///
 /// Project CSS is consulted first; a successfully resolved project branch wins. If
@@ -46,15 +70,19 @@ use crate::{CustomUtility, ThemeIndex};
 /// a `var()` reference, to a value that is not well formed, or when the candidate
 /// resolves without its modifier, because then the modifier, not the value, is
 /// rejected.
+///
+/// A definition that accepts the bracket value of a dynamic family's bracket candidate
+/// by grammar resolves that candidate. `icon-[2rem]` then selects an `icon-*`
+/// definition that accepts `[length]`. Otherwise, the candidate belongs to the family
+/// and skips the fallback for unhinted values. When the family accepts both forms, the
+/// candidate resolves as its named spelling: `icon-[mdi--close]` selects
+/// `icon-mdi--close`.
 pub(in crate::evaluation) fn resolve_named_utility(
     name: &str,
     modifier: Option<&Value>,
     negative: bool,
     theme: &ThemeIndex,
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
-    if let Some(named) = theme.dynamic_named_utility(name) {
-        return resolve_named_utility(&named, modifier, negative, theme);
-    }
     let check = ArbitraryValueCheck::Grammar;
     let lookup = negative.then(|| format_args!("-{name}").to_lean_string());
     if let Some(mut resolution) = resolve_registry_layers(name, modifier, negative, theme, check)? {
@@ -64,6 +92,12 @@ pub(in crate::evaluation) fn resolve_named_utility(
             theme,
         );
         return Ok(Some(resolution));
+    }
+    if let Some((_, true)) = theme.dynamic_family(name) {
+        return match theme.dynamic_named_utility(name) {
+            Some(named) => resolve_named_utility(&named, modifier, negative, theme),
+            None => Ok(None),
+        };
     }
     let Some(value) = unhinted_arbitrary_value(lookup.as_deref().unwrap_or(name)) else {
         return Ok(None);

@@ -139,15 +139,15 @@ fn requests<'a>(tokens: impl IntoIterator<Item = &'a str>, theme: &ThemeIndex) -
                 utility_registration_key(name, modifier.as_ref(), candidate.negative).to_lean_str(),
             );
         }
-        if theme.dynamic_family(name).is_none() {
+        if theme.dynamic_family(name).is_none() || matches!(resolve_utility(name, theme), Ok(Ok(_)))
+        {
             continue;
         }
-        let name = theme
-            .dynamic_named_utility(name)
-            .map_or_else(|| name.clone(), Into::into);
-        if !matches!(resolve_utility(&name, theme), Ok(Ok(_))) {
-            names.insert(name.to_lean_str());
-        }
+        names.insert(
+            theme
+                .dynamic_named_utility(name)
+                .map_or_else(|| name.to_lean_str(), |named| named.to_lean_str()),
+        );
     }
     names.into_iter().collect()
 }
@@ -270,6 +270,24 @@ mod tests {
         assert_eq!(
             dynamic_candidates(text, &ThemeIndex::default()),
             [] as [LeanStr; 0]
+        );
+    }
+
+    #[test]
+    fn bracket_values_that_another_definition_accepts_are_not_reported() {
+        let theme = theme(
+            "@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @utility icon-* { --size: --value([length]); }",
+        );
+        assert_eq!(
+            dynamic_candidates("icon-[2rem] icon-[mdi--close]", &theme),
+            ["icon-mdi--close"]
+        );
+        let bracket = self::theme(
+            "@stillwind-dynamic icon-[*]; @utility icon-* { --size: --value([length]); }",
+        );
+        assert_eq!(
+            dynamic_candidates("icon-[2rem] icon-[mdi--close]", &bracket),
+            ["icon-[mdi--close]"]
         );
     }
 

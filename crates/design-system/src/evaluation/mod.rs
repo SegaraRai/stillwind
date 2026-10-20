@@ -31,7 +31,8 @@ pub use utilities::{
     ResolvedUtility, ResolvedUtilityTarget, UntypedVariable, UtilityArbitraryUse,
     UtilityDiagnosticData, UtilityFailure, UtilityFailureReason, UtilityOrder, UtilityPropertySort,
     UtilityResolutionError, UtilityTokenUse, VariableMismatch, VariableTypeSource,
-    check_candidate_variants, resolve_animation_option, resolve_utility, utility_value_range,
+    check_candidate_variants, dynamic_named_spelling, resolve_animation_option, resolve_utility,
+    utility_value_range,
 };
 pub use values::{
     ThemeValueMismatch, named_domain_values, theme_value_mismatch, unresolvable_value_namespaces,

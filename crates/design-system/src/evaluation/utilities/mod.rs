@@ -34,6 +34,7 @@ pub use body::UtilityResolutionError;
 pub use diagnosis::{
     UtilityFailure, UtilityFailureReason, check_candidate_variants, utility_value_range,
 };
+pub use matching::dynamic_named_spelling;
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use resolve::{

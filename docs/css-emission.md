@@ -304,8 +304,15 @@ A family that accepts both forms resolves a bracket candidate like its named spe
 the `prefer-canonical-utilities` lint suggests it in place of the bracket form. A
 family that accepts only the bracket form reports the bracket candidate as written, and
 the plugin defines it under that name, such as `@utility icon-[mdi--close]`. The named
-spelling then stays undefined. Plugin CSS is an internal source, so source maps and
-diagnostics do not point into it.
+spelling then stays undefined.
+
+An ordinary `@utility` definition with the same prefix takes a bracket candidate when it
+accepts the bracket value by grammar. Then the family does not receive the candidate, and the
+lint keeps the bracket spelling. With `@utility icon-* { --size: --value([length]); }`,
+`icon-[2rem]` selects that definition, and `icon-[mdi--close]` still belongs to the family.
+The fallback that emits an unhinted arbitrary value as written does not apply to a candidate
+of the family. Plugin CSS is an internal source, so source maps and diagnostics do not point
+into it.
 
 The `catalog()` of a plugin lists the candidates that editors complete for its families.
 The host calls it once with an empty input for the candidates that editors always offer.
