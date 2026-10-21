@@ -91,8 +91,8 @@ impl TryFrom<NativePreviewOptions> for PreviewAnnotations {
 
 /// Selects the compiler contract of a candidate's source position.
 ///
-/// Option roles use the animation-option registry and its property mappings. Frame and
-/// phase utilities retain the declarations produced by ordinary utility resolution.
+/// Keyframe frames, keyframes uses, and view transitions resolve utilities through
+/// their registry contexts.
 #[napi(string_enum = "camelCase")]
 pub enum NativeCandidateContext {
     /// Serialized as `utility` for element utilities with ordinary variants.
@@ -102,11 +102,8 @@ pub enum NativeCandidateContext {
     /// Serialized as `animationOptions`; variants, importance, and negative values are
     /// rejected.
     AnimationOptions,
-    /// Serialized as `viewTransitionOptions` for group options with media and supports
-    /// conditions.
-    ViewTransitionOptions,
-    /// Serialized as `viewTransitionUtilities` for phase utilities with media and
-    /// supports conditions.
+    /// Serialized as `viewTransitionUtilities` for pseudo-element utilities with media
+    /// and supports conditions.
     ViewTransitionUtilities,
     /// Serialized as `definitionVariants` for media and supports prefixes of a
     /// definition branch.
@@ -132,7 +129,6 @@ impl From<NativeCandidateContext> for CandidateContext {
             NativeCandidateContext::Utility => Self::Utility,
             NativeCandidateContext::KeyframesFrame => Self::KeyframesFrame,
             NativeCandidateContext::AnimationOptions => Self::AnimationOptions,
-            NativeCandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
             NativeCandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             NativeCandidateContext::DefinitionVariants => Self::DefinitionVariants,
             NativeCandidateContext::ElementVariants => Self::ElementVariants,
@@ -152,7 +148,6 @@ impl From<CandidateContext> for NativeCandidateContext {
             CandidateContext::AnchoredDocument => Self::AnchoredDocument,
             CandidateContext::KeyframesFrame => Self::KeyframesFrame,
             CandidateContext::AnimationOptions => Self::AnimationOptions,
-            CandidateContext::ViewTransitionOptions => Self::ViewTransitionOptions,
             CandidateContext::ViewTransitionUtilities => Self::ViewTransitionUtilities,
             CandidateContext::DefinitionVariants => Self::DefinitionVariants,
             CandidateContext::ElementVariants => Self::ElementVariants,

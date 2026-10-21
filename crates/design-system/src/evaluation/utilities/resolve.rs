@@ -11,27 +11,21 @@
 //! [`UtilityFailure`]. Malformed property requirements return
 //! [`UtilityResolutionError`].
 
-use std::fmt::Write;
 use std::ops::Range;
-use std::sync::Arc;
 
-use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{CssProperty, inspect_css_value};
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
-use super::super::builtins::{
-    COMPAT_COLOR_SUPPORT, animation_option_property_mappings, arbitrary_property_order,
-    builtin_animation_options,
-};
-use super::super::context::ArbitraryValueCheck;
+use super::super::builtins::{COMPAT_COLOR_SUPPORT, arbitrary_property_order};
 use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
 use super::diagnosis::{
     UtilityFailure, arbitrary_value_range, diagnose_utility, modifier_value_range,
 };
 use super::formatting::finalize_declaration;
-use super::matching::{resolve_css_utility_branches, resolve_named_utility};
+use super::matching::resolve_named_utility;
 use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
 use super::variables::VariableMismatch;
@@ -184,6 +178,9 @@ fn resolve_candidate(
     };
     let resolution = match &candidate.utility {
         Utility::ArbitraryProperty { property, value } => {
+            if !theme.accepts_arbitrary_property(&property.as_str().to_ascii_lowercase()) {
+                return Ok(None);
+            }
             let Some(value) = theme.inline_theme_functions(value) else {
                 return Ok(None);
             };
@@ -384,94 +381,6 @@ pub fn resolve_utility(
     }
 }
 
-/// Resolves one animation option from the CSS-authored option registry. As a
-/// compatibility path, ordinary utilities may project declarations through CSS-authored
-/// property mappings without exposing their names to Rust.
-///
-/// Variants, negation, and importance are rejected: an animation option describes a
-/// value, not a qualified utility. A plain declaration list is accepted; selectors,
-/// conditionals and additional targets are rejected. The declaration list can contain
-/// several properties.
-///
-/// # Errors
-///
-/// Returns a malformed requirement from a matching option or utility definition.
-pub fn resolve_animation_option(
-    raw: &str,
-    theme: &ThemeIndex,
-) -> Result<Option<LeanString>, UtilityResolutionError> {
-    let Some(candidate) = parse_candidate(raw) else {
-        return Ok(None);
-    };
-    if candidate.important || candidate.negative || !candidate.variants.is_empty() {
-        return Ok(None);
-    }
-    let Utility::Named { name, modifier } = &candidate.utility else {
-        return project_animation_option_utility(raw, theme);
-    };
-    if let Some(resolution) = resolve_css_utility_branches(
-        builtin_animation_options(theme)
-            .iter()
-            .rev()
-            .map(Arc::as_ref)
-            .filter(|utility| {
-                utility.name == *name
-                    || utility
-                        .name
-                        .strip_suffix('*')
-                        .is_some_and(|prefix| name.starts_with(prefix))
-            }),
-        name,
-        modifier.as_ref(),
-        theme,
-        ArbitraryValueCheck::Grammar,
-    )? {
-        return Ok(((resolution.selector.is_none()
-            && resolution.nested.is_empty()
-            && resolution.additional.is_empty())
-        .then(|| finalize_declaration(resolution.declaration, false, theme)))
-        .map(Into::into));
-    }
-    project_animation_option_utility(raw, theme)
-}
-
-/// Projects an ordinary utility's declarations through the registry's animation-option
-/// property mappings.
-///
-/// Properties without a mapping are dropped, and a utility that produced selectors,
-/// conditionals, or extra targets is rejected rather than projected partially.
-fn project_animation_option_utility(
-    raw: &str,
-    theme: &ThemeIndex,
-) -> Result<Option<LeanString>, UtilityResolutionError> {
-    let Ok(utility) = resolve_utility(raw, theme)? else {
-        return Ok(None);
-    };
-    if !utility.candidate.variants.is_empty()
-        || utility.selector.is_some()
-        || !utility.nested.is_empty()
-        || !utility.additional.is_empty()
-    {
-        return Ok(None);
-    }
-    let mappings = animation_option_property_mappings(theme);
-    let mut projected = LeanString::new();
-    for declaration in utility
-        .declaration
-        .split(';')
-        .filter(|part| !part.is_empty())
-    {
-        let Some((property, value)) = declaration.split_once(':') else {
-            return Ok(None);
-        };
-        let Some(target) = mappings.get(property) else {
-            continue;
-        };
-        let _ = write!(&mut projected, "{target}:{value};");
-    }
-    Ok((!projected.is_empty()).then_some(projected))
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -484,14 +393,6 @@ mod tests {
 
     fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
         super::resolve_utility(raw, theme).unwrap().ok()
-    }
-
-    fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
-        super::resolve_animation_option(raw, theme).unwrap()
-    }
-
-    fn project_animation_option_utility(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
-        super::project_animation_option_utility(raw, theme).unwrap()
     }
 
     #[test]
@@ -524,36 +425,6 @@ mod tests {
         );
         assert!(resolve_utility("sample", &ThemeIndex::default()).is_none());
         assert!(resolve_utility("flex", &ThemeIndex::default()).is_none());
-    }
-
-    #[test]
-    fn animation_projection_keeps_only_mapped_properties_and_rejects_variants() {
-        let theme = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(
-                "@stillwind-animation-option-property transition-duration: animation-duration;\n@stillwind-animation-option-property transition-timing-function: animation-timing-function;",
-            )),
-            ..Default::default()
-        }.finish();
-        assert_eq!(
-            project_animation_option_utility("[transition-duration:120ms]", &theme).as_deref(),
-            Some("animation-duration:120ms;")
-        );
-        assert_eq!(
-            resolve_animation_option("[transition-timing-function:linear]", &theme).as_deref(),
-            Some("animation-timing-function:linear;")
-        );
-        for candidate in [
-            "hover:[transition-duration:120ms]",
-            "![transition-duration:120ms]",
-            "-[transition-duration:120ms]",
-            "[color:red]",
-            "missing",
-        ] {
-            assert!(
-                resolve_animation_option(candidate, &theme).is_none(),
-                "{candidate}"
-            );
-        }
     }
 
     /// A user branch that fails its value domain falls through to the built-in

@@ -1,21 +1,21 @@
 @keyframes sw-kf-enter-cxv19 {
   0% {
     opacity: 0;
-    --tw-translate-y: var(--spacing-2);
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-    --tw-scale-x: calc(98 * 1%);
-    --tw-scale-y: calc(98 * 1%);
-    --tw-scale-z: calc(98 * 1%);
-    scale: var(--tw-scale-x) var(--tw-scale-y);
+    --sw-motion-translate-y: var(--spacing-2);
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+    --sw-motion-scale-x: calc(98 / 100);
+    --sw-motion-scale-y: calc(98 / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
   }
   to {
     opacity: 1;
-    --tw-translate-y: 0px;
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-    --tw-scale-x: calc(100 * 1%);
-    --tw-scale-y: calc(100 * 1%);
-    --tw-scale-z: calc(100 * 1%);
-    scale: var(--tw-scale-x) var(--tw-scale-y);
+    --sw-motion-translate-y: 0px;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+    --sw-motion-scale-x: calc(100 / 100);
+    --sw-motion-scale-y: calc(100 / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
   }
 }
 @keyframes sw-kf-12rqq {
@@ -24,9 +24,8 @@
   }
   to {
     opacity: 0;
-    --tw-scale-x: calc(98 * 1%);
-    --tw-scale-y: calc(98 * 1%);
-    --tw-scale-z: calc(98 * 1%);
-    scale: var(--tw-scale-x) var(--tw-scale-y);
+    --sw-motion-scale-x: calc(98 / 100);
+    --sw-motion-scale-y: calc(98 / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
   }
 }

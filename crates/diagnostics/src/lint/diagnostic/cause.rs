@@ -282,10 +282,11 @@ pub enum LintDiagnostic {
         /// Explanation that names the variant that refers to `&` too early, if any.
         detail: LeanStr,
     },
-    /// An animation option token is not recognized by the option resolver.
+    /// An option of a keyframes use is not a plain utility of the `animation` registry
+    /// context.
     #[error("unknown animation option `{option}`")]
     UnknownAnimationOption {
-        /// Name of the invalid configuration option.
+        /// Option as written.
         option: LeanStr,
     },
     /// A rule group is omitted because it contains an unsupported input.

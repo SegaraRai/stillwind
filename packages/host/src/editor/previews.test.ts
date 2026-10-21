@@ -36,7 +36,10 @@ const declarations = (async () => {
       );
     }
   }
-  const motion = await readFile(new URL("css/builtin-utilities/tw-motion.css", core), "utf8");
+  const motion = [
+    await readFile(new URL("css/builtin-utilities/tw-motion.css", core), "utf8"),
+    await readFile(new URL("css/builtin-utilities/sw-motion-contexts.css", core), "utf8"),
+  ].join("\n");
   const variants = await readFile(new URL("css/builtin-variants/tw-conditional.css", core), "utf8");
   return {
     files,
@@ -151,7 +154,7 @@ function resolve(current: BrowserProject, item: EditorCompletion) {
 test("keyframes inputs and animation options use distinct registries and definition conditions", async () => {
   const source = `import {style} from "stillwind/react";
 const 日本語="🦀";
-const frames = style.keyframes({from:"opacity-0 duration-180",to:"opacity-100","custom-media:":{from:"opacity-100","custom-supports:":{to:"opacity-0"}}});
+const frames = style.keyframes({from:"opacity-0",to:"opacity-100","custom-media:":{from:"opacity-100","custom-supports:":{to:"opacity-0"}}});
 const value = style(frames("duration-normal ease-soft both"));
 console.log(frames);`;
   const current = await project(source);
@@ -162,9 +165,8 @@ console.log(frames);`;
         .flatMap((batch) => batch.reports)
         .filter((report) => report.severity === "error"),
     ).toEqual([]);
-    const frame = await hover(current, source, "duration-180");
+    const frame = await hover(current, source, "opacity-0");
     expect(frame).toContain("from {");
-    expect(frame).toContain("transition-duration:");
     expect(frame).not.toContain("animation-duration:");
     const option = await hover(current, source, "duration-normal");
     expect(option).toContain("animation-duration: var(--duration-normal)");
@@ -199,7 +201,7 @@ console.log(frames);`;
   }
 });
 
-test("view-transition group options and phase utilities keep pseudo-elements and allowed variants", async () => {
+test("view-transition utilities keep pseudo-elements and allowed variants", async () => {
   const source = `import {style} from "stillwind/react";
 const transition = style.viewTransition({group:"duration-normal both motion-reduce:duration-0",old:"motion-reduce:opacity-0",new:"opacity-100",imagePair:"block"});
 declare const flag:boolean;
@@ -216,14 +218,12 @@ const value=style("block [color:red]",flag&&"opacity-0",flag?transition.for("her
     expect(options.map((item) => item.label)).toEqual(
       expect.arrayContaining(["both", "duration-normal", "motion-reduce:"]),
     );
-    expect(options.some((item) => item.label === "hover:" || item.label === "block")).toBe(false);
+    expect(options.some((item) => item.label === "hover:")).toBe(false);
     const utilities = await complete(current, source, "block");
-    expect(utilities.map((item) => item.label)).toContain("block");
-    expect(
-      utilities.some(
-        (item) => item.label === "both" || item.label === "hover:" || item.label.startsWith("@"),
-      ),
-    ).toBe(false);
+    expect(utilities.map((item) => item.label)).toEqual(expect.arrayContaining(["block", "both"]));
+    expect(utilities.some((item) => item.label === "hover:" || item.label.startsWith("@"))).toBe(
+      false,
+    );
     const item = options.find((item) => item.label === "duration-normal")!;
     expect((await resolve(current, item))?.hover?.css).toBe(group);
     const definition = await hover(current, source, "style.viewTransition");
@@ -475,7 +475,7 @@ const value=style(frames("duration-normal"));`;
   }
   const invalid = `import {style} from "stillwind/react";
 const bad=style.keyframes({from:"opacity-0 hover:opacity-100"}); const unused=style.keyframes({to:"opacity-100"});
-const value=style("block",bad("duration-normal")); const wrong=style.viewTransition({group:"block"});`;
+const value=style("block",bad("duration-normal")); const wrong=style.viewTransition({group:"hover:block"});`;
   const rejected = await project(invalid);
   try {
     const frames = await hover(rejected, invalid, "style.keyframes");

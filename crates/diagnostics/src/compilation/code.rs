@@ -144,6 +144,7 @@ define_compile_codes! {
         InvalidCssTemplate { .. } => "SW14014",
         DefinitionInCssTemplate { .. } => "SW14015",
         CssTemplateWithoutUtilities { .. } => "SW14016",
+        UnknownRegistryContext { .. } => "SW14017",
     }
     Host {
         // 30: TypeScript checker facts

@@ -82,7 +82,7 @@ fn directive_discovery_uses_audience_location_and_provenance() {
         "@slot",
         "@stillwind-slot",
         "@stillwind-property",
-        "@stillwind-animation-option",
+        "@stillwind-registry",
         "@plugin",
     ] {
         assert!(defaults.iter().any(|item| item.label == name), "{name}");
@@ -128,7 +128,6 @@ fn directive_discovery_uses_audience_location_and_provenance() {
             "@stillwind-utility named { @",
             vec!["@stillwind-require-properties"],
         ),
-        ("@stillwind-animation-option named { @", vec![]),
     ] {
         assert_eq!(
             complete(css, false)
@@ -160,6 +159,37 @@ fn directive_discovery_uses_audience_location_and_provenance() {
         enabled
             .windows(2)
             .all(|items| items[0].sort_text <= items[1].sort_text)
+    );
+}
+
+#[test]
+fn registry_blocks_offer_context_statements_and_definitions() {
+    let css = "@stillwind-registry keyframe { @";
+    let labels = query()
+        .complete_stylesheet(
+            css,
+            css.len(),
+            StylesheetCompletionOptions {
+                registry_directives: false,
+                snippets: false,
+                catalog: Vec::new(),
+            },
+        )
+        .unwrap()
+        .into_iter()
+        .map(|item| item.label)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        [
+            "@custom-variant",
+            "@utility",
+            "@stillwind-undef-arbitrary-property",
+            "@stillwind-undef-utility",
+            "@stillwind-undef-variant",
+            "@stillwind-arbitrary-property",
+            "@stillwind-utility",
+        ]
     );
 }
 

@@ -9,7 +9,7 @@ use lean_string::LeanStr;
 use crate::CustomUtility;
 
 /// Indexes into one registry's definition list, grouped by how a name matches them.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct UtilityLookup {
     /// Definitions without `*` and without the `(functional)` flag, by name.
     exact: BTreeMap<LeanStr, Vec<usize>>,

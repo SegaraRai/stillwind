@@ -93,16 +93,25 @@ median and uncached query percentiles with `vp run bench:compiler:browser`.
 Sources: [browser measurement](../benchmarks/compiler/canonical.browser.test.ts),
 [operation budgets](../benchmarks/performance/README.md#budget-policy).
 
-## Removing utility definitions
+## Context registries
 
-`@utility` definitions of one name add to each other, as in Tailwind, so a stylesheet
-cannot remove a built-in utility or a plugin's utility. Add an explicit directive, such
-as `@stillwind-undef-utility <name>`, when a project needs it. Define whether it removes
-earlier definitions only or every definition of the name, and how it interacts with
-`(functional)` plugin definitions and the `duplicate-definition` lint.
+[Registry contexts](css-emission.md#registry-contexts) change definitions only for keyframe
+frames, keyframes uses, and view transitions. These parts remain open:
 
-Sources: [utility matching](../crates/design-system/src/evaluation/utilities/matching.rs),
-[CSS emission](css-emission.md#utility-definitions-with-the-same-name).
+- Top-level `@stillwind-undef-utility` and `@stillwind-undef-variant`, which would
+  remove default definitions. Define how they interact with `(functional)` plugin
+  definitions and the `duplicate-definition` lint.
+- Define whether the host resolves candidates of a dynamic family whose prefix a
+  context undefines. Check that such a candidate is not requested in every compile.
+- The `keyframe` context keeps the `--tw-*` definitions of shadows, rings, and backdrop
+  filters, and it removes `drop-shadow-*`. `@property` cannot register `<shadow>`, and
+  the backdrop filters need their own `--sw-motion-*` registrations.
+- Each context builds its own index on first use and shares parsed utility bodies with
+  the default index. Measure the preparation time with
+  `vp run bench:compiler:browser`.
+
+Sources: [context registries](../crates/design-system/src/registry/contexts.rs),
+[motion contexts](../packages/core/css/builtin-utilities/sw-motion-contexts.css).
 
 ## Migration guide from Tailwind CSS
 

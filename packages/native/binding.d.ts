@@ -736,10 +736,10 @@ export interface NativeCandidateCompletion {
 /**
  * Selects the compiler contract of a candidate's source position.
  *
- * Option roles use the animation-option registry and its property mappings. Frame and
- * phase utilities retain the declarations produced by ordinary utility resolution.
+ * Keyframe frames, keyframes uses, and view transitions resolve utilities through
+ * their registry contexts.
  */
-export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'elementVariants' | 'mediaVariants' | 'document' | 'anchoredDocument' | 'cssTemplate'
+export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'elementVariants' | 'mediaVariants' | 'document' | 'anchoredDocument' | 'cssTemplate'
 
 /** The candidate set of a symbolic value. */
 export type NativeCandidates =

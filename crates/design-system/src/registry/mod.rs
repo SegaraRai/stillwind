@@ -14,13 +14,15 @@
 //! Every entry point is usable without a complete theme stylesheet so a host can build
 //! a registry once and share it.
 //!
-//! [`utilities`] and [`variants`] parse their respective definitions. [`definitions`]
-//! stores the selected built-in utility registry. [`order`] records precedence across
-//! utilities and arbitrary properties. [`formats`] parses serialization formats,
-//! relationship patterns, and theme order. [`utility_lookup`] indexes definitions for
-//! candidate lookup. [`markers`] collects the class names that candidates add as
-//! written.
+//! [`utilities`] and [`variants`] parse their respective definitions. [`contexts`]
+//! parses `@stillwind-registry` blocks and applies them to context registries.
+//! [`definitions`] stores the selected built-in utility registry. [`order`] records
+//! precedence across utilities and arbitrary properties. [`formats`] parses
+//! serialization formats, relationship patterns, and theme order. [`utility_lookup`]
+//! indexes definitions for candidate lookup. [`markers`] collects the class names that
+//! candidates add as written.
 
+mod contexts;
 mod definitions;
 mod formats;
 mod markers;
@@ -29,23 +31,25 @@ mod utilities;
 mod utility_lookup;
 mod variants;
 
+pub use contexts::RegistryContext;
 pub use definitions::BuiltinDefinitions;
 pub use formats::{
-    declaration_format, parse_animation_option_property_mappings, parse_declaration_formats,
-    parse_omit_token_prefixes, parse_relationship_patterns, parse_theme_order,
+    declaration_format, parse_declaration_formats, parse_omit_token_prefixes,
+    parse_relationship_patterns, parse_theme_order,
 };
 pub use markers::{MarkerClasses, MarkerForm, MarkerOrigin};
 pub use order::{BuiltinArbitraryPropertyOrder, parse_builtin_arbitrary_property_order};
-pub use utilities::{
-    CustomUtility, UtilityRole, parse_builtin_animation_option_definitions,
-    parse_builtin_utility_definitions,
-};
+pub use utilities::{CustomUtility, UtilityRole, parse_builtin_utility_definitions};
 pub use variants::{
     BuiltinVariantModifierType, BuiltinVariantSort, BuiltinVariantSortDirection,
     BuiltinVariantValueType, CustomVariant, VariantScope, parse_builtin_variant_definitions,
     parse_variant_definitions,
 };
 
+pub(crate) use contexts::{
+    ArbitraryPropertyRule, ContextDefinitions, RegistryBlock, accepts_arbitrary_property,
+    split_registry_blocks,
+};
 pub(crate) use order::registration_positions;
 pub(crate) use utility_lookup::UtilityLookup;
 

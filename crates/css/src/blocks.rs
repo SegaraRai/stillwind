@@ -80,6 +80,35 @@ pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(usize, LeanStr, 
         .collect()
 }
 
+/// One `directive header { body }` block and its byte ranges in the scanned input.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DirectiveBlock {
+    /// Trimmed prelude without the directive name and braces.
+    pub header: LeanStr,
+    /// Byte range from the directive's `@` through the closing brace.
+    pub range: Range<usize>,
+    /// Byte range inside the outer braces, untrimmed.
+    pub body: Range<usize>,
+}
+
+/// Extracts every complete `directive` block with its byte ranges, in source order.
+///
+/// Blocks are found as [`extract_named_blocks`] finds them, so a block nested in
+/// another block of the same directive is also returned. A bodyless statement is not
+/// a block.
+pub fn extract_directive_blocks(css: &str, directive: &str) -> Vec<DirectiveBlock> {
+    directive_rules(css, directive)
+        .into_iter()
+        .filter_map(|rule| {
+            Some(DirectiveBlock {
+                header: rule.header,
+                range: rule.range,
+                body: rule.body_range?,
+            })
+        })
+        .collect()
+}
+
 /// Extracts `(offset, name)` for `directive name;` statements.
 ///
 /// A statement must have no body, a non-empty name, and no whitespace in that name, so
@@ -200,6 +229,10 @@ struct DirectiveRule {
     header: LeanStr,
     /// Trimmed text inside the outer braces; None represents a bodyless statement.
     body: Option<LeanStr>,
+    /// Byte range from the `@` through the closing brace or semicolon.
+    range: Range<usize>,
+    /// Byte range inside the outer braces, untrimmed; None for a statement.
+    body_range: Option<Range<usize>>,
 }
 
 /// Collects every occurrence of one directive name.
@@ -242,6 +275,8 @@ fn scan_directives(
                                     .trim()
                                     .into(),
                                 body: None,
+                                range: start..parser.position().byte_index(),
+                                body_range: None,
                             });
                             break;
                         }
@@ -258,6 +293,8 @@ fn scan_directives(
                                         start,
                                         header: css[header_start..body_start - 1].trim().into(),
                                         body: Some(css[body_start..body_end].trim().into()),
+                                        range: start..body_end + 1,
+                                        body_range: Some(body_start..body_end),
                                     });
                                 }
                             }

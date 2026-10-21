@@ -17,7 +17,10 @@ use super::parser::{DynamicFamily, UtilityImportance};
 use super::references::{inline_theme_functions, resolve_css_functions, resolve_theme_references};
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
-use crate::registry::UtilityLookup;
+use crate::registry::{
+    ArbitraryPropertyRule, ContextDefinitions, RegistryBlock, RegistryContext, UtilityLookup,
+    accepts_arbitrary_property,
+};
 use crate::{
     BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, DynamicFamilyKind,
     MarkerClasses, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
@@ -25,7 +28,7 @@ use crate::{
 
 /// Everything that one stylesheet declares, as the parser collected it. Equality of two
 /// indexes compares these declarations only, because the lookups derive from them.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct ThemeDeclarations {
     variant_positions: BTreeMap<LeanStr, usize>,
     utility_positions: BTreeMap<LeanStr, usize>,
@@ -38,6 +41,8 @@ struct ThemeDeclarations {
     tokens: Vec<Arc<ThemeToken>>,
     custom_css: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
+    registry_blocks: Arc<[RegistryBlock]>,
+    arbitrary_property_rules: Vec<ArbitraryPropertyRule>,
     variants: Vec<Arc<CustomVariant>>,
     properties: Vec<Arc<CustomPropertyDefinition>>,
     markers: MarkerClasses,
@@ -53,12 +58,19 @@ struct ThemeDeclarations {
 #[derive(Debug)]
 struct ThemeData {
     declarations: ThemeDeclarations,
-    /// Active tokens after resets, replacements, and precedence.
-    tokens: TokenLookup,
+    /// Active tokens after resets, replacements, and precedence. Context indexes share
+    /// the lookup of the index they derive from.
+    tokens: Arc<TokenLookup>,
     /// Name lookup over `declarations.utilities`.
     utilities: UtilityLookup,
     /// Prepared utility bodies, built once when the index is created.
     programs: OnceLock<UtilityPrograms>,
+    /// The context whose definitions this index holds, or `None` for the default
+    /// definitions.
+    context: Option<RegistryContext>,
+    /// Indexes for each context, in the order of [`RegistryContext::ALL`], built on
+    /// first use.
+    contexts: [OnceLock<ThemeIndex>; RegistryContext::ALL.len()],
 }
 
 /// Owns one immutable stylesheet's authored declarations and evaluation data.
@@ -98,6 +110,8 @@ impl ThemeIndex {
             tokens: builder.tokens.into_iter().map(Arc::new).collect(),
             custom_css: builder.custom_css,
             utilities: builder.utilities.into_iter().map(Arc::new).collect(),
+            registry_blocks: builder.registry_blocks.into(),
+            arbitrary_property_rules: Vec::new(),
             variants: builder.variants.into_iter().map(Arc::new).collect(),
             properties: builder.properties.into_iter().map(Arc::new).collect(),
             markers: builder.markers,
@@ -108,10 +122,21 @@ impl ThemeIndex {
             utility_order: builder.utility_order,
             target: builder.target,
         };
-        let tokens = TokenLookup::new(
+        let tokens = Arc::new(TokenLookup::new(
             &declarations.tokens,
             declarations.registry.theme_namespaces(),
-        );
+        ));
+        Self::from_declarations(declarations, tokens, None, None)
+    }
+
+    /// Builds an index over `declarations` and prepares its utility bodies. Bodies that
+    /// `base` already prepared are shared instead of parsed again.
+    fn from_declarations(
+        declarations: ThemeDeclarations,
+        tokens: Arc<TokenLookup>,
+        context: Option<RegistryContext>,
+        base: Option<&UtilityPrograms>,
+    ) -> Self {
         let utilities = UtilityLookup::new(&declarations.utilities);
         let theme = Self {
             inner: Arc::new(ThemeData {
@@ -119,10 +144,75 @@ impl ThemeIndex {
                 tokens,
                 utilities,
                 programs: OnceLock::new(),
+                context,
+                contexts: Default::default(),
             }),
         };
-        theme.programs();
+        let _ = theme.inner.programs.set(UtilityPrograms::new(&theme, base));
         theme
+    }
+
+    /// Returns the index whose definitions apply in `context`: the default definitions
+    /// changed by the `@stillwind-registry` blocks that name `context`.
+    ///
+    /// The index is built on first use and shared by every clone of this index. It
+    /// shares tokens, templates, and the other declarations with this index. Callers
+    /// pass the default index; an index of `context` returns itself.
+    #[must_use]
+    pub fn context(&self, context: RegistryContext) -> &Self {
+        if self.inner.context == Some(context) {
+            return self;
+        }
+        self.inner.contexts[context.index()].get_or_init(|| self.derive(context))
+    }
+
+    /// The context whose definitions this index holds, or `None` for the default
+    /// definitions.
+    #[must_use]
+    pub fn registry_context(&self) -> Option<RegistryContext> {
+        self.inner.context
+    }
+
+    /// Applies the blocks that name `context` to the definitions of this index.
+    fn derive(&self, context: RegistryContext) -> Self {
+        let declarations = &self.inner.declarations;
+        let mut definitions = ContextDefinitions {
+            builtin_utilities: declarations.registry.utilities().to_vec(),
+            builtin_variants: declarations.registry.variants().to_vec(),
+            utilities: declarations.utilities.clone(),
+            variants: declarations.variants.clone(),
+            arbitrary_properties: declarations.arbitrary_property_rules.clone(),
+        };
+        for block in declarations
+            .registry_blocks
+            .iter()
+            .filter(|block| block.changes(context))
+        {
+            definitions.apply(block);
+        }
+        let derived = ThemeDeclarations {
+            registry: Arc::new(
+                declarations
+                    .registry
+                    .with_definitions(definitions.builtin_utilities, definitions.builtin_variants),
+            ),
+            utilities: definitions.utilities,
+            variants: definitions.variants,
+            arbitrary_property_rules: definitions.arbitrary_properties,
+            ..declarations.clone()
+        };
+        Self::from_declarations(
+            derived,
+            Arc::clone(&self.inner.tokens),
+            Some(context),
+            Some(self.programs()),
+        )
+    }
+
+    /// Whether arbitrary-property candidates such as `[color:red]` may set `property`
+    /// with these definitions.
+    pub(crate) fn accepts_arbitrary_property(&self, property: &str) -> bool {
+        accepts_arbitrary_property(&self.inner.declarations.arbitrary_property_rules, property)
     }
 
     /// Returns the prepared bodies of the project and built-in utilities, shared by
@@ -130,7 +220,7 @@ impl ThemeIndex {
     pub(crate) fn programs(&self) -> &UtilityPrograms {
         self.inner
             .programs
-            .get_or_init(|| UtilityPrograms::new(self))
+            .get_or_init(|| UtilityPrograms::new(self, None))
     }
 
     /// Returns the project definitions whose names match the utility name `name`: the

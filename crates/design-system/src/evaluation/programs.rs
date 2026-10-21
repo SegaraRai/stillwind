@@ -1,6 +1,7 @@
 //! Parses utility bodies and declaration branches once for an immutable theme.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use lean_string::{LeanStr, ToLeanStr};
 
@@ -13,32 +14,35 @@ use crate::ThemeIndex;
 /// Invalid requirements remain stored as errors until a matching utility is evaluated.
 #[derive(Debug)]
 pub(crate) struct UtilityPrograms {
-    bodies: BTreeMap<LeanStr, Result<Option<PreparedUtilityBody>, PropertyRequirementError>>,
-    declarations: BTreeMap<LeanStr, PreparedDeclarations>,
+    bodies: BTreeMap<LeanStr, Arc<PreparedBody>>,
+    declarations: BTreeMap<LeanStr, Arc<PreparedDeclarations>>,
 }
 
+/// A prepared utility body, or the malformed requirement that prevents its preparation.
+type PreparedBody = Result<Option<PreparedUtilityBody>, PropertyRequirementError>;
+
 impl UtilityPrograms {
-    /// Parses the project, built-in, and animation-option bodies using effective theme
-    /// values. The result owns its syntax and does not retain the theme.
-    pub(crate) fn new(theme: &ThemeIndex) -> Self {
-        let mut bodies = BTreeMap::new();
-        let mut declarations: BTreeMap<LeanStr, PreparedDeclarations> = BTreeMap::new();
-        for utility in theme
-            .utilities()
-            .iter()
-            .chain(theme.registry().utilities())
-            .chain(theme.registry().animation_options())
-        {
+    /// Parses the project and built-in bodies using effective theme values. The result
+    /// owns its syntax and does not retain the theme.
+    ///
+    /// `base` must be the programs of an index with the same tokens. Its entries are
+    /// shared, so only the bodies that `base` lacks are parsed.
+    pub(crate) fn new(theme: &ThemeIndex, base: Option<&Self>) -> Self {
+        let (mut bodies, mut declarations) = base.map_or_else(
+            || (BTreeMap::new(), BTreeMap::new()),
+            |base| (base.bodies.clone(), base.declarations.clone()),
+        );
+        for utility in theme.utilities().iter().chain(theme.registry().utilities()) {
             bodies.entry(utility.body.clone()).or_insert_with(|| {
                 let body = PreparedUtilityBody::parse(&utility.body);
                 if let Ok(Some(body)) = &body {
                     for text in body.declaration_groups() {
                         declarations
                             .entry(text.to_lean_str())
-                            .or_insert_with(|| PreparedDeclarations::parse(text, theme));
+                            .or_insert_with(|| Arc::new(PreparedDeclarations::parse(text, theme)));
                     }
                 }
-                body
+                Arc::new(body)
             });
         }
         Self {
@@ -50,17 +54,14 @@ impl UtilityPrograms {
     /// Returns the prepared form of a utility body, or `None` for a body that no
     /// definition of the theme has. The inner result reports a malformed property
     /// requirement, and `Ok(None)` a body that cannot be prepared.
-    pub(in crate::evaluation) fn body(
-        &self,
-        body: &str,
-    ) -> Option<&Result<Option<PreparedUtilityBody>, PropertyRequirementError>> {
-        self.bodies.get(body)
+    pub(in crate::evaluation) fn body(&self, body: &str) -> Option<&PreparedBody> {
+        self.bodies.get(body).map(Arc::as_ref)
     }
 
     /// Returns the prepared declarations of one declaration group of a prepared body,
     /// or `None` for text that no prepared body contains.
     pub(in crate::evaluation) fn declarations(&self, body: &str) -> Option<&PreparedDeclarations> {
-        self.declarations.get(body)
+        self.declarations.get(body).map(Arc::as_ref)
     }
 }
 

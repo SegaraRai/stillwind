@@ -341,10 +341,16 @@ export function registerEditorContract(specifier: string): void {
 
   test("editor input roles share compiler registries, declaration mapping, and variant restrictions", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
-    const motion = await readFile(
-      new URL("../../core/css/builtin-utilities/tw-motion.css", import.meta.url),
-      "utf8",
-    );
+    const motion = [
+      await readFile(
+        new URL("../../core/css/builtin-utilities/tw-motion.css", import.meta.url),
+        "utf8",
+      ),
+      await readFile(
+        new URL("../../core/css/builtin-utilities/sw-motion-contexts.css", import.meta.url),
+        "utf8",
+      ),
+    ].join("\n");
     const loader = new NativeDesignSystemLoader();
     loader.provide(
       0,
@@ -362,19 +368,15 @@ export function registerEditorContract(specifier: string): void {
 @stillwind-variant sequence { @media print { @supports (display:grid) { @slot; } } }`,
     );
     const query = loader.editorQuery();
-    expect(query.previewCandidate("duration-180", "keyframesFrame")).toContain(
-      "transition-duration:",
-    );
+    expect(query.previewCandidate("duration-180", "utility")).toContain("transition-duration:");
+    expect(query.previewCandidate("duration-180", "keyframesFrame")).toBeNull();
     expect(query.previewCandidate("duration-normal", "animationOptions")).toBe(
       "&{animation-duration:var(--duration-normal);}",
     );
-    expect(query.previewCandidate("[transition-duration:75ms]", "animationOptions")).toBe(
+    expect(query.previewCandidate("[animation-duration:75ms]", "animationOptions")).toBe(
       "&{animation-duration:75ms;}",
     );
-    expect(query.previewCandidate("[transition-timing-function:linear]", "animationOptions")).toBe(
-      "&{animation-timing-function:linear;}",
-    );
-    expect(query.previewCandidate("[transition-delay:75ms]", "animationOptions")).toBeNull();
+    expect(query.previewCandidate("[transition-duration:75ms]", "animationOptions")).toBeNull();
     expect(completionLabels(query, "duration-no", "animationOptions")).toEqual(["duration-normal"]);
     expect(completionLabels(query, "ease-(--ease-so", "animationOptions")).toContain(
       "ease-(--ease-soft)",
@@ -390,20 +392,16 @@ export function registerEditorContract(specifier: string): void {
         completionLabels(query, "", context).some((label: string) => label.endsWith(":")),
       ).toBe(false);
     }
-    for (const context of [
-      "viewTransitionOptions",
-      "viewTransitionUtilities",
-      "definitionVariants",
-    ]) {
+    for (const context of ["viewTransitionUtilities", "definitionVariants"]) {
       const labels = completionLabels(query, "", context);
       expect(labels).toEqual(expect.arrayContaining(["media:", "supports:", "sequence:"]));
       for (const label of ["hover:", "container:", "mixed:"]) {
         expect(labels).not.toContain(label);
       }
     }
-    expect(query.previewCandidate("media:both", "viewTransitionOptions")).toContain(
-      "@media print{&{animation-fill-mode:both;}}",
-    );
+    const both = query.previewCandidate("media:both", "viewTransitionUtilities");
+    expect(both).toContain("@media print");
+    expect(both).toContain("animation-fill-mode:both;");
     expect(query.previewCandidate("sequence:block", "viewTransitionUtilities")).toContain(
       "@supports (display:grid)",
     );
@@ -545,7 +543,7 @@ export function registerEditorContract(specifier: string): void {
     loader.provide(
       0,
       "theme.css",
-      "@utility red {color:--if(--visible,red,blue);} @utility green {color:--if(--active,green,blue);} @stillwind-animation-option fade {animation-duration:--if(--visible,1s,2s);} @utility picture {background-image:url('asset.svg');} @stillwind-slot utilities;",
+      "@utility red {color:--if(--visible,red,blue);} @utility green {color:--if(--active,green,blue);} @stillwind-registry animation, view-transition { @utility fade {animation-duration:--if(--visible,1s,2s);} } @utility picture {background-image:url('asset.svg');} @stillwind-slot utilities;",
     );
     const session = new NativeProjectSession(loader, true);
     session.compile([
@@ -579,7 +577,7 @@ export function registerEditorContract(specifier: string): void {
       expect(query.previewCandidate("red", context)).toContain("--__if_fallback_1");
       expect(query.previewCandidate("picture", context)).toContain("asset.svg");
     }
-    for (const context of ["animationOptions", "viewTransitionOptions"]) {
+    for (const context of ["animationOptions", "viewTransitionUtilities"]) {
       expect(query.previewCandidate("fade", context)).toContain("--__if_fallback_1");
     }
     expect(query.previewCandidate("[color:--if(--flag,red)]")).toBeNull();

@@ -581,8 +581,10 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
 @utility block { display:block; } @utility flex { display:flex; }
 @utility bg-* { background-color:--value(--color-*, [color]); }
 @theme { --duration-normal:180ms; }
-@stillwind-animation-option both { animation-fill-mode:both; }
-@stillwind-animation-option duration-* { animation-duration:--value(--duration-*); }
+@stillwind-registry animation, view-transition {
+  @utility both { animation-fill-mode:both; }
+  @utility duration-* { animation-duration:--value(--duration-*); }
+}
 @variant hover { &:hover { @slot; } } @stillwind-slot utilities;`,
               ],
             ]),
@@ -662,9 +664,7 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     expect(animationItems.map((item) => item.label)).toEqual(
       expect.arrayContaining(["duration-normal", "both"]),
     );
-    expect(animationItems.some((item) => item.label === "block" || item.label === "hover:")).toBe(
-      false,
-    );
+    expect(animationItems.some((item) => item.label === "hover:")).toBe(false);
     const animation = await client.sendRequest<CompletionItem>(
       "completionItem/resolve",
       animationItems.find((item) => item.label === "duration-normal")!,

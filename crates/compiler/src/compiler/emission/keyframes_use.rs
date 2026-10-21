@@ -8,7 +8,7 @@ use stillwind_ir::{AssetReference, StyleVariant};
 use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
-use super::super::animation_options::{OptionVariants, resolve_options};
+use super::super::animation_options::resolve_options;
 use super::super::fragment::Emitted;
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
@@ -153,16 +153,7 @@ fn resolve_keyframes_use(
         }
     )
     .to_lean_string();
-    declaration.push_str(
-        &resolve_options(
-            options,
-            OptionVariants::Rejected,
-            theme,
-            diagnostics,
-            lint_findings,
-        )
-        .declaration,
-    );
+    declaration.push_str(&resolve_options(options, theme, diagnostics, lint_findings));
     CompiledUtility {
         diagnostic_data: CompiledUtilityDiagnosticData::default(),
         context: VariantContext::Element,

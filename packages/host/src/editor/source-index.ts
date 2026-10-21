@@ -241,12 +241,7 @@ export class SourceIndex {
                 ["group", "old", "new", "imagePair"].includes(name) &&
                 ts.isStringLiteralLike(property.initializer)
               ) {
-                this.#literal(
-                  source,
-                  property.initializer,
-                  "",
-                  name === "group" ? "viewTransitionOptions" : "viewTransitionUtilities",
-                );
+                this.#literal(source, property.initializer, "", "viewTransitionUtilities");
               }
             }
           }

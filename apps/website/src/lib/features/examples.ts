@@ -155,16 +155,15 @@ export const featureTopics = [
         label: "Keyframes",
         source: [
           "const enter = style.keyframes({",
-          '  from: "opacity-0 [translate:0_2rem]",',
-          '  to: "opacity-100 [translate:0_0]",',
+          '  from: "opacity-0 translate-y-8",',
+          '  to: "opacity-100 translate-y-0",',
           "});",
           "",
           'style(enter("duration-420 ease-out both"));',
         ].join("\n"),
-        focus: [
-          'from: "opacity-0 [translate:0_2rem]",',
-          '  to: "opacity-100 [translate:0_0]",',
-        ].join("\n"),
+        focus: ['from: "opacity-0 translate-y-8",', '  to: "opacity-100 translate-y-0",'].join(
+          "\n",
+        ),
         description:
           "Declare reusable keyframes with utility strings. Apply duration, easing, and fill options where you use the animation.",
       },
@@ -173,8 +172,8 @@ export const featureTopics = [
         source: [
           "const article = style.viewTransition({",
           '  group: "duration-300 ease-out",',
-          '  old: "opacity-0",',
-          '  new: "opacity-100",',
+          '  old: "duration-150",',
+          '  new: "delay-150 duration-150",',
           "});",
           "",
           'style(article.for("thumbnail"));',
@@ -183,11 +182,11 @@ export const featureTopics = [
         ].join("\n"),
         focus: [
           'group: "duration-300 ease-out",',
-          '  old: "opacity-0",',
-          '  new: "opacity-100",',
+          '  old: "duration-150",',
+          '  new: "delay-150 duration-150",',
         ].join("\n"),
         description:
-          "Pair an article's thumbnail, title, and metadata across its card and reading view. Call document.startViewTransition() to animate the view change.",
+          "Pair an article's thumbnail, title, and metadata across its card and reading view. Timing utilities set each snapshot's animation, so the new snapshot fades in after the old one fades out. Call document.startViewTransition() to animate the view change.",
       },
     ],
   },

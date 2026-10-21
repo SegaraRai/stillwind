@@ -11,6 +11,7 @@ use stillwind_source::Span;
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
 use super::parser::{DynamicFamily, UtilityImportance};
+use crate::registry::RegistryBlock;
 use crate::{
     BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, MarkerClasses,
     UtilityOrderMode,
@@ -44,6 +45,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) custom_css: LeanStr,
     /// User `@utility` definitions in authored order.
     pub(crate) utilities: Vec<CustomUtility>,
+    /// `@stillwind-registry` blocks in the order they apply.
+    pub(crate) registry_blocks: Vec<RegistryBlock>,
     /// User variant definitions. Definitions from `@plugin` answers precede the
     /// stylesheet's, and each group keeps source order.
     pub(crate) variants: Vec<CustomVariant>,

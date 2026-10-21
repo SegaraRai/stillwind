@@ -307,21 +307,21 @@ const props = style({
 
 ## Declarations and static syntax
 
-| Macro or input                                                            | Argument contract                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `style.ref(name?)`                                                        | The name is omitted or any string literal. Whitespace becomes `_`; punctuation is escaped when CSS is emitted.                                                                                                            |
-| `style.keyframes(definition)`                                             | A static object. Frames contain utility strings; variant keys contain definition objects that replace the entire definition.                                                                                              |
-| `keyframes(options)`                                                      | Options are a string literal. The receiver has finite animation candidates. The use belongs only in a `style()` class input.                                                                                              |
-| `style.viewTransition(definition)`                                        | A static object. `group` contains animation options; `old`, `new`, and `imagePair` contain utility string literals. All four buckets accept only media/supports conditional variants. The value is `{v:"<class token>"}`. |
-| `transition.for(key?)`                                                    | The receiver has finite transition candidates. Literal keys fold at compile time; expressions run at runtime. Names use `serializeIdentifier(token + "-" + String(key))`.                                                 |
-| `ref.asAnchor(scope?)` / `.positionAnchor()` / `style.anchorScope(scope)` | Refs have finite candidates. Receivers are pure selection expressions.                                                                                                                                                    |
-| `ref.asContainer(type?)`                                                  | The optional type is a string literal representing a finite union of CSS container-type keywords.                                                                                                                         |
-| `ref.at(query?)` / ref.at tags                                            | The receiver has finite raw-ref candidates. The static query returns a variant. An omitted or empty query emits `@container <container-name>` without a condition or parentheses.                                         |
-| `ref()` / `ref("variant:")` / ref tags                                    | The prefix is static. Tags cannot contain interpolations.                                                                                                                                                                 |
-| `ref(state).in(scope)`                                                    | The scope is a raw ref or an unscoped ref call/tag. Scope operands cannot use `.in()` or `.at()`. Repeated `.in()` calls independently combine containment conditions for the original ref and target with AND.           |
-| `style.media(...variants)`                                                | String literals or interpolation-free template literals of variants whose definitions contain only media conditions. See [Media queries](#media-queries).                                                                 |
-| Utility strings and variant keys in `style()`                             | Static CSS descriptions. Utility templates accept only the specified ref-variant interpolations.                                                                                                                          |
-| Arrays and variant objects                                                | Recursively contain supported inputs. Literal spreads and array holes are supported. Getters and methods are forbidden.                                                                                                   |
+| Macro or input                                                            | Argument contract                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `style.ref(name?)`                                                        | The name is omitted or any string literal. Whitespace becomes `_`; punctuation is escaped when CSS is emitted.                                                                                                                           |
+| `style.keyframes(definition)`                                             | A static object. Frames contain utility strings of the `keyframe` registry context; variant keys contain definition objects that replace the entire definition.                                                                          |
+| `keyframes(options)`                                                      | Options are a string literal of utilities in the `animation` registry context. The receiver has finite animation candidates. The use belongs only in a `style()` class input.                                                            |
+| `style.viewTransition(definition)`                                        | A static object. `group`, `old`, `new`, and `imagePair` contain utility string literals of the `view-transition` registry context. All four buckets accept only media/supports conditional variants. The value is `{v:"<class token>"}`. |
+| `transition.for(key?)`                                                    | The receiver has finite transition candidates. Literal keys fold at compile time; expressions run at runtime. Names use `serializeIdentifier(token + "-" + String(key))`.                                                                |
+| `ref.asAnchor(scope?)` / `.positionAnchor()` / `style.anchorScope(scope)` | Refs have finite candidates. Receivers are pure selection expressions.                                                                                                                                                                   |
+| `ref.asContainer(type?)`                                                  | The optional type is a string literal representing a finite union of CSS container-type keywords.                                                                                                                                        |
+| `ref.at(query?)` / ref.at tags                                            | The receiver has finite raw-ref candidates. The static query returns a variant. An omitted or empty query emits `@container <container-name>` without a condition or parentheses.                                                        |
+| `ref()` / `ref("variant:")` / ref tags                                    | The prefix is static. Tags cannot contain interpolations.                                                                                                                                                                                |
+| `ref(state).in(scope)`                                                    | The scope is a raw ref or an unscoped ref call/tag. Scope operands cannot use `.in()` or `.at()`. Repeated `.in()` calls independently combine containment conditions for the original ref and target with AND.                          |
+| `style.media(...variants)`                                                | String literals or interpolation-free template literals of variants whose definitions contain only media conditions. See [Media queries](#media-queries).                                                                                |
+| Utility strings and variant keys in `style()`                             | Static CSS descriptions. Utility templates accept only the specified ref-variant interpolations.                                                                                                                                         |
+| Arrays and variant objects                                                | Recursively contain supported inputs. Literal spreads and array holes are supported. Getters and methods are forbidden.                                                                                                                  |
 
 A ref declaration creates an independent identity and accepts no parent argument.
 `ref(state)` requires a ref element matching the state to be an ancestor of the
@@ -446,7 +446,10 @@ Each branch replaces the complete definition; it does not inherit `from` from
 the ordinary definition. Nested branches accumulate conditions. When several
 conditions match, the later definition in the shared variant order takes effect.
 A branch with no retained frame declarations contributes no replacement.
-Frame utilities cannot contain variants. Definition conditions accept media and
+Frame utilities resolve through the `keyframe`
+[registry context](css-emission.md#registry-contexts), whose transform and filter
+utilities interpolate between frames. Frame utilities cannot contain variants.
+Definition conditions accept media and
 supports variants that do not require an element selector. Container queries are
 rejected because `@container` does not restrict the validity of nested `@keyframes`.
 
@@ -540,11 +543,19 @@ function is an ordinary value, not a table lookup.
 
 ```tsx
 const transition = style.viewTransition({
-  old: "opacity-0",
-  new: "opacity-100",
+  group: "duration-300 ease-out",
+  old: "duration-150",
+  new: "delay-150 duration-150",
 });
 <article {...style(transition.for(product.id))} />;
 ```
+
+Each bucket styles one pseudo-element through the `view-transition`
+[registry context](css-emission.md#registry-contexts). Its timing utilities set the
+`animation-*` properties of the browser's default animations, so the new snapshot in
+this example fades in after the old snapshot fades out. A utility such as `opacity-0`
+in `old` sets the snapshot's own value, which the default fade-out then keeps for the
+whole transition.
 
 A declaration has a `view-transition-class` identity. Its name is a pairing key
 that matches participants before and after a transition. `.for()` uses an empty

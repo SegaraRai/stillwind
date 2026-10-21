@@ -67,10 +67,9 @@ pub use evaluation::{
     builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
     compound_variant_inner, document_scoped_selector, document_target, dynamic_named_spelling,
     exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
-    named_domain_values, redundant_variants, repeated_subject_selector, resolve_animation_option,
-    resolve_utility, resolve_variant, resolve_variant_with_usage, suggested_theme_token,
-    theme_value_mismatch, unresolvable_value_namespaces, unsatisfiable_variants,
-    utility_value_range,
+    named_domain_values, redundant_variants, repeated_subject_selector, resolve_utility,
+    resolve_variant, resolve_variant_with_usage, suggested_theme_token, theme_value_mismatch,
+    unresolvable_value_namespaces, unsatisfiable_variants, utility_value_range,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
@@ -83,9 +82,8 @@ pub use output::parse_output_template;
 pub use registry::{
     BuiltinArbitraryPropertyOrder, BuiltinDefinitions, BuiltinVariantModifierType,
     BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, CustomUtility,
-    CustomVariant, MarkerClasses, MarkerForm, MarkerOrigin, UtilityRole, VariantScope,
-    declaration_format, parse_animation_option_property_mappings,
-    parse_builtin_animation_option_definitions, parse_builtin_arbitrary_property_order,
+    CustomVariant, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext, UtilityRole,
+    VariantScope, declaration_format, parse_builtin_arbitrary_property_order,
     parse_builtin_utility_definitions, parse_builtin_variant_definitions,
     parse_declaration_formats, parse_omit_token_prefixes, parse_relationship_patterns,
     parse_theme_order, parse_variant_definitions,

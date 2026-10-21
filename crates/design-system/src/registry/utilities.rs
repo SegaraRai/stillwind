@@ -147,17 +147,6 @@ pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
     parse_ordered_utility_definitions(css, "@stillwind-utility")
 }
 
-/// Parses compiler-owned animation option definitions. These use the same value-domain
-/// language as utilities without making the core know utility spellings or CSS property
-/// projections.
-///
-/// Options are held apart from utilities so an option spelling never becomes a class
-/// candidate of its own.
-#[must_use]
-pub fn parse_builtin_animation_option_definitions(css: &str) -> Vec<CustomUtility> {
-    parse_ordered_utility_definitions(css, "@stillwind-animation-option")
-}
-
 /// Shared body of the ordered parsers: matches `directive` exactly and keeps the
 /// authored offset.
 ///
@@ -242,17 +231,6 @@ mod tests {
         ] {
             assert!(parse_utility_header(header).is_none());
         }
-    }
-
-    #[test]
-    fn parses_animation_option_definitions() {
-        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
-                       @stillwind-animation-option-property transition-duration: animation-duration;\
-                       @stillwind-theme-namespace --duration-* [time];\
-                       @stillwind-theme-namespace --leading-* [number] [length];";
-        let options = parse_builtin_animation_option_definitions(css);
-        assert_eq!(options.len(), 1);
-        assert_eq!(options[0].name, "duration-*");
     }
 
     #[test]

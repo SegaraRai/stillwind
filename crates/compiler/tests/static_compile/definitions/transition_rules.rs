@@ -171,15 +171,17 @@ export const photo = style(item);"#,
     );
 }
 
-/// A projected property rides the same path: the condition is stripped before resolution and the
-/// projected declaration lands in the conditioned rule, while a property no mapping names still
-/// fails the option.
+/// Timing utilities of the `view-transition` context set the animation of the
+/// pseudo-element, and a condition wraps the rule that carries the conditioned
+/// declaration.
 #[test]
-fn conditions_projected_group_options() {
+fn conditions_group_timing_utilities() {
     let component = SourceFile::new(
-        FileId(1), None, None,
+        FileId(1),
+        None,
+        None,
         r#"import { style } from "stillwind/react";
-const item = style.viewTransition({ group: "motion-reduce:[transition-duration:75ms]", old: "opacity-0" });
+const item = style.viewTransition({ group: "motion-reduce:duration-75", old: "opacity-0" });
 export const photo = style(item);"#,
     )
     .unwrap();
@@ -205,7 +207,7 @@ export const photo = style(item);"#,
         result.css
     );
     assert!(
-        result.css.contains("{ animation-duration:75ms;}"),
+        fold_calc_expressions(&result.css, None).contains("{ animation-duration:75ms;}"),
         "{}",
         result.css
     );

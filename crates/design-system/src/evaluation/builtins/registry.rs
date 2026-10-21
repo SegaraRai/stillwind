@@ -6,12 +6,9 @@
 //! [`arbitrary_property_order`]. Utility emission and variant ordering compare
 //! positions in their own modules.
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use lean_string::LeanStr;
-
-use crate::{BuiltinDefinitions, CustomUtility, CustomVariant, ThemeIndex};
+use crate::{BuiltinDefinitions, CustomVariant, ThemeIndex};
 
 /// The built-in definition set selected by this theme.
 pub fn builtin_definitions(theme: &ThemeIndex) -> Arc<BuiltinDefinitions> {
@@ -44,21 +41,6 @@ pub(in crate::evaluation) fn arbitrary_property_order(property: &str, theme: &Th
 /// Built-in variant definitions in authored order.
 pub(in crate::evaluation) fn builtin_variants(theme: &ThemeIndex) -> &[Arc<CustomVariant>] {
     theme.registry().variants()
-}
-
-/// Built-in animation option definitions, kept apart from ordinary utilities.
-pub(in crate::evaluation) fn builtin_animation_options(
-    theme: &ThemeIndex,
-) -> &[Arc<CustomUtility>] {
-    theme.registry().animation_options()
-}
-
-/// CSS-authored declaration projections applied when a utility is used as an animation
-/// option.
-pub(in crate::evaluation) fn animation_option_property_mappings(
-    theme: &ThemeIndex,
-) -> &BTreeMap<LeanStr, LeanStr> {
-    theme.registry().animation_property_mappings()
 }
 
 #[cfg(test)]

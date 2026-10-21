@@ -1,7 +1,7 @@
 //! Registry metadata as the source of resolution behavior.
 //!
-//! Pins arbitrary-property order, animation option resolution, theme suffix metadata,
-//! and the value domains used by theme namespaces.
+//! Pins arbitrary-property order, context registries, theme suffix metadata, and the
+//! value domains used by theme namespaces.
 
 use lean_string::ToLeanString;
 
@@ -9,8 +9,8 @@ use stillwind_source::JoinText;
 use stillwind_test_support::{BUILTIN_REGISTRY_CSS, css_tokens};
 
 use super::*;
-use crate::parse_builtin_utility_definitions;
 use crate::test_support::parse_fixture_theme;
+use crate::{RegistryContext, parse_builtin_utility_definitions};
 
 #[test]
 fn derives_arbitrary_property_order_from_builtin_css() {
@@ -51,7 +51,7 @@ fn derives_arbitrary_property_order_from_builtin_css() {
 }
 
 #[test]
-fn resolves_animation_options_from_css_registry_metadata() {
+fn resolves_animation_options_through_the_animation_context() {
     let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(2),
@@ -62,25 +62,91 @@ fn resolves_animation_options_from_css_registry_metadata() {
         .unwrap(),
     )
     .unwrap();
+    let animation = theme.context(RegistryContext::Animation);
+    let declaration =
+        |raw: &str| resolve_utility(raw, animation).map(|utility| css_tokens(&utility.declaration));
     assert_eq!(
-        resolve_animation_option("both", &theme).as_deref(),
-        Some("animation-fill-mode:both;")
+        declaration("both"),
+        Some(css_tokens("animation-fill-mode:both;"))
     );
     assert_eq!(
-        resolve_animation_option("duration-normal", &theme).as_deref(),
-        Some("animation-duration:var(--duration-normal);")
+        declaration("duration-normal"),
+        Some(css_tokens("animation-duration:var(--duration-normal);"))
     );
     assert_eq!(
-        resolve_animation_option("duration-120", &theme).map(|value| css_tokens(&value)),
-        Some(css_tokens("animation-duration:120ms;"))
+        declaration("ease-standard"),
+        Some(css_tokens(
+            "animation-timing-function:var(--ease-standard);"
+        ))
     );
     assert_eq!(
-        resolve_animation_option("ease-standard", &theme).as_deref(),
-        Some("animation-timing-function:var(--ease-standard);")
+        declaration("[animation-duration:75ms]"),
+        Some(css_tokens("animation-duration:75ms;"))
+    );
+    for rejected in ["[transition-duration:75ms]", "opacity-0", "flex"] {
+        assert_eq!(declaration(rejected), None, "{rejected}");
+    }
+    assert!(
+        resolve_utility("duration-150", &theme)
+            .expect("default duration")
+            .declaration
+            .contains("transition-duration:")
+    );
+}
+
+#[test]
+fn registry_blocks_replace_definitions_of_every_layer_in_their_contexts() {
+    let theme = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(2),
+            None,
+            None,
+            "@utility tone-* { color: --value([color]); }
+@utility keep { color: green; }
+@stillwind-registry keyframe, view-transition {
+  @stillwind-undef-utility tone-*;
+  @utility tone-* { background-color: --value([color]); }
+  @stillwind-undef-variant hover;
+}",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let declaration = |raw: &str, theme: &ThemeIndex| {
+        resolve_utility(raw, theme).map(|utility| css_tokens(&utility.declaration))
+    };
+    assert_eq!(
+        declaration("tone-[red]", &theme),
+        Some(css_tokens("color:red;"))
+    );
+    for context in [RegistryContext::Keyframe, RegistryContext::ViewTransition] {
+        let context = theme.context(context);
+        assert_eq!(
+            declaration("tone-[red]", context),
+            Some(css_tokens("background-color:red;"))
+        );
+        assert_eq!(
+            declaration("keep", context),
+            Some(css_tokens("color:green;"))
+        );
+        assert!(
+            context
+                .registry()
+                .variants()
+                .iter()
+                .all(|variant| variant.name != "hover")
+        );
+    }
+    assert!(
+        theme
+            .registry()
+            .variants()
+            .iter()
+            .any(|variant| variant.name == "hover")
     );
     assert_eq!(
-        resolve_animation_option("[transition-duration:75ms]", &theme).as_deref(),
-        Some("animation-duration:75ms;")
+        declaration("tone-[red]", theme.context(RegistryContext::Animation)),
+        None
     );
 }
 

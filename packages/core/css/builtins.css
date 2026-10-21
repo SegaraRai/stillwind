@@ -37,6 +37,13 @@ is itself the sort key.
 @import "./builtin-utilities/tw-svg.css";
 
 /*
+Load the definitions that apply only in the registry contexts of keyframes, keyframes
+uses, and view transitions. They follow the default definitions that they replace.
+*/
+
+@import "./builtin-utilities/sw-motion-contexts.css";
+
+/*
 Load the built-in variant definitions.
 
 Each `@stillwind-variant` defines a selector or conditional transformation.
@@ -64,6 +71,7 @@ value, and activation conditions for a generated standard @property rule.
 */
 
 @import "./builtin-metadata/tw-properties.css";
+@import "./builtin-metadata/sw-motion-properties.css";
 
 /*
 Arbitrary properties not assigned a family-specific position are emitted

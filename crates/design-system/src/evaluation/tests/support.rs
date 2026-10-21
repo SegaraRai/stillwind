@@ -14,10 +14,6 @@ pub(super) fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedU
     super::super::resolve_utility(raw, theme).unwrap().ok()
 }
 
-pub(super) fn resolve_animation_option(raw: &str, theme: &ThemeIndex) -> Option<LeanString> {
-    super::super::resolve_animation_option(raw, theme).unwrap()
-}
-
 /// The formal-syntax terms the catalog treats as primitives.
 const SIMPLE_CSSWG_TERMS: &[&str] = &[
     "angle",

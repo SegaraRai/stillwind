@@ -318,7 +318,7 @@ mod tests {
     #[test]
     fn parses_namespace_value_types_and_scales() {
         let namespaces = ThemeNamespaces::parse(
-            "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
+            "@stillwind-utility duration-* { animation-duration: --value(--duration-*); }\
              @stillwind-theme-namespace --duration-* [time] [unknown];\
              @stillwind-theme-namespace --leading-* [number] [length];\
              @stillwind-theme-namespace --gap-* [length] scale(px: 1px, hair: 0.5px);\

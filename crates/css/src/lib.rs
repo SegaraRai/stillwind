@@ -59,9 +59,9 @@ mod values;
 mod minify;
 
 pub use blocks::{
-    PropertyRequirementError, ScanError, extract_named_blocks, extract_named_statements,
-    extract_order_statements, matching_brace, strip_css_comments, take_property_requirements,
-    unterminated_block,
+    DirectiveBlock, PropertyRequirementError, ScanError, extract_directive_blocks,
+    extract_named_blocks, extract_named_statements, extract_order_statements, matching_brace,
+    strip_css_comments, take_property_requirements, unterminated_block,
 };
 pub use colors::{
     HexColor, color_hex, color_rgba, shadow_with_color_fallback, shadow_with_color_override,

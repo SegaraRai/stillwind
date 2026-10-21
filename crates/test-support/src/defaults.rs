@@ -22,6 +22,7 @@ pub const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../packages/core/css/builtin-utilities/tw-motion.css"),
     include_str!("../../../packages/core/css/builtin-utilities/tw-interactivity.css"),
     include_str!("../../../packages/core/css/builtin-utilities/tw-svg.css"),
+    include_str!("../../../packages/core/css/builtin-utilities/sw-motion-contexts.css"),
     include_str!("../../../packages/core/css/builtin-variants/tw-relationship.css"),
     include_str!("../../../packages/core/css/builtin-variants/tw-structural.css"),
     include_str!("../../../packages/core/css/builtin-variants/tw-state.css"),
@@ -30,5 +31,6 @@ pub const BUILTIN_REGISTRY_CSS: &str = concat!(
     include_str!("../../../packages/core/css/builtin-variants/sw-conditional.css"),
     include_str!("../../../packages/core/css/builtin-variants/sw-document.css"),
     include_str!("../../../packages/core/css/builtin-metadata/tw-properties.css"),
+    include_str!("../../../packages/core/css/builtin-metadata/sw-motion-properties.css"),
     include_str!("../../../packages/core/css/builtins.css"),
 );

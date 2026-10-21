@@ -55,7 +55,7 @@ pub use props::{GeneratedClass, GuardStep};
 pub use stylesheet::{StylesheetLint, lint_stylesheets};
 pub use symbols::{GeneratedSymbol, GeneratedSymbolKind, SymbolOrigin};
 
-pub(crate) use animation_options::{OptionVariants, resolve_options};
+pub(crate) use animation_options::resolve_options;
 pub(crate) use conditionals::lower as lower_conditionals;
 pub(crate) use definitions::{emit_view_transition_utilities, resolve_frame};
 pub(crate) use document::emit_document_style;

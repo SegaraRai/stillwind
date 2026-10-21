@@ -6,7 +6,8 @@
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::{
-    DocumentTargetFailure, UtilityResolutionError, document_target, resolve_variant,
+    DocumentTargetFailure, RegistryContext, UtilityResolutionError, document_target,
+    resolve_variant,
 };
 use stillwind_diagnostics::LintSettings;
 use stillwind_source::{FileId, Span, Spanned};
@@ -15,13 +16,13 @@ use stillwind_syntax::parse_candidate;
 use super::DesignSystemQuery;
 use super::resolution::candidate_identifiers;
 use crate::compiler::{
-    OptionVariants, condition_paths, emit_document_style, emit_view_transition_utilities,
-    expand_authored_variant, media_argument_query, resolve_frame, resolve_options, wrap_conditions,
+    condition_paths, emit_document_style, emit_view_transition_utilities, expand_authored_variant,
+    media_argument_query, resolve_frame, resolve_options, wrap_conditions,
 };
 
 /// The syntax and emission contract of an editor input.
-/// Option roles use the animation-option registry and its registered property mappings.
-/// Frame and phase utilities keep the declarations produced by utility resolution.
+/// Keyframe frames, keyframes uses, and view transitions resolve utilities through the
+/// registry context that [`Self::registry_context`] returns.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub enum CandidateContext {
     /// Element utilities, with ordinary variant prefixes.
@@ -32,9 +33,7 @@ pub enum CandidateContext {
     /// Options of a keyframes use; variants, importance, and negative values are
     /// rejected.
     AnimationOptions,
-    /// View-transition group options, with media and supports conditions.
-    ViewTransitionOptions,
-    /// View-transition phase utilities, with media and supports conditions.
+    /// View-transition pseudo-element utilities, with media and supports conditions.
     ViewTransitionUtilities,
     /// Media and supports prefixes that can contain a global definition.
     DefinitionVariants,
@@ -56,10 +55,21 @@ pub enum CandidateContext {
 }
 
 impl CandidateContext {
-    /// Whether this role uses the animation-option registry instead of utility
-    /// definitions.
+    /// The registry context whose definitions this role resolves, or `None` for the
+    /// default definitions.
+    pub(super) const fn registry_context(self) -> Option<RegistryContext> {
+        match self {
+            Self::KeyframesFrame => Some(RegistryContext::Keyframe),
+            Self::AnimationOptions => Some(RegistryContext::Animation),
+            Self::ViewTransitionUtilities => Some(RegistryContext::ViewTransition),
+            _ => None,
+        }
+    }
+
+    /// Whether this role accepts only the definitions of its registry context, so
+    /// default utility names are not suggested.
     pub(super) const fn options(self) -> bool {
-        matches!(self, Self::AnimationOptions | Self::ViewTransitionOptions)
+        matches!(self, Self::AnimationOptions)
     }
 
     /// Whether this role accepts only variants, without a utility or option.
@@ -93,9 +103,7 @@ impl DesignSystemQuery {
             CandidateContext::Utility
             | CandidateContext::Document
             | CandidateContext::AnchoredDocument => CandidateContext::ElementVariants,
-            CandidateContext::ViewTransitionOptions | CandidateContext::ViewTransitionUtilities => {
-                CandidateContext::DefinitionVariants
-            }
+            CandidateContext::ViewTransitionUtilities => CandidateContext::DefinitionVariants,
             other => other,
         };
         self.preview_variants(candidate, context)
@@ -155,34 +163,14 @@ impl DesignSystemQuery {
                     format_args!("&{{{declaration}}}").to_lean_string()
                 }
             }
-            CandidateContext::AnimationOptions | CandidateContext::ViewTransitionOptions => {
-                let variants = if context == CandidateContext::AnimationOptions {
-                    OptionVariants::Rejected
+            CandidateContext::AnimationOptions => {
+                let declaration =
+                    resolve_options(&input, theme, &mut diagnostics, &mut lint_findings);
+                if declaration.is_empty() {
+                    LeanString::new()
                 } else {
-                    OptionVariants::Conditions
-                };
-                let resolved = resolve_options(
-                    &input,
-                    variants,
-                    theme,
-                    &mut diagnostics,
-                    &mut lint_findings,
-                );
-                let mut css = LeanString::new();
-                if !resolved.declaration.is_empty() {
-                    css.push_str("&{");
-                    css.push_str(&resolved.declaration);
-                    css.push('}');
+                    format_args!("&{{{declaration}}}").to_lean_string()
                 }
-                for option in resolved.conditioned {
-                    for path in option.paths {
-                        css.push_str(&wrap_conditions(
-                            &format_args!("&{{{}}}", option.declaration).to_lean_string(),
-                            &path,
-                        ));
-                    }
-                }
-                css
             }
             CandidateContext::Document => emit_document_style(
                 &input,

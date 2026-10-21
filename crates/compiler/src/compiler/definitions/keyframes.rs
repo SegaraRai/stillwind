@@ -2,7 +2,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_design_system::ThemeIndex;
+use stillwind_design_system::{RegistryContext, ThemeIndex};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
 use stillwind_source::{ModuleId, Span, Spanned};
@@ -170,7 +170,9 @@ fn emit_frames(
     contribution.css = output.into();
 }
 
-/// Resolves a frame's decoded utility list against `theme`, rejecting utility variants.
+/// Resolves a frame's decoded utility list through the `keyframe` context of `theme`,
+/// rejecting utility variants.
+///
 /// `input.span` locates token diagnostics in the original source or a synthetic query.
 /// Invalid tokens append diagnostics and contribute no declarations; valid tokens still
 /// contribute. Returns the combined declaration body without braces and the required
@@ -181,6 +183,7 @@ pub(crate) fn resolve_frame(
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> (LeanString, Vec<LeanStr>) {
+    let theme = theme.context(RegistryContext::Keyframe);
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
         let raw = &utility.value.raw;

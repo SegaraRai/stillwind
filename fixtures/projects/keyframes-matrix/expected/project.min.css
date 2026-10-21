@@ -5,12 +5,12 @@
     :before,
     :after,
     ::backdrop {
-      --tw-translate-x: 0;
-      --tw-translate-y: 0;
-      --tw-translate-z: 0;
-      --tw-scale-x: 1;
-      --tw-scale-y: 1;
-      --tw-scale-z: 1;
+      --sw-motion-translate-x: 0px;
+      --sw-motion-translate-y: 0px;
+      --sw-motion-translate-z: 0px;
+      --sw-motion-scale-x: 1;
+      --sw-motion-scale-y: 1;
+      --sw-motion-scale-z: 1;
     }
   }
 }
@@ -249,21 +249,21 @@
   @keyframes sw-kf-enter-cxv19 {
     0% {
       opacity: 0;
-      --tw-translate-y: var(--spacing-2);
-      translate: var(--tw-translate-x) var(--tw-translate-y);
-      --tw-scale-x: calc(98 * 1%);
-      --tw-scale-y: calc(98 * 1%);
-      --tw-scale-z: calc(98 * 1%);
-      scale: var(--tw-scale-x) var(--tw-scale-y);
+      --sw-motion-translate-y: var(--spacing-2);
+      translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+        var(--sw-motion-translate-z);
+      --sw-motion-scale-x: calc(98 / 100);
+      --sw-motion-scale-y: calc(98 / 100);
+      scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
     to {
       opacity: 1;
-      --tw-translate-y: 0px;
-      translate: var(--tw-translate-x) var(--tw-translate-y);
-      --tw-scale-x: calc(100 * 1%);
-      --tw-scale-y: calc(100 * 1%);
-      --tw-scale-z: calc(100 * 1%);
-      scale: var(--tw-scale-x) var(--tw-scale-y);
+      --sw-motion-translate-y: 0px;
+      translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+        var(--sw-motion-translate-z);
+      --sw-motion-scale-x: calc(100 / 100);
+      --sw-motion-scale-y: calc(100 / 100);
+      scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
   }
   @keyframes sw-kf-12rqq {
@@ -272,10 +272,9 @@
     }
     to {
       opacity: 0;
-      --tw-scale-x: calc(98 * 1%);
-      --tw-scale-y: calc(98 * 1%);
-      --tw-scale-z: calc(98 * 1%);
-      scale: var(--tw-scale-x) var(--tw-scale-y);
+      --sw-motion-scale-x: calc(98 / 100);
+      --sw-motion-scale-y: calc(98 / 100);
+      scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
   }
   .sw_rdg4x {
@@ -300,33 +299,33 @@
     animation-fill-mode: both;
   }
 }
-@property --tw-translate-x {
-  syntax: "*";
+@property --sw-motion-translate-x {
+  syntax: "<length-percentage>";
   inherits: false;
   initial-value: 0;
 }
-@property --tw-translate-y {
-  syntax: "*";
+@property --sw-motion-translate-y {
+  syntax: "<length-percentage>";
   inherits: false;
   initial-value: 0;
 }
-@property --tw-translate-z {
-  syntax: "*";
+@property --sw-motion-translate-z {
+  syntax: "<length>";
   inherits: false;
   initial-value: 0;
 }
-@property --tw-scale-x {
-  syntax: "*";
+@property --sw-motion-scale-x {
+  syntax: "<number>";
   inherits: false;
   initial-value: 1;
 }
-@property --tw-scale-y {
-  syntax: "*";
+@property --sw-motion-scale-y {
+  syntax: "<number>";
   inherits: false;
   initial-value: 1;
 }
-@property --tw-scale-z {
-  syntax: "*";
+@property --sw-motion-scale-z {
+  syntax: "<number>";
   inherits: false;
   initial-value: 1;
 }

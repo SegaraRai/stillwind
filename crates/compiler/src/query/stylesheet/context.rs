@@ -234,7 +234,7 @@ fn at_rule_context(
             "custom-variant" => Positions::VARIANT,
             "stillwind-variant" => Positions::VARIANT.union(Positions::INTRINSIC_VARIANT),
             "variant" if !declarations => Positions::VARIANT,
-            "stillwind-animation-option" => Positions::ANIMATION,
+            "stillwind-registry" => Positions::REGISTRY,
             "stillwind-css-template" => Positions::TEMPLATE,
             "theme" | "stillwind-property" | "plugin" => Positions::NONE,
             _ => positions.without(Positions::UNCERTAIN.union(Positions::INTRINSIC_VARIANT)),

@@ -30,7 +30,8 @@ export type StyleKeyframes<Id extends string = string> = {
   readonly [keyframesIdentity]: Id;
 
   /**
-   * Applies this animation with literal animation-option utilities.
+   * Applies this animation with literal animation options, which are utilities of the
+   * `animation` registry context.
    *
    * Use the call directly as a rule input in `style()`. The resulting animation use
    * cannot be stored or passed for later use.

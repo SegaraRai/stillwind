@@ -17,7 +17,4 @@ pub use registry::builtin_definitions;
 pub(super) use metadata::{
     COMPAT_COLOR_MODERN_SPACE, COMPAT_COLOR_SUPPORT, builtin_markers, builtin_relationship_patterns,
 };
-pub(super) use registry::{
-    animation_option_property_mappings, arbitrary_property_order, builtin_animation_options,
-    builtin_variants,
-};
+pub(super) use registry::{arbitrary_property_order, builtin_variants};

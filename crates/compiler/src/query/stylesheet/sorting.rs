@@ -477,7 +477,7 @@ fn definition(name: &str) -> bool {
             | "stillwind-utility"
             | "stillwind-variant"
             | "stillwind-property"
-            | "stillwind-animation-option"
+            | "stillwind-registry"
     )
 }
 

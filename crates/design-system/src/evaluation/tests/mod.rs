@@ -20,7 +20,7 @@ use crate::ThemeIndex;
 mod support;
 use support::{
     direct_value_domains, expanded_csswg_syntax, formal_terms, has_complex_csswg_grammar,
-    resolve_animation_option, resolve_utility, theme,
+    resolve_utility, theme,
 };
 
 mod animations;

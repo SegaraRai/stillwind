@@ -383,12 +383,13 @@ describes that definition; the browser's cascade can override its value.
 
 At-rule discovery separates **Authoring**, **Registry**, and **Compiler** audiences.
 Ordinary completion offers authoring syntax, including Stillwind directives for output
-slots, CSS templates, custom-property registrations and requirements, and animation-option
-definitions. Registry syntax describes utility libraries and resolution metadata. Compiler
-intrinsics appear only in the direct body of a registry variant definition. Known blocks
-narrow the suggestions: variant definitions offer `@slot`, and style rules offer `@apply`
-and applied `@variant`. A fragment without an enclosing block retains broad authoring
-suggestions and ranks names for stylesheet placement first.
+slots, CSS templates, custom-property registrations and requirements, and
+`@stillwind-registry` blocks with their undefinitions. Registry syntax describes utility
+libraries and resolution metadata. Compiler intrinsics appear only in the direct body of
+a registry variant definition. Known blocks narrow the suggestions: variant definitions
+offer `@slot`, and style rules offer `@apply` and applied `@variant`. A fragment without
+an enclosing block retains broad authoring suggestions and ranks names for stylesheet
+placement first.
 
 VS Code's `stillwind.completion.registryDirectives` setting adds registry suggestions; it
 defaults to false. Other LSP clients can send `initializationOptions.completion.registryDirectives`

@@ -31,7 +31,7 @@ use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
     parse_declaration_formats, parse_relationship_patterns, parse_utility_definitions,
-    parse_variant_definitions, registration_positions,
+    parse_variant_definitions, registration_positions, split_registry_blocks,
 };
 use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
 
@@ -113,10 +113,18 @@ fn parse_theme_contents(
         template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
         template.source_identity = source_identity.clone();
     }
-    theme.registry = Arc::new(BuiltinDefinitions::from_css(source.text()));
     let in_plugin = |offset: usize| plugin_ranges.iter().any(|range| range.contains(&offset));
+    // Definitions inside `@stillwind-registry` blocks belong to their contexts, so the
+    // default parsers read a copy in which the blocks are blank.
+    let (masked, registry_blocks) = split_registry_blocks(source.text(), in_plugin)?;
+    let definitions = masked.as_deref().unwrap_or(source.text());
+    theme.registry_blocks = registry_blocks;
+    theme.registry = Arc::new(BuiltinDefinitions::from_definitions(
+        source.text(),
+        definitions,
+    ));
     let mut plugin_positions = BTreeMap::<LeanStr, usize>::new();
-    theme.utilities = parse_utility_definitions(source.text())
+    theme.utilities = parse_utility_definitions(definitions)
         .into_iter()
         .map(|(offset, mut utility)| {
             if in_plugin(offset) {
@@ -132,7 +140,7 @@ fn parse_theme_contents(
     // Variant lookup takes the last definition of a name. Plugin definitions therefore
     // precede the stylesheet's, so an authored `@custom-variant` replaces a plugin's
     // variant wherever the `@plugin` statement stands, as in Tailwind.
-    let (plugin_variants, variants): (Vec<_>, Vec<_>) = parse_variant_definitions(source.text())
+    let (plugin_variants, variants): (Vec<_>, Vec<_>) = parse_variant_definitions(definitions)
         .into_iter()
         .partition(|(offset, _)| in_plugin(*offset));
     theme.variants = plugin_variants
@@ -140,7 +148,7 @@ fn parse_theme_contents(
         .chain(variants)
         .map(|(_, variant)| variant)
         .collect();
-    theme.properties = parse_property_definitions(source.text());
+    theme.properties = parse_property_definitions(definitions);
     // `theme.registry` reads the marker statements of the same text.
     theme.markers = MarkerClasses::selected_by(&theme.utilities, &theme.variants);
     theme.declaration_formats = parse_declaration_formats(source.text());
@@ -393,6 +401,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         tokens,
         custom_css: (LeanString::new()).into(),
         utilities: Vec::new(),
+        registry_blocks: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
         markers: MarkerClasses::default(),

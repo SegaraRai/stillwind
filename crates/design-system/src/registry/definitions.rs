@@ -11,10 +11,10 @@ use lean_string::LeanStr;
 
 use stillwind_css::{CustomPropertyDefinition, parse_property_definitions};
 
+use super::contexts::split_registry_blocks;
 use super::utility_lookup::UtilityLookup;
 use crate::{
     BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
-    parse_animation_option_property_mappings, parse_builtin_animation_option_definitions,
     parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
     parse_builtin_variant_definitions, parse_declaration_formats, parse_omit_token_prefixes,
     parse_relationship_patterns, parse_theme_order,
@@ -22,9 +22,9 @@ use crate::{
 
 /// Immutable registries parsed from the CSS supplied by a host.
 ///
-/// Utility, variant, property, and animation-option definitions retain authored order
-/// and repeated names. Candidate matching preserves each layer's precedence.
-#[derive(Debug, Default, Eq, PartialEq)]
+/// Utility, variant, and property definitions retain authored order and repeated names.
+/// Candidate matching preserves each layer's precedence.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BuiltinDefinitions {
     source: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
@@ -32,8 +32,6 @@ pub struct BuiltinDefinitions {
     properties: Vec<Arc<CustomPropertyDefinition>>,
     utility_lookup: UtilityLookup,
     arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
-    animation_options: Vec<Arc<CustomUtility>>,
-    animation_property_mappings: BTreeMap<LeanStr, LeanStr>,
     declaration_formats: BTreeMap<LeanStr, LeanStr>,
     relationships: BTreeSet<LeanStr>,
     markers: MarkerClasses,
@@ -69,17 +67,6 @@ impl BuiltinDefinitions {
     /// them and declaration order is observable.
     pub fn arbitrary_property_order(&self) -> &[BuiltinArbitraryPropertyOrder] {
         &self.arbitrary_property_order
-    }
-
-    /// Animation option definitions, kept apart from ordinary utilities so option
-    /// spellings never become utilities.
-    pub fn animation_options(&self) -> &[Arc<CustomUtility>] {
-        &self.animation_options
-    }
-
-    /// Animation option name to the property it rewrites.
-    pub fn animation_property_mappings(&self) -> &BTreeMap<LeanStr, LeanStr> {
-        &self.animation_property_mappings
     }
 
     /// Declaration format name to its serialized value grammar.
@@ -125,10 +112,38 @@ impl BuiltinDefinitions {
         self.utility_lookup.has_exact(name)
     }
 
+    /// Returns a copy that uses `utilities` and `variants` in place of the built-in
+    /// utility and variant definitions and keeps the other registries.
+    pub(crate) fn with_definitions(
+        &self,
+        utilities: Vec<Arc<CustomUtility>>,
+        variants: Vec<Arc<CustomVariant>>,
+    ) -> Self {
+        Self {
+            utility_lookup: UtilityLookup::new(&utilities),
+            utilities,
+            variants,
+            ..self.clone()
+        }
+    }
+
     /// Parses every registry that can be expressed as CSS from `css`.
     ///
     /// Utility bodies retain their CSS token spelling, including meaningful whitespace.
+    ///
+    /// Definitions inside `@stillwind-registry` blocks belong to their contexts and are
+    /// not part of the returned registries.
     pub fn from_css(css: &str) -> Self {
+        let masked = split_registry_blocks(css, |_| false)
+            .ok()
+            .and_then(|(masked, _)| masked);
+        Self::from_definitions(css, masked.as_deref().unwrap_or(css))
+    }
+
+    /// Parses the registries from `css`, a copy of `source` in which every
+    /// `@stillwind-registry` block is blank, and retains `source` as the fingerprint
+    /// text.
+    pub(crate) fn from_definitions(source: &str, css: &str) -> Self {
         let utilities: Vec<_> = parse_builtin_utility_definitions(css)
             .into_iter()
             .map(Arc::new)
@@ -144,11 +159,7 @@ impl BuiltinDefinitions {
             variants.iter().map(|variant| &**variant),
         );
         Self {
-            source: css.into(),
-            animation_options: parse_builtin_animation_option_definitions(css)
-                .into_iter()
-                .map(Arc::new)
-                .collect(),
+            source: source.into(),
             utilities,
             utility_lookup,
             variants,
@@ -157,7 +168,6 @@ impl BuiltinDefinitions {
                 .map(Arc::new)
                 .collect(),
             arbitrary_property_order: parse_builtin_arbitrary_property_order(css),
-            animation_property_mappings: parse_animation_option_property_mappings(css),
             declaration_formats: parse_declaration_formats(css),
             relationships: parse_relationship_patterns(css),
             markers,

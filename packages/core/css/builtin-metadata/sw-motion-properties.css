@@ -1,0 +1,126 @@
+/*
+Interpolable custom property registrations for the `keyframe` registry context.
+
+A keyframe interpolates a custom property only when its registration has a typed
+`syntax`. The Tailwind registrations use `syntax: "*"`, so a frame that sets
+`--tw-translate-y` switches its value halfway through the animation. The keyframe
+definitions in `sw-motion-contexts.css` write these properties instead.
+
+Each initial value is the identity of its transform or filter function, so a frame
+that sets one axis or one filter function keeps the others at their identity.
+Elements never set these properties; only keyframes do.
+*/
+
+@stillwind-property --sw-motion-translate-x {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@stillwind-property --sw-motion-translate-y {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@stillwind-property --sw-motion-translate-z {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@stillwind-property --sw-motion-scale-x {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-scale-y {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-scale-z {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-rotate-x {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-rotate-y {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-rotate-z {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-skew-x {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-skew-y {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-blur {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@stillwind-property --sw-motion-brightness {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-contrast {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-grayscale {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@stillwind-property --sw-motion-hue-rotate {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-invert {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@stillwind-property --sw-motion-saturate {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-sepia {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}

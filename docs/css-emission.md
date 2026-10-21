@@ -215,7 +215,67 @@ replaces the built-in `shadow-*` for `shadow-lg`. CSS escapes in a definition na
 decoded, so `@utility tab-1\/2` defines the static utility `tab-1/2`.
 
 To remove a built-in utility, a stylesheet currently has no directive; a definition can
-only add to it.
+only add to it. A [registry context](#registry-contexts) can remove definitions for the
+inputs that resolve through it.
+
+## Registry contexts
+
+Keyframe frames, keyframes uses, and view transitions resolve their utilities through a
+registry context. Each context starts with the default definitions of every layer, and
+`@stillwind-registry` blocks change them:
+
+| Context           | Inputs                                                  |
+| ----------------- | ------------------------------------------------------- |
+| `keyframe`        | The frames of `style.keyframes()`                       |
+| `animation`       | The options of a keyframes use, such as `enter("both")` |
+| `view-transition` | `group`, `old`, `new`, and `imagePair`                  |
+
+```css
+@stillwind-registry animation, view-transition {
+  @stillwind-undef-utility duration-*;
+  @utility duration-* {
+    animation-duration: --value([time]);
+  }
+}
+```
+
+A block names one or more contexts, separated by commas. An unknown or missing context
+name is an error. Blocks apply after all default definitions: blocks in `@plugin` answers
+first, then the other blocks, each group in source order. Inside a block, statements
+apply in source order:
+
+- `@stillwind-undef-utility <pattern>;` removes the matching utility definitions that
+  precede it in the context, including the default definitions of every layer.
+- `@stillwind-undef-variant <pattern>;` removes the matching variant definitions in the
+  same way.
+- `@stillwind-undef-arbitrary-property <pattern>;` rejects arbitrary-property candidates
+  for the matching properties, and `@stillwind-arbitrary-property <pattern>;` accepts
+  them again. The last matching statement decides, and a property that no statement
+  matches is accepted.
+- `@utility`, `@stillwind-utility`, `@custom-variant`, and `@variant` add definitions to
+  the context in their own layer.
+
+A pattern is `*`, an exact name, or a prefix followed by `*`. `duration-*` matches the
+definition `duration-*` and the exact names that start with `duration-`, such as
+`duration-initial`. It does not match `-duration-*`, because a pattern for negative
+names starts with `-`.
+
+The built-in blocks make these changes:
+
+- `keyframe` writes the transform and filter families through typed `--sw-motion-*`
+  registrations, such as `--sw-motion-translate-y` with
+  `syntax: "<length-percentage>"`. A browser interpolates a typed registration between
+  frames. The `--tw-*` registrations of element utilities have `syntax: "*"`, so a
+  frame that set `--tw-translate-y` would switch the value halfway through the
+  animation. The context also removes the `transition`, `duration`, `ease`, `delay`,
+  and `animate` utilities.
+- `animation` removes every default utility and arbitrary property. It defines
+  `duration-*`, `ease-*`, `delay-*`, and the fill-mode, direction, play-state, and
+  iteration words as `animation-*` declarations, and it accepts `animation-*`
+  arbitrary properties.
+- `view-transition` keeps the default utilities. Its `duration-*`, `ease-*`, and
+  `delay-*` utilities and the words of `animation` set `animation-*` properties, which
+  drive the animations of the pseudo-elements.
 
 ## Marker classes
 

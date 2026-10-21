@@ -276,6 +276,15 @@ pub enum CompileDiagnostic {
         /// Template name as written.
         name: LeanStr,
     },
+    /// A `@stillwind-registry` header is empty or names a context that does not exist.
+    #[error("@stillwind-registry at byte {offset} names an unknown context `{context}`")]
+    UnknownRegistryContext {
+        /// Zero-based UTF-8 byte offset of the directive in the buffer parsed by the
+        /// failing operation.
+        offset: usize,
+        /// Context name as written; empty when the header names no context.
+        context: LeanStr,
+    },
     /// A value cannot be resolved locally without host checker facts.
     #[error("{subject} require TypeScript checker facts")]
     CheckerFactsRequired {

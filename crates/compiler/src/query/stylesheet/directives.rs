@@ -9,8 +9,8 @@ use lean_string::{LeanStr, ToLeanStr};
 /// The audience that should discover a directive through name completion.
 #[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
 pub(super) enum Purpose {
-    /// Applications and themes, including extensions to utilities and animation
-    /// options.
+    /// Applications and themes, including extensions to utilities and registry
+    /// contexts.
     Authoring,
     /// Utility libraries and metadata that governs registry resolution.
     Registry,
@@ -63,8 +63,8 @@ impl Positions {
     pub(super) const UTILITY: Self = Self(4);
     /// The body of an authored or registry variant definition, including its wrappers.
     pub(super) const VARIANT: Self = Self(8);
-    /// The body of a declaration definition for animation options.
-    pub(super) const ANIMATION: Self = Self(16);
+    /// The body of a `@stillwind-registry` block.
+    pub(super) const REGISTRY: Self = Self(16);
     /// Rules inside a named CSS output template.
     pub(super) const TEMPLATE: Self = Self(32);
     /// Input without an enclosing block that could be an incomplete CSS fragment.
@@ -89,7 +89,7 @@ impl Positions {
 
     /// Returns whether a definition supplies a local reason to offer registry syntax.
     pub(super) const fn in_definition(self) -> bool {
-        self.intersects(Self::UTILITY.union(Self::VARIANT).union(Self::ANIMATION))
+        self.intersects(Self::UTILITY.union(Self::VARIANT).union(Self::REGISTRY))
     }
 }
 
@@ -165,7 +165,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         name: "utility",
         purpose: Purpose::Authoring,
         family: Family::TailwindDerived,
-        positions: Positions::RULES,
+        positions: Positions::RULES.union(Positions::REGISTRY),
         syntax: "@utility name-* { ... }",
         description: "Defines a utility. A trailing * captures the candidate value for --value().",
     },
@@ -173,7 +173,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         name: "custom-variant",
         purpose: Purpose::Authoring,
         family: Family::TailwindDerived,
-        positions: Positions::RULES,
+        positions: Positions::RULES.union(Positions::REGISTRY),
         syntax: "@custom-variant name [scope(document)] (selector);",
         description: "Defines a variant with a selector shorthand or a block containing @slot. scope(document) lets the variant select a document-level element.",
     },
@@ -215,7 +215,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         name: "stillwind-utility",
         purpose: Purpose::Registry,
         family: Family::Stillwind,
-        positions: Positions::RULES,
+        positions: Positions::RULES.union(Positions::REGISTRY),
         syntax: "@stillwind-utility name-* [(tw-sort: property)] { ... }",
         description: "Defines a registry utility with its authored cascade order.",
     },
@@ -247,25 +247,41 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         name: "stillwind-arbitrary-property",
         purpose: Purpose::Registry,
         family: Family::Stillwind,
-        positions: Positions::RULES,
+        positions: Positions::RULES.union(Positions::REGISTRY),
         syntax: "@stillwind-arbitrary-property pattern;",
         description: "Places arbitrary-property candidates in the authored utility order.",
     },
     Directive {
-        name: "stillwind-animation-option",
+        name: "stillwind-registry",
         purpose: Purpose::Authoring,
         family: Family::Stillwind,
         positions: Positions::RULES,
-        syntax: "@stillwind-animation-option name-* { ... }",
-        description: "Defines declarations accepted as animation options.",
+        syntax: "@stillwind-registry keyframe, animation, view-transition { ... }",
+        description: "Changes utility, variant, and arbitrary-property definitions only where keyframe frames, keyframes uses, or view transitions resolve utilities. Statements apply in source order after the default definitions.",
     },
     Directive {
-        name: "stillwind-animation-option-property",
-        purpose: Purpose::Registry,
+        name: "stillwind-undef-utility",
+        purpose: Purpose::Authoring,
         family: Family::Stillwind,
-        positions: Positions::RULES,
-        syntax: "@stillwind-animation-option-property source-property: animation-property;",
-        description: "Maps an ordinary utility property to the property emitted when it is used as an animation option.",
+        positions: Positions::REGISTRY,
+        syntax: "@stillwind-undef-utility name | prefix-* | *;",
+        description: "Inside @stillwind-registry, removes the matching utility definitions that precede it in the named contexts, including default definitions.",
+    },
+    Directive {
+        name: "stillwind-undef-variant",
+        purpose: Purpose::Authoring,
+        family: Family::Stillwind,
+        positions: Positions::REGISTRY,
+        syntax: "@stillwind-undef-variant name | prefix-* | *;",
+        description: "Inside @stillwind-registry, removes the matching variant definitions that precede it in the named contexts, including default definitions.",
+    },
+    Directive {
+        name: "stillwind-undef-arbitrary-property",
+        purpose: Purpose::Authoring,
+        family: Family::Stillwind,
+        positions: Positions::REGISTRY,
+        syntax: "@stillwind-undef-arbitrary-property property | prefix-* | *;",
+        description: "Inside @stillwind-registry, rejects arbitrary-property candidates for the matching properties. A later @stillwind-arbitrary-property accepts them again.",
     },
     Directive {
         name: "stillwind-theme-namespace",

@@ -257,11 +257,7 @@ impl ModuleEditor {
                     input.span,
                     EditorSiteKind::Input,
                     None,
-                    Some(if index == 0 {
-                        CandidateContext::ViewTransitionOptions
-                    } else {
-                        CandidateContext::ViewTransitionUtilities
-                    }),
+                    Some(CandidateContext::ViewTransitionUtilities),
                     EditorPlan::Transition(selected),
                 );
             }

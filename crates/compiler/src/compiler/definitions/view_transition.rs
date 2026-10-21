@@ -1,14 +1,13 @@
-//! View-transition definitions: the group rule and the three pseudo-element phases.
+//! View-transition definitions: the rules of the four pseudo-elements of one transition.
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_design_system::ThemeIndex;
+use stillwind_design_system::{RegistryContext, ThemeIndex};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::ViewTransitionDefinition;
 use stillwind_source::{ModuleId, Spanned};
 
 use super::super::CssContribution;
-use super::super::animation_options::{OptionVariants, ResolvedOptions, resolve_options};
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
@@ -20,9 +19,9 @@ use crate::identifiers::IdentifierContext;
 
 /// Writes the view-transition rules for one declaration.
 ///
-/// The group rule carries the transition options, and the `old`, `new`, and `image-pair`
-/// pseudo-element rules carry their utility lists. Every pseudo-element is keyed by the same
-/// generated name, which is what pairs them at runtime.
+/// The `group`, `old`, `new`, and `image-pair` pseudo-element rules carry their utility
+/// lists. Every pseudo-element is keyed by the same generated name, which is what pairs
+/// them at runtime.
 pub(in crate::compiler) fn emit_view_transition_definition(
     contribution: &mut CssContribution,
     module_id: &ModuleId,
@@ -45,19 +44,8 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     };
     let class = class.selector();
     let mut css: LeanString = std::mem::take(&mut contribution.css).into();
-    let output = &mut css;
-    if let Some(group) = &transition.group {
-        let selector = format_args!("::view-transition-group({class})").to_lean_string();
-        let resolved = resolve_options(
-            group,
-            OptionVariants::Conditions,
-            theme,
-            diagnostics,
-            lint_findings,
-        );
-        emit_option_rules(output, &selector, &resolved);
-    }
     for (pseudo, utilities) in [
+        ("group", transition.group.as_ref()),
         ("old", transition.old.as_ref()),
         ("new", transition.new.as_ref()),
         ("image-pair", transition.image_pair.as_ref()),
@@ -66,7 +54,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
             continue;
         };
         emit_view_transition_utilities(
-            output,
+            &mut css,
             &format_args!("::view-transition-{pseudo}({class})").to_lean_string(),
             utilities,
             theme,
@@ -78,7 +66,8 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     contribution.css = css.into();
 }
 
-/// Writes one pseudo-element phase's rules for `selector`.
+/// Writes one pseudo-element's rules for `selector`, resolving utilities through the
+/// `view-transition` context of `theme`.
 ///
 /// Utilities without variants share one rule. A utility carrying condition variants emits its
 /// own rule per condition path, in source order after the shared rule, so a condition selects
@@ -94,6 +83,7 @@ pub(crate) fn emit_view_transition_utilities(
     required_properties: &mut Vec<LeanStr>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
+    let theme = theme.context(RegistryContext::ViewTransition);
     let mut plain = Vec::new();
     let mut conditional = LeanString::new();
     for utility in lex_utilities(input, diagnostics) {
@@ -162,28 +152,6 @@ pub(crate) fn emit_view_transition_utilities(
         output.push('}');
     }
     output.push_str(&conditional);
-}
-
-/// Writes one rule for the options that apply unconditionally, then one rule per conditioned
-/// option.
-///
-/// Every rule keeps the same selector, so a condition changes only the properties its own options
-/// state: the conditioned rule follows the unconditional one and wins for the properties both
-/// declare. `view-transition-group` carries no element state the condition could select through,
-/// so the condition wraps the rule rather than the selector.
-fn emit_option_rules(output: &mut LeanString, selector: &str, options: &ResolvedOptions) {
-    if !options.declaration.is_empty() {
-        output.push_str(selector);
-        output.push_str("{ ");
-        output.push_str(&options.declaration);
-        output.push('}');
-    }
-    for option in &options.conditioned {
-        let rule = format_args!("{selector}{{ {}}}", option.declaration).to_lean_string();
-        for path in &option.paths {
-            output.push_str(&wrap_conditions(&rule, path));
-        }
-    }
 }
 
 #[cfg(test)]

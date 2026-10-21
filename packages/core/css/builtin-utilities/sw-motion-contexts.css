@@ -1,0 +1,638 @@
+/*
+Definitions of the registry contexts for keyframes, keyframes uses, and view transitions.
+
+Each `@stillwind-registry` block changes the default definitions only in the contexts
+that its header names, and the blocks apply in this order. The `keyframe` context
+writes the interpolable properties of `sw-motion-properties.css`, because the
+`--tw-*` registrations of the default transform and filter utilities have
+`syntax: "*"` and switch halfway through an animation.
+
+The `animation` context accepts only animation options, so its first block removes
+every default utility and arbitrary property. The `view-transition` context keeps the
+default utilities for the pseudo-elements, and its timing utilities set the
+`animation-*` properties that drive their animations.
+*/
+
+@stillwind-registry keyframe {
+  /* MARK: Utilities without a meaning in a keyframe */
+
+  @stillwind-undef-utility transition;
+
+  @stillwind-undef-utility transition-*;
+
+  @stillwind-undef-utility duration-*;
+
+  @stillwind-undef-utility ease-*;
+
+  @stillwind-undef-utility delay-*;
+
+  @stillwind-undef-utility animate-*;
+
+  /* MARK: `translate` */
+
+  @stillwind-undef-utility translate-*;
+
+  @stillwind-undef-utility -translate-*;
+
+  @stillwind-utility translate-none {
+    translate: none;
+  }
+
+  @stillwind-utility translate-full {
+    --sw-motion-translate-x: 100%;
+    --sw-motion-translate-y: 100%;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-* {
+    --sw-motion-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
+    --sw-motion-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-x-0 {
+    --sw-motion-translate-x: 0px;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-x-full {
+    --sw-motion-translate-x: 100%;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-x-* {
+    --sw-motion-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-y-0 {
+    --sw-motion-translate-y: 0px;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-y-full {
+    --sw-motion-translate-y: 100%;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-y-* {
+    --sw-motion-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility translate-z-* {
+    --sw-motion-translate-z: --value(--spacing-*, --spacing(), [length]);
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-full {
+    --sw-motion-translate-x: -100%;
+    --sw-motion-translate-y: -100%;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-* {
+    --sw-motion-translate-x: calc(
+      --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+    );
+    --sw-motion-translate-y: calc(
+      --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+    );
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-x-full {
+    --sw-motion-translate-x: -100%;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-x-* {
+    --sw-motion-translate-x: calc(
+      --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+    );
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-y-full {
+    --sw-motion-translate-y: -100%;
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-y-* {
+    --sw-motion-translate-y: calc(
+      --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+    );
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  @stillwind-utility -translate-z-* {
+    --sw-motion-translate-z: calc(--value(--spacing-*, --spacing(), [length]) * -1);
+    translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
+      var(--sw-motion-translate-z);
+  }
+
+  /* MARK: `scale` */
+
+  @stillwind-undef-utility scale-*;
+
+  @stillwind-undef-utility -scale-*;
+
+  @stillwind-utility scale-none {
+    scale: none;
+  }
+
+  @stillwind-utility scale-* {
+    --sw-motion-scale-x: calc(--value(integer) / 100);
+    --sw-motion-scale-y: calc(--value(integer) / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility scale-x-* {
+    --sw-motion-scale-x: calc(--value(integer) / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility scale-y-* {
+    --sw-motion-scale-y: calc(--value(integer) / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility scale-z-* {
+    --sw-motion-scale-z: calc(--value(integer) / 100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility -scale-* {
+    --sw-motion-scale-x: calc(--value(integer) / -100);
+    --sw-motion-scale-y: calc(--value(integer) / -100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility -scale-x-* {
+    --sw-motion-scale-x: calc(--value(integer) / -100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility -scale-y-* {
+    --sw-motion-scale-y: calc(--value(integer) / -100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility -scale-z-* {
+    --sw-motion-scale-z: calc(--value(integer) / -100);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  @stillwind-utility scale-* {
+    --sw-motion-scale-x: --value([number]);
+    --sw-motion-scale-y: --value([number]);
+    scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
+  }
+
+  /* MARK: `rotate` and `skew` in `transform` */
+
+  @stillwind-undef-utility rotate-x-*;
+
+  @stillwind-undef-utility -rotate-x-*;
+
+  @stillwind-undef-utility rotate-y-*;
+
+  @stillwind-undef-utility -rotate-y-*;
+
+  @stillwind-undef-utility rotate-z-*;
+
+  @stillwind-undef-utility -rotate-z-*;
+
+  @stillwind-undef-utility skew-*;
+
+  @stillwind-undef-utility -skew-*;
+
+  @stillwind-undef-utility skew-x-*;
+
+  @stillwind-undef-utility -skew-x-*;
+
+  @stillwind-undef-utility skew-y-*;
+
+  @stillwind-undef-utility -skew-y-*;
+
+  @stillwind-utility rotate-x-* {
+    --sw-motion-rotate-x: calc(--value(integer) * 1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility rotate-y-* {
+    --sw-motion-rotate-y: calc(--value(integer) * 1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility rotate-z-* {
+    --sw-motion-rotate-z: calc(--value(integer) * 1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility skew-* {
+    --sw-motion-skew-x: calc(--value(integer) * 1deg);
+    --sw-motion-skew-y: calc(--value(integer) * 1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility skew-x-* {
+    --sw-motion-skew-x: calc(--value(integer) * 1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility skew-y-* {
+    --sw-motion-skew-y: calc(--value(integer) * 1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility -rotate-x-* {
+    --sw-motion-rotate-x: calc(--value(integer) * -1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility -rotate-y-* {
+    --sw-motion-rotate-y: calc(--value(integer) * -1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility -rotate-z-* {
+    --sw-motion-rotate-z: calc(--value(integer) * -1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility -skew-* {
+    --sw-motion-skew-x: calc(--value(integer) * -1deg);
+    --sw-motion-skew-y: calc(--value(integer) * -1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility -skew-x-* {
+    --sw-motion-skew-x: calc(--value(integer) * -1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility -skew-y-* {
+    --sw-motion-skew-y: calc(--value(integer) * -1deg);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility rotate-x-* {
+    --sw-motion-rotate-x: --value([angle]);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility rotate-y-* {
+    --sw-motion-rotate-y: --value([angle]);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility rotate-z-* {
+    --sw-motion-rotate-z: --value([angle]);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility skew-* {
+    --sw-motion-skew-x: --value([angle]);
+    --sw-motion-skew-y: --value([angle]);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility skew-x-* {
+    --sw-motion-skew-x: --value([angle]);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  @stillwind-utility skew-y-* {
+    --sw-motion-skew-y: --value([angle]);
+    transform: rotateX(var(--sw-motion-rotate-x)) rotateY(var(--sw-motion-rotate-y))
+      rotateZ(var(--sw-motion-rotate-z)) skewX(var(--sw-motion-skew-x))
+      skewY(var(--sw-motion-skew-y));
+  }
+
+  /* MARK: `filter` */
+
+  @stillwind-undef-utility blur-*;
+
+  @stillwind-undef-utility brightness-*;
+
+  @stillwind-undef-utility contrast-*;
+
+  @stillwind-undef-utility grayscale;
+
+  @stillwind-undef-utility grayscale-*;
+
+  @stillwind-undef-utility hue-rotate-*;
+
+  @stillwind-undef-utility -hue-rotate-*;
+
+  @stillwind-undef-utility invert;
+
+  @stillwind-undef-utility invert-*;
+
+  @stillwind-undef-utility saturate-*;
+
+  @stillwind-undef-utility sepia;
+
+  @stillwind-undef-utility sepia-*;
+
+  @stillwind-undef-utility drop-shadow-*;
+
+  @stillwind-utility blur-none {
+    --sw-motion-blur: 0px;
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+  @stillwind-utility blur-* {
+    --sw-motion-blur: --value(--blur-*, [length]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility brightness-* {
+    --sw-motion-brightness: calc(--value(integer) / 100);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility brightness-* {
+    --sw-motion-brightness: --value([number]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility contrast-* {
+    --sw-motion-contrast: calc(--value(integer) / 100);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility contrast-* {
+    --sw-motion-contrast: --value([number]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility grayscale {
+    --sw-motion-grayscale: 1;
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility grayscale-* {
+    --sw-motion-grayscale: calc(--value(integer) / 100);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility grayscale-* {
+    --sw-motion-grayscale: --value([number]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility invert {
+    --sw-motion-invert: 1;
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility invert-* {
+    --sw-motion-invert: calc(--value(integer) / 100);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility invert-* {
+    --sw-motion-invert: --value([number]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility saturate-* {
+    --sw-motion-saturate: calc(--value(integer) / 100);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility saturate-* {
+    --sw-motion-saturate: --value([number]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility sepia {
+    --sw-motion-sepia: 1;
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility sepia-* {
+    --sw-motion-sepia: calc(--value(integer) / 100);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility sepia-* {
+    --sw-motion-sepia: --value([number]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility hue-rotate-* {
+    --sw-motion-hue-rotate: calc(--value(integer) * 1deg);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility -hue-rotate-* {
+    --sw-motion-hue-rotate: calc(--value(integer) * -1deg);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+
+  @stillwind-utility hue-rotate-* {
+    --sw-motion-hue-rotate: --value([angle]);
+    filter: blur(var(--sw-motion-blur)) brightness(var(--sw-motion-brightness))
+      contrast(var(--sw-motion-contrast)) grayscale(var(--sw-motion-grayscale))
+      hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
+      saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
+  }
+}
+
+@stillwind-registry animation {
+  @stillwind-undef-utility *;
+
+  @stillwind-undef-arbitrary-property *;
+}
+
+@stillwind-registry view-transition {
+  @stillwind-undef-utility duration-*;
+
+  @stillwind-undef-utility ease-*;
+
+  @stillwind-undef-utility delay-*;
+}
+
+@stillwind-registry animation, view-transition {
+  @stillwind-arbitrary-property animation-*;
+
+  @stillwind-utility none {
+    animation-fill-mode: none;
+  }
+
+  @stillwind-utility forwards {
+    animation-fill-mode: forwards;
+  }
+
+  @stillwind-utility backwards {
+    animation-fill-mode: backwards;
+  }
+
+  @stillwind-utility both {
+    animation-fill-mode: both;
+  }
+
+  @stillwind-utility running {
+    animation-play-state: running;
+  }
+
+  @stillwind-utility paused {
+    animation-play-state: paused;
+  }
+
+  @stillwind-utility normal {
+    animation-direction: normal;
+  }
+
+  @stillwind-utility reverse {
+    animation-direction: reverse;
+  }
+
+  @stillwind-utility alternate {
+    animation-direction: alternate;
+  }
+
+  @stillwind-utility alternate-reverse {
+    animation-direction: alternate-reverse;
+  }
+
+  @stillwind-utility infinite {
+    animation-iteration-count: infinite;
+  }
+
+  @stillwind-utility duration-* {
+    animation-duration: --value(--duration-*);
+  }
+
+  @stillwind-utility duration-* {
+    animation-duration: calc(--value(integer) * 1ms);
+  }
+
+  @stillwind-utility duration-* {
+    animation-duration: --value([time]);
+  }
+
+  @stillwind-utility ease-linear {
+    animation-timing-function: linear;
+  }
+
+  @stillwind-utility ease-* {
+    animation-timing-function: --value(--ease-*);
+  }
+
+  @stillwind-utility delay-* {
+    animation-delay: calc(--value(integer) * 1ms);
+  }
+
+  @stillwind-utility delay-* {
+    animation-delay: --value([time]);
+  }
+}

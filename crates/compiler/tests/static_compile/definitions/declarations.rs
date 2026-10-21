@@ -30,12 +30,22 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(result.css.contains("@keyframes sw-kf-"));
-    assert!(
-        fold_calc_expressions(&result.css, None)
-            .contains("from{opacity:0%;--tw-translate-y:var(--spacing-2);translate:var(--tw-translate-x) var(--tw-translate-y);--tw-scale-x:98%;--tw-scale-y:98%;--tw-scale-z:98%;scale:var(--tw-scale-x) var(--tw-scale-y);}"),
-        "{}",
-        result.css
-    );
+    // Frames write the typed `--sw-motion-*` registrations, which interpolate, instead of
+    // the `--tw-*` variables of element utilities.
+    let css = fold_calc_expressions(&result.css, None);
+    for expected in [
+        "from{opacity:0%;--sw-motion-translate-y:var(--spacing-2);translate:var(--sw-motion-translate-x) var(--sw-motion-translate-y)",
+        "--sw-motion-scale-x:calc(98 / 100);--sw-motion-scale-y:calc(98 / 100);scale:var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);",
+        "@property --sw-motion-translate-y {
+  syntax: \"<length-percentage>\";",
+    ] {
+        assert!(
+            css.contains(expected),
+            "{expected}
+{css}"
+        );
+    }
+    assert!(!css.contains("--tw-translate"), "{css}");
     assert!(result.css.contains("animation-name:sw-kf-"));
     assert!(result.css.contains("animation-duration:"));
     assert!(

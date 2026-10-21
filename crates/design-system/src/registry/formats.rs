@@ -50,19 +50,6 @@ pub fn parse_relationship_patterns(css: &str) -> BTreeSet<LeanStr> {
         .collect()
 }
 
-/// Parses source-to-target declaration mappings used when an ordinary utility is
-/// accepted as an animation option.
-#[must_use]
-pub fn parse_animation_option_property_mappings(css: &str) -> BTreeMap<LeanStr, LeanStr> {
-    css.split('@')
-        .filter_map(|segment| strip_directive(segment, "stillwind-animation-option-property"))
-        .filter_map(|segment| segment.split_once(';').map(|(mapping, _)| mapping.trim()))
-        .filter_map(|mapping| mapping.split_once(':'))
-        .map(|(source, target)| (source.trim().to_lean_str(), target.trim().to_lean_str()))
-        .filter(|(source, target)| !source.is_empty() && !target.is_empty())
-        .collect()
-}
-
 /// Parses declaration-format metadata, keyed by property name or by a pattern with a
 /// single `*` wildcard.
 ///
@@ -128,18 +115,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_animation_option_property_mapping() {
-        let css = "@stillwind-animation-option duration-* { animation-duration: --value(--duration-*); }\
-                       @stillwind-animation-option-property transition-duration: animation-duration;\
-                       @stillwind-theme-namespace --duration-* [time];\
-                       @stillwind-theme-namespace --leading-* [number] [length];";
-        assert_eq!(
-            parse_animation_option_property_mappings(css).get("transition-duration"),
-            Some(&"animation-duration".to_lean_str())
-        );
-    }
-
-    #[test]
     fn directives_match_only_complete_names() {
         let css = "@stillwind-format-x margin zero; @stillwind-formatx margin one;                    @stillwind-format	margin two; @stillwind-theme-order;";
         assert_eq!(
@@ -147,12 +122,6 @@ mod tests {
             BTreeMap::from([("margin".into(), "two".into())])
         );
         assert_eq!(parse_theme_order(css), [] as [LeanStr; 0]);
-        assert_eq!(
-            parse_animation_option_property_mappings(
-                "@stillwind-animation-option-properties a: b; @stillwind-animation-option-property c: d;"
-            ),
-            BTreeMap::from([("c".into(), "d".into())])
-        );
     }
 
     #[test]
@@ -188,7 +157,6 @@ mod tests {
             ),
             BTreeSet::from(["group-*".into()])
         );
-        assert_eq!(parse_animation_option_property_mappings("@stillwind-animation-option-property duration: animation-duration; @stillwind-animation-option-property : bad;").len(),1);
     }
 
     #[test]

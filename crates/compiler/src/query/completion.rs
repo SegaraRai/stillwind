@@ -1,13 +1,14 @@
 //! Completion catalogs and theme domains use the active compiler registry.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 use stillwind_design_system::{
-    BuiltinVariantValueType, DesignSystemRevision, MarkerForm, UtilityResolutionError,
-    builtin_utility_token_prefixes, named_domain_values,
+    BuiltinVariantValueType, CustomUtility, DesignSystemRevision, MarkerForm,
+    UtilityResolutionError, builtin_utility_token_prefixes, named_domain_values,
 };
 use stillwind_syntax::parse_candidate;
 
@@ -91,16 +92,14 @@ impl DesignSystemQuery {
         } else {
             self.utility_vocabulary_for(utility_partial)
         };
-        if context.options() {
-            let theme = self.context.design_system.theme();
-            for definition in theme.registry().animation_options() {
-                if let Some(root) = definition.name.strip_suffix('*') {
-                    for value in named_domain_values(&definition.body, theme) {
-                        vocabulary.insert(format_args!("{root}{value}").to_lean_str());
-                    }
-                } else {
-                    vocabulary.insert(definition.name.to_lean_str());
+        let theme = self.context.design_system.theme();
+        for definition in self.context_definitions(context) {
+            if let Some(root) = definition.name.strip_suffix('*') {
+                for value in named_domain_values(&definition.body, theme) {
+                    vocabulary.insert(format_args!("{root}{value}").to_lean_str());
                 }
+            } else {
+                vocabulary.insert(definition.name.to_lean_str());
             }
         }
         let mut completions: BTreeSet<LeanStr> = BTreeSet::new();
@@ -260,6 +259,32 @@ impl DesignSystemQuery {
         Ok(completions)
     }
 
+    /// Returns the definitions that the registry context of `context` adds to the
+    /// default definitions, in registration order. Roles without a registry context
+    /// add none.
+    fn context_definitions(&self, context: CandidateContext) -> Vec<Arc<CustomUtility>> {
+        let Some(registry_context) = context.registry_context() else {
+            return Vec::new();
+        };
+        let theme = self.context.design_system.theme();
+        let defaults = theme
+            .registry()
+            .utilities()
+            .iter()
+            .chain(theme.utilities())
+            .map(Arc::as_ptr)
+            .collect::<HashSet<_>>();
+        let scoped = theme.context(registry_context);
+        scoped
+            .registry()
+            .utilities()
+            .iter()
+            .chain(scoped.utilities())
+            .filter(|definition| !defaults.contains(&Arc::as_ptr(definition)))
+            .cloned()
+            .collect()
+    }
+
     /// Returns theme namespace prefixes used by matching definitions for `input` and
     /// `context`. `modifier` selects modifier namespaces; value queries also include
     /// variant namespaces when the role permits variants. Prefixes keep their `--`
@@ -290,28 +315,22 @@ impl DesignSystemQuery {
                 )
             })
             .collect::<BTreeSet<_>>();
-        if context.options() {
-            domains.extend(
-                self.context
-                    .design_system
-                    .theme()
-                    .registry()
-                    .animation_options()
-                    .iter()
-                    .filter(|definition| {
-                        definition
-                            .name
-                            .strip_suffix('*')
-                            .is_some_and(|root| input.starts_with(root))
-                    })
-                    .flat_map(|definition| {
-                        value_namespaces(
-                            &definition.body,
-                            if modifier { "--modifier" } else { "--value" },
-                        )
-                    }),
-            );
-        }
+        domains.extend(
+            self.context_definitions(context)
+                .into_iter()
+                .filter(|definition| {
+                    definition
+                        .name
+                        .strip_suffix('*')
+                        .is_some_and(|root| input.starts_with(root))
+                })
+                .flat_map(|definition| {
+                    value_namespaces(
+                        &definition.body,
+                        if modifier { "--modifier" } else { "--value" },
+                    )
+                }),
+        );
         if !modifier && context.variants() {
             domains.extend(
                 self.context

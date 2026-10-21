@@ -63,7 +63,7 @@ export type StyleViewTransitionDefinition = {
    */
   label?: string;
   /**
-   * Literal animation-option utilities for `::view-transition-group`.
+   * Literal utilities for `::view-transition-group`.
    */
   group?: string;
   /**
