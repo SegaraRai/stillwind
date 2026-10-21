@@ -19,9 +19,8 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
     CssOutputTemplate, MAX_VALUE_NESTING, extract_authored_property_names,
-    extract_authored_property_syntaxes, extract_named_blocks_with_offsets,
-    extract_named_statements, extract_property_definitions, unterminated_block,
-    value_nesting_overflow,
+    extract_authored_property_syntaxes, extract_named_blocks, extract_named_statements,
+    parse_property_definitions, unterminated_block, value_nesting_overflow,
 };
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
@@ -31,8 +30,8 @@ use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
-    extract_custom_utilities, extract_custom_variants_with_offsets, parse_declaration_formats,
-    parse_relationship_patterns, registration_positions,
+    parse_declaration_formats, parse_relationship_patterns, parse_utility_definitions,
+    parse_variant_definitions, registration_positions,
 };
 use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
 
@@ -117,7 +116,7 @@ fn parse_theme_contents(
     theme.registry = Arc::new(BuiltinDefinitions::from_css(source.text()));
     let in_plugin = |offset: usize| plugin_ranges.iter().any(|range| range.contains(&offset));
     let mut plugin_positions = BTreeMap::<LeanStr, usize>::new();
-    theme.utilities = extract_custom_utilities(source.text())
+    theme.utilities = parse_utility_definitions(source.text())
         .into_iter()
         .map(|(offset, mut utility)| {
             if in_plugin(offset) {
@@ -133,16 +132,15 @@ fn parse_theme_contents(
     // Variant lookup takes the last definition of a name. Plugin definitions therefore
     // precede the stylesheet's, so an authored `@custom-variant` replaces a plugin's
     // variant wherever the `@plugin` statement stands, as in Tailwind.
-    let (plugin_variants, variants): (Vec<_>, Vec<_>) =
-        extract_custom_variants_with_offsets(source.text())
-            .into_iter()
-            .partition(|(offset, _)| in_plugin(*offset));
+    let (plugin_variants, variants): (Vec<_>, Vec<_>) = parse_variant_definitions(source.text())
+        .into_iter()
+        .partition(|(offset, _)| in_plugin(*offset));
     theme.variants = plugin_variants
         .into_iter()
         .chain(variants)
         .map(|(_, variant)| variant)
         .collect();
-    theme.properties = extract_property_definitions(source.text());
+    theme.properties = parse_property_definitions(source.text());
     // `theme.registry` reads the marker statements of the same text.
     theme.markers = MarkerClasses::selected_by(&theme.utilities, &theme.variants);
     theme.declaration_formats = parse_declaration_formats(source.text());
@@ -246,7 +244,7 @@ pub enum DynamicFamilyKind {
 /// after a nonempty prefix, and for a `@stillwind-plugin-family` header that is not
 /// `utility` or `variant` followed by one root.
 fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDiagnostic> {
-    if let Some((offset, _, _)) = extract_named_blocks_with_offsets(css, DYNAMIC).first() {
+    if let Some((offset, _, _)) = extract_named_blocks(css, DYNAMIC).first() {
         return Err(CompileDiagnostic::InvalidDirectiveForm {
             offset: *offset,
             directive: "stillwind-dynamic".into(),

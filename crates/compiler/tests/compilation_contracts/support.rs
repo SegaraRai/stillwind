@@ -1,7 +1,10 @@
 //! Compiles sources against a supplied theme for the compilation contract suites.
 //! `CompilationFixture` shares a parsed theme across cases that keep the same options.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
+
+use lean_string::ToLeanString;
 
 use stillwind_compiler::{
     CompileResult, Compiler, CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer,
@@ -9,7 +12,8 @@ use stillwind_compiler::{
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+use stillwind_semantic::{TypeFact, TypeFacts};
+use stillwind_source::{CssSourceName, FileId, Fingerprint, ModuleId, SourceFile};
 
 pub(super) fn compile(code: &str, css: &str) -> (SourceFile, CompileResult) {
     compile_with_options(code, css, &CompilerOptions::default())
@@ -33,6 +37,35 @@ pub(super) fn compile_with_options(
         options,
     );
     (source, result)
+}
+
+/// Compiles `source` as `test.tsx` against `theme` with exported type `facts` and the
+/// default options.
+pub(super) fn compile_with_type_facts(
+    source: &SourceFile,
+    theme: &SourceFile,
+    facts: &[TypeFact],
+) -> CompileResult {
+    let scan = OxcSourceAnalyzer.scan(
+        Arc::new(source.clone()),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    let facts = TypeFacts {
+        schema: TypeFacts::SCHEMA,
+        module_id: scan.module_id.clone(),
+        source_revision: scan.source_revision.clone(),
+        semantic_revision: Fingerprint::of(format_args!("{facts:?}").to_lean_string()),
+        facts: facts.to_vec(),
+        assets: BTreeMap::new(),
+    };
+    Compiler::compile_analysis(
+        &OxcSourceAnalyzer.finalize(scan, Some(&facts)),
+        theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    )
 }
 
 /// Keeps one parsed theme and its compiler options for independent source cases.

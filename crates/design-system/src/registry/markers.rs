@@ -243,11 +243,11 @@ fn candidate_name(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parse_utility_definitions, parse_variant_definitions};
+    use crate::test_support::{utility_definitions, variant_definitions};
 
     fn collect(css: &str) -> Vec<(String, MarkerForm)> {
-        let utilities = parse_utility_definitions(css);
-        let variants = parse_variant_definitions(css);
+        let utilities = utility_definitions(css);
+        let variants = variant_definitions(css);
         MarkerClasses::collect(css, &utilities, &variants)
             .iter()
             .map(|(name, form)| (name.to_owned(), form))
@@ -297,7 +297,7 @@ mod tests {
         let css = r#"@stillwind-marker-source ".stack-root &{gap:4px}@property --x{syntax:'*'}";
             @stillwind-marker-source ".a &{color:red}" extra;"#;
         assert_eq!(collect(css), [("stack-root".into(), MarkerForm::Exact)]);
-        assert_eq!(parse_utility_definitions(css), []);
+        assert_eq!(utility_definitions(css), []);
     }
 
     #[test]

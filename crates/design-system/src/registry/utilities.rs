@@ -17,7 +17,7 @@
 use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{extract_named_blocks_with_offsets, strip_css_comments};
+use stillwind_css::{extract_named_blocks, strip_css_comments};
 
 /// One utility definition: its name, its body, and the ordering metadata of its
 /// registration.
@@ -137,20 +137,6 @@ pub(crate) fn decode_utility_name(raw: &str) -> Option<LeanStr> {
     (!name.is_empty()).then(|| name.into())
 }
 
-/// Parses user-authored `@utility` definitions without requiring a complete theme
-/// stylesheet.
-///
-/// Returned definitions carry no `builtin_order`: authored ordering reads a
-/// definition's position from [`crate::ThemeIndex::utility_positions`], and Tailwind
-/// ordering derives its key from the resolved declarations instead.
-#[must_use]
-pub fn parse_utility_definitions(css: &str) -> Vec<CustomUtility> {
-    extract_custom_utilities(css)
-        .into_iter()
-        .map(|(_, utility)| utility)
-        .collect()
-}
-
 /// Parses compiler-owned `@stillwind-utility` definitions and attaches their global
 /// source order.
 ///
@@ -178,7 +164,7 @@ pub fn parse_builtin_animation_option_definitions(css: &str) -> Vec<CustomUtilit
 /// A name that is missing from a block header is skipped rather than stored under an
 /// empty name.
 fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
-    extract_named_blocks_with_offsets(css, directive)
+    extract_named_blocks(css, directive)
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
             let UtilityHeader {
@@ -198,11 +184,16 @@ fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUt
         .collect()
 }
 
-/// Extracts user `@utility` definitions with the byte offset of each directive in
-/// `css`. Commented example CSS cannot register a definition, and comments inside a
-/// header or body are removed.
-pub(crate) fn extract_custom_utilities(css: &str) -> Vec<(usize, CustomUtility)> {
-    extract_named_blocks_with_offsets(css, "@utility")
+/// Parses user-authored `@utility` definitions without requiring a complete theme
+/// stylesheet. Returns each definition with the byte offset of its directive in `css`.
+/// Commented example CSS cannot register a definition, and comments inside a header or
+/// body are removed.
+///
+/// Returned definitions carry no `builtin_order`: authored ordering reads a
+/// definition's position from [`crate::ThemeIndex::utility_positions`], and Tailwind
+/// ordering derives its key from the resolved declarations instead.
+pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)> {
+    extract_named_blocks(css, "@utility")
         .into_iter()
         .filter_map(|(offset, header, body)| {
             let UtilityHeader {
@@ -230,6 +221,7 @@ mod tests {
     use lean_string::ToLeanString;
 
     use super::*;
+    use crate::test_support::utility_definitions;
 
     #[test]
     fn parses_sort_metadata_without_adding_css_declarations() {
@@ -270,7 +262,7 @@ mod tests {
                        @variant user-state { &:hover { @slot; } }\
                        @stillwind-variant builtin-state { &:focus { @slot; } }";
 
-        let user_utilities = parse_utility_definitions(css);
+        let user_utilities = utility_definitions(css);
         let builtin_utilities = parse_builtin_utility_definitions(css);
         assert_eq!(user_utilities.len(), 1);
         assert_eq!(user_utilities[0].name, "user-*");
@@ -285,7 +277,7 @@ mod tests {
 
     #[test]
     fn preserves_explicit_color_modifier_bodies() {
-        let utilities = parse_utility_definitions(
+        let utilities = utility_definitions(
             "@utility border { border-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); } @utility outline { outline-color:color-mix(in oklab,currentcolor --alpha(--modifier()),transparent); }",
         );
 
@@ -298,7 +290,7 @@ mod tests {
 
     #[test]
     fn preserves_repeated_mask_utility_definitions_in_source_order() {
-        let utilities = parse_utility_definitions(
+        let utilities = utility_definitions(
             "@utility mask-x-from-* { --tw-mask-left-from-position:--value(--spacing-*); } @utility mask-x-from-* { --tw-mask-right-from-color:--value(--color-*); } @utility mask-x-from-* { --alpha(--modifier()); }",
         );
 
@@ -324,7 +316,7 @@ mod tests {
     #[test]
     fn named_and_ordered_utilities_preserve_bodies_and_exclude_prefix_collisions() {
         let css = "@utility user { color:red; } @stillwind-utility builtin {color:blue;}";
-        let users = parse_utility_definitions(css);
+        let users = utility_definitions(css);
         let builtins = parse_builtin_utility_definitions(css);
         assert_eq!(users[0].name, "user");
         assert_eq!(users[0].builtin_order, None);

@@ -1,15 +1,14 @@
 //! Motion retention, dynamic candidates, placement, and conditional contributions.
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use stillwind_compiler::{Compiler, CompilerOptions};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_semantic::{AssetKind, ExportedValue, SymbolicValue, TypeFact};
-use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+use stillwind_source::{FileId, ModuleId, SourceFile};
 
 use super::compile;
+use super::support::compile_with_type_facts;
 
 #[test]
 fn motion_css_is_retained_for_uses_and_exports_only() {
@@ -81,18 +80,7 @@ fn dynamic_motion_keeps_every_checker_candidate_and_runtime_binding() {
         "@utility x { opacity:0; } @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
-    let result = Compiler::compile_source_with_type_facts(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &facts,
-        &BTreeMap::new(),
-        &CompilerOptions::default(),
-    );
+    let result = compile_with_type_facts(&source, &theme, &facts);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert_eq!(result.css.matches("@keyframes").count(), 2);
     let code = result.apply_to_source(&source).unwrap();

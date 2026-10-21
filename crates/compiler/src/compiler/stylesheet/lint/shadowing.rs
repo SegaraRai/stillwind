@@ -190,7 +190,7 @@ fn hiding_definition<'e, 'a>(
             .filter(|entry| {
                 parse_variant_definitions(&entry.text()[entry.node.clone()])
                     .first()
-                    .is_some_and(|custom| exact_variant_definition_resolves(custom, theme))
+                    .is_some_and(|(_, custom)| exact_variant_definition_resolves(custom, theme))
             })
             .max_by_key(|entry| entry.first),
         DefinitionKind::Utility => {

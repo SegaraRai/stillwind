@@ -1,9 +1,8 @@
 //! CSS color conversion, declaration colors, and rewriting for shadow utilities.
 //!
 //! Lightning CSS supplies color and shadow parsing. [`color_rgba`] and [`color_hex`]
-//! resolve concrete colors for editor displays, and [`css_color_values`] collects them
-//! from declarations. Shadow rewriting preserves custom-property overrides and
-//! relative-color fallbacks.
+//! resolve concrete colors for editor displays. Shadow rewriting preserves
+//! custom-property overrides and relative-color fallbacks.
 //!
 //! Authored text is preserved where it matters: a shadow whose color is written last
 //! keeps its exact spelling inside the fallback, so precision the author wrote is not
@@ -16,8 +15,6 @@ use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::color::{CssColor, SRGB};
 
 use stillwind_source::JoinText;
-
-use crate::{CssRule, Declaration};
 
 /// Rewrites box-shadow colors with a custom-property override and CSS Color 5
 /// relative-color fallback. This is the semantic operation Tailwind uses for
@@ -137,35 +134,6 @@ fn split_top_level_commas(value: &str) -> Vec<&str> {
     components
 }
 
-/// Serializes a theme color as an sRGB fallback with the requested alpha. Tailwind
-/// emits the legacy fallback before its Color 5 `color-mix` upgrade; `LightningCSS`
-/// provides the color-space conversion we need here.
-///
-/// A six-digit hex color with a percentage alpha becomes an eight-digit hex, because
-/// that is the legacy form; every other color keeps its serialized spelling with the
-/// alpha appended. `None` means the value is not a color.
-#[must_use]
-pub fn color_with_alpha_fallback(value: &str, alpha: &str) -> Option<LeanString> {
-    let color = CssColor::parse_string(value).ok()?.to_rgb().ok()?;
-    let serialized = color.to_css_string(PrinterOptions::default()).ok()?;
-    if let (Some(hex), Some(percent)) = (
-        serialized.strip_prefix('#'),
-        alpha
-            .trim()
-            .strip_suffix('%')
-            .and_then(|value| value.parse::<f64>().ok()),
-    ) && hex.len() == 6
-        && hex.chars().all(|character| character.is_ascii_hexdigit())
-    {
-        // Clamping and rounding guarantee an integer-valued result in the inclusive u8
-        // range before this intentional float conversion.
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let byte = (percent.clamp(0.0, 100.0) * 255.0 / 100.0).round() as u8;
-        return Some(format_args!("#{hex}{byte:02x}").to_lean_string());
-    }
-    Some(format_args!("{serialized} / {alpha}").to_lean_string())
-}
-
 /// Converts a fully determined CSS color to sRGB components in the inclusive range 0..=1.
 /// Returns `None` for contextual colors, invalid values, or unsupported conversions.
 #[must_use]
@@ -207,49 +175,6 @@ pub fn color_hex(value: &str) -> Option<HexColor> {
         hex.push_str(&format_args!("{:02x}", rgba.alpha).to_lean_string());
     }
     Some(HexColor { hex, in_gamut })
-}
-
-/// Returns concrete sRGB colors from flat declarations and nested style rules.
-/// The caller resolves theme variables first. Contextual colors and opaque values are skipped.
-#[must_use]
-pub fn css_color_values(css: &str) -> Vec<[f64; 4]> {
-    fn collect(css: &str, depth: usize, output: &mut Vec<[f64; 4]>) {
-        if depth > 64 {
-            return;
-        }
-        if let Some(declarations) = Declaration::parse(css) {
-            for declaration in declarations {
-                if declaration.property == "color"
-                    || declaration.property.ends_with("-color")
-                    || declaration.property.starts_with("--")
-                    || matches!(
-                        declaration.property.as_str(),
-                        "fill" | "stroke" | "background"
-                    )
-                {
-                    let value = declaration
-                        .css
-                        .split_once(':')
-                        .map(|(_, value)| value.trim().trim_end_matches("!important").trim());
-                    if let Some(color) = value.and_then(color_rgba) {
-                        output.push(color);
-                    }
-                }
-            }
-        } else if let Ok(rules) = CssRule::parse(css) {
-            for rule in rules {
-                if !rule.prelude.trim_start().starts_with("@property")
-                    && let Some(body) = rule.body
-                {
-                    collect(&body, depth + 1, output);
-                }
-            }
-        }
-    }
-
-    let mut values = Vec::new();
-    collect(css, 0, &mut values);
-    values
 }
 
 /// Splits `value` into everything before the last top-level whitespace and the
@@ -327,14 +252,6 @@ mod tests {
     }
 
     #[test]
-    fn declaration_colors_include_custom_properties_and_skip_contextual_values() {
-        assert_eq!(
-            css_color_values("& { --gradient-from: red; --size: 1rem; color: currentColor; }"),
-            vec![[1.0, 0.0, 0.0, 1.0]]
-        );
-    }
-
-    #[test]
     fn rewrites_each_authored_color_in_a_shadow_list() {
         assert_eq!(
             shadow_with_color_override(
@@ -382,7 +299,5 @@ mod boundary_tests {
             trailing_top_level_css_component("0 1px rgb(1, 2, 3)"),
             Some(("0 1px", "rgb(1, 2, 3)"))
         );
-
-        assert_eq!(color_with_alpha_fallback("invalid!", "50%"), None);
     }
 }

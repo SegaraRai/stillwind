@@ -15,7 +15,9 @@ use stillwind_ir::{
     ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
+use stillwind_project::{
+    DependencyIndex, ProjectSession, SessionMode, StylesheetCoverage, StylesheetSelection,
+};
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceRegistry, SourceUri};
 use stillwind_test_support::css_source;
 
@@ -93,7 +95,13 @@ fn codegen_reload_replaces_artifacts_without_reloading_definitions() {
     assert_ne!(before.code_transforms, after.code_transforms);
     assert_eq!(session.options(), &next);
     let plan = session
-        .plan_stylesheet(session.observed_selection(), StylesheetPlacement::Carrier)
+        .plan_stylesheet(
+            StylesheetSelection {
+                modules: session.artifacts().keys().cloned().collect(),
+                coverage: StylesheetCoverage::Observed,
+            },
+            StylesheetPlacement::Carrier,
+        )
         .unwrap();
     assert_eq!(plan.producers[&ModuleId::from("button.tsx")], *after.key());
 }

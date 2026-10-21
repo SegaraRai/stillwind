@@ -139,13 +139,14 @@ mod tests {
 
     use super::super::variants::wrap_conditions;
     use super::*;
+    use crate::test_support::read_theme;
     use crate::{Compiler, CompilerOptions};
 
     #[test]
     fn resolves_themed_duration_as_an_animation_option_only() {
         let theme: SourceFile =
             css_source(FileId(1), "@theme { --duration-normal: 180ms; }").unwrap();
-        let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
+        let theme = read_theme(&theme);
         let options = Spanned::new(
             "duration-normal both".to_lean_str(),
             Span::new(FileId(2), 0, 20),
@@ -170,7 +171,7 @@ mod tests {
     #[test]
     fn splits_a_conditioned_option_from_the_unconditional_ones() {
         let theme = css_source(FileId(2), "").unwrap();
-        let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
+        let theme = read_theme(&theme);
         let options = Spanned::new(
             "duration-180 motion-reduce:duration-0".to_lean_str(),
             Span::new(FileId(2), 0, 34),
@@ -205,7 +206,7 @@ mod tests {
     #[test]
     fn rejects_a_variant_on_an_animation_option() {
         let theme = css_source(FileId(2), "").unwrap();
-        let theme = Compiler::read_theme(&theme, &CssSourceName::from("stillwind.css")).unwrap();
+        let theme = read_theme(&theme);
         let options = Spanned::new(
             "motion-reduce:duration-0".to_lean_str(),
             Span::new(FileId(2), 0, 24),

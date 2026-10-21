@@ -98,3 +98,6 @@ pub use transforms::{
     ExpressionMapping, ExpressionTransformMapping, RenderedSource, SourceTransform, TransformError,
     TransformMapping, render_transforms,
 };
+
+#[cfg(test)]
+mod test_support;

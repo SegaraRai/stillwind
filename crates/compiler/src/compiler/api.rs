@@ -1,25 +1,20 @@
 //! Stateless compilation entry points.
 //!
-//! Each [`Compiler`] function takes its analyzer, sources, and options, and
-//! returns a [`CompileResult`]. A theme that cannot be read becomes a CSS diagnostic
-//! against the theme file instead of an error, so a caller always receives a result shape it
-//! knows how to report; only the theme-reading helpers return a [`CompileError`].
+//! Each [`Compiler`] compilation function takes its analyzer or analysis, sources, and
+//! options, and returns a [`CompileResult`]. A theme that cannot be read becomes a CSS
+//! diagnostic against the theme file instead of an error, so a caller always receives a
+//! result shape it knows how to report. [`Compiler::render_stylesheet`] returns a
+//! [`CompileError`] instead.
 //!
-//! The type-fact variants exist for hosts that already ran a TypeScript checker: the facts
-//! and asset metadata are folded into a versioned [`TypeFacts`] value whose revision the
-//! frontend's finalize step consumes, so a compilation is reproducible from the recorded
-//! inputs alone.
+//! Hosts that already ran a TypeScript checker finalize the analysis with their
+//! versioned type facts and pass it to [`Compiler::compile_analysis`].
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use lean_string::ToLeanString;
-
-use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot, ThemeIndex};
+use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::CompileError;
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
-use stillwind_semantic::{AssetMetadata, IdentityId, TypeFact, TypeFacts};
-use stillwind_source::{CssSourceName, Fingerprint, ModuleId, SourceFile};
+use stillwind_source::{CssSourceName, ModuleId, SourceFile};
 
 use super::CompileResult;
 use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
@@ -28,26 +23,6 @@ use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
 pub struct Compiler;
 
 impl Compiler {
-    /// Parses a theme buffer into its index, without keeping the snapshot.
-    ///
-    /// # Errors
-    ///
-    /// Returns invalid CSS, unresolved imports, or invalid host configuration.
-    /// Failures retain the supplied theme source identity and typed cause.
-    pub fn read_theme(
-        source: &SourceFile,
-        source_name: &CssSourceName,
-    ) -> Result<ThemeIndex, CompileError> {
-        Ok(DesignSystemSnapshot::from_source(
-            source,
-            source_name.clone(),
-            DesignSystemOptions::default(),
-        )
-        .map_err(|error| error.into_compile_error(source.full_span()))?
-        .theme()
-        .clone())
-    }
-
     /// Renders a standalone stylesheet for a theme buffer and utility rules.
     ///
     /// Assembly failures are located at the whole theme buffer. The input buffers are
@@ -92,47 +67,6 @@ impl Compiler {
             module_kind,
         );
         Self::compile_analysis(&analyzer.finalize(scan, None), theme, theme_name, options)
-    }
-
-    /// Compiles one source with exported type facts, asset metadata, and explicit options.
-    ///
-    /// The facts are recorded together with the scan's module and source revisions, so a
-    /// caller that replays the analysis cannot pair facts with the wrong revision.
-    #[allow(clippy::too_many_arguments)]
-    pub fn compile_source_with_type_facts(
-        analyzer: &impl SourceAnalyzer,
-        source: &SourceFile,
-        module_id: &ModuleId,
-        language: ScriptLanguage,
-        module_kind: ScriptModuleKind,
-        theme: &SourceFile,
-        theme_name: &CssSourceName,
-        facts: &[TypeFact],
-        assets: &BTreeMap<IdentityId, AssetMetadata>,
-        options: &CompilerOptions,
-    ) -> CompileResult {
-        let scan = analyzer.scan(
-            Arc::new(source.clone()),
-            module_id.clone(),
-            language,
-            module_kind,
-        );
-        let facts = TypeFacts {
-            schema: TypeFacts::SCHEMA,
-            module_id: scan.module_id.clone(),
-            source_revision: scan.source_revision.clone(),
-            semantic_revision: Fingerprint::of(
-                format_args!("{facts:?}{assets:?}").to_lean_string(),
-            ),
-            facts: facts.to_vec(),
-            assets: assets.clone(),
-        };
-        Self::compile_analysis(
-            &analyzer.finalize(scan, Some(&facts)),
-            theme,
-            theme_name,
-            options,
-        )
     }
 
     /// Compiles an already finalized analysis against a theme buffer.

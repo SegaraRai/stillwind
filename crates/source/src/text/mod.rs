@@ -21,5 +21,5 @@ mod uri;
 pub use construction::{JoinText, ReplaceText};
 pub use file::{Position, SourceError, SourceFile};
 pub use registry::{SourceRegistry, SourceRegistryError};
-pub use span::{BytePos, FileId, Span, Spanned, range_of};
+pub use span::{BytePos, FileId, Span, Spanned};
 pub use uri::{SourceUri, SourceUriError};

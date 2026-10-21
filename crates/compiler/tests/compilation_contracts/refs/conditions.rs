@@ -441,18 +441,7 @@ fn finite_ref_candidates_keep_one_identity_across_all_scope_conditions() {
         "@utility a { color:red; } @stillwind-slot utilities;",
     )
     .unwrap();
-    let result = Compiler::compile_source_with_type_facts(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &facts,
-        &BTreeMap::new(),
-        &CompilerOptions::default(),
-    );
+    let result = compile_with_type_facts(&source, &theme, &facts);
     assert!(result.diagnostics.is_empty(), "{result:#?}");
     let first = marker(&result, "first");
     let second = marker(&result, "second");

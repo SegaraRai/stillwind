@@ -88,7 +88,7 @@ pub use registry::{
     parse_builtin_animation_option_definitions, parse_builtin_arbitrary_property_order,
     parse_builtin_utility_definitions, parse_builtin_variant_definitions,
     parse_declaration_formats, parse_omit_token_prefixes, parse_relationship_patterns,
-    parse_theme_order, parse_utility_definitions, parse_variant_definitions,
+    parse_theme_order, parse_variant_definitions,
 };
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,

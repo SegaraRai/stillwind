@@ -63,28 +63,17 @@ fn copy_without_comments(parser: &mut Parser<'_>, output: &mut LeanString) {
     }
 }
 
-/// Extracts `(header, body)` for every `directive` block, in source order.
+/// Extracts `(offset, header, body)` for every `directive` block, in source order.
+/// `offset` is the byte offset of the directive's `@`.
 ///
 /// Header text is trimmed and excludes the braces; body text is trimmed. Comment text,
 /// strings and other directives are not mistaken for blocks, and a block whose body is
 /// unterminated is skipped entirely.
-pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(LeanStr, LeanStr)> {
-    extract_named_blocks_with_offsets(css, directive)
-        .into_iter()
-        .map(|(_, header, body)| (header, body))
-        .collect()
-}
-
-/// Like [`extract_named_blocks`], but also returns the byte offset of the directive's
-/// `@`.
 ///
 /// Callers use the offset to attribute a block to a position in the original source;
 /// offsets index `css` itself, so callers that stripped comments must map them back
 /// before reporting.
-pub fn extract_named_blocks_with_offsets(
-    css: &str,
-    directive: &str,
-) -> Vec<(usize, LeanStr, LeanStr)> {
+pub fn extract_named_blocks(css: &str, directive: &str) -> Vec<(usize, LeanStr, LeanStr)> {
     directive_rules(css, directive)
         .into_iter()
         .filter_map(|rule| rule.body.map(|body| (rule.start, rule.header, body)))
@@ -408,7 +397,7 @@ mod tests {
     #[test]
     fn definitions_ignore_documentation_strings_and_statement_directives() {
         let css = "/* @utility describes a definition. */ .label{content:'@utility fake {x:y}';} @utility-note ignored; @utility real {content:'}'; color:red;}";
-        let blocks = extract_named_blocks_with_offsets(css, "@utility");
+        let blocks = extract_named_blocks(css, "@utility");
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].0, css.find("@utility real").unwrap());
         assert_eq!(blocks[0].1, "real");
@@ -424,18 +413,18 @@ mod tests {
     fn named_blocks_do_not_slice_unclosed_bodies() {
         assert_eq!(
             extract_named_blocks("@utility x {", "@utility"),
-            [] as [(LeanStr, LeanStr); 0]
+            [] as [(usize, LeanStr, LeanStr); 0]
         );
         assert_eq!(
             extract_named_blocks("@utility ok {color:red;} @utility missing {", "@utility"),
-            vec![("ok".into(), "color:red;".into())]
+            vec![(0, "ok".into(), "color:red;".into())]
         );
     }
 
     #[test]
     fn named_blocks_retain_source_offsets_and_nested_bodies() {
         let css = "x @utility foo { color:red; &:hover {color:blue;} }";
-        let blocks = extract_named_blocks_with_offsets(css, "@utility");
+        let blocks = extract_named_blocks(css, "@utility");
         assert_eq!(
             blocks,
             vec![(2, "foo".into(), "color:red; &:hover {color:blue;}".into())]

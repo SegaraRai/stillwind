@@ -10,8 +10,7 @@ use stillwind_diagnostics::MarkerUseErrorKind;
 use stillwind_test_support::{CssAssertions as _, assert_css_eq, css_tokens};
 
 use super::*;
-use crate::parse_utility_definitions;
-use crate::test_support::parse_fixture_theme;
+use crate::test_support::{parse_fixture_theme, utility_definitions};
 use crate::theme::ThemeBuilder;
 
 #[test]
@@ -169,7 +168,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
 fn resolves_numeric_css_domains_and_default_filter_tokens() {
     let theme = theme();
     let custom_theme = ThemeBuilder {
-        utilities: parse_utility_definitions("@utility tab-* { tab-size: --value(integer); }"),
+        utilities: utility_definitions("@utility tab-* { tab-size: --value(integer); }"),
         ..Default::default()
     }
     .finish();

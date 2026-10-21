@@ -21,10 +21,7 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::ident::Ident;
 
-use stillwind_css::{
-    extract_named_blocks, extract_named_blocks_with_offsets, extract_named_statements,
-    strip_css_comments,
-};
+use stillwind_css::{extract_named_blocks, extract_named_statements, strip_css_comments};
 
 use crate::is_runtime_condition;
 
@@ -242,19 +239,6 @@ impl BuiltinVariantModifierType {
     }
 }
 
-/// Parses `@custom-variant` and block `@variant` definitions without requiring a
-/// complete theme stylesheet. This mirrors the utility registry entry point so tools
-/// can build a registry once and share it at runtime.
-///
-/// Only blocks whose body contains `@slot` are treated as `@variant` definitions; a
-/// `@variant` block without a slot is ignored. Results are grouped by syntax form:
-/// selector `@custom-variant`, block `@custom-variant`, then block `@variant`. Source
-/// order is retained within each group, not across forms; repeated names are retained.
-#[must_use]
-pub fn parse_variant_definitions(css: &str) -> Vec<CustomVariant> {
-    extract_custom_variants(css)
-}
-
 /// Parses compiler-owned `@stillwind-variant` definitions and attaches their global
 /// source order.
 ///
@@ -265,7 +249,7 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
     extract_named_blocks(css, "@stillwind-variant")
         .into_iter()
         .enumerate()
-        .filter_map(|(builtin_order, (header, body))| {
+        .filter_map(|(builtin_order, (_, header, body))| {
             let header = parse_builtin_variant_header(strip_css_comments(&header).trim())?;
             Some(CustomVariant {
                 name: header.name,
@@ -392,18 +376,17 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
     })
 }
 
-/// Extracts all user-authored variant forms in their shared source order.
-/// Later definitions override earlier ones regardless of shorthand or block syntax.
-fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
-    extract_custom_variants_with_offsets(css)
-        .into_iter()
-        .map(|(_, variant)| variant)
-        .collect()
-}
-
-/// Parses the same definitions as [`extract_custom_variants`], each with the byte
-/// offset of its directive in `css`, in offset order.
-pub(crate) fn extract_custom_variants_with_offsets(css: &str) -> Vec<(usize, CustomVariant)> {
+/// Parses `@custom-variant` and block `@variant` definitions without requiring a
+/// complete theme stylesheet, so tools can build a registry once and share it at
+/// runtime.
+///
+/// Only blocks whose body contains `@slot` are treated as `@variant` definitions; a
+/// `@variant` block without a slot is ignored. Returns each definition with the byte
+/// offset of its directive in `css`, in offset order. Later definitions override
+/// earlier ones regardless of shorthand or block syntax, and repeated names are
+/// retained.
+#[must_use]
+pub fn parse_variant_definitions(css: &str) -> Vec<(usize, CustomVariant)> {
     let mut definitions = extract_named_statements(css, "@custom-variant")
         .into_iter()
         .filter_map(|(offset, header)| {
@@ -422,31 +405,29 @@ pub(crate) fn extract_custom_variants_with_offsets(css: &str) -> Vec<(usize, Cus
         })
         .collect::<Vec<_>>();
     for directive in ["@custom-variant", "@variant"] {
-        definitions.extend(
-            extract_named_blocks_with_offsets(css, directive)
-                .into_iter()
-                .filter_map(|(offset, header, body)| {
-                    if directive == "@variant" && !body.contains("@slot") {
-                        return None;
-                    }
-                    let header = header.trim();
-                    let split = header.find(char::is_whitespace).unwrap_or(header.len());
-                    let (name, wildcard) = parse_variant_name(&header[..split])?;
-                    let scope = if directive == "@custom-variant" {
-                        split_custom_variant_scope(&header[split..])?.0
-                    } else {
-                        VariantScope::Nested
-                    };
-                    Some((
-                        offset,
-                        name,
-                        wildcard,
-                        scope,
-                        LeanString::new(),
-                        body.into(),
-                    ))
-                }),
-        );
+        definitions.extend(extract_named_blocks(css, directive).into_iter().filter_map(
+            |(offset, header, body)| {
+                if directive == "@variant" && !body.contains("@slot") {
+                    return None;
+                }
+                let header = header.trim();
+                let split = header.find(char::is_whitespace).unwrap_or(header.len());
+                let (name, wildcard) = parse_variant_name(&header[..split])?;
+                let scope = if directive == "@custom-variant" {
+                    split_custom_variant_scope(&header[split..])?.0
+                } else {
+                    VariantScope::Nested
+                };
+                Some((
+                    offset,
+                    name,
+                    wildcard,
+                    scope,
+                    LeanString::new(),
+                    body.into(),
+                ))
+            },
+        ));
     }
     definitions.sort_by_key(|definition| definition.0);
     definitions
@@ -487,6 +468,7 @@ fn split_custom_variant_scope(text: &str) -> Option<(VariantScope, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::variant_definitions;
 
     #[test]
     fn separates_builtin_variants_from_userland() {
@@ -495,7 +477,7 @@ mod tests {
                        @variant user-state { &:hover { @slot; } }\
                        @stillwind-variant builtin-state { &:focus { @slot; } }";
 
-        let user_variants = parse_variant_definitions(css);
+        let user_variants = variant_definitions(css);
         let builtin_variants = parse_builtin_variant_definitions(css);
         assert_eq!(user_variants.len(), 1);
         assert_eq!(user_variants[0].name, "user-state");
@@ -599,7 +581,7 @@ mod tests {
         assert_eq!(builtins[1].scope, VariantScope::Nested);
         assert!(parse_builtin_variant_header("host (scope: element)").is_none());
 
-        let custom = parse_variant_definitions(
+        let custom = variant_definitions(
             "@custom-variant host scope(document) (:host);\
              @custom-variant root scope(document) { :root { @slot; } }\
              @custom-variant hv (:hover);\

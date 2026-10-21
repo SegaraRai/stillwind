@@ -1,16 +1,6 @@
 //! Unchecked byte coordinates tagged with a source buffer identity.
 
-use std::ops::Range;
-
 use serde::{Deserialize, Serialize};
-
-/// Converts a span to a [`Range<usize>`] for indexing or slicing.
-///
-/// No validation happens here: the caller must already know the range is in bounds.
-/// [`super::SourceFile::slice`] is the checked alternative.
-pub fn range_of(span: Span) -> Range<usize> {
-    span.start.0 as usize..span.end.0 as usize
-}
 
 /// Identifier of a source buffer within one project source scope.
 ///
@@ -117,7 +107,6 @@ mod property_tests {
             let span = Span::new(FileId(1), start, start + len);
             proptest::prop_assert_eq!(span.len(), Some(len));
             proptest::prop_assert_eq!(span.is_empty(), len == 0);
-            proptest::prop_assert_eq!(range_of(span).len(), usize::try_from(len).unwrap());
         }
     }
 }

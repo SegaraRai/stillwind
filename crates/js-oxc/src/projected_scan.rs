@@ -17,7 +17,7 @@ use stillwind_source::{ModuleId, ProjectionError, SourceFile, SourceProvenance, 
 
 use crate::ParsedJavaScript;
 use crate::entry::parse_with_coordinates;
-use crate::normalization::{NormalizedProjection, normalize_with_language};
+use crate::normalization::{NormalizedProjection, normalize_projection};
 
 /// Parses a projected input and returns original IR, provenance, and checker operations.
 ///
@@ -41,7 +41,7 @@ pub(crate) fn parse_projected(
         add_projection_context(&mut error, projected);
         error
     };
-    let normalized = normalize_with_language(
+    let normalized = normalize_projection(
         generated,
         original,
         projection.map(),

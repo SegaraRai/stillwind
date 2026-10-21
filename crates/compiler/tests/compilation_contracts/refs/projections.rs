@@ -30,18 +30,7 @@ fn static_ref_projection_resolves_alias_without_runtime_marker() {
         "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
-    let result = Compiler::compile_source_with_type_facts(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &facts,
-        &BTreeMap::new(),
-        &CompilerOptions::default(),
-    );
+    let result = compile_with_type_facts(&source, &theme, &facts);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     let value = code.split("export const x = ").nth(1).unwrap();
@@ -84,18 +73,7 @@ fn static_ref_projection_resolves_member_without_runtime_marker() {
         "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
-    let result = Compiler::compile_source_with_type_facts(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &facts,
-        &BTreeMap::new(),
-        &CompilerOptions::default(),
-    );
+    let result = compile_with_type_facts(&source, &theme, &facts);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     let value = code.split("export const x = ").nth(1).unwrap();
@@ -137,18 +115,7 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
         "@theme {} @stillwind-slot utilities; @stillwind-slot keyframes;",
     )
     .unwrap();
-    let result = Compiler::compile_source_with_type_facts(
-        &OxcSourceAnalyzer,
-        &source,
-        &ModuleId::from("test.tsx"),
-        ScriptLanguage::Tsx,
-        ScriptModuleKind::Unambiguous,
-        &theme,
-        &CssSourceName::from("stillwind.css"),
-        &facts,
-        &BTreeMap::new(),
-        &CompilerOptions::default(),
-    );
+    let result = compile_with_type_facts(&source, &theme, &facts);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let code = result.apply_to_source(&source).unwrap();
     assert!(code.contains("(choice).c"), "{code}");

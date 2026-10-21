@@ -87,15 +87,17 @@ impl CustomPropertyActivation {
     }
 }
 
-/// Parses every `@stillwind-property` block in source order.
+/// Parses compiler-owned custom-property registrations (`@stillwind-property`) in
+/// source order.
 ///
 /// A registration inside a comment is not parsed. Blocks without a `--` name are
 /// skipped rather than reported, and so are body statements that are not `name: value`
 /// declarations.
-pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
+#[must_use]
+pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_named_blocks(css, "@stillwind-property")
         .into_iter()
-        .filter_map(|(header, body)| {
+        .filter_map(|(_, header, body)| {
             let name = property_name(&header)?;
             let mut activation = CustomPropertyActivation::default();
             let mut dependencies = Vec::new();
@@ -143,7 +145,7 @@ pub fn extract_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> 
 pub fn extract_authored_property_names(css: &str) -> BTreeSet<LeanStr> {
     extract_named_blocks(css, "@property")
         .into_iter()
-        .filter_map(|(header, _)| property_name(&header))
+        .filter_map(|(_, header, _)| property_name(&header))
         .collect()
 }
 
@@ -156,7 +158,7 @@ pub fn extract_authored_property_names(css: &str) -> BTreeSet<LeanStr> {
 pub fn extract_authored_property_syntaxes(css: &str) -> BTreeMap<LeanStr, LeanStr> {
     extract_named_blocks(css, "@property")
         .into_iter()
-        .filter_map(|(header, body)| {
+        .filter_map(|(_, header, body)| {
             let name = property_name(&header)?;
             let syntax = parse_declaration_list(&body)
                 .into_iter()
@@ -183,12 +185,6 @@ fn property_name(prelude: &str) -> Option<LeanStr> {
         }
     };
     (name.len() > 2 && name.starts_with("--")).then(|| name.to_lean_str())
-}
-
-/// Parses compiler-owned custom-property registrations (`@stillwind-property`).
-#[must_use]
-pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
-    extract_property_definitions(css)
 }
 
 #[cfg(test)]

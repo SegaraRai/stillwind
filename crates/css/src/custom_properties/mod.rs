@@ -17,6 +17,6 @@ mod usage;
 pub use references::custom_property_references;
 pub use registration::{
     CustomPropertyActivation, CustomPropertyDefinition, extract_authored_property_names,
-    extract_authored_property_syntaxes, extract_property_definitions, parse_property_definitions,
+    extract_authored_property_syntaxes, parse_property_definitions,
 };
 pub use usage::{CustomPropertyUsage, PropertyUsageError, custom_property_usage};

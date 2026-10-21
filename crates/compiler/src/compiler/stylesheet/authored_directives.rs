@@ -373,10 +373,10 @@ mod tests {
     use stillwind_test_support::css_source;
 
     use super::*;
-    use crate::Compiler;
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
     };
+    use crate::test_support::read_theme;
 
     /// Expands with the compiler's own helper names.
     fn expand(
@@ -411,7 +411,7 @@ mod tests {
             "#,
         )
         .unwrap();
-        let theme = Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
+        let theme = read_theme(&source);
         let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
         let compact = expanded
             .chars()
@@ -467,8 +467,7 @@ mod tests {
                 format_args!("@import \"stillwind\"; {body}").to_lean_string(),
             )
             .unwrap();
-            let theme =
-                Compiler::read_theme(&source, &CssSourceName::from("stillwind.css")).unwrap();
+            let theme = read_theme(&source);
             expand(theme.custom_css(), &theme, &mut Vec::new())
                 .unwrap()
                 .chars()

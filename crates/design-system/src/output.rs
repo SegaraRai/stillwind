@@ -20,7 +20,7 @@ use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    CssOutputNode, CssOutputTemplate, PropertyInheritance, extract_named_blocks_with_offsets,
+    CssOutputNode, CssOutputTemplate, PropertyInheritance, extract_named_blocks,
     extract_named_statements, matching_brace,
 };
 use stillwind_diagnostics::CompileDiagnostic;
@@ -79,7 +79,7 @@ pub fn parse_css_templates(
         return Err(CompileDiagnostic::InvalidCssTemplate { offset: *offset });
     }
     let mut templates = BTreeMap::new();
-    for (offset, header, _) in extract_named_blocks_with_offsets(css, CSS_TEMPLATE) {
+    for (offset, header, _) in extract_named_blocks(css, CSS_TEMPLATE) {
         let mut parser = Parser::new(&header);
         let name = match parser.next() {
             Ok(Token::Ident(name)) => name.to_lean_str(),

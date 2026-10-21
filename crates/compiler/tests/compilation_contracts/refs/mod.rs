@@ -8,14 +8,15 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_compiler::{CompileResult, Compiler, CompilerOptions, GeneratedSymbolKind};
+use stillwind_compiler::{CompileResult, GeneratedSymbolKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
-use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
+use stillwind_js_oxc::parse;
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
-use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile};
+use stillwind_source::{FileId, ModuleId, SourceFile};
 use stillwind_test_support::css_source;
 
 use super::compile;
+use super::support::compile_with_type_facts;
 
 mod conditions;
 mod names;

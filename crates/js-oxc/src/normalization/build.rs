@@ -28,26 +28,6 @@ pub fn normalize_projection<'a>(
     language: ScriptLanguage,
     module_kind: ScriptModuleKind,
 ) -> Result<NormalizedProjection<'a>, CompileError> {
-    normalize_with_language(
-        generated,
-        original,
-        map,
-        framework,
-        analysis_id,
-        language,
-        module_kind,
-    )
-}
-
-pub(crate) fn normalize_with_language<'a>(
-    generated: &'a SourceFile,
-    original: &'a SourceFile,
-    map: &ProjectionMap,
-    framework: AdapterKind,
-    analysis_id: FileId,
-    language: ScriptLanguage,
-    module_kind: ScriptModuleKind,
-) -> Result<NormalizedProjection<'a>, CompileError> {
     if generated.id() == original.id()
         || analysis_id == generated.id()
         || analysis_id == original.id()

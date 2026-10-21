@@ -70,6 +70,13 @@ impl ProjectStylesheet {
             .collect())
     }
 
+    /// Appends every producer's rules, before template expansion, and maps them to
+    /// their sources.
+    ///
+    /// Producers in the linker order come first. The other producers follow in
+    /// module-identity order, and each producer's rules keep their own order. `origin`
+    /// receives each rule with its owner and returns the source span to map the rule
+    /// to, or `None` to leave it unmapped. This stylesheet is unchanged.
     pub(crate) fn module_css_with_origins(
         &self,
         mut origin: impl FnMut(&ModuleId, &GeneratedRule) -> Option<(Arc<SourceFile>, Span)>,

@@ -116,15 +116,6 @@ pub struct StylesheetPart {
 }
 
 impl ProjectSession {
-    /// Returns a selection of published producers without claiming the graph is
-    /// complete.
-    pub fn observed_selection(&self) -> StylesheetSelection {
-        StylesheetSelection {
-            modules: self.artifacts().keys().cloned().collect(),
-            coverage: StylesheetCoverage::Observed,
-        }
-    }
-
     /// Plans a module, chunk, entry, or document selection supplied by the host.
     ///
     /// `selection` supplies producers and their coverage. `placement` chooses document
@@ -519,6 +510,14 @@ mod tests {
     use super::*;
     use crate::SessionMode;
 
+    /// Selects the published producers of `session` without claiming the graph is complete.
+    fn observed_selection(session: &ProjectSession) -> StylesheetSelection {
+        StylesheetSelection {
+            modules: session.artifacts().keys().cloned().collect(),
+            coverage: StylesheetCoverage::Observed,
+        }
+    }
+
     #[test]
     fn retained_watch_output_cannot_be_reported_as_current_coverage() {
         let snapshot = DesignSystemSnapshot::from_source(
@@ -561,7 +560,7 @@ mod tests {
         }
         assert!(session.css().unwrap().stylesheet.css.contains("color:red"));
         assert!(matches!(
-            session.plan_stylesheet(session.observed_selection(), StylesheetPlacement::Document),
+            session.plan_stylesheet(observed_selection(&session), StylesheetPlacement::Document),
             Err(StylesheetPlanError::StaleModules(_))
         ));
     }
@@ -623,7 +622,7 @@ mod tests {
             );
         }
         let observed = session
-            .plan_stylesheet(session.observed_selection(), StylesheetPlacement::Document)
+            .plan_stylesheet(observed_selection(&session), StylesheetPlacement::Document)
             .unwrap();
         assert_eq!(observed.coverage, StylesheetCoverage::Observed);
         assert!(observed.css.contains("color:red") && observed.css.contains("color:blue"));
@@ -649,7 +648,7 @@ mod tests {
             session.plan_stylesheet(selection, StylesheetPlacement::Carrier),
             Err(StylesheetPlanError::MissingModules(_))
         ));
-        assert_eq!(session.observed_selection().modules.len(), 1);
+        assert_eq!(observed_selection(&session).modules.len(), 1);
         assert!(matches!(
             session.plan_stylesheet(
                 StylesheetSelection {

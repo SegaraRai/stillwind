@@ -59,18 +59,17 @@ mod values;
 mod minify;
 
 pub use blocks::{
-    PropertyRequirementError, ScanError, extract_named_blocks, extract_named_blocks_with_offsets,
-    extract_named_statements, extract_order_statements, matching_brace, strip_css_comments,
-    take_property_requirements, unterminated_block,
+    PropertyRequirementError, ScanError, extract_named_blocks, extract_named_statements,
+    extract_order_statements, matching_brace, strip_css_comments, take_property_requirements,
+    unterminated_block,
 };
 pub use colors::{
-    HexColor, color_hex, color_rgba, color_with_alpha_fallback, css_color_values,
-    shadow_with_color_fallback, shadow_with_color_override,
+    HexColor, color_hex, color_rgba, shadow_with_color_fallback, shadow_with_color_override,
 };
 pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
     custom_property_references, custom_property_usage, extract_authored_property_names,
-    extract_authored_property_syntaxes, extract_property_definitions, parse_property_definitions,
+    extract_authored_property_syntaxes, parse_property_definitions,
 };
 pub use declarations::{
     DeclarationError, ParsedDeclaration, declaration_ranges, important_declarations,

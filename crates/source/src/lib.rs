@@ -40,5 +40,5 @@ pub use projection::{
 };
 pub use text::{
     BytePos, FileId, JoinText, Position, ReplaceText, SourceError, SourceFile, SourceRegistry,
-    SourceRegistryError, SourceUri, SourceUriError, Span, Spanned, range_of,
+    SourceRegistryError, SourceUri, SourceUriError, Span, Spanned,
 };

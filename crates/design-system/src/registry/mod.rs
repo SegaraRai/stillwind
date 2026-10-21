@@ -38,7 +38,7 @@ pub use markers::{MarkerClasses, MarkerForm, MarkerOrigin};
 pub use order::{BuiltinArbitraryPropertyOrder, parse_builtin_arbitrary_property_order};
 pub use utilities::{
     CustomUtility, UtilityRole, parse_builtin_animation_option_definitions,
-    parse_builtin_utility_definitions, parse_utility_definitions,
+    parse_builtin_utility_definitions,
 };
 pub use variants::{
     BuiltinVariantModifierType, BuiltinVariantSort, BuiltinVariantSortDirection,
@@ -49,5 +49,4 @@ pub use variants::{
 pub(crate) use order::registration_positions;
 pub(crate) use utility_lookup::UtilityLookup;
 
-pub(super) use utilities::extract_custom_utilities;
-pub(super) use variants::extract_custom_variants_with_offsets;
+pub(super) use utilities::parse_utility_definitions;

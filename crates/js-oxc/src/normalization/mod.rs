@@ -15,6 +15,4 @@ mod visitor;
 pub use build::normalize_projection;
 pub use view::NormalizedProjection;
 
-pub(crate) use build::normalize_with_language;
-
 use visitor::{NormalizationPlan, collect_plan, merge_omissions};

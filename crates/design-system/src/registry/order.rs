@@ -10,9 +10,7 @@ use std::collections::BTreeMap;
 
 use lean_string::LeanStr;
 
-use stillwind_css::{
-    extract_named_blocks_with_offsets, extract_named_statements, extract_order_statements,
-};
+use stillwind_css::{extract_named_blocks, extract_named_statements, extract_order_statements};
 
 use super::utilities::decode_utility_name;
 use super::variants::parse_variant_name;
@@ -27,7 +25,7 @@ use super::variants::parse_variant_name;
 pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<LeanStr, usize> {
     let mut positions = BTreeMap::<LeanStr, usize>::new();
     for directive in directives {
-        let blocks = extract_named_blocks_with_offsets(css, directive)
+        let blocks = extract_named_blocks(css, directive)
             .into_iter()
             .filter(|(_, _, body)| *directive != "@variant" || body.contains("@slot"))
             .map(|(offset, header, _)| (offset, header));
