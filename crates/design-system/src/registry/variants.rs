@@ -239,43 +239,27 @@ impl BuiltinVariantModifierType {
     }
 }
 
-/// Parses compiler-owned `@stillwind-variant` definitions and attaches their global
-/// source order.
+/// Parses compiler-owned `@stillwind-variant` definitions in source order.
 ///
-/// Here the order is a counter over parsed built-in variants, not a byte offset, which
-/// is what `compare_variant_sequences` uses as the ordering bit of a variant stack.
+/// `builtin_order` is the byte offset of each directive in `css`, as for built-in
+/// utilities. A definition whose header is invalid is skipped.
 #[must_use]
 pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
-    parse_positioned_builtin_variant_definitions(css)
-        .into_iter()
-        .map(|(_, variant)| variant)
-        .collect()
-}
-
-/// Parses `@stillwind-variant` definitions as [`parse_builtin_variant_definitions`]
-/// does and returns each one with the byte offset of its directive in `css`.
-pub(crate) fn parse_positioned_builtin_variant_definitions(
-    css: &str,
-) -> Vec<(usize, CustomVariant)> {
     extract_named_blocks(css, "@stillwind-variant")
         .into_iter()
-        .enumerate()
-        .filter_map(|(builtin_order, (offset, header, body))| {
+        .filter_map(|(offset, header, body)| {
             let header = parse_builtin_variant_header(strip_css_comments(&header).trim())?;
-            Some((
-                offset,
-                CustomVariant {
-                    name: header.name,
-                    wildcard: header.wildcard,
-                    selector: (LeanString::new()).into(),
-                    body: strip_css_comments(&body).trim().into(),
-                    builtin_order: Some(builtin_order),
-                    sort: header.sort,
-                    value_type: header.value_type,
-                    modifier_type: header.modifier_type,
-                    scope: header.scope,
-                },
-            ))
+            Some(CustomVariant {
+                name: header.name,
+                wildcard: header.wildcard,
+                selector: (LeanString::new()).into(),
+                body: strip_css_comments(&body).trim().into(),
+                builtin_order: Some(offset),
+                sort: header.sort,
+                value_type: header.value_type,
+                modifier_type: header.modifier_type,
+                scope: header.scope,
+            })
         })
         .collect()
 }
@@ -498,7 +482,10 @@ mod tests {
         assert_eq!(user_variants[0].builtin_order, None);
         assert_eq!(builtin_variants.len(), 1);
         assert_eq!(builtin_variants[0].name, "builtin-state");
-        assert_eq!(builtin_variants[0].builtin_order, Some(0));
+        assert_eq!(
+            builtin_variants[0].builtin_order,
+            css.find("@stillwind-variant")
+        );
     }
 
     #[test]

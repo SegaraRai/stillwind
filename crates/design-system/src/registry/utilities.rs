@@ -137,23 +137,14 @@ pub(crate) fn decode_utility_name(raw: &str) -> Option<LeanStr> {
     (!name.is_empty()).then(|| name.into())
 }
 
-/// Parses compiler-owned `@stillwind-utility` definitions and attaches their global
-/// source order.
+/// Parses compiler-owned `@stillwind-utility` definitions in source order.
 ///
-/// The order is the directive's byte offset, which positions built-ins relative to one
-/// another and to arbitrary-property positions in authored utility mode.
+/// `builtin_order` is the byte offset of each directive in `css`, which positions
+/// built-ins relative to one another and to arbitrary-property positions in authored
+/// utility mode. A definition whose header has no valid name is skipped.
 #[must_use]
 pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
-    parse_ordered_utility_definitions(css, "@stillwind-utility")
-}
-
-/// Shared body of the ordered parsers: matches `directive` exactly and keeps the
-/// authored offset.
-///
-/// A name that is missing from a block header is skipped rather than stored under an
-/// empty name.
-fn parse_ordered_utility_definitions(css: &str, directive: &str) -> Vec<CustomUtility> {
-    extract_named_blocks(css, directive)
+    extract_named_blocks(css, "@stillwind-utility")
         .into_iter()
         .filter_map(|(builtin_order, header, body)| {
             let UtilityHeader {
@@ -217,7 +208,11 @@ mod tests {
         for directive in ["@utility", "@stillwind-utility"] {
             let css = format_args!("{directive} space-x-* (tw-sort: row-gap) {{ margin:0; }}")
                 .to_lean_string();
-            let utilities = parse_ordered_utility_definitions(&css, directive);
+            let utilities = if directive == "@utility" {
+                utility_definitions(&css)
+            } else {
+                parse_builtin_utility_definitions(&css)
+            };
             assert_eq!(utilities.len(), 1);
             assert_eq!(utilities[0].name, "space-x-*");
             assert_eq!(utilities[0].tw_sort.as_deref(), Some("row-gap"));
@@ -301,10 +296,7 @@ mod tests {
         assert_eq!(builtins[0].body, "color:blue;");
         assert_eq!(builtins[0].builtin_order, css.find("@stillwind-utility"));
         assert_eq!(
-            parse_ordered_utility_definitions(
-                "@stillwind-utility-other x {x:y;}",
-                "@stillwind-utility"
-            ),
+            parse_builtin_utility_definitions("@stillwind-utility-other x {x:y;}"),
             [] as [CustomUtility; 0]
         );
     }

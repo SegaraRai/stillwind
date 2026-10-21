@@ -32,8 +32,10 @@ use stillwind_css::{
 use stillwind_diagnostics::CompileDiagnostic;
 
 use super::utilities::parse_utility_definitions;
-use super::variants::parse_positioned_builtin_variant_definitions;
-use super::{CustomUtility, CustomVariant, parse_builtin_utility_definitions};
+use super::{
+    CustomUtility, CustomVariant, parse_builtin_utility_definitions,
+    parse_builtin_variant_definitions,
+};
 use crate::parse_variant_definitions;
 
 const REGISTRY: &str = "@stillwind-registry";
@@ -333,10 +335,13 @@ impl RegistryStatements {
             },
         ));
         positioned.extend(
-            parse_positioned_builtin_variant_definitions(css)
+            parse_builtin_variant_definitions(css)
                 .into_iter()
-                .map(|(offset, variant)| {
-                    (offset, RegistryOperation::BuiltinVariant(Arc::new(variant)))
+                .filter_map(|variant| {
+                    Some((
+                        variant.builtin_order?,
+                        RegistryOperation::BuiltinVariant(Arc::new(variant)),
+                    ))
                 }),
         );
         positioned.extend(
