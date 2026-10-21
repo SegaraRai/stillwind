@@ -286,7 +286,7 @@ define_lint_rules! {
         InvalidThemeReference => "invalid-theme-reference",
         InvalidCssImport => "invalid-css-import",
         InvalidCssDirective => "invalid-css-directive",
-        InvalidRuntimeConditional => "invalid-runtime-conditional",
+        InvalidRuntimeCondition => "invalid-runtime-condition",
     }
     Contract {
         MutatingMacroArgument => "mutating-macro-argument",
@@ -307,12 +307,13 @@ define_lint_rules! {
         DuplicateViewTransitionName => "duplicate-view-transition-name",
         SplitViewTransitionClass => "split-view-transition-class",
         IneffectiveAnchorScope => "ineffective-anchor-scope",
-        InvalidPropertyValue => "invalid-property-value",
+        IncompatiblePropertyValue => "incompatible-property-value",
         UnsatisfiableVariants => "unsatisfiable-variants",
         ClampedValue => "clamped-value",
         DuplicateDefinition => "duplicate-definition",
         BypassedUndefinition => "bypassed-undefinition",
-        InvalidThemeValue => "invalid-theme-value",
+        IgnoredDefinitionCondition => "ignored-definition-condition",
+        IncompatibleThemeValue => "incompatible-theme-value",
         IgnoredTailwindFeature => "ignored-tailwind-feature",
     }
     Restriction {
@@ -334,7 +335,7 @@ define_lint_rules! {
         PreferSortedUtilities => "prefer-sorted-utilities",
         RedundantVariant => "redundant-variant",
         PreferTypedVariables => "prefer-typed-variables",
-        ImplicitNestingSelector => "implicit-nesting-selector",
+        PreferExplicitNestingSelector => "prefer-explicit-nesting-selector",
         PreferVariantDirective => "prefer-variant-directive",
     }
     Suppression {
@@ -366,9 +367,10 @@ impl LintKind {
                     | Self::InvalidCssDirective
                     | Self::DuplicateDefinition
                     | Self::BypassedUndefinition
-                    | Self::InvalidThemeValue
+                    | Self::IgnoredDefinitionCondition
+                    | Self::IncompatibleThemeValue
                     | Self::IgnoredTailwindFeature
-                    | Self::ImplicitNestingSelector
+                    | Self::PreferExplicitNestingSelector
                     | Self::PreferVariantDirective
             ),
             LintSurface::Stylesheet => matches!(
@@ -382,7 +384,7 @@ impl LintKind {
                     | Self::ConflictingUtilities
                     | Self::DocumentScopedSelector
                     | Self::RepeatedNestingSelector
-                    | Self::InvalidPropertyValue
+                    | Self::IncompatiblePropertyValue
                     | Self::UnsatisfiableVariants
                     | Self::ClampedValue
                     | Self::PreferCanonicalUtilities
@@ -392,12 +394,13 @@ impl LintKind {
                     | Self::InvalidThemeReference
                     | Self::InvalidCssImport
                     | Self::InvalidCssDirective
-                    | Self::InvalidRuntimeConditional
+                    | Self::InvalidRuntimeCondition
                     | Self::DuplicateDefinition
                     | Self::BypassedUndefinition
-                    | Self::InvalidThemeValue
+                    | Self::IgnoredDefinitionCondition
+                    | Self::IncompatibleThemeValue
                     | Self::IgnoredTailwindFeature
-                    | Self::ImplicitNestingSelector
+                    | Self::PreferExplicitNestingSelector
                     | Self::PreferVariantDirective
                     | Self::InvalidLintSuppression
                     | Self::UnusedLintSuppression

@@ -409,6 +409,16 @@ pub enum CompileDiagnostic {
         /// Original call span carrying the replacement.
         span: Span,
     },
+    /// The compiler applied source coordinates that it produced, and the source
+    /// rejected them. Source failures of host-supplied coordinates use the `Source*`
+    /// variants.
+    #[error("invalid source coordinates during {context:?}: {detail}")]
+    InvalidInternalSourceCoordinates {
+        /// Operation that applied the coordinates.
+        context: SourceFailureContext,
+        /// Message of the source failure.
+        detail: LeanStr,
+    },
     /// Generated source replacements overlap.
     #[error("overlapping source replacement {span:?}, previous start {previous_start}")]
     InvalidTransformOverlap {

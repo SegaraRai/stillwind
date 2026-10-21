@@ -318,7 +318,7 @@ fn value_and_condition_rules_report_inside_the_candidate() {
             &options
         ),
         [
-            finding(LintKind::InvalidPropertyValue, "[150%]"),
+            finding(LintKind::IncompatiblePropertyValue, "[150%]"),
             finding(LintKind::ClampedValue, "[150%]"),
             finding(LintKind::UnsatisfiableVariants, "motion-reduce"),
             fixed(

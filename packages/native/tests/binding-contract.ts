@@ -1670,7 +1670,7 @@ const d=style('supports-[padding:var(--spacing-gutter)]:flex');`,
     ).toThrow(/@stillwind-slot/);
     expect(() => renderStylesheet(result.modules[0].css, css)).toThrow(/@stillwind-slot/);
     const standalone = compileSource(oneShotInput(source, "button.tsx", css));
-    expect(standalone.diagnostics[0].code).toBe("SW14005");
+    expect(standalone.diagnostics[0].code).toBe("SW14001");
     expect(standalone.diagnostics[0].start).toBe(0);
     expect(standalone.diagnostics[0].end).toBe(Buffer.byteLength(source));
     expect(standalone.code).toBe(null);
@@ -2102,7 +2102,7 @@ const d=style('supports-[padding:var(--spacing-gutter)]:flex');`,
       sourceUri("theme"),
     );
     expect(() => session.reload(invalid)).toThrow(
-      /CSS reload compilation failed.*motion\.tsx.*SW14008.*invalid property requirement/s,
+      /CSS reload compilation failed.*motion\.tsx.*SW14004.*invalid property requirement/s,
     );
     expect(session.diagnosticBatches()[0].reports[0].primary.location.uri).toBe(
       sourceUri("motion.tsx"),

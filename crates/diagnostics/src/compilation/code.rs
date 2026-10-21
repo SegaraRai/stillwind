@@ -3,28 +3,32 @@
 //! Codes use `SWnnmmm`: `nn` identifies a category and `mmm` identifies one
 //! diagnostic within it. Each [`CompileErrorClass`] reserves a range of categories and
 //! tells a host who must act on the error. Explicit numbers remain stable when
-//! declaration order changes. A removed code is not reused for another diagnostic.
+//! declaration order changes. Until the first release, codes can be renumbered so that
+//! each category stays contiguous. After it, a removed code is not reused for another
+//! diagnostic.
 //!
 //! ## Categories
 //!
 //! Configuration (01-09):
 //!
-//! - 01: compiler options, framework constraints, and generated names
+//! - 01: compiler options, generated names, and the CSS entry
 //!
 //! Authoring (10-29):
 //!
 //! - 10: JavaScript and component source
 //! - 11: style composition
 //! - 12: declaration identities checked by TypeScript
-//! - 13: authored CSS syntax and CSS imports
-//! - 14: Stillwind CSS directives and output slots
+//! - 13: authored CSS syntax
+//! - 14: stylesheet rendering
+//! - 15: source size limits
 //!
 //! Host (30-49):
 //!
 //! - 30: TypeScript checker facts
 //! - 31: component projections and their coordinates
 //! - 32: CSS loader protocol
-//! - 33: source coordinates, size limits, and host-supplied edit inputs
+//! - 33: host-supplied source coordinates
+//! - 34: host integration inputs
 //!
 //! Internal (90-99):
 //!
@@ -95,13 +99,15 @@ macro_rules! define_compile_codes {
 
 define_compile_codes! {
     Configuration {
-        // 01: compiler options, framework constraints, and generated names
+        // 01: compiler options, generated names, and the CSS entry
         FrameworkConstraintConflict => "SW01001",
         InvalidPropertyPrefix { .. } => "SW01002",
         ConflictingPropertyPrefixes { .. } => "SW01003",
         InvalidHashLength { .. } => "SW01004",
         GeneratedIdentifierCollision { .. } => "SW01005",
         InvalidLintConfiguration { .. } => "SW01006",
+        IdentifierGenerationFailed { .. } => "SW01007",
+        UnresolvedCssRoot => "SW01008",
     }
     Authoring {
         // 10: JavaScript and component source
@@ -117,19 +123,23 @@ define_compile_codes! {
         // 12: declaration identities checked by TypeScript
         IdentityAssignment { .. } => "SW12001",
         IdentityUnavailable { .. } => "SW12002",
-        // 13: authored CSS syntax and CSS imports
+        // 13: authored CSS syntax
         CssParse { .. } => "SW13001",
         UnterminatedCssBlock { .. } => "SW13002",
         InvalidCssBlock { .. } => "SW13003",
         CssNestingTooDeep { .. } => "SW13004",
-        // 14: Stillwind CSS directives and output slots
-        MissingUtilitiesSlot => "SW14005",
-        MissingSupportSlot { .. } => "SW14006",
-        MalformedPropertyRequirement { .. } => "SW14007",
-        MalformedUtilityRequirement { .. } => "SW14008",
-        UnknownRequiredProperty { .. } => "SW14009",
-        PropertyUsageParse { .. } => "SW14010",
-        InvalidThemeReference { .. } => "SW14012",
+        // 14: stylesheet rendering
+        MissingUtilitiesSlot => "SW14001",
+        MissingSupportSlot { .. } => "SW14002",
+        MalformedPropertyRequirement { .. } => "SW14003",
+        MalformedUtilityRequirement { .. } => "SW14004",
+        UnknownRequiredProperty { .. } => "SW14005",
+        PropertyUsageParse { .. } => "SW14006",
+        InvalidThemeReference { .. } => "SW14007",
+        // 15: source size limits
+        CssOffsetTooLarge { .. } => "SW15001",
+        RenderedSourceTooLarge => "SW15002",
+        SourceTooLarge { .. } => "SW15003",
     }
     Host {
         // 30: TypeScript checker facts
@@ -157,20 +167,16 @@ define_compile_codes! {
         CssLoadAlreadyComplete => "SW32005",
         CssRequestIdExhausted => "SW32006",
         CssSourceIdExhausted => "SW32007",
-        UnresolvedCssRoot => "SW32008",
-        // 33: source coordinates, size limits, and host-supplied edit inputs
+        // 33: host-supplied source coordinates
         SourceInternalMap { .. } => "SW33001",
-        SourceTooLarge { .. } => "SW33002",
-        SourceInvalidRange { .. } => "SW33003",
-        SourceWrongFile { .. } => "SW33004",
-        SourceInvalidSpan { .. } => "SW33005",
-        SourceInvalidOffset { .. } => "SW33006",
-        CssOffsetTooLarge { .. } => "SW33007",
-        RenderedSourceTooLarge => "SW33008",
-        MissingRuntimeAnchor { .. } => "SW33009",
-        MissingModuleCssTarget { .. } => "SW33010",
-        IdentifierGenerationFailed { .. } => "SW33011",
-        TransformAfterFailedCompilation => "SW33012",
+        SourceInvalidRange { .. } => "SW33002",
+        SourceWrongFile { .. } => "SW33003",
+        SourceInvalidSpan { .. } => "SW33004",
+        SourceInvalidOffset { .. } => "SW33005",
+        // 34: host integration inputs
+        MissingRuntimeAnchor { .. } => "SW34001",
+        MissingModuleCssTarget { .. } => "SW34002",
+        TransformAfterFailedCompilation => "SW34003",
     }
     Internal {
         // 90: compiler invariants
@@ -181,6 +187,7 @@ define_compile_codes! {
         MissingAnchorEdit { .. } => "SW90005",
         InvalidTransformExpressionMapping { .. } => "SW90006",
         InvalidTransformOverlap { .. } => "SW90007",
+        InvalidInternalSourceCoordinates { .. } => "SW90008",
     }
 }
 

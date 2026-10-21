@@ -255,13 +255,13 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     ]
     .into_iter()
     .zip([
-        CompileDiagnostic::SourceInvalidSpan {
-            span: invalid,
+        CompileDiagnostic::InvalidInternalSourceCoordinates {
             context: SourceFailureContext::Utility,
+            detail: format!("invalid source span {invalid:?}").into(),
         },
-        CompileDiagnostic::SourceInvalidSpan {
-            span: invalid,
+        CompileDiagnostic::InvalidInternalSourceCoordinates {
             context: SourceFailureContext::Emission,
+            detail: format!("invalid source span {invalid:?}").into(),
         },
     ]) {
         let mut malformed = analysis.clone();

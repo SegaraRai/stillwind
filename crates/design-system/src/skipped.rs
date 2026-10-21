@@ -10,6 +10,7 @@ use std::ops::Range;
 
 use lean_string::LeanStr;
 
+use stillwind_diagnostics::LintKind;
 use stillwind_source::{FileId, Span};
 
 /// Why loading skipped a statement.
@@ -103,16 +104,20 @@ pub enum SkipReason {
 }
 
 impl SkipReason {
-    /// Whether the skipped statement is an `@import` or `@plugin` statement.
+    /// Returns the lint rule that reports this reason: `invalid-css-import` for an
+    /// `@import` or `@plugin` statement, `ignored-definition-condition` for a
+    /// definition that applies without its condition, and `invalid-css-directive`
+    /// otherwise.
     #[must_use]
-    pub const fn is_import(&self) -> bool {
-        matches!(
-            self,
+    pub const fn lint_kind(&self) -> LintKind {
+        match self {
             Self::ImportSpecifier { .. }
-                | Self::ImportModifiers { .. }
-                | Self::UnresolvedImport { .. }
-                | Self::ImportCycle { .. }
-        )
+            | Self::ImportModifiers { .. }
+            | Self::UnresolvedImport { .. }
+            | Self::ImportCycle { .. } => LintKind::InvalidCssImport,
+            Self::ConditionalDefinition { .. } => LintKind::IgnoredDefinitionCondition,
+            _ => LintKind::InvalidCssDirective,
+        }
     }
 }
 

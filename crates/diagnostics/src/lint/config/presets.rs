@@ -41,7 +41,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::SplitViewTransitionClass, LintSeverity::Warn),
     (LintKind::AmbiguousStyleBaseOrder, LintSeverity::Warn),
     (LintKind::InterferingImportedStyleBase, LintSeverity::Warn),
-    (LintKind::InvalidPropertyValue, LintSeverity::Deny),
+    (LintKind::IncompatiblePropertyValue, LintSeverity::Deny),
     (LintKind::InvalidUtility, LintSeverity::Deny),
     (LintKind::UnknownUtility, LintSeverity::Warn),
     (LintKind::InvalidMarkerUse, LintSeverity::Warn),
@@ -55,12 +55,13 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidThemeReference, LintSeverity::Deny),
     (LintKind::InvalidCssImport, LintSeverity::Deny),
     (LintKind::InvalidCssDirective, LintSeverity::Deny),
-    (LintKind::InvalidRuntimeConditional, LintSeverity::Deny),
+    (LintKind::InvalidRuntimeCondition, LintSeverity::Deny),
     (LintKind::DuplicateDefinition, LintSeverity::Warn),
     (LintKind::BypassedUndefinition, LintSeverity::Warn),
-    (LintKind::InvalidThemeValue, LintSeverity::Deny),
+    (LintKind::IgnoredDefinitionCondition, LintSeverity::Deny),
+    (LintKind::IncompatibleThemeValue, LintSeverity::Deny),
     (LintKind::IgnoredTailwindFeature, LintSeverity::Warn),
-    (LintKind::ImplicitNestingSelector, LintSeverity::Warn),
+    (LintKind::PreferExplicitNestingSelector, LintSeverity::Warn),
 ];
 
 const STYLISTIC: &[(LintKind, LintSeverity)] = &[

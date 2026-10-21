@@ -119,7 +119,7 @@ skipping them with a lint finding as loading does.
 
 Keyframe frames, view transition definitions, and `@apply` inside a utility body do not
 check runtime conditions for each candidate. When their declarations cannot be lowered,
-`invalid-runtime-conditional` reports them at the whole module instead of the candidate.
+`invalid-runtime-condition` reports them at the whole module instead of the candidate.
 
 Sources: [skipped statements](../crates/design-system/src/skipped.rs),
 [stylesheet lint](../crates/compiler/src/compiler/stylesheet/lint/skipped.rs).

@@ -1,5 +1,4 @@
-//! `invalid-runtime-conditional`: authored declarations whose `--if()` cannot be
-//! lowered.
+//! `invalid-runtime-condition`: authored declarations whose `--if()` cannot be lowered.
 //!
 //! Rendering leaves such a declaration out of the stylesheet instead of failing. This
 //! module reports each one at its authored declaration, including declarations in
@@ -15,7 +14,7 @@ use super::analysis::Checker;
 /// Reports each declaration of the checked source whose `--if()` functions cannot be
 /// lowered with `use_css_if`.
 pub(super) fn check_runtime_conditionals(checker: &mut Checker<'_>, use_css_if: bool) {
-    if !checker.enabled(LintKind::InvalidRuntimeConditional) {
+    if !checker.enabled(LintKind::InvalidRuntimeCondition) {
         return;
     }
     let text = checker.source.text();
@@ -29,7 +28,7 @@ pub(super) fn check_runtime_conditionals(checker: &mut Checker<'_>, use_css_if: 
         let name = &text[property.clone()];
         let start = property.end - name.trim_start().len();
         let finding = LintFinding::new(
-            LintDiagnostic::InvalidRuntimeConditional {
+            LintDiagnostic::InvalidRuntimeCondition {
                 property: name.trim().to_lean_str(),
                 detail: failure.detail().into(),
             },
@@ -54,12 +53,9 @@ mod tests {
 .ok { color: --if(--on, red, blue); }"
             ),
             [
+                finding(LintKind::InvalidRuntimeCondition, "color: --if(--on, red)"),
                 finding(
-                    LintKind::InvalidRuntimeConditional,
-                    "color: --if(--on, red)"
-                ),
-                finding(
-                    LintKind::InvalidRuntimeConditional,
+                    LintKind::InvalidRuntimeCondition,
                     "--brand: --if(--on:dark, black, white)"
                 ),
             ]

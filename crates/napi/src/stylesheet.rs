@@ -84,8 +84,8 @@ pub struct NativeSkippedCss {
     pub line: u32,
     /// Zero-based UTF-16 column of `start` within its line.
     pub column: u32,
-    /// Lint rule that reports the statement: `invalid-css-import` or
-    /// `invalid-css-directive`.
+    /// Lint rule that reports the statement: `invalid-css-import`,
+    /// `invalid-css-directive`, or `ignored-definition-condition`.
     pub rule: String,
     /// Why loading skipped the statement.
     pub message: String,

@@ -31,11 +31,11 @@ const CLAMPED_FILTERS: &[&str] = &["opacity", "grayscale", "sepia", "invert"];
 ///
 /// `declarations` are serialized declaration lists in emission order. A value above or
 /// below the range of a property, and a filter amount above `1`, select
-/// `clamped-value`. A negative filter amount selects `invalid-property-value` for
+/// `clamped-value`. A negative filter amount selects `incompatible-property-value` for
 /// `filter`, or for `backdrop-filter` when the declaring property's name contains
 /// `backdrop`, because Tailwind's filter utilities pass amounts through custom
 /// properties with such names. `utility` is the authored utility that the
-/// `invalid-property-value` message names.
+/// `incompatible-property-value` message names.
 pub(in crate::compiler) fn clamped_value<'a>(
     declarations: impl IntoIterator<Item = &'a str>,
     utility: &str,
@@ -101,7 +101,7 @@ fn clamped_filter(property: &str, value: &str, utility: &str) -> Option<LintDiag
             } else {
                 "filter"
             };
-            return Some(LintDiagnostic::InvalidPropertyValue {
+            return Some(LintDiagnostic::IncompatiblePropertyValue {
                 utility: utility.to_lean_str(),
                 property: filter.into(),
                 value: written.to_lean_str(),
@@ -154,11 +154,11 @@ mod tests {
             ),
             (
                 &["--tw-invert:invert(-50%);"],
-                "invalid-property-value `filter` does not accept `invert(-50%)`",
+                "incompatible-property-value `filter` does not accept `invert(-50%)`",
             ),
             (
                 &["--tw-backdrop-opacity:opacity(-1);"],
-                "invalid-property-value `backdrop-filter` does not accept `opacity(-1)`",
+                "incompatible-property-value `backdrop-filter` does not accept `opacity(-1)`",
             ),
         ] {
             assert_eq!(message(declarations).as_deref(), Some(expected));

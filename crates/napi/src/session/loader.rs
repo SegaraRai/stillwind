@@ -363,12 +363,7 @@ fn skipped_statements(graph: &CssSourceGraph) -> Vec<NativeSkippedCss> {
                 end: skipped.span.end.0,
                 line: position.line,
                 column: position.utf16_column,
-                rule: if skipped.reason.is_import() {
-                    "invalid-css-import"
-                } else {
-                    "invalid-css-directive"
-                }
-                .to_owned(),
+                rule: skipped.reason.lint_kind().name().to_owned(),
                 message: skipped.reason.to_string(),
             })
         })

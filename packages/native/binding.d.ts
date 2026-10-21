@@ -1298,8 +1298,8 @@ export interface NativeLintOptions {
   invalidCssImport?: string
   /** Settings for `invalid-css-directive`. */
   invalidCssDirective?: string
-  /** Settings for `invalid-runtime-conditional`. */
-  invalidRuntimeConditional?: string
+  /** Settings for `invalid-runtime-condition`. */
+  invalidRuntimeCondition?: string
   /** Settings for `mutating-macro-argument`. */
   mutatingMacroArgument?: string
   /** Settings for `suspending-macro-argument`. */
@@ -1332,8 +1332,8 @@ export interface NativeLintOptions {
   splitViewTransitionClass?: string
   /** Settings for `ineffective-anchor-scope`. */
   ineffectiveAnchorScope?: string
-  /** Settings for `invalid-property-value`. */
-  invalidPropertyValue?: string
+  /** Settings for `incompatible-property-value`. */
+  incompatiblePropertyValue?: string
   /** Settings for `unsatisfiable-variants`. */
   unsatisfiableVariants?: string
   /** Settings for `clamped-value`. */
@@ -1342,8 +1342,10 @@ export interface NativeLintOptions {
   duplicateDefinition?: string
   /** Settings for `bypassed-undefinition`. */
   bypassedUndefinition?: string
-  /** Settings for `invalid-theme-value`. */
-  invalidThemeValue?: string
+  /** Settings for `ignored-definition-condition`. */
+  ignoredDefinitionCondition?: string
+  /** Settings for `incompatible-theme-value`. */
+  incompatibleThemeValue?: string
   /** Settings for `ignored-tailwind-feature`. */
   ignoredTailwindFeature?: string
   /** Settings for `no-arbitrary-colors`. */
@@ -1378,8 +1380,8 @@ export interface NativeLintOptions {
   redundantVariant?: string
   /** Settings for `prefer-typed-variables`. */
   preferTypedVariables?: string
-  /** Settings for `implicit-nesting-selector`. */
-  implicitNestingSelector?: string
+  /** Settings for `prefer-explicit-nesting-selector`. */
+  preferExplicitNestingSelector?: string
   /** Settings for `prefer-variant-directive`. */
   preferVariantDirective?: NativeVariantDirectiveOptions
   /** Settings for `invalid-lint-suppression`. */
@@ -1685,8 +1687,8 @@ export interface NativeSkippedCss {
   /** Zero-based UTF-16 column of `start` within its line. */
   column: number
   /**
-   * Lint rule that reports the statement: `invalid-css-import` or
-   * `invalid-css-directive`.
+   * Lint rule that reports the statement: `invalid-css-import`,
+   * `invalid-css-directive`, or `ignored-definition-condition`.
    */
   rule: string
   /** Why loading skipped the statement. */

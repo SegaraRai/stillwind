@@ -1,5 +1,5 @@
-//! `implicit-nesting-selector`: variant definition selectors that are relative to `&`
-//! without writing it.
+//! `prefer-explicit-nesting-selector`: variant definition selectors that are relative
+//! to `&` without writing it.
 //!
 //! Without `scope(document)`, a selector of a variant definition is a nested style rule
 //! selector, so a branch without `&` means `& <branch>` in every context. The finding
@@ -26,7 +26,7 @@ use super::definitions::{Definition, DefinitionKind};
 /// header, keep their selectors as written and are skipped. At-rule shorthands such as
 /// `(@media print)` have no selector.
 pub(super) fn check_nesting(checker: &mut Checker<'_>, definition: &Definition<'_>) {
-    if !checker.enabled(LintKind::ImplicitNestingSelector) {
+    if !checker.enabled(LintKind::PreferExplicitNestingSelector) {
         return;
     }
     let text = checker.source.text();
@@ -160,7 +160,11 @@ mod tests {
         ] {
             assert_eq!(
                 default_findings(css),
-                [fixed(LintKind::ImplicitNestingSelector, covered, expected)],
+                [fixed(
+                    LintKind::PreferExplicitNestingSelector,
+                    covered,
+                    expected
+                )],
                 "{css}"
             );
         }

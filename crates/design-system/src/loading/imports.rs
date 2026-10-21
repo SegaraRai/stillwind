@@ -416,6 +416,8 @@ fn import_wrappers(
 
 #[cfg(test)]
 mod tests {
+    use stillwind_diagnostics::LintKind;
+
     use super::*;
 
     fn imports(css: &str) -> Vec<Import> {
@@ -454,7 +456,7 @@ mod tests {
             let [(range, reason)] = scan.skipped.as_slice() else {
                 panic!("{css}: {:?}", scan.skipped);
             };
-            assert!(reason.is_import(), "{css}");
+            assert_eq!(reason.lint_kind(), LintKind::InvalidCssImport, "{css}");
             assert!(css[range.clone()].starts_with("@import"), "{css}");
             assert_eq!(scan.removed(), std::slice::from_ref(range), "{css}");
         }

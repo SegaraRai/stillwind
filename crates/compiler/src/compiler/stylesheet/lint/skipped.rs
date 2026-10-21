@@ -1,4 +1,5 @@
-//! `invalid-css-import` and `invalid-css-directive`: statements that loading skipped.
+//! `invalid-css-import`, `invalid-css-directive`, and `ignored-definition-condition`:
+//! statements that loading skipped, and definitions whose condition loading ignored.
 //!
 //! The loader leaves out an invalid import or directive instead of failing, and records
 //! it in [`CssSourceGraph::skipped`]. This module reports the records whose span
@@ -20,21 +21,19 @@ pub(super) fn check_skipped_statements(checker: &mut Checker<'_>, graph: &CssSou
         .iter()
         .filter(|skipped| skipped.span.file == checker.source.id())
     {
-        let reason = skipped.reason.to_lean_string().into();
-        let (kind, diagnostic) = if skipped.reason.is_import() {
-            (
-                LintKind::InvalidCssImport,
-                LintDiagnostic::InvalidCssImport { reason },
-            )
-        } else {
-            (
-                LintKind::InvalidCssDirective,
-                LintDiagnostic::InvalidCssDirective { reason },
-            )
-        };
-        if checker.enabled(kind) {
-            checker.report(LintFinding::new(diagnostic, skipped.span));
+        let kind = skipped.reason.lint_kind();
+        if !checker.enabled(kind) {
+            continue;
         }
+        let reason = skipped.reason.to_lean_string().into();
+        let diagnostic = match kind {
+            LintKind::InvalidCssImport => LintDiagnostic::InvalidCssImport { reason },
+            LintKind::IgnoredDefinitionCondition => {
+                LintDiagnostic::IgnoredDefinitionCondition { reason }
+            }
+            _ => LintDiagnostic::InvalidCssDirective { reason },
+        };
+        checker.report(LintFinding::new(diagnostic, skipped.span));
     }
 }
 
@@ -55,7 +54,7 @@ mod tests {
             ),
             [
                 finding(LintKind::InvalidCssImport, "@import 42;"),
-                finding(LintKind::InvalidCssDirective, "@utility"),
+                finding(LintKind::IgnoredDefinitionCondition, "@utility"),
                 finding(LintKind::InvalidCssDirective, "@stillwind-slot unknown;"),
                 finding(LintKind::InvalidCssDirective, "@stillwind-registry motion"),
             ]

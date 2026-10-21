@@ -164,8 +164,8 @@ fn untyped_variables_receive_the_hint_of_the_selected_definition() {
 }
 
 /// A variable whose known type the property rejects reports only
-/// `invalid-property-value`, because the hint of the selected definition would state
-/// the rejected type.
+/// `incompatible-property-value`, because the hint of the selected definition would
+/// state the rejected type.
 #[test]
 fn rejected_variable_types_do_not_suggest_the_selected_hint() {
     let options = CompilerOptions {
@@ -191,7 +191,7 @@ fn rejected_variable_types_do_not_suggest_the_selected_hint() {
         assert_eq!(
             (
                 count(LintKind::PreferTypedVariables),
-                count(LintKind::InvalidPropertyValue)
+                count(LintKind::IncompatiblePropertyValue)
             ),
             (typed, invalid),
             "{utilities}: {:?}",
@@ -238,7 +238,11 @@ fn contradicting_variants_and_clamped_values_cover_their_part() {
         ("[opacity:-0.5]", LintKind::ClampedValue, "-0.5"),
         ("backdrop-grayscale-150", LintKind::ClampedValue, "150"),
         ("invert-[150%]", LintKind::ClampedValue, "[150%]"),
-        ("grayscale-[-50%]", LintKind::InvalidPropertyValue, "[-50%]"),
+        (
+            "grayscale-[-50%]",
+            LintKind::IncompatiblePropertyValue,
+            "[-50%]",
+        ),
     ] {
         let found = findings(utilities, &options, kind);
         assert_eq!(found.len(), 1, "{utilities}: {found:?}");
@@ -277,7 +281,7 @@ fn variables_of_known_types_and_opacity_modifiers_report_invalid_values() {
         let found = result
             .lint_findings
             .iter()
-            .filter(|finding| finding.kind() == LintKind::InvalidPropertyValue)
+            .filter(|finding| finding.kind() == LintKind::IncompatiblePropertyValue)
             .collect::<Vec<_>>();
         assert_eq!(found.len(), 1, "{utilities}: {:?}", result.lint_findings);
         assert_eq!(source.slice(found[0].labels[0].span).unwrap(), covered);
@@ -316,7 +320,7 @@ fn candidate_lints_do_not_change_output() {
             redundant_variant: Some(LintSeverity::Off),
             unsatisfiable_variants: Some(LintSeverity::Off),
             clamped_value: Some(LintSeverity::Off),
-            invalid_property_value: Some(LintSeverity::Off),
+            incompatible_property_value: Some(LintSeverity::Off),
             ..LintOverrides::default()
         },
         ..CompilerOptions::default()

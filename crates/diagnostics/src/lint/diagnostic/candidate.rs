@@ -42,7 +42,7 @@ impl fmt::Display for DocumentScopedMessage<'_> {
     }
 }
 
-/// Message of [`super::LintDiagnostic::InvalidPropertyValue`], which explains a
+/// Message of [`super::LintDiagnostic::IncompatiblePropertyValue`], which explains a
 /// property chosen as a fallback and lists hinted spellings when there are any.
 pub(super) struct PropertyValueMessage<'a> {
     pub(super) utility: &'a str,
@@ -98,15 +98,15 @@ mod tests {
             unknown.to_lean_string(),
             "`bg` has no value `red-999`; did you mean `bg-red-900`?"
         );
-        let invalid = LintDiagnostic::InvalidPropertyValue {
+        let invalid = LintDiagnostic::IncompatiblePropertyValue {
             utility: "w-[1/2]".into(),
             property: "width".into(),
             value: "1/2".into(),
             alternatives: Vec::new(),
         };
-        assert_eq!(invalid.code(), "invalid-property-value");
+        assert_eq!(invalid.code(), "incompatible-property-value");
         assert_eq!(invalid.to_lean_string(), "`width` does not accept `1/2`");
-        let fallback = LintDiagnostic::InvalidPropertyValue {
+        let fallback = LintDiagnostic::IncompatiblePropertyValue {
             utility: "text-[12px_foo]".into(),
             property: "color".into(),
             value: "12px foo".into(),

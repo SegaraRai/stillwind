@@ -81,7 +81,7 @@ fn invalid_property_values_are_emitted_independently_of_reporting() {
     for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
         let options = CompilerOptions {
             lint: LintOverrides {
-                invalid_property_value: Some(severity),
+                incompatible_property_value: Some(severity),
                 ..LintOverrides::default()
             },
             ..CompilerOptions::default()
@@ -98,7 +98,7 @@ fn invalid_property_values_are_emitted_independently_of_reporting() {
             .filter(|finding| {
                 matches!(
                     finding.diagnostic,
-                    LintDiagnostic::InvalidPropertyValue { .. }
+                    LintDiagnostic::IncompatiblePropertyValue { .. }
                 )
             })
             .map(|finding| {

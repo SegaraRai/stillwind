@@ -556,14 +556,14 @@ pub enum LintDiagnostic {
         detail: LeanStr,
     },
     /// An arbitrary value that the grammar of its property rejects is emitted as
-    /// written (`invalid-property-value`).
+    /// written (`incompatible-property-value`).
     #[error("{}", PropertyValueMessage {
         utility,
         property,
         value,
         alternatives,
     })]
-    InvalidPropertyValue {
+    IncompatiblePropertyValue {
         /// Utility text as authored, without enclosing variant wrappers.
         utility: LeanStr,
         /// Lowercase CSS property receiving the value.
@@ -576,7 +576,7 @@ pub enum LintDiagnostic {
         alternatives: Vec<LeanStr>,
     },
     /// A `var()` value without a type hint refers to a variable of a known type that
-    /// the receiving property rejects (`invalid-property-value`).
+    /// the receiving property rejects (`incompatible-property-value`).
     #[error("{}", VariableTypeMessage {
         utility,
         property,
@@ -601,7 +601,7 @@ pub enum LintDiagnostic {
         alternatives: Vec<LeanStr>,
     },
     /// An opacity modifier gives `color-mix()` a percentage outside `0%` to `100%`; the
-    /// declaration emits it as written (`invalid-property-value`).
+    /// declaration emits it as written (`incompatible-property-value`).
     #[error(
         "the opacity modifier `{modifier}` gives `color-mix()` `{percentage}`, but `color-mix()` accepts only percentages from 0% to 100%"
     )]
@@ -660,7 +660,7 @@ pub enum LintDiagnostic {
     },
     /// A selector of a variant definition has a branch without `&` or a branch that
     /// starts with a combinator, so it is relative to `&` without writing it
-    /// (`implicit-nesting-selector`).
+    /// (`prefer-explicit-nesting-selector`).
     #[error(
         "variant selector `{selector}` is relative to `&` and means `{nested}`; write the `&`, or add `scope(document)` to the definition to select a document-level element"
     )]
@@ -714,11 +714,11 @@ pub enum LintDiagnostic {
         pattern: LeanStr,
     },
     /// A theme token value matches no value type of its namespace
-    /// (`invalid-theme-value`).
+    /// (`incompatible-theme-value`).
     #[error(
         "`{value}` is not a valid value for `{token}` because tokens of `--{namespace}-*` must be `{expected}`"
     )]
-    InvalidThemeValue {
+    IncompatibleThemeValue {
         /// Token name, including the leading `--`.
         token: LeanStr,
         /// Value as written.
@@ -744,17 +744,24 @@ pub enum LintDiagnostic {
         /// Why loading skipped the import.
         reason: LeanStr,
     },
-    /// Loading skipped an invalid Stillwind directive or definition, or ignored the
-    /// condition around a definition (`invalid-css-directive`).
+    /// Loading skipped an invalid Stillwind directive or definition
+    /// (`invalid-css-directive`).
     #[error("{reason}")]
     InvalidCssDirective {
         /// Why loading skipped the statement.
         reason: LeanStr,
     },
+    /// A definition is inside a conditional at-rule, and loading applies it without the
+    /// condition (`ignored-definition-condition`).
+    #[error("{reason}")]
+    IgnoredDefinitionCondition {
+        /// Why loading ignored the condition.
+        reason: LeanStr,
+    },
     /// A declaration has an `--if()` function that cannot be lowered, so the
-    /// declaration is left out (`invalid-runtime-conditional`).
+    /// declaration is left out (`invalid-runtime-condition`).
     #[error("`{property}` is left out because its `--if()` cannot be lowered: {detail}")]
-    InvalidRuntimeConditional {
+    InvalidRuntimeCondition {
         /// Property name of the declaration.
         property: LeanStr,
         /// Why the function cannot be lowered.
@@ -888,21 +895,22 @@ impl LintDiagnostic {
             Self::InvalidMarkerUse { .. } => LintKind::InvalidMarkerUse,
             Self::UnknownUtility { .. } => LintKind::UnknownUtility,
             Self::InvalidUtility { .. } => LintKind::InvalidUtility,
-            Self::InvalidPropertyValue { .. }
+            Self::IncompatiblePropertyValue { .. }
             | Self::VariableTypeMismatch { .. }
-            | Self::OpacityModifierOutOfRange { .. } => LintKind::InvalidPropertyValue,
+            | Self::OpacityModifierOutOfRange { .. } => LintKind::IncompatiblePropertyValue,
             Self::RedundantVariant { .. } => LintKind::RedundantVariant,
             Self::UnsatisfiableVariants { .. } => LintKind::UnsatisfiableVariants,
             Self::ClampedValue { .. } => LintKind::ClampedValue,
             Self::UntypedVariable { .. } => LintKind::PreferTypedVariables,
-            Self::ImplicitNestingSelector { .. } => LintKind::ImplicitNestingSelector,
+            Self::ImplicitNestingSelector { .. } => LintKind::PreferExplicitNestingSelector,
             Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
             Self::InvalidCssImport { .. } => LintKind::InvalidCssImport,
-            Self::InvalidRuntimeConditional { .. } => LintKind::InvalidRuntimeConditional,
+            Self::InvalidRuntimeCondition { .. } => LintKind::InvalidRuntimeCondition,
             Self::InvalidCssDirective { .. } => LintKind::InvalidCssDirective,
+            Self::IgnoredDefinitionCondition { .. } => LintKind::IgnoredDefinitionCondition,
             Self::BypassedUndefinition { .. } => LintKind::BypassedUndefinition,
-            Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,
+            Self::IncompatibleThemeValue { .. } => LintKind::IncompatibleThemeValue,
             Self::IgnoredTailwindFeature { .. } => LintKind::IgnoredTailwindFeature,
             Self::UnresolvedThemeReference { .. } | Self::EmptyThemeNamespace { .. } => {
                 LintKind::InvalidThemeReference

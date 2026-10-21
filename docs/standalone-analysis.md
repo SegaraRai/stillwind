@@ -267,9 +267,10 @@ changes the compiled CSS.
 
 The rules check `@apply` candidates and `@variant` sequences inside style rules:
 `unknown-utility`, `unknown-variant`, `invalid-utility`, `invalid-variant`,
-`invalid-marker-use`, `invalid-property-value`, `clamped-value`, `redundant-variant`,
-`unsatisfiable-variants`, `prefer-typed-variables`, `prefer-canonical-utilities`,
-`prefer-sorted-utilities`, `document-scoped-selector`, and `repeated-nesting-selector`.
+`invalid-marker-use`, `incompatible-property-value`, `clamped-value`,
+`redundant-variant`, `unsatisfiable-variants`, `prefer-typed-variables`,
+`prefer-canonical-utilities`, `prefer-sorted-utilities`, `document-scoped-selector`, and
+`repeated-nesting-selector`.
 Each finding covers the candidate or the part of it that causes the finding, and fixes
 edit the stylesheet. The selector of the enclosing rule is the anchor of a candidate,
 as [Variant targets](macro-contract.md#variant-targets) describes. `duplicate-utility`
@@ -280,7 +281,7 @@ nested style rule starts a new stack, because it selects another element.
 
 Other rules check only stylesheets. They check definitions and theme references:
 
-- `implicit-nesting-selector` (style, default `warn`) reports a selector of a
+- `prefer-explicit-nesting-selector` (style, default `warn`) reports a selector of a
   `@custom-variant`, `@variant`, or `@stillwind-variant` definition that has a branch
   without `&` or a branch that starts with a combinator, such as `(:hover)`,
   `(> .item)`, or `{ :hover { @slot; } }`. Such a selector is relative to `&` in every
@@ -306,7 +307,7 @@ Other rules check only stylesheets. They check definitions and theme references:
   of the hidden definition, and a related location covers the later definition.
   Definitions are ordered after import expansion, so the later definition can be in
   another file.
-- `invalid-theme-value` (hazard, default `deny`) reports a `@theme` token value that
+- `incompatible-theme-value` (hazard, default `deny`) reports a `@theme` token value that
   matches no value type of its namespace, such as `--color-brand: 12px` or
   `--breakpoint-tab: blue`. The value types come from `@stillwind-theme-namespace`:
   `<color>` for `--color-*`, `<length>` for `--spacing`, `--breakpoint-*`, and
@@ -324,10 +325,13 @@ Other rules check only stylesheets. They check definitions and theme references:
   an import that closes a cycle, and an import that the host cannot resolve or read.
   The finding covers the statement.
 - `invalid-css-directive` (input, default `deny`) reports a Stillwind directive that
-  loading skipped, and a definition inside a conditional at-rule, which applies without
-  the condition. [Skipped statements](css-emission.md#skipped-statements) lists them.
+  loading skipped. [Skipped statements](css-emission.md#skipped-statements) lists them.
   The finding covers the directive.
-- `invalid-runtime-conditional` (input, default `deny`) reports a declaration whose
+- `ignored-definition-condition` (hazard, default `deny`) reports a definition inside a
+  conditional at-rule, such as `@utility` inside `@media`. Definitions apply at compile
+  time, so loading keeps the definition and ignores the condition. Put the condition
+  around `@stillwind-slot utilities;` instead. The finding covers the definition.
+- `invalid-runtime-condition` (input, default `deny`) reports a declaration whose
   `--if()` cannot be lowered with the selected `useCssIf` mode. The stylesheet output
   leaves the declaration out. The finding covers the declaration.
 - `invalid-theme-reference` (input, default `deny`) reports a `theme()` or `--theme()`
@@ -623,12 +627,13 @@ that is probably unintended, `restriction` reports a project-specific prohibitio
 reports a preferred spelling, and `suppression` checks `swlint-*` directives.
 
 `recommended` enables every `input`, `contract`, and `hazard` rule, invalid suppression
-directives, canonical suggestions, and `redundant-variant`. `strict` reports all
+directives, canonical suggestions, `redundant-variant`, and
+`prefer-explicit-nesting-selector`. `strict` reports all
 recommended checks as errors and also checks unused lint suppressions. `stylistic`
 enables `prefer-direct-styling`, `prefer-logical-properties`,
-`prefer-typed-relationships`, `prefer-sorted-utilities`, and `prefer-typed-variables` as
-warnings. The stylistic preset adds no recommended checks. Project-specific restrictions
-remain off in these presets.
+`prefer-typed-relationships`, `prefer-sorted-utilities`, `prefer-typed-variables`, and
+`prefer-variant-directive` as warnings. The stylistic preset adds no recommended checks.
+Project-specific restrictions remain off in these presets.
 
 A severity-only override preserves inherited rule options. An option object changes
 only supplied fields; undefined fields preserve previous values. Arrays replace the

@@ -124,8 +124,8 @@ pub struct LintOverrides {
     pub unknown_variant: Option<LintSeverity>,
     /// Reporting level for `missing-document-target`.
     pub missing_document_target: Option<LintSeverity>,
-    /// Reporting level for `invalid-property-value`.
-    pub invalid_property_value: Option<LintSeverity>,
+    /// Reporting level for `incompatible-property-value`.
+    pub incompatible_property_value: Option<LintSeverity>,
     /// Reporting level for `redundant-variant`.
     pub redundant_variant: Option<LintSeverity>,
     /// Reporting level for `unsatisfiable-variants`.
@@ -140,24 +140,27 @@ pub struct LintOverrides {
     pub invalid_css_import: Option<LintSeverity>,
     /// Reporting level for `invalid-css-directive`.
     pub invalid_css_directive: Option<LintSeverity>,
-    /// Reporting level for `invalid-runtime-conditional`.
-    pub invalid_runtime_conditional: Option<LintSeverity>,
+    /// Reporting level for `invalid-runtime-condition`.
+    pub invalid_runtime_condition: Option<LintSeverity>,
     /// Reporting level for `duplicate-definition`.
     pub duplicate_definition: Option<LintSeverity>,
+    /// Reporting level for `ignored-definition-condition`.
+    pub ignored_definition_condition: Option<LintSeverity>,
     /// Reporting level for `bypassed-undefinition`.
     pub bypassed_undefinition: Option<LintSeverity>,
-    /// Reporting level for `invalid-theme-value`.
-    pub invalid_theme_value: Option<LintSeverity>,
+    /// Reporting level for `incompatible-theme-value`.
+    pub incompatible_theme_value: Option<LintSeverity>,
     /// Reporting level for `ignored-tailwind-feature`.
     pub ignored_tailwind_feature: Option<LintSeverity>,
-    /// Reporting level for `implicit-nesting-selector`.
-    pub implicit_nesting_selector: Option<LintSeverity>,
+    /// Reporting level for `prefer-explicit-nesting-selector`.
+    pub prefer_explicit_nesting_selector: Option<LintSeverity>,
     /// Field-wise `prefer-variant-directive` policy overrides.
     pub prefer_variant_directive: Option<VariantDirectiveOverride>,
 }
 
 impl LintOverrides {
-    /// Resolves project fields against the supplied defaults without changing either input.
+    /// Resolves project fields against the supplied defaults without changing either
+    /// input.
     pub fn resolve(&self, defaults: &LintSettings) -> LintSettings {
         let mut settings = defaults.clone();
         self.resolve_reporting_levels(&mut settings);
@@ -323,7 +326,10 @@ impl LintOverrides {
                 LintKind::MissingDocumentTarget,
                 self.missing_document_target,
             ),
-            (LintKind::InvalidPropertyValue, self.invalid_property_value),
+            (
+                LintKind::IncompatiblePropertyValue,
+                self.incompatible_property_value,
+            ),
             (LintKind::RedundantVariant, self.redundant_variant),
             (LintKind::UnsatisfiableVariants, self.unsatisfiable_variants),
             (LintKind::ClampedValue, self.clamped_value),
@@ -365,19 +371,26 @@ impl LintOverrides {
             (LintKind::InvalidCssImport, self.invalid_css_import),
             (LintKind::InvalidCssDirective, self.invalid_css_directive),
             (
-                LintKind::InvalidRuntimeConditional,
-                self.invalid_runtime_conditional,
+                LintKind::InvalidRuntimeCondition,
+                self.invalid_runtime_condition,
             ),
             (LintKind::DuplicateDefinition, self.duplicate_definition),
             (LintKind::BypassedUndefinition, self.bypassed_undefinition),
-            (LintKind::InvalidThemeValue, self.invalid_theme_value),
+            (
+                LintKind::IgnoredDefinitionCondition,
+                self.ignored_definition_condition,
+            ),
+            (
+                LintKind::IncompatibleThemeValue,
+                self.incompatible_theme_value,
+            ),
             (
                 LintKind::IgnoredTailwindFeature,
                 self.ignored_tailwind_feature,
             ),
             (
-                LintKind::ImplicitNestingSelector,
-                self.implicit_nesting_selector,
+                LintKind::PreferExplicitNestingSelector,
+                self.prefer_explicit_nesting_selector,
             ),
             (
                 LintKind::InvalidRuleGroupInput,

@@ -161,9 +161,9 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
-  "invalid-runtime-conditional": {
+  "invalid-runtime-condition": {
     category: "input",
-    nativeName: "invalidRuntimeConditional",
+    nativeName: "invalidRuntimeCondition",
     defaults: null,
     options: null,
   },
@@ -266,9 +266,9 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
-  "invalid-property-value": {
+  "incompatible-property-value": {
     category: "hazard",
-    nativeName: "invalidPropertyValue",
+    nativeName: "incompatiblePropertyValue",
     defaults: null,
     options: null,
   },
@@ -296,9 +296,15 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
-  "invalid-theme-value": {
+  "ignored-definition-condition": {
     category: "hazard",
-    nativeName: "invalidThemeValue",
+    nativeName: "ignoredDefinitionCondition",
+    defaults: null,
+    options: null,
+  },
+  "incompatible-theme-value": {
+    category: "hazard",
+    nativeName: "incompatibleThemeValue",
     defaults: null,
     options: null,
   },
@@ -422,9 +428,9 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
-  "implicit-nesting-selector": {
+  "prefer-explicit-nesting-selector": {
     category: "style",
-    nativeName: "implicitNestingSelector",
+    nativeName: "preferExplicitNestingSelector",
     defaults: null,
     options: null,
   },

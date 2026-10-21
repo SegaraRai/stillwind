@@ -315,12 +315,12 @@ pub(super) fn variant_list_lints(
 /// Returns the enabled findings for the resolved candidate `raw`, whose last `written`
 /// bytes the author wrote at `span`.
 ///
-/// `invalid-property-value` reports a value that its property rejects.
+/// `incompatible-property-value` reports a value that its property rejects.
 /// `unsatisfiable-variants` reports variants whose combined condition never holds, at
 /// the range from the first to the last contradicting variant. `clamped-value` reports
-/// the first literal value that browsers clamp, and `invalid-property-value` reports a
-/// negative filter amount, at the value of the utility. `resolved` holds every rule of
-/// the candidate.
+/// the first literal value that browsers clamp, and `incompatible-property-value`
+/// reports a negative filter amount, at the value of the utility. `resolved` holds
+/// every rule of the candidate.
 pub(super) fn resolved_candidate_lints(
     raw: &str,
     written: usize,
@@ -330,7 +330,7 @@ pub(super) fn resolved_candidate_lints(
     span: Span,
 ) -> Vec<LintFinding> {
     let mut findings = Vec::new();
-    if lint_settings.enabled_for_detection(LintKind::InvalidPropertyValue)
+    if lint_settings.enabled_for_detection(LintKind::IncompatiblePropertyValue)
         && let Some(value) = resolved
             .first()
             .and_then(|first| first.diagnostic_data.invalid_value.as_ref())
@@ -352,7 +352,7 @@ pub(super) fn resolved_candidate_lints(
             written_span(raw.len(), written, &found.range, span),
         ));
     }
-    if [LintKind::ClampedValue, LintKind::InvalidPropertyValue]
+    if [LintKind::ClampedValue, LintKind::IncompatiblePropertyValue]
         .into_iter()
         .any(|kind| lint_settings.enabled_for_detection(kind))
     {

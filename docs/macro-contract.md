@@ -36,14 +36,14 @@ severity and `swlint-*` suppression change reporting without changing output.
 
 The compiler classifies each problem by what it can still determine:
 
-| Problem                                                                                                                                                              | Result                     |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| The source cannot be read: parse, source-map, or projection failures                                                                                                 | Compilation error          |
-| The runtime form cannot be chosen: missing or invalid checker facts, a macro use outside a supported input position, or inconsistent framework selection             | Compilation error          |
-| The runtime form is known and its meaning is empty or false: unknown or invalid utilities and variants, invalid entries and options                                  | Omission and an input lint |
-| Output is kept but probably unintended or violates project rules: overlaps, constraints, canonical spelling, `invalid-property-value`, or `document-scoped-selector` | Policy lint only           |
-| A constraint outside the one-to-one lowering fails: composition cycles, CSS ordering, generated-name collisions, or missing required slots                           | Compilation error          |
-| The environment or configuration is invalid                                                                                                                          | Compilation error          |
+| Problem                                                                                                                                                                   | Result                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| The source cannot be read: parse, source-map, or projection failures                                                                                                      | Compilation error          |
+| The runtime form cannot be chosen: missing or invalid checker facts, a macro use outside a supported input position, or inconsistent framework selection                  | Compilation error          |
+| The runtime form is known and its meaning is empty or false: unknown or invalid utilities and variants, invalid entries and options                                       | Omission and an input lint |
+| Output is kept but probably unintended or violates project rules: overlaps, constraints, canonical spelling, `incompatible-property-value`, or `document-scoped-selector` | Policy lint only           |
+| A constraint outside the one-to-one lowering fails: composition cycles, CSS ordering, generated-name collisions, or missing required slots                                | Compilation error          |
+| The environment or configuration is invalid                                                                                                                               | Compilation error          |
 
 CSS ordering of composition bases is an explicit exception to one-to-one lowering,
 because a derived call must follow its bases in the stylesheet.
@@ -78,22 +78,23 @@ Other input lints use `invalid-*` rules. Input lints other than `unknown-utility
 The same contract applies to authored stylesheets. A declaration whose `--theme()` call
 names an inactive token without a fallback is omitted, and `invalid-theme-reference`
 reports the call. [Stylesheet lint](standalone-analysis.md#stylesheet-lint) also checks
-definitions: `implicit-nesting-selector` reports variant selectors without `&`,
+definitions: `prefer-explicit-nesting-selector` reports variant selectors without `&`,
 `duplicate-definition` reports definitions that later definitions hide,
-`invalid-theme-value` reports theme token values of the wrong type, and
+`incompatible-theme-value` reports theme token values of the wrong type, and
 `ignored-tailwind-feature` reports Tailwind's `@config` and import modifiers, which
 loading ignores. `invalid-css-import` and `invalid-css-directive` report the imports and
-directives that loading skips. These rules check only stylesheets.
+directives that loading skips, and `ignored-definition-condition` reports definitions
+whose condition loading ignores. These rules check only stylesheets.
 
 An arbitrary value without a type hint is emitted as written when the grammar of
 every matching utility definition rejects it, as in Tailwind: `w-[1/2]` emits
 `width: 1/2`, and `text-[12px_foo]` emits `color: 12px foo`. The hazard rule
-`invalid-property-value` reports these values and defaults to `deny`. Its severity
+`incompatible-property-value` reports these values and defaults to `deny`. Its severity
 does not change the output. A value with a type hint that the utility rejects, such as
 `p-[color:red]`, and a value that is not well formed, such as `p-[calc(1rem+)]`, are
 invalid utilities and are omitted.
 
-`invalid-property-value` also reports these emitted values:
+`incompatible-property-value` also reports these emitted values:
 
 - A `var()` value without a type hint whose variable has a known type that the
   receiving property rejects. The type is known for an active theme token of a
@@ -855,7 +856,7 @@ the declarations that a utility definition writes, so a candidate whose `@utilit
 has such a condition is omitted too.
 
 In authored CSS, a declaration whose `--if()` cannot be lowered is left out of the
-output. `invalid-runtime-conditional` reports it in the stylesheet, and it also reports
+output. `invalid-runtime-condition` reports it in the stylesheet, and it also reports
 a generated declaration that the compiler leaves out for this reason, such as one that
 `@apply` adds to a utility.
 
@@ -904,7 +905,7 @@ branch for `!--condition`) to resolve to a valid custom property token value. An
 branch (`initial`, `inherit`, `unset`, `revert`, `revert-layer`, `revert-rule`) require
 native mode. A literal occurrence in a utility omits that utility and reports
 `runtime-condition-requires-css-if`. In authored CSS, the declaration is left out and
-reported as `invalid-runtime-conditional`. Indirect values that become CSS-wide keywords
+reported as `invalid-runtime-condition`. Indirect values that become CSS-wide keywords
 have the same limitation. Fallback substitution is not a general replacement for native
 `if()`'s branch evaluation semantics.
 
@@ -990,13 +991,13 @@ name:
 
 The marker means that the variant can set the anchor, and it keeps the selector as
 written. With it, the variant stays document-wide where an anchor exists and sets the
-anchor where none exists. Without it, a selector without `&` is relative to the anchor in
-every context, as a nested selector without `&` is relative to its parent in CSS
+anchor where none exists. Without it, a selector without `&` is relative to the anchor
+in every context, as a nested selector without `&` is relative to its parent in CSS
 Nesting: `@custom-variant shell (:host)` means `& :host` and styles `:host` elements
 inside the anchor. Such a variant is invalid where no anchor exists. Only variants with
 the marker and arbitrary selector variants such as `[:hover]:` set the anchor.
-`implicit-nesting-selector` reports a definition selector without `&`, and its fix
-writes the `&` without changing the meaning.
+`prefer-explicit-nesting-selector` reports a definition selector without `&`, and its
+fix writes the `&` without changing the meaning.
 
 A document-level style omits a candidate that does not select an element, such as
 `size-full` or `hover:flex`, and `missing-document-target` reports it. The finding
@@ -1086,7 +1087,7 @@ argument or follows another operator is a sign and stays unchanged.
 
 An arbitrary opacity modifier is a percentage, so `bg-red-500/[50%]` is the same as
 `bg-red-500/50`. A percentage outside `0%` to `100%` is emitted unchanged and reported
-by `invalid-property-value`, because `color-mix()` rejects it.
+by `incompatible-property-value`, because `color-mix()` rejects it.
 
 An arbitrary gradient value, such as `bg-linear-[to_right]` or `bg-radial-(--x)`, sets
 `--tw-gradient-position`. The color stop utilities insert that position before their

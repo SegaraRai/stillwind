@@ -151,11 +151,11 @@ host marks for linting:
 - `invalid-css-directive` reports a Stillwind directive that the loader skips: a slot
   with an unknown name or in a context that cannot contain its output, a directive in
   the wrong block or statement form, an invalid `@stillwind-dynamic` or
-  `@stillwind-css-template`, and an invalid `@stillwind-registry` header or statement. A
-  definition inside a conditional at-rule, such as `@media`, applies without the
-  condition and is reported too.
+  `@stillwind-css-template`, and an invalid `@stillwind-registry` header or statement.
+- `ignored-definition-condition` reports a definition inside a conditional at-rule,
+  such as `@media`. Loading keeps the definition and ignores the condition.
 
-Both rules default to `deny`. CSS that the loader cannot divide into statements, such as
+These rules default to `deny`. CSS that the loader cannot divide into statements, such as
 an unterminated block, still fails the load. The root stylesheet must be readable.
 
 The bundler integrations run without stylesheet lint. They report every skipped

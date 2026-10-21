@@ -259,7 +259,7 @@ test("SFC output fails on residual macros or mismatched attribute context", asyn
   });
   const noVirtualModule = compile(missingTarget);
   expect(noVirtualModule.code).toBe(null);
-  expect(noVirtualModule.diagnostics[0]?.code).toBe("SW33010");
+  expect(noVirtualModule.diagnostics[0]?.code).toBe("SW34002");
   expect(noVirtualModule.diagnostics[0]!.message).toMatch(/host-allocated virtual module/);
 });
 

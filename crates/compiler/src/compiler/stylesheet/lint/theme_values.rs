@@ -1,4 +1,4 @@
-//! `invalid-theme-value`: `@theme` token values that the type of their namespace
+//! `incompatible-theme-value`: `@theme` token values that the type of their namespace
 //! rejects.
 //!
 //! Resolution uses a token without checking its value, so `--color-brand: 12px` makes
@@ -16,7 +16,7 @@ use super::analysis::Checker;
 /// Reports the token values of the `@theme` blocks among `nodes` and inside wrappers
 /// such as `@layer`. Style rules and other definitions are not searched.
 pub(super) fn check_theme_values(checker: &mut Checker<'_>, nodes: &[CssNode]) {
-    if !checker.enabled(LintKind::InvalidThemeValue) {
+    if !checker.enabled(LintKind::IncompatibleThemeValue) {
         return;
     }
     for node in nodes {
@@ -48,7 +48,7 @@ fn check_token(checker: &mut Checker<'_>, node: &CssNode) {
         return;
     };
     let finding = LintFinding::new(
-        LintDiagnostic::InvalidThemeValue {
+        LintDiagnostic::IncompatibleThemeValue {
             token: token.to_lean_str(),
             value: written.to_lean_str(),
             namespace: mismatch.namespace.as_str().into(),
@@ -73,9 +73,9 @@ mod tests {
                  @layer theme { @theme inline { --spacing: red; } }"
             ),
             [
-                finding(LintKind::InvalidThemeValue, "12px"),
-                finding(LintKind::InvalidThemeValue, "blue"),
-                finding(LintKind::InvalidThemeValue, "red"),
+                finding(LintKind::IncompatibleThemeValue, "12px"),
+                finding(LintKind::IncompatibleThemeValue, "blue"),
+                finding(LintKind::IncompatibleThemeValue, "red"),
             ]
         );
         assert_eq!(

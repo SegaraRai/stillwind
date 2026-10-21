@@ -384,7 +384,7 @@ mod tests {
         assert!(output.code.is_none());
         assert_eq!(output.css, "");
         assert_eq!(output.diagnostics.len(), 1);
-        assert_eq!(output.diagnostics[0].code, "SW33004");
+        assert_eq!(output.diagnostics[0].code, "SW90008");
         assert!(output.diagnostics[0].message.contains("expected FileId("));
 
         let mut result = CompileResult::default();

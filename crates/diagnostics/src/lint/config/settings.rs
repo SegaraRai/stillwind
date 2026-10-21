@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 69);
+        assert_eq!(names.len(), 70);
         for name in [
             "custom",
             "",
@@ -156,19 +156,20 @@ mod tests {
                 "invalid-variant": "deny",
                 "unknown-variant": "warn",
                 "missing-document-target": "deny",
-                "invalid-property-value": "deny",
+                "incompatible-property-value": "deny",
                 "redundant-variant": "warn",
                 "unsatisfiable-variants": "warn",
                 "clamped-value": "warn",
                 "invalid-theme-reference": "deny",
                 "invalid-css-import": "deny",
                 "invalid-css-directive": "deny",
-                "invalid-runtime-conditional": "deny",
+                "invalid-runtime-condition": "deny",
                 "duplicate-definition": "warn",
                 "bypassed-undefinition": "warn",
-                "invalid-theme-value": "deny",
+                "ignored-definition-condition": "deny",
+                "incompatible-theme-value": "deny",
                 "ignored-tailwind-feature": "warn",
-                "implicit-nesting-selector": "warn",
+                "prefer-explicit-nesting-selector": "warn",
                 "prefer-typed-variables": "off",
                 "no-arbitrary-colors": "off",
                 "no-arbitrary-spacing": "off",

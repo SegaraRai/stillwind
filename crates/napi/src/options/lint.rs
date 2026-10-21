@@ -65,8 +65,8 @@ pub struct NativeLintOptions {
     pub invalid_css_import: Option<String>,
     /// Settings for `invalid-css-directive`.
     pub invalid_css_directive: Option<String>,
-    /// Settings for `invalid-runtime-conditional`.
-    pub invalid_runtime_conditional: Option<String>,
+    /// Settings for `invalid-runtime-condition`.
+    pub invalid_runtime_condition: Option<String>,
     /// Settings for `mutating-macro-argument`.
     pub mutating_macro_argument: Option<String>,
     /// Settings for `suspending-macro-argument`.
@@ -99,8 +99,8 @@ pub struct NativeLintOptions {
     pub split_view_transition_class: Option<String>,
     /// Settings for `ineffective-anchor-scope`.
     pub ineffective_anchor_scope: Option<String>,
-    /// Settings for `invalid-property-value`.
-    pub invalid_property_value: Option<String>,
+    /// Settings for `incompatible-property-value`.
+    pub incompatible_property_value: Option<String>,
     /// Settings for `unsatisfiable-variants`.
     pub unsatisfiable_variants: Option<String>,
     /// Settings for `clamped-value`.
@@ -109,8 +109,10 @@ pub struct NativeLintOptions {
     pub duplicate_definition: Option<String>,
     /// Settings for `bypassed-undefinition`.
     pub bypassed_undefinition: Option<String>,
-    /// Settings for `invalid-theme-value`.
-    pub invalid_theme_value: Option<String>,
+    /// Settings for `ignored-definition-condition`.
+    pub ignored_definition_condition: Option<String>,
+    /// Settings for `incompatible-theme-value`.
+    pub incompatible_theme_value: Option<String>,
     /// Settings for `ignored-tailwind-feature`.
     pub ignored_tailwind_feature: Option<String>,
     /// Settings for `no-arbitrary-colors`.
@@ -145,8 +147,8 @@ pub struct NativeLintOptions {
     pub redundant_variant: Option<String>,
     /// Settings for `prefer-typed-variables`.
     pub prefer_typed_variables: Option<String>,
-    /// Settings for `implicit-nesting-selector`.
-    pub implicit_nesting_selector: Option<String>,
+    /// Settings for `prefer-explicit-nesting-selector`.
+    pub prefer_explicit_nesting_selector: Option<String>,
     /// Settings for `prefer-variant-directive`.
     pub prefer_variant_directive: Option<NativeVariantDirectiveOptions>,
     /// Settings for `invalid-lint-suppression`.
@@ -261,8 +263,8 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .invalid_css_directive
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            invalid_runtime_conditional: input
-                .invalid_runtime_conditional
+            invalid_runtime_condition: input
+                .invalid_runtime_condition
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             mutating_macro_argument: input
@@ -329,8 +331,8 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .ineffective_anchor_scope
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            invalid_property_value: input
-                .invalid_property_value
+            incompatible_property_value: input
+                .incompatible_property_value
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             unsatisfiable_variants: input
@@ -349,8 +351,12 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .bypassed_undefinition
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            invalid_theme_value: input
-                .invalid_theme_value
+            ignored_definition_condition: input
+                .ignored_definition_condition
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            incompatible_theme_value: input
+                .incompatible_theme_value
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             ignored_tailwind_feature: input
@@ -421,8 +427,8 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .prefer_typed_variables
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            implicit_nesting_selector: input
-                .implicit_nesting_selector
+            prefer_explicit_nesting_selector: input
+                .prefer_explicit_nesting_selector
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             prefer_variant_directive: input

@@ -115,20 +115,20 @@ pub(crate) fn lower(
     Ok(Lowered { css, skipped })
 }
 
-/// Reports each declaration in `skipped` as `invalid-runtime-conditional` at `span`
-/// when `lint_settings` enables the rule.
+/// Reports each declaration in `skipped` as `invalid-runtime-condition` at `span` when
+/// `lint_settings` enables the rule.
 pub(super) fn report_skipped_conditionals(
     skipped: Vec<SkippedConditional>,
     span: Span,
     lint_settings: &LintSettings,
     lint_findings: &mut Vec<LintFinding>,
 ) {
-    if !lint_settings.enabled_for_detection(LintKind::InvalidRuntimeConditional) {
+    if !lint_settings.enabled_for_detection(LintKind::InvalidRuntimeCondition) {
         return;
     }
     lint_findings.extend(skipped.into_iter().map(|skipped| {
         LintFinding::new(
-            LintDiagnostic::InvalidRuntimeConditional {
+            LintDiagnostic::InvalidRuntimeCondition {
                 property: skipped.property,
                 detail: skipped.detail.into(),
             },

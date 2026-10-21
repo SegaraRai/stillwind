@@ -70,7 +70,7 @@ mod tests {
             namespace: Some("text".into()),
             alternatives: vec!["text-(length:--text-sm)".into()],
         };
-        assert_eq!(theme.code(), "invalid-property-value");
+        assert_eq!(theme.code(), "incompatible-property-value");
         assert_eq!(
             theme.to_lean_string(),
             "`--text-sm` is a `font-size` value of the `--text-*` theme namespace, but `text-(--text-sm)` sets `color`, which does not accept it; add a type hint, such as `text-(length:--text-sm)`"

@@ -272,7 +272,8 @@ pub(crate) const fn unresolved_lint_kind(failure: &UtilityFailure) -> LintKind {
     }
 }
 
-/// Returns the `invalid-property-value` finding for a candidate that emits `value`.
+/// Returns the `incompatible-property-value` finding for a candidate that emits
+/// `value`.
 ///
 /// `candidate`, `written`, and `span` have the meanings that
 /// [`unresolved_utility_finding`] describes. When the property was chosen as a fallback
@@ -296,7 +297,7 @@ pub(crate) fn invalid_property_value_finding(
     let diagnostic = match &value.reason {
         InvalidValueReason::Grammar {
             fallback_type_hints,
-        } => LintDiagnostic::InvalidPropertyValue {
+        } => LintDiagnostic::IncompatiblePropertyValue {
             alternatives: hinted(fallback_type_hints),
             utility,
             property: value.property.clone(),
