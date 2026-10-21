@@ -17,7 +17,7 @@ use stillwind_diagnostics::{
 use stillwind_source::{ReplaceText, Span, Spanned};
 use stillwind_syntax::{Utility, Variant, parse_candidate};
 
-use super::conditionals::{UnsupportedCondition, check_candidate};
+use super::conditionals::{UnsupportedCondition, check_candidate, check_declarations};
 use super::lexer::lex_utilities;
 use super::style_variants::StyleVariantPlan;
 use super::utilities::{
@@ -72,7 +72,8 @@ impl LiteralContribution {
     /// apply to the document is reported without changing its output, because the host
     /// decides that policy's severity. A candidate with a malformed capture of a
     /// CSS-registered runtime condition or a malformed `--if()` function is omitted as
-    /// an invalid utility. With `use_css_if` false, a runtime condition that the
+    /// an invalid utility. That includes an `--if()` function in the declarations of
+    /// the utility definition. With `use_css_if` false, a runtime condition that the
     /// fallback strategy cannot represent omits its candidate and reports
     /// `runtime-condition-requires-css-if`. A malformed utility requirement in the
     /// design system appends a fatal diagnostic, and callers must discard the
@@ -103,36 +104,33 @@ impl LiteralContribution {
             } else {
                 ToLeanStr::to_lean_str(&format_args!("{}{}", plan.prefix, utility.value.raw))
             };
-            if let Some(diagnostic) =
-                runtime_condition_lint(&raw, &utility.value.raw, theme, use_css_if)
-            {
-                if lint_settings.enabled_for_detection(diagnostic.kind()) {
-                    lint_findings.push(LintFinding::new(diagnostic, utility.span));
-                }
+            if omit(
+                runtime_condition_lint(&raw, &utility.value.raw, theme, use_css_if),
+                utility.span,
+                lint_settings,
+                lint_findings,
+            ) {
                 continue;
             }
-            if lint_settings.enabled_for_detection(LintKind::PreferTypedRelationships)
-                && is_tailwind_relationship_candidate(&raw, theme)
-            {
-                lint_findings.push(LintFinding::new(
-                    LintDiagnostic::TailwindRelationshipUtility {
-                        utility: (raw.clone()),
-                    },
-                    utility.span,
-                ));
-            }
             contribution.markers.extend(added_marker(&raw, theme, plan));
-            if lint_settings.enabled_for_detection(LintKind::InvalidMarkerUse) {
-                lint_findings.extend(marker_use_finding(
-                    &raw,
-                    utility.value.raw.len(),
-                    utility.span,
-                    theme,
-                    plan.has_refs.then_some(MarkerUseErrorKind::Conditional),
-                ));
-            }
+            lint_findings.extend(candidate_lints(
+                &raw,
+                utility.value.raw.len(),
+                utility.span,
+                theme,
+                plan,
+                lint_settings,
+            ));
             match resolve_utility_targets(&raw, theme, VariantContext::Element) {
                 Ok(Ok(mut resolved)) => {
+                    if omit(
+                        definition_condition_lint(&utility.value.raw, &resolved, use_css_if),
+                        utility.span,
+                        lint_settings,
+                        lint_findings,
+                    ) {
+                        continue;
+                    }
                     let canonical_candidate =
                         format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
                     contribution.canonical.push_str(&canonical_candidate);
@@ -185,6 +183,41 @@ impl LiteralContribution {
         }
         contribution
     }
+}
+
+/// Returns the findings of `prefer-typed-relationships` and `invalid-marker-use` for
+/// the candidate `raw`. `raw`, `written_len`, and `span` have the meanings that
+/// [`unresolved_utility_finding`] describes. Rules that `lint_settings` disables are
+/// not checked.
+fn candidate_lints(
+    raw: &LeanStr,
+    written_len: usize,
+    span: Span,
+    theme: &ThemeIndex,
+    plan: &StyleVariantPlan,
+    lint_settings: &LintSettings,
+) -> Vec<LintFinding> {
+    let mut findings = Vec::new();
+    if lint_settings.enabled_for_detection(LintKind::PreferTypedRelationships)
+        && is_tailwind_relationship_candidate(raw, theme)
+    {
+        findings.push(LintFinding::new(
+            LintDiagnostic::TailwindRelationshipUtility {
+                utility: raw.clone(),
+            },
+            span,
+        ));
+    }
+    if lint_settings.enabled_for_detection(LintKind::InvalidMarkerUse) {
+        findings.extend(marker_use_finding(
+            raw,
+            written_len,
+            span,
+            theme,
+            plan.has_refs.then_some(MarkerUseErrorKind::Conditional),
+        ));
+    }
+    findings
 }
 
 /// Returns the marker class that the candidate `raw` adds to the element, or `None`
@@ -363,7 +396,7 @@ fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {
 /// fallback strategy cannot represent selects `runtime-condition-requires-css-if`.
 /// Returns `None` when the candidate can be lowered or does not parse. A conditional
 /// variant with a malformed capture does not resolve, so utility resolution reports it.
-fn runtime_condition_lint(
+pub(super) fn runtime_condition_lint(
     raw: &str,
     utility: &str,
     theme: &ThemeIndex,
@@ -385,21 +418,72 @@ fn runtime_condition_lint(
             _ => None,
         })
         .collect::<Vec<_>>();
-    match check_candidate(
+    check_candidate(
         value.as_deref(),
         conditions.iter().map(LeanStr::as_str),
         use_css_if,
-    ) {
-        Ok(()) => None,
-        Err(UnsupportedCondition::Syntax) => Some(LintDiagnostic::InvalidUtility {
+    )
+    .err()
+    .map(|failure| condition_lint(utility, failure))
+}
+
+/// Returns the lint for a runtime condition that the definitions of the candidate
+/// `utility` write and that omits the candidate.
+///
+/// `resolved` contains the rules of the candidate, including their nested conditional
+/// rules. Returns `None` when [`super::conditionals::lower`] can lower every
+/// declaration of those rules.
+pub(super) fn definition_condition_lint(
+    utility: &str,
+    resolved: &[CompiledUtility],
+    use_css_if: bool,
+) -> Option<LintDiagnostic> {
+    resolved
+        .iter()
+        .flat_map(|rule| {
+            std::iter::once(&rule.declaration)
+                .chain(rule.nested.iter().map(|nested| &nested.declaration))
+        })
+        .find_map(|declaration| check_declarations(declaration, use_css_if).err())
+        .map(|failure| condition_lint(utility, failure))
+}
+
+/// Returns whether `diagnostic` omits the candidate at `span`, and reports it when
+/// `lint_settings` enables its rule.
+pub(super) fn omit(
+    diagnostic: Option<LintDiagnostic>,
+    span: Span,
+    lint_settings: &LintSettings,
+    lint_findings: &mut Vec<LintFinding>,
+) -> bool {
+    let Some(diagnostic) = diagnostic else {
+        return false;
+    };
+    if lint_settings.enabled_for_detection(diagnostic.kind()) {
+        lint_findings.push(LintFinding::new(diagnostic, span));
+    }
+    true
+}
+
+/// Returns the lint that reports `failure` for the candidate `utility`.
+///
+/// A malformed function or too many functions select `invalid-utility`. A condition
+/// that requires native lowering selects `runtime-condition-requires-css-if`.
+fn condition_lint(utility: &str, failure: UnsupportedCondition) -> LintDiagnostic {
+    match failure {
+        UnsupportedCondition::Syntax => LintDiagnostic::InvalidUtility {
             utility: utility.to_lean_str(),
             detail: "an `--if()` function requires a condition and two values".into(),
-        }),
-        Err(UnsupportedCondition::RequiresNative(detail)) => {
-            Some(LintDiagnostic::RuntimeConditionRequiresCssIf {
+        },
+        UnsupportedCondition::TooMany(detail) => LintDiagnostic::InvalidUtility {
+            utility: utility.to_lean_str(),
+            detail: detail.into(),
+        },
+        UnsupportedCondition::RequiresNative(detail) => {
+            LintDiagnostic::RuntimeConditionRequiresCssIf {
                 utility: utility.to_lean_str(),
                 detail: detail.to_lean_str(),
-            })
+            }
         }
     }
 }

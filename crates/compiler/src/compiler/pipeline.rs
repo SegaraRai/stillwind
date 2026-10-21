@@ -26,7 +26,7 @@ use stillwind_ir::{
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
-use super::conditionals::lower;
+use super::conditionals::{lower, report_skipped_conditionals};
 use super::css_call::{CssOutput, css_call_text};
 use super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::dynamic::dynamic_candidates;
@@ -473,7 +473,15 @@ impl Compiler {
         if result.diagnostics.is_empty() {
             for contribution in &mut utility_css {
                 match lower(&contribution.css, options.use_css_if, identifiers) {
-                    Ok(css) => contribution.css = (css).into(),
+                    Ok(lowered) => {
+                        contribution.css = lowered.css.into();
+                        report_skipped_conditionals(
+                            lowered.skipped,
+                            source.full_span(),
+                            &result.lint_settings,
+                            &mut result.lint_findings,
+                        );
+                    }
                     Err(kind) => result
                         .diagnostics
                         .push(CompileError::new(kind, source.full_span())),

@@ -18,7 +18,10 @@ use stillwind_source::Spanned;
 use stillwind_syntax::parse_candidate;
 
 use super::lexer::lex_utilities;
-use super::literal::{resolved_candidate_lints, variant_selector_lints};
+use super::literal::{
+    definition_condition_lint, omit, resolved_candidate_lints, runtime_condition_lint,
+    variant_selector_lints,
+};
 use super::output::CssContribution;
 use super::utilities::{
     emit_utility_rules, resolve_utility_targets, unresolved_lint_kind, unresolved_utility_finding,
@@ -30,9 +33,11 @@ use crate::identifiers::IdentifierContext;
 ///
 /// A candidate that does not resolve, or that does not select an element as
 /// [`VariantContext::Document`] describes, is omitted, and enabled lint rules report it
-/// in `lint_findings`. A malformed utility requirement in the design system appends a
-/// diagnostic to `diagnostics`; callers must discard the result if diagnostics are
-/// present. Runtime conditions in the returned CSS are not lowered yet.
+/// in `lint_findings`. A candidate whose runtime condition cannot be lowered with
+/// `use_css_if` is omitted in the same way. A malformed utility requirement in the
+/// design system appends a diagnostic to `diagnostics`; callers must discard the result
+/// if diagnostics are present. Runtime conditions in the returned CSS are not lowered
+/// yet.
 ///
 /// # Errors
 ///
@@ -41,6 +46,7 @@ pub(crate) fn emit_document_style(
     input: &Spanned<LeanStr>,
     theme: &ThemeIndex,
     lint_settings: &LintSettings,
+    use_css_if: bool,
     identifiers: &IdentifierContext,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
@@ -53,6 +59,7 @@ pub(crate) fn emit_document_style(
         None,
         theme,
         lint_settings,
+        use_css_if,
         identifiers,
         diagnostics,
         lint_findings,
@@ -82,11 +89,13 @@ pub(crate) struct DocumentInput<'a> {
 /// # Errors
 ///
 /// Returns the diagnostic of a runtime condition that cannot be rendered.
+#[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
 pub(crate) fn emit_document_rules(
     inputs: &[DocumentInput<'_>],
     selector: Option<&str>,
     theme: &ThemeIndex,
     lint_settings: &LintSettings,
+    use_css_if: bool,
     identifiers: &IdentifierContext,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
@@ -104,6 +113,17 @@ pub(crate) fn emit_document_rules(
             {
                 raw = format_args!("{target}{raw}").to_lean_string();
                 result = resolve_utility_targets(&raw, theme, VariantContext::Document);
+            }
+            if let Ok(Ok(resolved)) = &result
+                && omit(
+                    runtime_condition_lint(&raw, written, theme, use_css_if)
+                        .or_else(|| definition_condition_lint(written, resolved, use_css_if)),
+                    token.span,
+                    lint_settings,
+                    lint_findings,
+                )
+            {
+                continue;
             }
             match result {
                 Ok(Ok(mut resolved)) => {
@@ -225,6 +245,7 @@ mod tests {
             &Spanned::new(LeanStr::from(input), span),
             theme,
             &LintSettings::with_defaults(),
+            false,
             &identifiers(),
             &mut diagnostics,
             &mut findings,
@@ -391,6 +412,7 @@ mod tests {
             &Spanned::new(LeanStr::from("hover:flex"), Span::new(FileId(2), 0, 10)),
             theme,
             &LintSettings::with_defaults(),
+            false,
             &identifiers(),
             &mut diagnostics,
             &mut findings,

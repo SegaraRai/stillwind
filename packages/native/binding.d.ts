@@ -1298,6 +1298,8 @@ export interface NativeLintOptions {
   invalidCssImport?: string
   /** Settings for `invalid-css-directive`. */
   invalidCssDirective?: string
+  /** Settings for `invalid-runtime-conditional`. */
+  invalidRuntimeConditional?: string
   /** Settings for `mutating-macro-argument`. */
   mutatingMacroArgument?: string
   /** Settings for `suspending-macro-argument`. */

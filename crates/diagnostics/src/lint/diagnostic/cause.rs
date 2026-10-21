@@ -751,6 +751,15 @@ pub enum LintDiagnostic {
         /// Why loading skipped the statement.
         reason: LeanStr,
     },
+    /// A declaration has an `--if()` function that cannot be lowered, so the
+    /// declaration is left out (`invalid-runtime-conditional`).
+    #[error("`{property}` is left out because its `--if()` cannot be lowered: {detail}")]
+    InvalidRuntimeConditional {
+        /// Property name of the declaration.
+        property: LeanStr,
+        /// Why the function cannot be lowered.
+        detail: LeanStr,
+    },
     /// A `theme()` or `--theme()` call names a theme token that is not active and has
     /// no fallback (`invalid-theme-reference`).
     #[error("`{reference}` names no theme token and has no fallback{}", DidYouMean(.suggestion))]
@@ -890,6 +899,7 @@ impl LintDiagnostic {
             Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
             Self::InvalidCssImport { .. } => LintKind::InvalidCssImport,
+            Self::InvalidRuntimeConditional { .. } => LintKind::InvalidRuntimeConditional,
             Self::InvalidCssDirective { .. } => LintKind::InvalidCssDirective,
             Self::BypassedUndefinition { .. } => LintKind::BypassedUndefinition,
             Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,

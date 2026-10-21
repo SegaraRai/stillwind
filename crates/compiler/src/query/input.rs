@@ -176,6 +176,7 @@ impl DesignSystemQuery {
                 &input,
                 theme,
                 &LintSettings::default(),
+                self.context.options.use_css_if,
                 &candidate_identifiers(true),
                 &mut diagnostics,
                 &mut lint_findings,

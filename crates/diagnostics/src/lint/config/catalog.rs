@@ -286,6 +286,7 @@ define_lint_rules! {
         InvalidThemeReference => "invalid-theme-reference",
         InvalidCssImport => "invalid-css-import",
         InvalidCssDirective => "invalid-css-directive",
+        InvalidRuntimeConditional => "invalid-runtime-conditional",
     }
     Contract {
         MutatingMacroArgument => "mutating-macro-argument",
@@ -391,6 +392,7 @@ impl LintKind {
                     | Self::InvalidThemeReference
                     | Self::InvalidCssImport
                     | Self::InvalidCssDirective
+                    | Self::InvalidRuntimeConditional
                     | Self::DuplicateDefinition
                     | Self::BypassedUndefinition
                     | Self::InvalidThemeValue

@@ -65,6 +65,8 @@ pub struct NativeLintOptions {
     pub invalid_css_import: Option<String>,
     /// Settings for `invalid-css-directive`.
     pub invalid_css_directive: Option<String>,
+    /// Settings for `invalid-runtime-conditional`.
+    pub invalid_runtime_conditional: Option<String>,
     /// Settings for `mutating-macro-argument`.
     pub mutating_macro_argument: Option<String>,
     /// Settings for `suspending-macro-argument`.
@@ -257,6 +259,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_css_directive: input
                 .invalid_css_directive
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_runtime_conditional: input
+                .invalid_runtime_conditional
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             mutating_macro_argument: input

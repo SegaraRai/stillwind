@@ -468,3 +468,48 @@ fn runtime_if_authored_css_and_prefixes_use_the_same_strategy() {
         assert_eq!(css.contains("if(style(--enabled)"), native);
     }
 }
+
+/// Compiles `style(candidates)` against the base stylesheet extended by `definitions`.
+fn compile_with_definitions(candidates: &str, definitions: &str, native: bool) -> CompileResult {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        format!(
+            "import {{ style }} from 'stillwind/react'; export const x = style({candidates:?});"
+        ),
+    )
+    .unwrap();
+    let theme = css_source(FileId(2), format!("@import 'stillwind'; {definitions}")).unwrap();
+    Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions {
+            use_css_if: native,
+            ..CompilerOptions::default()
+        },
+    )
+}
+
+#[test]
+fn utility_definitions_with_conditions_that_cannot_be_lowered_omit_their_candidates() {
+    let definitions = "@utility tone { color: --if(--on, red); } \
+        @utility keep { color: --if(--on, inherit, red); }";
+    assert_invalid_capture(&compile_with_definitions("tone", definitions, true), "tone");
+    assert_requires_native(
+        &compile_with_definitions("keep", definitions, false),
+        "keep",
+    );
+    let native = compile_with_definitions("keep", definitions, true);
+    assert!(native.diagnostics.is_empty(), "{:?}", native.diagnostics);
+    assert!(
+        native.module_css.contains("if(style("),
+        "{}",
+        native.module_css
+    );
+}

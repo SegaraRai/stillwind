@@ -28,10 +28,18 @@ pub enum CandidateFailure {
     /// The candidate or one of its variants does not resolve. The field explains why
     /// and locates the failing part of the candidate.
     Unresolved(UtilityFailure),
-    /// The candidate resolves, but its preview CSS cannot be rendered. Conditional
-    /// lowering under the configured `useCssIf` mode, identifier generation, and rule
-    /// splitting can fail.
+    /// The candidate resolves, but its preview CSS cannot be rendered. Identifier
+    /// generation and rule splitting can fail.
     Rendering(CompileDiagnostic),
+    /// The candidate resolves, but a declaration of its preview CSS has an `--if()`
+    /// that the configured `useCssIf` mode cannot lower. The preview leaves the
+    /// declaration out.
+    Conditional {
+        /// Property name of the declaration.
+        property: LeanStr,
+        /// Why the function cannot be lowered.
+        detail: LeanStr,
+    },
 }
 
 /// Everything one candidate produces for an editor.
@@ -117,20 +125,24 @@ impl DesignSystemQuery {
 impl QueryContext {
     /// Lowers runtime conditionals in balanced declaration CSS using the configured
     /// mode and fresh display names, then restores authored URLs. `css` must already
-    /// use the intended subject and prefix spelling. Failed lowering returns `None`
-    /// without partial output; this operation does not validate arbitrary CSS or add
-    /// document support rules.
+    /// use the intended subject and prefix spelling. A declaration whose condition
+    /// cannot be lowered, or a failure to name a helper, returns `None` without partial
+    /// output. This operation does not validate arbitrary CSS or add document support
+    /// rules.
     pub(super) fn preview_declarations(&self, css: &str) -> Option<LeanStr> {
         lower_conditionals(css, self.options.use_css_if, &candidate_identifiers(true))
             .ok()
-            .map(|css| LeanStr::from(preview_resource_urls(css, &self.design_system)))
+            .filter(|lowered| lowered.skipped.is_empty())
+            .map(|lowered| LeanStr::from(preview_resource_urls(lowered.css, &self.design_system)))
     }
 
     /// Rewrites contributions in place with merge barriers shared by this `candidate`.
     /// When `preview` is true, runtime conditionals are also lowered using this query's
     /// configured mode. `identifiers` supplies names consistently across the
     /// contributions. Failed contributions are cleared and their errors returned.
-    /// Successful contributions remain even if another fails.
+    /// Successful contributions remain even if another fails. A declaration that
+    /// lowering leaves out is returned as a failure, and its contribution keeps the
+    /// other declarations.
     fn finalize_rules(
         &self,
         candidate: &str,
@@ -145,14 +157,22 @@ impl QueryContext {
         let mut failures = Vec::new();
         for contribution in contributions {
             let css = boundaries.render(&contribution.css).and_then(|css| {
-                if preview {
-                    lower_conditionals(&css, self.options.use_css_if, identifiers)
-                } else {
-                    Ok(css)
+                if !preview {
+                    return Ok(css);
                 }
+                let lowered = lower_conditionals(&css, self.options.use_css_if, identifiers)?;
+                failures.extend(lowered.skipped.into_iter().map(|skipped| {
+                    CandidateFailure::Conditional {
+                        property: skipped.property,
+                        detail: skipped.detail.into(),
+                    }
+                }));
+                Ok(lowered.css)
             });
             match css {
-                Ok(css) => contribution.css = (css).into(),
+                Ok(css) => {
+                    contribution.css = css.into();
+                }
                 Err(error) => {
                     contribution.css = LeanStr::new();
                     failures.push(CandidateFailure::Rendering(error));

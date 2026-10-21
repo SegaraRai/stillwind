@@ -57,7 +57,8 @@ pub(super) fn render_authored(
     )
     // The helper prefix is the default prefix plus the role letter, so replacing the
     // marker puts every role's spelling under the configured custom-property prefix.
-    .map(|css| {
+    .map(|lowered| {
+        let css = lowered.css;
         let marker =
             format_args!("--{}", default_prefix(IdentifierKind::ConditionHelper)).to_lean_string();
         css.replace_text(

@@ -140,6 +140,8 @@ pub struct LintOverrides {
     pub invalid_css_import: Option<LintSeverity>,
     /// Reporting level for `invalid-css-directive`.
     pub invalid_css_directive: Option<LintSeverity>,
+    /// Reporting level for `invalid-runtime-conditional`.
+    pub invalid_runtime_conditional: Option<LintSeverity>,
     /// Reporting level for `duplicate-definition`.
     pub duplicate_definition: Option<LintSeverity>,
     /// Reporting level for `bypassed-undefinition`.
@@ -362,6 +364,10 @@ impl LintOverrides {
             ),
             (LintKind::InvalidCssImport, self.invalid_css_import),
             (LintKind::InvalidCssDirective, self.invalid_css_directive),
+            (
+                LintKind::InvalidRuntimeConditional,
+                self.invalid_runtime_conditional,
+            ),
             (LintKind::DuplicateDefinition, self.duplicate_definition),
             (LintKind::BypassedUndefinition, self.bypassed_undefinition),
             (LintKind::InvalidThemeValue, self.invalid_theme_value),

@@ -819,11 +819,11 @@ const props = style("grid if(--enabled):flex w-[--if(--enabled,20rem,10rem)]", {
 ```
 
 Boolean conditions are **unregistered custom-property names**. Stillwind's boolean
-serialization supplies one space for true and `initial` for false. A missing
-property is false; inherited values follow ordinary CSS inheritance. Strings
-such as `"true"`, numeric flags and media queries are not boolean
-conditions. Native value comparisons use the separate `--name:value` form below. `@property` registration changes the initial-value contract and must
-not be used for these flags.
+serialization supplies one space for true and `initial` for false. A missing property is
+false; inherited values follow ordinary CSS inheritance. Strings such as `"true"`,
+numeric flags and media queries are not boolean conditions. Native value comparisons use
+the separate `--name:value` form below. `@property` registration changes the
+initial-value contract and must not be used for these flags.
 
 A leading `!` negates a condition: `--if(!--enabled,20px,10px)` and
 `if(!--enabled):flex`. Any number of `!` is accepted, and an odd count negates the
@@ -834,26 +834,30 @@ suggests it. Negated value conditions swap the branches in both strategies.
 
 Native mode also supports value comparisons: `if(--mode:compact):flex` and
 `--if(--mode:compact,20px,10px)` lower to `style(--mode:compact)` tests. Set
-`useCssIf: true`. Commas in comparison values must be inside a CSS function or
-quoted string. An empty comparison such as `--mode:` is the presence test `--mode`,
-because boolean conditions hold only a space or `initial`; `prefer-canonical-utilities`
-suggests the presence test.
-Matching follows native CSS style-query semantics, including any `@property`
-registration. `if(!--mode:compact):flex` negates the comparison; comparisons can
-also be combined with boolean conditions using repeated variants.
+`useCssIf: true`. Commas in comparison values must be inside a CSS function or quoted
+string. An empty comparison such as `--mode:` is the presence test `--mode`, because
+boolean conditions hold only a space or `initial`; `prefer-canonical-utilities` suggests
+the presence test. Matching follows native CSS style-query semantics, including any
+`@property` registration. `if(!--mode:compact):flex` negates the comparison; comparisons
+can also be combined with boolean conditions using repeated variants.
 
-Repeated variants form an AND: `if(--a):if(--b):flex`. Ordinary variants compose
-with them, for example `hover:if(--enabled):flex`. The condition is evaluated on
-the styled element (or pseudo-element), not a referenced ancestor. A condition
-inside a `ref` wrapper is rejected; put `if(...)` outside that wrapper to test
-the target instead.
+Repeated variants form an AND: `if(--a):if(--b):flex`. Ordinary variants compose with
+them, for example `hover:if(--enabled):flex`. The condition is evaluated on the styled
+element (or pseudo-element), not a referenced ancestor. A condition inside a `ref`
+wrapper is rejected; put `if(...)` outside that wrapper to test the target instead.
 
 A candidate with an invalid runtime condition is omitted. Malformed `if()` variant
 conditions report `invalid-variant`, and `--if()` functions without three arguments
-report `invalid-utility`. With
-`useCssIf: false`, value comparisons, negated variants, and CSS-wide keywords stored
-in fallback helpers report `runtime-condition-requires-css-if`, which defaults to
-`deny`. Malformed conditions in authored CSS remain compilation errors.
+report `invalid-utility`. With `useCssIf: false`, value comparisons, negated variants,
+and CSS-wide keywords stored in fallback helpers report
+`runtime-condition-requires-css-if`, which defaults to `deny`. The same rules apply to
+the declarations that a utility definition writes, so a candidate whose `@utility` body
+has such a condition is omitted too.
+
+In authored CSS, a declaration whose `--if()` cannot be lowered is left out of the
+output. `invalid-runtime-conditional` reports it in the stylesheet, and it also reports
+a generated declaration that the compiler leaves out for this reason, such as one that
+`@apply` adds to a utility.
 
 Value conditionals can nest and appear inside expressions:
 
@@ -863,13 +867,13 @@ style("bg-[--if(--enabled,red,blue)]");
 style("w-[--if(--a,--if(--b,30px,20px),10px)]");
 ```
 
-Both branches participate in typed utility selection. Use the usual explicit
-hint when ambiguous, such as `bg-[image:--if(--enabled,var(--image),none)]`.
-Wrap a branch containing top-level commas in braces: `--if(--a,{Arial,sans-serif},serif)`.
-Strings, URLs, nested function arguments, and comments keep their lexical boundaries.
-Authored declaration values and `@variant if(--enabled) { ... }` use the same
-lowering. `@apply grid if(--enabled):flex;` keeps the unconditional declaration
-before its conditional rule.
+Both branches participate in typed utility selection. Use the usual explicit hint when
+ambiguous, such as `bg-[image:--if(--enabled,var(--image),none)]`. Wrap a branch
+containing top-level commas in braces: `--if(--a,{Arial,sans-serif},serif)`. Strings,
+URLs, nested function arguments, and comments keep their lexical boundaries. Authored
+declaration values and `@variant if(--enabled) { ... }` use the same lowering.
+`@apply grid if(--enabled):flex;` keeps the unconditional declaration before its
+conditional rule.
 
 ### Output strategy
 
@@ -880,30 +884,29 @@ stillwind({
 });
 ```
 
-`useCssIf` defaults to `false`. It is also available in native compiler options;
-Rust uses `CompilerOptions::use_css_if`, and the CLI accepts `--use-css-if`.
-The option applies to both values and variants and participates in module cache
-identity.
+`useCssIf` defaults to `false`. It is also available in native compiler options; Rust
+uses `CompilerOptions::use_css_if`, and the CLI accepts `--use-css-if`. The option
+applies to both values and variants and participates in module cache identity.
 
 | Input                    | Default fallback strategy                                            | `useCssIf: true`                                  |
 | ------------------------ | -------------------------------------------------------------------- | ------------------------------------------------- |
 | `--if(--flag,20px,10px)` | Local helper `--sw-if-…:var(--flag) 20px;` and `var(--sw-if-…,10px)` | `if(style(--flag):20px;else:10px)`                |
 | `if(--flag):flex`        | Same helper pattern, with `revert-rule` as the false branch          | `display:if(style(--flag):flex;else:revert-rule)` |
 
-Helper names are deterministic and honor the configured Stillwind prefix.
-They are defined next to their consumers to avoid inheriting a helper value
-already computed on another element. Conditions must not depend on the
-declaration they guard; normal CSS variable cycle rules still apply.
+Helper names are deterministic and honor the configured Stillwind prefix. They are
+defined next to their consumers to avoid inheriting a helper value already computed on
+another element. Conditions must not depend on the declaration they guard; normal CSS
+variable cycle rules still apply.
 
-Fallback mode requires the branch used when the underlying property is true
-(the false branch for `!--condition`) to resolve to a valid custom
-property token value. An invalid `var()` in that branch can select the false
-branch instead. CSS-wide values in that branch (`initial`, `inherit`, `unset`, `revert`,
-`revert-layer`, `revert-rule`) require native mode. A literal occurrence in a
-utility omits that utility and reports `runtime-condition-requires-css-if`; in authored
-CSS, it is a compilation error. Indirect values that become CSS-wide keywords
-have the same limitation. Fallback substitution is not a general replacement
-for native `if()`'s branch evaluation semantics.
+Fallback mode requires the branch used when the underlying property is true (the false
+branch for `!--condition`) to resolve to a valid custom property token value. An invalid
+`var()` in that branch can select the false branch instead. CSS-wide values in that
+branch (`initial`, `inherit`, `unset`, `revert`, `revert-layer`, `revert-rule`) require
+native mode. A literal occurrence in a utility omits that utility and reports
+`runtime-condition-requires-css-if`. In authored CSS, the declaration is left out and
+reported as `invalid-runtime-conditional`. Indirect values that become CSS-wide keywords
+have the same limitation. Fallback substitution is not a general replacement for native
+`if()`'s branch evaluation semantics.
 
 ### Browser and minifier requirements
 

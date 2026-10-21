@@ -173,12 +173,6 @@ pub enum CompileDiagnostic {
         /// Syntax error reported by the theme resolver.
         detail: LeanStr,
     },
-    /// An experimental runtime condition cannot be lowered using the selected output strategy.
-    #[error("invalid runtime conditional: {detail}")]
-    InvalidRuntimeConditional {
-        /// Syntax or output-strategy limitation preventing compilation.
-        detail: LeanStr,
-    },
     /// A value cannot be resolved locally without host checker facts.
     #[error("{subject} require TypeScript checker facts")]
     CheckerFactsRequired {

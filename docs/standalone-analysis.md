@@ -327,6 +327,9 @@ Other rules check only stylesheets. They check definitions and theme references:
   loading skipped, and a definition inside a conditional at-rule, which applies without
   the condition. [Skipped statements](css-emission.md#skipped-statements) lists them.
   The finding covers the directive.
+- `invalid-runtime-conditional` (input, default `deny`) reports a declaration whose
+  `--if()` cannot be lowered with the selected `useCssIf` mode. The stylesheet output
+  leaves the declaration out. The finding covers the declaration.
 - `invalid-theme-reference` (input, default `deny`) reports a `theme()` or `--theme()`
   call that names an inactive token without a fallback, in authored rules, `@utility`
   bodies, and variant definitions. Stylesheet rendering omits the declaration that

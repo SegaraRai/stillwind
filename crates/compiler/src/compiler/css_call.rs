@@ -12,7 +12,7 @@ use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::CssCall;
 
-use super::conditionals::lower;
+use super::conditionals::{lower, report_skipped_conditionals};
 use super::document::{DocumentInput, emit_document_rules};
 use super::style_variants::collect_variant_and_applications;
 use super::stylesheet::render_css_template;
@@ -39,8 +39,9 @@ pub(crate) enum CssOutput {
 /// its rules without theme values, keyframes, or property support. The returned text
 /// uses rewritten generated names, so callers must not rewrite it again.
 ///
-/// Fatal problems, such as malformed utility definitions or runtime conditions that
-/// cannot be lowered, are appended to `diagnostics`, and the result is then empty.
+/// Fatal problems, such as malformed utility definitions, are appended to
+/// `diagnostics`, and the result is then empty. A declaration whose runtime condition
+/// cannot be lowered is left out and reported at the call.
 pub(crate) fn css_call_text(
     call: &CssCall,
     theme: &ThemeIndex,
@@ -83,6 +84,7 @@ pub(crate) fn css_call_text(
             .map(|selector| selector.value.as_str()),
         theme,
         lint_settings,
+        options.use_css_if,
         identifiers,
         diagnostics,
         lint_findings,
@@ -90,8 +92,11 @@ pub(crate) fn css_call_text(
     .and_then(|contributions| {
         let mut utilities = MappedStylesheet::default();
         for contribution in contributions {
-            let css = lower(&contribution.css, options.use_css_if, identifiers)?;
-            utilities.css.push_str(&options.rewrite_generated(&css));
+            let lowered = lower(&contribution.css, options.use_css_if, identifiers)?;
+            report_skipped_conditionals(lowered.skipped, call.span, lint_settings, lint_findings);
+            utilities
+                .css
+                .push_str(&options.rewrite_generated(&lowered.css));
             utilities.required_properties.extend(
                 contribution
                     .required_properties

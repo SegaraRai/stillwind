@@ -257,7 +257,7 @@ impl<'a> SupportSelection<'a> {
                         format_args!("{}:{value};", token.name.value).to_lean_string();
                     let lowered = lower(&declaration, self.options.use_css_if, self.identifiers)?;
                     declarations.text(
-                        &self.options.rewrite_generated(&lowered),
+                        &self.options.rewrite_generated(&lowered.css),
                         resolve_origin(self.sources, Some(token.value.span)),
                     );
                     continue;
@@ -289,11 +289,14 @@ impl<'a> SupportSelection<'a> {
         }
         if emit_keyframes {
             output.text(
-                &self.options.rewrite_generated(&lower(
-                    &extract_authored_keyframes(keyframes, &self.animations),
-                    self.options.use_css_if,
-                    self.identifiers,
-                )?),
+                &self.options.rewrite_generated(
+                    &lower(
+                        &extract_authored_keyframes(keyframes, &self.animations),
+                        self.options.use_css_if,
+                        self.identifiers,
+                    )?
+                    .css,
+                ),
                 resolve_origin(self.sources, origin),
             );
         }

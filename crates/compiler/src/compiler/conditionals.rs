@@ -16,7 +16,10 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{RuntimeCondition, runtime_if_arguments};
-use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_diagnostics::{
+    CompileDiagnostic, LintDiagnostic, LintFinding, LintKind, LintSettings,
+};
+use stillwind_source::Span;
 
 use crate::identifiers::{ConditionContext, ConditionRole, IdentifierContext};
 
@@ -37,110 +40,211 @@ fn helper(
         .property())
 }
 
+/// A declaration that [`lower`] leaves out because its `--if()` cannot be lowered.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SkippedConditional {
+    /// Property name of the declaration, trimmed.
+    pub(crate) property: LeanStr,
+    /// Why the declaration cannot be lowered.
+    pub(crate) detail: &'static str,
+}
+
+/// CSS after runtime conditional lowering, with the declarations that lowering left
+/// out.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Lowered {
+    /// CSS whose `--if()` functions are lowered.
+    pub(crate) css: LeanString,
+    /// Declarations removed from `css`, in source order.
+    pub(crate) skipped: Vec<SkippedConditional>,
+}
+
+/// Why lowering stops for one declaration.
+enum DeclarationFailure {
+    /// The declaration is left out for this reason.
+    Skip(&'static str),
+    /// The host generator failed to name a helper, so the compilation fails.
+    Name(CompileDiagnostic),
+}
+
+impl From<CompileDiagnostic> for DeclarationFailure {
+    fn from(diagnostic: CompileDiagnostic) -> Self {
+        Self::Name(diagnostic)
+    }
+}
+
 /// Lowers `--if(C,Y,N)` in declaration bodies; an odd number of leading `!` swaps the
 /// branches. `use_css_if` selects native CSS `if()`; false emits local fallback helpers
 /// under the generated custom-property names. Selectors, priorities, strings, and URLs
 /// are preserved.
 ///
+/// A declaration that cannot be lowered is removed, and its semicolon remains. That
+/// happens for a malformed expression, more than 128 invocations in the declaration, or
+/// a CSS-wide branch stored in a fallback helper. That branch is Y for a positive
+/// condition and N for a negated one. Negated variants and `--name:value` comparisons
+/// require native mode. [`Lowered::skipped`] lists the removed declarations.
+///
 /// # Errors
 ///
-/// Returns `InvalidRuntimeConditional` for malformed expressions, more than 128
-/// invocations per declaration, or a CSS-wide branch stored in a fallback helper. That
-/// branch is Y for a positive condition and N for a negated one. No partial output is
-/// returned. Negated variants and `--name:value` comparisons require native mode.
 /// Returns the host generator's failure for a helper's name.
 pub(crate) fn lower(
     css: &str,
     use_css_if: bool,
     identifiers: &IdentifierContext,
-) -> Result<LeanString, CompileDiagnostic> {
+) -> Result<Lowered, CompileDiagnostic> {
     if !css.contains("--if(") {
-        return Ok(css.to_lean_string());
+        return Ok(Lowered {
+            css: css.to_lean_string(),
+            skipped: Vec::new(),
+        });
     }
-    map_declarations(css, |property, value| {
-        let mut value = value.to_lean_string();
-        let mut helpers = LeanString::new();
-        // Reverse source order keeps the start offsets of pending replacements valid.
-        let functions = find_css_functions(&value, &["--if"], 0);
-        if functions.len() > 128 {
-            return Err(invalid(
-                "at most 128 --if expressions are supported per declaration",
-            ));
-        }
-        // Nested replacements alter outer end offsets, so retain a running edit delta.
-        let mut changes: Vec<(usize, isize)> = Vec::new();
-        for function in functions.into_iter().rev() {
-            let Some(original_end) = function.end else {
-                return Err(invalid("unclosed --if()"));
-            };
-            let shift: isize = changes
-                .iter()
-                .filter(|(start, _)| *start < original_end)
-                .map(|(_, delta)| delta)
-                .sum();
-            let end = original_end.saturating_add_signed(shift);
-            let arguments_end = end - 1;
-            let Some((condition, yes, no)) =
-                runtime_if_arguments(&value[function.arguments.start..arguments_end])
-            else {
-                return Err(invalid(
-                    "expected --if(--condition, true-value, false-value)",
-                ));
-            };
-            if !use_css_if && condition.value.is_some() {
-                return Err(invalid(
-                    "custom-property value comparisons require useCssIf: true",
-                ));
+    let mut skipped = Vec::new();
+    let css = map_declarations(css, |property, value| {
+        match lower_declaration(property, value, use_css_if, identifiers) {
+            Ok(declaration) => Ok(declaration),
+            Err(DeclarationFailure::Skip(detail)) => {
+                skipped.push(SkippedConditional {
+                    property: property.trim().to_lean_str(),
+                    detail,
+                });
+                Ok(LeanString::new())
             }
-            let (yes, no) = if condition.negated {
-                (no, yes)
-            } else {
-                (yes, no)
-            };
-            let condition = RuntimeCondition {
-                negated: false,
-                ..condition
-            };
-            let replacement = if use_css_if {
-                format_args!("if(style({condition}):{yes};else:{no})").to_lean_string()
-            } else {
-                if is_css_wide(yes) {
-                    return Err(invalid(
-                        "CSS-wide branches stored in fallback helpers (including negated variants) require useCssIf: true",
-                    ));
-                }
-                let name = helper(
-                    identifiers,
-                    ConditionRole::Fallback,
-                    &value[function.start..end],
-                )?;
-                // Writing through `fmt::Write` into a `LeanString` cannot fail.
-                let _ = write!(helpers, "{name}:var({condition}) {yes};");
-                format_args!("var({name},{no})").to_lean_string()
-            };
-            let delta = replacement.len().cast_signed() - (end - function.start).cast_signed();
-            value.replace_range(function.start..end, &replacement);
-            changes.push((function.start, delta));
+            Err(DeclarationFailure::Name(diagnostic)) => Err(diagnostic),
         }
-        Ok(format_args!("{helpers}{property}:{value}").to_lean_string())
-    })
+    })?;
+    Ok(Lowered { css, skipped })
 }
 
-/// A runtime condition in a utility candidate that cannot be lowered.
+/// Reports each declaration in `skipped` as `invalid-runtime-conditional` at `span`
+/// when `lint_settings` enables the rule.
+pub(super) fn report_skipped_conditionals(
+    skipped: Vec<SkippedConditional>,
+    span: Span,
+    lint_settings: &LintSettings,
+    lint_findings: &mut Vec<LintFinding>,
+) {
+    if !lint_settings.enabled_for_detection(LintKind::InvalidRuntimeConditional) {
+        return;
+    }
+    lint_findings.extend(skipped.into_iter().map(|skipped| {
+        LintFinding::new(
+            LintDiagnostic::InvalidRuntimeConditional {
+                property: skipped.property,
+                detail: skipped.detail.into(),
+            },
+            span,
+        )
+    }));
+}
+
+/// Lowers the `--if()` functions of one declaration and returns its replacement text.
+fn lower_declaration(
+    property: &str,
+    value: &str,
+    use_css_if: bool,
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, DeclarationFailure> {
+    let mut value = value.to_lean_string();
+    let mut helpers = LeanString::new();
+    // Reverse source order keeps the start offsets of pending replacements valid.
+    let functions = find_css_functions(&value, &["--if"], 0);
+    if functions.len() > MAX_FUNCTIONS {
+        return Err(DeclarationFailure::Skip(TOO_MANY_FUNCTIONS));
+    }
+    // Nested replacements alter outer end offsets, so retain a running edit delta.
+    let mut changes: Vec<(usize, isize)> = Vec::new();
+    for function in functions.into_iter().rev() {
+        let Some(original_end) = function.end else {
+            return Err(DeclarationFailure::Skip("unclosed --if()"));
+        };
+        let shift: isize = changes
+            .iter()
+            .filter(|(start, _)| *start < original_end)
+            .map(|(_, delta)| delta)
+            .sum();
+        let end = original_end.saturating_add_signed(shift);
+        let arguments_end = end - 1;
+        let Some((condition, yes, no)) =
+            runtime_if_arguments(&value[function.arguments.start..arguments_end])
+        else {
+            return Err(DeclarationFailure::Skip(
+                "expected --if(--condition, true-value, false-value)",
+            ));
+        };
+        if !use_css_if && condition.value.is_some() {
+            return Err(DeclarationFailure::Skip(VALUE_COMPARISON));
+        }
+        let (yes, no) = if condition.negated {
+            (no, yes)
+        } else {
+            (yes, no)
+        };
+        let condition = RuntimeCondition {
+            negated: false,
+            ..condition
+        };
+        let replacement = if use_css_if {
+            format_args!("if(style({condition}):{yes};else:{no})").to_lean_string()
+        } else {
+            if is_css_wide(yes) {
+                return Err(DeclarationFailure::Skip(CSS_WIDE_BRANCH));
+            }
+            let name = helper(
+                identifiers,
+                ConditionRole::Fallback,
+                &value[function.start..end],
+            )?;
+            // Writing through `fmt::Write` into a `LeanString` cannot fail.
+            let _ = write!(helpers, "{name}:var({condition}) {yes};");
+            format_args!("var({name},{no})").to_lean_string()
+        };
+        let delta = replacement.len().cast_signed() - (end - function.start).cast_signed();
+        value.replace_range(function.start..end, &replacement);
+        changes.push((function.start, delta));
+    }
+    Ok(format_args!("{helpers}{property}:{value}").to_lean_string())
+}
+
+/// Most `--if()` functions that one declaration can contain.
+const MAX_FUNCTIONS: usize = 128;
+
+/// Explains a declaration with more than [`MAX_FUNCTIONS`] `--if()` functions.
+const TOO_MANY_FUNCTIONS: &str = "at most 128 --if expressions are supported per declaration";
+
+/// Explains a value comparison that fallback lowering cannot represent.
+const VALUE_COMPARISON: &str = "custom-property value comparisons require useCssIf: true";
+
+/// Explains a CSS-wide keyword that a fallback helper would have to store.
+const CSS_WIDE_BRANCH: &str = "CSS-wide branches stored in fallback helpers (including negated variants) require useCssIf: true";
+
+/// A runtime condition that cannot be lowered.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum UnsupportedCondition {
     /// An `--if()` function is unclosed or does not have three valid arguments.
     Syntax,
+    /// A declaration contains more `--if()` functions than lowering supports. The text
+    /// states the limit.
+    TooMany(&'static str),
     /// The fallback strategy cannot represent the condition. The text explains why.
     RequiresNative(&'static str),
+}
+
+impl UnsupportedCondition {
+    /// Returns the explanation that a lint finding shows for this problem.
+    pub(super) const fn detail(self) -> &'static str {
+        match self {
+            Self::Syntax => "expected --if(--condition, true-value, false-value)",
+            Self::TooMany(detail) | Self::RequiresNative(detail) => detail,
+        }
+    }
 }
 
 /// Checks the runtime conditions that one utility candidate writes.
 ///
 /// `values` contains the candidate's arbitrary values and properties, with underscores
-/// decoded as spaces. `conditions` contains the canonical conditions of its
-/// conditional variants. Authored CSS is not checked here; [`lower`] reports its
-/// failures.
+/// decoded as spaces. `conditions` contains the canonical conditions of its conditional
+/// variants. [`check_declarations`] checks the declarations that a utility definition
+/// writes.
 ///
 /// # Errors
 ///
@@ -153,30 +257,7 @@ pub(super) fn check_candidate<'a>(
     use_css_if: bool,
 ) -> Result<(), UnsupportedCondition> {
     for value in values {
-        for function in find_css_functions(value, &["--if"], 0) {
-            let Some(end) = function.end else {
-                return Err(UnsupportedCondition::Syntax);
-            };
-            let Some((condition, yes, no)) =
-                runtime_if_arguments(&value[function.arguments.start..end - 1])
-            else {
-                return Err(UnsupportedCondition::Syntax);
-            };
-            if use_css_if {
-                continue;
-            }
-            if condition.value.is_some() {
-                return Err(UnsupportedCondition::RequiresNative(
-                    "custom-property value comparisons require useCssIf: true",
-                ));
-            }
-            let stored = if condition.negated { no } else { yes };
-            if is_css_wide(stored) {
-                return Err(UnsupportedCondition::RequiresNative(
-                    "CSS-wide branches stored in fallback helpers require useCssIf: true",
-                ));
-            }
-        }
+        check_value(value, use_css_if)?;
     }
     if use_css_if {
         return Ok(());
@@ -186,14 +267,57 @@ pub(super) fn check_candidate<'a>(
             return Err(UnsupportedCondition::Syntax);
         };
         if condition.value.is_some() {
-            return Err(UnsupportedCondition::RequiresNative(
-                "custom-property value comparisons require useCssIf: true",
-            ));
+            return Err(UnsupportedCondition::RequiresNative(VALUE_COMPARISON));
         }
         if condition.negated {
             return Err(UnsupportedCondition::RequiresNative(
                 "negated variant conditions require useCssIf: true",
             ));
+        }
+    }
+    Ok(())
+}
+
+/// Checks that [`lower`] can lower every declaration of `css`, including declarations
+/// in nested rules.
+///
+/// # Errors
+///
+/// Returns the first problem in source order, as [`check_candidate`] describes for
+/// values.
+pub(super) fn check_declarations(css: &str, use_css_if: bool) -> Result<(), UnsupportedCondition> {
+    if !css.contains("--if(") {
+        return Ok(());
+    }
+    declaration_values(css)
+        .into_iter()
+        .try_for_each(|(_, value)| check_value(&css[value], use_css_if))
+}
+
+/// Checks the `--if()` functions of one declaration value.
+pub(super) fn check_value(value: &str, use_css_if: bool) -> Result<(), UnsupportedCondition> {
+    let functions = find_css_functions(value, &["--if"], 0);
+    if functions.len() > MAX_FUNCTIONS {
+        return Err(UnsupportedCondition::TooMany(TOO_MANY_FUNCTIONS));
+    }
+    for function in functions {
+        let Some(end) = function.end else {
+            return Err(UnsupportedCondition::Syntax);
+        };
+        let Some((condition, yes, no)) =
+            runtime_if_arguments(&value[function.arguments.start..end - 1])
+        else {
+            return Err(UnsupportedCondition::Syntax);
+        };
+        if use_css_if {
+            continue;
+        }
+        if condition.value.is_some() {
+            return Err(UnsupportedCondition::RequiresNative(VALUE_COMPARISON));
+        }
+        let stored = if condition.negated { no } else { yes };
+        if is_css_wide(stored) {
+            return Err(UnsupportedCondition::RequiresNative(CSS_WIDE_BRANCH));
         }
     }
     Ok(())
@@ -205,13 +329,6 @@ fn is_css_wide(value: &str) -> bool {
         value.to_lean_string().to_ascii_lowercase().as_str(),
         "initial" | "inherit" | "unset" | "revert" | "revert-layer" | "revert-rule"
     )
-}
-
-/// Copies a lowering failure's explanation into the compilation diagnostic kind.
-fn invalid(detail: &str) -> CompileDiagnostic {
-    CompileDiagnostic::InvalidRuntimeConditional {
-        detail: detail.to_lean_str(),
-    }
 }
 
 /// One guarded declaration body and the gate declarations written into it.
@@ -478,7 +595,7 @@ mod tests {
         css: &str,
         use_css_if: bool,
     ) -> Result<LeanString, CompileDiagnostic> {
-        lower(css, use_css_if, &identifiers())
+        Ok(lower(css, use_css_if, &identifiers())?.css)
     }
 
     /// Guards with the compiler's own gate names.
@@ -514,6 +631,30 @@ mod tests {
         )
         .unwrap();
         assert!(comma.contains(":var(--x) a,b;"), "{comma}");
+    }
+
+    #[test]
+    fn declarations_that_cannot_be_lowered_are_left_out() {
+        let lowered = lower(
+            "a{color:--if(--on,red);width:1px;top:--if(--on,inherit,0)}",
+            false,
+            &identifiers(),
+        )
+        .unwrap();
+        assert_eq!(lowered.css, "a{;width:1px;}");
+        assert_eq!(
+            lowered.skipped,
+            [
+                SkippedConditional {
+                    property: "color".into(),
+                    detail: "expected --if(--condition, true-value, false-value)",
+                },
+                SkippedConditional {
+                    property: "top".into(),
+                    detail: CSS_WIDE_BRANCH,
+                },
+            ]
+        );
     }
 
     #[test]

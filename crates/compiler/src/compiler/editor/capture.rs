@@ -563,7 +563,7 @@ impl ModuleEditor {
             .into_iter()
             .map(|part| {
                 lower(&part.css, self.options.use_css_if, &context)
-                    .map(|css| self.options.rewrite_generated(&css))
+                    .map(|lowered| self.options.rewrite_generated(&lowered.css))
             })
             .collect::<Result<LeanString, _>>()
             .ok()?;

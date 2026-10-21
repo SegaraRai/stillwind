@@ -130,7 +130,6 @@ define_compile_codes! {
         UnknownRequiredProperty { .. } => "SW14009",
         PropertyUsageParse { .. } => "SW14010",
         InvalidThemeReference { .. } => "SW14012",
-        InvalidRuntimeConditional { .. } => "SW14013",
     }
     Host {
         // 30: TypeScript checker facts

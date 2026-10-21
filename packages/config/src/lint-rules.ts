@@ -161,6 +161,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-runtime-conditional": {
+    category: "input",
+    nativeName: "invalidRuntimeConditional",
+    defaults: null,
+    options: null,
+  },
   "mutating-macro-argument": {
     category: "contract",
     nativeName: "mutatingMacroArgument",

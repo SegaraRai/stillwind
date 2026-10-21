@@ -17,6 +17,7 @@ use super::application::check_application;
 use super::bypassed::check_bypassed_undefinitions;
 use super::definitions::definitions;
 use super::nesting::check_nesting;
+use super::runtime_conditionals::check_runtime_conditionals;
 use super::shadowing::{addresses, shadowed_definitions};
 use super::skipped::check_skipped_statements;
 use super::tailwind_features::check_tailwind_features;
@@ -57,6 +58,7 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
     let lint_settings = options.lint_settings();
     let mut findings = Vec::new();
     if lint_settings.has_enabled_rules() {
+        let use_css_if = options.use_css_if;
         let query = DesignSystemQuery::new(snapshot.clone(), options);
         let shadowed = if lint_settings.enabled_for_detection(LintKind::DuplicateDefinition) {
             shadowed_definitions(snapshot)
@@ -116,6 +118,7 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
             }
             check_bypassed_undefinitions(&mut checker, snapshot.sources(), &source_definitions);
             check_skipped_statements(&mut checker, snapshot.sources());
+            check_runtime_conditionals(&mut checker, use_css_if);
             check_theme_values(&mut checker, &nodes);
             check_tailwind_features(&mut checker, source.source.text());
             check_theme_references(&mut checker, &nodes, false);

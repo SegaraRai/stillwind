@@ -446,7 +446,7 @@ fn repeated_keyframes_slots_preserve_each_mapping_and_wrapper() {
 }
 
 #[test]
-fn registration_destinations_are_checked_before_theme_lowering() {
+fn theme_tokens_whose_conditions_cannot_be_lowered_are_left_out() {
     let source = SourceFile::new(
         FileId(1),
         None,
@@ -469,14 +469,14 @@ fn registration_destinations_are_checked_before_theme_lowering() {
         CssOutputNode::Properties,
         CssOutputNode::PropertyInitials(PropertyInheritance::All),
     ]);
-    assert!(matches!(
-        render(
-            &template,
-            &theme,
-            utility,
-            &CompilerOptions::default(),
-            false
-        ),
-        Err(CompileDiagnostic::InvalidRuntimeConditional { .. })
-    ));
+    let css = render(
+        &template,
+        &theme,
+        utility,
+        &CompilerOptions::default(),
+        false,
+    )
+    .unwrap();
+    assert!(css.contains(":root{"), "{css}");
+    assert!(!css.contains("--brand:"), "{css}");
 }
