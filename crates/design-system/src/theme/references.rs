@@ -9,9 +9,10 @@
 //!
 //! In arbitrary values, `theme()` is replaced with the token's authored value.
 
+use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
-use stillwind_css::{find_css_functions, split_css_function_arguments};
+use stillwind_css::{find_css_functions, split_once_top_level};
 
 /// Lowers scale functions such as `--spacing(<value>)` and Tailwind's public
 /// `--alpha(<color> / <alpha>)` function outside CSS strings, as Tailwind 4.3 lowers
@@ -68,40 +69,13 @@ pub(crate) fn resolve_css_functions(
                     _ => format!("calc({scale} * {arguments})"),
                 }
             } else {
-                let mut depth = 0_u32;
-                let mut quote = None;
-                let mut escaped = false;
-                let slash = arguments.char_indices().find_map(|(index, character)| {
-                    if escaped {
-                        escaped = false;
-                        return None;
-                    }
-                    if character == '\\' {
-                        escaped = true;
-                        return None;
-                    }
-                    if let Some(current) = quote {
-                        if current == character {
-                            quote = None;
-                        }
-                        return None;
-                    }
-                    if matches!(character, '\'' | '"') {
-                        quote = Some(character);
-                    } else if character == '(' || character == '[' {
-                        depth += 1;
-                    } else if character == ')' || character == ']' {
-                        depth = depth.saturating_sub(1);
-                    } else if character == '/' && depth == 0 {
-                        return Some(index);
-                    }
-                    None
-                });
-                let Some(slash) = slash else {
+                let (color, opacity) =
+                    split_once_top_level(arguments, |token| matches!(token, Token::Delim('/')));
+                let Some(opacity) = opacity else {
                     continue;
                 };
-                let color = arguments[..slash].trim();
-                let opacity = arguments[slash + 1..].trim();
+                let color = color.trim();
+                let opacity = opacity.trim();
                 if color.is_empty() || opacity.is_empty() {
                     return None;
                 }
@@ -188,7 +162,8 @@ pub(crate) fn resolve_theme_references(
             .end
             .ok_or(ThemeReferenceError::Unterminated { offset: start })?;
         let arguments = &value[found.arguments];
-        let (reference, fallback) = split_css_function_arguments(arguments);
+        let (reference, fallback) =
+            split_once_top_level(arguments, |token| matches!(token, Token::Comma));
         let reference = reference.trim();
         if !reference.starts_with("--") {
             return Err(ThemeReferenceError::InvalidProperty {
@@ -244,7 +219,9 @@ pub(crate) fn inline_theme_functions<'a>(
             continue;
         }
         output.push_str(&value[cursor..found.start]);
-        let (reference, fallback) = split_css_function_arguments(&value[found.arguments]);
+        let (reference, fallback) = split_once_top_level(&value[found.arguments], |token| {
+            matches!(token, Token::Comma)
+        });
         let reference = reference.trim();
         if !reference.starts_with("--") {
             return None;

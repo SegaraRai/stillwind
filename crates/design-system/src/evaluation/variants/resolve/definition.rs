@@ -9,7 +9,7 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_source::ReplaceText;
-use stillwind_syntax::decode_arbitrary_value;
+use stillwind_syntax::{CandidatePrefix, decode_arbitrary_value};
 
 use super::super::super::context::EvaluationContext;
 use super::super::super::stillwind::stillwind_variants;
@@ -148,7 +148,8 @@ fn untyped_value_failure(
             },
         );
     };
-    let (captured, _) = split_variant_modifier(capture);
+    let (captured, _) =
+        CandidatePrefix::parse(capture).map_or((capture, None), |prefix| prefix.split_once('/'));
     let range = capture_offset..capture_offset + captured.len();
     let prefix = custom
         .wildcard_parts()
@@ -355,7 +356,7 @@ fn has_intrinsic_body(custom: &CustomVariant, intrinsic: &str) -> bool {
 /// A `[variant]` definition without a `modifier:` declaration has no modifier of its
 /// own, so the whole capture, including `/modifier`, belongs to the inner variant:
 /// `not-group-hover/menu` passes `group-hover/menu` to the inner variant. Other
-/// definitions split the capture with [`split_variant_modifier`].
+/// definitions split the capture at its first top-level slash.
 pub(in crate::evaluation) fn split_typed_capture<'a>(
     custom: &CustomVariant,
     capture: &'a str,
@@ -365,32 +366,8 @@ pub(in crate::evaluation) fn split_typed_capture<'a>(
     {
         (capture, None)
     } else {
-        split_variant_modifier(capture)
+        CandidatePrefix::parse(capture).map_or((capture, None), |prefix| prefix.split_once('/'))
     }
-}
-
-/// Splits a capture at the first top-level `/`, leaving nested brackets and parentheses
-/// intact.
-///
-/// Returns the capture paired with the modifier, which is `None` when no top-level
-/// slash exists.
-pub(in crate::evaluation) fn split_variant_modifier(value: &str) -> (&str, Option<&str>) {
-    let mut depth = 0_u32;
-    for (index, character) in value.char_indices() {
-        match character {
-            '[' | '(' => {
-                depth += 1;
-            }
-            ']' | ')' => {
-                depth = depth.saturating_sub(1);
-            }
-            '/' if depth == 0 => {
-                return (&value[..index], Some(&value[index + 1..]));
-            }
-            _ => {}
-        }
-    }
-    (value, None)
 }
 
 /// Decodes a variant capture into CSS text.
@@ -481,11 +458,6 @@ mod tests {
 
     #[test]
     fn modifiers_and_attribute_captures_preserve_nested_syntax() {
-        assert_eq!(
-            split_variant_modifier("[x/y]/group"),
-            ("[x/y]", Some("group"))
-        );
-        assert_eq!(split_variant_modifier("[x/y]"), ("[x/y]", None));
         assert_eq!(decode_variant_capture("[a_b]"), "a b");
         assert_eq!(
             attribute_variant_selector("aria", "checked", true),

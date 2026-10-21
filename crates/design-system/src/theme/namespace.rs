@@ -14,7 +14,9 @@ use std::collections::BTreeMap;
 use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{ValueType, extract_named_statements, split_top_level};
+use stillwind_css::{
+    ValueType, extract_named_statements, split_top_level, whitespace_separated_ranges,
+};
 use stillwind_source::ReplaceText;
 
 /// A theme namespace that a `@stillwind-theme-namespace` statement declares.
@@ -88,7 +90,9 @@ impl ThemeNamespaces {
                     .map(move |(_, definition)| (directive, definition))
             })
         {
-            let mut items = top_level_items(&definition).into_iter();
+            let mut items = whitespace_separated_ranges(&definition)
+                .into_iter()
+                .map(|range| &definition[range]);
             let Some(name) = items.next().and_then(pattern_name) else {
                 continue;
             };
@@ -243,35 +247,6 @@ fn parse_scale(item: &str) -> Option<ThemeScale> {
             .insert(key.trim().to_lean_str(), value.trim().to_lean_str());
     }
     Some(scale)
-}
-
-/// Splits `text` at whitespace outside parentheses and brackets.
-fn top_level_items(text: &str) -> Vec<&str> {
-    let mut items = Vec::new();
-    let mut depth = 0_usize;
-    let mut start = None;
-    for (index, character) in text.char_indices() {
-        match character {
-            '(' | '[' => {
-                depth += 1;
-            }
-            ')' | ']' => {
-                depth = depth.saturating_sub(1);
-            }
-            _ if character.is_whitespace() && depth == 0 => {
-                if let Some(begin) = start.take() {
-                    items.push(&text[begin..index]);
-                }
-                continue;
-            }
-            _ => {}
-        }
-        start.get_or_insert(index);
-    }
-    if let Some(begin) = start {
-        items.push(&text[begin..]);
-    }
-    items
 }
 
 /// Returns the custom-property names that the candidate key `key` can select in the

@@ -3,6 +3,51 @@
 use cssparser::{ParseError, Parser, Token};
 use lean_string::LeanString;
 
+use crate::parser::{consume_css_block, validate_css_syntax};
+
+/// Splits the simple selectors following a nesting selector into authored slices.
+/// Returns None for an empty suffix, combinators, pseudo-elements, type selectors,
+/// selector lists, malformed groups, or another nesting selector.
+pub fn subject_compound_parts(compound: &str) -> Option<Vec<&str>> {
+    validate_css_syntax(compound).ok()?;
+    let mut parser = Parser::new(compound);
+    let mut parts = Vec::new();
+    loop {
+        let start = parser.position().byte_index();
+        let token = match parser.next_including_whitespace_and_comments() {
+            Ok(token) => token.clone(),
+            Err(_) => break,
+        };
+        match token {
+            Token::Comment(_) => {
+                continue;
+            }
+            Token::Colon => match parser.next_including_whitespace_and_comments().ok()? {
+                Token::Ident(_) => {}
+                Token::Function(_) => {
+                    consume_css_block(&mut parser).ok()?;
+                }
+                _ => return None,
+            },
+            Token::SquareBracketBlock => {
+                consume_css_block(&mut parser).ok()?;
+            }
+            Token::Delim('.') => {
+                if !matches!(
+                    parser.next_including_whitespace_and_comments(),
+                    Ok(Token::Ident(_))
+                ) {
+                    return None;
+                }
+            }
+            Token::IDHash(_) => {}
+            _ => return None,
+        }
+        parts.push(&compound[start..parser.position().byte_index()]);
+    }
+    (!parts.is_empty()).then_some(parts)
+}
+
 /// Whether a selector contains a nesting token referring to its current subject.
 /// Quoted, escaped, commented, and attribute-value ampersands are literal text.
 pub fn selector_uses_subject(selector: &str) -> bool {

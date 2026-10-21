@@ -5,9 +5,9 @@ use std::cmp::Ordering;
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::selector_uses_subject;
-use stillwind_syntax::{Variant, VariantKind, decode_arbitrary_value};
+use stillwind_syntax::{CandidatePrefix, Variant, VariantKind, decode_arbitrary_value};
 
-use super::super::resolve::{decode_variant_template, split_variant_modifier};
+use super::super::resolve::decode_variant_template;
 use super::compare_variant_sequences;
 use super::position::{
     compound_inner_variant, stillwind_variant_for_order, variant_sort_namespace,
@@ -74,7 +74,9 @@ pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
     } else {
         return None;
     };
-    let capture = split_variant_modifier(capture).0;
+    let capture = CandidatePrefix::parse(capture)
+        .map_or((capture, None), |prefix| prefix.split_once('/'))
+        .0;
     if let Some(arbitrary) = capture
         .strip_prefix('[')
         .and_then(|capture| capture.strip_suffix(']'))

@@ -25,7 +25,7 @@ mod template;
 pub use lint::{StylesheetLint, lint_stylesheets};
 
 pub(crate) use authored_directives::{
-    expand_authored_variant, parse_variant_sequence, variant_sequences,
+    apply_candidates, expand_authored_variant, parse_variant_sequence, variant_sequences,
 };
 pub(crate) use render::{render_module_stylesheet, render_stylesheet};
 pub(crate) use template::{render_css_template, render_mapped};

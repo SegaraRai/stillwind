@@ -17,7 +17,12 @@ use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{
     DynamicFamilyKind, ThemeIndex, compound_variant_inner, resolve_utility,
 };
-use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix, utility_registration_key};
+use stillwind_syntax::{
+    Utility, parse_candidate, parse_variant_prefix, source_candidate_tokens,
+    utility_registration_key,
+};
+
+use crate::compiler::apply_candidates;
 
 /// Returns sorted, unique requests for host plugin families found in `text`.
 ///
@@ -34,7 +39,7 @@ pub(crate) fn dynamic_candidates(text: &str, theme: &ThemeIndex) -> Vec<LeanStr>
     if theme.dynamic_utilities().is_empty() {
         return Vec::new();
     }
-    requests(candidate_tokens(text), theme)
+    requests(source_candidate_tokens(text), theme)
 }
 
 /// Returns sorted, unique requests for host plugin families that `css` applies, in the
@@ -68,6 +73,13 @@ fn applied_tokens(css: &str, nodes: &[CssNode], tokens: &mut Vec<LeanStr>) {
                 prelude,
                 block,
             } => {
+                if let Some(candidates) = apply_candidates(css, node) {
+                    tokens.extend(
+                        candidates
+                            .into_iter()
+                            .map(|range| LeanStr::from(&css[range])),
+                    );
+                }
                 if name == "variant" {
                     let prelude = &css[prelude.clone()];
                     tokens.extend(
@@ -80,13 +92,6 @@ fn applied_tokens(css: &str, nodes: &[CssNode], tokens: &mut Vec<LeanStr>) {
                 if let Some(block) = block {
                     applied_tokens(css, &block.children, tokens);
                 }
-            }
-            CssNodeKind::Apply { candidates } => {
-                tokens.extend(
-                    candidates
-                        .iter()
-                        .map(|range| LeanStr::from(&css[range.clone()])),
-                );
             }
             CssNodeKind::Declaration { .. } => {}
         }
@@ -172,66 +177,6 @@ fn family_member(candidate: &str, root: &str) -> bool {
         || candidate
             .strip_prefix(root)
             .is_some_and(|rest| rest.starts_with('-') || rest.starts_with('/'))
-}
-
-/// Splits source text while retaining punctuation and quoted text inside arbitrary values.
-fn candidate_tokens(text: &str) -> Vec<&str> {
-    let mut result = Vec::new();
-    let mut start = 0;
-    let mut brackets = 0_u32;
-    let mut parentheses = 0_u32;
-    let mut escaped = false;
-    for (index, character) in text.char_indices() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if character == '\\' {
-            escaped = true;
-            continue;
-        }
-        if character == '[' {
-            brackets += 1;
-        }
-        if character == ']' {
-            brackets = brackets.saturating_sub(1);
-        }
-        if brackets > 0 {
-            continue;
-        }
-        if character == '('
-            && (parentheses > 0
-                || text[start..index].ends_with('-')
-                || text[start..index].ends_with('/'))
-        {
-            parentheses += 1;
-            continue;
-        }
-        if character == ')' && parentheses > 0 {
-            parentheses -= 1;
-            continue;
-        }
-        if parentheses == 0 && (is_boundary(character) || matches!(character, '(' | ')')) {
-            if start < index {
-                result.push(&text[start..index]);
-            }
-            start = index + character.len_utf8();
-        }
-    }
-    if start < text.len() {
-        result.push(&text[start..]);
-    }
-    result
-}
-
-/// Whether `character` cannot occur in a candidate outside brackets and therefore
-/// separates candidates in source text.
-fn is_boundary(character: char) -> bool {
-    character.is_whitespace()
-        || matches!(
-            character,
-            '"' | '\'' | '`' | ',' | ';' | '{' | '}' | '<' | '>' | '='
-        )
 }
 
 #[cfg(test)]

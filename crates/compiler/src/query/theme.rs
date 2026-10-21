@@ -1,10 +1,10 @@
 //! Theme queries expose authored values and resolve concrete colors in candidate previews.
 
+use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure,
-    split_css_function_arguments,
+    CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure, split_once_top_level,
 };
 use stillwind_design_system::{ThemeToken, UtilityResolutionError};
 
@@ -192,7 +192,9 @@ impl QueryContext {
                 if function.start < covered {
                     continue;
                 }
-                let (name, _) = split_css_function_arguments(&css[function.arguments]);
+                let (name, _) = split_once_top_level(&css[function.arguments], |token| {
+                    matches!(token, Token::Comma)
+                });
                 if let Some(token) = self
                     .design_system
                     .tokens()

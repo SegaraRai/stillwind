@@ -291,7 +291,7 @@ fn negated_selector_list(template: &str) -> Option<&str> {
 ///
 /// A list matches when any query matches, so its negation requires every negated query.
 fn negate_media(condition: &str) -> Option<Branch> {
-    split_top_level_commas(condition)
+    split_top_level(condition, |token| matches!(token, Token::Comma))
         .into_iter()
         .map(|query| negate_media_query(query).map(Literal::Media))
         .collect()
@@ -321,7 +321,7 @@ fn negate_media_query(query: &str) -> Option<LeanString> {
 /// The list matches when any query matches, so its negation requires every negated
 /// query.
 fn negate_container(condition: &str) -> Option<Branch> {
-    split_top_level_commas(condition)
+    split_top_level(condition, |token| matches!(token, Token::Comma))
         .into_iter()
         .map(|query| {
             let query = query.trim();
@@ -368,11 +368,6 @@ fn negate_condition(condition: &str) -> Option<LeanString> {
     } else {
         Some(format_args!("not ({condition})").to_lean_string())
     }
-}
-
-/// Splits a query list at commas outside blocks and functions.
-fn split_top_level_commas(list: &str) -> Vec<&str> {
-    split_top_level(list, |token| matches!(token, Token::Comma))
 }
 
 #[cfg(test)]

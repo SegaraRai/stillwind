@@ -29,7 +29,8 @@
 //! validates configuration, `output` parses output slots, and `snapshot` owns the
 //! immutable revision shared by compilation and editor requests. `skipped` records the
 //! invalid statements that loading leaves out instead of failing. `target` checks
-//! browser versions before removing generated color fallbacks.
+//! browser versions before removing generated color fallbacks. `requirements` reads
+//! registration requirements from parsed CSS directives.
 
 #![cfg_attr(
     not(test),
@@ -49,12 +50,13 @@ mod loading;
 mod options;
 mod output;
 mod registry;
+mod requirements;
 mod skipped;
 mod snapshot;
 mod target;
 mod theme;
 
-pub use conditionals::{RuntimeCondition, is_runtime_condition, runtime_if_arguments};
+pub use conditionals::{RuntimeCondition, runtime_if_arguments};
 pub use evaluation::{
     ConditionContext, DocumentTargetFailure, InvalidPropertyValue, InvalidValueReason, MarkerUse,
     NestedUtilityAtRule, NestedUtilityRule, RedundantVariant, ResolvedUtility,
@@ -89,6 +91,7 @@ pub use registry::{
     parse_omit_token_prefixes, parse_relationship_patterns, parse_stillwind_utility_definitions,
     parse_stillwind_variant_definitions, parse_theme_order, parse_variant_definitions,
 };
+pub use requirements::{PropertyRequirementError, take_property_requirements};
 pub use skipped::{SkipReason, SkippedCss};
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,

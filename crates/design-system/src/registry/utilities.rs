@@ -17,7 +17,9 @@
 use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{extract_named_blocks, strip_css_comments};
+use stillwind_css::{
+    decode_css_escapes, extract_named_blocks, strip_css_comments, whitespace_separated_ranges,
+};
 
 /// One utility definition: its name, its body, and the ordering metadata of its
 /// registration.
@@ -77,9 +79,9 @@ struct UtilityHeader {
 /// `fallback`, and `stop`. `fallback` and `stop` require `functional`. Any other header
 /// is rejected, which drops the definition from the registry.
 fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
-    let end = header.find(char::is_whitespace).unwrap_or(header.len());
+    let end = whitespace_separated_ranges(header).first()?.end;
     let mut parsed = UtilityHeader {
-        name: decode_utility_name(&header[..end])?,
+        name: decode_css_escapes(&header[..end])?,
         tw_sort: None,
         role: UtilityRole::default(),
     };
@@ -111,40 +113,6 @@ fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
         }
     }
     ((!parsed.role.fallback && !parsed.role.stop) || parsed.role.functional).then_some(parsed)
-}
-
-/// Decodes the CSS escapes of a definition name.
-///
-/// A name without a backslash is kept as written, so unescaped names such as
-/// `icon-[mdi--close]` keep their meaning. An escape is a backslash followed by up to
-/// six hexadecimal digits and one optional whitespace character, or by any other
-/// character. Returns `None` for an empty name, a trailing backslash, or a code point
-/// that is not a character.
-pub(crate) fn decode_utility_name(raw: &str) -> Option<LeanStr> {
-    if !raw.contains('\\') {
-        return (!raw.is_empty()).then(|| raw.into());
-    }
-    let mut name = String::with_capacity(raw.len());
-    let mut characters = raw.chars().peekable();
-    while let Some(character) = characters.next() {
-        if character != '\\' {
-            name.push(character);
-            continue;
-        }
-        let mut digits = String::new();
-        while digits.len() < 6
-            && let Some(digit) = characters.next_if(char::is_ascii_hexdigit)
-        {
-            digits.push(digit);
-        }
-        if digits.is_empty() {
-            name.push(characters.next()?);
-        } else {
-            name.push(char::from_u32(u32::from_str_radix(&digits, 16).ok()?)?);
-            characters.next_if(|character| character.is_whitespace());
-        }
-    }
-    (!name.is_empty()).then(|| name.into())
 }
 
 /// Parses compiler-owned `@stillwind-utility` definitions in source order.

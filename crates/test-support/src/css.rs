@@ -11,6 +11,9 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use cssparser::{Parser, Token};
+
+use stillwind_css::{CssNodeKind, parse_structure};
 use stillwind_source::{FileId, SourceError, SourceFile};
 
 /// Builds a source buffer with `id` from CSS that has the standard package prepended.
@@ -53,27 +56,36 @@ pub fn expand(css: &str) -> String {
 /// what to do with it; a `layer(...)` tail wraps the imported body.
 fn expand_from(css: &str, directory: &Path) -> String {
     let mut output = String::new();
-    let mut remaining = css;
-    while let Some(start) = remaining.find("@import ") {
-        output.push_str(&remaining[..start]);
-        let rule = &remaining[start + 8..];
-        let Some(end) = rule.find(';') else { break };
-        let import = rule[..end].trim();
-        let quote = import.chars().next().unwrap();
-        let Some(close) = import[1..].find(quote).map(|close| close + 1) else {
-            break;
+    let mut cursor = 0;
+    for node in parse_structure(css) {
+        let CssNodeKind::AtRule {
+            name,
+            prelude,
+            block: None,
+        } = node.kind
+        else {
+            continue;
         };
-        let name = &import[1..close];
-        let tail = import[close + 1..].trim();
+        if name != "import" {
+            continue;
+        }
+        let import = &css[prelude];
+        let mut parser = Parser::new(import);
+        let name = match parser.next() {
+            Ok(Token::QuotedString(name) | Token::UnquotedUrl(name)) => name.to_string(),
+            _ => continue,
+        };
+        let tail = import[parser.position().byte_index()..].trim();
         let path = if name == "stillwind" {
             Some(package_root().join("index.css"))
         } else if let Some(name) = name.strip_prefix("stillwind/") {
             Some(package_root().join("css").join(name))
-        } else if name.starts_with("./") && directory.join(name).is_file() {
-            Some(directory.join(name))
+        } else if name.starts_with("./") && directory.join(&name).is_file() {
+            Some(directory.join(&name))
         } else {
             None
         };
+        output.push_str(&css[cursor..node.range.start]);
         if let Some(path) = path {
             let source = std::fs::read_to_string(&path).unwrap();
             let body = expand_from(&source, path.parent().unwrap());
@@ -90,11 +102,11 @@ fn expand_from(css: &str, directory: &Path) -> String {
                 output.push_str(&body);
             }
         } else {
-            output.push_str(&remaining[start..=start + 8 + end]);
+            output.push_str(&css[node.range.clone()]);
         }
-        remaining = &rule[end + 1..];
+        cursor = node.range.end;
     }
-    output.push_str(remaining);
+    output.push_str(&css[cursor..]);
     output
 }
 

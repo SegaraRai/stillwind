@@ -5,11 +5,11 @@ use std::sync::Arc;
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{CssNode, CssNodeKind, parse_structure};
+use stillwind_css::{CssNode, CssNodeKind, css_comment_ranges, parse_structure};
 use stillwind_design_system::{DesignSystemSnapshot, ThemeIndex};
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, LintSettings, LintSurface, SourceEdit,
-    SourceRange, finish_lint_findings, stylesheet_lint_directives,
+    SourceRange, finish_lint_findings, lint_directives_in_comments,
 };
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
@@ -25,6 +25,7 @@ use super::theme_references::{check_theme_references, check_utility_namespaces};
 use super::theme_values::check_theme_values;
 use super::variant::check_variant_block;
 use super::variant_directive::{check_variant_directives, variant_directive_index};
+use crate::compiler::apply_candidates;
 use crate::{CompilerOptions, DesignSystemQuery};
 
 /// Lint findings in the stylesheets that the host marked for linting.
@@ -137,7 +138,10 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
             finish_lint_findings(
                 &source.source,
                 LintSurface::Stylesheet,
-                &stylesheet_lint_directives(source.source.text()),
+                &lint_directives_in_comments(
+                    source.source.text(),
+                    css_comment_ranges(source.source.text()),
+                ),
                 &lint_settings,
                 &mut source_findings,
                 true,
@@ -226,8 +230,11 @@ impl Checker<'_> {
                 } if in_rule || !is_definition(name) => {
                     self.visit(&block.children, prefixes, in_rule);
                 }
-                CssNodeKind::Apply { candidates } => {
-                    check_application(self, candidates, prefixes);
+                CssNodeKind::AtRule {
+                    name, block: None, ..
+                } if name == "apply" => {
+                    let candidates = apply_candidates(self.source.text(), node).unwrap_or_default();
+                    check_application(self, &candidates, prefixes);
                 }
                 _ => {}
             }

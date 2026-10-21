@@ -17,10 +17,11 @@ use std::ops::Range;
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::properties_interfere;
+use stillwind_css::{
+    CssNodeKind, declaration_values, parse_structure, properties_interfere, validate_css_syntax,
+};
 use stillwind_diagnostics::CompileDiagnostic;
 
-use super::conditionals::{consume, declaration_values};
 use crate::MappedStylesheet;
 use crate::identifiers::{ConditionContext, ConditionRole, IdentifierContext};
 
@@ -76,13 +77,9 @@ impl<'a> RuleBoundaries<'a> {
     ///
     /// # Errors
     ///
-    /// Returns a naming failure without returning partial CSS. Conflict state and the
-    /// shared identifier allocator may already have advanced.
+    /// Returns malformed CSS or a naming failure without returning partial CSS.
+    /// Conflict state and the shared identifier allocator may already have advanced.
     ///
-    /// # Panics
-    ///
-    /// Malformed block boundaries or noncanonical internal markers can produce invalid
-    /// edit offsets and panic during slicing.
     pub(crate) fn render(&mut self, css: &str) -> Result<LeanString, CompileDiagnostic> {
         let edits = self.edits(css)?;
         let mut output = LeanString::new();
@@ -105,12 +102,12 @@ impl<'a> RuleBoundaries<'a> {
     ///
     /// # Errors
     ///
-    /// Returns a naming failure before changing `css`. Conflict state and the shared
-    /// identifier allocator may already have advanced.
+    /// Returns malformed CSS or a naming failure before changing `css`. Conflict state
+    /// and the shared identifier allocator may already have advanced.
     ///
     /// # Panics
     ///
-    /// Invalid rendered CSS or mapping coordinates can panic during edit application.
+    /// Invalid mapping coordinates can panic during edit application.
     pub(super) fn render_mapped(
         &mut self,
         css: &mut MappedStylesheet,
@@ -129,6 +126,9 @@ impl<'a> RuleBoundaries<'a> {
     ///
     /// Returns a naming failure with any earlier state changes retained.
     fn edits(&mut self, css: &str) -> Result<Vec<(Range<usize>, LeanString)>, CompileDiagnostic> {
+        validate_css_syntax(css).map_err(|error| CompileDiagnostic::CssParse {
+            detail: error.to_lean_str(),
+        })?;
         let mut edits = Vec::new();
         self.walk(css, 0..css.len(), false, &mut edits)?;
         edits.sort_by_key(|(range, _)| range.start);
@@ -282,47 +282,33 @@ struct Block {
 ///
 /// # Panics
 ///
-/// Panics if `range` is invalid for slicing. A noncanonical marker spelling can
-/// underflow the calculation of its start offset.
+/// Panics if `range` is invalid for slicing.
 fn blocks(css: &str, range: Range<usize>) -> Vec<Block> {
     let fragment = &css[range.clone()];
-    let mut parser = Parser::new(fragment);
-    let mut start = 0;
-    let mut output = Vec::new();
-    while let Ok(token) = parser.next_including_whitespace_and_comments() {
-        match token {
-            Token::Semicolon => {
-                start = parser.position().byte_index();
-            }
-            Token::CurlyBracketBlock => {
-                let inner = parser.position().byte_index();
-                let mut header = Parser::new(&fragment[start..inner - 1]);
-                let first = header.next();
-                let at_rule = matches!(first, Ok(Token::AtKeyword(_)));
-                let boundary =
-                    matches!(&first, Ok(Token::AtKeyword(name)) if name.as_ref() == &MARKER[1..]);
-                let custom = matches!(first, Ok(Token::Ident(name)) if name.starts_with("--"))
-                    && matches!(header.next(), Ok(Token::Colon));
-                let marker = boundary
-                    .then(|| range.start + start + header.position().byte_index() - MARKER.len());
-                let end = consume(&mut parser);
-                if !custom {
-                    output.push(Block {
-                        header: range.start + start..range.start + inner - 1,
-                        body: range.start + inner..range.start + end,
-                        at_rule,
-                        marker,
-                    });
-                    start = end + 1;
+    parse_structure(fragment)
+        .into_iter()
+        .filter_map(|node| {
+            let (block, at_rule, boundary) = match node.kind {
+                CssNodeKind::StyleRule { block, .. } => (block, false, false),
+                CssNodeKind::AtRule {
+                    name,
+                    block: Some(block),
+                    ..
+                } => {
+                    let boundary = name.as_str() == &MARKER[1..];
+                    (block, true, boundary)
                 }
-            }
-            Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock => {
-                consume(&mut parser);
-            }
-            _ => {}
-        }
-    }
-    output
+                _ => return None,
+            };
+            block.close?;
+            Some(Block {
+                header: range.start + node.range.start..range.start + block.contents.start - 1,
+                body: range.start + block.contents.start..range.start + block.contents.end,
+                at_rule,
+                marker: boundary.then_some(range.start + node.range.start),
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -331,6 +317,26 @@ mod tests {
 
     use super::*;
     use crate::identifiers::{GeneratorSet, IdentifierMode};
+
+    #[test]
+    fn malformed_generated_css_returns_a_diagnostic_without_edits() {
+        let identifiers =
+            IdentifierContext::new(GeneratorSet::default(), IdentifierMode::Release, 5);
+        for css in [
+            ".x{--x:[)]}",
+            ".x{content:\"a,b}",
+            "@-stillwind-rule-boundary{.x{a:b}",
+        ] {
+            let mut boundaries = RuleBoundaries::new("test".into(), &identifiers);
+            assert!(
+                matches!(
+                    boundaries.render(css),
+                    Err(CompileDiagnostic::CssParse { .. })
+                ),
+                "{css}"
+            );
+        }
+    }
 
     fn render(css: &str) -> LeanString {
         let identifiers =

@@ -12,8 +12,7 @@
 //! for completion, hover, and color queries. [`input`] selects the compiler resolver
 //! for each source input role. [`context`] evaluates CSS and retrieves shared canonical
 //! indexes for queries and [`prepare_canonical_index`], which loaders can use before
-//! exposing a revision. [`state`] owns the pinned snapshot and caches. [`syntax`] scans
-//! candidate delimiters.
+//! exposing a revision. [`state`] owns the pinned snapshot and caches.
 
 mod annotations;
 mod canonical;
@@ -25,7 +24,6 @@ mod ordering;
 mod resolution;
 mod state;
 mod stylesheet;
-mod syntax;
 mod theme;
 
 pub use annotations::{ColorEquivalents, PreviewAnnotations};
@@ -41,4 +39,3 @@ pub use stylesheet::{
 };
 
 use context::QueryContext;
-use syntax::last_top_level;

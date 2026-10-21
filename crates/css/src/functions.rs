@@ -1,13 +1,13 @@
-//! Lexical helpers for finding and splitting CSS function calls.
+//! Function discovery and argument ranges from CSS tokens.
 //!
-//! Function lookup uses CSS tokens; delimiter and argument helpers scan characters.
-//! Strings, comments and URL contents are never interpreted as nested function calls.
+//! Function lookup uses CSS tokens. Strings, comments and URL contents are never
+//! interpreted as nested function calls.
 
 use std::ops::Range;
 
-use cssparser::{ParseError, Parser, Token};
+use cssparser::{Parser, Token};
 
-use crate::blocks::ScanError;
+use crate::parser::{consume, parse_css_block};
 
 /// One unescaped function invocation found during a batch scan.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -20,14 +20,6 @@ pub struct CssFunctionMatch {
     pub arguments: Range<usize>,
     /// Exclusive end including `)`, or `None` for an unclosed function.
     pub end: Option<usize>,
-}
-
-/// Finds `name(` at or after `from`, skipping strings, comments and URL contents.
-/// This is the single-name wrapper of [`find_css_functions`].
-pub fn find_css_function(value: &str, name: &str, from: usize) -> Option<usize> {
-    find_css_functions(value, &[name], from)
-        .first()
-        .map(|found| found.start)
 }
 
 /// Finds all occurrences of several complete, unescaped function names in one token walk.
@@ -69,7 +61,7 @@ fn collect_functions(
         let Ok(token) = parser.next_including_whitespace_and_comments() else {
             return;
         };
-        let (nested, skip_contents, name_index) = match token {
+        let (has_block, skip_contents, name_index) = match token {
             Token::Function(function) => {
                 let name_index = (start >= from && (!custom_only || function.starts_with("--")))
                     .then(|| {
@@ -88,7 +80,7 @@ fn collect_functions(
             }
             _ => (false, false, None),
         };
-        if !nested {
+        if !has_block {
             continue;
         }
         let arguments_start = parser.position().byte_index();
@@ -102,129 +94,20 @@ fn collect_functions(
             });
             index
         });
-        let mut arguments_end = arguments_start;
-        let _ = parser.parse_nested_block(|nested| {
+        let result = parse_css_block(parser, |inner| {
             if skip_contents {
-                while nested.next_including_whitespace_and_comments().is_ok() {}
+                consume(inner);
             } else {
-                collect_functions(nested, value, names, from, custom_only, found);
+                collect_functions(inner, value, names, from, custom_only, found);
             }
-            arguments_end = nested.position().byte_index();
-            Ok::<_, ParseError<()>>(())
         });
-        if let Some(index) = index {
-            found[index].arguments.end = arguments_end;
-            found[index].end =
-                (value.as_bytes().get(arguments_end) == Some(&b')')).then_some(arguments_end + 1);
+        if let Some(index) = index
+            && let Ok(((), block)) = result
+        {
+            found[index].arguments = block.contents;
+            found[index].end = block.close.map(|close| close + 1);
         }
     }
-}
-
-/// Returns the offset of the `closer` matching the `opener` at `open`.
-///
-/// `opener` and `closer` are supplied by the caller so one scanner serves parentheses
-/// and brackets. Quotes and comments are skipped, so delimiters inside them are literal
-/// text.
-///
-/// # Errors
-///
-/// Returns [`ScanError::InvalidOffset`] when `open` is past the end of `value` or
-/// falls inside a multi-byte scalar, and [`ScanError::Unclosed`] when the delimiter is
-/// never closed or the nesting underflows. Callers that obtain `open` from
-/// `char_indices` or `find` over this same string always satisfy the offset
-/// requirement.
-pub fn matching_css_delimiter(
-    value: &str,
-    open: usize,
-    opener: char,
-    closer: char,
-) -> Result<usize, ScanError> {
-    if !value.is_char_boundary(open) {
-        return Err(ScanError::InvalidOffset {
-            offset: open,
-            length: value.len(),
-        });
-    }
-    let mut depth = 0_u32;
-    let mut quote = None;
-    let mut escaped = false;
-    let bytes = value.as_bytes();
-    let mut index = open;
-    while index < bytes.len() {
-        let character = bytes[index] as char;
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active_quote {
-                quote = None;
-            }
-            index += 1;
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '/' if bytes.get(index + 1) == Some(&b'*') => {
-                let end = value[index + 2..].find("*/").ok_or(ScanError::Unclosed)?;
-                index += end + 4;
-                continue;
-            }
-            _ if character == opener => {
-                depth += 1;
-            }
-            _ if character == closer => {
-                depth = depth.checked_sub(1).ok_or(ScanError::Unclosed)?;
-                if depth == 0 {
-                    return Ok(index);
-                }
-            }
-            _ => {}
-        }
-        index += 1;
-    }
-    Err(ScanError::Unclosed)
-}
-
-/// Splits an argument list at its first top-level comma.
-///
-/// Commas inside nested parentheses, brackets, braces, quotes or escapes do not split.
-/// The returned remainder keeps its leading whitespace and is `None` when there is no
-/// top-level comma.
-pub fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
-    let mut stack = Vec::new();
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, character) in arguments.char_indices() {
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '(' | '[' | '{' => {
-                stack.push(character);
-            }
-            ')' | ']' | '}' => {
-                stack.pop();
-            }
-            ',' if stack.is_empty() => {
-                return (&arguments[..index], Some(&arguments[index + 1..]));
-            }
-            _ => {}
-        }
-    }
-    (arguments, None)
 }
 
 #[cfg(test)]
@@ -253,7 +136,6 @@ mod tests {
             find_css_functions(value, &["--y", "--x"], found[0].start + 1),
             found[1..]
         );
-        assert_eq!(find_css_function(value, "--x", 0), Some(found[0].start));
         assert_eq!(
             find_css_functions(value, &[], 0),
             [] as [CssFunctionMatch; 0]
@@ -278,70 +160,12 @@ mod tests {
         assert_eq!(found[0].end, Some(value.len()));
     }
 
-    #[test]
-    fn ignores_quoted_and_commented_functions_and_handles_unclosed_input() {
-        let value = "'--theme(fake)' /* --theme(no) */ --theme(--yes)";
-        assert_eq!(
-            find_css_function(value, "--theme", 0),
-            value.rfind("--theme")
-        );
-        assert_eq!(find_css_function("/* never closed", "--theme", 0), None);
-        assert_eq!(
-            matching_css_delimiter("(a(')') /* ) */)", 0, '(', ')'),
-            Ok(15)
-        );
-        assert_eq!(
-            matching_css_delimiter("(a", 0, '(', ')'),
-            Err(ScanError::Unclosed)
-        );
-        assert_eq!(
-            matching_css_delimiter("(a)", 4, '(', ')'),
-            Err(ScanError::InvalidOffset {
-                offset: 4,
-                length: 3
-            })
-        );
-        assert_eq!(
-            matching_css_delimiter("é(a)", 1, '(', ')'),
-            Err(ScanError::InvalidOffset {
-                offset: 1,
-                length: 5
-            })
-        );
-        assert_eq!(
-            matching_css_delimiter(")(a)", 0, '(', ')'),
-            Err(ScanError::Unclosed)
-        );
-    }
-
-    #[test]
-    fn splits_only_the_first_unquoted_top_level_comma() {
-        assert_eq!(
-            split_css_function_arguments("var(--a, red), rgb(1, 2, 3)"),
-            ("var(--a, red)", Some(" rgb(1, 2, 3)"))
-        );
-        assert_eq!(split_css_function_arguments("'a,b'"), ("'a,b'", None));
-        assert_eq!(
-            split_css_function_arguments("[a,b],x,y"),
-            ("[a,b]", Some("x,y"))
-        );
-        assert_eq!(split_css_function_arguments(""), ("", None));
-    }
-
     /// The recursive scanner descends into blocks, requires a complete name match, and
     /// reports closed and unclosed invocations differently.
     #[test]
     fn recursive_scan_descends_into_blocks_and_requires_complete_names() {
         let value = "@media x { --xy(1) } [--x(2)] ({--x(3)}) --x(4";
-        let mut found = Vec::new();
-        collect_functions(
-            &mut Parser::new(value),
-            value,
-            &["--x"],
-            0,
-            true,
-            &mut found,
-        );
+        let found = find_css_functions(value, &["--x"], 0);
         assert_eq!(
             found
                 .iter()
@@ -375,8 +199,8 @@ mod tests {
             (r"\--x(1)", "--x"),
         ] {
             assert_eq!(
-                find_css_function(value, name, 0),
-                None,
+                find_css_functions(value, &[name], 0),
+                [],
                 "{value:?} must not match {name:?}"
             );
         }
@@ -406,19 +230,5 @@ mod tests {
             }
         }
 
-        /// Splitting at the first top-level comma reconstructs the original argument
-        /// list. The generated list always starts with one, so a split always happens.
-        #[test]
-        fn argument_splitting_reconstructs_the_input(text in proptest::collection::vec(
-            proptest::sample::select(vec!["a", ",", "(", ")", "[", "]", "'", "\"", "\\", " "]),
-            0..16,
-        )) {
-            let arguments = format_args!("a,{}", text.concat()).to_lean_string();
-            let (head, tail) = split_css_function_arguments(&arguments);
-            proptest::prop_assert!(tail.is_some());
-            let tail = tail.unwrap();
-            proptest::prop_assert_eq!(head, "a");
-            proptest::prop_assert_eq!(format_args!("{head},{tail}").to_lean_string(), arguments.as_str());
-        }
     }
 }

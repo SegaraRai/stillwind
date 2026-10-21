@@ -19,7 +19,7 @@ use std::ops::Range;
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{color_hex, evaluate_numeric, split_css_function_arguments};
+use stillwind_css::{color_hex, evaluate_numeric, split_once_top_level};
 
 use super::{DesignSystemQuery, QueryContext};
 
@@ -287,7 +287,7 @@ impl Annotator<'_> {
     /// theme token.
     fn variable(&self, text: &str) -> Option<LeanString> {
         let arguments = text.get(text.find('(')? + 1..text.len().checked_sub(1)?)?;
-        let (name, _) = split_css_function_arguments(arguments);
+        let (name, _) = split_once_top_level(arguments, |token| matches!(token, Token::Comma));
         let token = self
             .query
             .design_system

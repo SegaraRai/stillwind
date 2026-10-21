@@ -11,7 +11,7 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::matching_brace;
+use stillwind_css::{CssNodeKind, parse_structure};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{FileId, Span, Spanned};
 
@@ -106,58 +106,21 @@ pub(crate) fn extract_theme_declarations(
         .ok_or(CompileDiagnostic::CssOffsetTooLarge { offset: body_start })?;
     offset(end)?;
     let mut tokens = Vec::new();
-    let mut cursor = 0;
-    while cursor < body.len() {
-        cursor += body[cursor..]
-            .find(|character: char| !character.is_whitespace())
-            .unwrap_or(body[cursor..].len());
-        if cursor >= body.len() {
-            break;
-        }
-        if body[cursor..].starts_with("/*") {
-            let Some(end) = body[cursor + 2..].find("*/") else {
-                break;
-            };
-            cursor += end + 4;
-            continue;
-        }
-        if body[cursor..].starts_with('@') {
-            let Some((offset, delimiter)) = body[cursor..]
-                .char_indices()
-                .find(|(_, character)| matches!(character, '{' | ';'))
-            else {
-                break;
-            };
-            if delimiter == ';' {
-                cursor += offset + 1;
-            } else if let Ok(close) = matching_brace(body, cursor + offset) {
-                cursor = close + 1;
-            } else {
-                // An unclosed or unusable block ends the scan; the caller treats the
-                // remaining text as declarations rather than guessing an end.
-                break;
-            }
-            continue;
-        }
-
-        let declaration_start = cursor;
-        let Some(end) = body[cursor..].find(';') else {
-            break;
-        };
-        let declaration = &body[cursor..cursor + end];
-        cursor += end + 1;
-        let Some((raw_name, raw_value)) = declaration.split_once(':') else {
+    for node in parse_structure(body) {
+        let CssNodeKind::Declaration {
+            property,
+            value: value_range,
+        } = node.kind
+        else {
             continue;
         };
-        let name = raw_name.trim();
-        let value = raw_value.trim();
+        let name = &body[property.clone()];
+        let value = &body[value_range.clone()];
         if !name.starts_with("--") || value.is_empty() {
             continue;
         }
-        let name_start =
-            body_start + declaration_start + declaration.find(name).unwrap_or_default();
-        let value_start =
-            body_start + declaration_start + declaration.find(value).unwrap_or_default();
+        let name_start = body_start + property.start;
+        let value_start = body_start + value_range.start;
         tokens.push(ThemeToken {
             name: Spanned::new(
                 name.to_lean_str(),

@@ -5,10 +5,10 @@
 //! token without checking its value, so `bg-brand` emits `var(--color-brand)` even when
 //! the token holds a length. [`theme_value_mismatch`] finds such values for lint.
 
-use cssparser::{Delimiter, ParseError, Parser};
+use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{ValueType, find_css_functions};
+use stillwind_css::{ValueType, find_css_functions, split_top_level};
 
 use crate::ThemeIndex;
 
@@ -51,9 +51,9 @@ pub fn theme_value_mismatch(
     }
     let accepts = |value_type: &ValueType| {
         if *value_type == ValueType::Shadow {
-            top_level_items(value)
-                .iter()
-                .all(|item| value_type.accepts(item))
+            split_top_level(value, |token| matches!(token, Token::Comma))
+                .into_iter()
+                .all(|item| value_type.accepts(item.trim()))
         } else {
             value_type.accepts(value)
         }
@@ -67,24 +67,6 @@ pub fn theme_value_mismatch(
             .join(" or ")
             .to_lean_str(),
     })
-}
-
-/// Splits `value` at commas outside functions, blocks, and strings, and returns each
-/// trimmed item.
-fn top_level_items(value: &str) -> Vec<&str> {
-    let mut parser = Parser::new(value);
-    let mut items = Vec::new();
-    loop {
-        let start = parser.position().byte_index();
-        let _: Result<(), ParseError<()>> = parser.parse_until_before(Delimiter::Comma, |item| {
-            while item.next_including_whitespace_and_comments().is_ok() {}
-            Ok(())
-        });
-        items.push(value[start..parser.position().byte_index()].trim());
-        if parser.next().is_err() {
-            return items;
-        }
-    }
 }
 
 #[cfg(test)]

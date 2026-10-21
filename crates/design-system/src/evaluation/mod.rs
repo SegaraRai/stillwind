@@ -9,14 +9,13 @@
 //! typed value domains and placeholders, and [`variants`] produces selector
 //! applications and their ordering. [`context`] records direct selections for one
 //! evaluation. [`programs`] prepares utility syntax and declaration branches.
-//! [`syntax`] matches delimiters while reading definition expressions. [`suggestions`]
-//! proposes spellings for unknown utility, variant, and theme token names.
+//! [`suggestions`] proposes spellings for unknown utility, variant, and theme token
+//! names.
 
 mod context;
 mod programs;
 mod stillwind;
 mod suggestions;
-mod syntax;
 mod utilities;
 mod values;
 mod variants;

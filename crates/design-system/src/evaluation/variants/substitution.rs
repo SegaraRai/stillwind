@@ -9,15 +9,14 @@
 
 use std::sync::Arc;
 
+use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{find_css_function, selector_is_element_condition};
+use stillwind_css::{find_css_functions, selector_is_element_condition, split_top_level};
 use stillwind_source::ReplaceText;
 
 use super::super::context::EvaluationContext;
-use super::super::values::{
-    expand_placeholder, resolve_value_domains, split_domains, theme_domain_pattern,
-};
+use super::super::values::{expand_placeholder, resolve_value_domains, theme_domain_pattern};
 use super::application::{VariantApplication, VariantDeclaration, VariantObstacle};
 use super::body::resolve_variant_body;
 use super::usage::VariantValueSource;
@@ -391,34 +390,36 @@ pub(super) fn resolve_variant_value_with_source(
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
 ) -> Option<(LeanStr, VariantValueSource)> {
-    split_domains(domains).into_iter().find_map(|domain| {
-        let domain = domain.trim();
-        if let Some((namespace, suffix)) = theme_domain_pattern(domain, theme) {
-            return capture.and_then(|name| {
-                namespace.token(name, suffix, theme).map(|token| {
-                    theme.record_token(&token.name.value);
-                    (
-                        token.value.value.clone(),
-                        VariantValueSource::ThemeToken(token.name.value.clone()),
-                    )
-                })
-            });
-        }
-        let value = resolve_value_domains(domain, capture, theme)?;
-        // Media queries, container queries, and selectors cannot contain `var()`, so
-        // `min-(--x)` would emit a rule that never matches.
-        if find_css_function(&value, "var", 0).is_some() {
-            return None;
-        }
-        let source = if let Some(namespace) = theme.namespaces().scale_domain(domain)
-            && let Some(token) = capture.and_then(|name| theme.token_in(&namespace.name, name))
-        {
-            VariantValueSource::ThemeToken(token.name.value.clone())
-        } else {
-            VariantValueSource::Explicit
-        };
-        Some((value, source))
-    })
+    split_top_level(domains, |token| matches!(token, Token::Comma))
+        .into_iter()
+        .find_map(|domain| {
+            let domain = domain.trim();
+            if let Some((namespace, suffix)) = theme_domain_pattern(domain, theme) {
+                return capture.and_then(|name| {
+                    namespace.token(name, suffix, theme).map(|token| {
+                        theme.record_token(&token.name.value);
+                        (
+                            token.value.value.clone(),
+                            VariantValueSource::ThemeToken(token.name.value.clone()),
+                        )
+                    })
+                });
+            }
+            let value = resolve_value_domains(domain, capture, theme)?;
+            // Media queries, container queries, and selectors cannot contain `var()`, so
+            // `min-(--x)` would emit a rule that never matches.
+            if !find_css_functions(&value, &["var"], 0).is_empty() {
+                return None;
+            }
+            let source = if let Some(namespace) = theme.namespaces().scale_domain(domain)
+                && let Some(token) = capture.and_then(|name| theme.token_in(&namespace.name, name))
+            {
+                VariantValueSource::ThemeToken(token.name.value.clone())
+            } else {
+                VariantValueSource::Explicit
+            };
+            Some((value, source))
+        })
 }
 
 #[cfg(test)]

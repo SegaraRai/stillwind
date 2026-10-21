@@ -13,7 +13,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{PropertyRequirementError, ValueType, take_property_requirements};
+use stillwind_css::ValueType;
 use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
@@ -26,6 +26,7 @@ use super::nested::{
 };
 use super::resolve::{ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse};
 use super::variables::VariableMismatch;
+use crate::requirements::{PropertyRequirementError, take_property_requirements};
 use crate::{CustomUtility, ThemeIndex, UtilityOrderMode};
 
 /// A failed utility resolution caused by a malformed requirement in the matched definition.

@@ -9,12 +9,11 @@
 //! belong to its callers.
 
 use std::fmt::Write as _;
-use std::ops::Range;
 
-use cssparser::{ParseError, Parser, Token};
+use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::find_css_functions;
+use stillwind_css::{consume_css_block, declaration_values, find_css_functions};
 use stillwind_design_system::{RuntimeCondition, runtime_if_arguments};
 use stillwind_diagnostics::{
     CompileDiagnostic, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -340,12 +339,12 @@ pub(super) struct Guarded {
 }
 
 /// Guards every declaration, including nested rules, with a validated condition.
-/// `condition` must satisfy `is_runtime_condition`. Emits unresolved `--if` values
-/// with `revert-rule` as the false branch; callers must run [`lower`] and retain a
-/// separate rule boundary. Existing guards combine as AND using local boolean gates.
-/// Priority stays outside the expression; `known` names the gate declarations an
-/// earlier pass wrote, which are left alone, and the ones this pass writes are
-/// returned. Negated AND operands emit inversions that require native lowering.
+/// `condition` must parse as a `RuntimeCondition`. Emits unresolved `--if` values with
+/// `revert-rule` as the false branch; callers must run [`lower`] and retain a separate
+/// rule boundary. Existing guards combine as AND using local boolean gates. Priority
+/// stays outside the expression; `known` names the gate declarations an earlier pass
+/// wrote, which are left alone, and the ones this pass writes are returned. Negated AND
+/// operands emit inversions that require native lowering.
 ///
 /// # Errors
 ///
@@ -375,7 +374,7 @@ pub(super) fn guard(
                     }
                 }
                 Ok(token) if is_block(token) => {
-                    consume(&mut parser);
+                    let _ = consume_css_block(&mut parser);
                 }
                 Ok(_) => {}
                 Err(_) => {
@@ -421,11 +420,11 @@ pub(super) fn guard(
     })
 }
 
-/// Returns a custom-property name suitable for a fallback AND expression.
-/// `condition` must satisfy `is_runtime_condition`. Positive presence tests return
-/// their trimmed text without changing `declarations`; negations and comparisons
-/// append an unresolved helper with empty/initial branches and return its name.
-/// Callers must lower appended helpers in native mode before emitting them.
+/// Returns a custom-property name suitable for a fallback AND expression. `condition`
+/// must parse as a `RuntimeCondition`. Positive presence tests return their trimmed
+/// text without changing `declarations`; negations and comparisons append an unresolved
+/// helper with empty/initial branches and return its name. Callers must lower appended
+/// helpers in native mode before emitting them.
 ///
 /// # Errors
 ///
@@ -471,88 +470,6 @@ fn is_block(token: &Token<'_>) -> bool {
             | Token::SquareBracketBlock
             | Token::CurlyBracketBlock
     )
-}
-
-/// Consumes the block opened by the parser's last token and returns its content-end
-/// byte offset relative to the parser input. The last token must satisfy [`is_block`].
-/// Nested parse errors are ignored; the parser advances past the block when available.
-pub(super) fn consume(parser: &mut Parser<'_>) -> usize {
-    let mut end = parser.position().byte_index();
-    let _ = parser.parse_nested_block(|nested| {
-        while nested.next_including_whitespace_and_comments().is_ok() {}
-        end = nested.position().byte_index();
-        Ok::<_, ParseError<()>>(())
-    });
-    end
-}
-
-/// Finds declaration values using token boundaries, with an explicit stack for rules.
-/// Custom-property brace values are opaque, as are all function and URL contents.
-/// Returns nonoverlapping property/value byte ranges into `css`, sorted by source
-/// position. Semicolons are excluded; surrounding declaration whitespace is retained.
-pub(super) fn declaration_values(css: &str) -> Vec<(Range<usize>, Range<usize>)> {
-    let mut pending = Vec::new();
-    pending.push(0..css.len());
-    let mut values = Vec::new();
-    while let Some(range) = pending.pop() {
-        let fragment = &css[range.clone()];
-        let mut parser = Parser::new(fragment);
-        let mut start = 0;
-        loop {
-            let position = parser.position().byte_index();
-            match parser.next_including_whitespace_and_comments() {
-                Ok(Token::Semicolon) => {
-                    add_declaration(fragment, range.start, start..position, &mut values);
-                    start = parser.position().byte_index();
-                }
-                Ok(Token::CurlyBracketBlock) => {
-                    let mut header = Parser::new(&fragment[start..position]);
-                    let custom = matches!(header.next(), Ok(Token::Ident(name)) if name.starts_with("--"))
-                        && matches!(header.next(), Ok(Token::Colon));
-                    let inner = parser.position().byte_index();
-                    let end = consume(&mut parser);
-                    if !custom {
-                        pending.push(range.start + inner..range.start + end);
-                        start = parser.position().byte_index();
-                    }
-                }
-                Ok(token) if is_block(token) => {
-                    consume(&mut parser);
-                }
-                Ok(_) => {}
-                Err(_) => {
-                    add_declaration(fragment, range.start, start..fragment.len(), &mut values);
-                    break;
-                }
-            }
-        }
-    }
-    values.sort_by_key(|(property, _)| property.start);
-    values
-}
-
-/// Appends property/value ranges when `css[range]` starts with an identifier and colon.
-/// `range` must lie on UTF-8 boundaries within `css`; `offset` translates its ranges
-/// into the enclosing stylesheet. Unrecognized fragments leave `values` unchanged.
-/// Panics if `range` is out of bounds or splits a UTF-8 character.
-fn add_declaration(
-    css: &str,
-    offset: usize,
-    range: Range<usize>,
-    values: &mut Vec<(Range<usize>, Range<usize>)>,
-) {
-    let mut parser = Parser::new(&css[range.clone()]);
-    if !matches!(parser.next(), Ok(Token::Ident(_))) {
-        return;
-    }
-    if !matches!(parser.next(), Ok(Token::Colon)) {
-        return;
-    }
-    let property_end = parser.position().byte_index() - 1;
-    values.push((
-        offset + range.start..offset + range.start + property_end,
-        offset + range.start + parser.position().byte_index()..offset + range.end,
-    ));
 }
 
 /// Replaces each declaration in source order with the result of `map(property, value)`.
@@ -722,93 +639,5 @@ mod tests {
                 .unwrap()
                 .contains("--if(")
         );
-    }
-}
-
-#[cfg(test)]
-mod declaration_value_tests {
-    use lean_string::{LeanStr, ToLeanStr};
-
-    use super::declaration_values;
-
-    fn slices(css: &str) -> Vec<(LeanStr, LeanStr)> {
-        declaration_values(css)
-            .into_iter()
-            .map(|(property, value)| {
-                (
-                    css[property].trim().to_lean_str(),
-                    css[value].trim().to_lean_str(),
-                )
-            })
-            .collect()
-    }
-
-    /// Declarations are split at token-level semicolons, and empty or colon-less
-    /// fragments contribute nothing.
-    #[test]
-    fn declaration_values_split_semicolon_separated_declarations() {
-        assert_eq!(
-            slices("a:1;b:2;"),
-            [
-                ("a".to_lean_str(), "1".to_lean_str()),
-                ("b".to_lean_str(), "2".to_lean_str())
-            ]
-        );
-        assert_eq!(slices("a:1;b:2"), slices("a:1;b:2;"));
-        assert_eq!(slices(""), [] as [(LeanStr, LeanStr); 0]);
-        assert_eq!(slices("no-colon;"), [] as [(LeanStr, LeanStr); 0]);
-        // Surrounding whitespace is retained in both ranges.
-        let css = "  a : 1 ; ";
-        let values = declaration_values(css);
-        assert_eq!(values.len(), 1);
-        assert!(css[values[0].0.clone()].starts_with("  a "));
-        assert!(css[values[0].1.clone()].starts_with(" 1 "));
-    }
-
-    /// Custom-property brace values, functions, and URLs are opaque.
-    #[test]
-    fn declaration_values_treat_braces_functions_and_urls_as_opaque() {
-        assert_eq!(
-            slices("--x:{a:1};y:2;"),
-            [
-                ("--x".to_lean_str(), "{a:1}".to_lean_str()),
-                ("y".to_lean_str(), "2".to_lean_str())
-            ]
-        );
-        assert_eq!(
-            slices("x:url(a;b);y:calc(1;2);"),
-            [
-                ("x".to_lean_str(), "url(a;b)".to_lean_str()),
-                ("y".to_lean_str(), "calc(1;2)".to_lean_str())
-            ]
-        );
-        assert_eq!(
-            slices("x:fn({a:1});y:2;"),
-            [
-                ("x".to_lean_str(), "fn({a:1})".to_lean_str()),
-                ("y".to_lean_str(), "2".to_lean_str())
-            ]
-        );
-    }
-
-    /// Rule bodies are searched, and the results stay in source order without
-    /// overlaps.
-    #[test]
-    fn declaration_values_descend_into_rule_bodies_in_source_order() {
-        assert_eq!(
-            slices("@media x{a:1;}b:2;"),
-            [
-                ("a".to_lean_str(), "1".to_lean_str()),
-                ("b".to_lean_str(), "2".to_lean_str())
-            ]
-        );
-        let css = "@media x{a:1;}b:2;";
-        let values = declaration_values(css);
-        let mut previous = 0;
-        for (property, value) in &values {
-            assert!(property.start >= previous);
-            assert!(property.start <= value.start);
-            previous = value.end;
-        }
     }
 }

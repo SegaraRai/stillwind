@@ -10,9 +10,10 @@
 //! split cleanly is rejected, so a malformed definition cannot silently emit
 //! declarations at the wrong nesting level.
 
+use cssparser::Parser;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use super::super::syntax::closing_brace;
+use stillwind_css::{CssNodeKind, parse_structure, selector_uses_subject, validate_css_syntax};
 
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -66,117 +67,80 @@ pub(in crate::evaluation) struct ParsedNestedUtilityRule {
 pub(in crate::evaluation) fn split_nested_conditions(
     body: &str,
 ) -> Option<(LeanString, Vec<ParsedNestedUtilityRule>)> {
+    validate_css_syntax(body).ok()?;
     let mut direct = LeanString::with_capacity(body.len());
     let mut nested = Vec::new();
     let mut cursor = 0;
-    while let Some((start, at_rule, keyword)) = next_nested_condition(body, cursor) {
-        direct.push_str(&body[cursor..start]);
-        let open = body[start..].find('{')? + start;
-        let close = closing_brace(body, open)?;
-        let condition = body[start + keyword.len()..open].trim();
+    for node in parse_structure(body) {
+        let CssNodeKind::AtRule {
+            name,
+            prelude,
+            block: Some(block),
+        } = &node.kind
+        else {
+            continue;
+        };
+        let at_rule = match name.as_str() {
+            "media" => NestedUtilityAtRule::Media,
+            "supports" => NestedUtilityAtRule::Supports,
+            _ => continue,
+        };
+        block.close?;
+        direct.push_str(&body[cursor..node.range.start]);
+        let condition = body[prelude.clone()].trim();
         let condition = match at_rule {
-            NestedUtilityAtRule::Media => condition.to_lean_string(),
-            NestedUtilityAtRule::Supports => condition
-                .strip_prefix('(')
-                .and_then(|value| value.strip_suffix(')'))?
-                .trim()
-                .to_lean_string(),
+            NestedUtilityAtRule::Media => condition,
+            NestedUtilityAtRule::Supports => condition.strip_prefix('(')?.strip_suffix(')')?.trim(),
         };
         nested.push(ParsedNestedUtilityRule {
             at_rule,
-            condition: (condition).into(),
-            body: body[open + 1..close].trim().to_lean_str(),
+            condition: condition.to_lean_str(),
+            body: body[block.contents.clone()].trim().to_lean_str(),
         });
-        cursor = close + 1;
+        cursor = node.range.end;
     }
     direct.push_str(&body[cursor..]);
     Some((direct.trim().to_lean_string(), nested))
 }
 
-/// Finds the earliest nested conditional at or after `cursor`.
-///
-/// Returns the offset, the at-rule kind, and the keyword, so the caller can slice the
-/// condition without re-scanning. `@supports` wins a tie because a body cannot open
-/// both at the same byte.
-///
-/// # Panics
-///
-/// Panics when `cursor` is past the end of `body` or does not lie on a UTF-8 character
-/// boundary, because the search begins by slicing at `cursor`. Callers must pass `0` or
-/// an offset just past a previously returned block in this same string; an offset from
-/// another buffer, or advanced by bytes instead of scalars, panics.
-fn next_nested_condition(
-    body: &str,
-    cursor: usize,
-) -> Option<(usize, NestedUtilityAtRule, &'static str)> {
-    let supports = body[cursor..]
-        .find("@supports")
-        .map(|offset| (cursor + offset, NestedUtilityAtRule::Supports, "@supports"));
-    let media = body[cursor..]
-        .find("@media")
-        .map(|offset| (cursor + offset, NestedUtilityAtRule::Media, "@media"));
-    match (supports, media) {
-        (Some(supports), Some(media)) => Some(if supports.0 < media.0 {
-            supports
-        } else {
-            media
-        }),
-        (Some(condition), None) | (None, Some(condition)) => Some(condition),
-        (None, None) => None,
-    }
-}
-
 /// Splits a body into an optional selector, its inner declarations, and the
 /// declarations authored before the selector.
 ///
-/// A body without `&` has no selector, and the whole body is returned as direct
-/// declarations. A body whose selector block is not a complete selector - anything
-/// after the closing brace, or a prelude without `&` - is rejected, because accepting
-/// it would change which element the declarations apply to.
+/// A body without a style rule has no selector, and the whole body is returned as
+/// direct declarations. A body whose selector block is not a complete selector -
+/// anything after the closing brace, or a prelude without `&` - is rejected, because
+/// accepting it would change which element the declarations apply to.
 pub(in crate::evaluation) fn split_utility_selector(
     body: &str,
 ) -> Option<(Option<LeanString>, &str, Option<&str>)> {
-    if !body.contains('&') {
+    validate_css_syntax(body).ok()?;
+    let nodes = parse_structure(body);
+    let mut rules = nodes
+        .iter()
+        .filter(|node| matches!(node.kind, CssNodeKind::StyleRule { .. }));
+    let Some(node) = rules.next() else {
         return Some((None, body, None));
-    }
-
-    let mut selector_start = 0;
-    let mut open = None;
-    let mut parenthesis_depth = 0_u32;
-    for (index, character) in body.char_indices() {
-        match character {
-            '(' | '[' => {
-                parenthesis_depth += 1;
-            }
-            ')' | ']' => {
-                parenthesis_depth = parenthesis_depth.checked_sub(1)?;
-            }
-            ';' if parenthesis_depth == 0 => {
-                selector_start = index + 1;
-            }
-            '{' if parenthesis_depth == 0 => {
-                let prelude = body[selector_start..index].trim();
-                if prelude.contains('&') {
-                    open = Some(index);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-    let open = open?;
-    let close = closing_brace(body, open)?;
-    if !body[close + 1..].trim().is_empty() {
+    };
+    if rules.next().is_some()
+        || nodes.last() != Some(node)
+        || !Parser::new(&body[node.range.end..]).is_exhausted()
+    {
         return None;
     }
-    let selector = body[selector_start..open].trim();
-    (!selector.is_empty()).then(|| {
-        (
-            Some(selector.to_lean_string()),
-            body[open + 1..close].trim(),
-            (!body[..selector_start].trim().is_empty()).then_some(body[..selector_start].trim()),
-        )
-    })
+    let CssNodeKind::StyleRule { selector, block } = &node.kind else {
+        return None;
+    };
+    block.close?;
+    let selector_text = &body[selector.clone()];
+    if !selector_uses_subject(selector_text) {
+        return None;
+    }
+    let before = body[..node.range.start].trim();
+    Some((
+        Some(selector_text.to_lean_string()),
+        body[block.contents.clone()].trim(),
+        (!before.is_empty()).then_some(before),
+    ))
 }
 
 #[cfg(test)]

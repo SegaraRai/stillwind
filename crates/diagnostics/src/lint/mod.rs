@@ -27,7 +27,7 @@ pub use diagnostic::{LintDiagnostic, MarkerUseErrorKind, RuleGroupInputErrorKind
 pub use finding::LintFinding;
 pub use suppression::{
     LintDirective, LintDirectiveKind, LintDirectiveRules, filter_lint_findings,
-    finish_lint_findings, lint_directives_in_comments, stylesheet_lint_directives,
+    finish_lint_findings, lint_directives_in_comments,
 };
 
 pub(crate) use suppression::suppressing_directive;

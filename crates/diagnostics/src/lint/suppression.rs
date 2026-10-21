@@ -1,9 +1,10 @@
 //! `swlint-*` comment directives and the filter that applies them.
 //!
 //! Directives are parsed out of comment bodies. Script frontends supply the comments
-//! that their parser found, and [`stylesheet_lint_directives`] finds the `/* */`
+//! that their parser found. CSS callers use `stillwind_css::css_comment_ranges` for
 //! comments of a stylesheet, so directive-shaped text inside a string or template is
 //! not a directive.
+//!
 //! A parsed directive carries the kind, the byte offset and zero-based line of its
 //! keyword, and its selected rules. An omitted list or `*` selects every rule; unknown
 //! names in an explicit list select no additional rules and remain available for
@@ -308,46 +309,6 @@ fn directive_span(source: &SourceFile, start: usize, end: usize) -> Span {
     }
 }
 
-/// Parses the `swlint-*` directives of a stylesheet, in source order.
-///
-/// Only `/* */` encloses comments. Quoted strings and backslash escapes are skipped, so
-/// directive text inside a string is ignored. An unterminated comment extends to the
-/// end of `source`. Directive syntax follows [`lint_directives_in_comments`].
-pub fn stylesheet_lint_directives(source: &str) -> Vec<LintDirective> {
-    let bytes = source.as_bytes();
-    let mut comments = Vec::new();
-    let mut cursor = 0;
-    let mut quote = None;
-    while cursor < bytes.len() {
-        let byte = bytes[cursor];
-        if byte == b'\\' {
-            cursor += 2;
-            continue;
-        }
-        if let Some(delimiter) = quote {
-            if byte == delimiter {
-                quote = None;
-            }
-            cursor += 1;
-            continue;
-        }
-        if matches!(byte, b'\'' | b'"') {
-            quote = Some(byte);
-            cursor += 1;
-        } else if byte == b'/' && bytes.get(cursor + 1) == Some(&b'*') {
-            let start = cursor + 2;
-            let end = source[start..]
-                .find("*/")
-                .map_or(bytes.len(), |offset| start + offset);
-            comments.push(start..end);
-            cursor = end + 2;
-        } else {
-            cursor += 1;
-        }
-    }
-    lint_directives_in_comments(source, comments)
-}
-
 /// Parses the `swlint-*` directives in the comments of `source`, in source order.
 ///
 /// Each range in `comments` is the body of one comment without its delimiters, in UTF-8
@@ -434,6 +395,7 @@ pub fn lint_directives_in_comments(
 mod tests {
     use lean_string::ToLeanString;
 
+    use stillwind_css::css_comment_ranges;
     use stillwind_source::{FileId, Span};
 
     use super::super::LintConfig;
@@ -738,11 +700,14 @@ mod tests {
                    .b\/* swlint-disable */ { content: "\"/* swlint-enable */"; }
                    /* swlint-disable-next-line unknown-utility -- reason */
 .b{}"#;
-        let directives = stylesheet_lint_directives(css);
+        let directives = lint_directives_in_comments(css, css_comment_ranges(css));
         assert_eq!(directives.len(), 1);
         assert_eq!(directives[0].kind, LintDirectiveKind::DisableNextLine);
         assert_eq!(directives[0].line, 2);
-        let directives = stylesheet_lint_directives("`/* swlint-disable */`");
+        let directives = lint_directives_in_comments(
+            "`/* swlint-disable */`",
+            css_comment_ranges("`/* swlint-disable */`"),
+        );
         assert_eq!(directives.len(), 1);
     }
 
@@ -758,7 +723,7 @@ mod tests {
         finish_lint_findings(
             &source,
             LintSurface::Stylesheet,
-            &stylesheet_lint_directives(source.text()),
+            &lint_directives_in_comments(source.text(), css_comment_ranges(source.text())),
             &settings,
             &mut findings,
             true,

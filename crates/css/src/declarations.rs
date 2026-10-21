@@ -3,12 +3,17 @@
 
 use std::ops::Range;
 
-use cssparser::{ParseError, Parser, Token};
+use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr};
+
+use crate::parser::{CssSyntaxError, consume_css_block, validate_css_syntax};
 
 /// Why one statement of a declaration list is not a `name: value` declaration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum DeclarationError {
+    /// A component value contains malformed tokens or unclosed delimiters.
+    #[error(transparent)]
+    Syntax(#[from] CssSyntaxError),
     /// The statement does not start with an identifier.
     #[error("expected a declaration name")]
     MissingName,
@@ -18,8 +23,8 @@ pub enum DeclarationError {
     /// The value has no tokens.
     #[error("expected a declaration value")]
     EmptyValue,
-    /// The value contains a `{}` block.
-    #[error("declaration values cannot contain `{{}}` blocks")]
+    /// A value of an ordinary property contains a `{}` block.
+    #[error("ordinary declaration values cannot contain `{{}}` blocks")]
     CurlyBlock,
 }
 
@@ -38,10 +43,14 @@ pub struct ParsedDeclaration {
 /// Parses the statements of a declaration list, such as the body of an at-rule, in
 /// authored order.
 ///
-/// Each statement yields a declaration or the reason that it is not one. After an
-/// error, parsing resumes after the next top-level `;`. Empty statements yield nothing,
-/// and the last statement may omit its semicolon.
+/// Malformed component values reject the whole list. Otherwise, each statement yields a
+/// declaration or the reason that it is not one. After an error, parsing resumes after
+/// the next top-level `;`. Empty statements yield nothing, and the last statement may
+/// omit its semicolon.
 pub fn parse_declaration_list(css: &str) -> Vec<Result<ParsedDeclaration, DeclarationError>> {
+    if let Err(error) = validate_css_syntax(css) {
+        return vec![Err(error.into())];
+    }
     let mut parser = Parser::new(css);
     let mut statements = Vec::new();
     loop {
@@ -84,12 +93,12 @@ fn declaration(
                 }
                 continue;
             }
-            Ok(Token::CurlyBracketBlock) => {
+            Ok(Token::CurlyBracketBlock) if !name.starts_with("--") => {
                 skip_statement(parser);
                 return Err(DeclarationError::CurlyBlock);
             }
             Ok(token) if is_block(token) => {
-                consume_block(parser);
+                let _ = consume_css_block(parser);
             }
             Ok(_) => {}
         }
@@ -128,7 +137,7 @@ pub fn declaration_ranges(css: &str) -> Vec<Range<usize>> {
                 start = parser.position().byte_index();
             }
             Ok(token) if is_block(token) => {
-                consume_block(&mut parser);
+                let _ = consume_css_block(&mut parser);
             }
             Ok(_) => {}
             Err(_) => {
@@ -158,7 +167,7 @@ pub fn important_declarations(css: &str) -> LeanString {
             previous_bang = matches!(token, Token::Delim('!'));
             has_colon |= matches!(token, Token::Colon);
             if is_block(token) {
-                consume_block(&mut parser);
+                let _ = consume_css_block(&mut parser);
             }
             last_end = parser.position().byte_index();
         }
@@ -188,16 +197,115 @@ fn is_block(token: &Token<'_>) -> bool {
     )
 }
 
-fn consume_block(parser: &mut Parser<'_>) {
-    let _ = parser.parse_nested_block(|nested| {
-        while nested.next_including_whitespace_and_comments().is_ok() {}
-        Ok::<_, ParseError<()>>(())
-    });
+/// Finds declaration values using token boundaries, with an explicit stack for rules.
+/// Custom-property brace values are opaque, as are all function and URL contents.
+/// Returns nonoverlapping property/value byte ranges into `css`, sorted by source
+/// position. Semicolons are excluded; surrounding declaration whitespace is retained.
+pub fn declaration_values(css: &str) -> Vec<(Range<usize>, Range<usize>)> {
+    let mut pending = Vec::new();
+    pending.push(0..css.len());
+    let mut values = Vec::new();
+    while let Some(range) = pending.pop() {
+        let fragment = &css[range.clone()];
+        let mut parser = Parser::new(fragment);
+        let mut start = 0;
+        loop {
+            let position = parser.position().byte_index();
+            match parser.next_including_whitespace_and_comments() {
+                Ok(Token::Semicolon) => {
+                    add_declaration(fragment, range.start, start..position, &mut values);
+                    start = parser.position().byte_index();
+                }
+                Ok(Token::CurlyBracketBlock) => {
+                    let mut header = Parser::new(&fragment[start..position]);
+                    let custom = matches!(header.next(), Ok(Token::Ident(name)) if name.starts_with("--"))
+                        && matches!(header.next(), Ok(Token::Colon));
+                    let inner = parser.position().byte_index();
+                    let end = consume_css_block(&mut parser).map_or_else(
+                        |_| parser.position().byte_index(),
+                        |block| block.contents.end,
+                    );
+                    if !custom {
+                        pending.push(range.start + inner..range.start + end);
+                        start = parser.position().byte_index();
+                    }
+                }
+                Ok(token) if is_block(token) => {
+                    let _ = consume_css_block(&mut parser);
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    add_declaration(fragment, range.start, start..fragment.len(), &mut values);
+                    break;
+                }
+            }
+        }
+    }
+    values.sort_by_key(|(property, _)| property.start);
+    values
+}
+
+/// Appends property/value ranges when `css[range]` starts with an identifier and colon.
+/// `range` must lie on UTF-8 boundaries within `css`; `offset` translates its ranges
+/// into the enclosing stylesheet. Unrecognized fragments leave `values` unchanged.
+/// Panics if `range` is out of bounds or splits a UTF-8 character.
+fn add_declaration(
+    css: &str,
+    offset: usize,
+    range: Range<usize>,
+    values: &mut Vec<(Range<usize>, Range<usize>)>,
+) {
+    let mut parser = Parser::new(&css[range.clone()]);
+    if !matches!(parser.next(), Ok(Token::Ident(_))) {
+        return;
+    }
+    if !matches!(parser.next(), Ok(Token::Colon)) {
+        return;
+    }
+    let property_end = parser.position().byte_index() - 1;
+    values.push((
+        offset + range.start..offset + range.start + property_end,
+        offset + range.start + parser.position().byte_index()..offset + range.end,
+    ));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn declaration_value_ranges_preserve_whitespace_and_opaque_components() {
+        for (css, expected) in [
+            ("a:1;b:2;", vec![("a", "1"), ("b", "2")]),
+            ("a:1;b:2", vec![("a", "1"), ("b", "2")]),
+            ("", vec![]),
+            ("no-colon;", vec![]),
+            ("  a : 1 ; ", vec![("  a ", " 1 ")]),
+            ("--x:{a:1};y:2;", vec![("--x", "{a:1}"), ("y", "2")]),
+            (
+                "x:url(a;b);y:calc(1;2);",
+                vec![("x", "url(a;b)"), ("y", "calc(1;2)")],
+            ),
+            ("x:fn({a:1});y:2;", vec![("x", "fn({a:1})"), ("y", "2")]),
+            ("@media x{a:1;}b:2;", vec![("a", "1"), ("b", "2")]),
+        ] {
+            let values = declaration_values(css);
+            assert_eq!(
+                values
+                    .iter()
+                    .map(|(property, value)| (&css[property.clone()], &css[value.clone()]))
+                    .collect::<Vec<_>>(),
+                expected,
+                "{css}"
+            );
+            let mut previous = 0;
+            for (property, value) in values {
+                assert!(property.start >= previous);
+                assert!(property.end <= value.start);
+                previous = value.end;
+            }
+        }
+    }
 
     #[test]
     fn declaration_lists_keep_quoted_delimiters_and_omit_comments() {

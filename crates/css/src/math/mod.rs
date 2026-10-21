@@ -17,5 +17,5 @@ mod folding;
 mod parser;
 
 pub use evaluation::evaluate_numeric;
-pub use folding::{fold_calc_expressions, format_numeric_zero, value_nesting_overflow};
+pub use folding::{fold_calc_expressions, format_numeric_zero};
 pub use parser::MAX_VALUE_NESTING;

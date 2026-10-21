@@ -9,8 +9,8 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssNode, CssNodeKind, parse_structure, take_property_requirements};
-use stillwind_design_system::ThemeIndex;
+use stillwind_css::{CssNode, CssNodeKind, parse_structure};
+use stillwind_design_system::{ThemeIndex, take_property_requirements};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::ReplaceText;
 
@@ -115,7 +115,6 @@ fn collect_theme_edits(
             CssNodeKind::Declaration { value, .. } => (value, None),
             CssNodeKind::StyleRule { selector, block } => (selector, Some(block)),
             CssNodeKind::AtRule { prelude, block, .. } => (prelude, block.as_ref()),
-            CssNodeKind::Apply { .. } => continue,
         };
         let resolved = theme
             .resolve_theme_references(&css[part.clone()])

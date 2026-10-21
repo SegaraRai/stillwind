@@ -1,15 +1,17 @@
 //! Compilation and stylesheet comparisons for the static-compile suite.
 //!
-//! Rule comparisons retain condition contexts and generation order. The Tailwind
-//! parity oracle normalizes arithmetic and serializes rules with Lightning CSS.
-//! Fixed-theme cases share snapshots while each compilation analyzes fresh source.
+//! Rule comparisons retain condition contexts and generation order. The Tailwind parity
+//! oracle normalizes arithmetic and serializes rules with Lightning CSS. Fixed-theme
+//! cases share snapshots while each compilation analyzes fresh source.
 
 use std::sync::{Arc, OnceLock};
+
+use cssparser::{Parser, Token};
 
 use stillwind_compiler::{
     CompileResult, CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer,
 };
-use stillwind_css::fold_calc_expressions;
+use stillwind_css::{fold_calc_expressions, matching_css_delimiter};
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -27,22 +29,8 @@ pub(super) fn css_rule(css: &str, class_name: &str) -> String {
         .find('{')
         .map(|offset| start + offset)
         .expect("CSS rule must open");
-    let mut depth = 0_u32;
-    for (offset, character) in css[open..].char_indices() {
-        match character {
-            '{' => {
-                depth += 1;
-            }
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return css[start..=open + offset].to_owned();
-                }
-            }
-            _ => {}
-        }
-    }
-    panic!("CSS rule must close");
+    let close = matching_css_delimiter(css, open, '{', '}').expect("CSS rule must close");
+    css[start..=close].to_owned()
 }
 
 pub(super) fn normalize_css(css: &str) -> String {
@@ -51,57 +39,15 @@ pub(super) fn normalize_css(css: &str) -> String {
         .collect()
 }
 
-pub(super) fn skip_css_trivia(css: &str, mut cursor: usize) -> usize {
+pub(super) fn skip_css_trivia(css: &str, cursor: usize) -> usize {
+    let mut parser = Parser::new(&css[cursor..]);
     loop {
-        while css[cursor..]
-            .chars()
-            .next()
-            .is_some_and(char::is_whitespace)
-        {
-            cursor += css[cursor..].chars().next().unwrap().len_utf8();
-        }
-        if css[cursor..].starts_with("/*")
-            && let Some(end) = css[cursor + 2..].find("*/")
-        {
-            cursor += end + 4;
-            continue;
-        }
-        return cursor;
-    }
-}
-
-pub(super) fn closing_css_brace(css: &str, open: usize) -> usize {
-    let mut depth = 0_u32;
-    let mut quote = None;
-    let mut escaped = false;
-    for (offset, character) in css[open..].char_indices() {
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '{' => {
-                depth += 1;
-            }
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return open + offset;
-                }
-            }
-            _ => {}
+        let start = parser.position().byte_index();
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {}
+            _ => return cursor + start,
         }
     }
-    panic!("CSS block must close");
 }
 
 pub(super) fn collect_class_rule_signatures(
@@ -124,7 +70,7 @@ pub(super) fn collect_class_rule_signatures(
         let Some(open) = open else {
             break;
         };
-        let close = closing_css_brace(css, open);
+        let close = matching_css_delimiter(css, open, '{', '}').expect("CSS block must close");
         let header = css[cursor..open].trim();
         let body = &css[open + 1..close];
         if header.starts_with('@') {

@@ -6,9 +6,10 @@
 
 use lean_string::ToLeanStr;
 
+use stillwind_css::declaration_values;
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 
-use super::super::super::conditionals::{check_value, declaration_values};
+use super::super::super::conditionals::check_value;
 use super::analysis::Checker;
 
 /// Reports each declaration of the checked source whose `--if()` functions cannot be

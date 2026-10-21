@@ -8,10 +8,10 @@
 
 use lean_string::LeanStr;
 
-use stillwind_css::{MAX_VALUE_NESTING, value_nesting_overflow};
+use stillwind_css::MAX_VALUE_NESTING;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
 use stillwind_source::Spanned;
-use stillwind_syntax::UtilityToken;
+use stillwind_syntax::{CandidatePrefix, UtilityToken};
 
 /// Tokenizes utility text, preserving each token's position relative to `input.span`.
 ///
@@ -39,13 +39,16 @@ pub(super) fn lex_utilities(
 /// Appends a fatal error and reports `true` when `token` nests values deeper than the
 /// calculator accepts.
 ///
-/// The reported offset is absolute in the token's source file: the token span start plus
-/// the offset within the token text. Nesting inside quotes and comments does not count.
+/// The reported offset is absolute in the token's source file: the token span start
+/// plus the offset within the token text. Quoted and escaped parentheses do not count.
+/// The spelling is still undecoded.
 fn reject_excessive_nesting(
     token: &Spanned<UtilityToken>,
     diagnostics: &mut Vec<CompileError>,
 ) -> bool {
-    let Some(offset) = value_nesting_overflow(&token.value.raw) else {
+    let Some(offset) = CandidatePrefix::parse(&token.value.raw)
+        .and_then(|prefix| prefix.nesting_overflow(MAX_VALUE_NESTING))
+    else {
         return false;
     };
     diagnostics.push(CompileError::new(

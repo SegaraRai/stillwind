@@ -22,9 +22,11 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::ident::Ident;
 
-use stillwind_css::{extract_named_blocks, extract_named_statements, strip_css_comments};
+use stillwind_css::{
+    extract_named_blocks, extract_named_statements, strip_css_comments, whitespace_separated_ranges,
+};
 
-use crate::is_runtime_condition;
+use crate::conditionals::RuntimeCondition;
 
 /// Direction applied to a sort group's numeric values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -172,7 +174,7 @@ impl StillwindVariantValueType {
         // The selector and declaration complete the stylesheet that the CSS parser
         // requires to validate the capture. No theme or utility definitions are read.
         let stylesheet = match self {
-            Self::IfCondition => return is_runtime_condition(value),
+            Self::IfCondition => return RuntimeCondition::parse(value).is_some(),
             Self::Nth => format_args!(".x:nth-child({value}) {{ color: red; }}").to_lean_string(),
             Self::SupportsCondition => {
                 format_args!("@supports ({value}) {{ .x {{ color: red; }} }}").to_lean_string()
@@ -324,7 +326,7 @@ pub(crate) fn parse_variant_name(value: &str) -> Option<(LeanStr, Option<usize>)
 /// a mistyped `@stillwind-variant` registration fails visibly instead of silently
 /// dropping its ordering or typing metadata.
 fn parse_stillwind_variant_header(header: &str) -> Option<ParsedStillwindVariantHeader> {
-    let name_end = header.find(char::is_whitespace).unwrap_or(header.len());
+    let name_end = whitespace_separated_ranges(header).first()?.end;
     let (name, wildcard) = parse_variant_name(&header[..name_end])?;
     let arguments = header[name_end..].trim();
     if arguments.is_empty() {

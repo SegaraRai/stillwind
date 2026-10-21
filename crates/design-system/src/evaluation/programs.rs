@@ -5,10 +5,9 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::PropertyRequirementError;
-
 use super::utilities::{PreparedDeclarations, PreparedUtilityBody};
 use crate::ThemeIndex;
+use crate::requirements::PropertyRequirementError;
 
 /// Parsed syntax shared by registered utilities with identical body text.
 /// Invalid requirements remain stored as errors until a matching utility is evaluated.

@@ -1,11 +1,10 @@
 //! Rule structure of authored stylesheets.
 //!
 //! [`parse_structure`] tokenizes CSS with cssparser and returns the style rules,
-//! at-rules, declarations, and `@apply` statements of each block, with byte ranges into
-//! the input. Comments and strings never start a node, so directive-shaped text inside
-//! them is not a directive. The compiler expands `@apply` and `@variant` through this
-//! model, and stylesheet lint reports at its ranges, so both agree on which text is a
-//! directive.
+//! at-rules, and declarations of each block, with byte ranges into the input. Comments
+//! and strings never start a node, so directive-shaped text inside them is not a
+//! directive. The compiler expands `@apply` and `@variant` through this model, and
+//! stylesheet lint reports at its ranges, so both agree on which text is a directive.
 //!
 //! The parser accepts malformed input. An unclosed block ends at the end of the input,
 //! and text that is neither a rule nor a declaration contributes no node. Callers that
@@ -13,10 +12,12 @@
 
 use std::ops::Range;
 
-use cssparser::{ParseError, Parser, Token};
+use cssparser::{Parser, Token};
 use lean_string::LeanStr;
 
-/// One rule, at-rule, `@apply` statement, or declaration with its byte range.
+use crate::parser::{CssBlockRange, consume_css_block, parse_css_block};
+
+/// One rule, at-rule, or declaration with its byte range.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CssNode {
     /// Range from the first token of the node through its closing brace or terminating
@@ -50,7 +51,7 @@ pub enum CssNodeKind {
         /// Block contents.
         block: CssBlock,
     },
-    /// An at-rule other than an `@apply` statement.
+    /// An at-rule, with its uninterpreted prelude.
     AtRule {
         /// Name without `@`, in ASCII lowercase. Empty for a lone `@` in incomplete
         /// input.
@@ -60,13 +61,6 @@ pub enum CssNodeKind {
         prelude: Range<usize>,
         /// Block contents, or `None` for a statement such as `@import "x.css";`.
         block: Option<CssBlock>,
-    },
-    /// An `@apply` statement without a block.
-    Apply {
-        /// Each candidate in authored order. Whitespace and comments separate
-        /// candidates. Quoted strings and bracketed or parenthesized parts stay inside
-        /// the candidate that contains them.
-        candidates: Vec<Range<usize>>,
     },
     /// A declaration, including a custom property whose value contains braces.
     Declaration {
@@ -83,6 +77,8 @@ pub struct CssBlock {
     /// Range between the braces. For an unclosed block, it ends at the end of the
     /// input.
     pub contents: Range<usize>,
+    /// Byte offset of the closing brace, or None when EOF closes the block.
+    pub close: Option<usize>,
     /// Nodes in authored order.
     pub children: Vec<CssNode>,
 }
@@ -135,8 +131,6 @@ fn parse_block(parser: &mut Parser<'_>, css: &str) -> Vec<CssNode> {
 /// Reads an at-rule after its `@name` token or an incomplete lone `@`.
 fn at_rule(parser: &mut Parser<'_>, css: &str, start: usize, name: LeanStr) -> CssNode {
     let prelude_start = parser.position().byte_index();
-    let mut candidates = Vec::new();
-    let mut candidate: Option<Range<usize>> = None;
     let (prelude_end, end, block) = loop {
         let before = parser.position().byte_index();
         match parser.next_including_whitespace_and_comments() {
@@ -147,12 +141,8 @@ fn at_rule(parser: &mut Parser<'_>, css: &str, start: usize, name: LeanStr) -> C
                 let (block, end) = block(parser, css);
                 break (before, end, Some(block));
             }
-            Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {
-                candidates.extend(candidate.take());
-                continue;
-            }
             Ok(Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock) => {
-                skip_nested(parser);
+                let _ = consume_css_block(parser);
             }
             Ok(_) => {}
             Err(_) => {
@@ -160,19 +150,12 @@ fn at_rule(parser: &mut Parser<'_>, css: &str, start: usize, name: LeanStr) -> C
                 break (end, end, None);
             }
         }
-        let after = parser.position().byte_index();
-        candidate = Some(candidate.map_or(before, |range| range.start)..after);
     };
-    candidates.extend(candidate);
     let prelude = trimmed(css, prelude_start..prelude_end);
-    let kind = if name == "apply" && block.is_none() {
-        CssNodeKind::Apply { candidates }
-    } else {
-        CssNodeKind::AtRule {
-            name,
-            prelude,
-            block,
-        }
+    let kind = CssNodeKind::AtRule {
+        name,
+        prelude,
+        block,
     };
     let end = if end == prelude_end {
         prelude_end.min(trimmed(css, start..prelude_end).end)
@@ -202,7 +185,7 @@ fn rule_or_declaration(parser: &mut Parser<'_>, css: &str, start: usize) -> Opti
                         .as_ref()
                         .is_some_and(|range: &Range<usize>| css[range.clone()].starts_with("--"));
                 if custom {
-                    skip_nested(parser);
+                    let _ = consume_css_block(parser);
                     continue;
                 }
                 let (block, end) = block(parser, css);
@@ -218,12 +201,19 @@ fn rule_or_declaration(parser: &mut Parser<'_>, css: &str, start: usize) -> Opti
                 continue;
             }
             Ok(Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock) => {
-                skip_nested(parser);
+                let _ = consume_css_block(parser);
             }
             Ok(Token::Ident(_)) if significant == 0 => {
                 property = Some(before..parser.position().byte_index());
             }
-            Ok(Token::Colon) if significant == 1 && property.is_some() => {
+            Ok(Token::Colon)
+                if colon.is_none()
+                    && property.is_some()
+                    && (significant == 1 || css[start..before].trim_start().starts_with("--")) =>
+            {
+                if significant > 1 {
+                    property = Some(trimmed(css, start..before));
+                }
                 colon = Some(parser.position().byte_index());
             }
             Ok(_) => {}
@@ -247,32 +237,26 @@ fn rule_or_declaration(parser: &mut Parser<'_>, css: &str, start: usize) -> Opti
 /// Reads the block whose `{` the parser just consumed and returns it with the offset
 /// after its closing brace.
 fn block(parser: &mut Parser<'_>, css: &str) -> (CssBlock, usize) {
-    let contents_start = parser.position().byte_index();
-    let children = parser
-        .parse_nested_block(|nested| Ok::<_, ParseError<()>>(parse_block(nested, css)))
-        .unwrap_or_default();
+    let start = parser.position().byte_index();
+    let (children, bounds) = parse_css_block(parser, |inner| parse_block(inner, css))
+        .unwrap_or_else(|_| {
+            (
+                Vec::new(),
+                CssBlockRange {
+                    contents: start..start,
+                    close: None,
+                },
+            )
+        });
     let end = parser.position().byte_index();
-    // cssparser ends an unclosed block at the end of the input. The last byte is then a
-    // brace only when it closes the last child.
-    let closed = end > contents_start
-        && css.as_bytes().get(end - 1) == Some(&b'}')
-        && children.last().is_none_or(|child| child.range.end < end);
-    let contents_end = if closed { end - 1 } else { end };
     (
         CssBlock {
-            contents: contents_start..contents_end,
+            contents: bounds.contents,
+            close: bounds.close,
             children,
         },
         end,
     )
-}
-
-/// Consumes the contents of the function or bracket block that the parser just opened.
-fn skip_nested(parser: &mut Parser<'_>) {
-    let _ = parser.parse_nested_block(|nested| {
-        while nested.next_including_whitespace_and_comments().is_ok() {}
-        Ok::<_, ParseError<()>>(())
-    });
 }
 
 /// Returns `range` without leading and trailing ASCII whitespace.
@@ -287,8 +271,59 @@ fn trimmed(css: &str, range: Range<usize>) -> Range<usize> {
 mod tests {
     use super::*;
 
-    fn text<'a>(css: &'a str, range: &Range<usize>) -> &'a str {
-        &css[range.clone()]
+    #[test]
+    fn at_rule_preludes_preserve_raw_tokens_and_optional_semicolons() {
+        let css = ".x { @APPLY flex  hover:[content:'a_b;c'] /* note */ bg-(--x) ; }";
+        let nodes = parse_structure(css);
+        let CssNodeKind::AtRule {
+            name,
+            prelude,
+            block,
+        } = &nodes[0].children()[0].kind
+        else {
+            panic!("{nodes:?}");
+        };
+        assert_eq!(name, "apply");
+        assert_eq!(
+            &css[prelude.clone()],
+            "flex  hover:[content:'a_b;c'] /* note */ bg-(--x)"
+        );
+        assert!(block.is_none());
+        assert!(css[nodes[0].children()[0].range.clone()].ends_with(';'));
+        let nodes = parse_structure(".x { @apply flex }");
+        let CssNodeKind::AtRule { prelude, .. } = &nodes[0].children()[0].kind else {
+            panic!("{nodes:?}");
+        };
+        assert_eq!(prelude, &(12..16));
+        assert_eq!(nodes[0].children()[0].range, 5..16);
+    }
+
+    #[test]
+    fn node_ranges_end_at_top_level_declarations_and_rule_blocks() {
+        for (css, expected) in [
+            (
+                "content:'a;b';x:f(a;b);last:1",
+                vec!["content:'a;b';", "x:f(a;b);", "last:1"],
+            ),
+            (" ", vec![]),
+            (
+                "@layer x{color:red;gap:0;}top:0;--x:{a;b};last:1",
+                vec![
+                    "@layer x{color:red;gap:0;}",
+                    "top:0;",
+                    "--x:{a;b};",
+                    "last:1",
+                ],
+            ),
+        ] {
+            assert_eq!(
+                parse_structure(css)
+                    .into_iter()
+                    .map(|node| &css[node.range])
+                    .collect::<Vec<_>>(),
+                expected
+            );
+        }
     }
 
     #[test]
@@ -296,55 +331,35 @@ mod tests {
         let css = ".card { color: red; &:hover { opacity: 0.5 } @media print { color: black; } }";
         let nodes = parse_structure(css);
         assert_eq!(nodes.len(), 1);
-        assert_eq!(text(css, &nodes[0].range), css);
+        assert_eq!(&css[nodes[0].range.clone()], css);
         let CssNodeKind::StyleRule { selector, block } = &nodes[0].kind else {
             panic!("{nodes:?}");
         };
-        assert_eq!(text(css, selector), ".card");
-        assert_eq!(text(css, &block.contents), &css[7..css.len() - 1]);
+        assert_eq!(&css[selector.clone()], ".card");
+        assert_eq!(&css[block.contents.clone()], &css[7..css.len() - 1]);
         let children = nodes[0].children();
         assert_eq!(children.len(), 3);
         let CssNodeKind::Declaration { property, value } = &children[0].kind else {
             panic!("{children:?}");
         };
-        assert_eq!((text(css, property), text(css, value)), ("color", "red"));
-        assert_eq!(text(css, &children[0].range), "color: red;");
+        assert_eq!(
+            (&css[property.clone()], &css[value.clone()]),
+            ("color", "red")
+        );
+        assert_eq!(&css[children[0].range.clone()], "color: red;");
         let CssNodeKind::StyleRule { selector, .. } = &children[1].kind else {
             panic!("{children:?}");
         };
-        assert_eq!(text(css, selector), "&:hover");
+        assert_eq!(&css[selector.clone()], "&:hover");
         assert_eq!(
-            text(css, &children[1].children()[0].range),
+            &css[children[1].children()[0].range.clone()],
             "opacity: 0.5",
             "an unterminated last declaration ends at its value"
         );
         let CssNodeKind::AtRule { name, prelude, .. } = &children[2].kind else {
             panic!("{children:?}");
         };
-        assert_eq!((name.as_str(), text(css, prelude)), ("media", "print"));
-    }
-
-    #[test]
-    fn apply_candidates_are_separated_by_whitespace_and_comments_only() {
-        let css = ".x { @APPLY flex  hover:[content:'a_b;c'] /* note */ bg-(--x) ; }";
-        let nodes = parse_structure(css);
-        let CssNodeKind::Apply { candidates } = &nodes[0].children()[0].kind else {
-            panic!("{nodes:?}");
-        };
-        assert_eq!(
-            candidates
-                .iter()
-                .map(|range| text(css, range))
-                .collect::<Vec<_>>(),
-            ["flex", "hover:[content:'a_b;c']", "bg-(--x)"]
-        );
-        assert!(text(css, &nodes[0].children()[0].range).ends_with(';'));
-        let nodes = parse_structure(".x { @apply flex }");
-        let CssNodeKind::Apply { candidates } = &nodes[0].children()[0].kind else {
-            panic!("{nodes:?}");
-        };
-        assert_eq!((candidates.len(), &candidates[0]), (1, &(12..16)));
-        assert_eq!(nodes[0].children()[0].range, 5..16);
+        assert_eq!((name.as_str(), &css[prelude.clone()]), ("media", "print"));
     }
 
     #[test]
@@ -359,7 +374,7 @@ mod tests {
         assert_eq!(name, "variant");
         let children = &block.as_ref().unwrap().children;
         assert!(
-            matches!(&children[0].kind, CssNodeKind::Declaration { value, .. } if text(css, value) == "{ a: b }"),
+            matches!(&children[0].kind, CssNodeKind::Declaration { value, .. } if &css[value.clone()] == "{ a: b }"),
             "{children:?}"
         );
     }
@@ -370,14 +385,14 @@ mod tests {
         let nodes = parse_structure(css);
         assert!(matches!(
             &nodes[0].kind,
-            CssNodeKind::AtRule { block: None, prelude, .. } if text(css, prelude) == "'a.css' layer(x)"
+            CssNodeKind::AtRule { block: None, prelude, .. } if &css[prelude.clone()] == "'a.css' layer(x)"
         ));
         let CssNodeKind::StyleRule { block, .. } = &nodes[1].kind else {
             panic!("{nodes:?}");
         };
         assert_eq!(block.contents.end, css.len());
         assert_eq!(nodes[1].range.end, css.len());
-        assert_eq!(text(css, &block.children[0].range), "b { color: red }");
+        assert_eq!(&css[block.children[0].range.clone()], "b { color: red }");
     }
 
     #[test]

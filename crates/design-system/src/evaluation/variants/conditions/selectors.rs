@@ -3,6 +3,8 @@
 
 use lean_string::ToLeanStr;
 
+use stillwind_css::subject_compound_parts;
+
 use super::super::VariantApplication;
 use super::atoms::{Condition, Test};
 
@@ -22,13 +24,13 @@ pub(super) fn is_filter(application: &VariantApplication) -> bool {
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
         | VariantApplication::Conditional(_) => true,
-        VariantApplication::SelectorSuffix(suffix) => subject_compound(suffix).is_some(),
+        VariantApplication::SelectorSuffix(suffix) => subject_compound_parts(suffix).is_some(),
         VariantApplication::SelectorTemplate(selector)
         | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
         | VariantApplication::SelectorMedia { selector, .. } => selector
             .strip_prefix('&')
-            .and_then(subject_compound)
+            .and_then(subject_compound_parts)
             .is_some(),
         VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }
@@ -48,7 +50,7 @@ pub(super) fn moves_subject(application: &VariantApplication) -> bool {
         | VariantApplication::Supports(_)
         | VariantApplication::Conditional(_)
         | VariantApplication::StartingStyle => false,
-        VariantApplication::SelectorSuffix(suffix) => subject_compound(suffix).is_none(),
+        VariantApplication::SelectorSuffix(suffix) => subject_compound_parts(suffix).is_none(),
         VariantApplication::SelectorTemplate(selector)
         | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
@@ -56,77 +58,16 @@ pub(super) fn moves_subject(application: &VariantApplication) -> bool {
         | VariantApplication::SelectorMedia { selector, .. }
         | VariantApplication::SelectorMediaRule { selector, .. } => selector
             .strip_prefix('&')
-            .and_then(subject_compound)
+            .and_then(subject_compound_parts)
             .is_none(),
     }
-}
-
-/// Splits the text after `&` into its simple selectors, or returns `None` when the text
-/// is empty, contains a combinator, a pseudo-element, a selector list, a type selector,
-/// or another `&`.
-fn subject_compound(compound: &str) -> Option<Vec<&str>> {
-    let mut parts = Vec::new();
-    let mut start = 0;
-    let mut depth = 0_usize;
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, character) in compound.char_indices() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        match (quote, character) {
-            (_, '\\') => {
-                escaped = true;
-            }
-            (Some(open), character) if character == open => {
-                quote = None;
-            }
-            (None, '"' | '\'') => {
-                quote = Some(character);
-            }
-            (None, ':') if depth == 0 && compound[..index].ends_with(':') => {
-                return None;
-            }
-            (None, ':' | '[' | '.' | '#') if depth == 0 => {
-                if index > start {
-                    parts.push(&compound[start..index]);
-                    start = index;
-                }
-                depth += usize::from(character == '[');
-            }
-            (None, '(' | '[') => {
-                depth += 1;
-            }
-            (None, ')' | ']') => {
-                depth = depth.checked_sub(1)?;
-            }
-            (None, '&' | ',') if depth == 0 => {
-                return None;
-            }
-            (None, character)
-                if depth == 0 && (character.is_whitespace() || "> +~|".contains(character)) =>
-            {
-                return None;
-            }
-            _ => {}
-        }
-    }
-    if depth != 0 || quote.is_some() || start == compound.len() {
-        return None;
-    }
-    parts.push(&compound[start..]);
-    parts
-        .iter()
-        .all(|part| part.starts_with([':', '[', '.', '#']))
-        .then_some(parts)
 }
 
 /// The conditions that `selector` adds to the styled element, or none when it is not a
 /// compound selector on `&`. `:not(x)` with a single selector `x` becomes the negation
 /// of `x`.
 pub(super) fn selector_conditions(selector: &str, variant: usize) -> Vec<Condition> {
-    let Some(parts) = selector.strip_prefix('&').and_then(subject_compound) else {
+    let Some(parts) = selector.strip_prefix('&').and_then(subject_compound_parts) else {
         return Vec::new();
     };
     parts
@@ -135,7 +76,9 @@ pub(super) fn selector_conditions(selector: &str, variant: usize) -> Vec<Conditi
             let negated = part
                 .strip_prefix(":not(")
                 .and_then(|inner| inner.strip_suffix(')'))
-                .filter(|inner| subject_compound(inner).is_some_and(|parts| parts.len() == 1));
+                .filter(|inner| {
+                    subject_compound_parts(inner).is_some_and(|parts| parts.len() == 1)
+                });
             Condition {
                 variant,
                 test: Test::Opaque {

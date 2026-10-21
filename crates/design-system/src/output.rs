@@ -20,8 +20,8 @@ use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    CssOutputNode, CssOutputTemplate, PropertyInheritance, extract_named_blocks,
-    extract_named_statements, matching_brace,
+    CssOutputNode, CssOutputTemplate, PropertyInheritance, consume_css_block,
+    extract_directive_blocks, extract_named_statements,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, Span};
@@ -87,11 +87,10 @@ pub(crate) fn parse_css_templates(
         skipped.push((offset..end.min(css.len()), SkipReason::CssTemplate));
     }
     let mut templates = BTreeMap::new();
-    for (offset, header, _) in extract_named_blocks(css, CSS_TEMPLATE) {
-        let Some(open) = css[offset..].find('{').map(|position| offset + position) else {
-            continue;
-        };
-        let directive = offset..open;
+    for definition in extract_directive_blocks(css, CSS_TEMPLATE) {
+        let open = definition.body.start - 1;
+        let directive = definition.range.start..open;
+        let header = definition.header;
         let mut parser = Parser::new(&header);
         let name = match parser.next() {
             Ok(Token::Ident(name)) => Some(name.to_lean_str()),
@@ -101,9 +100,7 @@ pub(crate) fn parse_css_templates(
             skipped.push((directive, SkipReason::CssTemplate));
             continue;
         };
-        let close = matching_brace(css, open)
-            .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: open })?;
-        let body = &css[open + 1..close];
+        let body = &css[definition.body];
         if let Some((position, directive)) = first_definition(body) {
             let start = open + 1 + position;
             skipped.push((
@@ -236,8 +233,9 @@ fn is_definition(name: &str) -> bool {
 
 /// Consumes the block or statement that follows an at-keyword.
 ///
-/// Returns the inner range for a `{}` block and `None` when the construct ends at a
-/// semicolon or cannot be parsed, which the caller treats as a statement.
+/// Returns the opening offset and content end for a `{}` block. An unclosed block ends
+/// at EOF. Returns `None` when the construct ends at a semicolon or cannot be parsed,
+/// which the caller treats as a statement.
 ///
 /// # Errors
 ///
@@ -250,15 +248,11 @@ fn consume_block(
         match parser.next_including_whitespace_and_comments() {
             Ok(Token::CurlyBracketBlock) => {
                 let position = parser.position().byte_index() - 1;
-                parser
-                    .parse_nested_block(|nested| {
-                        while nested.next_including_whitespace_and_comments().is_ok() {}
-                        Ok::<_, ParseError<()>>(())
-                    })
-                    .map_err(|_| CompileDiagnostic::InvalidCssBlock {
+                let block =
+                    consume_css_block(parser).map_err(|_| CompileDiagnostic::InvalidCssBlock {
                         offset: base + position,
                     })?;
-                return Ok(Some((position, parser.position().byte_index() - 1)));
+                return Ok(Some((position, block.contents.end)));
             }
             Ok(Token::Semicolon) | Err(_) => {
                 return Ok(None);

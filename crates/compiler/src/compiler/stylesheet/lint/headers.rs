@@ -7,9 +7,13 @@
 //! media and container features in range syntax. [`header_key`] orders two nested
 //! headers when their order does not change the result.
 
+use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::{absolutize_nested_selector, selector_list_branches};
+use stillwind_css::{
+    CssCase, absolutize_nested_selector, normalize_css_fragment, parse_css_block,
+    selector_list_branches,
+};
 
 /// One authored or expanded header, as its text appears in the stylesheet.
 #[derive(Clone, Copy, Debug)]
@@ -43,34 +47,39 @@ impl Header {
     pub(super) fn of(level: Level<'_>, px_to_rem: bool) -> Option<Self> {
         match level {
             Level::Rule(selector) => (selector_list_branches(selector).len() == 1).then(|| {
-                Self::Selector(normalize(
+                Self::Selector(normalize_css_fragment(
                     &absolutize_nested_selector(selector),
                     SELECTOR_SPACING,
-                    Case::PseudoClasses,
+                    CssCase::PseudoClasses,
                 ))
             }),
             Level::AtRule(name, prelude) => {
                 let prelude = match name {
                     "media" => {
                         let case = if prelude.contains("--") {
-                            Case::Keep
+                            CssCase::Keep
                         } else {
-                            Case::All
+                            CssCase::All
                         };
-                        let condition = ranges(&normalize(prelude, CONDITION_SPACING, case));
+                        let condition =
+                            ranges(&normalize_css_fragment(prelude, CONDITION_SPACING, case));
                         if px_to_rem {
                             px_lengths(&condition)
                         } else {
                             condition
                         }
                     }
-                    "container" => ranges(&normalize(prelude, CONDITION_SPACING, Case::Keep)),
+                    "container" => ranges(&normalize_css_fragment(
+                        prelude,
+                        CONDITION_SPACING,
+                        CssCase::Keep,
+                    )),
                     // `selector()` arguments are selectors, in which a space before `:`
                     // is a descendant combinator.
                     "supports" if prelude.contains("selector(") => {
-                        normalize(prelude, SELECTOR_SPACING, Case::Keep)
+                        normalize_css_fragment(prelude, SELECTOR_SPACING, CssCase::Keep)
                     }
-                    "supports" => normalize(prelude, CONDITION_SPACING, Case::Keep),
+                    "supports" => normalize_css_fragment(prelude, CONDITION_SPACING, CssCase::Keep),
                     "starting-style" if prelude.trim().is_empty() => LeanString::new(),
                     _ => return None,
                 };
@@ -109,91 +118,6 @@ const SELECTOR_SPACING: &[char] = &['>', '+', '~', ','];
 /// Characters around which whitespace is removed from a condition.
 const CONDITION_SPACING: &[char] = &[':', ',', '<', '>', '='];
 
-/// ASCII case folding that [`normalize`] applies outside strings.
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum Case {
-    /// Keeps the case, because names such as container names are case-sensitive.
-    Keep,
-    /// Lowercases the identifier after each `:`, which names a pseudo-class or
-    /// pseudo-element. Class names and attribute values keep their case.
-    PseudoClasses,
-    /// Lowercases everything.
-    All,
-}
-
-/// Returns `text` with comments removed and whitespace collapsed to one space.
-///
-/// A space is removed at the start and end, after `(` and `[`, before `)` and `]`, and
-/// on both sides of each character of `spacing`. Strings and escaped characters stay
-/// as written.
-fn normalize(text: &str, spacing: &[char], case: Case) -> LeanString {
-    let mut output = LeanString::new();
-    let mut space = false;
-    let mut pseudo = false;
-    let mut characters = text.chars().peekable();
-    while let Some(character) = characters.next() {
-        if character == '/' && characters.peek() == Some(&'*') {
-            characters.next();
-            let mut previous = '\0';
-            for next in characters.by_ref() {
-                if previous == '*' && next == '/' {
-                    break;
-                }
-                previous = next;
-            }
-            continue;
-        }
-        if character.is_whitespace() {
-            space = !output.is_empty();
-            continue;
-        }
-        if space {
-            let after_tight = output
-                .chars()
-                .last()
-                .is_some_and(|last| last == '(' || last == '[' || spacing.contains(&last));
-            if !after_tight && character != ')' && character != ']' && !spacing.contains(&character)
-            {
-                output.push(' ');
-            }
-            space = false;
-        }
-        match character {
-            '\\' => {
-                output.push(character);
-                output.extend(characters.next());
-                pseudo = false;
-            }
-            '"' | '\'' => {
-                output.push(character);
-                let mut escaped = false;
-                for next in characters.by_ref() {
-                    output.push(next);
-                    if escaped {
-                        escaped = false;
-                    } else if next == '\\' {
-                        escaped = true;
-                    } else if next == character {
-                        break;
-                    }
-                }
-                pseudo = false;
-            }
-            _ => {
-                let identifier =
-                    character.is_ascii_alphanumeric() || matches!(character, '-' | '_');
-                pseudo = character == ':' || (pseudo && identifier);
-                if case == Case::All || (case == Case::PseudoClasses && pseudo) {
-                    output.push(character.to_ascii_lowercase());
-                } else {
-                    output.push(character);
-                }
-            }
-        }
-    }
-    output
-}
-
 /// Rewrites the features of each innermost parenthesized group of a normalized
 /// condition into range syntax with the feature name first.
 ///
@@ -201,19 +125,40 @@ fn normalize(text: &str, spacing: &[char], case: Case) -> LeanString {
 /// `(width<=40rem)`, as Media Queries Level 4 defines them. `(40rem<=width)` becomes
 /// `(width>=40rem)`. Other groups stay as written.
 fn ranges(condition: &str) -> LeanString {
-    let mut output = LeanString::new();
-    let mut rest = condition;
-    while let Some(open) = rest.find('(') {
-        output.push_str(&rest[..=open]);
-        rest = &rest[open + 1..];
-        let end = rest.find(['(', ')']).unwrap_or(rest.len());
-        if rest[end..].starts_with(')') {
-            output.push_str(&range_feature(&rest[..end]));
-            rest = &rest[end..];
+    fn walk(parser: &mut Parser<'_>, source: &str) -> (LeanString, bool) {
+        let mut output = LeanString::new();
+        let mut groups = false;
+        loop {
+            let start = parser.position().byte_index();
+            let Ok(token) = parser.next_including_whitespace_and_comments().cloned() else {
+                break;
+            };
+            let end = parser.position().byte_index();
+            output.push_str(&source[start..end]);
+            let parenthesis = matches!(token, Token::ParenthesisBlock);
+            if matches!(
+                token,
+                Token::ParenthesisBlock
+                    | Token::Function(_)
+                    | Token::SquareBracketBlock
+                    | Token::CurlyBracketBlock
+            ) && let Ok(((inner, children), block)) =
+                parse_css_block(parser, |inner| walk(inner, source))
+            {
+                output.push_str(&if parenthesis && !children {
+                    range_feature(&inner)
+                } else {
+                    inner
+                });
+                if let Some(close) = block.close {
+                    output.push_str(&source[close..=close]);
+                }
+                groups |= parenthesis || children;
+            }
         }
+        (output, groups)
     }
-    output.push_str(rest);
-    output
+    walk(&mut Parser::new(condition), condition).0
 }
 
 /// Returns one feature test of [`ranges`] in range syntax, or `feature` unchanged.
@@ -262,39 +207,49 @@ fn range_feature(feature: &str) -> LeanString {
 
 /// Returns `condition` with each `px` and `rem` length written in `px` at 16px = 1rem.
 fn px_lengths(condition: &str) -> LeanString {
-    let mut output = LeanString::new();
-    let mut rest = condition;
-    while let Some(start) =
-        rest.find(|character: char| character.is_ascii_digit() || character == '.')
-    {
-        let identifier = rest[..start]
-            .chars()
-            .last()
-            .is_some_and(|last| last.is_ascii_alphanumeric() || last == '_');
-        output.push_str(&rest[..start]);
-        rest = &rest[start..];
-        let number_end = rest
-            .find(|character: char| !character.is_ascii_digit() && character != '.')
-            .unwrap_or(rest.len());
-        let unit_end = rest[number_end..]
-            .find(|character: char| !character.is_ascii_alphabetic())
-            .map_or(rest.len(), |end| number_end + end);
-        let scale = match &rest[number_end..unit_end] {
-            "px" => Some(1.0),
-            "rem" => Some(16.0),
-            _ => None,
-        };
-        match (identifier, scale, rest[..number_end].parse::<f64>()) {
-            (false, Some(scale), Ok(number)) => {
-                output.push_str(&format_args!("{}px", number * scale).to_lean_string());
+    fn walk(parser: &mut Parser<'_>, css: &str, output: &mut LeanString) {
+        loop {
+            let start = parser.position().byte_index();
+            let Ok(token) = parser.next_including_whitespace_and_comments().cloned() else {
+                break;
+            };
+            let end = parser.position().byte_index();
+            let raw = &css[start..end];
+            let converted = if let Token::Dimension { unit, .. } = &token {
+                let scale = match unit.as_ref() {
+                    "px" => Some(1.0),
+                    "rem" => Some(16.0),
+                    _ => None,
+                };
+                scale.and_then(|scale| {
+                    raw.strip_suffix(unit.as_ref())?
+                        .parse::<f64>()
+                        .ok()
+                        .map(|number| number * scale)
+                })
+            } else {
+                None
+            };
+            if let Some(number) = converted {
+                output.push_str(&format_args!("{number}px").to_lean_string());
+            } else {
+                output.push_str(raw);
             }
-            _ => {
-                output.push_str(&rest[..unit_end]);
+            if matches!(
+                token,
+                Token::Function(_)
+                    | Token::ParenthesisBlock
+                    | Token::SquareBracketBlock
+                    | Token::CurlyBracketBlock
+            ) && let Ok(((), block)) = parse_css_block(parser, |inner| walk(inner, css, output))
+                && let Some(close) = block.close
+            {
+                output.push_str(&css[close..=close]);
             }
         }
-        rest = &rest[unit_end..];
     }
-    output.push_str(rest);
+    let mut output = LeanString::new();
+    walk(&mut Parser::new(condition), condition, &mut output);
     output
 }
 

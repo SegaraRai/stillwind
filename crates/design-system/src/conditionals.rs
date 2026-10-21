@@ -8,10 +8,13 @@
 
 use std::fmt;
 
-use cssparser::{ParseError, Parser, Token};
+use cssparser::{Parser, Token};
 use lean_string::LeanString;
 
-use stillwind_css::{ValueDomain, find_css_functions, matching_css_delimiter};
+use stillwind_css::{
+    ValueDomain, find_css_functions, matching_css_delimiter, split_once_top_level,
+    validate_css_syntax,
+};
 
 /// A parsed custom-property presence test or `--name:value` comparison.
 ///
@@ -35,12 +38,12 @@ impl<'a> RuntimeCondition<'a> {
     /// character after `--`, optionally followed by `:` and a comparison value.
     /// Comparison values must not contain top-level commas, semicolons, exclamation
     /// marks, bad string/URL tokens, or unmatched closing delimiters. Surrounding
-    /// whitespace and comments are accepted. Nested blocks are skipped by the
-    /// tokenizer; their contents and omitted closing delimiters are not fully
-    /// validated here. Browser evaluation determines comparison semantics and the
-    /// effect of property registration.
+    /// whitespace and comments are accepted. Component values must be structurally
+    /// complete. Browser evaluation determines comparison semantics and the effect of
+    /// property registration.
     #[must_use]
     pub fn parse(condition: &'a str) -> Option<Self> {
+        validate_css_syntax(condition).ok()?;
         let mut parser = Parser::new(condition);
         let mut negated = false;
         let name = loop {
@@ -113,12 +116,6 @@ impl fmt::Display for RuntimeCondition<'_> {
     }
 }
 
-/// Returns whether `condition` parses as a [`RuntimeCondition`].
-#[must_use]
-pub fn is_runtime_condition(condition: &str) -> bool {
-    RuntimeCondition::parse(condition).is_some()
-}
-
 /// Splits `--if` arguments into a canonical condition and two branches.
 ///
 /// Returns `None` unless there are exactly three top-level comma-separated arguments
@@ -129,10 +126,12 @@ pub fn is_runtime_condition(condition: &str) -> bool {
 /// is retained in the returned slices.
 #[must_use]
 pub fn runtime_if_arguments(arguments: &str) -> Option<(RuntimeCondition<'_>, &str, &str)> {
-    let (condition, branches) = split_arguments(arguments);
-    let (yes, no) = split_arguments(branches?);
+    validate_css_syntax(arguments).ok()?;
+    let (condition, branches) =
+        split_once_top_level(arguments, |token| matches!(token, Token::Comma));
+    let (yes, no) = split_once_top_level(branches?, |token| matches!(token, Token::Comma));
     let no = no?;
-    let (_, extra) = split_arguments(no);
+    let (_, extra) = split_once_top_level(no, |token| matches!(token, Token::Comma));
     if extra.is_some() {
         return None;
     }
@@ -183,39 +182,6 @@ fn accepts(domain: ValueDomain, value: &str, depth: usize) -> bool {
     }
     normalized.push_str(&value[cursor..]);
     domain.accepts(&normalized)
-}
-
-/// Splits at the first top-level comma without trimming either returned slice.
-/// Returns `(value, None)` when no separator is found; comments, strings, and nested
-/// blocks keep their commas opaque. Tokenization errors end the search.
-fn split_arguments(value: &str) -> (&str, Option<&str>) {
-    let mut parser = Parser::new(value);
-    loop {
-        let start = parser.position().byte_index();
-        match parser.next_including_whitespace_and_comments() {
-            Ok(Token::Comma) => {
-                return (
-                    &value[..start],
-                    Some(&value[parser.position().byte_index()..]),
-                );
-            }
-            Ok(
-                Token::Function(_)
-                | Token::CurlyBracketBlock
-                | Token::ParenthesisBlock
-                | Token::SquareBracketBlock,
-            ) => {
-                let _ = parser.parse_nested_block(|nested| {
-                    while nested.next_including_whitespace_and_comments().is_ok() {}
-                    Ok::<_, ParseError<()>>(())
-                });
-            }
-            Ok(_) => {}
-            Err(_) => {
-                return (value, None);
-            }
-        }
-    }
 }
 
 /// Removes one brace pair only when it encloses the whole input; otherwise returns

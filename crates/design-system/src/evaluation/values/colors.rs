@@ -5,18 +5,20 @@ use std::collections::BTreeSet;
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{find_css_functions, shadow_with_color_fallback, shadow_with_color_override};
+use stillwind_css::{
+    find_css_functions, shadow_with_color_fallback, shadow_with_color_override, split_top_level,
+};
 
 use super::super::context::EvaluationContext;
 use super::super::stillwind::COMPAT_COLOR_MODERN_SPACE;
-use super::domains::{resolve_value_domains, split_domains};
+use super::domains::resolve_value_domains;
 use super::theme::theme_value_literal;
 use crate::ThemeIndex;
 
 /// Resolves a color and an alpha, optionally followed by another alpha, to oklab mixing.
 /// A 100% first alpha keeps the original color. Compatibility emission follows resolution.
 pub(in crate::evaluation) fn resolve_compat_color(arguments: &str) -> Option<LeanString> {
-    let arguments = split_domains(arguments);
+    let arguments = split_top_level(arguments, |token| matches!(token, Token::Comma));
     let (color, alpha, modern_alpha) = match arguments.as_slice() {
         [color, alpha] => (*color, *alpha, None),
         [color, alpha, modern_alpha] => (*color, *alpha, Some(modern_alpha.trim())),
@@ -100,7 +102,7 @@ impl ColorFallback<'_> {
                 continue;
             }
             let arguments = &value[function.arguments];
-            let runtime_color = split_domains(arguments)
+            let runtime_color = split_top_level(arguments, |token| matches!(token, Token::Comma))
                 .iter()
                 .skip(1)
                 .any(|part| !find_css_functions(first_component(part), &["var"], 0).is_empty());
@@ -108,7 +110,7 @@ impl ColorFallback<'_> {
             let current_color = contains_current_color(arguments);
             self.required |= variables || current_color;
             self.runtime_color |= runtime_color || current_color;
-            let parts = split_domains(arguments);
+            let parts = split_top_level(arguments, |token| matches!(token, Token::Comma));
             if parts.len() == 3 {
                 if unresolved || current_color {
                     output.push_str(&self.mixes(first_component(parts[1]), depth + 1, true));
@@ -162,7 +164,11 @@ impl ColorFallback<'_> {
             let function = find_css_functions(variable, &["var"], 0)
                 .into_iter()
                 .next()?;
-            let name = split_domains(&variable[function.arguments]).first()?.trim();
+            let name = split_top_level(&variable[function.arguments], |token| {
+                matches!(token, Token::Comma)
+            })
+            .first()?
+            .trim();
             if !seen.insert(name.to_owned()) {
                 return None;
             }
@@ -223,7 +229,7 @@ pub(in crate::evaluation) fn resolve_shadow_color(
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
 ) -> Option<LeanString> {
-    let arguments = split_domains(arguments);
+    let arguments = split_top_level(arguments, |token| matches!(token, Token::Comma));
     let (domain, color_property, alpha) = match arguments.as_slice() {
         [domain, color_property] => (*domain, *color_property, None),
         [domain, color_property, alpha] => (*domain, *color_property, Some(alpha.trim())),

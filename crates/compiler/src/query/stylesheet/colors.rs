@@ -2,12 +2,15 @@
 
 use std::ops::Range;
 
+use cssparser::Token;
 use lean_string::LeanStr;
 
-use stillwind_css::{CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure};
+use stillwind_css::{
+    CssNode, color_rgba, find_css_functions, parse_structure, split_once_top_level,
+};
 use stillwind_design_system::UtilityResolutionError;
 
-use crate::query::DesignSystemQuery;
+use crate::{compiler::apply_candidates, query::DesignSystemQuery};
 
 /// A concrete color at one complete utility or theme-reference range.
 #[derive(Clone, Debug)]
@@ -37,7 +40,7 @@ impl DesignSystemQuery {
         css: &str,
     ) -> Result<Vec<StylesheetColor>, UtilityResolutionError> {
         let mut ranges = Vec::new();
-        applications(&parse_structure(css), &mut ranges);
+        applications(css, &parse_structure(css), &mut ranges);
         let mut colors = Vec::new();
         for range in &ranges {
             let candidate = &css[range.clone()];
@@ -62,7 +65,9 @@ impl DesignSystemQuery {
                 continue;
             }
             let arguments = &css[call.arguments];
-            let name = arguments.split(',').next().unwrap_or_default().trim();
+            let name = split_once_top_level(arguments, |token| matches!(token, Token::Comma))
+                .0
+                .trim();
             let Some(token) = self.context.design_system.theme().custom_property(name) else {
                 continue;
             };
@@ -83,12 +88,12 @@ impl DesignSystemQuery {
 }
 
 /// Appends utility ranges from nodes parsed from the same original source.
-fn applications(nodes: &[CssNode], ranges: &mut Vec<Range<usize>>) {
+fn applications(css: &str, nodes: &[CssNode], ranges: &mut Vec<Range<usize>>) {
     for node in nodes {
-        if let CssNodeKind::Apply { candidates } = &node.kind {
+        if let Some(candidates) = apply_candidates(css, node) {
             ranges.extend(candidates.iter().cloned());
         }
-        applications(node.children(), ranges);
+        applications(css, node.children(), ranges);
     }
 }
 

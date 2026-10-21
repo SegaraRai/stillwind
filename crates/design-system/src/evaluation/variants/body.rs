@@ -16,12 +16,14 @@
 //! variant that also sets a custom property). Those declarations are kept separate from
 //! the utility's declarations so the emitter can place them correctly.
 
-use cssparser::{Parser, Token};
+use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{absolutize_nested_selector, selector_is_valid, selector_uses_subject};
+use stillwind_css::{
+    CssNode, CssNodeKind, absolutize_nested_selector, parse_structure, selector_is_valid,
+    selector_uses_subject, validate_css_syntax,
+};
 
-use super::super::syntax::closing_brace;
 use super::application::{VariantApplication, VariantDeclaration};
 use crate::VariantScope;
 
@@ -46,7 +48,7 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
     body: &str,
     scope: VariantScope,
 ) -> Option<VariantApplication> {
-    if body.is_empty() || !body.contains("@slot") {
+    if body.is_empty() || !has_slot(&parse_structure(body)) {
         return None;
     }
     let blocks = split_variant_blocks(body)?;
@@ -58,28 +60,33 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
             .map(VariantApplication::Compound);
     }
     let body = body.trim();
-    if body.starts_with('@') {
-        let open = block_open(body)?;
-        let close = closing_brace(body, open)?;
-        let header = body[..open].trim();
-        let (name, condition) = header
-            .split_once(|c: char| c.is_whitespace() || c == '(')
-            .map_or((header, ""), |(name, _)| {
-                (name, header[name.len()..].trim())
-            });
-        let wrapper = match name {
-            "@media" if !condition.is_empty() => VariantApplication::Media(condition.to_lean_str()),
-            "@container" if !condition.is_empty() => {
+    let nodes = parse_structure(body);
+    if let [
+        CssNode {
+            kind:
+                CssNodeKind::AtRule {
+                    name,
+                    prelude,
+                    block: Some(block),
+                },
+            ..
+        },
+    ] = nodes.as_slice()
+    {
+        let condition = body[prelude.clone()].trim();
+        let wrapper = match name.as_str() {
+            "media" if !condition.is_empty() => VariantApplication::Media(condition.to_lean_str()),
+            "container" if !condition.is_empty() => {
                 VariantApplication::Container(condition.to_lean_str())
             }
-            "@supports" if !condition.is_empty() => {
+            "supports" if !condition.is_empty() => {
                 VariantApplication::Supports(condition.to_lean_str())
             }
-            "@starting-style" if condition.is_empty() => VariantApplication::StartingStyle,
+            "starting-style" if condition.is_empty() => VariantApplication::StartingStyle,
             _ => return None,
         };
-        let inner = body[open + 1..close].trim();
-        if inner == "@slot;" {
+        let inner = body[block.contents.clone()].trim();
+        if is_slot(&parse_structure(inner)) {
             return Some(wrapper);
         }
         let nested = resolve_scoped_variant_body(inner, scope)?;
@@ -125,41 +132,38 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
     }
 }
 
-/// Finds a rule body without treating quoted braces or function contents as blocks.
-fn block_open(body: &str) -> Option<usize> {
-    let mut parser = Parser::new(body);
-    loop {
-        if matches!(
-            parser.next_including_whitespace_and_comments().ok()?,
-            Token::CurlyBracketBlock
-        ) {
-            // Reading the token can skip a preceding nested block before consuming `{`.
-            return Some(parser.position().byte_index() - 1);
-        }
-    }
+fn has_slot(nodes: &[CssNode]) -> bool {
+    nodes.iter().any(|node| {
+        matches!(&node.kind, CssNodeKind::AtRule { name, prelude, block: None } if name == "slot" && prelude.is_empty())
+            || has_slot(node.children())
+    })
 }
 
-/// Splits a compound body into its top-level blocks, in authored order.
-///
-/// [`None`] means a block is unterminated; a body that is only whitespace has no
-/// blocks.
+fn is_slot(nodes: &[CssNode]) -> bool {
+    matches!(nodes, [CssNode { kind: CssNodeKind::AtRule { name, prelude, block: None }, .. }] if name == "slot" && prelude.is_empty())
+}
+
+/// Splits complete top-level rule blocks, keeping their authored ranges.
 fn split_variant_blocks(body: &str) -> Option<Vec<&str>> {
+    validate_css_syntax(body).ok()?;
     let mut blocks = Vec::new();
     let mut cursor = 0;
-    while cursor < body.len() {
-        let start = body[cursor..]
-            .char_indices()
-            .find(|(_, character)| !character.is_whitespace())
-            .map_or(body.len(), |(offset, _)| cursor + offset);
-        if start == body.len() {
-            break;
+    for node in parse_structure(body) {
+        if !Parser::new(&body[cursor..node.range.start]).is_exhausted() {
+            return None;
         }
-        let open = block_open(&body[start..])? + start;
-        let close = closing_brace(body, open)?;
-        blocks.push(&body[start..=close]);
-        cursor = close + 1;
+        let (CssNodeKind::StyleRule { block, .. }
+        | CssNodeKind::AtRule {
+            block: Some(block), ..
+        }) = &node.kind
+        else {
+            return None;
+        };
+        block.close?;
+        cursor = node.range.end;
+        blocks.push(&body[node.range]);
     }
-    (!blocks.is_empty()).then_some(blocks)
+    (!blocks.is_empty() && Parser::new(&body[cursor..]).is_exhausted()).then_some(blocks)
 }
 
 /// One selector rule inside a variant body: its selector and any declarations authored
@@ -175,48 +179,41 @@ pub(in crate::evaluation) struct VariantSelectorRule {
     pub(in crate::evaluation) declarations: Vec<VariantDeclaration>,
 }
 
-/// Reads a selector block from a variant body of a definition with the declared `scope`.
+/// Reads a selector block from a variant body of a definition with the declared
+/// `scope`.
 ///
 /// The returned selector has `&` inserted as [`absolutize_nested_selector`] describes,
 /// unless `scope` is [`VariantScope::Document`].
 /// The selector must be the only construct in the body. Nested blocks, an empty or
 /// invalid selector, and declarations without a property or value are all rejected, so
-/// a malformed definition fails instead of emitting a selector the author did not write.
+/// a malformed definition fails instead of emitting a selector the author did not
+/// write.
 fn selector_rule_from_variant_body(body: &str, scope: VariantScope) -> Option<VariantSelectorRule> {
-    let open = block_open(body)?;
-    let close = closing_brace(body, open)?;
-    if !body[close + 1..].trim().is_empty() {
+    validate_css_syntax(body).ok()?;
+    let nodes = parse_structure(body);
+    let [
+        CssNode {
+            range,
+            kind: CssNodeKind::StyleRule { selector, block },
+        },
+    ] = nodes.as_slice()
+    else {
+        return None;
+    };
+    if !Parser::new(&body[range.end..]).is_exhausted() {
         return None;
     }
-    let selector = body[..open].trim();
-    if selector.is_empty() || selector.starts_with('@') {
+    block.close?;
+    let selector = &body[selector.clone()];
+    if selector.is_empty() || !has_slot(&block.children) {
         return None;
     }
-
-    let inner = &body[open + 1..close];
     let mut declarations = Vec::new();
-    let mut start = 0;
-    let mut depth = 0_u32;
-    for (offset, character) in inner.char_indices() {
-        match character {
-            '(' | '[' => {
-                depth += 1;
-            }
-            ')' | ']' => {
-                depth = depth.checked_sub(1)?;
-            }
-            '{' | '}' => {
-                return None;
-            }
-            ';' if depth == 0 => {
-                let node = inner[start..offset].trim();
-                start = offset + 1;
-                if node.is_empty() || node == "@slot" {
-                    continue;
-                }
-                let (property, value) = node.split_once(':')?;
-                let property = property.trim();
-                let value = value.trim();
+    for child in &block.children {
+        match &child.kind {
+            CssNodeKind::Declaration { property, value } => {
+                let property = body[property.clone()].trim();
+                let value = body[value.clone()].trim();
                 if property.is_empty() || value.is_empty() {
                     return None;
                 }
@@ -225,11 +222,13 @@ fn selector_rule_from_variant_body(body: &str, scope: VariantScope) -> Option<Va
                     value: value.to_lean_str(),
                 });
             }
-            _ => {}
+            CssNodeKind::AtRule {
+                name,
+                prelude,
+                block: None,
+            } if name == "slot" && prelude.is_empty() => {}
+            _ => return None,
         }
-    }
-    if !inner[start..].trim().is_empty() {
-        return None;
     }
     let top_level = (scope == VariantScope::Document
         && !selector_uses_subject(selector)

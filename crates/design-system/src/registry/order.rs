@@ -10,9 +10,11 @@ use std::collections::BTreeMap;
 
 use lean_string::LeanStr;
 
-use stillwind_css::{extract_named_blocks, extract_named_statements, extract_order_statements};
+use stillwind_css::{
+    decode_css_escapes, extract_named_blocks, extract_named_statements, extract_order_statements,
+    whitespace_separated_ranges,
+};
 
-use super::utilities::decode_utility_name;
 use super::variants::parse_variant_name;
 
 /// First registration offsets in the import-expanded stylesheet; redefinitions retain
@@ -20,8 +22,8 @@ use super::variants::parse_variant_name;
 ///
 /// Only definitions that can register a name reserve a slot: `@variant` blocks must
 /// carry an `@slot`, and `@custom-variant` also registers from its statement form. The
-/// name is the header's first whitespace-delimited token, decoded as the definition
-/// parser of the directive decodes it.
+/// name is the header's first CSS component, decoded as the definition parser of the
+/// directive decodes it.
 pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap<LeanStr, usize> {
     let mut positions = BTreeMap::<LeanStr, usize>::new();
     for directive in directives {
@@ -35,11 +37,12 @@ pub(crate) fn registration_positions(css: &str, directives: &[&str]) -> BTreeMap
             Vec::new()
         };
         for (offset, header) in blocks.chain(statements) {
-            let Some(raw) = header.split_whitespace().next() else {
+            let Some(range) = whitespace_separated_ranges(&header).into_iter().next() else {
                 continue;
             };
+            let raw = &header[range];
             let name = if directive.ends_with("utility") {
-                decode_utility_name(raw)
+                decode_css_escapes(raw)
             } else {
                 parse_variant_name(raw).map(|(name, _)| name)
             };
@@ -81,6 +84,18 @@ pub fn parse_arbitrary_property_order(css: &str) -> Vec<ArbitraryPropertyOrder> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn registration_positions_preserve_whitespace_inside_css_name_escapes() {
+        let css = r"@utility probe-\31 x {color:red;} @utility probe-\32 y {color:blue;}";
+        let positions = registration_positions(css, &["@utility"]);
+        assert_eq!(positions.get("probe-1x"), Some(&0));
+        assert_eq!(
+            positions.get("probe-2y"),
+            Some(&css.find("@utility probe-\\32").unwrap())
+        );
+    }
+
     use crate::registry::utilities::parse_stillwind_utility_definitions;
 
     #[test]

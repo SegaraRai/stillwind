@@ -18,9 +18,10 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 
 use stillwind_css::{
-    CssOutputTemplate, MAX_VALUE_NESTING, extract_authored_property_names,
-    extract_authored_property_syntaxes, extract_named_blocks, extract_named_statements,
-    parse_property_definitions, unterminated_block, value_nesting_overflow,
+    CssNodeKind, CssOutputTemplate, CssSyntaxErrorKind, MAX_VALUE_NESTING,
+    extract_authored_property_names, extract_authored_property_syntaxes, extract_named_blocks,
+    extract_named_statements, parenthesis_nesting_overflow, parse_property_definitions,
+    parse_structure, unterminated_block, validate_css_syntax_recovering,
 };
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
@@ -90,12 +91,21 @@ fn parse_theme_contents(
     if let Some(offset) = unterminated_block(source.text()) {
         return Err(CompileDiagnostic::UnterminatedCssBlock { offset });
     }
-    if let Some(offset) = value_nesting_overflow(source.text()) {
+    if let Some(offset) = parenthesis_nesting_overflow(source.text(), MAX_VALUE_NESTING) {
         return Err(CompileDiagnostic::CssNestingTooDeep {
             offset,
             limit: MAX_VALUE_NESTING,
         });
     }
+    validate_css_syntax_recovering(source.text()).map_err(|error| match error.kind {
+        CssSyntaxErrorKind::NestingLimit => CompileDiagnostic::CssNestingTooDeep {
+            offset: error.offset,
+            limit: MAX_VALUE_NESTING,
+        },
+        _ => CompileDiagnostic::CssParse {
+            detail: error.to_lean_str(),
+        },
+    })?;
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     let mut skipped = Vec::new();
     let mut template = parse_output_template(source.text(), &theme.tokens, &mut skipped)?;
@@ -337,33 +347,17 @@ const DYNAMIC: &str = "@stillwind-dynamic";
 /// rather than being emitted partially.
 pub(crate) fn extract_keyframes_blocks(css: &str) -> LeanString {
     let mut output = LeanString::new();
-    let mut cursor = 0;
-    while let Some(relative) = css[cursor..].find("@keyframes ") {
-        let start = cursor + relative;
-        let Some(open_rel) = css[start..].find('{') else {
-            break;
-        };
-        let open = start + open_rel;
-        let mut depth = 0_u32;
-        let mut close = None;
-        for (offset, ch) in css[open..].char_indices() {
-            match ch {
-                '{' => {
-                    depth += 1;
-                }
-                '}' => {
-                    depth = depth.saturating_sub(1);
-                    if depth == 0 {
-                        close = Some(open + offset);
-                        break;
-                    }
-                }
-                _ => {}
-            }
+    for node in parse_structure(css) {
+        if let CssNodeKind::AtRule {
+            name,
+            block: Some(block),
+            ..
+        } = node.kind
+            && name == "keyframes"
+            && block.close.is_some()
+        {
+            output.push_str(&css[node.range]);
         }
-        let Some(close) = close else { break };
-        output.push_str(&css[start..=close]);
-        cursor = close + 1;
     }
     output
 }

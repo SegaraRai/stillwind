@@ -10,13 +10,13 @@ use stillwind_design_system::{
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
-use stillwind_syntax::{Utility, parse_candidate};
+use stillwind_syntax::{CandidatePrefix, Utility, parse_candidate};
 
 use super::conditions::canonical_conditions;
 use super::index::{rank, uses_rem};
 use super::preview::{CanonicalPreview, SpacingUnit, dimension, spacing_properties};
 use crate::compiler::candidate_allowed;
-use crate::query::{DesignSystemQuery, QueryContext, last_top_level};
+use crate::query::{DesignSystemQuery, QueryContext};
 
 impl DesignSystemQuery {
     /// Returns effective conversion options after defaults, CSS severity, and project fields.
@@ -82,7 +82,9 @@ impl DesignSystemQuery {
         let Some(named) = dynamic_named_spelling(&name, self.context.design_system.theme())? else {
             return Ok(None);
         };
-        let split = last_top_level(raw, ':').map_or(0, |index| index + 1);
+        let split = CandidatePrefix::parse(raw)
+            .and_then(|prefix| prefix.last_separator(':'))
+            .map_or(0, |index| index + 1);
         Ok(Some(
             format_args!(
                 "{}{}",
@@ -110,10 +112,14 @@ impl DesignSystemQuery {
         };
         let options = self.canonical_options();
         let scales = self.context.theme_scales();
-        let split = last_top_level(raw, ':').map_or(0, |index| index + 1);
+        let split = CandidatePrefix::parse(raw)
+            .and_then(|prefix| prefix.last_separator(':'))
+            .map_or(0, |index| index + 1);
         let prefix = &raw[..split];
         let utility = raw[split..].trim_matches('!').trim_start_matches('-');
-        let suffix = last_top_level(utility, '/').map_or("", |index| &utility[index..]);
+        let suffix = CandidatePrefix::parse(utility)
+            .and_then(|prefix| prefix.last_separator('/'))
+            .map_or("", |index| &utility[index..]);
         let (root, value, property) = match &parsed.utility {
             Utility::Named { name, .. } => {
                 let Some(index) = name.find('[') else {

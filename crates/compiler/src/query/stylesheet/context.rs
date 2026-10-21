@@ -8,10 +8,10 @@ use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
 
-use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
+use stillwind_css::{CssNode, CssNodeKind, find_css_functions, literal_closed, parse_structure};
 
 use super::directives::Positions;
-use crate::compiler::variant_sequences;
+use crate::compiler::{apply_candidates, variant_sequences};
 
 /// The syntax at a cursor, with the complete text range that a completion replaces.
 #[derive(Debug, Eq, PartialEq)]
@@ -153,14 +153,10 @@ fn locate(
                     );
                 }
             }
-            CssNodeKind::AtRule { .. } => {
-                if let Some(context) =
-                    at_rule_context(css, node, offset, positions, enclosing, tail)
-                {
-                    return Some(context);
-                }
-            }
-            CssNodeKind::Apply { candidates } => {
+            CssNodeKind::AtRule {
+                name, block: None, ..
+            } if name == "apply" => {
+                let candidates = apply_candidates(css, node).unwrap_or_default();
                 let end = name_end(css, node.range.start);
                 if offset <= end {
                     return Some(Context {
@@ -183,6 +179,13 @@ fn locate(
                     positions,
                     applied: AppliedVariants::default(),
                 });
+            }
+            CssNodeKind::AtRule { .. } => {
+                if let Some(context) =
+                    at_rule_context(css, node, offset, positions, enclosing, tail)
+                {
+                    return Some(context);
+                }
             }
             CssNodeKind::Declaration { .. } => {}
         }
@@ -397,7 +400,7 @@ fn protected(parser: &mut Parser<'_>, css: &str, offset: usize) -> bool {
         if let Some(closer) = closer
             && start < offset
             && (offset < end
-                || (offset == end && end == css.len() && !closed_literal(&css[start..end], closer)))
+                || (offset == end && end == css.len() && !literal_closed(&css[start..end], closer)))
         {
             return true;
         }
@@ -419,20 +422,6 @@ fn protected(parser: &mut Parser<'_>, css: &str, offset: usize) -> bool {
             }
         }
     }
-}
-
-/// Returns whether the original token `text` ends with its matching `closer`. `closer`
-/// must be a quote, `)`, or `*/`. An escaped quote does not close a string.
-fn closed_literal(text: &str, closer: &str) -> bool {
-    text.ends_with(closer)
-        && (!matches!(closer, "'" | "\"")
-            || (text.len() > 1
-                && text.as_bytes()[..text.len() - 1]
-                    .iter()
-                    .rev()
-                    .take_while(|&&byte| byte == b'\\')
-                    .count()
-                    .is_multiple_of(2)))
 }
 
 #[cfg(test)]

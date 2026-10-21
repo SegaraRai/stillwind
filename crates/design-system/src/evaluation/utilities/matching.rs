@@ -15,13 +15,14 @@
 
 use std::collections::HashSet;
 
+use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{ValueType, declaration_ranges};
+use stillwind_css::{ValueType, declaration_ranges, split_top_level};
 use stillwind_syntax::{Value, decode_arbitrary_value, utility_registration_key};
 
 use super::super::context::ArbitraryValueCheck;
-use super::super::values::{expand_placeholder, split_domains, theme_domain_pattern};
+use super::super::values::{expand_placeholder, theme_domain_pattern};
 use super::body::{
     UtilityResolution, UtilityResolutionDiagnosticData, UtilityResolutionError,
     resolve_css_utility_body,
@@ -529,7 +530,7 @@ fn declared_value_types(utility: &CustomUtility, theme: &ThemeIndex) -> Vec<Valu
     let mut types = Vec::new();
     let mut body = utility.body.to_lean_string();
     let _ = expand_placeholder(&mut body, "--value", |domains| {
-        for (namespace, _) in split_domains(domains)
+        for (namespace, _) in split_top_level(domains, |token| matches!(token, Token::Comma))
             .into_iter()
             .filter_map(|domain| theme_domain_pattern(domain.trim(), theme))
         {
@@ -572,7 +573,7 @@ fn fallback_type_hints(lookup: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
         }
         let mut body = definition.body.to_lean_string();
         let _ = expand_placeholder(&mut body, "--value", |domains| {
-            for (namespace, _) in split_domains(domains)
+            for (namespace, _) in split_top_level(domains, |token| matches!(token, Token::Comma))
                 .into_iter()
                 .filter_map(|domain| theme_domain_pattern(domain.trim(), theme))
             {

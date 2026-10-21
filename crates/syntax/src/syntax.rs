@@ -15,6 +15,7 @@
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use crate::arbitrary::decode_arbitrary_value;
+use crate::candidate::CandidatePrefix;
 
 /// How a variant prefix was written.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -143,10 +144,11 @@ pub struct Candidate {
 /// unknown-but-well-formed; callers must not turn it into a guess.
 #[must_use]
 pub fn parse_candidate(raw: &str) -> Option<Candidate> {
-    if raw.is_empty() || !balanced(raw) {
+    let prefix = CandidatePrefix::parse(raw)?;
+    if raw.is_empty() || !prefix.is_complete() {
         return None;
     }
-    let (variant_parts, utility) = split_top_level(raw, ':');
+    let (variant_parts, utility) = prefix.split(':');
     let utility = utility?;
     let variants = variant_parts.into_iter().map(variant).collect();
     let (important, utility) = utility
@@ -174,10 +176,11 @@ pub fn parse_candidate(raw: &str) -> Option<Candidate> {
 /// top-level `:`, when a variant is empty, or when delimiters are unbalanced.
 pub fn parse_variant_prefix(raw: &str) -> Option<Vec<Variant>> {
     let stem = raw.strip_suffix(':')?;
-    if stem.is_empty() || !balanced(stem) {
+    let prefix = CandidatePrefix::parse(stem)?;
+    if stem.is_empty() || !prefix.is_complete() {
         return None;
     }
-    let (mut parts, last) = split_top_level(stem, ':');
+    let (mut parts, last) = prefix.split(':');
     parts.push(last?.into());
     parts
         .iter()
@@ -197,47 +200,6 @@ fn variant(raw: LeanStr) -> Variant {
     }
 }
 
-/// True when brackets and parentheses nest and close in order, quotes are closed, and
-/// no escape is left dangling at the end of the input.
-fn balanced(value: &str) -> bool {
-    let mut delimiters = Vec::new();
-    let mut escaped = false;
-    let mut quote = None;
-    for character in value.chars() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if character == '\\' {
-            escaped = true;
-            continue;
-        }
-        if let Some(active) = quote {
-            if character == active {
-                quote = None;
-            }
-            continue;
-        }
-        if matches!(character, '\'' | '"') {
-            quote = Some(character);
-            continue;
-        }
-        match character {
-            '[' => {
-                delimiters.push(']');
-            }
-            '(' => {
-                delimiters.push(')');
-            }
-            ']' | ')' if delimiters.pop() != Some(character) => {
-                return false;
-            }
-            _ => {}
-        }
-    }
-    delimiters.is_empty() && !escaped && quote.is_none()
-}
-
 /// Parses the utility after variant prefixes have been removed.
 ///
 /// A `[...]`-wrapped utility is an arbitrary property when its inner text contains a
@@ -253,7 +215,8 @@ fn parse_utility(raw: &str) -> Option<Utility> {
             value: decode_arbitrary_value(value).into(),
         });
     }
-    let (before_modifier, modifier) = split_once_top_level(raw, '/');
+    let prefix = CandidatePrefix::parse(raw)?;
+    let (before_modifier, modifier) = prefix.split_once('/');
     let modifier = match modifier {
         Some(value) => Some(parse_value(value)?),
         None => None,
@@ -285,106 +248,10 @@ fn parse_value(value: &str) -> Option<Value> {
 
 /// Returns the contents of a `[..]` wrapper.
 ///
-/// Nesting and escaping were already checked by [`balanced`], so this only strips the
-/// outermost pair.
+/// Nesting and escaping were already checked by
+/// [`crate::CandidatePrefix::is_complete`], so this only strips the outermost pair.
 fn arbitrary(value: &str) -> Option<&str> {
     value.strip_prefix('[')?.strip_suffix(']')
-}
-
-/// Splits `value` on top-level `delimiter` occurrences, ignoring delimiters inside
-/// brackets, parentheses, quotes or escapes.
-///
-/// The text after the last delimiter is returned separately and is `None` when empty,
-/// which is how a trailing or doubled delimiter is rejected.
-fn split_top_level(value: &str, delimiter: char) -> (Vec<LeanStr>, Option<&str>) {
-    let mut parts = Vec::new();
-    let mut start = 0;
-    let mut depth = 0_u32;
-    let mut escaped = false;
-    let mut quote = None;
-    for (index, character) in value.char_indices() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if character == '\\' {
-            escaped = true;
-            continue;
-        }
-        if let Some(active) = quote {
-            if character == active {
-                quote = None;
-            }
-            continue;
-        }
-        if matches!(character, '\'' | '"') {
-            quote = Some(character);
-            continue;
-        }
-        match character {
-            '[' | '(' => {
-                depth += 1;
-            }
-            ']' | ')' => {
-                depth = depth.saturating_sub(1);
-            }
-            character if character == delimiter && depth == 0 => {
-                parts.push(value[start..index].into());
-                start = index + character.len_utf8();
-            }
-            _ => {}
-        }
-    }
-    (
-        parts,
-        (!value[start..].is_empty()).then_some(&value[start..]),
-    )
-}
-
-/// Finds the first top-level `delimiter` and returns the text on both sides.
-///
-/// Returns the whole input with `None` when no unescaped, unquoted occurrence exists at
-/// depth zero.
-fn split_once_top_level(value: &str, delimiter: char) -> (&str, Option<&str>) {
-    let mut depth = 0_u32;
-    let mut escaped = false;
-    let mut quote = None;
-    for (index, character) in value.char_indices() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if character == '\\' {
-            escaped = true;
-            continue;
-        }
-        if let Some(active) = quote {
-            if character == active {
-                quote = None;
-            }
-            continue;
-        }
-        if matches!(character, '\'' | '"') {
-            quote = Some(character);
-            continue;
-        }
-        match character {
-            '[' | '(' => {
-                depth += 1;
-            }
-            ']' | ')' => {
-                depth = depth.saturating_sub(1);
-            }
-            character if character == delimiter && depth == 0 => {
-                return (
-                    &value[..index],
-                    Some(&value[index + character.len_utf8()..]),
-                );
-            }
-            _ => {}
-        }
-    }
-    (value, None)
 }
 
 /// Strips a trailing `suffix` unless it is escaped.
@@ -585,14 +452,7 @@ mod boundary_tests {
     use super::*;
 
     #[test]
-    fn top_level_splitting_respects_quotes_escapes_and_nested_brackets() {
-        assert_eq!(
-            split_top_level("hover:[&:focus]:x", ':'),
-            (vec!["hover".into(), "[&:focus]".into()], Some("x"))
-        );
-        assert_eq!(split_once_top_level("a/[b/c]", '/'), ("a", Some("[b/c]")));
-        assert!(balanced("[f(']')]"));
-        assert!(!balanced("[x)"));
+    fn registration_keys_preserve_nested_values_and_escapes() {
         let key = |raw| {
             let candidate = parse_candidate(raw).unwrap();
             let Utility::Named { name, modifier } = candidate.utility else {

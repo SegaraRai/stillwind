@@ -9,14 +9,14 @@
 use lean_string::ToLeanStr;
 
 use super::expression::{MathExpression, MathValue};
-use super::folding::matching_parenthesis;
+use crate::parser::matching_css_delimiter;
 
 /// Deepest parenthesis nesting accepted inside one value.
 ///
 /// The parser descends one level per `(` and per nested `calc()`, so this bounds the
 /// stack a single value can consume. A value that nests deeper fails to parse and is
-/// left byte-for-byte as authored; [`super::folding::value_nesting_overflow`] applies
-/// the same limit before parsing.
+/// left byte-for-byte as authored; [`crate::parser::parenthesis_nesting_overflow`]
+/// applies the same limit before parsing.
 pub const MAX_VALUE_NESTING: usize = 64;
 
 /// One cursor over an expression string.
@@ -183,7 +183,7 @@ impl<'a> MathParser<'a> {
         }
         if self.peek() == Some('(') {
             let open = self.cursor;
-            let close = matching_parenthesis(self.input, open)?;
+            let close = matching_css_delimiter(self.input, open, '(', ')').ok()?;
             if self.input[start..open].eq_ignore_ascii_case("calc") {
                 if !self.enter() {
                     return None;

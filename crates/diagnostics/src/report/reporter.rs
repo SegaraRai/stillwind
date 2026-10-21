@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, ToLeanStr};
 
+use stillwind_css::css_comment_ranges;
 use stillwind_source::{
     FileId, Fingerprint, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
     Span,
@@ -17,7 +18,7 @@ use super::{
 use crate::lint::suppressing_directive;
 use crate::{
     CompileError, FixAction, LabelScope, LintDirective, LintFinding, LintSettings, LintSeverity,
-    LintSurface, SourceRange, stylesheet_lint_directives,
+    LintSurface, SourceRange, lint_directives_in_comments,
 };
 
 /// A malformed diagnostic or an edit that no longer addresses its source revision.
@@ -104,7 +105,7 @@ impl Reporter {
 
     /// Selects the kind of every source. For [`LintSurface::Stylesheet`], the reporter
     /// reads the directives of each source that has no supplied directives with
-    /// [`stylesheet_lint_directives`].
+    /// [`lint_directives_in_comments`].
     ///
     /// Call it before reporting, because each source's directives are read once.
     #[must_use]
@@ -274,7 +275,10 @@ impl Reporter {
                     .remove(&source.id())
                     .unwrap_or_else(|| match surface {
                         LintSurface::Script => Vec::new(),
-                        LintSurface::Stylesheet => stylesheet_lint_directives(source.text()),
+                        LintSurface::Stylesheet => lint_directives_in_comments(
+                            source.text(),
+                            css_comment_ranges(source.text()),
+                        ),
                     });
                 ReportSource::new(Arc::clone(source), directives)
             })

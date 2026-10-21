@@ -26,6 +26,6 @@ pub use token_values::{ThemeValueMismatch, theme_value_mismatch};
 
 pub(crate) use colors::color_fallback;
 
-pub(super) use domains::{resolve_value_domains, split_domains, theme_domain_pattern};
+pub(super) use domains::{resolve_value_domains, theme_domain_pattern};
 pub(super) use expansion::expand_placeholder;
 pub(super) use placeholders::{PreparedValues, resolve_css_placeholders};

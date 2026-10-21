@@ -1,10 +1,9 @@
-//! Directive-block scanning for Stillwind's at-rule dialect.
+//! At-rule extraction, comment ranges, and comment removal for CSS text.
 //!
 //! These helpers read `@directive header { body }` and `@directive name;` forms out of
-//! raw CSS text. Extraction and comment stripping use cssparser tokens; brace helpers
-//! use simpler textual scans with different handling of strings, escapes and comments.
-//! They operate without understanding the declarations they carry: callers decide what
-//! a body means.
+//! raw CSS text. Extraction, comment stripping, and block boundaries use cssparser
+//! tokens. They operate without understanding the declarations they carry: callers
+//! decide what a body means.
 //!
 //! Malformed input is never half-consumed: an unclosed block is skipped, and an
 //! unterminated comment is kept, so the CSS parser can still report it.
@@ -13,6 +12,34 @@ use std::ops::Range;
 
 use cssparser::{ParseError, Parser, SourcePosition, Token};
 use lean_string::{LeanStr, LeanString};
+
+use crate::parser::{closer, consume, consume_css_block, literal_closed, parse_css_block};
+
+/// Returns CSS comment bodies in authored order, excluding their delimiters.
+/// An unterminated comment extends to EOF. Strings and URL tokens contain no comments.
+pub fn css_comment_ranges(css: &str) -> Vec<Range<usize>> {
+    fn collect(parser: &mut Parser<'_>, css: &str, comments: &mut Vec<Range<usize>>) {
+        loop {
+            let start = parser.position().byte_index();
+            let Ok(token) = parser.next_including_whitespace_and_comments() else {
+                return;
+            };
+            let comment = matches!(token, Token::Comment(_));
+            let block = closer(token).is_some();
+            if comment {
+                let end = parser.position().byte_index();
+                let closed = literal_closed(&css[start..end], "*/");
+                comments.push(start + 2..end - if closed { 2 } else { 0 });
+            }
+            if block {
+                let _ = parse_css_block(parser, |inner| collect(inner, css, comments));
+            }
+        }
+    }
+    let mut comments = Vec::new();
+    collect(&mut Parser::new(css), css, &mut comments);
+    comments
+}
 
 /// Removes complete comments and keeps all other text unchanged.
 ///
@@ -134,92 +161,6 @@ pub fn extract_named_statements(css: &str, directive: &str) -> Vec<(usize, LeanS
         .collect()
 }
 
-/// A malformed property requirement and its byte offset in the supplied CSS body.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-#[error("invalid property requirement at byte {offset}")]
-pub struct PropertyRequirementError {
-    /// Byte offset of the directive within the supplied CSS body.
-    pub offset: usize,
-}
-
-/// One registration requirement directive and its named properties.
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct PropertyRequirement {
-    /// Byte range of the full directive in its CSS body.
-    range: Range<usize>,
-    /// Required custom-property names in authored order.
-    names: Vec<LeanStr>,
-}
-
-/// Reads semantic registration requirements from a utility definition or fragment.
-/// Quoted/comment text is ignored. Unknown property names are validated by the
-/// consumer against its registry; malformed directive arguments reject the input.
-///
-/// # Errors
-///
-/// Returns the byte offset of the first malformed directive.
-fn property_requirement_ranges(
-    css: &str,
-) -> Result<Vec<PropertyRequirement>, PropertyRequirementError> {
-    if !css.contains("@stillwind-require-properties") {
-        return Ok(Vec::new());
-    }
-    directive_rules(css, "stillwind-require-properties")
-        .into_iter()
-        .map(|rule| {
-            if rule.body.is_some() {
-                return Err(PropertyRequirementError { offset: rule.start });
-            }
-            let names = rule
-                .header
-                .split_whitespace()
-                .map(LeanStr::from)
-                .collect::<Vec<_>>();
-            if names.is_empty()
-                || names.iter().any(|name| {
-                    !name.starts_with("--")
-                        || name.len() == 2
-                        || !name
-                            .chars()
-                            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
-                })
-            {
-                return Err(PropertyRequirementError { offset: rule.start });
-            }
-            let end = rule.start
-                + css[rule.start..]
-                    .find(';')
-                    .ok_or(PropertyRequirementError { offset: rule.start })?
-                + 1;
-            Ok(PropertyRequirement {
-                range: rule.start..end,
-                names,
-            })
-        })
-        .collect()
-}
-
-/// Lowers registration requirements before declarations are serialized as CSS.
-///
-/// # Errors
-///
-/// Returns the byte offset of the first malformed directive.
-pub fn take_property_requirements(
-    css: &str,
-) -> Result<(LeanString, Vec<LeanStr>), PropertyRequirementError> {
-    let requests = property_requirement_ranges(css)?;
-    let mut output = LeanString::new();
-    let mut properties = Vec::new();
-    let mut cursor = 0;
-    for PropertyRequirement { range, names } in requests {
-        output.push_str(&css[cursor..range.start]);
-        cursor = range.end;
-        properties.extend(names);
-    }
-    output.push_str(&css[cursor..]);
-    Ok((output, properties))
-}
-
 /// One directive occurrence found by [`scan_directives`].
 struct DirectiveRule {
     /// UTF-8 byte offset of the directive's `@` in the scanned input.
@@ -282,21 +223,17 @@ fn scan_directives(
                         }
                         Ok(Token::CurlyBracketBlock) => {
                             let body_start = parser.position().byte_index();
-                            let result = parser.parse_nested_block(|nested| {
-                                while nested.next_including_whitespace_and_comments().is_ok() {}
-                                Ok::<_, ParseError<()>>(())
-                            });
-                            if result.is_ok() {
-                                let body_end = parser.position().byte_index() - 1;
-                                if css.as_bytes().get(body_end) == Some(&b'}') {
-                                    rules.push(DirectiveRule {
-                                        start,
-                                        header: css[header_start..body_start - 1].trim().into(),
-                                        body: Some(css[body_start..body_end].trim().into()),
-                                        range: start..body_end + 1,
-                                        body_range: Some(body_start..body_end),
-                                    });
-                                }
+                            let result = consume_css_block(parser);
+                            if let Ok(block) = result
+                                && let Some(body_end) = block.close
+                            {
+                                rules.push(DirectiveRule {
+                                    start,
+                                    header: css[header_start..body_start - 1].trim().into(),
+                                    body: Some(css[body_start..body_end].trim().into()),
+                                    range: start..body_end + 1,
+                                    body_range: Some(body_start..body_end),
+                                });
                             }
                             break;
                         }
@@ -327,116 +264,37 @@ fn scan_directives(
     }
 }
 
-/// Reason a byte-offset delimiter scan cannot return a closing offset.
-///
-/// The brace and delimiter scanners share it, so a caller can tell an unusable
-/// starting offset apart from input that does not close the delimiter.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum ScanError {
-    /// The requested offset is past the end of the input or inside a multi-byte scalar.
-    #[error("scan offset {offset} is not a character boundary within {length} bytes")]
-    InvalidOffset {
-        /// Requested byte offset.
-        offset: usize,
-        /// Length in bytes of the scanned input.
-        length: usize,
-    },
-    /// The delimiter is never closed, or a closer appears before its opener.
-    #[error("delimiter has no matching closer")]
-    Unclosed,
-}
-
-/// Returns the offset of the `}` matching the `{` at `open`.
-///
-/// Quoted strings and escapes are respected, so braces inside them are literal text.
-///
-/// # Errors
-///
-/// Returns [`ScanError::InvalidOffset`] when `open` is past the end of `value` or
-/// falls inside a multi-byte scalar, and [`ScanError::Unclosed`] when the brace is
-/// never closed or a `}` appears first. Offsets from `char_indices` over this same
-/// string satisfy the character-boundary requirement.
-pub fn matching_brace(value: &str, open: usize) -> Result<usize, ScanError> {
-    let mut depth = 0_u32;
-    let mut quote = None;
-    let mut escaped = false;
-    let rest = value.get(open..).ok_or(ScanError::InvalidOffset {
-        offset: open,
-        length: value.len(),
-    })?;
-    for (offset, character) in rest.char_indices() {
-        if let Some(current_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == current_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '{' => {
-                depth += 1;
-            }
-            '}' => {
-                depth = depth.checked_sub(1).ok_or(ScanError::Unclosed)?;
-                if depth == 0 {
-                    return Ok(open + offset);
-                }
-            }
-            _ => {}
-        }
-    }
-    Err(ScanError::Unclosed)
-}
-
 /// Detect EOF inside a block before CSS parsers implicitly close it. Strings, comments
 /// and escaped delimiters do not change block depth.
 ///
 /// Returns the offset of the outermost `{` that is still open at end of input, or
 /// `None` when every block was closed.
 pub fn unterminated_block(css: &str) -> Option<usize> {
-    let mut openings = Vec::new();
-    let mut quote = None;
-    let mut chars = css.char_indices().peekable();
-    while let Some((offset, character)) = chars.next() {
-        if character == '\\' {
-            chars.next();
-            continue;
-        }
-        if let Some(delimiter) = quote {
-            if character == delimiter {
-                quote = None;
+    unclosed_curly(&mut Parser::new(css))
+}
+
+fn unclosed_curly(parser: &mut Parser<'_>) -> Option<usize> {
+    loop {
+        let start = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            return None;
+        };
+        let curly = matches!(token, Token::CurlyBracketBlock);
+        if closer(token).is_some() {
+            let (child, block) = parse_css_block(parser, |inner| {
+                let child = unclosed_curly(inner);
+                consume(inner);
+                child
+            })
+            .ok()?;
+            if curly && block.close.is_none() {
+                return Some(start);
             }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
+            if child.is_some() {
+                return child;
             }
-            '/' if chars.peek().is_some_and(|(_, ch)| *ch == '*') => {
-                chars.next();
-                while let Some((_, ch)) = chars.next() {
-                    if ch == '*' && chars.peek().is_some_and(|(_, ch)| *ch == '/') {
-                        chars.next();
-                        break;
-                    }
-                }
-            }
-            '{' => {
-                openings.push(offset);
-            }
-            '}' => {
-                openings.pop();
-            }
-            _ => {}
         }
     }
-    openings.first().copied()
 }
 
 #[cfg(test)]
@@ -495,23 +353,6 @@ mod tests {
             r#"x{content:"/*";b:url(/*x*/) fn(12) [a]}"#
         );
         assert_eq!(strip_css_comments("x{a:(b/**/"), "x{a:(b");
-        assert_eq!(matching_brace("{ '}' {x} }", 0), Ok(10));
-        assert_eq!(matching_brace("{x", 0), Err(ScanError::Unclosed));
-        assert_eq!(
-            matching_brace("{x", 3),
-            Err(ScanError::InvalidOffset {
-                offset: 3,
-                length: 2
-            })
-        );
-        assert_eq!(
-            matching_brace("é{x}", 1),
-            Err(ScanError::InvalidOffset {
-                offset: 1,
-                length: 5
-            })
-        );
-        assert_eq!(matching_brace("x}", 0), Err(ScanError::Unclosed));
     }
 
     /// Statements and blocks are recorded in source order with their trimmed header,
@@ -562,15 +403,5 @@ mod tests {
         scan_directives(&mut Parser::new(css), css, "foo", &mut rules);
         assert_eq!(rules.len(), 1, "{:?}", rules.len());
         assert_eq!(rules[0].header, "y");
-    }
-
-    #[test]
-    fn requirements_are_lexical_and_reject_non_names() {
-        let css = r".x{content:'@stillwind-require-properties --fake;';@stillwind-require-properties --real;}";
-        let (lowered, names) = take_property_requirements(css).unwrap();
-        assert_eq!(names, ["--real"]);
-        assert!(lowered.contains("'@stillwind-require-properties --fake;'"));
-        assert!(take_property_requirements("@stillwind-require-properties red;").is_err());
-        assert!(take_property_requirements("@stillwind-require-properties --x{}").is_err());
     }
 }

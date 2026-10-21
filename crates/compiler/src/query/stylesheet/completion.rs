@@ -5,11 +5,11 @@ use std::ops::Range;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_design_system::UtilityResolutionError;
-use stillwind_syntax::parse_candidate;
+use stillwind_syntax::{CandidatePrefix, parse_candidate};
 
 use super::context::{AppliedVariants, Context, Kind, context};
 use super::directives::{DECLARATION_SLOTS, DIRECTIVES, RULE_SLOTS, directive_name};
-use crate::query::{CandidateContext, CompletionInput, DesignSystemQuery, last_top_level};
+use crate::query::{CandidateContext, CompletionInput, DesignSystemQuery};
 
 /// Editor discovery settings. These options do not alter compilation or stylesheet
 /// lint.
@@ -210,7 +210,9 @@ fn redundant_variant(css: &str, applied: &AppliedVariants, label: &str) -> bool 
     {
         return true;
     }
-    let last = &label[last_top_level(label, ':').map_or(0, |index| index + 1)..];
+    let last = &label[CandidatePrefix::parse(label)
+        .and_then(|prefix| prefix.last_separator(':'))
+        .map_or(0, |index| index + 1)..];
     applied.enclosing.iter().any(|sequences| {
         !sequences.is_empty()
             && sequences.iter().all(|range| {
@@ -224,7 +226,9 @@ fn redundant_variant(css: &str, applied: &AppliedVariants, label: &str) -> bool 
 
 /// Completes host candidates only inside an applied utility or variant input.
 fn catalog_labels(prefix: &str, variants: bool, catalog: Vec<LeanStr>) -> Vec<LeanStr> {
-    let split = last_top_level(prefix, ':').map_or(0, |index| index + 1);
+    let split = CandidatePrefix::parse(prefix)
+        .and_then(|prefix| prefix.last_separator(':'))
+        .map_or(0, |index| index + 1);
     let (before, partial) = prefix.split_at(split);
     catalog
         .into_iter()

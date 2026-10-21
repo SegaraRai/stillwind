@@ -104,7 +104,7 @@ fn render(css: &str, node: &CssNode, output: &mut LeanString) {
             output.push_str(value);
             output.push(';');
         }
-        _ => {
+        CssNodeKind::AtRule { .. } => {
             if css[node.range.clone()].ends_with(';') {
                 output.push_str(&css[node.range.clone()]);
             }

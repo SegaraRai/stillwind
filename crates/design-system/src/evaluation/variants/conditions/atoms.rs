@@ -10,8 +10,10 @@
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
+use stillwind_css::{CssCase, normalize_css_fragment};
+
 use super::super::VariantApplication;
-use super::queries::{container_query, normalize, query_conditions, strip_not};
+use super::queries::{container_query, query_conditions, strip_not};
 use super::selectors::selector_conditions;
 
 /// The most branches that one candidate's conditions are expanded to. A larger
@@ -154,7 +156,11 @@ pub(super) fn application_branches(
             let (negated, text) = strip_not(prelude);
             vec![vec![condition(
                 Test::Opaque {
-                    key: format_args!("@supports {}", normalize(text)).to_lean_str(),
+                    key: format_args!(
+                        "@supports {}",
+                        normalize_css_fragment(text, &[':'], CssCase::Keep)
+                    )
+                    .to_lean_str(),
                     negated,
                 },
                 &format_args!("@supports {prelude}").to_lean_string(),

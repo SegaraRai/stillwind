@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use stillwind_css::{CssNode, CssNodeKind, parse_structure, properties_interfere};
 use stillwind_design_system::{UtilityResolutionError, VariantSequenceOrder, resolve_variant};
 
-use crate::compiler::{parse_variant_sequence, variant_sequences};
+use crate::compiler::{apply_candidates, parse_variant_sequence, variant_sequences};
 use crate::query::{CandidateContext, DesignSystemQuery};
 
 /// Independent targets for CSS sorting. These settings also control sorting lint.
@@ -118,10 +118,12 @@ impl Planner<'_> {
                 } if !definition(name) && (name != "variant" || in_rule) => {
                     edits.extend(self.visit(&block.children, in_rule)?);
                 }
-                CssNodeKind::Apply { candidates }
-                    if options.apply_utilities && self.complete(node) =>
-                {
-                    if let Some(edit) = self.application(candidates) {
+                CssNodeKind::AtRule {
+                    name, block: None, ..
+                } if name == "apply" && options.apply_utilities && self.complete(node) => {
+                    if let Some(edit) =
+                        self.application(&apply_candidates(self.css, node).unwrap_or_default())
+                    {
                         edits.push(edit);
                     }
                 }
@@ -211,9 +213,13 @@ impl Planner<'_> {
         }
         let options = self.query.context.options.stylesheet_sort;
         let key = match &node.kind {
-            CssNodeKind::Apply { candidates }
-                if options.apply_statements && !candidates.is_empty() =>
-            {
+            CssNodeKind::AtRule {
+                name, block: None, ..
+            } if name == "apply" && options.apply_statements => {
+                let candidates = apply_candidates(self.css, node).unwrap_or_default();
+                if candidates.is_empty() {
+                    return Ok(None);
+                }
                 let Some(mut keys) = candidates
                     .iter()
                     .map(|range| self.ranks.get(&self.css[range.clone()]).copied())
@@ -305,10 +311,10 @@ impl Planner<'_> {
                     };
                     properties.extend(writes);
                 }
-                CssNodeKind::AtRule { .. } => {
-                    return Ok(None);
-                }
-                CssNodeKind::Apply { candidates } => {
+                CssNodeKind::AtRule {
+                    name, block: None, ..
+                } if name == "apply" => {
+                    let candidates = apply_candidates(self.css, node).unwrap_or_default();
                     for range in candidates {
                         let Some(css) = self.query.preview_candidate(
                             &self.css[range.clone()],
@@ -322,6 +328,9 @@ impl Planner<'_> {
                         };
                         properties.extend(writes);
                     }
+                }
+                CssNodeKind::AtRule { .. } => {
+                    return Ok(None);
                 }
                 CssNodeKind::Declaration { property, .. } => {
                     properties.insert(
@@ -452,7 +461,7 @@ fn application_candidates<'a>(
     output: &mut Vec<&'a str>,
 ) {
     for node in nodes {
-        if let CssNodeKind::Apply { candidates } = &node.kind {
+        if let Some(candidates) = apply_candidates(css, node) {
             output.extend(candidates.iter().map(|range| &css[range.clone()]));
         }
         if let CssNodeKind::AtRule { name, .. } = &node.kind
@@ -506,7 +515,7 @@ fn preview_properties(css: &str) -> Option<BTreeSet<LeanStr>> {
                 CssNodeKind::Declaration { property, .. } => {
                     properties.insert(css[property.clone()].trim().to_ascii_lowercase().into());
                 }
-                _ => {
+                CssNodeKind::AtRule { .. } => {
                     return None;
                 }
             }

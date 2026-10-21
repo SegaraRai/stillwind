@@ -10,15 +10,16 @@
 //! prefix, with a slash modifier kept separately; a fraction domain is the one case
 //! where the two are reassembled, and only when both sides are unsigned integers.
 
+use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssFunctionMatch, declaration_ranges};
+use stillwind_css::{CssFunctionMatch, declaration_ranges, split_top_level};
 use stillwind_syntax::Value;
 
 use super::super::context::EvaluationContext;
 use super::arbitrary::alpha;
 use super::colors::{resolve_compat_color, resolve_shadow_color};
-use super::domains::{resolve_value_domains, split_domains};
+use super::domains::resolve_value_domains;
 use super::expansion::{expand_placeholders, matching_functions};
 use super::macros::{resolve_theme_suffix_placeholder, resolve_value_map_placeholder};
 
@@ -173,7 +174,7 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
                     Value::Named(value) | Value::Arbitrary(value) => value,
                     Value::CssVariable(_) => return None,
                 };
-                let replacement = split_domains(arguments)
+                let replacement = split_top_level(arguments, |token| matches!(token, Token::Comma))
                     .into_iter()
                     .find_map(|entry| {
                         let (key, value) = entry.trim().split_once(':')?;

@@ -10,6 +10,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+stillwind-css = { path = "../css" }
 stillwind-source = { path = "../source" }
 lean_string.workspace = true
 serde.workspace = true

@@ -4,9 +4,10 @@
 //! every other byte of the candidate, so the utility and its other variants are
 //! unchanged.
 
+use cssparser::Token;
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::find_css_functions;
+use stillwind_css::{find_css_functions, split_once_top_level};
 use stillwind_design_system::{RuntimeCondition, ThemeIndex, VariantApplication, resolve_variant};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::parse_candidate;
@@ -46,8 +47,8 @@ pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<Lean
     let functions = find_css_functions(&rewritten, &["--if"], 0);
     for function in functions.into_iter().rev() {
         let arguments = &rewritten[function.arguments.clone()];
-        let end = top_level_comma(arguments).unwrap_or(arguments.len());
-        let written = &arguments[..end];
+        let (written, _) = split_once_top_level(arguments, |token| matches!(token, Token::Comma));
+        let end = written.len();
         let decoded = written.replace_char('_', " ");
         let Some(condition) = RuntimeCondition::parse(&decoded) else {
             continue;
@@ -59,24 +60,4 @@ pub(super) fn canonical_conditions(raw: &str, theme: &ThemeIndex) -> Option<Lean
         }
     }
     (rewritten != raw).then_some(rewritten)
-}
-
-/// Returns the byte offset of the first comma outside nested parentheses and brackets.
-fn top_level_comma(arguments: &str) -> Option<usize> {
-    let mut depth = 0_usize;
-    for (index, byte) in arguments.bytes().enumerate() {
-        match byte {
-            b'(' | b'[' | b'{' => {
-                depth += 1;
-            }
-            b')' | b']' | b'}' => {
-                depth = depth.saturating_sub(1);
-            }
-            b',' if depth == 0 => {
-                return Some(index);
-            }
-            _ => {}
-        }
-    }
-    None
 }

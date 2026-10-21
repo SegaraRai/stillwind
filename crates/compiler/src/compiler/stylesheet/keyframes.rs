@@ -5,7 +5,9 @@
 //! at `@keyframes`, so a request for `spin` does not select `spin-fast`. A rule whose braces never
 //! close contributes nothing rather than a truncated rule that would change the animation.
 
-use lean_string::{LeanStr, LeanString, ToLeanString};
+use lean_string::{LeanStr, LeanString};
+
+use stillwind_css::{CssNodeKind, parse_structure};
 
 /// Copies the named `@keyframes` rules out of `css`, in the order the names are given.
 ///
@@ -13,34 +15,19 @@ use lean_string::{LeanStr, LeanString, ToLeanString};
 /// the host's own CSS, and that is not an error here.
 pub(in crate::compiler) fn extract_authored_keyframes(css: &str, names: &[LeanStr]) -> LeanString {
     let mut output = LeanString::new();
-    for name in names {
-        let needle = format_args!("@keyframes {name}").to_lean_string();
-        let Some(start) = css.find(needle.as_str()) else {
-            continue;
-        };
-        let Some(open_rel) = css[start..].find('{') else {
-            continue;
-        };
-        let open = start + open_rel;
-        let mut depth = 0_u32;
-        let mut close = None;
-        for (offset, ch) in css[open..].char_indices() {
-            match ch {
-                '{' => {
-                    depth += 1;
-                }
-                '}' => {
-                    depth = depth.saturating_sub(1);
-                    if depth == 0 {
-                        close = Some(open + offset);
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-        if let Some(close) = close {
-            output.push_str(&css[start..=close]);
+    for node in parse_structure(css) {
+        if let CssNodeKind::AtRule {
+            name,
+            prelude,
+            block: Some(block),
+        } = node.kind
+            && name == "keyframes"
+            && block.close.is_some()
+            && names
+                .iter()
+                .any(|name| name.as_str() == &css[prelude.clone()])
+        {
+            output.push_str(&css[node.range]);
         }
     }
     output

@@ -1,6 +1,9 @@
 //! Media and container queries read as conjunctions of simple conditions.
 
-use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+use cssparser::{Parser, Token};
+use lean_string::{LeanStr, ToLeanStr, ToLeanString};
+
+use stillwind_css::{CssCase, consume_css_block, normalize_css_fragment, split_top_level};
 
 use super::atoms::{Bound, Condition, MEDIA_TYPE, Scope, Test};
 
@@ -27,7 +30,12 @@ pub(super) fn query_conditions(query: &str, scope: &Scope, variant: usize) -> Ve
     let opaque = |negated: bool, text: &str| Condition {
         variant,
         test: Test::Opaque {
-            key: format_args!("{rule} {} {}", scope_name(scope), normalize(text)).to_lean_str(),
+            key: format_args!(
+                "{rule} {} {}",
+                scope_name(scope),
+                normalize_css_fragment(text, &[':'], CssCase::Keep)
+            )
+            .to_lean_str(),
             negated,
         },
         display: format_args!("{rule} {query}").to_lean_str(),
@@ -214,95 +222,49 @@ pub(super) fn strip_not(text: &str) -> (bool, &str) {
 
 /// Splits a query at top-level `and` keywords.
 fn split_top_level_and(query: &str) -> Vec<&str> {
-    let mut parts = Vec::new();
-    let mut depth = 0_usize;
-    let mut start = 0;
-    let bytes = query.as_bytes();
-    let mut index = 0;
-    while index < bytes.len() {
-        match bytes[index] {
-            b'(' => {
-                depth += 1;
-            }
-            b')' => {
-                depth = depth.saturating_sub(1);
-            }
-            b' ' if depth == 0
-                && query
-                    .get(index + 1..index + 5)
-                    .is_some_and(|word| word.eq_ignore_ascii_case("and ")) =>
-            {
-                parts.push(query[start..index].trim());
-                index += 4;
-                start = index + 1;
-            }
-            _ => {}
-        }
-        index += 1;
-    }
-    parts.push(query[start..].trim());
-    parts.retain(|part| !part.is_empty());
-    parts
+    split_top_level(
+        query,
+        |token| matches!(token, Token::Ident(name) if name.eq_ignore_ascii_case("and")),
+    )
+    .into_iter()
+    .map(str::trim)
+    .filter(|part| !part.is_empty())
+    .collect()
 }
 
 /// The words and commas of `query` outside parentheses.
 fn top_level_words(query: &str) -> Vec<&str> {
+    let mut parser = Parser::new(query);
     let mut words = Vec::new();
-    let mut depth = 0_usize;
-    let mut start = None;
-    for (index, character) in query.char_indices() {
-        match character {
-            '(' => {
-                if depth == 0
-                    && let Some(word) = start.take()
-                {
-                    words.push(&query[word..index]);
-                }
-                depth += 1;
+    loop {
+        let start = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments().cloned() else {
+            break;
+        };
+        let end = parser.position().byte_index();
+        match &token {
+            Token::Ident(_) => {
+                words.push(&query[start..end]);
             }
-            ')' => {
-                depth = depth.saturating_sub(1);
+            Token::Function(_) => {
+                words.push(&query[start..end - 1]);
             }
-            ',' if depth == 0 => {
-                if let Some(word) = start.take() {
-                    words.push(&query[word..index]);
-                }
+            Token::Comma => {
                 words.push(",");
-            }
-            character if depth == 0 && character.is_whitespace() => {
-                if let Some(word) = start.take() {
-                    words.push(&query[word..index]);
-                }
-            }
-            _ if depth == 0 => {
-                start.get_or_insert(index);
             }
             _ => {}
         }
-    }
-    if let Some(word) = start {
-        words.push(&query[word..]);
+        if matches!(
+            token,
+            Token::Function(_)
+                | Token::ParenthesisBlock
+                | Token::SquareBracketBlock
+                | Token::CurlyBracketBlock
+        ) {
+            let _ = consume_css_block(&mut parser);
+        }
     }
     words
-}
-
-/// Collapses whitespace runs to one space and removes spaces next to `(`, `)`, and
-/// `:`, so that spellings that differ only in spacing compare equal.
-pub(super) fn normalize(text: &str) -> LeanString {
-    let mut output = LeanString::new();
-    let mut space = false;
-    for character in text.trim().chars() {
-        if character.is_whitespace() {
-            space = true;
-            continue;
-        }
-        if space && !output.ends_with(['(', ':']) && !matches!(character, ')' | ':') {
-            output.push(' ');
-        }
-        space = false;
-        output.push(character);
-    }
-    output
 }
 
 #[cfg(test)]

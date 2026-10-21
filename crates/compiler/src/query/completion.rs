@@ -3,16 +3,16 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::sync::Arc;
 
-use lean_string::{LeanStr, LeanString, ToLeanStr};
+use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 use stillwind_design_system::{
     CustomUtility, DesignSystemRevision, MarkerForm, StillwindVariantValueType,
     UtilityResolutionError, named_domain_values, stillwind_utility_token_prefixes,
 };
-use stillwind_syntax::parse_candidate;
+use stillwind_syntax::{CandidatePrefix, parse_candidate};
 
-use super::{CandidateContext, DesignSystemQuery, last_top_level};
+use super::{CandidateContext, DesignSystemQuery};
 
 /// A partially typed candidate, as spelled in the editor.
 #[derive(Clone, Debug, Default)]
@@ -83,7 +83,9 @@ impl DesignSystemQuery {
                 })
                 .collect());
         }
-        let split = last_top_level(&prefix, ':').map_or(0, |index| index + 1);
+        let split = CandidatePrefix::parse(&prefix)
+            .and_then(|prefix| prefix.last_separator(':'))
+            .map_or(0, |index| index + 1);
         let (variants, partial) = prefix.split_at(split);
         let utility_partial = partial.trim_start_matches('!').trim_start_matches('-');
         let utility_flags = &partial[..partial.len() - utility_partial.len()];
@@ -144,7 +146,9 @@ impl DesignSystemQuery {
             .into_iter()
             .filter(|label| {
                 label.strip_suffix(':').is_none_or(|text| {
-                    let start = last_top_level(text, ':').map_or(0, |index| index + 1);
+                    let start = CandidatePrefix::parse(text)
+                        .and_then(|prefix| prefix.last_separator(':'))
+                        .map_or(0, |index| index + 1);
                     !used.contains(&text[start..])
                 })
             })
@@ -218,7 +222,8 @@ impl DesignSystemQuery {
     ) -> Result<BTreeSet<LeanStr>, UtilityResolutionError> {
         let theme = self.context.design_system.theme();
         let mut completions = BTreeSet::new();
-        let modifier = last_top_level(partial, '/');
+        let modifier =
+            CandidatePrefix::parse(partial).and_then(|prefix| prefix.last_separator('/'));
         let input = modifier.map_or(partial, |index| &partial[index + 1..]);
         let domain_input = modifier.map_or(utility_partial, |index| &partial[flags..index]);
         let domains = self.value_domains(domain_input, modifier.is_some(), context);
@@ -231,7 +236,9 @@ impl DesignSystemQuery {
                         .any(|namespace| token.name.value.starts_with((namespace).as_str()))
                 {
                     let before = &prefix[..prefix.len() - input.len() + index];
-                    let closing = completion_closers(before);
+                    let closing = CandidatePrefix::parse(before)
+                        .and_then(|prefix| prefix.completion_closers())
+                        .unwrap_or_default();
                     let label = format_args!("{before}{}{closing}", token.name.value).to_lean_str();
                     if !context.variants_only() && self.valid_input(&label, context)? {
                         completions.insert(label);
@@ -549,13 +556,12 @@ pub fn completion_detail(css: &str) -> Option<LeanStr> {
                         wrappers.push(selector.into());
                     }
                 }
-                CssNodeKind::AtRule { name, .. } if name == "property" => {
+                CssNodeKind::AtRule { name, .. } if name == "property" || name == "apply" => {
                     continue;
                 }
                 CssNodeKind::AtRule { name, prelude, .. } => {
                     wrappers.push(format!("@{name} {}", &css[prelude.clone()]));
                 }
-                CssNodeKind::Apply { .. } => {}
                 CssNodeKind::Declaration { property, value } => {
                     let property = &css[property.clone()];
                     let output = if property.starts_with("--") {
@@ -605,44 +611,6 @@ pub(super) fn value_namespaces(body: &str, function: &str) -> Vec<LeanStr> {
         .filter_map(|part| part.trim().strip_suffix('*').map(LeanStr::from))
         .filter(|part| part.starts_with("--"))
         .collect()
-}
-
-fn completion_closers(text: &str) -> LeanString {
-    let mut stack = Vec::new();
-    let mut quote = None;
-    let mut escaped = false;
-    for character in text.chars() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if character == '\\' {
-            escaped = true;
-            continue;
-        }
-        if let Some(current) = quote {
-            if current == character {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '(' => {
-                stack.push(')');
-            }
-            '[' => {
-                stack.push(']');
-            }
-            ')' | ']' => {
-                stack.pop();
-            }
-            _ => {}
-        }
-    }
-    stack.into_iter().rev().collect()
 }
 
 #[cfg(test)]

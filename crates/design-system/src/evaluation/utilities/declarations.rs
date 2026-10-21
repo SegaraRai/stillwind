@@ -13,7 +13,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::inspect_css_value;
+use stillwind_css::{inspect_css_value, parse_structure};
 use stillwind_syntax::Value;
 
 use super::super::context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
@@ -61,9 +61,14 @@ impl PreparedDeclarations {
     /// families they use. A declaration without placeholders also gets its value
     /// resolved for Stillwind and for Tailwind-style definitions.
     pub(in crate::evaluation) fn parse(body: &str, theme: &ThemeIndex) -> Self {
-        let declarations: Vec<_> = split_css_declarations(body)
+        let mut start = 0;
+        let declarations: Vec<_> = parse_structure(body)
             .into_iter()
-            .map(LeanString::from)
+            .map(|node| {
+                let declaration = LeanString::from(&body[start..node.range.end]);
+                start = node.range.end;
+                declaration
+            })
             .collect();
         let uses_placeholder = declarations.iter().any(|declaration| {
             declaration.contains("--value(")
@@ -318,99 +323,12 @@ fn record_tokens(
     }
 }
 
-/// Splits a declaration list without mistaking a semicolon in a string, a function
-/// argument, or a block for a CSS declaration boundary.
-///
-/// An at-rule block such as `@layer x { color: red; }` is one item that ends at its
-/// closing brace. A custom property value that contains braces still ends at the next
-/// top-level semicolon.
-fn split_css_declarations(body: &str) -> Vec<&str> {
-    let mut declarations = Vec::new();
-    let mut start = 0;
-    let mut paren_depth = 0_u32;
-    let mut bracket_depth = 0_u32;
-    let mut brace_depth = 0_u32;
-    let mut quote = None;
-    let mut escaped = false;
-
-    for (index, character) in body.char_indices() {
-        if let Some(current_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == current_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '(' => {
-                paren_depth += 1;
-            }
-            ')' => {
-                paren_depth = paren_depth.saturating_sub(1);
-            }
-            '[' => {
-                bracket_depth += 1;
-            }
-            ']' => {
-                bracket_depth = bracket_depth.saturating_sub(1);
-            }
-            '{' => {
-                brace_depth += 1;
-            }
-            '}' => {
-                brace_depth = brace_depth.saturating_sub(1);
-                if brace_depth == 0
-                    && paren_depth == 0
-                    && bracket_depth == 0
-                    && body[start..index].trim_start().starts_with('@')
-                {
-                    declarations.push(&body[start..=index]);
-                    start = index + 1;
-                }
-            }
-            ';' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
-                declarations.push(&body[start..=index]);
-                start = index + 1;
-            }
-            _ => {}
-        }
-    }
-    if !body[start..].trim().is_empty() {
-        declarations.push(&body[start..]);
-    }
-    declarations
-}
-
 #[cfg(test)]
 mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
     use crate::parse_theme;
-
-    #[test]
-    fn declarations_split_outside_strings_and_functions_only() {
-        assert_eq!(
-            split_css_declarations("content:'a;b';x:f(a;b);last:1"),
-            vec!["content:'a;b';", "x:f(a;b);", "last:1"]
-        );
-        assert_eq!(split_css_declarations(" "), Vec::<&str>::new());
-        assert_eq!(
-            split_css_declarations("@layer x{color:red;gap:0;}top:0;--x:{a;b};last:1"),
-            vec![
-                "@layer x{color:red;gap:0;}",
-                "top:0;",
-                "--x:{a;b};",
-                "last:1"
-            ]
-        );
-    }
 
     #[test]
     fn unmatched_dynamic_branch_cannot_emit_static_supporting_declarations() {

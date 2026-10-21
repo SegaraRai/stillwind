@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_syntax::{Variant, VariantKind};
+use stillwind_syntax::{CandidatePrefix, Variant, VariantKind};
 
 use super::super::super::stillwind::stillwind_variants;
 use super::super::super::suggestions::closest_spelling;
@@ -17,7 +17,7 @@ use super::arbitrary::{
     arbitrary_variant_application, decode_variant_template, is_relative_selector,
     parse_nested_variant,
 };
-use super::definition::{resolve_registered_variant_candidate, split_variant_modifier};
+use super::definition::resolve_registered_variant_candidate;
 use crate::ThemeIndex;
 
 /// Why a variant does not resolve, and which part of its text causes it.
@@ -379,7 +379,8 @@ fn resolve_named_variant(
     if let Some(failure) = failure {
         return Err(failure);
     }
-    if let (base, Some(_)) = split_variant_modifier(value)
+    if let (base, Some(_)) =
+        CandidatePrefix::parse(value).map_or((value, None), |prefix| prefix.split_once('/'))
         && resolve_named_variant(base, theme).is_ok()
     {
         return Err(VariantFailure::new(

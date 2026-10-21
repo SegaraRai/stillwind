@@ -5,12 +5,14 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
-    split_css_function_arguments, take_property_requirements,
+    split_once_top_level,
 };
+use stillwind_design_system::take_property_requirements;
 
 use super::super::index::uses_rem;
 use super::super::preview::convert_pixel_dimensions;
@@ -299,7 +301,7 @@ fn modifier_preserves_value(body: &str) -> bool {
 /// domains and a second alpha can erase color differences, so they remain unproven.
 fn compat_color_value(value: &str) -> Option<&str> {
     let arguments = single_function_arguments(value, "--compat-color")?;
-    let (color, alpha) = split_css_function_arguments(arguments);
+    let (color, alpha) = split_once_top_level(arguments, |token| matches!(token, Token::Comma));
     let alpha = single_function_arguments(alpha?.trim(), "--alpha")?;
     let modifier = single_function_arguments(alpha.trim(), "--modifier")?;
     modifier.trim().is_empty().then_some(color.trim())

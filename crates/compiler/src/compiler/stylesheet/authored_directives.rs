@@ -13,9 +13,12 @@
 
 use std::ops::Range;
 
+use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::{CssNode, CssNodeKind, parse_structure};
+use stillwind_css::{
+    CssNode, CssNodeKind, parse_structure, split_top_level, whitespace_separated_ranges,
+};
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
 };
@@ -52,7 +55,7 @@ pub(in crate::compiler) fn expand_authored_directives(
     identifiers: &IdentifierContext,
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut applications = Vec::new();
-    collect_applications(&parse_structure(css), &mut applications);
+    collect_applications(css, &parse_structure(css), &mut applications);
     let mut output = LeanString::new();
     let mut cursor = 0;
     for (range, candidates) in applications {
@@ -77,17 +80,39 @@ pub(in crate::compiler) fn expand_authored_directives(
     Ok(output)
 }
 
+/// Returns candidate ranges for an apply statement, preserving the CSS source spelling.
+pub(crate) fn apply_candidates(css: &str, node: &CssNode) -> Option<Vec<Range<usize>>> {
+    let CssNodeKind::AtRule {
+        name,
+        prelude,
+        block: None,
+    } = &node.kind
+    else {
+        return None;
+    };
+    if name != "apply" {
+        return None;
+    }
+    Some(
+        whitespace_separated_ranges(&css[prelude.clone()])
+            .into_iter()
+            .map(|range| prelude.start + range.start..prelude.start + range.end)
+            .collect(),
+    )
+}
+
 /// Appends the range and candidate ranges of every `@apply` statement in `nodes`, in
 /// authored order.
 fn collect_applications(
+    css: &str,
     nodes: &[CssNode],
     applications: &mut Vec<(Range<usize>, Vec<Range<usize>>)>,
 ) {
     for node in nodes {
-        if let CssNodeKind::Apply { candidates } = &node.kind {
+        if let Some(candidates) = apply_candidates(css, node) {
             applications.push((node.range.clone(), candidates.clone()));
         }
-        collect_applications(node.children(), applications);
+        collect_applications(css, node.children(), applications);
     }
 }
 
@@ -219,46 +244,14 @@ pub(crate) fn expand_authored_variant(
 /// Commas inside quotes, parentheses, brackets, or braces stay part of the sequence
 /// that contains them, which allows a sequence such as `[&:is(a,b)]`.
 pub(crate) fn variant_sequences(prelude: &str) -> Vec<Range<usize>> {
-    let mut sequences = Vec::new();
-    let mut push = |range: Range<usize>| {
-        let text = &prelude[range.clone()];
-        let start = range.start + (text.len() - text.trim_start().len());
-        sequences.push(start..start + text.trim().len());
-    };
-    let mut start = 0;
-    let mut depth = 0_usize;
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, character) in prelude.char_indices() {
-        if let Some(active_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '(' | '[' | '{' => {
-                depth += 1;
-            }
-            ')' | ']' | '}' => {
-                depth = depth.saturating_sub(1);
-            }
-            ',' if depth == 0 => {
-                push(start..index);
-                start = index + 1;
-            }
-            _ => {}
-        }
-    }
-    push(start..prelude.len());
-    sequences
+    split_top_level(prelude, |token| matches!(token, Token::Comma))
+        .into_iter()
+        .map(|part| {
+            let start = part.as_ptr() as usize - prelude.as_ptr() as usize;
+            let trimmed_start = start + part.len() - part.trim_start().len();
+            trimmed_start..trimmed_start + part.trim().len()
+        })
+        .collect()
 }
 
 /// Parses one `@variant` sequence, such as `hover:focus`, into its variants.

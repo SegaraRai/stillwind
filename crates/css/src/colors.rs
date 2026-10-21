@@ -8,6 +8,7 @@
 //! keeps its exact spelling inside the fallback, so precision the author wrote is not
 //! lost to a reprint.
 
+use cssparser::{Parser, Token};
 use lean_string::{LeanString, ToLeanString};
 use lightningcss::printer::PrinterOptions;
 use lightningcss::properties::box_shadow::BoxShadow;
@@ -15,6 +16,9 @@ use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::color::{CssColor, SRGB};
 
 use stillwind_source::JoinText;
+
+use crate::lists::split_top_level;
+use crate::parser::{closer, consume_css_block, validate_css_syntax};
 
 /// Rewrites box-shadow colors with a custom-property override and CSS Color 5
 /// relative-color fallback. This is the semantic operation Tailwind uses for
@@ -41,9 +45,9 @@ pub fn shadow_with_color_override(
     color_property: &str,
     alpha: Option<&str>,
 ) -> Option<LeanString> {
-    split_top_level_commas(value)
+    split_top_level(value, |token| matches!(token, Token::Comma))
         .into_iter()
-        .map(|shadow| rewrite_shadow_color(shadow, color_property, alpha))
+        .map(|shadow| rewrite_shadow_color(shadow.trim(), color_property, alpha))
         .collect::<Option<Vec<_>>>()
         .map(|shadows| shadows.join_text(", "))
 }
@@ -100,46 +104,6 @@ fn rewrite_shadow_color(
     Some(format_args!("{without_color} var({color_property}, {fallback})").to_lean_string())
 }
 
-/// Splits on commas that are not inside parentheses, brackets, quotes or escapes, and
-/// trims each component.
-fn split_top_level_commas(value: &str) -> Vec<&str> {
-    let mut components = Vec::new();
-    let mut start = 0;
-    let mut depth = 0_u32;
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, character) in value.char_indices() {
-        if let Some(current_quote) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == current_quote {
-                quote = None;
-            }
-            continue;
-        }
-        match character {
-            '\'' | '"' => {
-                quote = Some(character);
-            }
-            '(' => {
-                depth += 1;
-            }
-            ')' => {
-                depth = depth.saturating_sub(1);
-            }
-            ',' if depth == 0 => {
-                components.push(value[start..index].trim());
-                start = index + character.len_utf8();
-            }
-            _ => {}
-        }
-    }
-    components.push(value[start..].trim());
-    components
-}
-
 /// Converts a fully determined CSS color to sRGB components in the inclusive range 0..=1.
 /// Returns `None` for contextual colors, invalid values, or unsupported conversions.
 #[must_use]
@@ -189,20 +153,19 @@ pub fn color_hex(value: &str) -> Option<HexColor> {
 /// Used to find a shadow's trailing color without assuming the color is a single token;
 /// `None` when there is no such boundary.
 fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
-    let mut depth = 0_u32;
+    let mut parser = Parser::new(value);
     let mut boundary = None;
-    for (index, character) in value.char_indices() {
-        match character {
-            '(' => {
-                depth += 1;
-            }
-            ')' => {
-                depth = depth.checked_sub(1)?;
-            }
-            character if character.is_whitespace() && depth == 0 => {
-                boundary = Some(index);
-            }
-            _ => {}
+    loop {
+        let start = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            break;
+        };
+        let block = closer(token).is_some();
+        if matches!(token, Token::WhiteSpace(_)) {
+            boundary = Some(start);
+        }
+        if block {
+            let _ = consume_css_block(&mut parser);
         }
     }
     let boundary = boundary?;
@@ -211,20 +174,14 @@ fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
     (!base.trim().is_empty() && !component.is_empty()).then_some((base.trim_end(), component))
 }
 
-/// Checks matching quote delimiters and rejects a backslash immediately before the
-/// last quote. This lexical approximation accepts empty strings and does not validate
-/// interior quotes or count backslashes to determine escape parity.
+/// Accepts one complete CSS string token with no trailing tokens.
 pub(super) fn is_css_string(value: &str) -> bool {
-    let Some(quote) = value
-        .chars()
-        .next()
-        .filter(|quote| matches!(quote, '\'' | '"'))
-    else {
-        return false;
-    };
-    value.ends_with(quote)
-        && value.len() >= quote.len_utf8() * 2
-        && !value[..value.len() - quote.len_utf8()].ends_with('\\')
+    let mut parser = Parser::new(value);
+    matches!(
+        parser.next_including_whitespace_and_comments(),
+        Ok(Token::QuotedString(_))
+    ) && parser.position().byte_index() == value.len()
+        && validate_css_syntax(value).is_ok()
 }
 
 #[cfg(test)]
@@ -300,10 +257,6 @@ mod boundary_tests {
 
     #[test]
     fn comma_and_component_scanners_preserve_nested_and_quoted_text() {
-        assert_eq!(
-            split_top_level_commas("rgb(1, 2, 3), 'a,b', blue"),
-            vec!["rgb(1, 2, 3)", "'a,b'", "blue"]
-        );
         assert!(is_css_string("'a b'"));
         assert!(!is_css_string("'a"));
         assert!(!is_css_string("a"));

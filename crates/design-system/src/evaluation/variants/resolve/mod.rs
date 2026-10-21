@@ -23,5 +23,4 @@ pub(in crate::evaluation) use arbitrary::{
 };
 pub(in crate::evaluation) use definition::{
     resolve_named_variant_with, resolve_registered_variant_candidate, split_typed_capture,
-    split_variant_modifier,
 };

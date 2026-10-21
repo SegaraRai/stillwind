@@ -9,10 +9,13 @@
 //! the candidate capture plus an authored suffix, which is how a wildcard definition
 //! resolves a token whose name it cannot spell in advance.
 
+use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr};
 
+use stillwind_css::split_top_level;
+
 use super::super::context::EvaluationContext;
-use super::domains::{split_domains, theme_domain_pattern};
+use super::domains::theme_domain_pattern;
 
 /// Resolves one `--stillwind-theme-suffix(...)` to a composed token value.
 ///
@@ -24,7 +27,7 @@ pub(in crate::evaluation) fn resolve_theme_suffix_placeholder(
     capture: Option<&str>,
     theme: &EvaluationContext<'_>,
 ) -> Option<LeanStr> {
-    let arguments = split_domains(arguments);
+    let arguments = split_top_level(arguments, |token| matches!(token, Token::Comma));
     let [domain, suffix] = arguments.as_slice() else {
         return None;
     };
@@ -47,7 +50,7 @@ pub(in crate::evaluation) fn resolve_value_map_placeholder(
     capture: Option<&str>,
 ) -> Option<LeanStr> {
     let capture = capture?;
-    let replacement = split_domains(arguments)
+    let replacement = split_top_level(arguments, |token| matches!(token, Token::Comma))
         .into_iter()
         .find_map(|entry| {
             let (key, value) = entry.trim().split_once(':')?;

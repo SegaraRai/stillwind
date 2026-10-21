@@ -12,9 +12,10 @@
 
 use std::ops::Range;
 
+use cssparser::Token;
 use lean_string::ToLeanStr;
 
-use stillwind_css::{CssNode, CssNodeKind, find_css_functions, split_css_function_arguments};
+use stillwind_css::{CssNode, CssNodeKind, find_css_functions, split_once_top_level};
 use stillwind_design_system::{suggested_theme_token, unresolvable_value_namespaces};
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_source::JoinText;
@@ -34,14 +35,14 @@ pub(super) fn check_theme_references(checker: &mut Checker<'_>, nodes: &[CssNode
                 check_text(checker, selector.clone());
                 check_theme_references(checker, &block.children, true);
             }
-            CssNodeKind::AtRule { name, .. } if !in_rule && name == "theme" => {}
+            CssNodeKind::AtRule { name, .. }
+                if name == "apply" || (!in_rule && name == "theme") => {}
             CssNodeKind::AtRule { prelude, block, .. } => {
                 check_text(checker, prelude.clone());
                 if let Some(block) = block {
                     check_theme_references(checker, &block.children, in_rule);
                 }
             }
-            CssNodeKind::Apply { .. } => {}
             CssNodeKind::Declaration { value, .. } => {
                 check_text(checker, value.clone());
             }
@@ -58,7 +59,9 @@ fn check_text(checker: &mut Checker<'_>, range: Range<usize>) {
         let Some(end) = found.end else {
             continue;
         };
-        let (reference, fallback) = split_css_function_arguments(&text[found.arguments]);
+        let (reference, fallback) = split_once_top_level(&text[found.arguments], |token| {
+            matches!(token, Token::Comma)
+        });
         let reference = reference.trim();
         if !reference.starts_with("--")
             || fallback.is_some_and(|fallback| !fallback.trim().is_empty())

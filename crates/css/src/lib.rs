@@ -16,16 +16,17 @@
 //! With the `minify` feature, `minify_css` processes complete assets and composes
 //! source maps independently of Stillwind compilation.
 //!
+//! `normalization` compares fragments after normalizing whitespace and ASCII case.
 //! `functions` finds CSS calls, `lists` splits component value lists, and
 //! `declarations` preserves declaration boundaries and parses `name: value` lists.
 //! `selectors` instantiates nesting templates. `structure` parses the rule tree of
-//! authored stylesheets, including `@apply` candidates, with byte ranges. `colors`
-//! converts concrete colors and rewrites shadow colors. `math` folds compatible numeric
-//! expressions, and `values` validates grammars and inspects property effects. `lexer`
-//! tokenizes CSS text and reports state changes to a handler. `custom_properties`
-//! discovers references and registrations. `emission` preserves rule occurrences and
-//! optimizes declaration order. `format` formats editor previews, while the optional
-//! `minify` module processes final assets.
+//! authored stylesheets with byte ranges. `colors` converts concrete colors and
+//! rewrites shadow colors. `math` folds compatible numeric expressions, and `values`
+//! validates grammars and inspects property effects. `parser` shares token traversal,
+//! explicit block boundaries, and syntax validation. `custom_properties` discovers
+//! references and registrations. `emission` preserves rule occurrences and optimizes
+//! declaration order. `format` formats editor previews, while the optional `minify`
+//! module processes final assets.
 
 #![cfg_attr(
     not(test),
@@ -46,10 +47,11 @@ mod declarations;
 mod emission;
 mod format;
 mod functions;
-mod lexer;
 mod lists;
 mod math;
+mod normalization;
 mod output;
+mod parser;
 mod resources;
 mod selectors;
 mod structure;
@@ -59,9 +61,8 @@ mod values;
 mod minify;
 
 pub use blocks::{
-    DirectiveBlock, PropertyRequirementError, ScanError, extract_directive_blocks,
-    extract_named_blocks, extract_named_statements, extract_order_statements, matching_brace,
-    strip_css_comments, take_property_requirements, unterminated_block,
+    DirectiveBlock, css_comment_ranges, extract_directive_blocks, extract_named_blocks,
+    extract_named_statements, extract_order_statements, strip_css_comments, unterminated_block,
 };
 pub use colors::{
     HexColor, color_hex, color_rgba, shadow_with_color_fallback, shadow_with_color_override,
@@ -72,28 +73,28 @@ pub use custom_properties::{
     extract_authored_property_syntaxes, parse_property_definitions,
 };
 pub use declarations::{
-    DeclarationError, ParsedDeclaration, declaration_ranges, important_declarations,
-    parse_declaration_list,
+    DeclarationError, ParsedDeclaration, declaration_ranges, declaration_values,
+    important_declarations, parse_declaration_list,
 };
 pub use emission::{CssRule, Declaration, optimize_rules, stylesheet_fragments};
 pub use format::{CssFormatError, format_css};
-pub use functions::{
-    CssFunctionMatch, find_css_function, find_css_functions, matching_css_delimiter,
-    split_css_function_arguments,
-};
-pub use lists::split_top_level;
-pub use math::{
-    MAX_VALUE_NESTING, evaluate_numeric, fold_calc_expressions, format_numeric_zero,
-    value_nesting_overflow,
-};
+pub use functions::{CssFunctionMatch, find_css_functions};
+pub use lists::{split_once_top_level, split_top_level, whitespace_separated_ranges};
+pub use math::{MAX_VALUE_NESTING, evaluate_numeric, fold_calc_expressions, format_numeric_zero};
+pub use normalization::{CssCase, normalize_css_fragment};
 pub use output::{CssOutputNode, CssOutputTemplate, PropertyInheritance};
+pub use parser::{
+    CssBlockRange, CssSyntaxError, CssSyntaxErrorKind, ScanError, consume_css_block,
+    decode_css_escapes, literal_closed, matching_css_delimiter, parenthesis_nesting_overflow,
+    parse_css_block, validate_css_syntax, validate_css_syntax_recovering,
+};
 pub use resources::{CssUrl, relative_css_urls};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition,
     implicit_nesting_positions, instantiate_selector, selector_class_names,
     selector_is_element_condition, selector_is_subject_condition, selector_is_valid,
     selector_list_branches, selector_repeats_subject, selector_target, selector_uses_subject,
-    subject_as_universal,
+    subject_as_universal, subject_compound_parts,
 };
 pub use structure::{CssBlock, CssNode, CssNodeKind, parse_structure};
 pub use values::{

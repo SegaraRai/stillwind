@@ -19,6 +19,8 @@ use lightningcss::values::time::Time;
 
 use super::properties::CssProperty;
 use crate::colors::is_css_string;
+use crate::functions::find_css_functions;
+use crate::parser::validate_css_syntax;
 
 /// True when the text references a custom property, i.e. contains `var(--…)` with only
 /// whitespace between the parenthesis and the `--`.
@@ -26,16 +28,10 @@ use crate::colors::is_css_string;
 /// This is a lexical check, not a parse: `var(x)` and bare `--name` are not references,
 /// and the surrounding grammar is the caller's responsibility.
 pub(super) fn contains_custom_property_reference(value: &str) -> bool {
-    let mut cursor = value;
-    while let Some(start) = cursor.find("var(") {
-        let after_function = &cursor[start + "var(".len()..];
-        let name = after_function.trim_start();
-        if name.starts_with("--") {
-            return true;
-        }
-        cursor = after_function;
-    }
-    false
+    find_css_functions(value, &["var"], 0).into_iter().any(|function| {
+        let mut parser = Parser::new(&value[function.arguments]);
+        matches!(parser.next(), Ok(Token::Ident(name)) if name.starts_with("--") && name.len() > 2)
+    })
 }
 
 /// Math functions whose arguments [`value_is_well_formed`] parses.
@@ -53,7 +49,9 @@ const MATH_FUNCTIONS: &[&str] = &[
 /// angle, or time calculation, as in `calc(1rem + )`. A math function that contains
 /// `var()` is accepted, because its type is known only after substitution.
 pub fn value_is_well_formed(value: &str) -> bool {
-    !value.trim().is_empty() && component_values_are_well_formed(&mut Parser::new(value), value)
+    !value.trim().is_empty()
+        && validate_css_syntax(value).is_ok()
+        && component_values_are_well_formed(&mut Parser::new(value), value)
 }
 
 /// Checks the component values that `parser` reads from `source`, including nested
