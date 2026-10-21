@@ -208,7 +208,9 @@ impl IncompatibleComposition {
     ) {
         for input in values {
             match input {
-                StyleInput::Array(values) => self.collect(values, derived, findings),
+                StyleInput::Array(values) => {
+                    self.collect(values, derived, findings);
+                }
                 StyleInput::Conditional { branches, .. } => {
                     for values in branches.values() {
                         self.collect(values, derived, findings);
@@ -239,18 +241,22 @@ fn remove_bases(
 ) {
     for input in values {
         match input {
-            StyleInput::Array(values) => remove_bases(values, derived, removed),
+            StyleInput::Array(values) => {
+                remove_bases(values, derived, removed);
+            }
             StyleInput::Conditional { branches, .. } => {
                 for values in branches.values_mut() {
                     remove_bases(values, derived, removed);
                 }
             }
-            StyleInput::Composition { candidates, .. } => candidates.retain(|base| {
-                !removed.contains(&StyleDependency {
-                    derived: derived.clone(),
-                    base: base.clone(),
-                })
-            }),
+            StyleInput::Composition { candidates, .. } => {
+                candidates.retain(|base| {
+                    !removed.contains(&StyleDependency {
+                        derived: derived.clone(),
+                        base: base.clone(),
+                    })
+                });
+            }
             _ => {}
         }
     }
@@ -351,13 +357,15 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
             StyleInput::Composition { candidates, .. } => {
                 dependencies.extend(candidates.iter().cloned());
             }
+            StyleInput::Class(expression) => {
+                props |= class_expression(expression);
+            }
             StyleInput::ViewTransitionUse { name, .. }
             | StyleInput::DynamicViewTransitionUse { name, .. } => {
                 // A transition use marks the element with a class, which composes like any other
                 // class; only a name the runtime composes travels as an inline property.
                 props |= matches!(name, ViewTransitionName::Key(ViewTransitionKey::Dynamic(_)));
             }
-            StyleInput::Class(expression) => props |= class_expression(expression),
             _ => {}
         }
     }

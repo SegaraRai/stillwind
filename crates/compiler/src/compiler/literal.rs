@@ -172,13 +172,15 @@ impl LiteralContribution {
                         ));
                     }
                 }
-                Err(error) => diagnostics.push(CompileError::new(
-                    CompileDiagnostic::MalformedUtilityRequirement {
-                        utility: error.name,
-                        offset: error.source.offset,
-                    },
-                    utility.span,
-                )),
+                Err(error) => {
+                    diagnostics.push(CompileError::new(
+                        CompileDiagnostic::MalformedUtilityRequirement {
+                            utility: error.name,
+                            offset: error.source.offset,
+                        },
+                        utility.span,
+                    ));
+                }
             }
         }
         contribution

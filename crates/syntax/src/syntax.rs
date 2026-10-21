@@ -94,9 +94,15 @@ pub fn utility_registration_key(
             key.push_str("/[");
             for character in value.chars() {
                 match character {
-                    ' ' => key.push('_'),
-                    '_' => key.push_str("\\_"),
-                    _ => key.push(character),
+                    ' ' => {
+                        key.push('_');
+                    }
+                    '_' => {
+                        key.push_str("\\_");
+                    }
+                    _ => {
+                        key.push(character);
+                    }
                 }
             }
             key.push(']');
@@ -217,9 +223,15 @@ fn balanced(value: &str) -> bool {
             continue;
         }
         match character {
-            '[' => delimiters.push(']'),
-            '(' => delimiters.push(')'),
-            ']' | ')' if delimiters.pop() != Some(character) => return false,
+            '[' => {
+                delimiters.push(']');
+            }
+            '(' => {
+                delimiters.push(')');
+            }
+            ']' | ')' if delimiters.pop() != Some(character) => {
+                return false;
+            }
             _ => {}
         }
     }
@@ -310,8 +322,12 @@ fn split_top_level(value: &str, delimiter: char) -> (Vec<LeanStr>, Option<&str>)
             continue;
         }
         match character {
-            '[' | '(' => depth += 1,
-            ']' | ')' => depth = depth.saturating_sub(1),
+            '[' | '(' => {
+                depth += 1;
+            }
+            ']' | ')' => {
+                depth = depth.saturating_sub(1);
+            }
             character if character == delimiter && depth == 0 => {
                 parts.push(value[start..index].into());
                 start = index + character.len_utf8();
@@ -353,8 +369,12 @@ fn split_once_top_level(value: &str, delimiter: char) -> (&str, Option<&str>) {
             continue;
         }
         match character {
-            '[' | '(' => depth += 1,
-            ']' | ')' => depth = depth.saturating_sub(1),
+            '[' | '(' => {
+                depth += 1;
+            }
+            ']' | ')' => {
+                depth = depth.saturating_sub(1);
+            }
             character if character == delimiter && depth == 0 => {
                 return (
                     &value[..index],

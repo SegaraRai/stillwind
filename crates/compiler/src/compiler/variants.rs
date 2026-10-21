@@ -290,8 +290,12 @@ fn condition_applications(
     let mut applications = Vec::new();
     for variant in variants {
         match resolve_variant(variant, theme).ok()? {
-            VariantApplication::Compound(children) => applications.extend(children),
-            application => applications.push(application),
+            VariantApplication::Compound(children) => {
+                applications.extend(children);
+            }
+            application => {
+                applications.push(application);
+            }
         }
     }
     conditions_only(&variant_paths(&applications)).then_some(applications)

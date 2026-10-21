@@ -250,27 +250,6 @@ impl<'a> CallEmitter<'a> {
                     position: test.start.0,
                 });
             }
-            StyleInput::Class(ClassExpression::Group { entries, .. }) => {
-                for entry in entries {
-                    match entry {
-                        GroupEntry::Class(expression) => {
-                            let position = expression_position(expression);
-                            self.emit_item(expression, position, guard);
-                        }
-                        GroupEntry::CustomProperty(property) => {
-                            let custom_property = self.render_custom_property(property)?;
-                            self.parts.push(StyleEmissionPart::CustomProperties {
-                                property: custom_property,
-                                position: property.value.start.0,
-                            });
-                        }
-                    }
-                }
-            }
-            StyleInput::Class(expression) => {
-                let position = expression_position(expression);
-                self.emit_item(expression, position, guard);
-            }
             StyleInput::Composition { value, candidates } => {
                 let bases = candidates
                     .iter()
@@ -296,6 +275,27 @@ impl<'a> CallEmitter<'a> {
                     expression,
                     position: value.start.0,
                 });
+            }
+            StyleInput::Class(ClassExpression::Group { entries, .. }) => {
+                for entry in entries {
+                    match entry {
+                        GroupEntry::Class(expression) => {
+                            let position = expression_position(expression);
+                            self.emit_item(expression, position, guard);
+                        }
+                        GroupEntry::CustomProperty(property) => {
+                            let custom_property = self.render_custom_property(property)?;
+                            self.parts.push(StyleEmissionPart::CustomProperties {
+                                property: custom_property,
+                                position: property.value.start.0,
+                            });
+                        }
+                    }
+                }
+            }
+            StyleInput::Class(expression) => {
+                let position = expression_position(expression);
+                self.emit_item(expression, position, guard);
             }
             StyleInput::RefAttachment { definition, value } => {
                 let marker = match ref_marker_name(self.identifiers, definition) {

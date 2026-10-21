@@ -37,7 +37,9 @@ fn collect(parser: &mut Parser<'_>, names: &mut Vec<LeanStr>) {
                         let name = name.clone();
                         push(&name, names);
                     }
-                    _ => parser.reset(&state),
+                    _ => {
+                        parser.reset(&state);
+                    }
                 }
             }
             Token::SquareBracketBlock => {

@@ -188,10 +188,15 @@ fn application_tokens(application: &VariantApplication) -> BTreeSet<LeanStr> {
                 tokens.extend(application_tokens(child));
             }
         }
-        VariantApplication::Media(condition)
+        VariantApplication::SelectorRule { declarations, .. } => {
+            for declaration in declarations {
+                tokens.extend(inspect_css_value(&declaration.value).1);
+            }
+        }
+        VariantApplication::SelectorMedia { condition, .. }
+        | VariantApplication::Media(condition)
         | VariantApplication::Container(condition)
-        | VariantApplication::Supports(condition) => tokens.extend(inspect_css_value(condition).1),
-        VariantApplication::SelectorMedia { condition, .. } => {
+        | VariantApplication::Supports(condition) => {
             tokens.extend(inspect_css_value(condition).1);
         }
         VariantApplication::SelectorMediaRule {
@@ -200,11 +205,6 @@ fn application_tokens(application: &VariantApplication) -> BTreeSet<LeanStr> {
             ..
         } => {
             tokens.extend(inspect_css_value(condition).1);
-            for declaration in declarations {
-                tokens.extend(inspect_css_value(&declaration.value).1);
-            }
-        }
-        VariantApplication::SelectorRule { declarations, .. } => {
             for declaration in declarations {
                 tokens.extend(inspect_css_value(&declaration.value).1);
             }

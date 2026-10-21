@@ -28,7 +28,9 @@ fn subject_uses(parser: &mut Parser<'_>) -> usize {
     let mut current = 0;
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
-            Token::Delim('&') => current += 1,
+            Token::Delim('&') => {
+                current += 1;
+            }
             Token::Comma => {
                 largest = largest.max(current);
                 current = 0;
@@ -102,7 +104,9 @@ pub fn implicit_nesting_positions(selector: &str) -> Vec<usize> {
         };
         branch.get_or_insert((start, matches!(token, Token::Delim('>' | '+' | '~'))));
         match token {
-            Token::Delim('&') => uses_subject = true,
+            Token::Delim('&') => {
+                uses_subject = true;
+            }
             Token::Function(_) | Token::ParenthesisBlock => {
                 let mut positions = Vec::new();
                 let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
@@ -172,7 +176,9 @@ fn collect(parser: &mut Parser<'_>, positions: &mut Vec<usize>) {
             return;
         };
         match token {
-            Token::Delim('&') => positions.push(start),
+            Token::Delim('&') => {
+                positions.push(start);
+            }
             Token::Function(_) | Token::ParenthesisBlock => {
                 let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
                     collect(inner, positions);

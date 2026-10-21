@@ -103,9 +103,15 @@ fn incomplete_converter_identities_fail_during_projection_creation() {
         for blank in ["", " \t"] {
             let mut converter = projection.converter().clone();
             match field {
-                "name" => converter.name = blank.into(),
-                "version" => converter.version = blank.into(),
-                _ => converter.options_fingerprint = blank.into(),
+                "name" => {
+                    converter.name = blank.into();
+                }
+                "version" => {
+                    converter.version = blank.into();
+                }
+                _ => {
+                    converter.options_fingerprint = blank.into();
+                }
             }
             let error = SourceProjection::try_new(
                 Arc::clone(projection.code()),

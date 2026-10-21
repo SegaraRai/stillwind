@@ -180,8 +180,12 @@ fn property_name(prelude: &str) -> Option<LeanStr> {
         let start = parser.position();
         match parser.next_including_whitespace_and_comments().ok()? {
             Token::WhiteSpace(_) | Token::Comment(_) => {}
-            Token::Ident(_) => break parser.slice_from(start),
-            _ => return None,
+            Token::Ident(_) => {
+                break parser.slice_from(start);
+            }
+            _ => {
+                return None;
+            }
         }
     };
     (name.len() > 2 && name.starts_with("--")).then(|| name.to_lean_str())

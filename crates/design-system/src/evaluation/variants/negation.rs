@@ -209,7 +209,9 @@ fn branch_application(branch: Branch) -> Option<VariantApplication> {
     let mut selector = LeanString::new();
     for literal in branch {
         match literal {
-            Literal::Selector(pseudo_class) => selector.push_str(&pseudo_class),
+            Literal::Selector(pseudo_class) => {
+                selector.push_str(&pseudo_class);
+            }
             Literal::Media(condition) => {
                 applications.push(VariantApplication::Media(condition.to_lean_str()));
             }

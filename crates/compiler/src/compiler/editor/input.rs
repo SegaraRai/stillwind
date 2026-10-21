@@ -61,9 +61,6 @@ pub(super) fn input_plans(input: &StyleInput) -> Vec<InputPlan> {
 /// identities.
 pub(super) fn collect_bases(input: &StyleInput, dependencies: &mut BTreeSet<IdentityId>) {
     match input {
-        StyleInput::Composition { candidates, .. } => {
-            dependencies.extend(candidates.iter().cloned());
-        }
         StyleInput::Array(inputs) => {
             for input in inputs {
                 collect_bases(input, dependencies);
@@ -73,6 +70,9 @@ pub(super) fn collect_bases(input: &StyleInput, dependencies: &mut BTreeSet<Iden
             for input in branches.values().flatten() {
                 collect_bases(input, dependencies);
             }
+        }
+        StyleInput::Composition { candidates, .. } => {
+            dependencies.extend(candidates.iter().cloned());
         }
         _ => {}
     }
@@ -209,6 +209,11 @@ fn branch_plans<T: Clone>(
 /// unchanged.
 pub(super) fn replace_text(plan: &mut EditorPlan, span: Span, candidate: &str) {
     match plan {
+        EditorPlan::Call(call) => {
+            for input in &mut call.inputs {
+                replace_input_text(input, span, candidate);
+            }
+        }
         EditorPlan::Keyframes(definition) => {
             replace_frame_text(&mut definition.body, span, candidate);
         }
@@ -225,11 +230,6 @@ pub(super) fn replace_text(plan: &mut EditorPlan, span: Span, candidate: &str) {
                 if input.span == span {
                     input.value = candidate.into();
                 }
-            }
-        }
-        EditorPlan::Call(call) => {
-            for input in &mut call.inputs {
-                replace_input_text(input, span, candidate);
             }
         }
         EditorPlan::Css { call, .. } => {
@@ -265,9 +265,6 @@ fn replace_frame_text(body: &mut KeyframesBody, span: Span, candidate: &str) {
 /// branches. Uses that contain no editable literal remain unchanged.
 fn replace_input_text(input: &mut StyleInput, span: Span, candidate: &str) {
     match input {
-        StyleInput::Class(class) => {
-            replace_class_text(class, span, candidate);
-        }
         StyleInput::Array(inputs) => {
             for input in inputs {
                 replace_input_text(input, span, candidate);
@@ -275,6 +272,9 @@ fn replace_input_text(input: &mut StyleInput, span: Span, candidate: &str) {
         }
         StyleInput::Conditional { branches, .. } => {
             visit_branches(branches, |input| replace_input_text(input, span, candidate));
+        }
+        StyleInput::Class(class) => {
+            replace_class_text(class, span, candidate);
         }
         _ => {}
     }
@@ -284,9 +284,6 @@ fn replace_input_text(input: &mut StyleInput, span: Span, candidate: &str) {
 /// entries. Plain class values and non-class group entries remain unchanged.
 fn replace_class_text(class: &mut ClassExpression, span: Span, candidate: &str) {
     match class {
-        ClassExpression::Rule(rule) => {
-            replace_rule_text(rule, span, candidate);
-        }
         ClassExpression::Array(classes) => {
             for class in classes {
                 replace_class_text(class, span, candidate);
@@ -294,6 +291,9 @@ fn replace_class_text(class: &mut ClassExpression, span: Span, candidate: &str) 
         }
         ClassExpression::Conditional { branches, .. } => {
             visit_branches(branches, |class| replace_class_text(class, span, candidate));
+        }
+        ClassExpression::Rule(rule) => {
+            replace_rule_text(rule, span, candidate);
         }
         ClassExpression::Group { entries, .. } => {
             for entry in entries {
@@ -315,12 +315,6 @@ fn replace_rule_text(rule: &mut RuleExpression, span: Span, candidate: &str) {
                 input.value = candidate.into();
             }
         }
-        RuleExpression::KeyframesUse { options, .. }
-        | RuleExpression::DynamicKeyframesUse { options, .. } => {
-            if options.span == span {
-                options.value = candidate.into();
-            }
-        }
         RuleExpression::Array(inputs)
         | RuleExpression::Variant { inputs, .. }
         | RuleExpression::Group { inputs, .. } => {
@@ -330,6 +324,12 @@ fn replace_rule_text(rule: &mut RuleExpression, span: Span, candidate: &str) {
         }
         RuleExpression::Conditional { branches, .. } => {
             visit_branches(branches, |input| replace_rule_text(input, span, candidate));
+        }
+        RuleExpression::KeyframesUse { options, .. }
+        | RuleExpression::DynamicKeyframesUse { options, .. }
+            if options.span == span =>
+        {
+            options.value = candidate.into();
         }
         _ => {}
     }

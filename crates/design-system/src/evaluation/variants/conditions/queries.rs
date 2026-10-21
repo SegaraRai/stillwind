@@ -221,8 +221,12 @@ fn split_top_level_and(query: &str) -> Vec<&str> {
     let mut index = 0;
     while index < bytes.len() {
         match bytes[index] {
-            b'(' => depth += 1,
-            b')' => depth = depth.saturating_sub(1),
+            b'(' => {
+                depth += 1;
+            }
+            b')' => {
+                depth = depth.saturating_sub(1);
+            }
             b' ' if depth == 0
                 && query
                     .get(index + 1..index + 5)
@@ -256,7 +260,9 @@ fn top_level_words(query: &str) -> Vec<&str> {
                 }
                 depth += 1;
             }
-            ')' => depth = depth.saturating_sub(1),
+            ')' => {
+                depth = depth.saturating_sub(1);
+            }
             ',' if depth == 0 => {
                 if let Some(word) = start.take() {
                     words.push(&query[word..index]);

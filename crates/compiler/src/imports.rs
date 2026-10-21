@@ -179,8 +179,12 @@ fn list_comma(gap: &str) -> Option<usize> {
                 comma = Some(index);
                 index += 1;
             }
-            b'{' => return None,
-            b'}' => return comma,
+            b'{' => {
+                return None;
+            }
+            b'}' => {
+                return comma;
+            }
             b'/' if bytes.get(index + 1) == Some(&b'*') => {
                 index += 2;
                 while index + 1 < bytes.len() && &bytes[index..index + 2] != b"*/" {
@@ -193,7 +197,9 @@ fn list_comma(gap: &str) -> Option<usize> {
                     index += 1;
                 }
             }
-            _ => index += 1,
+            _ => {
+                index += 1;
+            }
         }
     }
     comma

@@ -199,9 +199,15 @@ fn selector_rule_from_variant_body(body: &str, scope: VariantScope) -> Option<Va
     let mut depth = 0_u32;
     for (offset, character) in inner.char_indices() {
         match character {
-            '(' | '[' => depth += 1,
-            ')' | ']' => depth = depth.checked_sub(1)?,
-            '{' | '}' => return None,
+            '(' | '[' => {
+                depth += 1;
+            }
+            ')' | ']' => {
+                depth = depth.checked_sub(1)?;
+            }
+            '{' | '}' => {
+                return None;
+            }
             ';' if depth == 0 => {
                 let node = inner[start..offset].trim();
                 start = offset + 1;

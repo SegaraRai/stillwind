@@ -153,7 +153,9 @@ impl Annotator<'_> {
                     let (end, nested) =
                         self.rest_of_item(parser, css, depth, !(declaration && custom));
                     match nested {
-                        Some(nested) => comments.extend(nested),
+                        Some(nested) => {
+                            comments.extend(nested);
+                        }
                         None if declaration => {
                             let value = &css[start..end];
                             let mut found = Vec::new();
@@ -199,7 +201,9 @@ impl Annotator<'_> {
                     });
                     return (end, Some(nested));
                 }
-                Ok(Token::Semicolon) | Err(_) => return (end, None),
+                Ok(Token::Semicolon) | Err(_) => {
+                    return (end, None);
+                }
                 // The parser skips an unread block only when it reads the next token,
                 // so the block is consumed here to keep the end offset after it.
                 Ok(
@@ -260,8 +264,12 @@ impl Annotator<'_> {
                         _ => None,
                     };
                     match comment {
-                        Some(comment) => comments.push((end, comment)),
-                        None => comments.extend(nested),
+                        Some(comment) => {
+                            comments.push((end, comment));
+                        }
+                        None => {
+                            comments.extend(nested);
+                        }
                     }
                 }
                 Token::ParenthesisBlock | Token::SquareBracketBlock | Token::CurlyBracketBlock => {

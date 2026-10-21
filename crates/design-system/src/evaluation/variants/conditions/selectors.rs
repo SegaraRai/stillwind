@@ -76,10 +76,18 @@ fn subject_compound(compound: &str) -> Option<Vec<&str>> {
             continue;
         }
         match (quote, character) {
-            (_, '\\') => escaped = true,
-            (Some(open), character) if character == open => quote = None,
-            (None, '"' | '\'') => quote = Some(character),
-            (None, ':') if depth == 0 && compound[..index].ends_with(':') => return None,
+            (_, '\\') => {
+                escaped = true;
+            }
+            (Some(open), character) if character == open => {
+                quote = None;
+            }
+            (None, '"' | '\'') => {
+                quote = Some(character);
+            }
+            (None, ':') if depth == 0 && compound[..index].ends_with(':') => {
+                return None;
+            }
             (None, ':' | '[' | '.' | '#') if depth == 0 => {
                 if index > start {
                     parts.push(&compound[start..index]);
@@ -87,9 +95,15 @@ fn subject_compound(compound: &str) -> Option<Vec<&str>> {
                 }
                 depth += usize::from(character == '[');
             }
-            (None, '(' | '[') => depth += 1,
-            (None, ')' | ']') => depth = depth.checked_sub(1)?,
-            (None, '&' | ',') if depth == 0 => return None,
+            (None, '(' | '[') => {
+                depth += 1;
+            }
+            (None, ')' | ']') => {
+                depth = depth.checked_sub(1)?;
+            }
+            (None, '&' | ',') if depth == 0 => {
+                return None;
+            }
             (None, character)
                 if depth == 0 && (character.is_whitespace() || "> +~|".contains(character)) =>
             {

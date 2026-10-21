@@ -115,7 +115,9 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                     reserved.classes.insert(name.to_lean_str());
                 }
             }
-            Token::Semicolon => at_declaration = true,
+            Token::Semicolon => {
+                at_declaration = true;
+            }
             Token::CurlyBracketBlock => {
                 // A malformed block drops the names inside it; see the module documentation.
                 let _ = parser.parse_nested_block(|body| {
@@ -143,7 +145,9 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                             reserved.keyframes.insert(name.to_lean_str());
                         }
                     }
-                    "container" => collect_container_queries(reserved, parser),
+                    "container" => {
+                        collect_container_queries(reserved, parser);
+                    }
                     "property" => {
                         if let Ok(Token::Ident(name)) = parser.next()
                             && is_custom_property(name)
@@ -174,7 +178,9 @@ fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaratio
                 });
                 at_declaration = false;
             }
-            _ => at_declaration = false,
+            _ => {
+                at_declaration = false;
+            }
         }
     }
 }
@@ -218,8 +224,12 @@ fn collect_ident_values(
             Ok(token) if is_block(token) => {
                 let _ = parser.parse_nested_block(|_| Ok::<(), ParseError<()>>(()));
             }
-            Ok(Token::Semicolon) => return true,
-            Err(_) => return false,
+            Ok(Token::Semicolon) => {
+                return true;
+            }
+            Err(_) => {
+                return false;
+            }
             Ok(_) => {}
         }
     }
@@ -247,7 +257,9 @@ fn collect_container_queries(reserved: &mut ReservedNames, parser: &mut Parser<'
                 }
                 let _ = parser.parse_nested_block(|_| Ok::<(), ParseError<()>>(()));
             }
-            Ok(Token::Semicolon) | Err(_) => return,
+            Ok(Token::Semicolon) | Err(_) => {
+                return;
+            }
             Ok(_) => {}
         }
     }
@@ -309,7 +321,9 @@ fn collect_layer(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
                 });
                 return;
             }
-            _ => return,
+            _ => {
+                return;
+            }
         }
     }
 }

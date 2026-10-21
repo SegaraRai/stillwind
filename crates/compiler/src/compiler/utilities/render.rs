@@ -142,10 +142,9 @@ fn render_utility_steps(
     identifiers: &IdentifierContext,
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut declaration = declaration.to_lean_string();
-    let Some((start, target)) = rule_start(class_selector, utility, applications) else {
+    let Some((mut selector, target)) = rule_start(class_selector, utility, applications) else {
         return Ok(LeanString::new());
     };
-    let mut selector = start;
     let mut media = Vec::new();
     let mut containers = Vec::new();
     let mut supports = Vec::new();
@@ -155,6 +154,9 @@ fn render_utility_steps(
         // The step that selects the element of a document-level rule keeps the selector.
         let anchored = |template| if target == Some(index) { "&" } else { template };
         match application {
+            VariantStep::Conditional(condition) => {
+                conditions.push(condition);
+            }
             VariantStep::SelectorSuffix(suffix) => {
                 selector.push_str(suffix);
             }
@@ -199,7 +201,6 @@ fn render_utility_steps(
             VariantStep::Supports(condition) => {
                 supports.push(condition.to_lean_string());
             }
-            VariantStep::Conditional(condition) => conditions.push(condition),
             VariantStep::StartingStyle => {
                 starting_style = true;
             }
@@ -239,11 +240,7 @@ fn render_utility_steps(
     if let Some(container) = &utility.container {
         rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
     }
-    if conditional {
-        Ok(protect(&rule))
-    } else {
-        Ok(rule)
-    }
+    Ok(if conditional { protect(&rule) } else { rule })
 }
 
 /// Returns the selector that a rule starts from and, in [`VariantContext::Document`],

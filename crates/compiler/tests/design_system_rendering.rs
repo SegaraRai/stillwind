@@ -121,7 +121,9 @@ fn package_rendering_resolves_theme_and_requires_explicit_imports() {
         );
         loop {
             match step {
-                DesignSystemLoadStep::Complete(result) => return result.unwrap(),
+                DesignSystemLoadStep::Complete(result) => {
+                    return result.unwrap();
+                }
                 DesignSystemLoadStep::NeedFile(requests) => {
                     let files = requests
                         .into_iter()

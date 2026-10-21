@@ -121,12 +121,16 @@ fn collect_inputs<'a>(
 ) {
     for input in inputs {
         match input {
-            StyleInput::Array(inputs) => collect_inputs(inputs, prefix, literals),
-            StyleInput::Class(expression) => collect_class(expression, prefix, literals),
+            StyleInput::Array(inputs) => {
+                collect_inputs(inputs, prefix, literals);
+            }
             StyleInput::Conditional { branches, .. } => {
                 for values in branches.values() {
                     collect_inputs(values, prefix, literals);
                 }
+            }
+            StyleInput::Class(expression) => {
+                collect_class(expression, prefix, literals);
             }
             _ => {}
         }
@@ -139,7 +143,6 @@ fn collect_class<'a>(
     literals: &mut Vec<(&'a Spanned<LeanStr>, LeanString)>,
 ) {
     match expression {
-        ClassExpression::Rule(rule) => collect_rule(rule, prefix, literals),
         ClassExpression::Array(elements) => {
             for element in elements {
                 collect_class(element, prefix, literals);
@@ -149,6 +152,9 @@ fn collect_class<'a>(
             for expression in branches.values().flatten() {
                 collect_class(expression, prefix, literals);
             }
+        }
+        ClassExpression::Rule(rule) => {
+            collect_rule(rule, prefix, literals);
         }
         ClassExpression::Group { entries, .. } => {
             for entry in entries {
@@ -167,7 +173,9 @@ fn collect_rule<'a>(
     literals: &mut Vec<(&'a Spanned<LeanStr>, LeanString)>,
 ) {
     match expression {
-        RuleExpression::Utilities(value) => literals.push((value, prefix.to_lean_string())),
+        RuleExpression::Utilities(value) => {
+            literals.push((value, prefix.to_lean_string()));
+        }
         RuleExpression::Array(elements)
         | RuleExpression::Group {
             inputs: elements, ..

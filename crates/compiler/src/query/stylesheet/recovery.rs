@@ -68,19 +68,6 @@ fn collect(css: &str, node: &CssNode, output: &mut LeanString) {
 /// a semicolon are also omitted.
 fn render(css: &str, node: &CssNode, output: &mut LeanString) {
     match &node.kind {
-        CssNodeKind::Declaration { property, value } => {
-            let value = &css[value.clone()];
-            if find_css_functions(value, &["theme", "--theme", "var"], 0)
-                .iter()
-                .any(|call| call.end.is_none())
-            {
-                return;
-            }
-            output.push_str(&css[property.clone()]);
-            output.push(':');
-            output.push_str(value);
-            output.push(';');
-        }
         CssNodeKind::StyleRule { selector, block } => {
             output.push_str(&css[selector.clone()]);
             output.push('{');
@@ -103,6 +90,19 @@ fn render(css: &str, node: &CssNode, output: &mut LeanString) {
                 render(css, child, output);
             }
             output.push('}');
+        }
+        CssNodeKind::Declaration { property, value } => {
+            let value = &css[value.clone()];
+            if find_css_functions(value, &["theme", "--theme", "var"], 0)
+                .iter()
+                .any(|call| call.end.is_none())
+            {
+                return;
+            }
+            output.push_str(&css[property.clone()]);
+            output.push(':');
+            output.push_str(value);
+            output.push(';');
         }
         _ => {
             if css[node.range.clone()].ends_with(';') {

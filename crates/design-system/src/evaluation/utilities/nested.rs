@@ -145,9 +145,15 @@ pub(in crate::evaluation) fn split_utility_selector(
     let mut parenthesis_depth = 0_u32;
     for (index, character) in body.char_indices() {
         match character {
-            '(' | '[' => parenthesis_depth += 1,
-            ')' | ']' => parenthesis_depth = parenthesis_depth.checked_sub(1)?,
-            ';' if parenthesis_depth == 0 => selector_start = index + 1,
+            '(' | '[' => {
+                parenthesis_depth += 1;
+            }
+            ')' | ']' => {
+                parenthesis_depth = parenthesis_depth.checked_sub(1)?;
+            }
+            ';' if parenthesis_depth == 0 => {
+                selector_start = index + 1;
+            }
             '{' if parenthesis_depth == 0 => {
                 let prelude = body[selector_start..index].trim();
                 if prelude.contains('&') {

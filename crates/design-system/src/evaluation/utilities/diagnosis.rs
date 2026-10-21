@@ -310,7 +310,9 @@ pub fn check_candidate_variants(
     let mut applications = Vec::new();
     for (variant, &start) in candidate.variants.iter().zip(&layout.variants) {
         match resolve_variant(variant, theme) {
-            Ok(application) => applications.push(application),
+            Ok(application) => {
+                applications.push(application);
+            }
             Err(failure) => {
                 let failure = failure.shifted(start);
                 return Err(UtilityFailure {
@@ -527,7 +529,9 @@ fn utility_names(lookup: &str, theme: &ThemeIndex) -> Vec<LeanString> {
                     names.push(format_args!("{prefix}{tail}").to_lean_string());
                 }
             }
-            None => names.push(utility.name.to_lean_string()),
+            None => {
+                names.push(utility.name.to_lean_string());
+            }
         }
     }
     names

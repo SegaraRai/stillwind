@@ -126,11 +126,13 @@ fn color_declarations<'a>(
 ) {
     for node in nodes {
         match &node.kind {
+            CssNodeKind::AtRule { name, .. } if name == "property" => {}
             CssNodeKind::Declaration { property, value } => {
                 declarations.push((&css[property.clone()], &css[value.clone()]));
             }
-            CssNodeKind::AtRule { name, .. } if name == "property" => {}
-            _ => color_declarations(css, node.children(), declarations),
+            _ => {
+                color_declarations(css, node.children(), declarations);
+            }
         }
     }
 }

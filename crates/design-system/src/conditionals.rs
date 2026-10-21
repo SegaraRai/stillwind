@@ -47,7 +47,9 @@ impl<'a> RuntimeCondition<'a> {
             let token = parser.next().ok()?.clone();
             let end = parser.position().byte_index();
             match token {
-                Token::Delim('!') => negated = !negated,
+                Token::Delim('!') => {
+                    negated = !negated;
+                }
                 // Escaped names are rejected, so the source slice equals the name.
                 Token::Ident(name)
                     if name.starts_with("--")
@@ -56,7 +58,9 @@ impl<'a> RuntimeCondition<'a> {
                 {
                     break &condition[end - name.len()..end];
                 }
-                _ => return None,
+                _ => {
+                    return None;
+                }
             }
         };
         if parser.is_exhausted() {
@@ -207,7 +211,9 @@ fn split_arguments(value: &str) -> (&str, Option<&str>) {
                 });
             }
             Ok(_) => {}
-            Err(_) => return (value, None),
+            Err(_) => {
+                return (value, None);
+            }
         }
     }
 }

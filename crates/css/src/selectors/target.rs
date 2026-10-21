@@ -30,16 +30,12 @@ fn classify_target(parser: &mut Parser<'_>) -> SelectorTarget {
     let mut branches = Vec::new();
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
-            Token::WhiteSpace(_) => separated = true,
+            Token::WhiteSpace(_) => {
+                separated = true;
+            }
             Token::Comment(_) => {}
             Token::Comma => {
-                branches.push(if other || !attachment && !uncertain {
-                    SelectorTarget::Other
-                } else if attachment {
-                    SelectorTarget::Attachment
-                } else {
-                    SelectorTarget::Unknown
-                });
+                branches.push(compound_target(attachment, uncertain, other));
                 attachment = false;
                 uncertain = false;
                 separated = false;
@@ -79,9 +75,15 @@ fn classify_target(parser: &mut Parser<'_>) -> SelectorTarget {
                         });
                         if list && !attachment {
                             match target {
-                                SelectorTarget::Attachment => attachment = true,
-                                SelectorTarget::Other => other = true,
-                                SelectorTarget::Unknown => uncertain = true,
+                                SelectorTarget::Attachment => {
+                                    attachment = true;
+                                }
+                                SelectorTarget::Other => {
+                                    other = true;
+                                }
+                                SelectorTarget::Unknown => {
+                                    uncertain = true;
+                                }
                             }
                         } else if !attachment && !predicate {
                             uncertain = true;
@@ -95,24 +97,30 @@ fn classify_target(parser: &mut Parser<'_>) -> SelectorTarget {
                         });
                         colon = false;
                     }
-                    _ => colon = false,
+                    _ => {
+                        colon = false;
+                    }
                 }
             }
         }
     }
-    branches.push(if other || !attachment && !uncertain {
-        SelectorTarget::Other
-    } else if attachment {
-        SelectorTarget::Attachment
-    } else {
-        SelectorTarget::Unknown
-    });
+    branches.push(compound_target(attachment, uncertain, other));
     if branches.contains(&SelectorTarget::Other) {
         SelectorTarget::Other
     } else if branches.contains(&SelectorTarget::Unknown) {
         SelectorTarget::Unknown
     } else {
         SelectorTarget::Attachment
+    }
+}
+
+fn compound_target(attachment: bool, uncertain: bool, other: bool) -> SelectorTarget {
+    if other || !attachment && !uncertain {
+        SelectorTarget::Other
+    } else if attachment {
+        SelectorTarget::Attachment
+    } else {
+        SelectorTarget::Unknown
     }
 }
 

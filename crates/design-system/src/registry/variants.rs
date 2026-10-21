@@ -295,17 +295,23 @@ pub(crate) fn parse_variant_name(value: &str) -> Option<(LeanStr, Option<usize>)
     let mut wildcard = None;
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
-            Token::Ident(literal) => name.push_str(literal),
+            Token::Ident(literal) => {
+                name.push_str(literal);
+            }
             Token::AtKeyword(literal) if name.is_empty() => {
                 name.push('@');
                 name.push_str(literal);
             }
-            Token::Delim('@') if name.is_empty() => name.push('@'),
+            Token::Delim('@') if name.is_empty() => {
+                name.push('@');
+            }
             Token::Delim('*') if wildcard.is_none() => {
                 wildcard = Some(name.len());
                 name.push('*');
             }
-            _ => return None,
+            _ => {
+                return None;
+            }
         }
     }
     (!name.is_empty()).then(|| (name.into(), wildcard))
@@ -341,9 +347,15 @@ fn parse_stillwind_variant_header(header: &str) -> Option<ParsedStillwindVariant
         let (key, value) = descriptor.trim().split_once(':')?;
         let value = value.trim();
         match key.trim() {
-            "value" => value_type = Some(StillwindVariantValueType::parse(value)?),
-            "modifier" => modifier_type = Some(StillwindVariantModifierType::parse(value)?),
-            "scope" => scope = VariantScope::parse(value)?,
+            "value" => {
+                value_type = Some(StillwindVariantValueType::parse(value)?);
+            }
+            "modifier" => {
+                modifier_type = Some(StillwindVariantModifierType::parse(value)?);
+            }
+            "scope" => {
+                scope = VariantScope::parse(value)?;
+            }
             "group" => {
                 sort.group = Some(value.to_lean_str());
                 has_sort = true;
@@ -364,7 +376,9 @@ fn parse_stillwind_variant_header(header: &str) -> Option<ParsedStillwindVariant
                 sort.bare = value.parse().ok()?;
                 has_sort = true;
             }
-            _ => return None,
+            _ => {
+                return None;
+            }
         }
     }
     Some(ParsedStillwindVariantHeader {

@@ -260,7 +260,9 @@ fn consume_block(
                     })?;
                 return Ok(Some((position, parser.position().byte_index() - 1)));
             }
-            Ok(Token::Semicolon) | Err(_) => return Ok(None),
+            Ok(Token::Semicolon) | Err(_) => {
+                return Ok(None);
+            }
             Ok(_) => {}
         }
     }
@@ -335,10 +337,12 @@ fn parse_nodes(
                 .map_err(|_| CompileDiagnostic::CssOffsetTooLarge { offset: base + end })?,
         ));
         match (name.as_deref(), block) {
-            (Some("layer"), None) => nodes.push(CssOutputNode::LayerOrder {
-                css: css[start..end].into(),
-                origin,
-            }),
+            (Some("layer"), None) => {
+                nodes.push(CssOutputNode::LayerOrder {
+                    css: css[start..end].into(),
+                    origin,
+                });
+            }
             (Some(directive @ ("stillwind-slot" | "theme")), block)
                 if (directive == "theme") != block.is_some() =>
             {
@@ -482,10 +486,12 @@ fn parse_nodes(
                 }
             }
             (Some(name), _) if is_definition(name) => {}
-            _ => nodes.push(CssOutputNode::Authored {
-                css: css[start..end].into(),
-                origin,
-            }),
+            _ => {
+                nodes.push(CssOutputNode::Authored {
+                    css: css[start..end].into(),
+                    origin,
+                });
+            }
         }
     }
     Ok(nodes)

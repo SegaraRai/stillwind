@@ -36,7 +36,9 @@ pub fn value_nesting_overflow(value: &str) -> Option<usize> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
             '/' if chars.peek().is_some_and(|(_, ch)| *ch == '*') => {
                 chars.next();
                 while let Some((_, ch)) = chars.next() {
@@ -52,7 +54,9 @@ pub fn value_nesting_overflow(value: &str) -> Option<usize> {
                     return Some(offset);
                 }
             }
-            ')' => depth = depth.saturating_sub(1),
+            ')' => {
+                depth = depth.saturating_sub(1);
+            }
             _ => {}
         }
     }
@@ -88,8 +92,12 @@ pub(super) fn matching_parenthesis(value: &str, open: usize) -> Option<usize> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '(' => depth += 1,
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '(' => {
+                depth += 1;
+            }
             ')' => {
                 depth = depth.checked_sub(1)?;
                 if depth == 0 {

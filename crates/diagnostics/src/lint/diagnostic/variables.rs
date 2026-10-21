@@ -26,14 +26,18 @@ impl fmt::Display for VariableTypeMessage<'_> {
             alternatives,
         } = self;
         match namespace {
-            Some(namespace) => write!(
-                formatter,
-                "`{variable}` is a `{value_type}` value of the `--{namespace}-*` theme namespace"
-            )?,
-            None => write!(
-                formatter,
-                "`{variable}` is registered with the syntax `{value_type}`"
-            )?,
+            Some(namespace) => {
+                write!(
+                    formatter,
+                    "`{variable}` is a `{value_type}` value of the `--{namespace}-*` theme namespace"
+                )?;
+            }
+            None => {
+                write!(
+                    formatter,
+                    "`{variable}` is registered with the syntax `{value_type}`"
+                )?;
+            }
         }
         write!(
             formatter,

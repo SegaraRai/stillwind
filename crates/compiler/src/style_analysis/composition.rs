@@ -140,12 +140,14 @@ impl<'a> StyleResolver<'a> {
                     self.walk(node, owner, &path, base, active, out);
                 }
             }
-            StyleEffect::Supply(supply) => out.supplies.push(ResolvedSupply {
-                owner: owner.clone(),
-                supply,
-                decisions: decisions.to_vec(),
-                base: base.cloned(),
-            }),
+            StyleEffect::Supply(supply) => {
+                out.supplies.push(ResolvedSupply {
+                    owner: owner.clone(),
+                    supply,
+                    decisions: decisions.to_vec(),
+                    base: base.cloned(),
+                });
+            }
             StyleEffect::Base(identity) => {
                 let summary = self.summary(identity, active);
                 for mut path in summary.unknown {
@@ -288,7 +290,9 @@ fn collect_bases<'a>(node: &'a StyleEffect, out: &mut Vec<&'a IdentityId>) {
                 collect_bases(node, out);
             }
         }
-        StyleEffect::Base(identity) => out.push(identity),
+        StyleEffect::Base(identity) => {
+            out.push(identity);
+        }
         StyleEffect::Supply(_) => {}
     }
 }

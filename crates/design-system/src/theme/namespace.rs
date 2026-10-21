@@ -252,8 +252,12 @@ fn top_level_items(text: &str) -> Vec<&str> {
     let mut start = None;
     for (index, character) in text.char_indices() {
         match character {
-            '(' | '[' => depth += 1,
-            ')' | ']' => depth = depth.saturating_sub(1),
+            '(' | '[' => {
+                depth += 1;
+            }
+            ')' | ']' => {
+                depth = depth.saturating_sub(1);
+            }
             _ if character.is_whitespace() && depth == 0 => {
                 if let Some(begin) = start.take() {
                     items.push(&text[begin..index]);

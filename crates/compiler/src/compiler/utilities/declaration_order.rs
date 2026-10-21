@@ -120,7 +120,9 @@ fn combine_declarations_with_formats(
     let mut output = LeanString::new();
     for declaration in ordered {
         match declaration {
-            Declaration::Raw(declaration) => output.push_str(declaration),
+            Declaration::Raw(declaration) => {
+                output.push_str(declaration);
+            }
             Declaration::Composed {
                 property,
                 values,

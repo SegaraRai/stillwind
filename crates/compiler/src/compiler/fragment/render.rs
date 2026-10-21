@@ -356,8 +356,12 @@ impl Renderer<'_, '_> {
         let mut payload = None;
         for child in children {
             match child {
-                Fragment::StylePayload(value) if payload.is_none() => payload = Some(value),
-                other => atoms.extend(known_record(other)?),
+                Fragment::StylePayload(value) if payload.is_none() => {
+                    payload = Some(value);
+                }
+                other => {
+                    atoms.extend(known_record(other)?);
+                }
             }
         }
         let payload = payload?;

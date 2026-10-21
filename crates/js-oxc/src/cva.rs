@@ -151,7 +151,9 @@ impl<'a> MacroExtractor<'a> {
                         }
                     }
                 }
-                "compoundVariants" => self.cva_compounds(&property.value, &axes, values),
+                "compoundVariants" => {
+                    self.cva_compounds(&property.value, &axes, values);
+                }
                 _ => {}
             }
         }

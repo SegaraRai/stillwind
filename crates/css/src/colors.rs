@@ -120,9 +120,15 @@ fn split_top_level_commas(value: &str) -> Vec<&str> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '(' => depth += 1,
-            ')' => depth = depth.saturating_sub(1),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '(' => {
+                depth += 1;
+            }
+            ')' => {
+                depth = depth.saturating_sub(1);
+            }
             ',' if depth == 0 => {
                 components.push(value[start..index].trim());
                 start = index + character.len_utf8();
@@ -187,9 +193,15 @@ fn trailing_top_level_css_component(value: &str) -> Option<(&str, &str)> {
     let mut boundary = None;
     for (index, character) in value.char_indices() {
         match character {
-            '(' => depth += 1,
-            ')' => depth = depth.checked_sub(1)?,
-            character if character.is_whitespace() && depth == 0 => boundary = Some(index),
+            '(' => {
+                depth += 1;
+            }
+            ')' => {
+                depth = depth.checked_sub(1)?;
+            }
+            character if character.is_whitespace() && depth == 0 => {
+                boundary = Some(index);
+            }
             _ => {}
         }
     }

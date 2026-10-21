@@ -30,7 +30,9 @@ pub(super) fn css_rule(css: &str, class_name: &str) -> String {
     let mut depth = 0_u32;
     for (offset, character) in css[open..].char_indices() {
         match character {
-            '{' => depth += 1,
+            '{' => {
+                depth += 1;
+            }
             '}' => {
                 depth -= 1;
                 if depth == 0 {
@@ -84,8 +86,12 @@ pub(super) fn closing_css_brace(css: &str, open: usize) -> usize {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '{' => depth += 1,
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '{' => {
+                depth += 1;
+            }
             '}' => {
                 depth -= 1;
                 if depth == 0 {

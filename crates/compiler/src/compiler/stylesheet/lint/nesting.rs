@@ -32,13 +32,21 @@ pub(super) fn check_nesting(checker: &mut Checker<'_>, definition: &Definition<'
     let text = checker.source.text();
     let rest = &text[definition.rest.clone()];
     match definition.kind {
-        DefinitionKind::Utility => return,
-        DefinitionKind::Variant if rest.starts_with("scope(") => return,
-        DefinitionKind::StillwindVariant if declares_document_scope(rest) => return,
+        DefinitionKind::Utility => {
+            return;
+        }
+        DefinitionKind::Variant if rest.starts_with("scope(") => {
+            return;
+        }
+        DefinitionKind::StillwindVariant if declares_document_scope(rest) => {
+            return;
+        }
         DefinitionKind::Variant | DefinitionKind::StillwindVariant => {}
     }
     match definition.block {
-        Some(block) => check_body(checker, block),
+        Some(block) => {
+            check_body(checker, block);
+        }
         None => {
             if let Some(selector) = rest
                 .strip_prefix('(')
@@ -69,10 +77,14 @@ fn declares_document_scope(rest: &str) -> bool {
 fn check_body(checker: &mut Checker<'_>, block: &CssBlock) {
     for node in &block.children {
         match &node.kind {
-            CssNodeKind::StyleRule { selector, .. } => check_selector(checker, selector.clone()),
+            CssNodeKind::StyleRule { selector, .. } => {
+                check_selector(checker, selector.clone());
+            }
             CssNodeKind::AtRule {
                 block: Some(block), ..
-            } => check_body(checker, block),
+            } => {
+                check_body(checker, block);
+            }
             _ => {}
         }
     }

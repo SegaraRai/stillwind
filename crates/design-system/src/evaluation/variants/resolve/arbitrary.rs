@@ -81,7 +81,9 @@ pub(in crate::evaluation) fn decode_variant_template(value: &str) -> LeanString 
     let mut characters = value.chars();
     while let Some(character) = characters.next() {
         match character {
-            '_' => output.push(' '),
+            '_' => {
+                output.push(' ');
+            }
             '\\' => {
                 if let Some(next) = characters.next() {
                     if next != '_' {
@@ -92,7 +94,9 @@ pub(in crate::evaluation) fn decode_variant_template(value: &str) -> LeanString 
                     output.push('\\');
                 }
             }
-            character => output.push(character),
+            character => {
+                output.push(character);
+            }
         }
     }
     output

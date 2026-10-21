@@ -461,8 +461,12 @@ impl Compiler {
                 encode_projected_edits(parsed, &mut result.transforms)?;
                 Ok(edits)
             }) {
-                Ok(edits) => result.transforms.extend(edits),
-                Err(error) => result.diagnostics.push(error),
+                Ok(edits) => {
+                    result.transforms.extend(edits);
+                }
+                Err(error) => {
+                    result.diagnostics.push(error);
+                }
             }
         }
 
@@ -482,9 +486,11 @@ impl Compiler {
                             &mut result.lint_findings,
                         );
                     }
-                    Err(kind) => result
-                        .diagnostics
-                        .push(CompileError::new(kind, source.full_span())),
+                    Err(kind) => {
+                        result
+                            .diagnostics
+                            .push(CompileError::new(kind, source.full_span()));
+                    }
                 }
             }
         }

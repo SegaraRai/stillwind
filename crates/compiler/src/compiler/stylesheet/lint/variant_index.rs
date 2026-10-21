@@ -142,7 +142,9 @@ fn probe_keys(css: &str, px_to_rem: bool) -> Option<ProbeKeys> {
             {
                 break;
             }
-            _ => return None,
+            _ => {
+                return None;
+            }
         }
     }
     if !(1..=2).contains(&levels.len()) {

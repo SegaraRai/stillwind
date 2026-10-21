@@ -33,7 +33,9 @@ pub(in crate::compiler) fn collect_variant_and_applications(
     let mut start = 0;
     for variant in &variants {
         match resolve_variant(variant, theme) {
-            Ok(application) => applications.push(application),
+            Ok(application) => {
+                applications.push(application);
+            }
             Err(failure) => {
                 let failure = failure.shifted(start);
                 let failure = UtilityFailure {

@@ -75,7 +75,9 @@ fn declaration(
     loop {
         let start = parser.position();
         match parser.next_including_whitespace_and_comments() {
-            Err(_) | Ok(Token::Semicolon) => break,
+            Err(_) | Ok(Token::Semicolon) => {
+                break;
+            }
             Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {
                 if !value.is_empty() && !value.ends_with(' ') {
                     value.push(' ');
@@ -86,7 +88,9 @@ fn declaration(
                 skip_statement(parser);
                 return Err(DeclarationError::CurlyBlock);
             }
-            Ok(token) if is_block(token) => consume_block(parser),
+            Ok(token) if is_block(token) => {
+                consume_block(parser);
+            }
             Ok(_) => {}
         }
         value.push_str(parser.slice_from(start));
@@ -123,9 +127,13 @@ pub fn declaration_ranges(css: &str) -> Vec<Range<usize>> {
                 ranges.push(start..position);
                 start = parser.position().byte_index();
             }
-            Ok(token) if is_block(token) => consume_block(&mut parser),
+            Ok(token) if is_block(token) => {
+                consume_block(&mut parser);
+            }
             Ok(_) => {}
-            Err(_) => break,
+            Err(_) => {
+                break;
+            }
         }
     }
     if start < css.len() {

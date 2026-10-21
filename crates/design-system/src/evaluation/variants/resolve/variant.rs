@@ -341,8 +341,12 @@ fn resolve_named_variant(
                 .wildcard_parts()
                 .map_or(0, |(prefix, _)| prefix.len());
             match resolve_registered_variant_candidate(custom, capture, value, offset, theme) {
-                Ok(application) => return Ok(application),
-                Err(candidate) => keep(candidate),
+                Ok(application) => {
+                    return Ok(application);
+                }
+                Err(candidate) => {
+                    keep(candidate);
+                }
             }
         }
     }
@@ -364,8 +368,12 @@ fn resolve_named_variant(
         };
         let concrete = format_args!("{prefix}{value}{suffix}").to_lean_string();
         match resolve_registered_variant_candidate(custom, Some(value), &concrete, 0, theme) {
-            Ok(application) => return Ok(application),
-            Err(candidate) => keep(candidate),
+            Ok(application) => {
+                return Ok(application);
+            }
+            Err(candidate) => {
+                keep(candidate);
+            }
         }
     }
     if let Some(failure) = failure {

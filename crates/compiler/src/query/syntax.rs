@@ -11,10 +11,18 @@ pub(super) fn last_top_level(value: &str, delimiter: char) -> Option<usize> {
             continue;
         }
         match character {
-            '\\' => escaped = true,
-            '[' | '(' => depth += 1,
-            ']' | ')' => depth = depth.saturating_sub(1),
-            character if character == delimiter && depth == 0 => result = Some(index),
+            '\\' => {
+                escaped = true;
+            }
+            '[' | '(' => {
+                depth += 1;
+            }
+            ']' | ')' => {
+                depth = depth.saturating_sub(1);
+            }
+            character if character == delimiter && depth == 0 => {
+                result = Some(index);
+            }
             _ => {}
         }
     }

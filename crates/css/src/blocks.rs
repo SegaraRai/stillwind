@@ -301,7 +301,9 @@ fn scan_directives(
                             break;
                         }
                         Ok(_) => {}
-                        Err(_) => break,
+                        Err(_) => {
+                            break;
+                        }
                     }
                 }
             }
@@ -318,7 +320,9 @@ fn scan_directives(
                 });
             }
             Ok(_) => {}
-            Err(_) => break,
+            Err(_) => {
+                break;
+            }
         }
     }
 }
@@ -372,8 +376,12 @@ pub fn matching_brace(value: &str, open: usize) -> Result<usize, ScanError> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '{' => depth += 1,
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '{' => {
+                depth += 1;
+            }
             '}' => {
                 depth = depth.checked_sub(1).ok_or(ScanError::Unclosed)?;
                 if depth == 0 {
@@ -407,7 +415,9 @@ pub fn unterminated_block(css: &str) -> Option<usize> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
             '/' if chars.peek().is_some_and(|(_, ch)| *ch == '*') => {
                 chars.next();
                 while let Some((_, ch)) = chars.next() {
@@ -417,7 +427,9 @@ pub fn unterminated_block(css: &str) -> Option<usize> {
                     }
                 }
             }
-            '{' => openings.push(offset),
+            '{' => {
+                openings.push(offset);
+            }
             '}' => {
                 openings.pop();
             }

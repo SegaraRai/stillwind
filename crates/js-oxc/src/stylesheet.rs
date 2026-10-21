@@ -97,10 +97,12 @@ impl<'a> MacroExtractor<'a> {
             Expression::NullLiteral(_) => {}
             Expression::BooleanLiteral(value) if !value.value => {}
             Expression::Identifier(identifier) if identifier.name == "undefined" => {}
-            Expression::StringLiteral(literal) => inputs.push(CssInput {
-                variants: variants.to_vec(),
-                utilities: self.string_literal(literal),
-            }),
+            Expression::StringLiteral(literal) => {
+                inputs.push(CssInput {
+                    variants: variants.to_vec(),
+                    utilities: self.string_literal(literal),
+                });
+            }
             Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
                 let Some(value) = template
                     .quasis
@@ -138,8 +140,12 @@ impl<'a> MacroExtractor<'a> {
                     }
                 }
             }
-            Expression::ObjectExpression(object) => self.css_group(object, variants, inputs),
-            _ => self.css_input_error(expression, "the input is not static"),
+            Expression::ObjectExpression(object) => {
+                self.css_group(object, variants, inputs);
+            }
+            _ => {
+                self.css_input_error(expression, "the input is not static");
+            }
         }
     }
 

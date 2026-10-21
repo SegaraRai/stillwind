@@ -260,15 +260,27 @@ impl<'a> MacroExtractor<'a> {
             };
             let value = self.string_literal(value);
             match property_name.value.as_str() {
-                "label" => label = Some(value),
-                "group" => group = Some(value),
-                "old" => old = Some(value),
-                "new" => new = Some(value),
-                "imagePair" => image_pair = Some(value),
-                _ => self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidViewTransitionKey,
-                    property_name.span,
-                )),
+                "label" => {
+                    label = Some(value);
+                }
+                "group" => {
+                    group = Some(value);
+                }
+                "old" => {
+                    old = Some(value);
+                }
+                "new" => {
+                    new = Some(value);
+                }
+                "imagePair" => {
+                    image_pair = Some(value);
+                }
+                _ => {
+                    self.lint_findings.push(LintFinding::new(
+                        LintDiagnostic::InvalidViewTransitionKey,
+                        property_name.span,
+                    ));
+                }
             }
         }
         ViewTransitionDefinition {

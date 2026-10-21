@@ -42,7 +42,9 @@ pub fn selector_list_branches(selector: &str) -> Vec<&str> {
                 });
             }
             Ok(_) => {}
-            Err(_) => break,
+            Err(_) => {
+                break;
+            }
         }
     }
     branches.push(selector[start..].trim());

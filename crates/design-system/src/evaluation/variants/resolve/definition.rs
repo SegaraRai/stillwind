@@ -378,9 +378,15 @@ pub(in crate::evaluation) fn split_variant_modifier(value: &str) -> (&str, Optio
     let mut depth = 0_u32;
     for (index, character) in value.char_indices() {
         match character {
-            '[' | '(' => depth += 1,
-            ']' | ')' => depth = depth.saturating_sub(1),
-            '/' if depth == 0 => return (&value[..index], Some(&value[index + 1..])),
+            '[' | '(' => {
+                depth += 1;
+            }
+            ']' | ')' => {
+                depth = depth.saturating_sub(1);
+            }
+            '/' if depth == 0 => {
+                return (&value[..index], Some(&value[index + 1..]));
+            }
             _ => {}
         }
     }

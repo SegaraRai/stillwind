@@ -543,7 +543,19 @@ pub fn completion_detail(css: &str) -> Option<LeanStr> {
     ) {
         for node in nodes {
             match &node.kind {
-                CssNodeKind::AtRule { name, .. } if name == "property" => continue,
+                CssNodeKind::StyleRule { selector, .. } => {
+                    let selector = &css[selector.clone()];
+                    if selector != "&" {
+                        wrappers.push(selector.into());
+                    }
+                }
+                CssNodeKind::AtRule { name, .. } if name == "property" => {
+                    continue;
+                }
+                CssNodeKind::AtRule { name, prelude, .. } => {
+                    wrappers.push(format!("@{name} {}", &css[prelude.clone()]));
+                }
+                CssNodeKind::Apply { .. } => {}
                 CssNodeKind::Declaration { property, value } => {
                     let property = &css[property.clone()];
                     let output = if property.starts_with("--") {
@@ -556,16 +568,6 @@ pub fn completion_detail(css: &str) -> Option<LeanStr> {
                         output.push(text);
                     }
                 }
-                CssNodeKind::StyleRule { selector, .. } => {
-                    let selector = &css[selector.clone()];
-                    if selector != "&" {
-                        wrappers.push(selector.into());
-                    }
-                }
-                CssNodeKind::AtRule { name, prelude, .. } => {
-                    wrappers.push(format!("@{name} {}", &css[prelude.clone()]));
-                }
-                CssNodeKind::Apply { .. } => {}
             }
             collect(css, node.children(), ordinary, custom, wrappers);
         }
@@ -625,9 +627,15 @@ fn completion_closers(text: &str) -> LeanString {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '(' => stack.push(')'),
-            '[' => stack.push(']'),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '(' => {
+                stack.push(')');
+            }
+            '[' => {
+                stack.push(']');
+            }
             ')' | ']' => {
                 stack.pop();
             }

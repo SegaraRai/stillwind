@@ -26,7 +26,9 @@ pub(in crate::compiler) fn extract_authored_keyframes(css: &str, names: &[LeanSt
         let mut close = None;
         for (offset, ch) in css[open..].char_indices() {
             match ch {
-                '{' => depth += 1,
+                '{' => {
+                    depth += 1;
+                }
                 '}' => {
                     depth = depth.saturating_sub(1);
                     if depth == 0 {

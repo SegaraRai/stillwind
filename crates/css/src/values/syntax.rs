@@ -69,7 +69,9 @@ fn component_values_are_well_formed(parser: &mut Parser<'_>, source: &str) -> bo
             | Token::BadUrl(_)
             | Token::CloseParenthesis
             | Token::CloseSquareBracket
-            | Token::CloseCurlyBracket => return false,
+            | Token::CloseCurlyBracket => {
+                return false;
+            }
             Token::Function(name) => {
                 let math = MATH_FUNCTIONS
                     .iter()

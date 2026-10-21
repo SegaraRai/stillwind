@@ -116,7 +116,9 @@ fn parse(input: &str) -> Vec<Node> {
                 }
                 buffer.extend(&characters[start..=index]);
             }
-            '(' => stack.push((std::mem::take(&mut buffer), Vec::new())),
+            '(' => {
+                stack.push((std::mem::take(&mut buffer), Vec::new()));
+            }
             ')' => {
                 if let Some((name, mut nodes)) = stack.pop() {
                     if !buffer.is_empty() {
@@ -127,7 +129,9 @@ fn parse(input: &str) -> Vec<Node> {
                     buffer.clear();
                 }
             }
-            _ => buffer.push(character),
+            _ => {
+                buffer.push(character);
+            }
         }
         index += 1;
     }
@@ -150,8 +154,12 @@ fn separator(character: char) -> bool {
 /// Appends a node to the innermost open function, or to the outermost list.
 fn push(stack: &mut [(String, Vec<Node>)], ast: &mut Vec<Node>, node: Node) {
     match stack.last_mut() {
-        Some((_, nodes)) => nodes.push(node),
-        None => ast.push(node),
+        Some((_, nodes)) => {
+            nodes.push(node);
+        }
+        None => {
+            ast.push(node);
+        }
     }
 }
 
@@ -177,7 +185,9 @@ fn decode_nodes(nodes: &mut [Node]) {
                             Node::Word(value) if index == 0 => {
                                 *value = underscores_to_spaces(value, true);
                             }
-                            _ => decode_nodes(std::slice::from_mut(argument)),
+                            _ => {
+                                decode_nodes(std::slice::from_mut(argument));
+                            }
                         }
                     }
                 } else {
@@ -192,7 +202,9 @@ fn decode_nodes(nodes: &mut [Node]) {
 fn write_nodes(nodes: &[Node], css: &mut String) {
     for node in nodes {
         match node {
-            Node::Word(value) | Node::Separator(value) => css.push_str(value),
+            Node::Word(value) | Node::Separator(value) => {
+                css.push_str(value);
+            }
             Node::Function(name, arguments) => {
                 css.push_str(name);
                 css.push('(');
@@ -260,7 +272,9 @@ fn add_whitespace_around_math_operators(input: &str) -> String {
                 result.push(character);
                 formattable.pop();
             }
-            ',' if inside_math => result.push_str(", "),
+            ',' if inside_math => {
+                result.push_str(", ");
+            }
             ' ' if inside_math && result.ends_with(' ') => {}
             _ if operator(character) && inside_math => {
                 let trimmed = result.trim_end();
@@ -291,7 +305,9 @@ fn add_whitespace_around_math_operators(input: &str) -> String {
                     result.push(character);
                 }
             }
-            _ => result.push(character),
+            _ => {
+                result.push(character);
+            }
         }
     }
     result

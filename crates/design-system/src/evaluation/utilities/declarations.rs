@@ -345,12 +345,24 @@ fn split_css_declarations(body: &str) -> Vec<&str> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '(' => paren_depth += 1,
-            ')' => paren_depth = paren_depth.saturating_sub(1),
-            '[' => bracket_depth += 1,
-            ']' => bracket_depth = bracket_depth.saturating_sub(1),
-            '{' => brace_depth += 1,
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '(' => {
+                paren_depth += 1;
+            }
+            ')' => {
+                paren_depth = paren_depth.saturating_sub(1);
+            }
+            '[' => {
+                bracket_depth += 1;
+            }
+            ']' => {
+                bracket_depth = bracket_depth.saturating_sub(1);
+            }
+            '{' => {
+                brace_depth += 1;
+            }
             '}' => {
                 brace_depth = brace_depth.saturating_sub(1);
                 if brace_depth == 0

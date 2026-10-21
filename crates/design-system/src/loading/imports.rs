@@ -156,10 +156,13 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
         }
         if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin")) {
             match plugin(&mut parser, start)? {
-                Ok(import) => scan.imports.push(import),
-                Err(reason) => scan
-                    .skipped
-                    .push((start..parser.position().byte_index(), reason)),
+                Ok(import) => {
+                    scan.imports.push(import);
+                }
+                Err(reason) => {
+                    scan.skipped
+                        .push((start..parser.position().byte_index(), reason));
+                }
             }
             continue;
         }
@@ -194,8 +197,12 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
             })
         });
         match import {
-            Ok(import) => scan.imports.push(import),
-            Err(reason) => scan.skipped.push((start..end, reason)),
+            Ok(import) => {
+                scan.imports.push(import);
+            }
+            Err(reason) => {
+                scan.skipped.push((start..end, reason));
+            }
         }
     }
     Ok(scan)
@@ -283,7 +290,9 @@ fn plugin(
 fn skip_plugin_statement(parser: &mut Parser<'_>, start: usize) -> Result<(), CompileDiagnostic> {
     loop {
         match parser.next_including_whitespace_and_comments() {
-            Ok(Token::Semicolon) | Err(_) => return Ok(()),
+            Ok(Token::Semicolon) | Err(_) => {
+                return Ok(());
+            }
             Ok(Token::CurlyBracketBlock) => {
                 return parser
                     .parse_nested_block(|nested| {

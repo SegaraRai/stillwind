@@ -199,24 +199,30 @@ pub(crate) fn resolve_frame(
                 }
                 utilities.push(resolved);
             }
-            Ok(Ok(_)) => lint_findings.push(LintFinding::new(
-                LintDiagnostic::KeyframesFrameVariants,
-                utility.span,
-            )),
-            Ok(Err(failure)) => lint_findings.push(unresolved_utility_finding(
-                raw,
-                raw.len(),
-                &failure,
-                utility.span,
-                theme,
-            )),
-            Err(error) => diagnostics.push(CompileError::new(
-                CompileDiagnostic::MalformedUtilityRequirement {
-                    utility: error.name,
-                    offset: error.source.offset,
-                },
-                utility.span,
-            )),
+            Ok(Ok(_)) => {
+                lint_findings.push(LintFinding::new(
+                    LintDiagnostic::KeyframesFrameVariants,
+                    utility.span,
+                ));
+            }
+            Ok(Err(failure)) => {
+                lint_findings.push(unresolved_utility_finding(
+                    raw,
+                    raw.len(),
+                    &failure,
+                    utility.span,
+                    theme,
+                ));
+            }
+            Err(error) => {
+                diagnostics.push(CompileError::new(
+                    CompileDiagnostic::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
+                    },
+                    utility.span,
+                ));
+            }
         }
     }
     let properties = utilities

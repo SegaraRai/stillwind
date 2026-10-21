@@ -69,7 +69,9 @@ impl<'a> MacroExtractor<'a> {
         };
         for branch in branches {
             match self.asset_candidates(branch, kind) {
-                Ok(_) => self.report_unsupported_branches(branch, kind, unsupported),
+                Ok(_) => {
+                    self.report_unsupported_branches(branch, kind, unsupported);
+                }
                 Err(ResolutionFailure::Unsupported) if !selects_no_value(branch) => {
                     self.lint_findings.push(LintFinding::new(
                         unsupported.clone(),
@@ -188,7 +190,9 @@ impl<'a> MacroExtractor<'a> {
             let mut resolved = None::<Vec<IdentityId>>;
             for branch in branches {
                 match branch {
-                    Ok(values) => resolved.get_or_insert_default().extend(values),
+                    Ok(values) => {
+                        resolved.get_or_insert_default().extend(values);
+                    }
                     Err(ResolutionFailure::Unsupported) => {}
                     Err(ResolutionFailure::MissingFacts) => {
                         return Err(ResolutionFailure::MissingFacts);

@@ -122,7 +122,9 @@ fn expand_application<'a>(
     let mut utilities = Vec::new();
     for candidate in candidates {
         match resolve_first_target(candidate, theme) {
-            Ok(Ok(utility)) => utilities.push(utility),
+            Ok(Ok(utility)) => {
+                utilities.push(utility);
+            }
             Ok(Err(_)) => {}
             Err(error) => {
                 return Err(CompileDiagnostic::MalformedUtilityRequirement {
@@ -239,9 +241,15 @@ pub(crate) fn variant_sequences(prelude: &str) -> Vec<Range<usize>> {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '(' | '[' | '{' => {
+                depth += 1;
+            }
+            ')' | ']' | '}' => {
+                depth = depth.saturating_sub(1);
+            }
             ',' if depth == 0 => {
                 push(start..index);
                 start = index + 1;

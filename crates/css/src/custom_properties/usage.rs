@@ -114,7 +114,9 @@ pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyU
     let mut visitor = CustomPropertyUsage::default();
     match stylesheet.visit(&mut visitor) {
         Ok(()) => {}
-        Err(error) => match error {},
+        Err(error) => {
+            match error {};
+        }
     }
     Ok(visitor)
 }

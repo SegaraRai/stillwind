@@ -43,7 +43,9 @@ pub fn stylesheet_plugin_paths(css: &str, offset: Option<usize>) -> Vec<Styleshe
                 Ok(Token::QuotedString(value)) => {
                     break Some((prelude.start + start, value.to_lean_str()));
                 }
-                _ => break None,
+                _ => {
+                    break None;
+                }
             }
         };
         let Some((start, specifier)) = path else {

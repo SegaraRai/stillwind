@@ -496,33 +496,6 @@ impl ModuleEditor {
                 .then(|| (preview_resource_urls(css, &self.snapshot), Vec::new()));
         }
         match plan {
-            EditorPlan::Keyframes(definition) => {
-                let mut contribution = CssContribution::default();
-                emit_keyframes_definition(
-                    &mut contribution,
-                    &self.module.module_id,
-                    &context,
-                    definition,
-                    self.snapshot.theme(),
-                    &mut diagnostics,
-                    &mut lint_findings,
-                );
-                contributions.push(contribution);
-            }
-            EditorPlan::Transition(definition) => {
-                let mut contribution = CssContribution::default();
-                emit_view_transition_definition(
-                    &mut contribution,
-                    &self.module.module_id,
-                    &context,
-                    definition,
-                    self.snapshot.theme(),
-                    &mut diagnostics,
-                    &mut lint_findings,
-                );
-                contributions.push(contribution);
-            }
-            EditorPlan::Css { .. } => {}
             EditorPlan::Call(call) => {
                 for input in &call.inputs {
                     collect_bases(input, &mut dependencies);
@@ -555,6 +528,33 @@ impl ModuleEditor {
                     required_definitions: &mut dependencies,
                 })?;
             }
+            EditorPlan::Keyframes(definition) => {
+                let mut contribution = CssContribution::default();
+                emit_keyframes_definition(
+                    &mut contribution,
+                    &self.module.module_id,
+                    &context,
+                    definition,
+                    self.snapshot.theme(),
+                    &mut diagnostics,
+                    &mut lint_findings,
+                );
+                contributions.push(contribution);
+            }
+            EditorPlan::Transition(definition) => {
+                let mut contribution = CssContribution::default();
+                emit_view_transition_definition(
+                    &mut contribution,
+                    &self.module.module_id,
+                    &context,
+                    definition,
+                    self.snapshot.theme(),
+                    &mut diagnostics,
+                    &mut lint_findings,
+                );
+                contributions.push(contribution);
+            }
+            EditorPlan::Css { .. } => {}
         }
         if !diagnostics.is_empty() {
             return None;

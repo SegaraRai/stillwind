@@ -158,13 +158,15 @@ pub(crate) fn emit_document_rules(
                         ));
                     }
                 }
-                Err(error) => diagnostics.push(CompileError::new(
-                    CompileDiagnostic::MalformedUtilityRequirement {
-                        utility: error.name,
-                        offset: error.source.offset,
-                    },
-                    token.span,
-                )),
+                Err(error) => {
+                    diagnostics.push(CompileError::new(
+                        CompileDiagnostic::MalformedUtilityRequirement {
+                            utility: error.name,
+                            offset: error.source.offset,
+                        },
+                        token.span,
+                    ));
+                }
             }
         }
     }
@@ -179,9 +181,15 @@ fn encode_variant(selector: &str) -> LeanString {
     let mut output = LeanString::new();
     for character in selector.trim().chars() {
         match character {
-            '_' => output.push_str(r"\_"),
-            character if character.is_whitespace() => output.push('_'),
-            character => output.push(character),
+            '_' => {
+                output.push_str(r"\_");
+            }
+            character if character.is_whitespace() => {
+                output.push('_');
+            }
+            character => {
+                output.push(character);
+            }
         }
     }
     output

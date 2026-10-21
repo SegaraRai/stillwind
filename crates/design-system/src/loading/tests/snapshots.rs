@@ -209,7 +209,9 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
         );
         loop {
             match step {
-                DesignSystemLoadStep::Complete(result) => return result.unwrap(),
+                DesignSystemLoadStep::Complete(result) => {
+                    return result.unwrap();
+                }
                 DesignSystemLoadStep::NeedFile(requests) => {
                     let files = requests
                         .into_iter()

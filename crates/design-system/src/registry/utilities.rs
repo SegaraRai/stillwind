@@ -96,10 +96,18 @@ fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
                 parser.is_exhausted().then_some(())?;
                 parsed.tw_sort = Some(value.to_lean_str());
             }
-            None if descriptor.trim() == "functional" => parsed.role.functional = true,
-            None if descriptor.trim() == "fallback" => parsed.role.fallback = true,
-            None if descriptor.trim() == "stop" => parsed.role.stop = true,
-            _ => return None,
+            None if descriptor.trim() == "functional" => {
+                parsed.role.functional = true;
+            }
+            None if descriptor.trim() == "fallback" => {
+                parsed.role.fallback = true;
+            }
+            None if descriptor.trim() == "stop" => {
+                parsed.role.stop = true;
+            }
+            _ => {
+                return None;
+            }
         }
     }
     ((!parsed.role.fallback && !parsed.role.stop) || parsed.role.functional).then_some(parsed)

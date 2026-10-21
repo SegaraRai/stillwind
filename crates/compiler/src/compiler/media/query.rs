@@ -104,11 +104,16 @@ impl Query {
             }
         });
         match self.media_type.spelling() {
-            Some(name) => output.push_str(name),
-            None => match terms.next() {
-                Some(first) => output.push_str(&first),
-                None => output.push_str("all"),
-            },
+            Some(name) => {
+                output.push_str(name);
+            }
+            None => {
+                if let Some(first) = terms.next() {
+                    output.push_str(&first);
+                } else {
+                    output.push_str("all");
+                }
+            }
         }
         for term in terms {
             output.push_str(" and ");

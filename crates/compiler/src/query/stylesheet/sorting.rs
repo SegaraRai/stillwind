@@ -108,13 +108,6 @@ impl Planner<'_> {
         let mut edits = Vec::new();
         for node in nodes {
             match &node.kind {
-                CssNodeKind::Apply { candidates }
-                    if options.apply_utilities && self.complete(node) =>
-                {
-                    if let Some(edit) = self.application(candidates) {
-                        edits.push(edit);
-                    }
-                }
                 CssNodeKind::StyleRule { block, .. } => {
                     edits.extend(self.visit(&block.children, true)?);
                 }
@@ -124,6 +117,13 @@ impl Planner<'_> {
                     ..
                 } if !definition(name) && (name != "variant" || in_rule) => {
                     edits.extend(self.visit(&block.children, in_rule)?);
+                }
+                CssNodeKind::Apply { candidates }
+                    if options.apply_utilities && self.complete(node) =>
+                {
+                    if let Some(edit) = self.application(candidates) {
+                        edits.push(edit);
+                    }
                 }
                 _ => {}
             }
@@ -282,29 +282,6 @@ impl Planner<'_> {
             }
             cursor = node.range.end;
             match &node.kind {
-                CssNodeKind::Declaration { property, .. } => {
-                    properties.insert(
-                        self.css[property.clone()]
-                            .trim()
-                            .to_ascii_lowercase()
-                            .into(),
-                    );
-                }
-                CssNodeKind::Apply { candidates } => {
-                    for range in candidates {
-                        let Some(css) = self.query.preview_candidate(
-                            &self.css[range.clone()],
-                            CandidateContext::Utility,
-                        )?
-                        else {
-                            return Ok(None);
-                        };
-                        let Some(writes) = preview_properties(&css) else {
-                            return Ok(None);
-                        };
-                        properties.extend(writes);
-                    }
-                }
                 CssNodeKind::StyleRule { block, .. } => {
                     let Some(writes) = self.effects(&block.children, block.contents.clone())?
                     else {
@@ -328,7 +305,32 @@ impl Planner<'_> {
                     };
                     properties.extend(writes);
                 }
-                CssNodeKind::AtRule { .. } => return Ok(None),
+                CssNodeKind::AtRule { .. } => {
+                    return Ok(None);
+                }
+                CssNodeKind::Apply { candidates } => {
+                    for range in candidates {
+                        let Some(css) = self.query.preview_candidate(
+                            &self.css[range.clone()],
+                            CandidateContext::Utility,
+                        )?
+                        else {
+                            return Ok(None);
+                        };
+                        let Some(writes) = preview_properties(&css) else {
+                            return Ok(None);
+                        };
+                        properties.extend(writes);
+                    }
+                }
+                CssNodeKind::Declaration { property, .. } => {
+                    properties.insert(
+                        self.css[property.clone()]
+                            .trim()
+                            .to_ascii_lowercase()
+                            .into(),
+                    );
+                }
             }
         }
         Ok(self.css[cursor..range.end]
@@ -487,10 +489,9 @@ fn preview_properties(css: &str) -> Option<BTreeSet<LeanStr>> {
     fn collect(css: &str, nodes: &[CssNode], properties: &mut BTreeSet<LeanStr>) -> Option<()> {
         for node in nodes {
             match &node.kind {
-                CssNodeKind::Declaration { property, .. } => {
-                    properties.insert(css[property.clone()].trim().to_ascii_lowercase().into());
+                CssNodeKind::StyleRule { block, .. } => {
+                    collect(css, &block.children, properties)?;
                 }
-                CssNodeKind::StyleRule { block, .. } => collect(css, &block.children, properties)?,
                 CssNodeKind::AtRule {
                     name,
                     block: Some(block),
@@ -502,7 +503,12 @@ fn preview_properties(css: &str) -> Option<BTreeSet<LeanStr>> {
                 {
                     collect(css, &block.children, properties)?;
                 }
-                _ => return None,
+                CssNodeKind::Declaration { property, .. } => {
+                    properties.insert(css[property.clone()].trim().to_ascii_lowercase().into());
+                }
+                _ => {
+                    return None;
+                }
             }
         }
         Some(())

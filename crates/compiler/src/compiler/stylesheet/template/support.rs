@@ -335,11 +335,11 @@ pub(super) struct SupportOutput {
 fn collect_theme_nodes<'a>(nodes: &'a [CssOutputNode], output: &mut Vec<&'a CssOutputNode>) {
     for node in nodes {
         match node {
-            CssOutputNode::Theme { .. } => {
-                output.push(node);
-            }
             CssOutputNode::Group { children, .. } | CssOutputNode::Style { children, .. } => {
                 collect_theme_nodes(children, output);
+            }
+            CssOutputNode::Theme { .. } => {
+                output.push(node);
             }
             _ => {}
         }

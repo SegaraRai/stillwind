@@ -288,7 +288,9 @@ fn px_lengths(condition: &str) -> LeanString {
             (false, Some(scale), Ok(number)) => {
                 output.push_str(&format_args!("{}px", number * scale).to_lean_string());
             }
-            _ => output.push_str(&rest[..unit_end]),
+            _ => {
+                output.push_str(&rest[..unit_end]);
+            }
         }
         rest = &rest[unit_end..];
     }

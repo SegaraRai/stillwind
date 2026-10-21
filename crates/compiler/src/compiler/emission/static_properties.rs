@@ -34,13 +34,17 @@ fn collect_static_inputs(
             StyleInput::Array(inputs) => {
                 collect_static_inputs(inputs, guarded, properties, composition);
             }
-            StyleInput::Class(expression) => collect_static_class(expression, guarded, properties),
             StyleInput::Conditional { branches, .. } => {
                 for values in branches.values() {
                     collect_static_inputs(values, true, properties, composition);
                 }
             }
-            StyleInput::Composition { .. } => *composition = true,
+            StyleInput::Composition { .. } => {
+                *composition = true;
+            }
+            StyleInput::Class(expression) => {
+                collect_static_class(expression, guarded, properties);
+            }
             _ => {}
         }
     }

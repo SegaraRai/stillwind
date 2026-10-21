@@ -30,7 +30,6 @@ pub(super) fn check_theme_references(checker: &mut Checker<'_>, nodes: &[CssNode
     }
     for node in nodes {
         match &node.kind {
-            CssNodeKind::Declaration { value, .. } => check_text(checker, value.clone()),
             CssNodeKind::StyleRule { selector, block } => {
                 check_text(checker, selector.clone());
                 check_theme_references(checker, &block.children, true);
@@ -43,6 +42,9 @@ pub(super) fn check_theme_references(checker: &mut Checker<'_>, nodes: &[CssNode
                 }
             }
             CssNodeKind::Apply { .. } => {}
+            CssNodeKind::Declaration { value, .. } => {
+                check_text(checker, value.clone());
+            }
         }
     }
 }

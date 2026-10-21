@@ -378,7 +378,9 @@ pub(super) fn guard(
                     consume(&mut parser);
                 }
                 Ok(_) => {}
-                Err(_) => break,
+                Err(_) => {
+                    break;
+                }
             }
         }
         let (value, priority) = priority.map_or((value, ""), |start| value.split_at(start));

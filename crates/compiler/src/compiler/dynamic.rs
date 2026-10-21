@@ -60,12 +60,8 @@ pub(crate) fn stylesheet_dynamic_candidates(css: &str, theme: &ThemeIndex) -> Ve
 fn applied_tokens(css: &str, nodes: &[CssNode], tokens: &mut Vec<LeanStr>) {
     for node in nodes {
         match &node.kind {
-            CssNodeKind::Apply { candidates } => {
-                tokens.extend(
-                    candidates
-                        .iter()
-                        .map(|range| LeanStr::from(&css[range.clone()])),
-                );
+            CssNodeKind::StyleRule { block, .. } => {
+                applied_tokens(css, &block.children, tokens);
             }
             CssNodeKind::AtRule {
                 name,
@@ -85,7 +81,13 @@ fn applied_tokens(css: &str, nodes: &[CssNode], tokens: &mut Vec<LeanStr>) {
                     applied_tokens(css, &block.children, tokens);
                 }
             }
-            CssNodeKind::StyleRule { block, .. } => applied_tokens(css, &block.children, tokens),
+            CssNodeKind::Apply { candidates } => {
+                tokens.extend(
+                    candidates
+                        .iter()
+                        .map(|range| LeanStr::from(&css[range.clone()])),
+                );
+            }
             CssNodeKind::Declaration { .. } => {}
         }
     }
@@ -124,8 +126,12 @@ fn requests<'a>(tokens: impl IntoIterator<Item = &'a str>, theme: &ThemeIndex) -
                     names.insert(format_args!("@variant {value}").to_lean_str());
                 }
                 match compound_variant_inner(&value, theme) {
-                    Some(inner) if inner != value => value = inner,
-                    _ => break,
+                    Some(inner) if inner != value => {
+                        value = inner;
+                    }
+                    _ => {
+                        break;
+                    }
                 }
             }
         }

@@ -24,7 +24,9 @@ pub fn append_element_condition(selector: &str, condition: &str) -> LeanString {
             break;
         };
         match token {
-            Token::WhiteSpace(_) => separated = true,
+            Token::WhiteSpace(_) => {
+                separated = true;
+            }
             Token::Comment(_) => {}
             Token::Comma => {
                 positions.push(pseudo.unwrap_or(end));
@@ -40,7 +42,9 @@ pub fn append_element_condition(selector: &str, condition: &str) -> LeanString {
                     separated = false;
                 }
                 match token {
-                    Token::Delim('>' | '+' | '~' | '|') => separated = true,
+                    Token::Delim('>' | '+' | '~' | '|') => {
+                        separated = true;
+                    }
                     Token::Colon => {
                         if let Some(first) = colon {
                             pseudo.get_or_insert(first);
@@ -66,7 +70,9 @@ pub fn append_element_condition(selector: &str, condition: &str) -> LeanString {
                             Ok(())
                         });
                     }
-                    _ => colon = None,
+                    _ => {
+                        colon = None;
+                    }
                 }
                 end = parser.position().byte_index();
             }
@@ -120,7 +126,9 @@ fn final_compound_selects_root(parser: &mut Parser<'_>) -> bool {
     let mut separated = false;
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
-            Token::WhiteSpace(_) => separated = true,
+            Token::WhiteSpace(_) => {
+                separated = true;
+            }
             Token::Comment(_) => {}
             Token::Comma => {
                 if root {
@@ -213,7 +221,9 @@ fn check_element_condition(parser: &mut Parser<'_>, inside_has: bool) -> bool {
                 });
             }
             Token::Comment(_) => {}
-            _ => colons = 0,
+            _ => {
+                colons = 0;
+            }
         }
     }
 }

@@ -92,6 +92,9 @@ impl StyleVariantPlan {
                 StyleVariant::Prefix(prefix) => {
                     plan.add_prefix(theme, prefix, lint_findings)?;
                 }
+                StyleVariant::Container { refs, query } => {
+                    plan.add_container(context, refs, query, diagnostics, lint_findings)?;
+                }
                 StyleVariant::Ref { condition, scopes } => {
                     plan.add_ref(
                         context,
@@ -101,9 +104,6 @@ impl StyleVariantPlan {
                         diagnostics,
                         lint_findings,
                     )?;
-                }
-                StyleVariant::Container { refs, query } => {
-                    plan.add_container(context, refs, query, diagnostics, lint_findings)?;
                 }
             }
         }

@@ -291,7 +291,9 @@ fn blocks(css: &str, range: Range<usize>) -> Vec<Block> {
     let mut output = Vec::new();
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
-            Token::Semicolon => start = parser.position().byte_index(),
+            Token::Semicolon => {
+                start = parser.position().byte_index();
+            }
             Token::CurlyBracketBlock => {
                 let inner = parser.position().byte_index();
                 let mut header = Parser::new(&fragment[start..inner - 1]);

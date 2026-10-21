@@ -242,7 +242,12 @@ fn map_input<E>(
                 map_input(input, map)?;
             }
         }
-        StyleInput::Class(expression) => map_class_expression(expression, map)?,
+        StyleInput::Composition { value, .. } => {
+            *value = map(*value)?;
+        }
+        StyleInput::Class(expression) => {
+            map_class_expression(expression, map)?;
+        }
         StyleInput::RefAttachment { definition, value } => {
             *value = map(*value)?;
             map_ref(definition, map)?;
@@ -252,9 +257,6 @@ fn map_input<E>(
             for definition in refs {
                 map_ref(definition, map)?;
             }
-        }
-        StyleInput::Composition { value, .. } => {
-            *value = map(*value)?;
         }
         StyleInput::ViewTransitionUse { transition, name } => {
             map_asset(transition, map)?;
@@ -313,9 +315,6 @@ fn map_class_expression<E>(
     map: &mut impl FnMut(Span) -> Result<Span, E>,
 ) -> Result<(), E> {
     match expression {
-        ClassExpression::Rule(rule) => {
-            map_rule_expression(rule, map)?;
-        }
         ClassExpression::Array(elements) => {
             for element in elements {
                 map_class_expression(element, map)?;
@@ -326,6 +325,9 @@ fn map_class_expression<E>(
             for expression in branches.values_mut().into_iter().flatten() {
                 map_class_expression(expression, map)?;
             }
+        }
+        ClassExpression::Rule(rule) => {
+            map_rule_expression(rule, map)?;
         }
         ClassExpression::Group { span, entries } => {
             *span = map(*span)?;
@@ -362,12 +364,6 @@ fn map_rule_expression<E>(
                 map_rule_expression(element, map)?;
             }
         }
-        RuleExpression::Group { span, inputs } => {
-            *span = map(*span)?;
-            for input in inputs {
-                map_rule_expression(input, map)?;
-            }
-        }
         RuleExpression::Conditional { test, branches } => {
             *test = map(*test)?;
             for element in branches.values_mut().into_iter().flatten() {
@@ -376,6 +372,12 @@ fn map_rule_expression<E>(
         }
         RuleExpression::Variant { variant, inputs } => {
             map_variant(variant, map)?;
+            for input in inputs {
+                map_rule_expression(input, map)?;
+            }
+        }
+        RuleExpression::Group { span, inputs } => {
+            *span = map(*span)?;
             for input in inputs {
                 map_rule_expression(input, map)?;
             }
@@ -446,14 +448,6 @@ fn map_variant<E>(
         StyleVariant::Prefix(prefix) => {
             map_value(prefix, map)?;
         }
-        StyleVariant::Ref { condition, scopes } => {
-            for condition in std::iter::once(condition).chain(scopes) {
-                map_value(&mut condition.prefix, map)?;
-                for definition in &mut condition.refs {
-                    map_ref(definition, map)?;
-                }
-            }
-        }
         StyleVariant::Container {
             refs,
             query: prefix,
@@ -461,6 +455,14 @@ fn map_variant<E>(
             map_value(prefix, map)?;
             for definition in refs {
                 map_ref(definition, map)?;
+            }
+        }
+        StyleVariant::Ref { condition, scopes } => {
+            for condition in std::iter::once(condition).chain(scopes) {
+                map_value(&mut condition.prefix, map)?;
+                for definition in &mut condition.refs {
+                    map_ref(definition, map)?;
+                }
             }
         }
     }

@@ -108,7 +108,9 @@ impl<'a> MacroExtractor<'a> {
         };
         match self.keyframes_references(&call.callee) {
             Ok(_) => {}
-            Err(ResolutionFailure::Unsupported) => return None,
+            Err(ResolutionFailure::Unsupported) => {
+                return None;
+            }
             Err(ResolutionFailure::MissingFacts) => {
                 self.consumed_use_spans.insert(LocalSpan::from(call.span));
                 self.diagnostics.push(CompileError::new(
@@ -291,19 +293,22 @@ impl<'a> MacroExtractor<'a> {
             };
             if selector.value == "label" {
                 match label.as_deref_mut() {
-                    Some(label) => match &property.value {
-                        Expression::StringLiteral(value) => {
+                    Some(label) => {
+                        if let Expression::StringLiteral(value) = &property.value {
                             *label = Some(self.string_literal(value));
+                        } else {
+                            self.lint_findings.push(LintFinding::new(
+                                LintDiagnostic::InvalidKeyframesLabel,
+                                self.source_span(property.value.span()),
+                            ));
                         }
-                        _ => self.lint_findings.push(LintFinding::new(
+                    }
+                    None => {
+                        self.lint_findings.push(LintFinding::new(
                             LintDiagnostic::InvalidKeyframesLabel,
-                            self.source_span(property.value.span()),
-                        )),
-                    },
-                    None => self.lint_findings.push(LintFinding::new(
-                        LintDiagnostic::InvalidKeyframesLabel,
-                        self.source_span(property.key.span()),
-                    )),
+                            self.source_span(property.key.span()),
+                        ));
+                    }
                 }
                 continue;
             }

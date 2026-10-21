@@ -66,9 +66,15 @@ fn top_level_comma(arguments: &str) -> Option<usize> {
     let mut depth = 0_usize;
     for (index, byte) in arguments.bytes().enumerate() {
         match byte {
-            b'(' | b'[' | b'{' => depth += 1,
-            b')' | b']' | b'}' => depth = depth.saturating_sub(1),
-            b',' if depth == 0 => return Some(index),
+            b'(' | b'[' | b'{' => {
+                depth += 1;
+            }
+            b')' | b']' | b'}' => {
+                depth = depth.saturating_sub(1);
+            }
+            b',' if depth == 0 => {
+                return Some(index);
+            }
             _ => {}
         }
     }

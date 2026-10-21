@@ -70,8 +70,12 @@ impl CallEmitter<'_> {
                 self.identifiers,
             );
             match rendered {
-                Ok(css) => collect_declarations(&css, "", &[], provider, gate, &mut supplies),
-                Err(kind) => self.reject_name(kind, span),
+                Ok(css) => {
+                    collect_declarations(&css, "", &[], provider, gate, &mut supplies);
+                }
+                Err(kind) => {
+                    self.reject_name(kind, span);
+                }
             }
             for nested in &utility.nested {
                 match render_utility_rule(
@@ -82,8 +86,12 @@ impl CallEmitter<'_> {
                     Some(nested),
                     self.identifiers,
                 ) {
-                    Ok(css) => collect_declarations(&css, "", &[], provider, gate, &mut supplies),
-                    Err(kind) => self.reject_name(kind, span),
+                    Ok(css) => {
+                        collect_declarations(&css, "", &[], provider, gate, &mut supplies);
+                    }
+                    Err(kind) => {
+                        self.reject_name(kind, span);
+                    }
                 }
             }
             if !provider && utility.diagnostic_data.span.is_some() {
@@ -482,7 +490,9 @@ fn subject(selector: &str) -> RuleSubject {
     let mut outcomes = Vec::new();
     while let Ok(token) = parser.next_including_whitespace_and_comments() {
         match token {
-            Token::WhiteSpace(_) => separated = true,
+            Token::WhiteSpace(_) => {
+                separated = true;
+            }
             Token::Delim('>' | '+' | '~' | '|') => {
                 target = false;
                 separated = false;

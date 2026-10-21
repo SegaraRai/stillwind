@@ -87,7 +87,9 @@ fn reference_path(
     let mut conditions = Vec::new();
     for step in path {
         match step {
-            VariantStep::SelectorSuffix(suffix) => reference.push_str(suffix),
+            VariantStep::SelectorSuffix(suffix) => {
+                reference.push_str(suffix);
+            }
             VariantStep::SelectorTemplate(template)
             | VariantStep::BareSelector {
                 selector: template, ..
@@ -121,7 +123,9 @@ fn reference_path(
             VariantStep::Supports(condition) => {
                 conditions.push(VariantApplication::Supports((*condition).to_lean_str()));
             }
-            _ => return None,
+            _ => {
+                return None;
+            }
         }
     }
     if !selector_is_element_condition(&reference, inside_has) {

@@ -112,7 +112,9 @@ impl<'a> Visit<'a> for Violations {
             | Expression::ImportExpression(_) => {
                 self.report(expression.span(), LintDiagnostic::SuspendingMacroArgument);
             }
-            _ => walk::walk_expression(self, expression),
+            _ => {
+                walk::walk_expression(self, expression);
+            }
         }
     }
 }

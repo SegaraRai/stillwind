@@ -208,9 +208,6 @@ impl Checker<'_> {
     fn visit(&mut self, nodes: &[CssNode], prefixes: &[LeanString], in_rule: bool) {
         for node in nodes {
             match &node.kind {
-                CssNodeKind::Apply { candidates } => {
-                    check_application(self, candidates, prefixes);
-                }
                 CssNodeKind::StyleRule { block, .. } => {
                     self.visit(&block.children, &[LeanString::new()], true);
                 }
@@ -228,6 +225,9 @@ impl Checker<'_> {
                     ..
                 } if in_rule || !is_definition(name) => {
                     self.visit(&block.children, prefixes, in_rule);
+                }
+                CssNodeKind::Apply { candidates } => {
+                    check_application(self, candidates, prefixes);
                 }
                 _ => {}
             }

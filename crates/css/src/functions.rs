@@ -164,13 +164,17 @@ pub fn matching_css_delimiter(
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
             '/' if bytes.get(index + 1) == Some(&b'*') => {
                 let end = value[index + 2..].find("*/").ok_or(ScanError::Unclosed)?;
                 index += end + 4;
                 continue;
             }
-            _ if character == opener => depth += 1,
+            _ if character == opener => {
+                depth += 1;
+            }
             _ if character == closer => {
                 depth = depth.checked_sub(1).ok_or(ScanError::Unclosed)?;
                 if depth == 0 {
@@ -205,8 +209,12 @@ pub fn split_css_function_arguments(arguments: &str) -> (&str, Option<&str>) {
             continue;
         }
         match character {
-            '\'' | '"' => quote = Some(character),
-            '(' | '[' | '{' => stack.push(character),
+            '\'' | '"' => {
+                quote = Some(character);
+            }
+            '(' | '[' | '{' => {
+                stack.push(character);
+            }
             ')' | ']' | '}' => {
                 stack.pop();
             }

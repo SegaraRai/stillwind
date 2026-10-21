@@ -501,9 +501,8 @@ fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option
             let mut selector = "&".to_lean_string();
             for step in path {
                 match step {
-                    VariantStep::SelectorSuffix(suffix) => selector.push_str(suffix),
-                    VariantStep::SelectorCondition(condition) => {
-                        selector = append_element_condition(&selector, condition);
+                    VariantStep::SelectorSuffix(suffix) => {
+                        selector.push_str(suffix);
                     }
                     VariantStep::SelectorTemplate(template)
                     | VariantStep::BareSelector {
@@ -517,7 +516,12 @@ fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option
                     }
                     | VariantStep::SelectorMediaRule {
                         selector: template, ..
-                    } => selector = instantiate_selector(template, &selector),
+                    } => {
+                        selector = instantiate_selector(template, &selector);
+                    }
+                    VariantStep::SelectorCondition(condition) => {
+                        selector = append_element_condition(&selector, condition);
+                    }
                     _ => {}
                 }
             }

@@ -81,9 +81,13 @@ impl CanonicalIndex {
         );
         for (label, preview) in pending.into_iter().zip(previews) {
             match preview {
-                Ok(Some(preview)) => index.insert(query, label, &preview),
+                Ok(Some(preview)) => {
+                    index.insert(query, label, &preview);
+                }
                 Ok(None) => {}
-                Err(error) => index.errors.push(((label), error)),
+                Err(error) => {
+                    index.errors.push(((label), error));
+                }
             }
         }
         for groups in index.policies.values_mut() {

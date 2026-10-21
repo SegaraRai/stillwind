@@ -125,8 +125,12 @@ impl<'a> MacroExtractor<'a> {
                         return false;
                     }
                 }
-                ArrayExpressionElement::Elision(_) => values.push(None),
-                _ => values.push(element.as_expression()),
+                ArrayExpressionElement::Elision(_) => {
+                    values.push(None);
+                }
+                _ => {
+                    values.push(element.as_expression());
+                }
             }
         }
         true

@@ -56,14 +56,18 @@ pub(crate) fn resolve_options(
             {
                 declaration.push_str(&resolved.declaration);
             }
-            Ok(_) => lint_findings.push(unknown()),
-            Err(error) => diagnostics.push(CompileError::new(
-                CompileDiagnostic::MalformedUtilityRequirement {
-                    utility: error.name,
-                    offset: error.source.offset,
-                },
-                option.span,
-            )),
+            Ok(_) => {
+                lint_findings.push(unknown());
+            }
+            Err(error) => {
+                diagnostics.push(CompileError::new(
+                    CompileDiagnostic::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
+                    },
+                    option.span,
+                ));
+            }
         }
     }
     declaration

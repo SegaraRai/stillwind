@@ -158,9 +158,6 @@ impl Context<'_> {
             let start = output.css.len();
             let segment_count = output.segments.len();
             match node {
-                CssOutputNode::LayerOrder { css, origin } => {
-                    output.text(css, resolve_origin(self.sources, *origin));
-                }
                 CssOutputNode::Authored { css, origin } if self.document || declarations => {
                     // The selection pass already read the explicit requirements of
                     // these nodes: `custom_css()` is exactly the template's authored
@@ -181,40 +178,8 @@ impl Context<'_> {
                     output.text(&authored, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Authored { .. } | CssOutputNode::Theme { .. } => {}
-                CssOutputNode::ThemeVariables => {
-                    output.append(&self.support.theme_variables);
-                }
-                CssOutputNode::Keyframes => {
-                    output.append(&self.support.keyframes);
-                }
-                CssOutputNode::Properties => {
-                    output.text(&self.support.properties.registrations, None);
-                }
-                CssOutputNode::PropertyInitials(inheritance) => {
-                    output.text(&self.support.properties.initials(*inheritance), None);
-                }
-                CssOutputNode::Style {
-                    header,
-                    children,
-                    origin,
-                } => {
-                    self.style_depth += 1;
-                    let mut body = self.nodes_in_context(children, true)?;
-                    self.style_depth -= 1;
-                    if self.style_depth == 0 {
-                        RuleBoundaries::new(self.boundary_owner(position), self.identifiers)
-                            .render_mapped(&mut body)?;
-                    }
-                    if !body.css.is_empty() {
-                        output.text(header, resolve_origin(self.sources, *origin));
-                        output.text("{", None);
-                        output.append(&body);
-                        output.text("}", None);
-                    }
-                }
-                CssOutputNode::Utilities => {
-                    self.slots += 1;
-                    output.append(self.utility_css);
+                CssOutputNode::LayerOrder { css, origin } => {
+                    output.text(css, resolve_origin(self.sources, *origin));
                 }
                 CssOutputNode::Group {
                     header,
@@ -245,6 +210,41 @@ impl Context<'_> {
                         output.append(&body);
                         output.text("}", None);
                     }
+                }
+                CssOutputNode::Style {
+                    header,
+                    children,
+                    origin,
+                } => {
+                    self.style_depth += 1;
+                    let mut body = self.nodes_in_context(children, true)?;
+                    self.style_depth -= 1;
+                    if self.style_depth == 0 {
+                        RuleBoundaries::new(self.boundary_owner(position), self.identifiers)
+                            .render_mapped(&mut body)?;
+                    }
+                    if !body.css.is_empty() {
+                        output.text(header, resolve_origin(self.sources, *origin));
+                        output.text("{", None);
+                        output.append(&body);
+                        output.text("}", None);
+                    }
+                }
+                CssOutputNode::Utilities => {
+                    self.slots += 1;
+                    output.append(self.utility_css);
+                }
+                CssOutputNode::ThemeVariables => {
+                    output.append(&self.support.theme_variables);
+                }
+                CssOutputNode::Keyframes => {
+                    output.append(&self.support.keyframes);
+                }
+                CssOutputNode::Properties => {
+                    output.text(&self.support.properties.registrations, None);
+                }
+                CssOutputNode::PropertyInitials(inheritance) => {
+                    output.text(&self.support.properties.initials(*inheritance), None);
                 }
             }
             if output.css.len() > start && output.segments.len() == segment_count {

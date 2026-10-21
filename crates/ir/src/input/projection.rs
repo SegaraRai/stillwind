@@ -470,9 +470,15 @@ mod tests {
             for blank in ["", " \t\n"] {
                 let mut identity = converter();
                 match field {
-                    "name" => identity.name = blank.into(),
-                    "version" => identity.version = blank.into(),
-                    _ => identity.options_fingerprint = blank.into(),
+                    "name" => {
+                        identity.name = blank.into();
+                    }
+                    "version" => {
+                        identity.version = blank.into();
+                    }
+                    _ => {
+                        identity.options_fingerprint = blank.into();
+                    }
                 }
                 assert!(matches!(
                     SourceProjection::try_new(

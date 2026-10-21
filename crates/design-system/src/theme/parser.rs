@@ -348,7 +348,9 @@ pub(crate) fn extract_keyframes_blocks(css: &str) -> LeanString {
         let mut close = None;
         for (offset, ch) in css[open..].char_indices() {
             match ch {
-                '{' => depth += 1,
+                '{' => {
+                    depth += 1;
+                }
                 '}' => {
                     depth = depth.saturating_sub(1);
                     if depth == 0 {

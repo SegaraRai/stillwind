@@ -121,7 +121,9 @@ pub fn arbitrary_value_flags(property: &str, value: &str, color_domain: bool) ->
 fn inspect_arbitrary(parser: &mut Parser<'_>, color: bool, flags: &mut (bool, bool)) {
     while let Ok(token) = parser.next().cloned() {
         match token {
-            Token::Hash(_) | Token::IDHash(_) if color => flags.0 = true,
+            Token::Hash(_) | Token::IDHash(_) if color => {
+                flags.0 = true;
+            }
             Token::Ident(name) if color => {
                 if !name.eq_ignore_ascii_case("transparent")
                     && !name.eq_ignore_ascii_case("currentcolor")
@@ -133,7 +135,9 @@ fn inspect_arbitrary(parser: &mut Parser<'_>, color: bool, flags: &mut (bool, bo
             Token::Dimension { value, unit, .. } if value != 0.0 && is_length_unit(&unit) => {
                 flags.1 = true;
             }
-            Token::Percentage { unit_value, .. } if unit_value != 0.0 => flags.1 = true,
+            Token::Percentage { unit_value, .. } if unit_value != 0.0 => {
+                flags.1 = true;
+            }
             Token::Function(name) => {
                 let start = parser.position();
                 let skip = ["url", "style", "media", "supports"]
@@ -208,7 +212,9 @@ fn size_comparisons(parser: &mut Parser<'_>, feature_block: bool, comparisons: &
                 .iter()
                 .any(|feature| name.eq_ignore_ascii_case(feature));
             }
-            Token::Colon | Token::Delim('<' | '>' | '=') if feature_block => comparison = true,
+            Token::Colon | Token::Delim('<' | '>' | '=') if feature_block => {
+                comparison = true;
+            }
             Token::ParenthesisBlock => {
                 let _ = parser.parse_nested_block(|inner| {
                     size_comparisons(inner, true, comparisons);

@@ -140,7 +140,9 @@ fn at_rule(parser: &mut Parser<'_>, css: &str, start: usize, name: LeanStr) -> C
     let (prelude_end, end, block) = loop {
         let before = parser.position().byte_index();
         match parser.next_including_whitespace_and_comments() {
-            Ok(Token::Semicolon) => break (before, parser.position().byte_index(), None),
+            Ok(Token::Semicolon) => {
+                break (before, parser.position().byte_index(), None);
+            }
             Ok(Token::CurlyBracketBlock) => {
                 let (block, end) = block(parser, css);
                 break (before, end, Some(block));
@@ -191,7 +193,9 @@ fn rule_or_declaration(parser: &mut Parser<'_>, css: &str, start: usize) -> Opti
     let (value_end, end) = loop {
         let before = parser.position().byte_index();
         match parser.next_including_whitespace_and_comments() {
-            Ok(Token::Semicolon) => break (before, parser.position().byte_index()),
+            Ok(Token::Semicolon) => {
+                break (before, parser.position().byte_index());
+            }
             Ok(Token::CurlyBracketBlock) => {
                 let custom = colon.is_some()
                     && property
@@ -210,7 +214,9 @@ fn rule_or_declaration(parser: &mut Parser<'_>, css: &str, start: usize) -> Opti
                     },
                 });
             }
-            Ok(Token::WhiteSpace(_) | Token::Comment(_)) => continue,
+            Ok(Token::WhiteSpace(_) | Token::Comment(_)) => {
+                continue;
+            }
             Ok(Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock) => {
                 skip_nested(parser);
             }

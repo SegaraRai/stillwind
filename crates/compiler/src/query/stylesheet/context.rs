@@ -153,7 +153,13 @@ fn locate(
                     );
                 }
             }
-            CssNodeKind::Declaration { .. } => {}
+            CssNodeKind::AtRule { .. } => {
+                if let Some(context) =
+                    at_rule_context(css, node, offset, positions, enclosing, tail)
+                {
+                    return Some(context);
+                }
+            }
             CssNodeKind::Apply { candidates } => {
                 let end = name_end(css, node.range.start);
                 if offset <= end {
@@ -178,13 +184,7 @@ fn locate(
                     applied: AppliedVariants::default(),
                 });
             }
-            CssNodeKind::AtRule { .. } => {
-                if let Some(context) =
-                    at_rule_context(css, node, offset, positions, enclosing, tail)
-                {
-                    return Some(context);
-                }
-            }
+            CssNodeKind::Declaration { .. } => {}
         }
     }
     None

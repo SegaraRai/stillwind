@@ -13,7 +13,6 @@ use stillwind_source::Span;
 /// source order. Static keys and runtime-selected asset receivers contribute no spans.
 pub(super) fn collect_runtime_names(input: &StyleInput, keys: &mut BTreeMap<u32, Span>) {
     match input {
-        StyleInput::Class(class) => collect_class(class, keys),
         StyleInput::Array(inputs) => {
             for input in inputs {
                 collect_runtime_names(input, keys);
@@ -23,6 +22,9 @@ pub(super) fn collect_runtime_names(input: &StyleInput, keys: &mut BTreeMap<u32,
             for input in branches.values().flatten() {
                 collect_runtime_names(input, keys);
             }
+        }
+        StyleInput::Class(class) => {
+            collect_class(class, keys);
         }
         StyleInput::ViewTransitionUse { name, .. }
         | StyleInput::DynamicViewTransitionUse { name, .. } => {
@@ -36,9 +38,6 @@ pub(super) fn collect_runtime_names(input: &StyleInput, keys: &mut BTreeMap<u32,
 /// branches to `keys`. Class values and group text contribute no spans.
 fn collect_class(class: &ClassExpression, keys: &mut BTreeMap<u32, Span>) {
     match class {
-        ClassExpression::Rule(rule) => {
-            collect_rule(rule, keys);
-        }
         ClassExpression::Array(classes) => {
             for class in classes {
                 collect_class(class, keys);
@@ -48,6 +47,9 @@ fn collect_class(class: &ClassExpression, keys: &mut BTreeMap<u32, Span>) {
             for class in branches.values().flatten() {
                 collect_class(class, keys);
             }
+        }
+        ClassExpression::Rule(rule) => {
+            collect_rule(rule, keys);
         }
         ClassExpression::Group { entries, .. } => {
             for entry in entries {

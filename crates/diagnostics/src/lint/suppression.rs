@@ -141,7 +141,9 @@ pub(crate) fn suppressing_directive(
                     active = Some(index);
                 }
             }
-            LintDirectiveKind::Enable if directive.offset <= offset => active = None,
+            LintDirectiveKind::Enable if directive.offset <= offset => {
+                active = None;
+            }
             LintDirectiveKind::DisableLine if directive.line == line => {
                 local = local.or(Some(index));
             }
@@ -265,6 +267,7 @@ pub fn finish_lint_findings(
                         directive_span(source, directive.offset, directive.end),
                     ));
                 }
+                LintDirectiveRules::All => {}
                 LintDirectiveRules::Named(rules) => {
                     for kind in rules.iter().copied().filter(|kind| eligible(*kind)) {
                         if used.contains(&(index, kind)) {
@@ -283,7 +286,6 @@ pub fn finish_lint_findings(
                         ));
                     }
                 }
-                LintDirectiveRules::All => {}
             }
         }
     }
