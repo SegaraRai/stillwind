@@ -61,6 +61,10 @@ pub struct NativeLintOptions {
     pub missing_document_target: Option<String>,
     /// Settings for `invalid-theme-reference`.
     pub invalid_theme_reference: Option<String>,
+    /// Settings for `invalid-css-import`.
+    pub invalid_css_import: Option<String>,
+    /// Settings for `invalid-css-directive`.
+    pub invalid_css_directive: Option<String>,
     /// Settings for `mutating-macro-argument`.
     pub mutating_macro_argument: Option<String>,
     /// Settings for `suspending-macro-argument`.
@@ -245,6 +249,14 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_theme_reference: input
                 .invalid_theme_reference
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_css_import: input
+                .invalid_css_import
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_css_directive: input
+                .invalid_css_directive
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             mutating_macro_argument: input

@@ -18,6 +18,7 @@ use super::bypassed::check_bypassed_undefinitions;
 use super::definitions::definitions;
 use super::nesting::check_nesting;
 use super::shadowing::{addresses, shadowed_definitions};
+use super::skipped::check_skipped_statements;
 use super::tailwind_features::check_tailwind_features;
 use super::theme_references::{check_theme_references, check_utility_namespaces};
 use super::theme_values::check_theme_values;
@@ -114,6 +115,7 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
                 check_utility_namespaces(&mut checker, definition);
             }
             check_bypassed_undefinitions(&mut checker, snapshot.sources(), &source_definitions);
+            check_skipped_statements(&mut checker, snapshot.sources());
             check_theme_values(&mut checker, &nodes);
             check_tailwind_features(&mut checker, source.source.text());
             check_theme_references(&mut checker, &nodes, false);

@@ -108,6 +108,9 @@ describe("invalid or missing CSS imports", () => {
     const cssError = state.cssError;
     expect(cssError).toBeDefined();
     expect(state.cssApplied).toBeLessThan(state.cssChange);
+    expect(fixture.takeWarnings()).toEqual([
+      expect.stringContaining("Stillwind update failed; retaining published styles"),
+    ]);
 
     vi.mocked(readFile).mockClear();
     await fixture.compileProducer("client", "// edit while CSS is invalid");
@@ -120,7 +123,7 @@ describe("invalid or missing CSS imports", () => {
     expect(state.cssError).toBeUndefined();
   });
 
-  test("creating a missing CSS import clears its error and adds its rules", async () => {
+  test("a missing CSS import is skipped with a warning until the file is created", async () => {
     const fixture = await createWatchedProject({
       "root.css": rootWithImport,
       "part.css": definePaint("green"),
@@ -134,13 +137,16 @@ describe("invalid or missing CSS imports", () => {
       "@import './part.css'; @import './added.css'; @stillwind-slot utilities;",
     );
     expect(await fixture.getCss()).toMatch(/color:\s*green/);
-    expect(state.cssError).toBeDefined();
+    expect(state.cssError).toBeUndefined();
     expect(state.cssFiles.has(addedFile)).toBe(false);
+    expect(fixture.takeWarnings()).toEqual([
+      `stillwind: invalid-css-import: \`./added.css\` cannot be resolved or read (${path.join(fixture.root, "root.css")}:1:23)`,
+    ]);
 
     await fixture.writeCss("added.css", ".addition { width: 11px; }");
     expect(await fixture.getCss()).toMatch(/width:\s*11px/);
     expect(state.cssFiles.has(addedFile)).toBe(true);
-    expect(state.cssError).toBeUndefined();
+    expect(fixture.takeWarnings()).toEqual([]);
   });
 
   test("removing a CSS import removes its rules and stops observing its file", async () => {
@@ -161,22 +167,25 @@ describe("invalid or missing CSS imports", () => {
     expect(state.cssChange).toBe(revisionAfterRemovingImport);
   });
 
-  test("deleting an imported file keeps working CSS until the file is recreated", async () => {
+  test("deleting an imported file removes its rules with a warning until the file is recreated", async () => {
     const fixture = await createWatchedProject({
       "root.css": rootWithImport,
       "part.css": definePaint("green"),
     });
     await fixture.waitUntilWatched("part.css");
-    const workingCss = await fixture.getCss();
+    expect(await fixture.getCss()).toMatch(/color:\s*green/);
     const state = fixture.project.environment("client").designSystem;
 
     await fixture.changeCss("part.css", () => rmSync(path.join(fixture.root, "part.css")));
-    expect(await fixture.getCss()).toBe(workingCss);
-    expect(state.cssError).toBeDefined();
+    expect(await fixture.getCss()).not.toMatch(/color:\s*green/);
+    expect(state.cssError).toBeUndefined();
+    expect(fixture.takeWarnings()).toEqual([
+      expect.stringContaining("`./part.css` cannot be resolved or read"),
+    ]);
 
     await fixture.writeCss("part.css", definePaint("yellow"));
     expect(await fixture.getCss()).toMatch(/color:\s*yellow/);
-    expect(state.cssError).toBeUndefined();
+    expect(fixture.takeWarnings()).toEqual([]);
   });
 
   test("creating a missing import sends updated CSS through HMR without a CSS request", async () => {
@@ -184,7 +193,10 @@ describe("invalid or missing CSS imports", () => {
     await fixture.waitUntilWatched("root.css");
     const state = fixture.project.environment("client").designSystem;
     await fixture.writeCss("root.css", "@import './added.css';");
-    await expect.poll(() => state.cssError).toBeDefined();
+    await expect
+      .poll(() => fixture.takeWarnings())
+      .toEqual([expect.stringContaining("`./added.css` cannot be resolved or read")]);
+    expect(state.cssError).toBeUndefined();
     expect(state.cssFiles.has(path.join(fixture.root, "added.css"))).toBe(false);
     const hmrSend = vi.spyOn(fixture.server.environments.client.hot, "send");
     onTestFinished(() => hmrSend.mockRestore());
@@ -192,7 +204,6 @@ describe("invalid or missing CSS imports", () => {
     await fixture.writeCss("added.css", definePaint("green"));
 
     await vi.waitFor(() => {
-      expect(state.cssError).toBeUndefined();
       expect(state.cssFiles.has(path.join(fixture.root, "added.css"))).toBe(true);
       expect(hmrSend).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -377,16 +388,23 @@ async function createWatchedProject(
       hmr: options.hmr ?? false,
     },
   });
+  // Development hooks report warnings through Vite's logger, and fixture requests report them
+  // through `context`. Tests take expected warnings, and any other warning fails the test.
+  const warnings: string[] = [];
+  vi.spyOn(server.config.logger, "warn").mockImplementation((message) => {
+    warnings.push(message);
+  });
   onTestFinished(async () => {
     await server.close();
     rmSync(root, { recursive: true, force: true });
+    expect(warnings).toEqual([]);
   });
   await server.listen();
   await watcherReady.promise;
   /**
    * Creates hook operations for a named server environment.
    * @param environmentName - Existing Vite environment, normally client or ssr.
-   * @returns Resolution, watching, and warning operations. Warnings fail the test.
+   * @returns Resolution, watching, and warning operations. Warnings are recorded for `takeWarnings`.
    */
   const context = (environmentName: string) => {
     const environment = server.environments[environmentName];
@@ -395,13 +413,20 @@ async function createWatchedProject(
       resolve: (specifier: string, importer: string) =>
         environment.pluginContainer.resolveId(specifier, importer),
       addWatchFile: (file: string) => server.watcher.add(file),
-      warn: (message: string) => expect.fail(message),
+      warn: (message: string) => {
+        warnings.push(message);
+      },
     };
   };
   return {
     root,
     project,
     server,
+    /**
+     * Removes and returns the warnings recorded since the previous call.
+     * @returns Warning messages in the order they were reported.
+     */
+    takeWarnings: () => warnings.splice(0),
     /**
      * Plans current document CSS through a selected development environment.
      * @param environment - Existing environment name, defaulting to client.

@@ -136,6 +136,10 @@ pub struct LintOverrides {
     pub prefer_typed_variables: Option<LintSeverity>,
     /// Reporting level for `invalid-theme-reference`.
     pub invalid_theme_reference: Option<LintSeverity>,
+    /// Reporting level for `invalid-css-import`.
+    pub invalid_css_import: Option<LintSeverity>,
+    /// Reporting level for `invalid-css-directive`.
+    pub invalid_css_directive: Option<LintSeverity>,
     /// Reporting level for `duplicate-definition`.
     pub duplicate_definition: Option<LintSeverity>,
     /// Reporting level for `bypassed-undefinition`.
@@ -356,6 +360,8 @@ impl LintOverrides {
                 LintKind::InvalidThemeReference,
                 self.invalid_theme_reference,
             ),
+            (LintKind::InvalidCssImport, self.invalid_css_import),
+            (LintKind::InvalidCssDirective, self.invalid_css_directive),
             (LintKind::DuplicateDefinition, self.duplicate_definition),
             (LintKind::BypassedUndefinition, self.bypassed_undefinition),
             (LintKind::InvalidThemeValue, self.invalid_theme_value),

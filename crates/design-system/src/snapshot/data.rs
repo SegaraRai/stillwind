@@ -79,6 +79,7 @@ impl DesignSystemError {
                     CompileDiagnostic::CssRequestIdExhausted
                 }
                 DesignSystemLoadError::AlreadyComplete => CompileDiagnostic::CssLoadAlreadyComplete,
+                DesignSystemLoadError::UnresolvedRoot => CompileDiagnostic::UnresolvedCssRoot,
                 DesignSystemLoadError::InvalidInitialBatch { count } => {
                     CompileDiagnostic::InvalidCssInitialBatch { count }
                 }
@@ -89,9 +90,6 @@ impl DesignSystemError {
                     CompileDiagnostic::ConflictingCssSource { name }
                 }
                 DesignSystemLoadError::InvalidOptions(error) => error,
-                DesignSystemLoadError::Cycle { chain } => CompileDiagnostic::CssImportCycle {
-                    requests: format_args!("{chain:?}").to_lean_str(),
-                },
             },
         };
         CompileError::new(kind, span)

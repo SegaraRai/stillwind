@@ -12,7 +12,7 @@ import {
   type CssUpstreamMap,
 } from "@stillwind/host";
 
-import { buildCompilerOptions, IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession, warnSkippedCss } from "../session.ts";
 import type { ProducerInput } from "./emission.ts";
 import type { CompilationHost } from "./host.ts";
 import { relativeRequest } from "./requests.ts";
@@ -30,7 +30,8 @@ import { sourceDescriptor } from "./sources.ts";
  * and assets.
  * @param mode - Bundler mode. Only `development` selects development compilation.
  * @param watch - Registers a file as a compilation dependency.
- * @param warn - Reports a compiler warning through the bundler.
+ * @param warn - Reports compiler warnings and the CSS statements that loading skipped through the
+ * bundler.
  * @returns Document CSS with asset requests and an inline source map composed with recorded
  * upstream maps.
  * @throws If producers use different design systems, a dependency source is missing, or loading or
@@ -65,6 +66,7 @@ export async function compilationStyles(
       root,
     },
   );
+  warnSkippedCss(loaded.skipped, warn);
   const compiler = new IntegrationSession(
     root,
     loaded.loader,

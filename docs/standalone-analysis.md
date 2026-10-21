@@ -319,6 +319,14 @@ Other rules check only stylesheets. They check definitions and theme references:
   `important`, `prefix`, `reference`, `source`, and `theme` modifiers. The project's
   `important` field replaces the `important` modifier. The finding covers the
   statement or the modifier.
+- `invalid-css-import` (input, default `deny`) reports an import that loading skipped:
+  an `@import` or `@plugin` statement with an invalid specifier, options, or modifiers,
+  an import that closes a cycle, and an import that the host cannot resolve or read.
+  The finding covers the statement.
+- `invalid-css-directive` (input, default `deny`) reports a Stillwind directive that
+  loading skipped, and a definition inside a conditional at-rule, which applies without
+  the condition. [Skipped statements](css-emission.md#skipped-statements) lists them.
+  The finding covers the directive.
 - `invalid-theme-reference` (input, default `deny`) reports a `theme()` or `--theme()`
   call that names an inactive token without a fallback, in authored rules, `@utility`
   bodies, and variant definitions. Stylesheet rendering omits the declaration that

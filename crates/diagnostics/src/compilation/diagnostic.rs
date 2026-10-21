@@ -130,82 +130,6 @@ pub enum CompileDiagnostic {
         /// Deepest nesting level the failing operation accepts.
         limit: usize,
     },
-    /// A CSS import does not begin with a valid string or URL specifier.
-    #[error("invalid @import at byte {offset}: {detail}")]
-    InvalidCssImportSpecifier {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// Explanation supplied by the underlying parser or map validator.
-        detail: LeanStr,
-    },
-    /// The trailing CSS import modifier list cannot be parsed.
-    #[error("invalid import modifiers at byte {offset}: {detail}")]
-    InvalidCssImportModifiers {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// Explanation supplied by the underlying parser or map validator.
-        detail: LeanStr,
-    },
-    /// A functional CSS import modifier has an invalid argument block.
-    #[error("invalid import modifier at byte {offset}: {detail}")]
-    InvalidCssImportModifierBlock {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// Explanation supplied by the underlying parser or map validator.
-        detail: LeanStr,
-    },
-    /// CSS import modifiers occur outside the supported layer/supports/media order.
-    #[error("invalid import modifier order at byte {offset}")]
-    InvalidCssImportModifierOrder {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-    },
-    /// Resolved CSS imports contain a dependency cycle.
-    #[error("CSS import cycle: {requests}")]
-    CssImportCycle {
-        /// Debug representation of the ordered host file requests.
-        requests: LeanStr,
-    },
-    /// A compile-time definition appears beneath a conditional CSS wrapper.
-    #[error(
-        "compile-time @{directive} definitions cannot be conditional (byte {offset}); import definitions unconditionally and put conditions around @stillwind-slot utilities;"
-    )]
-    ConditionalDefinition {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// At-rule name without the leading `@`.
-        directive: LeanStr,
-    },
-    /// A Stillwind directive uses a block where it requires a statement, or the reverse.
-    #[error("@{directive} at byte {offset} has an unsupported block or statement form")]
-    InvalidDirectiveForm {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// At-rule name without the leading `@`.
-        directive: LeanStr,
-    },
-    /// An authored output directive names an unsupported slot.
-    #[error("unsupported Stillwind output slot at byte {offset}: {slot}")]
-    UnsupportedOutputSlot {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// Slot name without the `@stillwind-slot` directive or trailing semicolon.
-        slot: LeanStr,
-    },
-    /// An output slot appears in a CSS context that cannot contain its output.
-    #[error("Stillwind output slot {slot} has an invalid CSS context")]
-    InvalidOutputSlotContext {
-        /// Slot name without the `@stillwind-slot` directive or trailing semicolon.
-        slot: LeanStr,
-    },
-    /// A style rule that wraps output slots also contains rules or non-declaration slots.
-    #[error(
-        "a style rule containing @stillwind-slot at byte {offset} can contain only authored CSS and the theme or property-initials slots"
-    )]
-    InvalidSlotStyleRule {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-    },
     /// The output template has no destination for generated utility rules.
     #[error("generated utilities require an @stillwind-slot utilities; in the CSS entry graph")]
     MissingUtilitiesSlot,
@@ -254,46 +178,6 @@ pub enum CompileDiagnostic {
     InvalidRuntimeConditional {
         /// Syntax or output-strategy limitation preventing compilation.
         detail: LeanStr,
-    },
-    /// A `@stillwind-css-template` rule lacks one name followed by a block.
-    #[error("@stillwind-css-template at byte {offset} requires one name and a block")]
-    InvalidCssTemplate {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-    },
-    /// A definition appears inside a `@stillwind-css-template` block, which describes
-    /// only output placement.
-    #[error("@{directive} at byte {offset} cannot appear inside @stillwind-css-template")]
-    DefinitionInCssTemplate {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// At-rule name without the leading `@`.
-        directive: LeanStr,
-    },
-    /// A `@stillwind-css-template` block has no utilities slot.
-    #[error("@stillwind-css-template {name} requires an @stillwind-slot utilities;")]
-    CssTemplateWithoutUtilities {
-        /// Template name as written.
-        name: LeanStr,
-    },
-    /// A `@stillwind-registry` header is empty or names a context that does not exist.
-    #[error("@stillwind-registry at byte {offset} names an unknown context `{context}`")]
-    UnknownRegistryContext {
-        /// Zero-based UTF-8 byte offset of the directive in the buffer parsed by the
-        /// failing operation.
-        offset: usize,
-        /// Context name as written; empty when the header names no context.
-        context: LeanStr,
-    },
-    /// A `@stillwind-registry` block contains a statement that no registry holds, such
-    /// as `@theme` or a style rule.
-    #[error("@stillwind-registry cannot contain `{statement}` at byte {offset}")]
-    InvalidRegistryStatement {
-        /// Zero-based UTF-8 byte offset of the statement in the buffer parsed by the
-        /// failing operation.
-        offset: usize,
-        /// `@` and the at-rule name, or the trimmed text of another statement.
-        statement: LeanStr,
     },
     /// A value cannot be resolved locally without host checker facts.
     #[error("{subject} require TypeScript checker facts")]
@@ -408,6 +292,9 @@ pub enum CompileDiagnostic {
     /// A file response was supplied after the loader reached a terminal state.
     #[error("provide called after completion")]
     CssLoadAlreadyComplete,
+    /// The host answered the root CSS request as unresolved.
+    #[error("the root CSS source cannot be answered as unresolved")]
+    UnresolvedCssRoot,
     /// The loader cannot allocate another request identifier.
     #[error("CSS request IDs exhausted")]
     CssRequestIdExhausted,

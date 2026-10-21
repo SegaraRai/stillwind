@@ -8,12 +8,13 @@
 //! preserved regardless of the order in which reads finished.
 //!
 //! A source name is the loader's unit of identity and cycle detection. Supplying a
-//! known name again is allowed only with the same URI and byte-identical content. Failures the loader
-//! can decide from responses (unknown IDs, invalid CSS or imports, cycles, conflicting
-//! content, exhausted IDs) become
+//! known name again is allowed only with the same URI and byte-identical content.
+//! Failures the loader can decide from responses (unknown IDs, CSS that cannot be
+//! divided into statements, conflicting content, exhausted IDs) become
 //! [`Complete(Err(..))`](DesignSystemLoadStep::Complete); a host that cannot read a
 //! requested source drops the loader instead, so no host failure is ever reported as a
-//! loader error.
+//! loader error. An invalid import or directive, and an import that closes a cycle, are
+//! skipped and recorded in [`CssSourceGraph::skipped`] instead.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
@@ -24,6 +25,7 @@ use lean_string::LeanStr;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{
     CssSourceName, FileId, SourceError, SourceFile, SourceRegistry, SourceRegistryError, SourceUri,
+    Span,
 };
 
 use super::expansion::ExpandedSource;
@@ -32,8 +34,9 @@ use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
     DesignSystemLoadStep,
 };
+use crate::skipped::locate;
 use crate::theme::parse_theme_builder;
-use crate::{DesignSystemOptions, DesignSystemSnapshot};
+use crate::{DesignSystemOptions, DesignSystemSnapshot, SkipReason, SkippedCss};
 
 /// Why a load could not produce a snapshot.
 ///
@@ -62,6 +65,9 @@ pub enum DesignSystemLoadError {
     /// A response arrived after the load had already completed.
     #[error("provide called after completion")]
     AlreadyComplete,
+    /// The root source was answered as unresolved.
+    #[error("the root CSS source cannot be unresolved")]
+    UnresolvedRoot,
     /// The first batch did not contain exactly one root source.
     #[error("initial provide must contain exactly one file (conventionally ID 0), got {count}")]
     InvalidInitialBatch {
@@ -94,12 +100,6 @@ pub enum DesignSystemLoadError {
         #[from]
         CompileDiagnostic,
     ),
-    /// The import graph contains a cycle.
-    #[error("CSS import cycle: {chain:?}")]
-    Cycle {
-        /// Requests that close the cycle, in traversal order.
-        chain: Vec<CssFileRequest>,
-    },
 }
 
 /// One accepted source: its imports, the requests issued for them, and the
@@ -107,15 +107,19 @@ pub enum DesignSystemLoadError {
 struct Node {
     /// Parsed imports in authored order, indexed in parallel with requests and targets.
     imports: Vec<Import>,
-    /// Host requests in import order; each entry corresponds to the same index in imports.
+    /// Host requests in import order; each entry corresponds to the same index in
+    /// imports.
     requests: Vec<CssFileRequest>,
     /// Index into the graph's source list per import, filled as responses
     /// arrive. `None` means the import is still outstanding.
     targets: Vec<Option<usize>>,
-    /// Byte ranges of the `@config` statements in source order, which expansion
-    /// removes. They never overlap an import's range.
+    /// Byte ranges of the `@config` statements and the skipped import statements in
+    /// source order, which expansion removes. They never overlap an import's range.
     removed: Vec<Range<usize>>,
 }
+
+/// One import of one accepted source: (source index, import index).
+type ImportSlot = (usize, usize);
 
 /// Caller-driven loading with independent, monotonically increasing request IDs.
 /// `NeedFile` lists all outstanding requests; hosts may respond in any order.
@@ -146,6 +150,11 @@ pub struct DesignSystemLoader {
     /// Specifier of the `@plugin` request that follows the root's text, until the root
     /// is accepted.
     trailing_plugin: Option<LeanStr>,
+    /// Import statements that the per-source scan skipped, and imports that the host
+    /// answered as unresolved, in acceptance order.
+    skipped: Vec<SkippedCss>,
+    /// Imports that the host answered as unresolved.
+    unresolved: Vec<ImportSlot>,
 }
 
 impl DesignSystemLoader {
@@ -176,6 +185,8 @@ impl DesignSystemLoader {
             next_id: 1,
             terminal: false,
             trailing_plugin: None,
+            skipped: Vec::new(),
+            unresolved: Vec::new(),
         }
     }
 
@@ -226,6 +237,7 @@ impl DesignSystemLoader {
             source_map_source,
             content,
             lint: false,
+            unresolved: false,
         }])
     }
 
@@ -254,12 +266,11 @@ impl DesignSystemLoader {
 
     /// Accepts one response batch and decides the next step.
     ///
-    /// Requests are validated against the IDs issued before this batch, so a
-    /// duplicate within the batch and an ID that is unknown or already answered
-    /// are both protocol errors. Each accepted source is parsed on its own and
-    /// its imports become new requests. Expansion runs only when nothing is
-    /// pending; before that, a resolved subgraph is still traversed so a cycle
-    /// is reported without waiting for the remaining reads.
+    /// Requests are validated against the IDs issued before this batch, so a duplicate
+    /// within the batch and an ID that is unknown or already answered are both protocol
+    /// errors. Each accepted source is parsed on its own and its imports become new
+    /// requests. Expansion runs only when nothing is pending, and an import that closes
+    /// a cycle is then skipped.
     fn accept_many(
         &mut self,
         files: Vec<CssFileInput>,
@@ -281,6 +292,11 @@ impl DesignSystemLoader {
             } else {
                 self.pending.remove(&file.id)
             };
+            if file.unresolved {
+                let (source, import) = parent.ok_or(DesignSystemLoadError::UnresolvedRoot)?;
+                self.skip_unresolved(source, import)?;
+                continue;
+            }
             let index = self.accept_source(
                 file.name.clone(),
                 file.uri,
@@ -307,8 +323,6 @@ impl DesignSystemLoader {
                 });
             }
         }
-        // Also detect cycles in resolved subgraphs while unrelated I/O is outstanding.
-        let order = self.source_order()?;
         if !self.pending.is_empty() {
             return Ok(DesignSystemLoadStep::NeedFile(
                 self.pending
@@ -323,7 +337,43 @@ impl DesignSystemLoader {
                     .collect::<Result<_, _>>()?,
             ));
         }
-        let output = self.expand(&order)?;
+        self.complete()
+    }
+
+    /// Expands the complete graph and parses it into the final snapshot. Imports that
+    /// close a cycle are skipped and recorded first.
+    fn complete(&mut self) -> Result<DesignSystemLoadStep, DesignSystemLoadError> {
+        let (order, cycles) = self.source_order()?;
+        for &(source, import) in &cycles {
+            let node = self
+                .nodes
+                .get(source)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let (import, request) = node
+                .imports
+                .get(import)
+                .zip(node.requests.get(import))
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let file = self
+                .graph
+                .sources
+                .get(source)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?
+                .source
+                .id();
+            self.skipped.extend(locate(
+                file,
+                vec![(
+                    import.start..import.end,
+                    SkipReason::ImportCycle {
+                        specifier: request.specifier.clone(),
+                    },
+                )],
+            ));
+        }
+        let mut skipped_imports = cycles;
+        skipped_imports.extend_from_slice(&self.unresolved);
+        let output = self.expand(&order, &skipped_imports)?;
         let root = self
             .graph
             .sources
@@ -357,6 +407,24 @@ impl DesignSystemLoader {
                 }
             }
         }
+        let mut skipped = std::mem::take(&mut self.skipped);
+        for skip in locate(source.id(), std::mem::take(&mut theme.skipped)) {
+            // A statement that wrappers or joined sources produced keeps the start of
+            // its range in the authored source.
+            let span = output.original_span(skip.span).or_else(|| {
+                output.original_span(Span::new(
+                    skip.span.file,
+                    skip.span.start.0,
+                    skip.span.start.0,
+                ))
+            });
+            if let Some(span) = span {
+                skipped.push(SkippedCss { span, ..skip });
+            }
+        }
+        skipped.sort_by_key(|skip| (skip.span.file, skip.span.start, skip.span.end));
+        skipped.dedup();
+        self.graph.skipped = skipped;
         self.graph.mappings = output.mappings;
         self.graph.resources = output.resources;
         let snapshot = DesignSystemSnapshot::from_loaded_theme(
@@ -367,6 +435,42 @@ impl DesignSystemLoader {
         .map_err(DesignSystemLoadError::InvalidOptions)?;
         self.terminal = true;
         Ok(DesignSystemLoadStep::Complete(Ok(snapshot)))
+    }
+
+    /// Records that the host could not resolve or read import `import` of source
+    /// `source`, so expansion leaves the import out.
+    fn skip_unresolved(
+        &mut self,
+        source: usize,
+        import: usize,
+    ) -> Result<(), DesignSystemLoadError> {
+        let node = self
+            .nodes
+            .get(source)
+            .ok_or(DesignSystemLoadError::InvalidGraph)?;
+        let (statement, request) = node
+            .imports
+            .get(import)
+            .zip(node.requests.get(import))
+            .ok_or(DesignSystemLoadError::InvalidGraph)?;
+        let file = self
+            .graph
+            .sources
+            .get(source)
+            .ok_or(DesignSystemLoadError::InvalidGraph)?
+            .source
+            .id();
+        self.skipped.extend(locate(
+            file,
+            vec![(
+                statement.start..statement.end,
+                SkipReason::UnresolvedImport {
+                    specifier: request.specifier.clone(),
+                },
+            )],
+        ));
+        self.unresolved.push((source, import));
+        Ok(())
     }
 
     /// Registers one supplied buffer, or reuses the earlier parse of the same
@@ -407,11 +511,33 @@ impl DesignSystemLoader {
         } else {
             self.registry.register(uri, source_map_source, content)?
         };
-        let scan =
+        let mut scan =
             scan(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
         let removed = scan.removed();
+        self.skipped
+            .extend(locate(source.id(), std::mem::take(&mut scan.skipped)));
         let mut imports = scan.imports;
-        parse_theme_builder(&source, &name, &[])?;
+        // Expansion leaves out the removed statements, so the validation pass does not
+        // read them either.
+        let validated = if removed.is_empty() {
+            source.clone()
+        } else {
+            let mut text = source.text().as_bytes().to_vec();
+            for range in &removed {
+                for byte in &mut text[range.clone()] {
+                    if *byte != b'\n' {
+                        *byte = b' ';
+                    }
+                }
+            }
+            Arc::new(SourceFile::new(
+                source.id(),
+                None,
+                None,
+                String::from_utf8_lossy(&text).as_ref(),
+            )?)
+        };
+        parse_theme_builder(&validated, &name, &[])?;
         if index == 0
             && let Some(specifier) = self.trailing_plugin.take()
         {
@@ -458,21 +584,20 @@ impl DesignSystemLoader {
         Ok(index)
     }
 
-    /// Postorder traversal using heap frames, including partially resolved graphs.
+    /// Postorder traversal using heap frames.
     ///
-    /// Sources are numbered by acceptance order, not by dependency order, so
-    /// this walk is what makes expansion independent of response order. It also
-    /// reports a cycle as soon as the resolved subgraph contains one, even
-    /// while unrelated reads are still outstanding. A source must be reachable
-    /// from the root; the traversal starts at index 0 and errors if the graph
-    /// is empty.
-    fn source_order(&self) -> Result<Vec<usize>, DesignSystemLoadError> {
+    /// Sources are numbered by acceptance order, not by dependency order, so this walk
+    /// is what makes expansion independent of response order. Returns the order and the
+    /// imports, as (source index, import index), that close a cycle; the walk does not
+    /// follow them. A source must be reachable from the root; the traversal starts at
+    /// index 0 and errors if the graph is empty.
+    fn source_order(&self) -> Result<(Vec<usize>, Vec<ImportSlot>), DesignSystemLoadError> {
         let mut state = vec![0; self.nodes.len()];
         *state
             .first_mut()
             .ok_or(DesignSystemLoadError::InvalidGraph)? = 1;
         let mut frames = vec![(0, 0)];
-        let mut chain = Vec::new();
+        let mut cycles = Vec::new();
         let mut order = Vec::new();
         while let Some((index, next)) = frames.last_mut() {
             let node = self
@@ -488,37 +613,35 @@ impl DesignSystemLoader {
                     .ok_or(DesignSystemLoadError::InvalidGraph)? = 2;
                 order.push(*index);
                 frames.pop();
-                chain.pop();
                 continue;
             };
-            let request = node
-                .requests
-                .get(*next)
-                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let import = *next;
             *next += 1;
             let Some(target) = target else { continue };
             let mark = state
                 .get_mut(*target)
                 .ok_or(DesignSystemLoadError::InvalidGraph)?;
             if *mark == 1 {
-                chain.push(request.clone());
-                return Err(DesignSystemLoadError::Cycle { chain });
-            }
-            if *mark == 0 {
+                cycles.push((*index, import));
+            } else if *mark == 0 {
                 *mark = 1;
-                chain.push(request.clone());
                 frames.push((*target, 0));
             }
         }
-        Ok(order)
+        Ok((order, cycles))
     }
 
     /// Inlines every source into one buffer in authored import order.
     ///
-    /// `order` is the postorder from [`Self::source_order`], so a source is
-    /// expanded only after its imports and can reuse their cached expansion.
+    /// `order` is the postorder from [`Self::source_order`], so a source is expanded
+    /// only after its imports and can reuse their cached expansion. The imports in
+    /// `skipped`, as (source index, import index), are left out with their statements.
     /// Returns only the root's expansion.
-    fn expand(&self, order: &[usize]) -> Result<ExpandedSource, DesignSystemLoadError> {
+    fn expand(
+        &self,
+        order: &[usize],
+        skipped: &[ImportSlot],
+    ) -> Result<ExpandedSource, DesignSystemLoadError> {
         let mut cache: BTreeMap<usize, ExpandedSource> = BTreeMap::new();
         for &index in order {
             let source = &self
@@ -544,8 +667,14 @@ impl DesignSystemLoader {
                 }
                 output.append_source(source, name, start..end)
             };
-            for (import, target) in node.imports.iter().zip(&node.targets) {
+            for (import_index, (import, target)) in
+                node.imports.iter().zip(&node.targets).enumerate()
+            {
                 copy(&mut output, cursor, import.start)?;
+                if skipped.contains(&(index, import_index)) {
+                    cursor = import.end;
+                    continue;
+                }
                 let target = target.ok_or(DesignSystemLoadError::InvalidGraph)?;
                 let imported = cache
                     .get(&target)
@@ -606,10 +735,13 @@ mod tests {
     #[test]
     fn deep_import_graphs_use_heap_frames() {
         let loader = chain_loader(20_000);
-        let order = loader.source_order().unwrap();
+        let (order, cycles) = loader.source_order().unwrap();
         assert_eq!(order, (0..20_000).rev().collect::<Vec<_>>());
+        assert_eq!(cycles, []);
         let loader = chain_loader(512);
-        let output = loader.expand(&loader.source_order().unwrap()).unwrap();
+        let output = loader
+            .expand(&loader.source_order().unwrap().0, &[])
+            .unwrap();
         assert_eq!(output.text, ".x{color:red;}");
     }
 
@@ -618,7 +750,7 @@ mod tests {
         let mut loader = chain_loader(2);
         loader.nodes[0].targets[0] = None;
         assert!(matches!(
-            loader.expand(&loader.source_order().unwrap()),
+            loader.expand(&loader.source_order().unwrap().0, &[]),
             Err(DesignSystemLoadError::InvalidGraph)
         ));
     }

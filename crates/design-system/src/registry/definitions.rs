@@ -133,13 +133,11 @@ impl StillwindDefinitions {
     ///
     /// The utility and variant registries hold the definitions of the `default`
     /// registry context, after its undefinitions apply. Statements that only other
-    /// contexts read are not part of them, and a malformed `@stillwind-registry` block
-    /// leaves out every `@stillwind-utility` and `@stillwind-variant` definition.
+    /// contexts read are not part of them.
     pub fn from_css(css: &str) -> Self {
         let masked = mask_registry_blocks(css);
-        let definitions = RegistryStatements::parse(css, |_| false)
-            .map(|statements| statements.definitions(RegistryContext::Default))
-            .unwrap_or_default();
+        let definitions = RegistryStatements::parse(css, |_| false, &mut Vec::new())
+            .definitions(RegistryContext::Default);
         Self::from_parts(
             css,
             masked.as_deref().unwrap_or(css),

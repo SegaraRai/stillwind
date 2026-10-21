@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 66);
+        assert_eq!(names.len(), 68);
         for name in [
             "custom",
             "",
@@ -109,6 +109,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)] // The expected defaults list every rule once.
     fn defaults_and_overrides_preserve_reporting_and_detection_policy() {
         let mut settings = LintSettings::with_defaults();
         assert_eq!(
@@ -160,6 +161,8 @@ mod tests {
                 "unsatisfiable-variants": "warn",
                 "clamped-value": "warn",
                 "invalid-theme-reference": "deny",
+                "invalid-css-import": "deny",
+                "invalid-css-directive": "deny",
                 "duplicate-definition": "warn",
                 "bypassed-undefinition": "warn",
                 "invalid-theme-value": "deny",

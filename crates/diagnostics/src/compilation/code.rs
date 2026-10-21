@@ -122,17 +122,7 @@ define_compile_codes! {
         UnterminatedCssBlock { .. } => "SW13002",
         InvalidCssBlock { .. } => "SW13003",
         CssNestingTooDeep { .. } => "SW13004",
-        InvalidCssImportSpecifier { .. } => "SW13005",
-        InvalidCssImportModifiers { .. } => "SW13006",
-        InvalidCssImportModifierBlock { .. } => "SW13007",
-        InvalidCssImportModifierOrder { .. } => "SW13009",
-        CssImportCycle { .. } => "SW13010",
-        ConditionalDefinition { .. } => "SW13011",
         // 14: Stillwind CSS directives and output slots
-        InvalidDirectiveForm { .. } => "SW14001",
-        UnsupportedOutputSlot { .. } => "SW14002",
-        InvalidOutputSlotContext { .. } => "SW14003",
-        InvalidSlotStyleRule { .. } => "SW14004",
         MissingUtilitiesSlot => "SW14005",
         MissingSupportSlot { .. } => "SW14006",
         MalformedPropertyRequirement { .. } => "SW14007",
@@ -141,11 +131,6 @@ define_compile_codes! {
         PropertyUsageParse { .. } => "SW14010",
         InvalidThemeReference { .. } => "SW14012",
         InvalidRuntimeConditional { .. } => "SW14013",
-        InvalidCssTemplate { .. } => "SW14014",
-        DefinitionInCssTemplate { .. } => "SW14015",
-        CssTemplateWithoutUtilities { .. } => "SW14016",
-        UnknownRegistryContext { .. } => "SW14017",
-        InvalidRegistryStatement { .. } => "SW14018",
     }
     Host {
         // 30: TypeScript checker facts
@@ -173,6 +158,7 @@ define_compile_codes! {
         CssLoadAlreadyComplete => "SW32005",
         CssRequestIdExhausted => "SW32006",
         CssSourceIdExhausted => "SW32007",
+        UnresolvedCssRoot => "SW32008",
         // 33: source coordinates, size limits, and host-supplied edit inputs
         SourceInternalMap { .. } => "SW33001",
         SourceTooLarge { .. } => "SW33002",

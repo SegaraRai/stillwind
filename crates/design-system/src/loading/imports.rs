@@ -11,7 +11,9 @@
 //! order. Tailwind's modifiers that change how the imported file is interpreted
 //! (`theme`, `prefix`, `source`, `reference`, `important`) and its top-level `@config`
 //! statement are skipped and recorded as [`IgnoredTailwindFeature`]s, which stylesheet
-//! lint reports.
+//! lint reports. An `@import` or `@plugin` statement with an invalid specifier,
+//! options, or modifiers is removed from the expansion and recorded as a skipped
+//! statement.
 
 use std::ops::Range;
 
@@ -20,6 +22,9 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ParsedDeclaration, parse_declaration_list};
 use stillwind_diagnostics::CompileDiagnostic;
+
+use crate::SkipReason;
+use crate::skipped::SkippedRange;
 
 /// One authored import: its byte range in the buffer, its decoded specifier, and the
 /// wrappers derived from its modifiers.
@@ -80,17 +85,24 @@ pub(super) struct Scan {
     pub(super) imports: Vec<Import>,
     /// Ignored features in source order.
     pub(super) ignored: Vec<IgnoredTailwindFeature>,
+    /// Invalid `@import` and `@plugin` statements in source order, each with its whole
+    /// statement range.
+    pub(super) skipped: Vec<SkippedRange>,
 }
 
 impl Scan {
-    /// Returns the byte ranges of the `@config` statements, which expansion removes, in
-    /// source order.
+    /// Returns the byte ranges that expansion removes, in source order: the `@config`
+    /// statements and the skipped import statements.
     pub(super) fn removed(&self) -> Vec<Range<usize>> {
-        self.ignored
+        let mut removed = self
+            .ignored
             .iter()
             .filter(|feature| feature.kind == IgnoredTailwindFeatureKind::Config)
             .map(|feature| feature.range.clone())
-            .collect()
+            .chain(self.skipped.iter().map(|(range, _)| range.clone()))
+            .collect::<Vec<_>>();
+        removed.sort_by_key(|range| range.start);
+        removed
     }
 }
 
@@ -143,65 +155,91 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
             continue;
         }
         if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin")) {
-            scan.imports.push(plugin(&mut parser, start)?);
+            match plugin(&mut parser, start)? {
+                Ok(import) => scan.imports.push(import),
+                Err(reason) => scan
+                    .skipped
+                    .push((start..parser.position().byte_index(), reason)),
+            }
             continue;
         }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
             continue;
         }
+        // A failed parse is rewound, so a misplaced `;` still ends this statement.
         let specifier = parser
-            .expect_url_or_string()
-            .map_err(|error| CompileDiagnostic::InvalidCssImportSpecifier {
-                offset: start,
+            .try_parse(|parser| {
+                parser
+                    .expect_url_or_string()
+                    .map(|specifier| specifier.to_lean_string())
+            })
+            .map_err(|error| SkipReason::ImportSpecifier {
                 detail: error.kind.to_lean_str(),
-            })?
-            .to_lean_string();
+            });
         let tail_start = parser.position();
-        loop {
-            match parser.next_including_whitespace_and_comments() {
-                Ok(Token::Semicolon) => {
-                    break;
-                }
-                Ok(_) => (),
-                Err(_) => break,
-            }
-        }
+        skip_statement(&mut parser);
         let tail = parser.slice(tail_start..parser.position());
-        let wrappers = import_wrappers(
-            tail.strip_suffix(';').unwrap_or(tail),
-            tail_start.byte_index(),
-            &mut scan.ignored,
-        )?;
-        scan.imports.push(Import {
-            start,
-            end: parser.position().byte_index(),
-            specifier: (specifier).into(),
-            wrappers,
-            plugin: None,
+        let end = parser.position().byte_index();
+        let import = specifier.and_then(|specifier| {
+            Ok(Import {
+                start,
+                end,
+                specifier: specifier.into(),
+                wrappers: import_wrappers(
+                    tail.strip_suffix(';').unwrap_or(tail),
+                    tail_start.byte_index(),
+                    &mut scan.ignored,
+                )?,
+                plugin: None,
+            })
         });
+        match import {
+            Ok(import) => scan.imports.push(import),
+            Err(reason) => scan.skipped.push((start..end, reason)),
+        }
     }
     Ok(scan)
+}
+
+/// Consumes tokens through the next top-level semicolon or the end of input. A block
+/// is consumed as one token.
+fn skip_statement(parser: &mut Parser<'_>) {
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+        if matches!(token, Token::Semicolon) {
+            break;
+        }
+    }
 }
 
 /// Reads the rest of a `@plugin "specifier";` statement or a
 /// `@plugin "specifier" { options }` rule after its keyword. An absent block gives
 /// empty options.
 ///
+/// The inner error explains an invalid statement: a missing string specifier, other
+/// tokens before the semicolon or block, or an options block with a statement that is
+/// not a `name: value` declaration. The parser is then past the whole statement, so the
+/// caller can skip it.
+///
 /// # Errors
 ///
-/// Returns [`CompileDiagnostic::InvalidCssImportSpecifier`] for a missing string
-/// specifier, for other tokens before the semicolon or block, and for an options block
-/// with a statement that is not a `name: value` declaration. Returns
-/// [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
-fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagnostic> {
-    let invalid = |detail: &str| CompileDiagnostic::InvalidCssImportSpecifier {
-        offset: start,
+/// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
+fn plugin(
+    parser: &mut Parser<'_>,
+    start: usize,
+) -> Result<Result<Import, SkipReason>, CompileDiagnostic> {
+    let invalid = |detail: &str| SkipReason::ImportSpecifier {
         detail: detail.into(),
     };
-    let specifier = parser
-        .expect_string()
-        .map_err(|error| invalid(&error.kind.to_lean_str()))?
-        .to_lean_string();
+    // A failed parse is rewound, so a misplaced `;` still ends this statement.
+    let specifier =
+        match parser.try_parse(|parser| parser.expect_string().map(ToLeanString::to_lean_string)) {
+            Ok(specifier) => specifier,
+            Err(error) => {
+                let reason = invalid(&error.kind.to_lean_str());
+                skip_plugin_statement(parser, start)?;
+                return Ok(Err(reason));
+            }
+        };
     let options = match parser.next() {
         Ok(Token::Semicolon) | Err(_) => Vec::new(),
         Ok(Token::CurlyBracketBlock) => {
@@ -212,20 +250,51 @@ fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagno
                     Ok::<_, ParseError<()>>(nested.slice_from(block_start))
                 })
                 .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
-            parse_declaration_list(block)
+            match parse_declaration_list(block)
                 .into_iter()
                 .collect::<Result<Vec<_>, _>>()
-                .map_err(|error| invalid(&error.to_lean_str()))?
+            {
+                Ok(options) => options,
+                Err(error) => return Ok(Err(invalid(&error.to_lean_str()))),
+            }
         }
-        Ok(_) => return Err(invalid("expected `;` or an options block after the plugin")),
+        Ok(_) => {
+            skip_plugin_statement(parser, start)?;
+            return Ok(Err(invalid(
+                "expected `;` or an options block after the plugin",
+            )));
+        }
     };
-    Ok(Import {
+    Ok(Ok(Import {
         start,
         end: parser.position().byte_index(),
         specifier: specifier.into(),
         wrappers: Vec::new(),
         plugin: Some(options),
-    })
+    }))
+}
+
+/// Consumes the rest of an invalid `@plugin` statement through its semicolon or its
+/// options block.
+///
+/// # Errors
+///
+/// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
+fn skip_plugin_statement(parser: &mut Parser<'_>, start: usize) -> Result<(), CompileDiagnostic> {
+    loop {
+        match parser.next_including_whitespace_and_comments() {
+            Ok(Token::Semicolon) | Err(_) => return Ok(()),
+            Ok(Token::CurlyBracketBlock) => {
+                return parser
+                    .parse_nested_block(|nested| {
+                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, ParseError<()>>(())
+                    })
+                    .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start });
+            }
+            Ok(_) => {}
+        }
+    }
 }
 
 /// Turns the text after a specifier into the wrapper preludes expansion emits: at most
@@ -235,20 +304,17 @@ fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagno
 /// `prefix`, `reference`, `source`, and `theme` modifiers add no wrapper, and each is
 /// appended to `ignored`.
 ///
-/// `base_offset` locates `tail` in the buffer, so error and `ignored` offsets are
-/// absolute.
+/// `base_offset` locates `tail` in the buffer, so `ignored` offsets are absolute.
 ///
 /// # Errors
 ///
-/// Returns [`CompileDiagnostic::InvalidCssImportModifierOrder`] for a misplaced or repeated
-/// modifier, and [`CompileDiagnostic::InvalidCssImportModifiers`] or
-/// [`CompileDiagnostic::InvalidCssImportModifierBlock`] when a modifier cannot be tokenized
-/// or its block is malformed.
+/// Returns [`SkipReason::ImportModifiers`] for a misplaced or repeated modifier, a
+/// modifier that cannot be tokenized, or a modifier with a malformed block.
 fn import_wrappers(
     tail: &str,
     base_offset: usize,
     ignored: &mut Vec<IgnoredTailwindFeature>,
-) -> Result<Vec<LeanStr>, CompileDiagnostic> {
+) -> Result<Vec<LeanStr>, SkipReason> {
     let mut parser = Parser::new(tail);
     let mut wrappers: Vec<LeanStr> = Vec::new();
     let mut supports_seen = false;
@@ -257,16 +323,16 @@ fn import_wrappers(
         let state = parser.state();
         let token = parser
             .next()
-            .map_err(|error| CompileDiagnostic::InvalidCssImportModifiers {
-                offset: base_offset + state.position().byte_index(),
+            .map_err(|error| SkipReason::ImportModifiers {
                 detail: error.kind.to_lean_str(),
             })?
             .clone();
         match &token {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
                 if !wrappers.is_empty() {
-                    return Err(CompileDiagnostic::InvalidCssImportModifierOrder {
-                        offset: base_offset + state.position().byte_index(),
+                    return Err(SkipReason::ImportModifiers {
+                        detail: "modifiers must be in the order `layer`, `supports`, media query"
+                            .into(),
                     });
                 }
                 wrappers.push("@layer".into());
@@ -276,8 +342,9 @@ fn import_wrappers(
             {
                 let layer = name.eq_ignore_ascii_case("layer");
                 if (layer && !wrappers.is_empty()) || (!layer && supports_seen) {
-                    return Err(CompileDiagnostic::InvalidCssImportModifierOrder {
-                        offset: base_offset + state.position().byte_index(),
+                    return Err(SkipReason::ImportModifiers {
+                        detail: "modifiers must be in the order `layer`, `supports`, media query"
+                            .into(),
                     });
                 }
                 supports_seen |= !layer;
@@ -296,8 +363,7 @@ fn import_wrappers(
                         }
                         Ok::<_, ParseError<()>>(nested.slice_from(start).trim().to_lean_string())
                     })
-                    .map_err(|error| CompileDiagnostic::InvalidCssImportModifierBlock {
-                        offset: base_offset + state.position().byte_index(),
+                    .map_err(|error| SkipReason::ImportModifiers {
                         detail: format_args!("{:?}", error.kind).to_lean_str(),
                     })?;
                 wrappers.push(if layer {
@@ -352,33 +418,54 @@ fn import_wrappers(
 mod tests {
     use super::*;
 
-    fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
-        scan(css).map(|scan| scan.imports)
+    fn imports(css: &str) -> Vec<Import> {
+        scan(css).unwrap().imports
     }
 
-    fn wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, CompileDiagnostic> {
+    fn skipped(css: &str) -> Vec<SkippedRange> {
+        scan(css).unwrap().skipped
+    }
+
+    fn wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, SkipReason> {
         import_wrappers(tail, base_offset, &mut Vec::new())
     }
 
     #[test]
     fn imports_ignore_comments_strings_and_nested_rules_but_resolve_all_packages() {
         let css = "/* @import 'no'; */ .x{content:\"@import 'no';\";} @import 'stillwind'; @import 'a.css'; @import url(\"b.css\");";
-        let found = imports(css).unwrap();
+        let found = imports(css);
         assert_eq!(found.len(), 3);
         assert_eq!(found[0].specifier, "stillwind");
         assert_eq!(found[1].specifier, "a.css");
         assert_eq!(found[2].specifier, "b.css");
         assert_eq!(&css[found[1].start..found[1].end], "@import 'a.css';");
-        assert!(matches!(
-            imports("@import 42;"),
-            Err(CompileDiagnostic::InvalidCssImportSpecifier { .. })
-        ));
+    }
+
+    #[test]
+    fn invalid_imports_are_skipped_and_removed_from_the_expansion() {
+        for css in [
+            "@import 42; .a{}",
+            "@import; .a{}",
+            "@import 'a.css' layer(x) layer(y); .a{}",
+            "@import 'a.css' supports(); .a{}",
+        ] {
+            let scan = scan(css).unwrap();
+            assert!(scan.imports.is_empty(), "{css}");
+            let [(range, reason)] = scan.skipped.as_slice() else {
+                panic!("{css}: {:?}", scan.skipped);
+            };
+            assert!(reason.is_import(), "{css}");
+            assert!(css[range.clone()].starts_with("@import"), "{css}");
+            assert_eq!(scan.removed(), std::slice::from_ref(range), "{css}");
+        }
+        // A misplaced `;` ends the invalid statement, so the next import still counts.
+        assert_eq!(imports("@import; @import 'b.css';").len(), 1);
     }
 
     #[test]
     fn plugins_are_dependencies_with_their_options() {
         let css = ".a{} @plugin \"@stillwind/plugin-iconify\"; @plugin 'local' { prefix: i; scale: 1.2; } .b{}";
-        let found = imports(css).unwrap();
+        let found = imports(css);
         assert_eq!(found.len(), 2);
         assert_eq!(found[0].specifier, "@stillwind/plugin-iconify");
         assert_eq!(found[0].plugin.as_deref(), Some(&[][..]));
@@ -391,15 +478,22 @@ mod tests {
             Some(&[option("prefix", "i"), option("scale", "1.2")][..])
         );
         assert!(css[found[1].start..found[1].end].ends_with("scale: 1.2; }"));
-        assert!(imports("@plugin;").is_err());
-        assert!(imports("@plugin 'a' b;").is_err());
+        for css in ["@plugin;", "@plugin 'a' b;"] {
+            assert!(imports(css).is_empty(), "{css}");
+            assert!(
+                matches!(skipped(css).as_slice(), [(range, SkipReason::ImportSpecifier { .. })] if *range == (0..css.len())),
+                "{css}"
+            );
+        }
     }
 
     #[test]
     fn plugin_options_reject_statements_that_are_not_declarations() {
+        let css = "@plugin 'p' { prefix: i; .a { color: red; } } .b{}";
+        assert!(imports(css).is_empty());
         assert!(matches!(
-            imports("@plugin 'p' { prefix: i; .a { color: red; } }"),
-            Err(CompileDiagnostic::InvalidCssImportSpecifier { offset: 0, .. })
+            skipped(css).as_slice(),
+            [(range, SkipReason::ImportSpecifier { .. })] if css[range.clone()].ends_with('}') && range.start == 0
         ));
     }
 
@@ -417,9 +511,7 @@ mod tests {
             vec!["@layer foo", "@supports (display:grid)", "@media screen"]
         );
         assert_eq!(
-            imports("@import 'tailwindcss'; @import 'tailwindcss-custom.css';")
-                .unwrap()
-                .len(),
+            imports("@import 'tailwindcss'; @import 'tailwindcss-custom.css';").len(),
             2
         );
     }
@@ -457,7 +549,7 @@ mod tests {
         ] {
             assert!(wrappers(invalid, 0).is_err(), "{invalid}");
         }
-        let framework = imports("@import 'stillwind' supports(display:grid);").unwrap();
+        let framework = imports("@import 'stillwind' supports(display:grid);");
         assert_eq!(framework[0].specifier, "stillwind");
         assert_eq!(framework[0].wrappers, vec!["@supports (display:grid)"]);
     }
@@ -491,9 +583,13 @@ mod tests {
             wrappers("prefix(tw) reference source(none) print", 0).unwrap(),
             vec!["@media print"]
         );
+        // A skipped import does not hide the features after it.
         assert_eq!(
             ignored_tailwind_features("@import 42; @config 'x';"),
-            [] as [IgnoredTailwindFeature; 0]
+            [IgnoredTailwindFeature {
+                range: 12..24,
+                kind: IgnoredTailwindFeatureKind::Config,
+            }]
         );
     }
 }

@@ -19,23 +19,27 @@ fn tailwind_import_is_a_host_request_not_a_stillwind_alias() {
     assert_eq!(requests[0].specifier, "tailwindcss");
 }
 
-/// Cycles, repeated names with different content, and invalid CSS are distinct
-/// protocol errors rather than one generic failure.
+/// An import that closes a cycle is skipped, while repeated names with different
+/// content and invalid CSS are distinct protocol errors.
 #[test]
-fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
+fn loader_skips_cycles_and_distinguishes_conflicting_identity_and_invalid_css() {
     let mut cycle =
         DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
-    let css = "@import 'self';";
+    let css = "@import 'self'; .a{}";
     assert!(matches!(
         cycle.provide(0, CssSourceName::from("root"), None, None, css.into()),
         DesignSystemLoadStep::NeedFile(_)
     ));
-    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Cycle { chain })) =
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) =
         cycle.provide(1, CssSourceName::from("root"), None, None, css.into())
     else {
-        panic!("expected cycle")
+        panic!("expected a snapshot")
     };
-    assert_eq!(chain[0].specifier, "self");
+    assert!(matches!(
+        snapshot.sources().skipped.as_slice(),
+        [SkippedCss { reason: SkipReason::ImportCycle { specifier }, .. }] if specifier == "self"
+    ));
+    assert_eq!(snapshot.theme().custom_css(), " .a{}");
     let mut conflict =
         DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     conflict.provide(0, CssSourceName::from("root"), None, None, css.into());
@@ -96,10 +100,10 @@ fn loader_distinguishes_cycles_conflicting_identity_and_invalid_css() {
     ));
 }
 
-/// A cycle is reported as soon as the offending file arrives, even while other files
-/// are still outstanding.
+/// The import that closes a cycle is skipped where the traversal from the root first
+/// returns to a source on its path, and the load waits for unrelated reads.
 #[test]
-fn cycles_are_reported_while_other_files_are_outstanding() {
+fn cycles_are_skipped_after_every_file_arrives() {
     let mut loader =
         DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     loader.provide(
@@ -130,13 +134,22 @@ fn cycles_are_reported_while_other_files_are_outstanding() {
         None,
         "@import 'b';".into(),
     );
-    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Cycle { chain })) = step else {
-        panic!("expected cycle");
+    assert!(matches!(step, DesignSystemLoadStep::NeedFile(_)));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) =
+        loader.provide(2, CssSourceName::from("slow"), None, None, "".into())
+    else {
+        panic!("expected a snapshot");
     };
-    assert_eq!(
-        chain.iter().map(|request| request.id).collect::<Vec<_>>(),
-        [1, 3, 4]
-    );
+    let sources = &snapshot.sources().sources;
+    let [skipped] = snapshot.sources().skipped.as_slice() else {
+        panic!("{:?}", snapshot.sources().skipped);
+    };
+    let b = sources
+        .iter()
+        .find(|source| source.name == CssSourceName::from("b"))
+        .unwrap();
+    assert_eq!(skipped.span.file, b.source.id());
+    assert_eq!(b.source.slice(skipped.span).unwrap(), "@import 'a';");
 }
 
 /// Only the IDs the loader issued are accepted, and only once each.

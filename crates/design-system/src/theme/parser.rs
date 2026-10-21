@@ -33,7 +33,8 @@ use crate::registry::{
     RegistryContext, RegistryStatements, mask_registry_blocks, parse_declaration_formats,
     parse_relationship_patterns, parse_utility_definitions, registration_positions,
 };
-use crate::{BrowserTargets, MarkerClasses, StillwindDefinitions, UtilityOrderMode};
+use crate::skipped::SkippedRange;
+use crate::{BrowserTargets, MarkerClasses, SkipReason, StillwindDefinitions, UtilityOrderMode};
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
@@ -96,7 +97,8 @@ fn parse_theme_contents(
         });
     }
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
-    let mut template = parse_output_template(source.text(), &theme.tokens)?;
+    let mut skipped = Vec::new();
+    let mut template = parse_output_template(source.text(), &theme.tokens, &mut skipped)?;
     template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
     template.source_identity = source_identity.clone();
     theme.custom_css = (template.authored_css()).into();
@@ -106,8 +108,8 @@ fn parse_theme_contents(
         }
     })?;
     theme.output_template = template;
-    theme.css_templates = parse_css_templates(source.text())?;
-    theme.dynamic_utilities = extract_dynamic_utilities(source.text())?;
+    theme.css_templates = parse_css_templates(source.text(), &mut skipped)?;
+    theme.dynamic_utilities = extract_dynamic_utilities(source.text(), &mut skipped);
     theme.important = extract_important(source.text());
     for template in theme.css_templates.values_mut() {
         template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
@@ -118,7 +120,7 @@ fn parse_theme_contents(
     // blocks, so its parsers read a copy in which the blocks are blank.
     let masked = mask_registry_blocks(source.text());
     let definitions = masked.as_deref().unwrap_or(source.text());
-    let statements = RegistryStatements::parse(source.text(), in_plugin)?;
+    let statements = RegistryStatements::parse(source.text(), in_plugin, &mut skipped);
     let defaults = statements.definitions(RegistryContext::Default);
     theme.registry = Arc::new(StillwindDefinitions::from_parts(
         source.text(),
@@ -127,6 +129,11 @@ fn parse_theme_contents(
         defaults.stillwind_variants,
     ));
     theme.registry_statements = statements;
+    // The output template and the theme blocks read the same text, so a statement can
+    // be recorded twice.
+    skipped.sort_by_key(|(range, _)| (range.start, range.end));
+    skipped.dedup();
+    theme.skipped = skipped;
     let mut plugin_positions = BTreeMap::<LeanStr, usize>::new();
     for (offset, utility) in parse_utility_definitions(source.text()) {
         if in_plugin(offset) {
@@ -250,16 +257,21 @@ pub enum DynamicFamilyKind {
 /// block, for a `@stillwind-dynamic` header that is not one name ending in `*` or `[*]`
 /// after a nonempty prefix, and for a `@stillwind-plugin-family` header that is not
 /// `utility` or `variant` followed by one root.
-fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDiagnostic> {
-    if let Some((offset, _, _)) = extract_named_blocks(css, DYNAMIC).first() {
-        return Err(CompileDiagnostic::InvalidDirectiveForm {
-            offset: *offset,
-            directive: "stillwind-dynamic".into(),
-        });
+fn extract_dynamic_utilities(css: &str, skipped: &mut Vec<SkippedRange>) -> Vec<DynamicFamily> {
+    let invalid = |offset: usize, directive: &str| {
+        (
+            offset..offset + 1 + directive.len(),
+            SkipReason::DirectiveForm {
+                directive: directive.into(),
+            },
+        )
+    };
+    for (offset, _, _) in extract_named_blocks(css, DYNAMIC) {
+        skipped.push(invalid(offset, "stillwind-dynamic"));
     }
     let mut families: Vec<DynamicFamily> = Vec::new();
     for (offset, header) in extract_named_statements(css, DYNAMIC) {
-        let (prefix, bracket) = header
+        let Some((prefix, bracket)) = header
             .strip_suffix("[*]")
             .map(|prefix| (prefix, true))
             .or_else(|| header.strip_suffix('*').map(|prefix| (prefix, false)))
@@ -269,10 +281,10 @@ fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDia
                         character.is_whitespace() || matches!(character, '*' | '[' | ']')
                     })
             })
-            .ok_or(CompileDiagnostic::InvalidDirectiveForm {
-                offset,
-                directive: "stillwind-dynamic".into(),
-            })?;
+        else {
+            skipped.push(invalid(offset, "stillwind-dynamic"));
+            continue;
+        };
         let index = families
             .iter()
             .position(|family| family.prefix == prefix)
@@ -297,18 +309,14 @@ fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDia
             Some("utility") => DynamicFamilyKind::Utility,
             Some("variant") => DynamicFamilyKind::Variant,
             _ => {
-                return Err(CompileDiagnostic::InvalidDirectiveForm {
-                    offset,
-                    directive: "stillwind-plugin-family".into(),
-                });
+                skipped.push(invalid(offset, "stillwind-plugin-family"));
+                continue;
             }
         };
-        let prefix = words.get(1).filter(|_| words.len() == 2).ok_or(
-            CompileDiagnostic::InvalidDirectiveForm {
-                offset,
-                directive: "stillwind-plugin-family".into(),
-            },
-        )?;
+        let Some(prefix) = words.get(1).filter(|_| words.len() == 2) else {
+            skipped.push(invalid(offset, "stillwind-plugin-family"));
+            continue;
+        };
         families.push(DynamicFamily {
             kind,
             prefix: (*prefix).into(),
@@ -316,7 +324,7 @@ fn extract_dynamic_utilities(css: &str) -> Result<Vec<DynamicFamily>, CompileDia
             bracket: true,
         });
     }
-    Ok(families)
+    families
 }
 
 /// At-rule that declares a utility family defined on demand by a host plugin.
@@ -401,6 +409,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         custom_css: (LeanString::new()).into(),
         utilities: Vec::new(),
         registry_statements: RegistryStatements::default(),
+        skipped: Vec::new(),
         arbitrary_property_rules: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
@@ -545,13 +554,16 @@ mod tests {
             "@stillwind-dynamic icon-* { }",
         ] {
             let source = SourceFile::new(FileId(1), None, None, css).unwrap();
-            let error = parse_theme(&source, &CssSourceName::from("test.css")).unwrap_err();
+            let builder =
+                parse_theme_builder(&source, &CssSourceName::from("test.css"), &[]).unwrap();
+            assert!(builder.dynamic_utilities.is_empty(), "{css}");
             assert!(
                 matches!(
-                    error.diagnostic,
-                    CompileDiagnostic::InvalidDirectiveForm { .. }
+                    builder.skipped.as_slice(),
+                    [(_, SkipReason::DirectiveForm { .. })]
                 ),
-                "{css}"
+                "{css}: {:?}",
+                builder.skipped
             );
         }
     }

@@ -29,14 +29,14 @@ use lean_string::{LeanStr, ToLeanStr};
 use stillwind_css::{
     CssNode, CssNodeKind, extract_directive_blocks, extract_order_statements, parse_structure,
 };
-use stillwind_diagnostics::CompileDiagnostic;
 
 use super::utilities::parse_utility_definitions;
 use super::{
     CustomUtility, CustomVariant, parse_stillwind_utility_definitions,
     parse_stillwind_variant_definitions,
 };
-use crate::parse_variant_definitions;
+use crate::skipped::SkippedRange;
+use crate::{SkipReason, parse_variant_definitions};
 
 const REGISTRY: &str = "@stillwind-registry";
 
@@ -275,24 +275,24 @@ impl RegistryStatements {
     ///
     /// The plugin flag of a `@utility` definition records `in_plugin` for its offset.
     ///
-    /// # Errors
-    ///
-    /// Returns [`CompileDiagnostic::UnknownRegistryContext`] for a block header that
-    /// names no context or an unknown context, and
-    /// [`CompileDiagnostic::InvalidRegistryStatement`] for a block that contains
-    /// anything other than definitions, undefinitions, arbitrary-property statements,
-    /// and nested blocks.
+    /// A block header that names no context or an unknown context is appended to
+    /// `skipped`, and the statements of its body apply nowhere. A statement in a block
+    /// that is not a definition, an undefinition, an arbitrary-property statement, or a
+    /// nested block is appended to `skipped` and ignored.
     pub(crate) fn parse(
         css: &str,
         in_plugin: impl Fn(usize) -> bool,
-    ) -> Result<Self, CompileDiagnostic> {
-        let scopes = registry_scopes(css)?;
+        skipped: &mut Vec<SkippedRange>,
+    ) -> Self {
+        let scopes = registry_scopes(css, skipped);
         let contexts_at = |offset: usize| {
             scopes
                 .iter()
                 .filter(|scope| scope.body.contains(&offset))
                 .min_by_key(|scope| scope.body.len())
-                .map_or(Contexts::of(RegistryContext::ROOT), |scope| scope.contexts)
+                .map_or(Some(Contexts::of(RegistryContext::ROOT)), |scope| {
+                    scope.contexts
+                })
         };
         let mut positioned: Vec<(usize, RegistryOperation)> = Vec::new();
         for (directive, operation) in [
@@ -350,17 +350,19 @@ impl RegistryStatements {
                 .map(|(offset, variant)| (offset, RegistryOperation::Variant(Arc::new(variant)))),
         );
         positioned.sort_by_key(|(offset, _)| (!in_plugin(*offset), *offset));
-        Ok(Self {
+        Self {
             statements: positioned
                 .into_iter()
-                .map(|(offset, operation)| Statement {
-                    contexts: contexts_at(offset),
-                    operation,
-                    offset,
-                    plugin: in_plugin(offset),
+                .filter_map(|(offset, operation)| {
+                    Some(Statement {
+                        contexts: contexts_at(offset)?,
+                        operation,
+                        offset,
+                        plugin: in_plugin(offset),
+                    })
                 })
                 .collect(),
-        })
+        }
     }
 
     /// Applies the statements that change `context`, in registration order, to the
@@ -444,24 +446,30 @@ impl RegistryStatements {
 struct Scope {
     /// Byte range inside the braces.
     body: Range<usize>,
-    contexts: Contexts,
+    /// Contexts of the header, or `None` when the header names an unknown context, so
+    /// the statements of the body apply nowhere.
+    contexts: Option<Contexts>,
 }
 
 /// Returns the bodies of every `@stillwind-registry` block of `css`, including nested
 /// blocks, and checks their headers and statements.
-fn registry_scopes(css: &str) -> Result<Vec<Scope>, CompileDiagnostic> {
+///
+/// A header that names no context or an unknown context is appended to `skipped`, and
+/// its body, including nested blocks, applies nowhere. A statement that no registry
+/// holds, such as `@theme` or a style rule, is appended to `skipped` and ignored.
+fn registry_scopes(css: &str, skipped: &mut Vec<SkippedRange>) -> Vec<Scope> {
     let mut scopes = Vec::new();
     if !css.contains(REGISTRY) {
-        return Ok(scopes);
+        return scopes;
     }
     for block in extract_directive_blocks(css, REGISTRY) {
         let start = block.range.start;
         let nodes = parse_structure(&css[block.range.clone()]);
         for node in &nodes {
-            collect_scope(css, start, node, &mut scopes)?;
+            collect_scope(css, start, node, &mut scopes, skipped);
         }
     }
-    Ok(scopes)
+    scopes
 }
 
 /// Records the scope of the `@stillwind-registry` node `node`, whose ranges are
@@ -471,56 +479,66 @@ fn collect_scope(
     base: usize,
     node: &CssNode,
     scopes: &mut Vec<Scope>,
-) -> Result<(), CompileDiagnostic> {
+    skipped: &mut Vec<SkippedRange>,
+) {
     let CssNodeKind::AtRule {
         prelude,
         block: Some(block),
         ..
     } = &node.kind
     else {
-        return Ok(());
+        return;
     };
-    let offset = base + node.range.start;
+    let body = base + block.contents.start..base + block.contents.end;
     let mut contexts = Vec::new();
     for name in css[base + prelude.start..base + prelude.end]
         .split(',')
         .map(str::trim)
     {
         let Some(context) = RegistryContext::from_name(name) else {
-            return Err(CompileDiagnostic::UnknownRegistryContext {
-                offset,
-                context: name.into(),
+            skipped.push((
+                base + node.range.start..base + prelude.end,
+                SkipReason::UnknownRegistryContext {
+                    context: name.into(),
+                },
+            ));
+            scopes.push(Scope {
+                body,
+                contexts: None,
             });
+            return;
         };
         contexts.push(context);
     }
     scopes.push(Scope {
-        body: base + block.contents.start..base + block.contents.end,
-        contexts: Contexts::of(contexts),
+        body,
+        contexts: Some(Contexts::of(contexts)),
     });
     for child in &block.children {
-        let name = match &child.kind {
-            CssNodeKind::AtRule { name, .. } if BLOCK_STATEMENTS.contains(&name.as_str()) => name,
+        let range = base + child.range.start..base + child.range.end;
+        match &child.kind {
+            CssNodeKind::AtRule { name, .. } if name == "stillwind-registry" => {
+                collect_scope(css, base, child, scopes, skipped);
+            }
+            CssNodeKind::AtRule { name, .. } if BLOCK_STATEMENTS.contains(&name.as_str()) => {}
             CssNodeKind::AtRule { name, .. } => {
-                return Err(CompileDiagnostic::InvalidRegistryStatement {
-                    offset: base + child.range.start,
-                    statement: format_args!("@{name}").to_lean_str(),
-                });
+                skipped.push((
+                    range,
+                    SkipReason::RegistryStatement {
+                        statement: format_args!("@{name}").to_lean_str(),
+                    },
+                ));
             }
             _ => {
-                return Err(CompileDiagnostic::InvalidRegistryStatement {
-                    offset: base + child.range.start,
-                    statement: css[base + child.range.start..base + child.range.end]
-                        .trim()
-                        .into(),
-                });
+                skipped.push((
+                    range.clone(),
+                    SkipReason::RegistryStatement {
+                        statement: css[range].trim().into(),
+                    },
+                ));
             }
-        };
-        if name == "stillwind-registry" {
-            collect_scope(css, base, child, scopes)?;
         }
     }
-    Ok(())
 }
 
 /// Returns `css` with every top-level `@stillwind-registry` block replaced by spaces,
@@ -550,7 +568,7 @@ mod tests {
     use super::*;
 
     fn statements(css: &str) -> RegistryStatements {
-        RegistryStatements::parse(css, |_| false).unwrap()
+        RegistryStatements::parse(css, |_| false, &mut Vec::new())
     }
 
     fn utility_bodies(definitions: &ContextDefinitions) -> Vec<&str> {
@@ -617,7 +635,8 @@ mod tests {
     fn plugin_statements_register_before_the_others() {
         let css = "@stillwind-undef-utility p; @utility p { color: red; }";
         let plugin_start = css.find("@utility").unwrap();
-        let statements = RegistryStatements::parse(css, |offset| offset >= plugin_start).unwrap();
+        let statements =
+            RegistryStatements::parse(css, |offset| offset >= plugin_start, &mut Vec::new());
         assert_eq!(
             utility_bodies(&statements.definitions(RegistryContext::Default)),
             [] as [&str; 0]
@@ -625,26 +644,38 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_contexts_and_statements_that_registries_cannot_hold() {
+    fn skips_unknown_contexts_and_statements_that_registries_cannot_hold() {
         for (css, expected) in [
-            ("@stillwind-registry motion { }", "motion"),
-            ("@stillwind-registry { }", ""),
             (
-                "@stillwind-registry keyframe { @stillwind-registry other { } }",
+                "@stillwind-registry motion { @utility m { color: red; } }",
+                "motion",
+            ),
+            ("@stillwind-registry { @utility m { color: red; } }", ""),
+            (
+                "@stillwind-registry keyframe { @stillwind-registry other { @utility m { color: red; } } }",
                 "other",
             ),
         ] {
+            let mut skipped = Vec::new();
+            let statements = RegistryStatements::parse(css, |_| false, &mut skipped);
             assert!(
                 matches!(
-                    RegistryStatements::parse(css, |_| false),
-                    Err(CompileDiagnostic::UnknownRegistryContext { context, .. }) if context == expected
+                    skipped.as_slice(),
+                    [(_, SkipReason::UnknownRegistryContext { context })] if context == expected
                 ),
-                "{css}"
+                "{css}: {skipped:?}"
             );
+            for context in RegistryContext::ALL {
+                assert_eq!(
+                    utility_bodies(&statements.definitions(context)),
+                    [] as [&str; 0],
+                    "{css}"
+                );
+            }
         }
         for (css, expected) in [
             (
-                "@stillwind-registry keyframe { @theme { --x: 1; } }",
+                "@stillwind-registry keyframe { @theme { --x: 1; } @utility k { color: red; } }",
                 "@theme",
             ),
             (
@@ -652,14 +683,27 @@ mod tests {
                 ".a { color: red; }",
             ),
         ] {
+            let mut skipped = Vec::new();
+            RegistryStatements::parse(css, |_| false, &mut skipped);
             assert!(
                 matches!(
-                    RegistryStatements::parse(css, |_| false),
-                    Err(CompileDiagnostic::InvalidRegistryStatement { statement, .. }) if statement == expected
+                    skipped.as_slice(),
+                    [(range, SkipReason::RegistryStatement { statement })]
+                        if statement == expected && css[range.clone()].starts_with(expected)
                 ),
-                "{css}"
+                "{css}: {skipped:?}"
             );
         }
+        let mut skipped = Vec::new();
+        let statements = RegistryStatements::parse(
+            "@stillwind-registry keyframe { @theme { --x: 1; } @utility k { color: red; } }",
+            |_| false,
+            &mut skipped,
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Keyframe)),
+            ["color: red;"]
+        );
     }
 
     #[test]

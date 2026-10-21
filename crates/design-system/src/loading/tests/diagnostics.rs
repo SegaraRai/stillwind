@@ -1,35 +1,11 @@
 //! Checks source failures and authored resource provenance.
 
+use std::error::Error;
+
 use super::*;
 
 #[test]
 fn parse_failures_keep_source_span_and_typed_cause() {
-    use std::error::Error;
-    let mut loader =
-        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
-    let DesignSystemLoadStep::Complete(Err(error)) = loader.provide(
-        0,
-        CssSourceName::from("opaque"),
-        None,
-        None,
-        "@import 123;".into(),
-    ) else {
-        panic!("expected import error")
-    };
-    assert!(matches!(
-        &error,
-        DesignSystemLoadError::Compilation(CompileError {
-            diagnostic: CompileDiagnostic::InvalidCssImportSpecifier { offset: 0, .. },
-            ..
-        })
-    ));
-    assert!(
-        error
-            .source()
-            .unwrap()
-            .downcast_ref::<CompileDiagnostic>()
-            .is_some()
-    );
     let mut loader =
         DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     let DesignSystemLoadStep::Complete(Err(error)) = loader.provide(
@@ -68,36 +44,46 @@ fn parse_failures_keep_source_span_and_typed_cause() {
     ));
 }
 
-/// Errors raised while expanding imported CSS keep the importer's source identity and
-/// never expose the synthetic file IDs expansion uses internally.
+/// Skipped statements are recorded in their own sources, including statements that only
+/// the expansion reveals, and never expose the synthetic file IDs that expansion uses
+/// internally.
 #[test]
-fn expanded_css_errors_do_not_expose_synthetic_file_ids() {
-    let root = "@import 'child.css' screen;";
+fn skipped_statements_keep_their_authored_sources() {
+    let root = "@import 123; @import 'child.css' screen;";
+    let child = "@theme { --color-red: red; }";
     let mut loader =
         DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
     assert!(matches!(
         loader.provide(0, CssSourceName::from("root.css"), None, None, root.into()),
         DesignSystemLoadStep::NeedFile(_)
     ));
-    let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(error))) = loader
-        .provide(
-            1,
-            CssSourceName::from("child.css"),
-            None,
-            None,
-            "@theme { --color-red: red; }".into(),
-        )
-    else {
-        panic!("expected conditional definition failure")
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+        1,
+        CssSourceName::from("child.css"),
+        None,
+        None,
+        child.into(),
+    ) else {
+        panic!("expected a snapshot")
     };
-    assert!(matches!(
-        error.diagnostic,
-        CompileDiagnostic::ConditionalDefinition { .. }
-    ));
+    let sources = &snapshot.sources().sources;
+    let [import, condition] = snapshot.sources().skipped.as_slice() else {
+        panic!("{:?}", snapshot.sources().skipped);
+    };
+    assert_eq!(import.span.file, sources[0].source.id());
     assert_eq!(
-        error.labels[0].span,
-        loader.root_source().unwrap().full_span()
+        sources[0].source.slice(import.span).unwrap(),
+        "@import 123;"
     );
+    assert!(matches!(import.reason, SkipReason::ImportSpecifier { .. }));
+    assert_eq!(condition.span.file, sources[1].source.id());
+    assert_eq!(sources[1].source.slice(condition.span).unwrap(), "@theme");
+    assert!(matches!(
+        condition.reason,
+        SkipReason::ConditionalDefinition { .. }
+    ));
+    // The definition still applies, without the condition.
+    assert!(snapshot.theme().token("color", "red").is_some());
 }
 
 /// Repeated identical resource specifiers in one owner are one placeholder, so a host

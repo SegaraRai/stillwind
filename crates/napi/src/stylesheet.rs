@@ -65,7 +65,30 @@ pub enum NativeCssLoadStep {
         sources: Vec<String>,
         /// Names of the sources marked for stylesheet lint, in acceptance order.
         lint_sources: Vec<String>,
+        /// Statements that loading skipped, ordered by source and position. Hosts that
+        /// do not run stylesheet lint report them as warnings.
+        skipped: Vec<NativeSkippedCss>,
     },
+}
+
+/// One statement that loading skipped, located in its authored source.
+#[napi(object, object_from_js = false)]
+pub struct NativeSkippedCss {
+    /// Opaque name of the source that contains the statement.
+    pub source_name: String,
+    /// Byte start of the statement in that source.
+    pub start: u32,
+    /// Exclusive byte end of the statement in that source.
+    pub end: u32,
+    /// Zero-based line of `start`.
+    pub line: u32,
+    /// Zero-based UTF-16 column of `start` within its line.
+    pub column: u32,
+    /// Lint rule that reports the statement: `invalid-css-import` or
+    /// `invalid-css-directive`.
+    pub rule: String,
+    /// Why loading skipped the statement.
+    pub message: String,
 }
 
 /// One unresolved CSS import.

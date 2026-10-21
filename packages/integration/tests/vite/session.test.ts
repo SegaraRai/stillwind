@@ -296,7 +296,9 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
   const css = path.join(root, "root.css");
+  const broken = path.join(root, "broken.css");
   writeFileSync(css, "@import 'failed'; @import 'late';");
+  writeFileSync(broken, ".broken {");
   const plugins = stillwind({
     css,
   });
@@ -330,7 +332,9 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
             addWatchFile: () => {},
             async resolve(specifier: string) {
               if (specifier === "failed") {
-                throw new Error("first CSS resolution failed");
+                return {
+                  id: broken,
+                };
               }
               await late;
               lateFinished = true;
@@ -339,7 +343,7 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
           } as unknown as ThisParameterType<typeof buildStart>,
           {} as Parameters<typeof buildStart>[0],
         ))(),
-    ).rejects.toThrow(/first CSS resolution failed/);
+    ).rejects.toThrow(/unterminated CSS block/);
     expect(lateFinished).toBe(false);
     releaseLate();
     // Allow the late resolver rejection and its handler to run. Node's test runner
@@ -348,6 +352,63 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
     expect(lateFinished).toBe(true);
   } finally {
     releaseLate();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Vite builds without CSS imports that cannot be resolved and warns about each", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
+  const css = path.join(root, "root.css");
+  const part = path.join(root, "part.css");
+  writeFileSync(css, "@import 'missing';\n@import 'part';");
+  writeFileSync(part, ".part { color: red; }");
+  const plugins = stillwind({
+    css,
+  });
+  const configuration = await resolveConfig(
+    {
+      root,
+      configFile: false,
+      plugins,
+      logLevel: "silent",
+    },
+    "build",
+  );
+  const plugin = configuration.environments.client.plugins.find(
+    (plugin) => plugin.name === "stillwind:compiler",
+  )!;
+  const buildStart = plugin.buildStart;
+  if (typeof buildStart !== "function") {
+    expect.fail("expected buildStart hook");
+  }
+  const warnings: string[] = [];
+  try {
+    await buildStart.call(
+      {
+        environment: {
+          name: "client",
+          getTopLevelConfig: () => configuration,
+        },
+        addWatchFile: () => {},
+        warn: (message: string) => {
+          warnings.push(message);
+        },
+        async resolve(specifier: string) {
+          if (specifier === "part") {
+            return {
+              id: part,
+            };
+          }
+          throw new Error("CSS resolution failed");
+        },
+      } as unknown as ThisParameterType<typeof buildStart>,
+      {} as Parameters<typeof buildStart>[0],
+    );
+    expect(warnings).toEqual([
+      `stillwind: invalid-css-import: \`missing\` cannot be resolved or read (${css}:1:1)`,
+    ]);
+  } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });

@@ -16,7 +16,7 @@ use stillwind_css::ParsedDeclaration;
 use stillwind_source::{CssSourceName, FileId, SourceFile, SourceUri, Span};
 
 use super::state::DesignSystemLoadError;
-use crate::DesignSystemSnapshot;
+use crate::{DesignSystemSnapshot, SkippedCss};
 
 /// Why the loader needs a source.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -86,6 +86,9 @@ pub struct CssSourceGraph {
     pub mappings: Vec<CssSourceMapping>,
     /// Resource references the host must substitute.
     pub resources: Vec<CssResourceReference>,
+    /// Statements that loading skipped, ordered by source and position. Spans address
+    /// the accepted sources.
+    pub skipped: Vec<SkippedCss>,
 }
 
 /// A resource placeholder in generated CSS. Hosts resolve specifiers from
@@ -153,4 +156,8 @@ pub struct CssFileInput {
     /// and leave it false for package CSS, such as the `stillwind` package and files
     /// under `node_modules`. It does not change the snapshot's definitions or output.
     pub lint: bool,
+    /// Whether the host could not resolve or read the requested file. The loader then
+    /// leaves the import out, records it in [`CssSourceGraph::skipped`], and ignores
+    /// the other fields except `id`. The root source cannot be unresolved.
+    pub unresolved: bool,
 }

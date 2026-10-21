@@ -12,6 +12,7 @@ use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
 use super::parser::{DynamicFamily, UtilityImportance};
 use crate::registry::{ArbitraryPropertyRule, RegistryStatements};
+use crate::skipped::SkippedRange;
 use crate::{
     BrowserTargets, CustomUtility, CustomVariant, MarkerClasses, StillwindDefinitions,
     UtilityOrderMode,
@@ -48,6 +49,9 @@ pub(crate) struct ThemeBuilder {
     pub(crate) utilities: Vec<Arc<CustomUtility>>,
     /// Definition and undefinition statements of every registry context.
     pub(crate) registry_statements: RegistryStatements,
+    /// Statements that parsing skipped, with ranges in the parsed buffer, ordered by
+    /// range.
+    pub(crate) skipped: Vec<SkippedRange>,
     /// Arbitrary property rules of the `default` registry context.
     pub(crate) arbitrary_property_rules: Vec<ArbitraryPropertyRule>,
     /// User variant definitions of the `default` registry context. Definitions from

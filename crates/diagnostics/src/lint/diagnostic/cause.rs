@@ -737,6 +737,20 @@ pub enum LintDiagnostic {
         /// Clause that names the replacement or the resulting behavior.
         instead: LeanStr,
     },
+    /// Loading skipped an invalid `@import` or `@plugin` statement, or an import that
+    /// it cannot resolve or that closes a cycle (`invalid-css-import`).
+    #[error("{reason}; the stylesheet is loaded without this import")]
+    InvalidCssImport {
+        /// Why loading skipped the import.
+        reason: LeanStr,
+    },
+    /// Loading skipped an invalid Stillwind directive or definition, or ignored the
+    /// condition around a definition (`invalid-css-directive`).
+    #[error("{reason}")]
+    InvalidCssDirective {
+        /// Why loading skipped the statement.
+        reason: LeanStr,
+    },
     /// A `theme()` or `--theme()` call names a theme token that is not active and has
     /// no fallback (`invalid-theme-reference`).
     #[error("`{reference}` names no theme token and has no fallback{}", DidYouMean(.suggestion))]
@@ -875,6 +889,8 @@ impl LintDiagnostic {
             Self::ImplicitNestingSelector { .. } => LintKind::ImplicitNestingSelector,
             Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
+            Self::InvalidCssImport { .. } => LintKind::InvalidCssImport,
+            Self::InvalidCssDirective { .. } => LintKind::InvalidCssDirective,
             Self::BypassedUndefinition { .. } => LintKind::BypassedUndefinition,
             Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,
             Self::IgnoredTailwindFeature { .. } => LintKind::IgnoredTailwindFeature,

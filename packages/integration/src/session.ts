@@ -14,6 +14,7 @@ import {
   NativeProjectSession,
   type NativeCompilerOptions,
   type NativeDesignSystemLoader,
+  type NativeSkippedCss,
 } from "@stillwind/native";
 
 /**
@@ -26,6 +27,23 @@ export function buildCompilerOptions(config: BuildConfig): NativeCompilerOptions
     ...config,
     lint: false,
   });
+}
+
+/**
+ * Reports each statement that loading skipped through a bundler warning channel. Build and
+ * development sessions run without stylesheet lint, so these warnings report the skipped statements.
+ * @param skipped - Skipped statements of a loaded graph.
+ * @param warn - Receives the lint rule, reason, and one-based authored location of each statement.
+ */
+export function warnSkippedCss(
+  skipped: readonly NativeSkippedCss[],
+  warn: (message: string) => void,
+): void {
+  for (const statement of skipped) {
+    warn(
+      `stillwind: ${statement.rule}: ${statement.message} (${statement.sourceName}:${statement.line + 1}:${statement.column + 1})`,
+    );
+  }
 }
 
 /**

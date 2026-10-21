@@ -53,6 +53,8 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::UnsatisfiableVariants, LintSeverity::Warn),
     (LintKind::ClampedValue, LintSeverity::Warn),
     (LintKind::InvalidThemeReference, LintSeverity::Deny),
+    (LintKind::InvalidCssImport, LintSeverity::Deny),
+    (LintKind::InvalidCssDirective, LintSeverity::Deny),
     (LintKind::DuplicateDefinition, LintSeverity::Warn),
     (LintKind::BypassedUndefinition, LintSeverity::Warn),
     (LintKind::InvalidThemeValue, LintSeverity::Deny),

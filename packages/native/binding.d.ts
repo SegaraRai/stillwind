@@ -13,8 +13,9 @@ export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-was
  * Loads CSS files supplied by the caller into a design-system snapshot.
  *
  * Supply the root source first, then answer each requested ID. The loader reports
- * parse and link errors. If the host cannot read a file, it must report that error
- * and discard the loader.
+ * parse and link errors. If the host cannot resolve or read an imported file, it
+ * answers the request with `unresolved: true`. If it cannot read the root, it must
+ * report that error and discard the loader.
  */
 export declare class NativeDesignSystemLoader {
   /** Creates a loader for the given compiler options. */
@@ -922,6 +923,12 @@ export interface NativeCssFileInput {
    * package CSS unmarked. Absent means false.
    */
   lint?: boolean
+  /**
+   * Whether the host could not resolve or read the requested file. The loader then
+   * leaves the import out and records it for `invalid-css-import`, and it ignores
+   * the other fields except `id`. Absent means false. The root cannot be unresolved.
+   */
+  unresolved?: boolean
 }
 
 /**
@@ -938,7 +945,11 @@ export type NativeCssLoadStep =
     revision: string; /** Resource references the CSS declares. */
     resources: Array<NativeCssResource>; /** Names of every source the loader received, for watch registration. */
     sources: Array<string>; /** Names of the sources marked for stylesheet lint, in acceptance order. */
-  lintSources: Array<string> }
+    lintSources: Array<string>; /**
+     * Statements that loading skipped, ordered by source and position. Hosts that
+     * do not run stylesheet lint report them as warnings.
+     */
+  skipped: Array<NativeSkippedCss> }
 
 /** Final asset processing settings. Omitted fields use the Rust API defaults. */
 export interface NativeCssMinifyOptions {
@@ -1283,6 +1294,10 @@ export interface NativeLintOptions {
   missingDocumentTarget?: string
   /** Settings for `invalid-theme-reference`. */
   invalidThemeReference?: string
+  /** Settings for `invalid-css-import`. */
+  invalidCssImport?: string
+  /** Settings for `invalid-css-directive`. */
+  invalidCssDirective?: string
   /** Settings for `mutating-macro-argument`. */
   mutatingMacroArgument?: string
   /** Settings for `suspending-macro-argument`. */
@@ -1653,6 +1668,27 @@ export interface NativeScriptSyntax {
   language: NativeScriptLanguage
   /** Module grammar, independent of the dialect. */
   moduleKind: NativeScriptModuleKind
+}
+
+/** One statement that loading skipped, located in its authored source. */
+export interface NativeSkippedCss {
+  /** Opaque name of the source that contains the statement. */
+  sourceName: string
+  /** Byte start of the statement in that source. */
+  start: number
+  /** Exclusive byte end of the statement in that source. */
+  end: number
+  /** Zero-based line of `start`. */
+  line: number
+  /** Zero-based UTF-16 column of `start` within its line. */
+  column: number
+  /**
+   * Lint rule that reports the statement: `invalid-css-import` or
+   * `invalid-css-directive`.
+   */
+  rule: string
+  /** Why loading skipped the statement. */
+  message: string
 }
 
 /** Original editable document, including its optional upstream source map. */

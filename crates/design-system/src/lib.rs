@@ -27,7 +27,8 @@
 //! `registry` parses utility and variant definitions. `evaluation` resolves candidates
 //! against those definitions, and `conditionals` recognizes runtime tests. `options`
 //! validates configuration, `output` parses output slots, and `snapshot` owns the
-//! immutable revision shared by compilation and editor requests. `target` checks
+//! immutable revision shared by compilation and editor requests. `skipped` records the
+//! invalid statements that loading leaves out instead of failing. `target` checks
 //! browser versions before removing generated color fallbacks.
 
 #![cfg_attr(
@@ -48,6 +49,7 @@ mod loading;
 mod options;
 mod output;
 mod registry;
+mod skipped;
 mod snapshot;
 mod target;
 mod theme;
@@ -79,7 +81,6 @@ pub use loading::{
     ignored_tailwind_features,
 };
 pub use options::{DesignSystemOptions, UtilityOrderMode};
-pub use output::parse_output_template;
 pub use registry::{
     ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant, MarkerClasses,
     MarkerForm, MarkerOrigin, RegistryContext, StillwindDefinitions, StillwindVariantModifierType,
@@ -88,6 +89,7 @@ pub use registry::{
     parse_omit_token_prefixes, parse_relationship_patterns, parse_stillwind_utility_definitions,
     parse_stillwind_variant_definitions, parse_theme_order, parse_variant_definitions,
 };
+pub use skipped::{SkipReason, SkippedCss};
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,
     DesignSystemSnapshot, PropertyRegistry, ThemeRegistry, UtilityRegistry, UtilitySearchEntry,

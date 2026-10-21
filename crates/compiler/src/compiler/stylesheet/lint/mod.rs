@@ -12,10 +12,11 @@
 //! at-rules of a source, such as `@utility` and `@custom-variant`. [`nesting`] checks
 //! variant selectors without `&`, and [`shadowing`] finds definitions that later
 //! definitions hide. [`bypassed`] finds definitions that reach a registry context
-//! despite its earlier undefinitions. [`theme_values`] checks `@theme` token values,
-//! and [`theme_references`] checks `theme()` and `--theme()` calls and the theme
-//! namespaces that `@utility` definitions read. [`tailwind_features`] reports the
-//! Tailwind features that loading ignores. [`variant_directive`] finds nested rules and
+//! despite its earlier undefinitions. [`skipped`] reports the imports and directives
+//! that loading skipped. [`theme_values`] checks `@theme` token values, and
+//! [`theme_references`] checks `theme()` and `--theme()` calls and the theme namespaces
+//! that `@utility` definitions read. [`tailwind_features`] reports the Tailwind
+//! features that loading ignores. [`variant_directive`] finds nested rules and
 //! conditional at-rules that `@variant` can replace, using the reverse index of
 //! [`variant_index`] and the comparable header forms of [`headers`].
 
@@ -26,6 +27,7 @@ mod definitions;
 mod headers;
 mod nesting;
 mod shadowing;
+mod skipped;
 mod tailwind_features;
 mod theme_references;
 mod theme_values;

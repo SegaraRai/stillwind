@@ -284,6 +284,8 @@ define_lint_rules! {
         UnknownVariant => "unknown-variant",
         MissingDocumentTarget => "missing-document-target",
         InvalidThemeReference => "invalid-theme-reference",
+        InvalidCssImport => "invalid-css-import",
+        InvalidCssDirective => "invalid-css-directive",
     }
     Contract {
         MutatingMacroArgument => "mutating-macro-argument",
@@ -359,6 +361,8 @@ impl LintKind {
             LintSurface::Script => !matches!(
                 self,
                 Self::InvalidThemeReference
+                    | Self::InvalidCssImport
+                    | Self::InvalidCssDirective
                     | Self::DuplicateDefinition
                     | Self::BypassedUndefinition
                     | Self::InvalidThemeValue
@@ -385,6 +389,8 @@ impl LintKind {
                     | Self::RedundantVariant
                     | Self::PreferTypedVariables
                     | Self::InvalidThemeReference
+                    | Self::InvalidCssImport
+                    | Self::InvalidCssDirective
                     | Self::DuplicateDefinition
                     | Self::BypassedUndefinition
                     | Self::InvalidThemeValue

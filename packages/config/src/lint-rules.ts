@@ -149,6 +149,18 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-css-import": {
+    category: "input",
+    nativeName: "invalidCssImport",
+    defaults: null,
+    options: null,
+  },
+  "invalid-css-directive": {
+    category: "input",
+    nativeName: "invalidCssDirective",
+    defaults: null,
+    options: null,
+  },
   "mutating-macro-argument": {
     category: "contract",
     nativeName: "mutatingMacroArgument",

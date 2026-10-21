@@ -6,6 +6,7 @@ import {
   type NativeCssFileInput,
   type NativeCssLoadStep,
   type NativeCssResource,
+  type NativeSkippedCss,
 } from "@stillwind/native";
 
 import { PluginRuntime, type PluginHost, type TailwindSettings } from "./plugins.ts";
@@ -21,7 +22,7 @@ export function isStylesheet(id: string): boolean {
 }
 
 /** A CSS graph for interactive queries. Recovered text must never supply lint fixes or builds. */
-export interface EditorCssGraph extends LoadedCssGraph {
+export interface EditorCssGraph extends Omit<LoadedCssGraph, "skipped"> {
   /** Whether incomplete sources were replaced with recovered definitions. */
   recovered: boolean;
 }
@@ -184,6 +185,11 @@ export interface LoadedCssGraph {
   /** Identities of the files marked for stylesheet lint, in the order the loader accepted them. */
   lintSources: string[];
   /**
+   * Statements that loading skipped instead of failing, such as an import that cannot be resolved,
+   * ordered by source and position. Hosts that do not run stylesheet lint report them as warnings.
+   */
+  skipped: NativeSkippedCss[];
+  /**
    * Plugins of the graph's `@plugin` statements and the definitions that they have added. Absent
    * for a graph that a host assembled without loading plugins.
    */
@@ -305,8 +311,9 @@ export async function loadCssGraph(
         started.add(request.id);
         /**
          * Resolves, watches, and reads this request, then schedules a batch of ready responses.
+         * An import that the host cannot resolve or read is answered as unresolved.
          * @returns A promise that resolves after queuing the response, or after observing a stopped load.
-         * @throws If host resolution or reading fails. The attached rejection handler stops the load.
+         * @throws If a plugin fails to load. The attached rejection handler stops the load.
          */
         const read = async () => {
           if (request.pluginOptions !== undefined) {
@@ -325,12 +332,42 @@ export async function loadCssGraph(
             }
             return;
           }
-          const name = await host.resolve(request.specifier, request.importer);
+          /**
+           * Answers the request as unresolved, so the loader skips the import and stylesheet lint
+           * reports it.
+           */
+          const unresolved = () => {
+            if (stopped) {
+              return;
+            }
+            const answer = {
+              name: request.specifier,
+              content: "",
+              lint: false,
+              unresolved: true,
+            };
+            plugins.recordImport(request, answer);
+            ready.push({ id: request.id, ...answer });
+            schedule();
+          };
+          let name: string;
+          try {
+            name = await host.resolve(request.specifier, request.importer);
+          } catch {
+            unresolved();
+            return;
+          }
           if (stopped) {
             return;
           }
           host.watch(name);
-          const content = await host.read(name);
+          let content: string;
+          try {
+            content = await host.read(name);
+          } catch {
+            unresolved();
+            return;
+          }
           if (stopped) {
             return;
           }
@@ -384,6 +421,7 @@ export async function loadCssGraph(
     loader: await plugins.initialize(loader),
     resources: completion?.resources ?? [],
     lintSources: completion?.lintSources ?? [],
+    skipped: completion?.skipped ?? [],
     plugins,
   };
 }

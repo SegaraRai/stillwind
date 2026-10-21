@@ -14,9 +14,13 @@ import {
   nodePluginHost,
   type PluginRuntime,
 } from "@stillwind/host";
-import type { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
+import type {
+  NativeDesignSystemLoader,
+  NativeProjectSession,
+  NativeSkippedCss,
+} from "@stillwind/native";
 
-import { buildCompilerOptions, IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession, warnSkippedCss } from "../session.ts";
 import { readableFile } from "./file-access.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolvedFile, type StylesheetResource } from "./resources.ts";
@@ -235,6 +239,7 @@ export class DesignSystem {
       this.cssVersion = version;
       this.cssApplied = this.cssAttempted = change;
       this.cssError = undefined;
+      warnSkippedCss(loaded.skipped, (message) => context.warn(message));
       onInitialize();
       return;
     }
@@ -297,6 +302,7 @@ export class DesignSystem {
         this.cssVersion = nextVersion;
         this.cssApplied = this.cssAttempted = change;
         this.cssError = undefined;
+        warnSkippedCss(loaded.skipped, (message) => context.warn(message));
         return;
       } catch (error) {
         if (this.settings.cssWatching && change !== this.cssChange) {
@@ -367,6 +373,8 @@ export interface LoadedDesignSystem {
   resources: Map<string, StylesheetResource>;
   /** Plugins of the CSS graph's `@plugin` statements. */
   plugins?: PluginRuntime;
+  /** Statements that loading skipped instead of failing, in source order. */
+  skipped: NativeSkippedCss[];
 }
 
 /** Loaded design system with the file sets needed to watch and apply its revision. */
@@ -389,9 +397,10 @@ export interface DesignSystemRevision extends LoadedDesignSystem {
  * @param watch - Records attempted and resolved file paths, including unresolved relative
  * candidates.
  * @param previous - Plugin runtime of the previous load, whose candidates are resolved again.
- * @returns A native design-system loader, a map from resource placeholders to resolved files, and
- * the plugin runtime.
- * @throws If the entrypoint is missing, an import fails, or a referenced resource is not readable.
+ * @returns A native design-system loader, a map from resource placeholders to resolved files, the
+ * plugin runtime, and the skipped statements.
+ * @throws If the entrypoint is missing or not readable, CSS cannot be divided into statements, or a
+ * referenced resource is not readable. Imports that cannot be resolved or read are skipped.
  */
 async function loadDesignSystem(
   settings: ProjectSettings,
@@ -426,6 +435,7 @@ async function loadDesignSystem(
     loader,
     resources: resourceReferences,
     plugins,
+    skipped,
   } = await loadCssGraph(
     root,
     nativeOptions,
@@ -486,6 +496,7 @@ async function loadDesignSystem(
     loader,
     resources: references,
     plugins,
+    skipped,
   };
 }
 

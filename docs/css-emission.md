@@ -133,9 +133,35 @@ authored style rule. `property-initials inherited` and `property-initials non-in
 insert only the initial values of registrations with `inherits: true` and
 `inherits: false`, respectively, and `property-initials` inserts both. The stylesheet
 supplies their selectors. `utilities`, `keyframes`, and `properties` insert rules. A
-slot in the wrong syntactic position is an error, as is a missing slot for a selected
-contribution. Repeated slots repeat their selected contributions at every position; the
-application owns the resulting cascade across conditions and layers.
+slot in the wrong syntactic position is skipped, as
+[Skipped statements](#skipped-statements) describes. A missing slot for a selected
+contribution is an error. Repeated slots repeat their selected contributions at every
+position; the application owns the resulting cascade across conditions and layers.
+
+## Skipped statements
+
+Loading leaves out an invalid statement instead of failing, so the rest of the
+stylesheet still compiles. The loader records each skipped statement with its location
+in the authored source, and stylesheet lint reports the records of the sources that the
+host marks for linting:
+
+- `invalid-css-import` reports an `@import` or `@plugin` statement with an invalid
+  specifier, options, or modifiers, an import that closes a cycle, and an import that
+  the host cannot resolve or read. The stylesheet loads without that import.
+- `invalid-css-directive` reports a Stillwind directive that the loader skips: a slot
+  with an unknown name or in a context that cannot contain its output, a directive in
+  the wrong block or statement form, an invalid `@stillwind-dynamic` or
+  `@stillwind-css-template`, and an invalid `@stillwind-registry` header or statement. A
+  definition inside a conditional at-rule, such as `@media`, applies without the
+  condition and is reported too.
+
+Both rules default to `deny`. CSS that the loader cannot divide into statements, such as
+an unterminated block, still fails the load. The root stylesheet must be readable.
+
+The bundler integrations run without stylesheet lint. They report every skipped
+statement as a bundler warning with the rule name and the source location. The Vite
+plugin reports them when it loads or reloads the design system. The webpack, Rspack,
+and Turbopack integrations report them when they build the document stylesheet.
 
 Generated keyframes and property requirements travel as metadata with CSS
 contributions. Renderers do not reconstruct them from serialized CSS.

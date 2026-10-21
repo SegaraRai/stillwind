@@ -308,6 +308,7 @@ fn input(id: u32, name: &str, content: &str) -> CssFileInput {
         source_map_source: None,
         content: content.into(),
         lint: false,
+        unresolved: false,
     }
 }
 

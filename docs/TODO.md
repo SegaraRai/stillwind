@@ -102,6 +102,24 @@ Measure the browser cost with `vp run bench:compiler:browser`.
 Sources: [registry statements](../crates/design-system/src/registry/contexts.rs),
 [theme index](../crates/design-system/src/theme/index.rs).
 
+## Skipped CSS statements
+
+Stylesheet lint reports [skipped statements](css-emission.md#skipped-statements) only
+for the sources that a host marks for linting. Bundler integrations warn about every
+skipped statement, but other hosts do not report a broken import or directive in package
+CSS, such as a file under `node_modules`. Decide whether every host shows these records
+as load warnings.
+
+An import whose specifier the host cannot resolve has no file to watch, so creating the
+file later does not reload the graph until another watched file changes.
+
+The renderer still fails for a malformed `@stillwind-require-properties`, a requirement
+without a `@stillwind-property` registration, and invalid `--theme()` syntax. Evaluate
+skipping them with a lint finding as loading does.
+
+Sources: [skipped statements](../crates/design-system/src/skipped.rs),
+[stylesheet lint](../crates/compiler/src/compiler/stylesheet/lint/skipped.rs).
+
 ## Migration guide from Tailwind CSS
 
 Users replace `@import "tailwindcss"` with `@import "stillwind"`, so the guide can describe

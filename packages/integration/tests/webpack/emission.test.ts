@@ -104,6 +104,71 @@ for (const backend of ["webpack", "rspack"] as const) {
     }
   });
 
+  test(`${backend} builds without CSS imports that cannot be resolved and warns about each`, async () => {
+    const root = mkdtempSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "../.test-skipped-import-"),
+    );
+    writeFileSync(
+      path.join(root, "root.css"),
+      "@import './missing.css';@utility red{color:red}@stillwind-slot utilities;",
+    );
+    writeFileSync(
+      path.join(root, "main.js"),
+      "import {style} from 'stillwind/react';globalThis.props=style('red');",
+    );
+    const factory = backend === "webpack" ? webpack : (rspack as unknown as typeof webpack);
+    const compiler = factory({
+      context: root,
+      mode: "production",
+      entry: "./main.js",
+      output: {
+        path: path.join(root, "dist"),
+        filename: "main.js",
+      },
+      optimization: {
+        minimize: false,
+      },
+      experiments: {
+        css: true,
+      },
+      plugins: [new StillwindPlugin({ css: "./root.css" })],
+      module: {
+        rules: [
+          {
+            test: /\.css$/,
+            type: "css",
+          },
+        ],
+      },
+    });
+    try {
+      const stats = await new Promise<webpack.Stats>((resolve, reject) =>
+        compiler.run((error, stats) => (error || !stats ? reject(error) : resolve(stats))),
+      );
+      const { errors, warnings } = stats.toJson({
+        all: false,
+        errors: true,
+        warnings: true,
+      });
+      expect(errors).toEqual([]);
+      expect(warnings?.map((warning) => warning.message)).toEqual([
+        expect.stringContaining(
+          "stillwind: invalid-css-import: `./missing.css` cannot be resolved or read",
+        ),
+      ]);
+      const css = readdirSync(path.join(root, "dist"))
+        .filter((file) => file.endsWith(".css"))
+        .map((file) => readFileSync(path.join(root, "dist", file), "utf8"))
+        .join("");
+      expect(css).toMatch(/color:\s*red/);
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        compiler.close((error) => (error ? reject(error) : resolve())),
+      );
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test(`${backend} keeps generated query producers distinct and reads their transformed dependencies without executing them`, async () => {
     const root = mkdtempSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../.test-query-"),

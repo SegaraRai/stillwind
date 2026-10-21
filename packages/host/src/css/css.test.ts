@@ -62,3 +62,41 @@ test("loading marks files for stylesheet lint and reports their identities", asy
     ).lintSources,
   ).toHaveLength(4);
 });
+
+test("loading skips imports that the host cannot resolve or read", async () => {
+  const files = new Map([
+    [
+      "/app/app.css",
+      '@import "./missing.css"; @import "unknown"; @import "./local.css"; @stillwind-slot utilities;',
+    ],
+    ["/app/local.css", ".a { color: red; }"],
+  ]);
+  const watched: string[] = [];
+  const graph = await loadCssGraph(
+    "/app/app.css",
+    {},
+    {
+      resolve: async (specifier, importer) => {
+        if (specifier === "unknown") {
+          throw new Error(`cannot resolve ${specifier}`);
+        }
+        return `${importer.slice(0, importer.lastIndexOf("/"))}/${specifier.slice(2)}`;
+      },
+      read: async (id) => {
+        const content = files.get(id);
+        if (content === undefined) {
+          throw new Error(`cannot read ${id}`);
+        }
+        return content;
+      },
+      documentUri: (id) => `file://${id}`,
+      sourceMapSource: (id) => `file://${id}`,
+      watch: (id) => {
+        watched.push(id);
+      },
+    },
+  );
+  expect(graph.lintSources).toEqual(["/app/app.css", "/app/local.css"]);
+  // A file that resolves but cannot be read stays watched, so creating it reloads the graph.
+  expect(watched).toContain("/app/missing.css");
+});

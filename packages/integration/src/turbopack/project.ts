@@ -20,7 +20,7 @@ import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
-import { buildCompilerOptions, IntegrationSession } from "../session.ts";
+import { buildCompilerOptions, IntegrationSession, warnSkippedCss } from "../session.ts";
 
 /** Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport. */
 type MutableSettings<T> = T extends readonly (infer Item)[]
@@ -235,6 +235,7 @@ export async function createProject(
  * @param entries - Entry paths, absolute or relative to the evaluated project root. Statically
  * named imports, including lazy imports, are followed. Dynamic request expressions are not traversed.
  * @param project - Initialized loader project. The caller closes its compiler after this operation.
+ * Its host receives warnings for the CSS statements that loading skipped and for rejected names.
  * @returns A document plan selecting automatic producers, with a revision derived from visited
  * source paths and contents. Explicit CSS values remain owned by their modules.
  * @throws If source resolution, reading, scanning, compilation, or stylesheet planning fails.
@@ -301,6 +302,7 @@ export async function compileGraph(entries: readonly string[], project: Turbopac
     },
     placement: "document",
   });
+  warnSkippedCss(project.loaded.skipped, (message) => host.warn(message));
   warnRejectedNames(plan.rejectedNames, (message) => host.warn(message));
   return plan;
 }

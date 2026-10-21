@@ -82,7 +82,8 @@ definitions: `implicit-nesting-selector` reports variant selectors without `&`,
 `duplicate-definition` reports definitions that later definitions hide,
 `invalid-theme-value` reports theme token values of the wrong type, and
 `ignored-tailwind-feature` reports Tailwind's `@config` and import modifiers, which
-loading ignores. These rules check only stylesheets.
+loading ignores. `invalid-css-import` and `invalid-css-directive` report the imports and
+directives that loading skips. These rules check only stylesheets.
 
 An arbitrary value without a type hint is emitted as written when the grammar of
 every matching utility definition rejects it, as in Tailwind: `w-[1/2]` emits

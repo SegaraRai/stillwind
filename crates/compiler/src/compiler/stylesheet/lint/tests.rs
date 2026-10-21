@@ -24,6 +24,7 @@ pub(super) fn snapshot(css: &str, options: &CompilerOptions) -> DesignSystemSnap
         source_map_source: None,
         content: content.into(),
         lint,
+        unresolved: false,
     };
     let mut loader = DesignSystemLoader::new(options.design_system(), SourceRegistry::default());
     let DesignSystemLoadStep::NeedFile(requests) = loader.provide_many([file(

@@ -5,7 +5,8 @@ use napi_derive::napi;
 
 use stillwind_compiler::{CompilerOptions, lint_stylesheets, prepare_canonical_index};
 use stillwind_design_system::{
-    CssFileInput, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
+    CssFileInput, CssSourceGraph, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader,
+    DesignSystemSnapshot,
 };
 use stillwind_diagnostics::{LintSettings, LintSurface, LocatedDiagnostic, Reporter};
 use stillwind_source::{SourceRegistry, SourceUri};
@@ -14,7 +15,7 @@ use super::NativeSessionError;
 use crate::editor::NativeEditorQuery;
 use crate::options::{NativeCompilerOptions, compiler_options};
 use crate::output::{BindingReport, report_error};
-use crate::stylesheet::{NativeCssLoadStep, NativeCssRequest, NativeCssResource};
+use crate::stylesheet::{NativeCssLoadStep, NativeCssRequest, NativeCssResource, NativeSkippedCss};
 
 /// One CSS source supplied by the host in one [`NativeDesignSystemLoader::provide`]
 /// call.
@@ -34,13 +35,18 @@ pub struct NativeCssFileInput {
     /// Whether stylesheet lint checks this source. Mark the user's own CSS and leave
     /// package CSS unmarked. Absent means false.
     pub lint: Option<bool>,
+    /// Whether the host could not resolve or read the requested file. The loader then
+    /// leaves the import out and records it for `invalid-css-import`, and it ignores
+    /// the other fields except `id`. Absent means false. The root cannot be unresolved.
+    pub unresolved: Option<bool>,
 }
 
 /// Loads CSS files supplied by the caller into a design-system snapshot.
 ///
 /// Supply the root source first, then answer each requested ID. The loader reports
-/// parse and link errors. If the host cannot read a file, it must report that error
-/// and discard the loader.
+/// parse and link errors. If the host cannot resolve or read an imported file, it
+/// answers the request with `unresolved: true`. If it cannot read the root, it must
+/// report that error and discard the loader.
 #[napi]
 pub struct NativeDesignSystemLoader {
     loader: DesignSystemLoader,
@@ -110,6 +116,7 @@ impl NativeDesignSystemLoader {
                 source_map_source,
                 content,
                 lint,
+                unresolved: None,
             }],
         )
     }
@@ -140,6 +147,7 @@ impl NativeDesignSystemLoader {
                     source_map_source: file.source_map_source.map(Into::into),
                     content: file.content.into(),
                     lint: file.lint.unwrap_or(false),
+                    unresolved: file.unresolved.unwrap_or(false),
                 })
             })
             .collect::<napi::Result<Vec<_>>>()?;
@@ -178,6 +186,7 @@ impl NativeDesignSystemLoader {
                         .filter(|source| source.lint)
                         .map(|source| source.name.as_str().to_owned())
                         .collect(),
+                    skipped: skipped_statements(snapshot.sources()),
                 };
                 self.snapshot = Some(snapshot);
                 Ok(output)
@@ -333,4 +342,35 @@ pub(super) fn stylesheet_reports(
         .into_iter()
         .map(Into::into)
         .collect())
+}
+
+/// Returns the statements that loading skipped, located in their authored sources.
+///
+/// A record whose span does not address a source of `graph` is left out.
+fn skipped_statements(graph: &CssSourceGraph) -> Vec<NativeSkippedCss> {
+    graph
+        .skipped
+        .iter()
+        .filter_map(|skipped| {
+            let source = graph
+                .sources
+                .iter()
+                .find(|source| source.source.id() == skipped.span.file)?;
+            let position = source.source.position(skipped.span.start).ok()?;
+            Some(NativeSkippedCss {
+                source_name: source.name.as_str().to_owned(),
+                start: skipped.span.start.0,
+                end: skipped.span.end.0,
+                line: position.line,
+                column: position.utf16_column,
+                rule: if skipped.reason.is_import() {
+                    "invalid-css-import"
+                } else {
+                    "invalid-css-directive"
+                }
+                .to_owned(),
+                message: skipped.reason.to_string(),
+            })
+        })
+        .collect()
 }
