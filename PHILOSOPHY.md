@@ -99,3 +99,8 @@ The principles themselves will also be updated as the implementation evolves.
 
 - lint について
   - lint の設定がビルドの成否や結果に影響してはならない
+
+- ユーティリティやバリアントの定義について
+  - 完全にデータ駆動でおこなう。Stillwind は組み込みの定義を持つが、それを使わずに自分で書いても良い
+  - Stillwind のビルトインと、ユーザー定義の記述については区別をしない
+  - コアコードにおいては、型や値の種別などは定義するが、どの名前空間をそれに割り当てるかなどは CSS 側で定義する
