@@ -67,6 +67,8 @@ impl UtilityPrograms {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::theme::ThemeBuilder;
     use crate::{CustomUtility, UtilityRole, resolve_utility};
 
@@ -83,6 +85,7 @@ mod tests {
                     role: UtilityRole::default(),
                     plugin: false,
                 })
+                .map(Arc::new)
                 .collect(),
             ..Default::default()
         }

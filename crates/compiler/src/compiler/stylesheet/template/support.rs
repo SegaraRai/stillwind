@@ -224,7 +224,7 @@ impl<'a> SupportSelection<'a> {
     /// Selects one theme block's live declarations and requested animation definitions.
     ///
     /// `tokens` contains indices into `self.theme.tokens()`, in definition order. The
-    /// two flags select declaration and keyframe output independently. Declarations
+    /// two flags select declaration and `@keyframes` output independently. Declarations
     /// retain their token origins; selected frames use the block's `origin`. The result
     /// has no selector or layer wrapper. Runtime conditionals use `self.options`;
     /// lowered token declarations map to the original value span rather than separate

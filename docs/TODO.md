@@ -93,24 +93,23 @@ median and uncached query percentiles with `vp run bench:compiler:browser`.
 Sources: [browser measurement](../benchmarks/compiler/canonical.browser.test.ts),
 [operation budgets](../benchmarks/performance/README.md#budget-policy).
 
-## Context registries
+## Registry contexts
 
-[Registry contexts](css-emission.md#registry-contexts) change definitions only for keyframe
-frames, keyframes uses, and view transitions. These parts remain open:
+[Registry contexts](css-emission.md#registry-contexts) leave these parts open:
 
-- Top-level `@stillwind-undef-utility` and `@stillwind-undef-variant`, which would
-  remove default definitions. Define how they interact with `(functional)` plugin
-  definitions and the `duplicate-definition` lint.
-- Define whether the host resolves candidates of a dynamic family whose prefix a
-  context undefines. Check that such a candidate is not requested in every compile.
-- The `keyframe` context keeps the `--tw-*` definitions of shadows, rings, and backdrop
-  filters, and it removes `drop-shadow-*`. `@property` cannot register `<shadow>`, and
-  the backdrop filters need their own `--sw-motion-*` registrations.
-- Each context builds its own index on first use and shares parsed utility bodies with
-  the default index. Measure the preparation time with
+- The `keyframe` registry keeps the `--tw-*` definitions of shadows, rings, and backdrop
+  filters, so frames switch them halfway through an animation. Backdrop filters can use
+  `--sw-motion-backdrop-*` registrations as filters do. `@property` cannot register
+  `<shadow>`, so shadows would write `box-shadow` and `text-shadow` directly and could
+  not combine with rings in one frame.
+- A stylesheet definition after the built-in blocks reaches `keyframe` and
+  `view-transition` even when its name matches a pattern that a block removes. Evaluate a
+  lint that reports such a definition.
+- Creating the three context indexes took about 2.5ms after a 32ms preparation of the
+  built-in registry in a native release build. Measure the browser cost with
   `vp run bench:compiler:browser`.
 
-Sources: [context registries](../crates/design-system/src/registry/contexts.rs),
+Sources: [registry statements](../crates/design-system/src/registry/contexts.rs),
 [motion contexts](../packages/core/css/builtin-utilities/sw-motion-contexts.css).
 
 ## Migration guide from Tailwind CSS

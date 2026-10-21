@@ -1,38 +1,66 @@
-//! Context registries: definitions that apply only where a utility string is evaluated
-//! inside a keyframe, a keyframes use, or a view transition.
+//! Registries of the places where utility strings resolve: elements, keyframe frames,
+//! keyframes uses, and view transitions.
 //!
-//! A `@stillwind-registry <context>, ... { ... }` block changes the definitions of the
-//! contexts that its header names. Each context starts with the default definitions of
-//! every layer, and the blocks apply after them: blocks in `@plugin` answers first,
-//! then the other blocks, each group in source order. Inside a block, statements apply
-//! in source order. An undefinition removes the matching definitions that precede it in
-//! the context, and a definition adds to the context in its own layer.
+//! Each [`RegistryContext`] has its own utility, variant, and arbitrary-property
+//! definitions. A `@stillwind-registry <context>, ... { ... }` block switches the
+//! registries that the statements inside it change, as `pushd` and `popd` switch a
+//! directory. Statements outside every block change the `default`, `keyframe`, and
+//! `view-transition` registries, so those registries start with the same definitions.
+//! The `animation` registry starts empty and rejects every arbitrary property, and only
+//! blocks that name it add definitions. Blocks may nest, and the innermost block
+//! decides the registries of a statement.
 //!
-//! [`split_registry_blocks`] separates the blocks from the text that the default
-//! parsers read. [`ContextDefinitions::apply`] applies one block to a context.
+//! Statements apply in registration order: statements in `@plugin` answers first, then
+//! the other statements, each group in source order. An undefinition removes the
+//! matching definitions that precede it in each of its registries, and a definition
+//! adds to them in its own layer. Statements in `@plugin` answers therefore cannot
+//! remove built-in definitions.
+//!
+//! [`RegistryStatements::parse`] reads the statements of one stylesheet, and
+//! [`RegistryStatements::definitions`] applies them to one registry.
+//! [`mask_registry_blocks`] removes the blocks from the text that the parsers of
+//! stylesheet-wide metadata read.
 
 use std::ops::Range;
 use std::sync::Arc;
 
-use lean_string::LeanStr;
+use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{extract_directive_blocks, extract_order_statements};
+use stillwind_css::{
+    CssNode, CssNodeKind, extract_directive_blocks, extract_order_statements, parse_structure,
+};
 use stillwind_diagnostics::CompileDiagnostic;
 
 use super::utilities::parse_utility_definitions;
+use super::variants::parse_positioned_builtin_variant_definitions;
 use super::{CustomUtility, CustomVariant, parse_builtin_utility_definitions};
 use crate::parse_variant_definitions;
 
 const REGISTRY: &str = "@stillwind-registry";
 
-/// A place where utility strings resolve through definitions other than the default
-/// ones.
+/// At-rules that a `@stillwind-registry` block may contain, without `@`.
+const BLOCK_STATEMENTS: &[&str] = &[
+    "utility",
+    "stillwind-utility",
+    "custom-variant",
+    "variant",
+    "stillwind-variant",
+    "stillwind-arbitrary-property",
+    "stillwind-undef-utility",
+    "stillwind-undef-variant",
+    "stillwind-undef-arbitrary-property",
+    "stillwind-registry",
+];
+
+/// A place where utility strings resolve through their own definitions.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum RegistryContext {
-    /// Serialized as `keyframe`: the utilities of one `style.keyframes()` frame.
-    Keyframe,
+    /// Serialized as `default`: element utilities, such as the inputs of `style()`.
+    Default,
     /// Serialized as `animation`: the options of a keyframes use.
     Animation,
+    /// Serialized as `keyframe`: the utilities of one `style.keyframes()` frame.
+    Keyframe,
     /// Serialized as `view-transition`: the `group`, `old`, `new`, and `imagePair`
     /// inputs of `style.viewTransition()`.
     ViewTransition,
@@ -40,14 +68,23 @@ pub enum RegistryContext {
 
 impl RegistryContext {
     /// Every context, in the order of [`Self::index`].
-    pub const ALL: [Self; 3] = [Self::Keyframe, Self::Animation, Self::ViewTransition];
+    pub const ALL: [Self; 4] = [
+        Self::Default,
+        Self::Animation,
+        Self::Keyframe,
+        Self::ViewTransition,
+    ];
+
+    /// The contexts that statements outside every `@stillwind-registry` block change.
+    pub const ROOT: [Self; 3] = [Self::Default, Self::Keyframe, Self::ViewTransition];
 
     /// Returns the name that a `@stillwind-registry` header uses for this context.
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Keyframe => "keyframe",
+            Self::Default => "default",
             Self::Animation => "animation",
+            Self::Keyframe => "keyframe",
             Self::ViewTransition => "view-transition",
         }
     }
@@ -65,26 +102,25 @@ impl RegistryContext {
     }
 }
 
-/// One `@stillwind-registry` block: the contexts it changes and its statements in
-/// source order.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct RegistryBlock {
-    /// Contexts that the header names, without duplicates.
-    contexts: Vec<RegistryContext>,
-    /// Whether an `@plugin` answer contains the block.
-    plugin: bool,
-    /// Statements in source order.
-    operations: Vec<RegistryOperation>,
-}
+/// A set of contexts, with bit [`RegistryContext::index`] set for each member.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Contexts(u8);
 
-impl RegistryBlock {
-    /// Whether this block changes `context`.
-    pub(crate) fn changes(&self, context: RegistryContext) -> bool {
-        self.contexts.contains(&context)
+impl Contexts {
+    fn of(contexts: impl IntoIterator<Item = RegistryContext>) -> Self {
+        Self(
+            contexts
+                .into_iter()
+                .fold(0, |bits, context| bits | (1 << context.index())),
+        )
+    }
+
+    const fn contains(self, context: RegistryContext) -> bool {
+        self.0 & (1 << context.index()) != 0
     }
 }
 
-/// One statement of a `@stillwind-registry` block.
+/// One statement that changes registries.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum RegistryOperation {
     /// `@stillwind-undef-utility <pattern>;`
@@ -93,18 +129,27 @@ enum RegistryOperation {
     UndefVariant(LeanStr),
     /// `@stillwind-undef-arbitrary-property <pattern>;`
     UndefArbitraryProperty(LeanStr),
-    /// `@stillwind-arbitrary-property <pattern>;`, which accepts the matching
-    /// arbitrary properties again.
+    /// `@stillwind-arbitrary-property <pattern>;`, which accepts the matching arbitrary
+    /// properties again.
     ArbitraryProperty(LeanStr),
     /// A `@stillwind-utility` definition.
     BuiltinUtility(Arc<CustomUtility>),
     /// A `@utility` definition.
     Utility(Arc<CustomUtility>),
+    /// A `@stillwind-variant` definition.
+    BuiltinVariant(Arc<CustomVariant>),
     /// A `@custom-variant` or `@variant` definition.
     Variant(Arc<CustomVariant>),
 }
 
-/// Whether the undefinition pattern `pattern` matches the definition name `name`.
+/// One statement and the registries that it changes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Statement {
+    contexts: Contexts,
+    operation: RegistryOperation,
+}
+
+/// Whether the pattern `pattern` matches the definition name `name`.
 ///
 /// `*` matches every name. A pattern that ends with `*` matches the names that start
 /// with the text before the `*`, so `duration-*` matches the definitions `duration-*`
@@ -135,8 +180,8 @@ pub(crate) fn accepts_arbitrary_property(rules: &[ArbitraryPropertyRule], proper
         .is_none_or(|rule| rule.accepted)
 }
 
-/// The definitions of one context while blocks apply to it.
-#[derive(Debug)]
+/// The definitions of one registry after its statements apply.
+#[derive(Debug, Default)]
 pub(crate) struct ContextDefinitions {
     /// Built-in utility definitions in registration order.
     pub(crate) builtin_utilities: Vec<Arc<CustomUtility>>,
@@ -146,234 +191,432 @@ pub(crate) struct ContextDefinitions {
     pub(crate) utilities: Vec<Arc<CustomUtility>>,
     /// Plugin and stylesheet variant definitions; the last definition of a name wins.
     pub(crate) variants: Vec<Arc<CustomVariant>>,
-    /// Arbitrary property rules in source order.
+    /// Arbitrary property rules in registration order.
     pub(crate) arbitrary_properties: Vec<ArbitraryPropertyRule>,
 }
 
 impl ContextDefinitions {
-    /// Applies the statements of `block` in source order.
-    pub(crate) fn apply(&mut self, block: &RegistryBlock) {
-        for operation in &block.operations {
-            match operation {
-                RegistryOperation::UndefUtility(pattern) => {
-                    let keep =
-                        |utility: &Arc<CustomUtility>| !matches_pattern(pattern, &utility.name);
-                    self.builtin_utilities.retain(keep);
-                    self.utilities.retain(keep);
-                }
-                RegistryOperation::UndefVariant(pattern) => {
-                    let keep =
-                        |variant: &Arc<CustomVariant>| !matches_pattern(pattern, &variant.name);
-                    self.builtin_variants.retain(keep);
-                    self.variants.retain(keep);
-                }
-                RegistryOperation::UndefArbitraryProperty(pattern) => {
-                    self.arbitrary_properties.push(ArbitraryPropertyRule {
-                        pattern: pattern.clone(),
-                        accepted: false,
-                    });
-                }
-                RegistryOperation::ArbitraryProperty(pattern) => {
-                    self.arbitrary_properties.push(ArbitraryPropertyRule {
-                        pattern: pattern.clone(),
-                        accepted: true,
-                    });
-                }
-                RegistryOperation::BuiltinUtility(utility) => {
-                    self.builtin_utilities.push(Arc::clone(utility));
-                }
-                RegistryOperation::Utility(utility) => self.utilities.push(Arc::clone(utility)),
-                RegistryOperation::Variant(variant) => self.variants.push(Arc::clone(variant)),
+    fn apply(&mut self, operation: &RegistryOperation) {
+        match operation {
+            RegistryOperation::UndefUtility(pattern) => {
+                let keep = |utility: &Arc<CustomUtility>| !matches_pattern(pattern, &utility.name);
+                self.builtin_utilities.retain(keep);
+                self.utilities.retain(keep);
             }
-        }
-    }
-}
-
-/// Finds the top-level `@stillwind-registry` blocks of `css` and parses their
-/// statements.
-///
-/// Returns the text that the default parsers read, in which every block is replaced by
-/// spaces with its line breaks kept, so offsets keep their meaning. The text is `None`
-/// when `css` contains no block. The blocks are ordered as they apply: blocks for which
-/// `in_plugin` returns true for the directive offset come first, then the others, each
-/// in source order. A block nested in another block is part of the outer block's text
-/// and is not parsed.
-///
-/// # Errors
-///
-/// Returns [`CompileDiagnostic::UnknownRegistryContext`] for a header that names no
-/// context or an unknown context.
-pub(crate) fn split_registry_blocks(
-    css: &str,
-    in_plugin: impl Fn(usize) -> bool,
-) -> Result<(Option<String>, Vec<RegistryBlock>), CompileDiagnostic> {
-    if !css.contains(REGISTRY) {
-        return Ok((None, Vec::new()));
-    }
-    let mut ranges: Vec<Range<usize>> = Vec::new();
-    let mut blocks = Vec::new();
-    for directive in extract_directive_blocks(css, REGISTRY) {
-        if ranges
-            .last()
-            .is_some_and(|outer| outer.end >= directive.range.end)
-        {
-            continue;
-        }
-        let mut contexts = Vec::new();
-        for name in directive.header.split(',').map(str::trim) {
-            let Some(context) = RegistryContext::from_name(name) else {
-                return Err(CompileDiagnostic::UnknownRegistryContext {
-                    offset: directive.range.start,
-                    context: name.into(),
+            RegistryOperation::UndefVariant(pattern) => {
+                let keep = |variant: &Arc<CustomVariant>| !matches_pattern(pattern, &variant.name);
+                self.builtin_variants.retain(keep);
+                self.variants.retain(keep);
+            }
+            RegistryOperation::UndefArbitraryProperty(pattern) => {
+                self.arbitrary_properties.push(ArbitraryPropertyRule {
+                    pattern: pattern.clone(),
+                    accepted: false,
                 });
-            };
-            if !contexts.contains(&context) {
-                contexts.push(context);
+            }
+            RegistryOperation::ArbitraryProperty(pattern) => {
+                self.arbitrary_properties.push(ArbitraryPropertyRule {
+                    pattern: pattern.clone(),
+                    accepted: true,
+                });
+            }
+            RegistryOperation::BuiltinUtility(utility) => {
+                self.builtin_utilities.push(Arc::clone(utility));
+            }
+            RegistryOperation::Utility(utility) => {
+                self.utilities.push(Arc::clone(utility));
+            }
+            RegistryOperation::BuiltinVariant(variant) => {
+                self.builtin_variants.push(Arc::clone(variant));
+            }
+            RegistryOperation::Variant(variant) => {
+                self.variants.push(Arc::clone(variant));
             }
         }
-        let body = blank_outside(css, &directive.body);
-        let plugin = in_plugin(directive.range.start);
-        blocks.push(RegistryBlock {
-            contexts,
-            plugin,
-            operations: parse_operations(&body, &in_plugin),
-        });
-        ranges.push(directive.range);
     }
-    blocks.sort_by_key(|block| !block.plugin);
-    let masked = blank_where(css, |offset| {
-        ranges.iter().any(|range| range.contains(&offset))
-    });
-    Ok((Some(masked), blocks))
 }
 
-/// Parses the statements of one block body. `body` has the length of the whole text,
-/// with everything outside the body replaced by spaces.
-fn parse_operations(body: &str, in_plugin: &impl Fn(usize) -> bool) -> Vec<RegistryOperation> {
-    let mut operations: Vec<(usize, RegistryOperation)> = Vec::new();
-    for (directive, operation) in [
-        (
-            "@stillwind-undef-utility",
-            RegistryOperation::UndefUtility as fn(LeanStr) -> RegistryOperation,
-        ),
-        ("@stillwind-undef-variant", RegistryOperation::UndefVariant),
-        (
-            "@stillwind-undef-arbitrary-property",
-            RegistryOperation::UndefArbitraryProperty,
-        ),
-        (
-            "@stillwind-arbitrary-property",
-            RegistryOperation::ArbitraryProperty,
-        ),
-    ] {
-        operations.extend(
-            extract_order_statements(body, directive)
+/// The definition and undefinition statements of one stylesheet, in registration order,
+/// with the registries that each statement changes.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RegistryStatements {
+    statements: Vec<Statement>,
+}
+
+impl RegistryStatements {
+    /// Reads the definition and undefinition statements of `css`, including those
+    /// inside `@stillwind-registry` blocks. `in_plugin` returns true for the byte
+    /// offsets of `@plugin` answers, which register before the other statements.
+    ///
+    /// The plugin flag of a `@utility` definition records `in_plugin` for its offset.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CompileDiagnostic::UnknownRegistryContext`] for a block header that
+    /// names no context or an unknown context, and
+    /// [`CompileDiagnostic::InvalidRegistryStatement`] for a block that contains
+    /// anything other than definitions, undefinitions, arbitrary-property statements,
+    /// and nested blocks.
+    pub(crate) fn parse(
+        css: &str,
+        in_plugin: impl Fn(usize) -> bool,
+    ) -> Result<Self, CompileDiagnostic> {
+        let scopes = registry_scopes(css)?;
+        let contexts_at = |offset: usize| {
+            scopes
+                .iter()
+                .filter(|scope| scope.body.contains(&offset))
+                .min_by_key(|scope| scope.body.len())
+                .map_or(Contexts::of(RegistryContext::ROOT), |scope| scope.contexts)
+        };
+        let mut positioned: Vec<(usize, RegistryOperation)> = Vec::new();
+        for (directive, operation) in [
+            (
+                "@stillwind-undef-utility",
+                RegistryOperation::UndefUtility as fn(LeanStr) -> RegistryOperation,
+            ),
+            ("@stillwind-undef-variant", RegistryOperation::UndefVariant),
+            (
+                "@stillwind-undef-arbitrary-property",
+                RegistryOperation::UndefArbitraryProperty,
+            ),
+            (
+                "@stillwind-arbitrary-property",
+                RegistryOperation::ArbitraryProperty,
+            ),
+        ] {
+            if css.contains(directive) {
+                positioned.extend(
+                    extract_order_statements(css, directive)
+                        .into_iter()
+                        .map(|(offset, pattern)| (offset, operation(pattern))),
+                );
+            }
+        }
+        positioned.extend(
+            parse_builtin_utility_definitions(css)
                 .into_iter()
-                .map(|(offset, pattern)| (offset, operation(pattern))),
+                .filter_map(|utility| {
+                    Some((
+                        utility.builtin_order?,
+                        RegistryOperation::BuiltinUtility(Arc::new(utility)),
+                    ))
+                }),
         );
-    }
-    operations.extend(
-        parse_builtin_utility_definitions(body)
-            .into_iter()
-            .filter_map(|utility| {
-                Some((
-                    utility.builtin_order?,
-                    RegistryOperation::BuiltinUtility(Arc::new(utility)),
-                ))
-            }),
-    );
-    operations.extend(
-        parse_utility_definitions(body)
-            .into_iter()
-            .map(|(offset, mut utility)| {
+        positioned.extend(parse_utility_definitions(css).into_iter().map(
+            |(offset, mut utility)| {
                 utility.plugin = in_plugin(offset);
                 (offset, RegistryOperation::Utility(Arc::new(utility)))
-            }),
-    );
-    operations.extend(
-        parse_variant_definitions(body)
-            .into_iter()
-            .map(|(offset, variant)| (offset, RegistryOperation::Variant(Arc::new(variant)))),
-    );
-    operations.sort_by_key(|(offset, _)| *offset);
-    operations
+            },
+        ));
+        positioned.extend(
+            parse_positioned_builtin_variant_definitions(css)
+                .into_iter()
+                .map(|(offset, variant)| {
+                    (offset, RegistryOperation::BuiltinVariant(Arc::new(variant)))
+                }),
+        );
+        positioned.extend(
+            parse_variant_definitions(css)
+                .into_iter()
+                .map(|(offset, variant)| (offset, RegistryOperation::Variant(Arc::new(variant)))),
+        );
+        positioned.sort_by_key(|(offset, _)| (!in_plugin(*offset), *offset));
+        Ok(Self {
+            statements: positioned
+                .into_iter()
+                .map(|(offset, operation)| Statement {
+                    contexts: contexts_at(offset),
+                    operation,
+                })
+                .collect(),
+        })
+    }
+
+    /// Applies the statements that change `context`, in registration order, to the
+    /// initial definitions of `context`. The `animation` registry starts with a rule
+    /// that rejects every arbitrary property; the other registries start empty.
+    pub(crate) fn definitions(&self, context: RegistryContext) -> ContextDefinitions {
+        let mut definitions = ContextDefinitions::default();
+        if context == RegistryContext::Animation {
+            definitions
+                .arbitrary_properties
+                .push(ArbitraryPropertyRule {
+                    pattern: "*".into(),
+                    accepted: false,
+                });
+        }
+        for statement in self
+            .statements
+            .iter()
+            .filter(|statement| statement.contexts.contains(context))
+        {
+            definitions.apply(&statement.operation);
+        }
+        definitions
+    }
+
+    /// Whether a `@stillwind-undef-utility` statement that changes `context` matches
+    /// the utility name `name`.
+    pub(crate) fn undefines_utility(&self, context: RegistryContext, name: &str) -> bool {
+        self.statements.iter().any(|statement| {
+            statement.contexts.contains(context)
+                && matches!(
+                    &statement.operation,
+                    RegistryOperation::UndefUtility(pattern) if matches_pattern(pattern, name)
+                )
+        })
+    }
+}
+
+/// The body of one `@stillwind-registry` block and the contexts that its header names.
+struct Scope {
+    /// Byte range inside the braces.
+    body: Range<usize>,
+    contexts: Contexts,
+}
+
+/// Returns the bodies of every `@stillwind-registry` block of `css`, including nested
+/// blocks, and checks their headers and statements.
+fn registry_scopes(css: &str) -> Result<Vec<Scope>, CompileDiagnostic> {
+    let mut scopes = Vec::new();
+    if !css.contains(REGISTRY) {
+        return Ok(scopes);
+    }
+    for block in extract_directive_blocks(css, REGISTRY) {
+        let start = block.range.start;
+        let nodes = parse_structure(&css[block.range.clone()]);
+        for node in &nodes {
+            collect_scope(css, start, node, &mut scopes)?;
+        }
+    }
+    Ok(scopes)
+}
+
+/// Records the scope of the `@stillwind-registry` node `node`, whose ranges are
+/// relative to `base`, then the scopes of the blocks nested in it.
+fn collect_scope(
+    css: &str,
+    base: usize,
+    node: &CssNode,
+    scopes: &mut Vec<Scope>,
+) -> Result<(), CompileDiagnostic> {
+    let CssNodeKind::AtRule {
+        prelude,
+        block: Some(block),
+        ..
+    } = &node.kind
+    else {
+        return Ok(());
+    };
+    let offset = base + node.range.start;
+    let mut contexts = Vec::new();
+    for name in css[base + prelude.start..base + prelude.end]
+        .split(',')
+        .map(str::trim)
+    {
+        let Some(context) = RegistryContext::from_name(name) else {
+            return Err(CompileDiagnostic::UnknownRegistryContext {
+                offset,
+                context: name.into(),
+            });
+        };
+        contexts.push(context);
+    }
+    scopes.push(Scope {
+        body: base + block.contents.start..base + block.contents.end,
+        contexts: Contexts::of(contexts),
+    });
+    for child in &block.children {
+        let name = match &child.kind {
+            CssNodeKind::AtRule { name, .. } if BLOCK_STATEMENTS.contains(&name.as_str()) => name,
+            CssNodeKind::AtRule { name, .. } => {
+                return Err(CompileDiagnostic::InvalidRegistryStatement {
+                    offset: base + child.range.start,
+                    statement: format_args!("@{name}").to_lean_str(),
+                });
+            }
+            _ => {
+                return Err(CompileDiagnostic::InvalidRegistryStatement {
+                    offset: base + child.range.start,
+                    statement: css[base + child.range.start..base + child.range.end]
+                        .trim()
+                        .into(),
+                });
+            }
+        };
+        if name == "stillwind-registry" {
+            collect_scope(css, base, child, scopes)?;
+        }
+    }
+    Ok(())
+}
+
+/// Returns `css` with every top-level `@stillwind-registry` block replaced by spaces,
+/// or `None` when `css` contains no block. Line breaks are kept, so offsets and line
+/// positions keep their meaning.
+pub(crate) fn mask_registry_blocks(css: &str) -> Option<String> {
+    if !css.contains(REGISTRY) {
+        return None;
+    }
+    let ranges = extract_directive_blocks(css, REGISTRY)
         .into_iter()
-        .map(|(_, operation)| operation)
-        .collect()
-}
-
-/// Returns `css` with every character outside `keep` replaced by spaces, keeping line
-/// breaks.
-fn blank_outside(css: &str, keep: &Range<usize>) -> String {
-    blank_where(css, |offset| !keep.contains(&offset))
-}
-
-/// Returns `css` with each character at an offset for which `blank` returns true replaced
-/// by as many spaces as its UTF-8 length. Line breaks are kept, so the result has the
-/// byte length and line positions of `css`.
-fn blank_where(css: &str, blank: impl Fn(usize) -> bool) -> String {
+        .map(|block| block.range)
+        .collect::<Vec<_>>();
     let mut output = String::with_capacity(css.len());
     for (offset, character) in css.char_indices() {
-        if character == '\n' || !blank(offset) {
+        if character == '\n' || !ranges.iter().any(|range| range.contains(&offset)) {
             output.push(character);
         } else {
             output.extend(std::iter::repeat_n(' ', character.len_utf8()));
         }
     }
-    output
+    Some(output)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn blocks(css: &str) -> (Option<String>, Vec<RegistryBlock>) {
-        split_registry_blocks(css, |_| false).unwrap()
+    fn statements(css: &str) -> RegistryStatements {
+        RegistryStatements::parse(css, |_| false).unwrap()
+    }
+
+    fn utility_bodies(definitions: &ContextDefinitions) -> Vec<&str> {
+        definitions
+            .builtin_utilities
+            .iter()
+            .chain(&definitions.utilities)
+            .map(|utility| utility.body.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn root_statements_change_every_registry_except_animation() {
+        let statements = statements(
+            "@utility a { color: red; }
+@stillwind-registry keyframe, animation {
+  @stillwind-undef-utility a;
+  @utility a { color: blue; }
+}
+@utility b { color: green; }",
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Default)),
+            ["color: red;", "color: green;"]
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Keyframe)),
+            ["color: blue;", "color: green;"]
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Animation)),
+            ["color: blue;"]
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::ViewTransition)),
+            ["color: red;", "color: green;"]
+        );
+    }
+
+    #[test]
+    fn nested_blocks_switch_registries_and_root_undefinitions_apply_in_order() {
+        let statements = statements(
+            "@utility a-* { color: --value([color]); }
+@stillwind-undef-utility a-*;
+@utility a-x { color: red; }
+@stillwind-registry keyframe {
+  @stillwind-registry default { @utility d { color: blue; } }
+  @utility k { color: green; }
+}",
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Default)),
+            ["color: red;", "color: blue;"]
+        );
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Keyframe)),
+            ["color: red;", "color: green;"]
+        );
+        assert!(statements.undefines_utility(RegistryContext::Default, "a-y"));
+        assert!(!statements.undefines_utility(RegistryContext::Animation, "a-y"));
+    }
+
+    #[test]
+    fn plugin_statements_register_before_the_others() {
+        let css = "@stillwind-undef-utility p; @utility p { color: red; }";
+        let plugin_start = css.find("@utility").unwrap();
+        let statements = RegistryStatements::parse(css, |offset| offset >= plugin_start).unwrap();
+        assert_eq!(
+            utility_bodies(&statements.definitions(RegistryContext::Default)),
+            [] as [&str; 0]
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_contexts_and_statements_that_registries_cannot_hold() {
+        for (css, expected) in [
+            ("@stillwind-registry motion { }", "motion"),
+            ("@stillwind-registry { }", ""),
+            (
+                "@stillwind-registry keyframe { @stillwind-registry other { } }",
+                "other",
+            ),
+        ] {
+            assert!(
+                matches!(
+                    RegistryStatements::parse(css, |_| false),
+                    Err(CompileDiagnostic::UnknownRegistryContext { context, .. }) if context == expected
+                ),
+                "{css}"
+            );
+        }
+        for (css, expected) in [
+            (
+                "@stillwind-registry keyframe { @theme { --x: 1; } }",
+                "@theme",
+            ),
+            (
+                "@stillwind-registry default { .a { color: red; } }",
+                ".a { color: red; }",
+            ),
+        ] {
+            assert!(
+                matches!(
+                    RegistryStatements::parse(css, |_| false),
+                    Err(CompileDiagnostic::InvalidRegistryStatement { statement, .. }) if statement == expected
+                ),
+                "{css}"
+            );
+        }
+    }
+
+    #[test]
+    fn animation_starts_closed_to_arbitrary_properties() {
+        let statements = statements(
+            "@stillwind-registry animation { @stillwind-arbitrary-property animation-*; }",
+        );
+        let rules = statements
+            .definitions(RegistryContext::Animation)
+            .arbitrary_properties;
+        assert!(accepts_arbitrary_property(&rules, "animation-delay"));
+        assert!(!accepts_arbitrary_property(&rules, "color"));
+        assert!(accepts_arbitrary_property(
+            &statements
+                .definitions(RegistryContext::Default)
+                .arbitrary_properties,
+            "color"
+        ));
     }
 
     #[test]
     fn masks_blocks_and_keeps_offsets() {
-        let css = "@utility a { color: red; }\n@stillwind-registry keyframe, animation {\n  @utility a { color: blue; }\n}\n@utility b { color: green; }";
-        let (masked, blocks) = blocks(css);
-        let masked = masked.unwrap();
+        let css = "@utility a { color: red; }\n@stillwind-registry keyframe {\n  @utility 日本 { color: blue; }\n}\n@utility b { color: green; }";
+        let masked = mask_registry_blocks(css).unwrap();
         assert_eq!(masked.len(), css.len());
         assert_eq!(parse_utility_definitions(&masked).len(), 2);
         assert_eq!(masked.find("@utility b"), css.find("@utility b"));
-        let [block] = blocks.as_slice() else {
-            panic!("one block: {blocks:?}");
-        };
-        assert_eq!(
-            block.contexts,
-            [RegistryContext::Keyframe, RegistryContext::Animation]
-        );
-        assert!(matches!(
-            block.operations.as_slice(),
-            [RegistryOperation::Utility(utility)] if utility.body.contains("blue")
-        ));
-    }
-
-    #[test]
-    fn keeps_statement_order_and_rejects_unknown_contexts() {
-        let (_, blocks) = blocks(
-            "@stillwind-registry animation { @stillwind-undef-utility *; @stillwind-utility duration-* { animation-duration: --value(integer); } @stillwind-undef-arbitrary-property *; @stillwind-arbitrary-property animation-*; }",
-        );
-        assert!(matches!(
-            blocks[0].operations.as_slice(),
-            [
-                RegistryOperation::UndefUtility(all),
-                RegistryOperation::BuiltinUtility(_),
-                RegistryOperation::UndefArbitraryProperty(_),
-                RegistryOperation::ArbitraryProperty(animation),
-            ] if all == "*" && animation == "animation-*"
-        ));
-        assert!(matches!(
-            split_registry_blocks("@stillwind-registry motion { }", |_| false),
-            Err(CompileDiagnostic::UnknownRegistryContext { context, .. }) if context == "motion"
-        ));
-        assert!(matches!(
-            split_registry_blocks("@stillwind-registry { }", |_| false),
-            Err(CompileDiagnostic::UnknownRegistryContext { context, .. }) if context.is_empty()
-        ));
+        assert_eq!(mask_registry_blocks("@utility a { }"), None);
     }
 
     #[test]
@@ -383,18 +626,5 @@ mod tests {
         assert!(matches_pattern("duration-*", "duration-initial"));
         assert!(!matches_pattern("translate-*", "-translate-*"));
         assert!(!matches_pattern("duration", "duration-*"));
-        let rules = [
-            ArbitraryPropertyRule {
-                pattern: "*".into(),
-                accepted: false,
-            },
-            ArbitraryPropertyRule {
-                pattern: "animation-*".into(),
-                accepted: true,
-            },
-        ];
-        assert!(accepts_arbitrary_property(&rules, "animation-delay"));
-        assert!(!accepts_arbitrary_property(&rules, "color"));
-        assert!(accepts_arbitrary_property(&[], "color"));
     }
 }

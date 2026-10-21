@@ -58,7 +58,7 @@ fn sibling_branch_order_uses_the_shared_variant_order() {
 }
 
 #[test]
-fn invalid_keyframe_contexts_omit_the_conditioned_branch() {
+fn invalid_keyframes_conditions_omit_the_conditioned_branch() {
     for key in [
         "hover:",
         "[&:hover]:",

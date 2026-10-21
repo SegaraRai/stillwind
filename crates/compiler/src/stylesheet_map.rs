@@ -34,7 +34,7 @@ pub struct MappedStylesheet {
     /// Template node identity for each emitted range, stable across producer
     /// selections.
     pub segments: Vec<(Range<usize>, usize)>,
-    /// Generated keyframe contributions in emission order. Each entry's mappings
+    /// Generated `@keyframes` contributions in emission order. Each entry's mappings
     /// address that entry's own `css`, not the parent's rule text. Producers use leaf
     /// entries; the template assembler consumes this level of contributions.
     pub keyframes: Vec<Self>,
@@ -154,9 +154,10 @@ impl MappedStylesheet {
 
     /// Appends another stylesheet's text, mappings, and pending contributions.
     ///
-    /// Rule mappings shift by the previous UTF-8 byte length of `self.css`. Keyframe
-    /// entries keep their own local coordinates. Dependency and keyframe lists are
-    /// extended in order without deduplication; `other` is not modified.
+    /// Rule mappings shift by the previous UTF-8 byte length of `self.css`.
+    /// `@keyframes` entries keep their own local coordinates. Dependency and
+    /// `@keyframes` lists are extended in order without deduplication; `other` is not
+    /// modified.
     pub(crate) fn append(&mut self, other: &Self) {
         self.keyframes.extend(other.keyframes.iter().cloned());
         self.required_properties

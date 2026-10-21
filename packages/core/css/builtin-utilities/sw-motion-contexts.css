@@ -1,14 +1,16 @@
 /*
-Definitions of the registry contexts for keyframes, keyframes uses, and view transitions.
+Definitions of the `keyframe`, `animation`, and `view-transition` registry contexts.
 
-Each `@stillwind-registry` block changes the default definitions only in the contexts
-that its header names, and the blocks apply in this order. The `keyframe` context
-writes the interpolable properties of `sw-motion-properties.css`, because the
-`--tw-*` registrations of the default transform and filter utilities have
-`syntax: "*"` and switch halfway through an animation.
+Each `@stillwind-registry` block changes only the registries that its header names.
+Statements outside the blocks reach `default`, `keyframe`, and `view-transition`, so
+these blocks remove and replace the default definitions that precede them. Plugin
+definitions register before every other statement, so these blocks also change them. A
+stylesheet definition after this file reaches those registries unchanged.
 
-The `animation` context accepts only animation options, so its first block removes
-every default utility and arbitrary property. The `view-transition` context keeps the
+The `keyframe` registry writes the interpolable properties of `sw-motion-properties.css`,
+because the `--tw-*` registrations of the default transform and filter utilities have
+`syntax: "*"` and switch halfway through an animation. The `animation` registry starts
+empty and accepts only the options defined here. The `view-transition` registry keeps the
 default utilities for the pseudo-elements, and its timing utilities set the
 `animation-*` properties that drive their animations.
 */
@@ -545,12 +547,6 @@ default utilities for the pseudo-elements, and its timing utilities set the
       hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
       saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
   }
-}
-
-@stillwind-registry animation {
-  @stillwind-undef-utility *;
-
-  @stillwind-undef-arbitrary-property *;
 }
 
 @stillwind-registry view-transition {

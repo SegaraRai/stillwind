@@ -26,7 +26,7 @@ use stillwind_css::{
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, Span};
 
-use crate::theme::extract_keyframe_blocks;
+use crate::theme::extract_keyframes_blocks;
 use crate::{ThemeToken, ThemeTokenPrecedence};
 
 /// Deepest group nesting accepted in one authored buffer.
@@ -341,7 +341,7 @@ fn parse_nodes(
                             (base + open < position && position < base + close).then_some(index)
                         })
                         .collect(),
-                    keyframes: (extract_keyframe_blocks(&css[open + 1..close])).into(),
+                    keyframes: (extract_keyframes_blocks(&css[open + 1..close])).into(),
                 });
             }
             (

@@ -59,8 +59,8 @@ pub enum CssOutputNode {
         /// this block. The consumer resolves them, so an index is only valid for the
         /// theme the template was built from.
         tokens: Vec<usize>,
-        /// Keyframe definitions authored inside this block. Referenced definitions
-        /// contribute to the keyframes slot independently of the token declarations.
+        /// `@keyframes` rules authored inside this block. Referenced rules contribute
+        /// to the keyframes slot independently of the token declarations.
         keyframes: LeanStr,
         /// Where the block was authored, when known.
         origin: Option<Span>,

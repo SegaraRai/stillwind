@@ -30,8 +30,8 @@ use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
-    parse_declaration_formats, parse_relationship_patterns, parse_utility_definitions,
-    parse_variant_definitions, registration_positions, split_registry_blocks,
+    RegistryContext, RegistryStatements, mask_registry_blocks, parse_declaration_formats,
+    parse_relationship_patterns, parse_utility_definitions, registration_positions,
 };
 use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
 
@@ -114,43 +114,41 @@ fn parse_theme_contents(
         template.source_identity = source_identity.clone();
     }
     let in_plugin = |offset: usize| plugin_ranges.iter().any(|range| range.contains(&offset));
-    // Definitions inside `@stillwind-registry` blocks belong to their contexts, so the
-    // default parsers read a copy in which the blocks are blank.
-    let (masked, registry_blocks) = split_registry_blocks(source.text(), in_plugin)?;
+    // Stylesheet-wide metadata ignores the statements inside `@stillwind-registry`
+    // blocks, so its parsers read a copy in which the blocks are blank.
+    let masked = mask_registry_blocks(source.text());
     let definitions = masked.as_deref().unwrap_or(source.text());
-    theme.registry_blocks = registry_blocks;
-    theme.registry = Arc::new(BuiltinDefinitions::from_definitions(
+    let statements = RegistryStatements::parse(source.text(), in_plugin)?;
+    let defaults = statements.definitions(RegistryContext::Default);
+    theme.registry = Arc::new(BuiltinDefinitions::from_parts(
         source.text(),
         definitions,
+        defaults.builtin_utilities,
+        defaults.builtin_variants,
     ));
+    theme.registry_statements = statements;
     let mut plugin_positions = BTreeMap::<LeanStr, usize>::new();
-    theme.utilities = parse_utility_definitions(definitions)
-        .into_iter()
-        .map(|(offset, mut utility)| {
-            if in_plugin(offset) {
-                utility.plugin = true;
-                plugin_positions
-                    .entry(utility.name.clone())
-                    .and_modify(|position| *position = (*position).min(offset))
-                    .or_insert(offset);
-            }
-            utility
-        })
-        .collect();
-    // Variant lookup takes the last definition of a name. Plugin definitions therefore
-    // precede the stylesheet's, so an authored `@custom-variant` replaces a plugin's
-    // variant wherever the `@plugin` statement stands, as in Tailwind.
-    let (plugin_variants, variants): (Vec<_>, Vec<_>) = parse_variant_definitions(definitions)
-        .into_iter()
-        .partition(|(offset, _)| in_plugin(*offset));
-    theme.variants = plugin_variants
-        .into_iter()
-        .chain(variants)
-        .map(|(_, variant)| variant)
-        .collect();
+    for (offset, utility) in parse_utility_definitions(source.text()) {
+        if in_plugin(offset) {
+            plugin_positions
+                .entry(utility.name)
+                .and_modify(|position| *position = (*position).min(offset))
+                .or_insert(offset);
+        }
+    }
+    // Plugin statements register first, so the variants of `@plugin` answers precede
+    // the stylesheet's. Variant lookup takes the last definition of a name, so an
+    // authored `@custom-variant` replaces a plugin's variant wherever the `@plugin`
+    // statement stands, as in Tailwind.
+    theme.utilities = defaults.utilities;
+    theme.variants = defaults.variants;
+    theme.arbitrary_property_rules = defaults.arbitrary_properties;
     theme.properties = parse_property_definitions(definitions);
     // `theme.registry` reads the marker statements of the same text.
-    theme.markers = MarkerClasses::selected_by(&theme.utilities, &theme.variants);
+    theme.markers = MarkerClasses::selected_by(
+        theme.utilities.iter().map(|utility| &**utility),
+        theme.variants.iter().map(|variant| &**variant),
+    );
     theme.declaration_formats = parse_declaration_formats(source.text());
     theme.relationship_patterns = parse_relationship_patterns(source.text());
     theme.authored_properties = extract_authored_property_names(source.text());
@@ -328,7 +326,7 @@ const DYNAMIC: &str = "@stillwind-dynamic";
 /// Keyframes cannot be represented as custom properties, so they are copied textually
 /// and emitted with the theme layer. An unterminated keyframes block ends the scan
 /// rather than being emitted partially.
-pub(crate) fn extract_keyframe_blocks(css: &str) -> LeanString {
+pub(crate) fn extract_keyframes_blocks(css: &str) -> LeanString {
     let mut output = LeanString::new();
     let mut cursor = 0;
     while let Some(relative) = css[cursor..].find("@keyframes ") {
@@ -401,7 +399,8 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         tokens,
         custom_css: (LeanString::new()).into(),
         utilities: Vec::new(),
-        registry_blocks: Vec::new(),
+        registry_statements: RegistryStatements::default(),
+        arbitrary_property_rules: Vec::new(),
         variants: Vec::new(),
         properties: Vec::new(),
         markers: MarkerClasses::default(),
@@ -557,12 +556,12 @@ mod tests {
     }
 
     #[test]
-    fn keyframe_extraction_keeps_nested_blocks_and_ignores_other_rules() {
+    fn keyframes_extraction_keeps_nested_blocks_and_ignores_other_rules() {
         assert_eq!(
-            extract_keyframe_blocks("a{}@keyframes spin {from{x:1}to{x:2}}b{}"),
+            extract_keyframes_blocks("a{}@keyframes spin {from{x:1}to{x:2}}b{}"),
             "@keyframes spin {from{x:1}to{x:2}}"
         );
-        assert_eq!(extract_keyframe_blocks("@keyframes broken {"), "");
+        assert_eq!(extract_keyframes_blocks("@keyframes broken {"), "");
     }
 }
 

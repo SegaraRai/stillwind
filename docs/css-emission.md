@@ -214,23 +214,32 @@ candidate with a static utility only as that utility: `@utility shadow-lg { ... 
 replaces the built-in `shadow-*` for `shadow-lg`. CSS escapes in a definition name are
 decoded, so `@utility tab-1\/2` defines the static utility `tab-1/2`.
 
-To remove a built-in utility, a stylesheet currently has no directive; a definition can
-only add to it. A [registry context](#registry-contexts) can remove definitions for the
-inputs that resolve through it.
+A definition only adds to a utility. `@stillwind-undef-utility` removes definitions, as
+[Registry contexts](#registry-contexts) describes.
 
 ## Registry contexts
 
-Keyframe frames, keyframes uses, and view transitions resolve their utilities through a
-registry context. Each context starts with the default definitions of every layer, and
-`@stillwind-registry` blocks change them:
+Each place where utility strings resolve has its own registry of utility, variant, and
+arbitrary-property definitions:
 
-| Context           | Inputs                                                  |
-| ----------------- | ------------------------------------------------------- |
-| `keyframe`        | The frames of `style.keyframes()`                       |
-| `animation`       | The options of a keyframes use, such as `enter("both")` |
-| `view-transition` | `group`, `old`, `new`, and `imagePair`                  |
+| Registry          | Inputs                                                  | Initial definitions       |
+| ----------------- | ------------------------------------------------------- | ------------------------- |
+| `default`         | `style()`, `style.cva()`, `style.css()`, and `@apply`   | Statements outside blocks |
+| `keyframe`        | The frames of `style.keyframes()`                       | Statements outside blocks |
+| `view-transition` | `group`, `old`, `new`, and `imagePair`                  | Statements outside blocks |
+| `animation`       | The options of a keyframes use, such as `enter("both")` | None                      |
+
+Statements outside every `@stillwind-registry` block change `default`, `keyframe`, and
+`view-transition`. A `@stillwind-registry` block switches the registries that the
+statements inside it change, and the registries before the block apply again after it.
+A block names one or more registries, separated by commas, and an unknown or missing
+name is an error. Blocks may nest, and the innermost block decides. The `animation`
+registry changes only through blocks that name it, and it rejects every arbitrary
+property until a statement accepts one.
 
 ```css
+@stillwind-undef-utility shadow-*;
+
 @stillwind-registry animation, view-transition {
   @stillwind-undef-utility duration-*;
   @utility duration-* {
@@ -239,26 +248,35 @@ registry context. Each context starts with the default definitions of every laye
 }
 ```
 
-A block names one or more contexts, separated by commas. An unknown or missing context
-name is an error. Blocks apply after all default definitions: blocks in `@plugin` answers
-first, then the other blocks, each group in source order. Inside a block, statements
-apply in source order:
+A block contains only these statements, and any other statement is an error:
 
 - `@stillwind-undef-utility <pattern>;` removes the matching utility definitions that
-  precede it in the context, including the default definitions of every layer.
-- `@stillwind-undef-variant <pattern>;` removes the matching variant definitions in the
-  same way.
+  register before it.
+- `@stillwind-undef-variant <pattern>;` removes the matching variant definitions that
+  register before it.
 - `@stillwind-undef-arbitrary-property <pattern>;` rejects arbitrary-property candidates
   for the matching properties, and `@stillwind-arbitrary-property <pattern>;` accepts
   them again. The last matching statement decides, and a property that no statement
   matches is accepted.
-- `@utility`, `@stillwind-utility`, `@custom-variant`, and `@variant` add definitions to
-  the context in their own layer.
+- `@utility`, `@stillwind-utility`, `@custom-variant`, `@variant`, and
+  `@stillwind-variant` add definitions in their own layer.
+- A nested `@stillwind-registry` block.
+
+Statements register in this order: statements in `@plugin` answers first, then the
+other statements, each group in source order. An undefinition therefore removes plugin
+definitions wherever the `@plugin` statement stands. A plugin cannot remove built-in
+definitions, because its statements register before them. The definitions that remain
+resolve in the layer order that
+[Utility definitions with the same name](#utility-definitions-with-the-same-name)
+describes.
 
 A pattern is `*`, an exact name, or a prefix followed by `*`. `duration-*` matches the
 definition `duration-*` and the exact names that start with `duration-`, such as
-`duration-initial`. It does not match `-duration-*`, because a pattern for negative
-names starts with `-`.
+`duration-initial` and a plugin's `duration-300`. It does not match `-duration-*`,
+because a pattern for negative names starts with `-`.
+
+Compilation does not request a candidate of a dynamic family from the host when a
+`default` undefinition matches its name.
 
 The built-in blocks make these changes:
 
@@ -267,15 +285,20 @@ The built-in blocks make these changes:
   `syntax: "<length-percentage>"`. A browser interpolates a typed registration between
   frames. The `--tw-*` registrations of element utilities have `syntax: "*"`, so a
   frame that set `--tw-translate-y` would switch the value halfway through the
-  animation. The context also removes the `transition`, `duration`, `ease`, `delay`,
-  and `animate` utilities.
-- `animation` removes every default utility and arbitrary property. It defines
-  `duration-*`, `ease-*`, `delay-*`, and the fill-mode, direction, play-state, and
-  iteration words as `animation-*` declarations, and it accepts `animation-*`
-  arbitrary properties.
-- `view-transition` keeps the default utilities. Its `duration-*`, `ease-*`, and
-  `delay-*` utilities and the words of `animation` set `animation-*` properties, which
-  drive the animations of the pseudo-elements.
+  animation. The registry also removes the `transition`, `duration`, `ease`, `delay`,
+  `animate`, and `drop-shadow` utilities.
+- `animation` defines `duration-*`, `ease-*`, `delay-*`, and the fill-mode,
+  direction, play-state, and iteration words as `animation-*` declarations, and it
+  accepts `animation-*` arbitrary properties.
+- `view-transition` replaces `duration-*`, `ease-*`, and `delay-*` with the
+  `animation-*` definitions of `animation` and adds the words. These set the animations
+  of the pseudo-elements, and the other utilities style the pseudo-elements.
+
+These blocks precede the stylesheet, so they change only built-in and plugin
+definitions. A stylesheet `@utility` with a name that a block replaces also reaches
+`keyframe` and `view-transition`. For example, `@utility duration-slow` sets
+`transition-duration` in a view transition. Write a block that names those registries
+to change such a definition there.
 
 ## Marker classes
 

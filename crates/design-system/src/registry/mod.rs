@@ -15,12 +15,12 @@
 //! a registry once and share it.
 //!
 //! [`utilities`] and [`variants`] parse their respective definitions. [`contexts`]
-//! parses `@stillwind-registry` blocks and applies them to context registries.
-//! [`definitions`] stores the selected built-in utility registry. [`order`] records
-//! precedence across utilities and arbitrary properties. [`formats`] parses
-//! serialization formats, relationship patterns, and theme order. [`utility_lookup`]
-//! indexes definitions for candidate lookup. [`markers`] collects the class names that
-//! candidates add as written.
+//! reads the statements of each registry context and applies them. [`definitions`]
+//! stores the selected built-in utility registry. [`order`] records precedence across
+//! utilities and arbitrary properties. [`formats`] parses serialization formats,
+//! relationship patterns, and theme order. [`utility_lookup`] indexes definitions for
+//! candidate lookup. [`markers`] collects the class names that candidates add as
+//! written.
 
 mod contexts;
 mod definitions;
@@ -47,8 +47,7 @@ pub use variants::{
 };
 
 pub(crate) use contexts::{
-    ArbitraryPropertyRule, ContextDefinitions, RegistryBlock, accepts_arbitrary_property,
-    split_registry_blocks,
+    ArbitraryPropertyRule, RegistryStatements, accepts_arbitrary_property, mask_registry_blocks,
 };
 pub(crate) use order::registration_positions;
 pub(crate) use utility_lookup::UtilityLookup;

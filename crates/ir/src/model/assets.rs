@@ -39,7 +39,7 @@ pub struct KeyframesDefinition {
     pub body: KeyframesBody,
 }
 
-/// A complete keyframe definition with optional conditional replacements.
+/// A complete keyframes definition with optional conditional replacements.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyframesBody {

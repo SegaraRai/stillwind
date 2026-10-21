@@ -29,7 +29,7 @@ pub use namespace::{ThemeNamespace, ThemeNamespaces, ThemeScale};
 pub use parser::{DynamicFamily, DynamicFamilyKind, UtilityImportance, parse_theme};
 pub use references::ThemeReferenceError;
 
-pub(crate) use parser::extract_keyframe_blocks;
+pub(crate) use parser::extract_keyframes_blocks;
 
 pub(super) use parser::parse_theme_builder;
 

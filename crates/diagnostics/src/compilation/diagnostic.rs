@@ -285,6 +285,16 @@ pub enum CompileDiagnostic {
         /// Context name as written; empty when the header names no context.
         context: LeanStr,
     },
+    /// A `@stillwind-registry` block contains a statement that no registry holds, such
+    /// as `@theme` or a style rule.
+    #[error("@stillwind-registry cannot contain `{statement}` at byte {offset}")]
+    InvalidRegistryStatement {
+        /// Zero-based UTF-8 byte offset of the statement in the buffer parsed by the
+        /// failing operation.
+        offset: usize,
+        /// `@` and the at-rule name, or the trimmed text of another statement.
+        statement: LeanStr,
+    },
     /// A value cannot be resolved locally without host checker facts.
     #[error("{subject} require TypeScript checker facts")]
     CheckerFactsRequired {

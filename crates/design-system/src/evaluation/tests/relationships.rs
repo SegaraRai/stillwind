@@ -4,6 +4,8 @@
 //! primitives, numeric and CSS-wide keyword domains, and the compact spacing families
 //! that mix negative and fractional values.
 
+use std::sync::Arc;
+
 use lean_string::ToLeanStr;
 
 use stillwind_diagnostics::MarkerUseErrorKind;
@@ -168,7 +170,10 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
 fn resolves_numeric_css_domains_and_default_filter_tokens() {
     let theme = theme();
     let custom_theme = ThemeBuilder {
-        utilities: utility_definitions("@utility tab-* { tab-size: --value(integer); }"),
+        utilities: utility_definitions("@utility tab-* { tab-size: --value(integer); }")
+            .into_iter()
+            .map(Arc::new)
+            .collect(),
         ..Default::default()
     }
     .finish();

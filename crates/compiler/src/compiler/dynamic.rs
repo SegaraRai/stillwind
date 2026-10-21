@@ -20,9 +20,12 @@ use stillwind_design_system::{
 use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix, utility_registration_key};
 
 /// Returns sorted, unique requests for host plugin families found in `text`.
-/// Native families report unresolved utility names without modifiers. Tailwind utility
-/// families retain negative signs and modifiers even when a built-in already resolves.
-/// Variant requests have an `@variant ` prefix followed by the complete variant name.
+///
+/// Utility names that a `@stillwind-undef-utility` statement of the `default` registry
+/// context matches are not requested. Native families report unresolved utility names
+/// without modifiers. Tailwind utility families retain negative signs and modifiers
+/// even when a built-in already resolves. Variant requests have an `@variant ` prefix
+/// followed by the complete variant name.
 ///
 /// A bracket candidate such as `icon-[mdi--close]` is reported by its named spelling,
 /// `icon-mdi--close`, when its family accepts both forms, and as written otherwise. A
@@ -132,6 +135,11 @@ fn requests<'a>(tokens: impl IntoIterator<Item = &'a str>, theme: &ThemeIndex) -
         let Utility::Named { name, modifier } = &candidate.utility else {
             continue;
         };
+        // The host adds its definitions to the `@plugin` answer, which registers before
+        // the other statements, so an undefinition outside the answer removes them again.
+        if theme.undefines_utility(name) {
+            continue;
+        }
         if families.iter().any(|family| {
             family.kind == DynamicFamilyKind::Utility && family_member(name, &family.prefix)
         }) {
@@ -271,6 +279,26 @@ mod tests {
             dynamic_candidates(text, &ThemeIndex::default()),
             [] as [LeanStr; 0]
         );
+    }
+
+    #[test]
+    fn requests_depend_only_on_default_definitions() {
+        let text = "icon-mdi--close icon-lucide--x";
+        let undefined = theme("@stillwind-dynamic icon-*; @stillwind-undef-utility icon-mdi-*;");
+        assert_eq!(dynamic_candidates(text, &undefined), ["icon-lucide--x"]);
+        // `default` keeps the definitions that the host adds when only a context
+        // undefines the family, so the context does not suppress the request.
+        let scoped = theme(
+            "@stillwind-dynamic icon-*; @stillwind-registry keyframe { @stillwind-undef-utility icon-*; }",
+        );
+        assert_eq!(
+            dynamic_candidates(text, &scoped),
+            ["icon-lucide--x", "icon-mdi--close"]
+        );
+        let defined = theme(
+            "@stillwind-dynamic icon-*; @stillwind-registry keyframe { @stillwind-undef-utility icon-*; } @utility icon-mdi--close { color: red; }",
+        );
+        assert_eq!(dynamic_candidates(text, &defined), ["icon-lucide--x"]);
     }
 
     #[test]

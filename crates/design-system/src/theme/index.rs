@@ -18,7 +18,7 @@ use super::references::{inline_theme_functions, resolve_css_functions, resolve_t
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
 use crate::registry::{
-    ArbitraryPropertyRule, ContextDefinitions, RegistryBlock, RegistryContext, UtilityLookup,
+    ArbitraryPropertyRule, RegistryContext, RegistryStatements, UtilityLookup,
     accepts_arbitrary_property,
 };
 use crate::{
@@ -41,7 +41,7 @@ struct ThemeDeclarations {
     tokens: Vec<Arc<ThemeToken>>,
     custom_css: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
-    registry_blocks: Arc<[RegistryBlock]>,
+    registry_statements: Arc<RegistryStatements>,
     arbitrary_property_rules: Vec<ArbitraryPropertyRule>,
     variants: Vec<Arc<CustomVariant>>,
     properties: Vec<Arc<CustomPropertyDefinition>>,
@@ -109,10 +109,10 @@ impl ThemeIndex {
             registry: builder.registry,
             tokens: builder.tokens.into_iter().map(Arc::new).collect(),
             custom_css: builder.custom_css,
-            utilities: builder.utilities.into_iter().map(Arc::new).collect(),
-            registry_blocks: builder.registry_blocks.into(),
-            arbitrary_property_rules: Vec::new(),
-            variants: builder.variants.into_iter().map(Arc::new).collect(),
+            utilities: builder.utilities,
+            registry_statements: Arc::new(builder.registry_statements),
+            arbitrary_property_rules: builder.arbitrary_property_rules,
+            variants: builder.variants,
             properties: builder.properties.into_iter().map(Arc::new).collect(),
             markers: builder.markers,
             declaration_formats: builder.declaration_formats,
@@ -152,15 +152,16 @@ impl ThemeIndex {
         theme
     }
 
-    /// Returns the index whose definitions apply in `context`: the default definitions
-    /// changed by the `@stillwind-registry` blocks that name `context`.
+    /// Returns the index whose utility, variant, and arbitrary-property definitions are
+    /// those of the registry `context`.
     ///
     /// The index is built on first use and shared by every clone of this index. It
     /// shares tokens, templates, and the other declarations with this index. Callers
-    /// pass the default index; an index of `context` returns itself.
+    /// pass the default index, which [`RegistryContext::Default`] returns; an index of
+    /// `context` returns itself.
     #[must_use]
     pub fn context(&self, context: RegistryContext) -> &Self {
-        if self.inner.context == Some(context) {
+        if context == RegistryContext::Default || self.inner.context == Some(context) {
             return self;
         }
         self.inner.contexts[context.index()].get_or_init(|| self.derive(context))
@@ -173,23 +174,10 @@ impl ThemeIndex {
         self.inner.context
     }
 
-    /// Applies the blocks that name `context` to the definitions of this index.
+    /// Builds the index of `context` from the registry statements of this index.
     fn derive(&self, context: RegistryContext) -> Self {
         let declarations = &self.inner.declarations;
-        let mut definitions = ContextDefinitions {
-            builtin_utilities: declarations.registry.utilities().to_vec(),
-            builtin_variants: declarations.registry.variants().to_vec(),
-            utilities: declarations.utilities.clone(),
-            variants: declarations.variants.clone(),
-            arbitrary_properties: declarations.arbitrary_property_rules.clone(),
-        };
-        for block in declarations
-            .registry_blocks
-            .iter()
-            .filter(|block| block.changes(context))
-        {
-            definitions.apply(block);
-        }
+        let definitions = declarations.registry_statements.definitions(context);
         let derived = ThemeDeclarations {
             registry: Arc::new(
                 declarations
@@ -207,6 +195,16 @@ impl ThemeIndex {
             Some(context),
             Some(self.programs()),
         )
+    }
+
+    /// Whether a `@stillwind-undef-utility` statement of the `default` registry context
+    /// matches the utility name `name`.
+    #[must_use]
+    pub fn undefines_utility(&self, name: &str) -> bool {
+        self.inner
+            .declarations
+            .registry_statements
+            .undefines_utility(RegistryContext::Default, name)
     }
 
     /// Whether arbitrary-property candidates such as `[color:red]` may set `property`

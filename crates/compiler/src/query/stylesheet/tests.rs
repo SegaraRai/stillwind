@@ -163,7 +163,7 @@ fn directive_discovery_uses_audience_location_and_provenance() {
 }
 
 #[test]
-fn registry_blocks_offer_context_statements_and_definitions() {
+fn registry_blocks_offer_registry_statements_and_definitions() {
     let css = "@stillwind-registry keyframe { @";
     let labels = query()
         .complete_stylesheet(
@@ -184,6 +184,7 @@ fn registry_blocks_offer_context_statements_and_definitions() {
         [
             "@custom-variant",
             "@utility",
+            "@stillwind-registry",
             "@stillwind-undef-arbitrary-property",
             "@stillwind-undef-utility",
             "@stillwind-undef-variant",

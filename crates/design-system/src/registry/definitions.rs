@@ -11,12 +11,11 @@ use lean_string::LeanStr;
 
 use stillwind_css::{CustomPropertyDefinition, parse_property_definitions};
 
-use super::contexts::split_registry_blocks;
+use super::contexts::{RegistryContext, RegistryStatements, mask_registry_blocks};
 use super::utility_lookup::UtilityLookup;
 use crate::{
     BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
-    parse_builtin_arbitrary_property_order, parse_builtin_utility_definitions,
-    parse_builtin_variant_definitions, parse_declaration_formats, parse_omit_token_prefixes,
+    parse_builtin_arbitrary_property_order, parse_declaration_formats, parse_omit_token_prefixes,
     parse_relationship_patterns, parse_theme_order,
 };
 
@@ -113,7 +112,8 @@ impl BuiltinDefinitions {
     }
 
     /// Returns a copy that uses `utilities` and `variants` in place of the built-in
-    /// utility and variant definitions and keeps the other registries.
+    /// utility and variant definitions and keeps the other registries, including the
+    /// marker classes.
     pub(crate) fn with_definitions(
         &self,
         utilities: Vec<Arc<CustomUtility>>,
@@ -131,28 +131,34 @@ impl BuiltinDefinitions {
     ///
     /// Utility bodies retain their CSS token spelling, including meaningful whitespace.
     ///
-    /// Definitions inside `@stillwind-registry` blocks belong to their contexts and are
-    /// not part of the returned registries.
+    /// The utility and variant registries hold the definitions of the `default`
+    /// registry context, after its undefinitions apply. Statements that only other
+    /// contexts read are not part of them, and a malformed `@stillwind-registry` block
+    /// leaves out every built-in utility and variant.
     pub fn from_css(css: &str) -> Self {
-        let masked = split_registry_blocks(css, |_| false)
-            .ok()
-            .and_then(|(masked, _)| masked);
-        Self::from_definitions(css, masked.as_deref().unwrap_or(css))
+        let masked = mask_registry_blocks(css);
+        let definitions = RegistryStatements::parse(css, |_| false)
+            .map(|statements| statements.definitions(RegistryContext::Default))
+            .unwrap_or_default();
+        Self::from_parts(
+            css,
+            masked.as_deref().unwrap_or(css),
+            definitions.builtin_utilities,
+            definitions.builtin_variants,
+        )
     }
 
-    /// Parses the registries from `css`, a copy of `source` in which every
-    /// `@stillwind-registry` block is blank, and retains `source` as the fingerprint
-    /// text.
-    pub(crate) fn from_definitions(source: &str, css: &str) -> Self {
-        let utilities: Vec<_> = parse_builtin_utility_definitions(css)
-            .into_iter()
-            .map(Arc::new)
-            .collect();
+    /// Builds the registries with the built-in definitions `utilities` and `variants`.
+    /// The other registries are parsed from `css`, a copy of `source` in which every
+    /// `@stillwind-registry` block is blank, and `source` is retained as the
+    /// fingerprint text.
+    pub(crate) fn from_parts(
+        source: &str,
+        css: &str,
+        utilities: Vec<Arc<CustomUtility>>,
+        variants: Vec<Arc<CustomVariant>>,
+    ) -> Self {
         let utility_lookup = UtilityLookup::new(&utilities);
-        let variants: Vec<_> = parse_builtin_variant_definitions(css)
-            .into_iter()
-            .map(Arc::new)
-            .collect();
         let markers = MarkerClasses::collect(
             css,
             utilities.iter().map(|utility| &**utility),

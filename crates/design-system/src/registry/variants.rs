@@ -246,22 +246,36 @@ impl BuiltinVariantModifierType {
 /// is what `compare_variant_sequences` uses as the ordering bit of a variant stack.
 #[must_use]
 pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
+    parse_positioned_builtin_variant_definitions(css)
+        .into_iter()
+        .map(|(_, variant)| variant)
+        .collect()
+}
+
+/// Parses `@stillwind-variant` definitions as [`parse_builtin_variant_definitions`]
+/// does and returns each one with the byte offset of its directive in `css`.
+pub(crate) fn parse_positioned_builtin_variant_definitions(
+    css: &str,
+) -> Vec<(usize, CustomVariant)> {
     extract_named_blocks(css, "@stillwind-variant")
         .into_iter()
         .enumerate()
-        .filter_map(|(builtin_order, (_, header, body))| {
+        .filter_map(|(builtin_order, (offset, header, body))| {
             let header = parse_builtin_variant_header(strip_css_comments(&header).trim())?;
-            Some(CustomVariant {
-                name: header.name,
-                wildcard: header.wildcard,
-                selector: (LeanString::new()).into(),
-                body: strip_css_comments(&body).trim().into(),
-                builtin_order: Some(builtin_order),
-                sort: header.sort,
-                value_type: header.value_type,
-                modifier_type: header.modifier_type,
-                scope: header.scope,
-            })
+            Some((
+                offset,
+                CustomVariant {
+                    name: header.name,
+                    wildcard: header.wildcard,
+                    selector: (LeanString::new()).into(),
+                    body: strip_css_comments(&body).trim().into(),
+                    builtin_order: Some(builtin_order),
+                    sort: header.sort,
+                    value_type: header.value_type,
+                    modifier_type: header.modifier_type,
+                    scope: header.scope,
+                },
+            ))
         })
         .collect()
 }

@@ -18,9 +18,9 @@ use crate::{CompilerOptions, MappedStylesheet};
 /// Assembles raw CSS against `template` and returns the document or carrier text.
 ///
 /// `theme` supplies the definitions indexed by the template. `utility_css` has no
-/// generated-keyframe classification or explicit registration metadata; callers with
-/// generated artifacts must use [`render_mapped`]. `document` includes authored rules
-/// when true. Neither the template nor the input CSS is modified.
+/// classification of generated `@keyframes` rules or explicit registration metadata;
+/// callers with generated artifacts must use [`render_mapped`]. `document` includes
+/// authored rules when true. Neither the template nor the input CSS is modified.
 ///
 /// # Errors
 ///
@@ -69,8 +69,9 @@ pub(in super::super) fn render(
 /// destination for a nonempty generated contribution. Conditional lowering can also
 /// fail for included authored CSS, selected theme tokens, or selected theme keyframes.
 /// Registration destinations are checked before lowering theme fragments; theme and
-/// keyframe destinations are checked before node emission. The utilities destination
-/// is checked after emission. Inputs are unchanged and errors return no partial CSS.
+/// `@keyframes` destinations are checked before node emission. The utilities
+/// destination is checked after emission. Inputs are unchanged and errors return no
+/// partial CSS.
 pub(crate) fn render_mapped(
     template: &CssOutputTemplate,
     theme: &ThemeIndex,

@@ -153,9 +153,9 @@ impl<'a> StylesheetRenderer<'a> {
             .collect()
     }
 
-    /// Assembles document CSS for raw utility rules.
-    /// Generated artifacts must use [`Self::render_mapped_stylesheet`] to retain
-    /// keyframe placement and explicit registration dependencies.
+    /// Assembles document CSS for raw utility rules. Generated artifacts must use
+    /// [`Self::render_mapped_stylesheet`] to retain `@keyframes` placement and explicit
+    /// registration dependencies.
     ///
     /// # Errors
     ///

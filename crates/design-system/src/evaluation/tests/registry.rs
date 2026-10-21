@@ -95,6 +95,29 @@ fn resolves_animation_options_through_the_animation_context() {
 }
 
 #[test]
+fn root_undefinitions_remove_builtins_from_every_root_registry() {
+    let theme = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(2),
+            None,
+            None,
+            "@stillwind-undef-utility flex;
+@stillwind-registry default { @utility flex { display: grid; } }",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let declaration = |theme: &ThemeIndex| {
+        resolve_utility("flex", theme).map(|utility| css_tokens(&utility.declaration))
+    };
+    assert_eq!(declaration(&theme), Some(css_tokens("display: grid;")));
+    for context in [RegistryContext::Keyframe, RegistryContext::ViewTransition] {
+        assert_eq!(declaration(theme.context(context)), None);
+    }
+    assert!(theme.undefines_utility("flex"));
+}
+
+#[test]
 fn registry_blocks_replace_definitions_of_every_layer_in_their_contexts() {
     let theme = parse_fixture_theme(
         &SourceFile::new(

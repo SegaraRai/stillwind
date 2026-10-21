@@ -405,7 +405,7 @@ fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
 }
 
 #[test]
-fn repeated_keyframe_slots_preserve_each_mapping_and_wrapper() {
+fn repeated_keyframes_slots_preserve_each_mapping_and_wrapper() {
     let source = SourceFile::new(
         FileId(1),
         None,

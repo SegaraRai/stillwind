@@ -11,7 +11,7 @@ use stillwind_source::Span;
 use super::declarations::ThemeToken;
 use super::index::ThemeIndex;
 use super::parser::{DynamicFamily, UtilityImportance};
-use crate::registry::RegistryBlock;
+use crate::registry::{ArbitraryPropertyRule, RegistryStatements};
 use crate::{
     BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, MarkerClasses,
     UtilityOrderMode,
@@ -43,13 +43,16 @@ pub(crate) struct ThemeBuilder {
     pub(crate) tokens: Vec<ThemeToken>,
     /// Authored CSS outside definition blocks, retained verbatim.
     pub(crate) custom_css: LeanStr,
-    /// User `@utility` definitions in authored order.
-    pub(crate) utilities: Vec<CustomUtility>,
-    /// `@stillwind-registry` blocks in the order they apply.
-    pub(crate) registry_blocks: Vec<RegistryBlock>,
-    /// User variant definitions. Definitions from `@plugin` answers precede the
-    /// stylesheet's, and each group keeps source order.
-    pub(crate) variants: Vec<CustomVariant>,
+    /// User `@utility` definitions of the `default` registry context in registration
+    /// order.
+    pub(crate) utilities: Vec<Arc<CustomUtility>>,
+    /// Definition and undefinition statements of every registry context.
+    pub(crate) registry_statements: RegistryStatements,
+    /// Arbitrary property rules of the `default` registry context.
+    pub(crate) arbitrary_property_rules: Vec<ArbitraryPropertyRule>,
+    /// User variant definitions of the `default` registry context. Definitions from
+    /// `@plugin` answers precede the stylesheet's, and each group keeps source order.
+    pub(crate) variants: Vec<Arc<CustomVariant>>,
     /// Compiler-owned `@stillwind-property` definitions in authored order.
     pub(crate) properties: Vec<CustomPropertyDefinition>,
     /// Marker classes that user definitions select.
