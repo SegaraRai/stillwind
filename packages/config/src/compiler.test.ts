@@ -1,6 +1,11 @@
 import { expect, test } from "vite-plus/test";
 
-import { normalizeCompilerConfig, validateCompilerConfig, type BaseConfig } from "./compiler.ts";
+import {
+  normalizeCompilerConfig,
+  validateCompilerConfig,
+  type BaseConfig,
+  type TailwindConfig,
+} from "./compiler.ts";
 
 test.each([null, [], { sort: [] }, { naming: [] }])(
   "compiler options require objects: %j",
@@ -119,4 +124,56 @@ test("sorting targets are validated independently of lint reporting", () => {
       },
     }),
   ).toThrow();
+});
+
+test("Tailwind settings accept configurations and promises with one important value", () => {
+  const tailwind: TailwindConfig = {
+    darkMode: "class",
+    plugins: [() => {}],
+  };
+  expect(() =>
+    validateCompilerConfig({
+      tailwind,
+      important: true,
+    }),
+  ).not.toThrow();
+  expect(() =>
+    validateCompilerConfig({
+      tailwind: Promise.resolve({
+        important: true,
+      }),
+      important: "#app",
+    }),
+  ).not.toThrow();
+  expect(
+    normalizeCompilerConfig({
+      tailwind,
+      important: "#app",
+    }),
+  ).toMatchObject({
+    tailwind,
+    important: "#app",
+  });
+  for (const value of [[], "tailwind.config.js"]) {
+    expect(() =>
+      validateCompilerConfig({
+        tailwind: value,
+      }),
+    ).toThrow("config.tailwind");
+  }
+  for (const important of [false, " "]) {
+    expect(() =>
+      validateCompilerConfig({
+        important,
+      }),
+    ).toThrow("config.important");
+  }
+  expect(() =>
+    validateCompilerConfig({
+      tailwind: {
+        important: "#app",
+      },
+      important: true,
+    }),
+  ).toThrow("config.important: must not be set together with tailwind.important");
 });

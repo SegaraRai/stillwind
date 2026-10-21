@@ -8,7 +8,7 @@ import {
   type NativeCssResource,
 } from "@stillwind/native";
 
-import { PluginRuntime, type PluginHost } from "./plugins.ts";
+import { PluginRuntime, type PluginHost, type TailwindSettings } from "./plugins.ts";
 
 /**
  * Checks whether an identity names a stylesheet.
@@ -132,8 +132,8 @@ export interface CssHost {
   plugins?: PluginHost;
 }
 
-/** Plugins and project inputs for the `@plugin` statements of one CSS graph. */
-export interface CssPluginInputs {
+/** Plugins, Tailwind settings, and project inputs for the `@plugin` statements of one CSS graph. */
+export interface CssPluginInputs extends TailwindSettings {
   /** Plugins configured for the project. */
   plugins?: readonly StillwindPlugin[];
   /** Absolute project directory passed to plugins. */
@@ -231,7 +231,15 @@ export async function loadCssGraph(
     host.plugins,
     (path) => host.watch(path),
     pluginInputs?.previous,
+    pluginInputs && {
+      tailwind: pluginInputs.tailwind,
+      important: pluginInputs.important,
+    },
   );
+  if (plugins.tailwind) {
+    // `PluginRuntime.initialize` loads the graph again with the Tailwind settings.
+    loader.deferCanonicalIndex();
+  }
 
   host.watch(root);
 

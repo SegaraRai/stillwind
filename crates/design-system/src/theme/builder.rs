@@ -44,7 +44,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) custom_css: LeanStr,
     /// User `@utility` definitions in authored order.
     pub(crate) utilities: Vec<CustomUtility>,
-    /// User variant definitions grouped by syntax form; source order within each form.
+    /// User variant definitions. Definitions from `@plugin` answers precede the
+    /// stylesheet's, and each group keeps source order.
     pub(crate) variants: Vec<CustomVariant>,
     /// Compiler-owned `@stillwind-property` definitions in authored order.
     pub(crate) properties: Vec<CustomPropertyDefinition>,

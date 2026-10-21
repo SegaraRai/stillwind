@@ -708,6 +708,15 @@ pub enum LintDiagnostic {
         /// Accepted type hints joined with ` or `.
         expected: LeanStr,
     },
+    /// A stylesheet contains a Tailwind feature that Stillwind ignores
+    /// (`ignored-tailwind-feature`).
+    #[error("`{feature}` has no effect in Stillwind; {instead}")]
+    IgnoredTailwindFeature {
+        /// Feature as written, such as `@config` or `important`.
+        feature: LeanStr,
+        /// Clause that names the replacement or the resulting behavior.
+        instead: LeanStr,
+    },
     /// A `theme()` or `--theme()` call names a theme token that is not active and has
     /// no fallback (`invalid-theme-reference`).
     #[error("`{reference}` names no theme token and has no fallback{}", DidYouMean(.suggestion))]
@@ -847,6 +856,7 @@ impl LintDiagnostic {
             Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
             Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,
+            Self::IgnoredTailwindFeature { .. } => LintKind::IgnoredTailwindFeature,
             Self::UnresolvedThemeReference { .. } | Self::EmptyThemeNamespace { .. } => {
                 LintKind::InvalidThemeReference
             }

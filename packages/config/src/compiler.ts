@@ -1,6 +1,7 @@
 /** Compiler settings, validation, and default normalization for build and analysis hosts. */
 
 import type { NativeIdentifierNaming } from "@stillwind/native";
+import type { Config } from "tailwindcss";
 import * as v from "valibot";
 
 import {
@@ -10,7 +11,10 @@ import {
   type ResolvedLintRules,
 } from "./lint.ts";
 import type { StillwindPlugin } from "./plugins.ts";
-import { nonemptyText, strictObject, validate } from "./validation.ts";
+import { nonemptyText, object, strictObject, validate } from "./validation.ts";
+
+/** Tailwind CSS configuration, with the keys of a file that Tailwind's `@config` loads. */
+export type TailwindConfig = Config;
 
 /** Controls independent sorting targets in scripts and stylesheets. */
 export type UtilitySortOptions = {
@@ -119,6 +123,25 @@ export interface BaseConfig {
    */
   plugins?: readonly StillwindPlugin[];
   /**
+   * Tailwind CSS configuration, or a promise for one, in place of Tailwind's `@config`. The host
+   * awaits it when it loads the design-system stylesheet, which requires the `tailwindcss`
+   * package.
+   *
+   * Its keys replace the same keys of the configurations that `@plugin` statements supply, as
+   * the keys of a `@config` file do in Tailwind. `theme`, `presets`, `plugins`, `darkMode`, and
+   * `important` apply as in Tailwind. A stylesheet's `@custom-variant dark` replaces the variant
+   * that `darkMode` defines. Plugins can read `prefix` and `blocklist` through `config()`, but
+   * these keys do not change output. Other keys have no effect.
+   */
+  tailwind?: TailwindConfig | Promise<TailwindConfig>;
+  /**
+   * Makes class utilities important, as Tailwind's `important` configuration key does. True
+   * marks every declaration of a class utility `!important`. A selector nests each class utility
+   * rule in a rule with that selector. Neither form changes `@apply`. Setting both this field and
+   * `tailwind.important` is an error.
+   */
+  important?: true | string;
+  /**
    * Positive finite number of pixels per rem in the documents that use the CSS. Defaults to 16.
    * Canonical lint converts pixel spacing with it, and editor previews annotate rem values with it.
    * Media and container query annotations always use 16 because browsers evaluate rem there
@@ -208,6 +231,13 @@ export const compilerEntries = {
       }),
     ),
   ),
+  tailwind: v.optional(
+    v.custom<TailwindConfig | Promise<TailwindConfig>>(
+      object,
+      "must be a Tailwind configuration object or a promise for one",
+    ),
+  ),
+  important: v.optional(v.union([v.literal(true), nonemptyText])),
   lint: v.optional(v.unknown()),
 };
 
@@ -231,6 +261,22 @@ const distinctNamespaces = (partial: boolean) =>
   );
 
 /**
+ * Rejects an `important` field together with `important` in a Tailwind configuration object.
+ * A promised configuration is checked after the host awaits it.
+ */
+const singleImportant = v.forward(
+  v.check(
+    (value: v.InferOutput<typeof compilerSchema>) =>
+      value.important === undefined ||
+      !object(value.tailwind) ||
+      typeof value.tailwind.then === "function" ||
+      value.tailwind.important === undefined,
+    "must not be set together with tailwind.important",
+  ),
+  ["important"],
+);
+
+/**
  * Validates compiler fields and lint policies without resolving paths or invoking naming callbacks.
  * @param value - Compiler settings with no analysis or delivery fields. CSS is optional here.
  * @param location - Field path prepended to validation errors. Defaults to `config`.
@@ -243,7 +289,7 @@ export function validateCompilerConfig(
   location = "config",
   partial = false,
 ): asserts value is BaseConfig {
-  validate(v.pipe(compilerSchema, distinctNamespaces(partial)), value, location);
+  validate(v.pipe(compilerSchema, distinctNamespaces(partial), singleImportant), value, location);
   if (value.lint !== undefined) {
     validateLintConfig(value.lint, `${location}.lint`, partial);
   }

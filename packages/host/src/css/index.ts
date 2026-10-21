@@ -31,4 +31,5 @@ export {
   pluginLoader,
   PluginRuntime,
   type PluginHost,
+  type TailwindSettings,
 } from "./plugins.ts";

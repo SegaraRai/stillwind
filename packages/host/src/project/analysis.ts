@@ -577,6 +577,8 @@ export class AnalysisProject {
   #pluginInputs(): CssPluginInputs {
     return {
       plugins: this.host.config.plugins,
+      tailwind: this.host.config.tailwind,
+      important: this.host.config.important,
       root: this.host.root,
       previous: this.#plugins,
     };

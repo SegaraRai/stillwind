@@ -394,7 +394,16 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
 
 /// Extracts all user-authored variant forms in their shared source order.
 /// Later definitions override earlier ones regardless of shorthand or block syntax.
-pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
+fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
+    extract_custom_variants_with_offsets(css)
+        .into_iter()
+        .map(|(_, variant)| variant)
+        .collect()
+}
+
+/// Parses the same definitions as [`extract_custom_variants`], each with the byte
+/// offset of its directive in `css`, in offset order.
+pub(crate) fn extract_custom_variants_with_offsets(css: &str) -> Vec<(usize, CustomVariant)> {
     let mut definitions = extract_named_statements(css, "@custom-variant")
         .into_iter()
         .filter_map(|(offset, header)| {
@@ -442,16 +451,21 @@ pub(crate) fn extract_custom_variants(css: &str) -> Vec<CustomVariant> {
     definitions.sort_by_key(|definition| definition.0);
     definitions
         .into_iter()
-        .map(|(_, name, wildcard, scope, selector, body)| CustomVariant {
-            name,
-            wildcard,
-            selector: (selector).into(),
-            body: (body).into(),
-            builtin_order: None,
-            sort: None,
-            value_type: None,
-            modifier_type: None,
-            scope,
+        .map(|(offset, name, wildcard, scope, selector, body)| {
+            (
+                offset,
+                CustomVariant {
+                    name,
+                    wildcard,
+                    selector: (selector).into(),
+                    body: (body).into(),
+                    builtin_order: None,
+                    sort: None,
+                    value_type: None,
+                    modifier_type: None,
+                    scope,
+                },
+            )
         })
         .collect()
 }

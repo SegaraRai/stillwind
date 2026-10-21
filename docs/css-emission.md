@@ -344,8 +344,8 @@ the CSS validation of Stillwind's own utilities. Color utilities apply opacity
 modifiers before calling the handler. A `matchVariant` registration accepts a named
 value only when `values` maps it to a string, and the bare root uses `DEFAULT`.
 The host loads the adapter, and the `tailwindcss` package that it needs, only when a
-statement selects a Tailwind plugin, so `tailwindcss` is an optional peer dependency
-of `@stillwind/host`.
+statement selects a Tailwind plugin or the project sets `tailwind` or `important`, so
+`tailwindcss` is an optional peer dependency of `@stillwind/host`.
 
 Callbacks run in the host, and the compiler receives ordinary `@utility` definitions.
 A static utility from `addUtilities` keeps its name. As in Tailwind, each selector
@@ -369,7 +369,9 @@ no other definition resolves. When a typed callback rejects an arbitrary value b
 of an invalid modifier, `(functional, stop)` ends the evaluation of the definitions that
 Tailwind registers later. The output of each `@plugin` statement stays at the
 statement's position, and [CSS ordering](css-ordering.md#l1---declaration-order-inside-one-rule)
-places its utilities before the other utilities.
+places its utilities before the other utilities. A stylesheet's `@custom-variant`
+replaces a plugin's variant of the same name wherever the `@plugin` statement stands,
+as in Tailwind.
 
 Plugin theme configuration supports functions and `extend`, and `theme()` reads the CSS
 theme with the same key mapping as Tailwind, such as `colors` to `--color-*` and
@@ -390,7 +392,18 @@ When an ordinary `@theme` value defines `--font-sans` or `--font-mono`, the
 corresponding variables are not written, as in Tailwind.
 
 All configurations, including presets and the configurations of nested plugins, merge
-in registration order. `config()` reads Tailwind's resolved configuration: `theme`,
+in registration order. The project's `tailwind` field takes the place of Tailwind's
+`@config` file. The loader removes a stylesheet's `@config` statement, and the
+`ignored-tailwind-feature` lint rule reports it. The field accepts a configuration or a
+promise for one. Its configuration merges after every plugin configuration, so its keys
+replace the same keys of plugin configurations, as in Tailwind. The project's `important`
+field sets the `important` key in the same way, and setting it together with
+`tailwind.important` is an error.
+
+The theme configuration, `important`, `darkMode`, `theme.container`, and the
+registrations of the plugins in the `tailwind` field apply to the whole stylesheet.
+The native loader therefore adds a `@plugin` request after the root stylesheet, and the
+host answers it with their CSS. `config()` reads Tailwind's resolved configuration: `theme`,
 `darkMode`, `prefix`, `blocklist`, and `important`, where the last configuration that
 defines a key sets it. Other keys return the fallback, as in Tailwind. Paths use
 Tailwind's key syntax, so `config("theme[colors][brand]")` and
@@ -404,9 +417,16 @@ changes `@apply`, and keyframes stay at the stylesheet root. `theme.container` a
 `margin-inline: auto`, `padding` adds `padding-inline` for the default and for each
 breakpoint, and `screens` replaces the maximum widths.
 
-`config()` returns `prefix`, `darkMode`, and `blocklist`, but these keys do not change
-the output. Generated class names are unique without `prefix`. The `dark` variant keeps
-its definition from CSS, and blocked candidates still generate CSS.
+`darkMode` redefines the `dark` variant with Tailwind's mapping. `"selector"` becomes
+`&:where(.dark, .dark *)`, `"class"` becomes `&:is(.dark *)`, and a `[mode, selector]`
+tuple replaces `.dark`. `"media"` uses `prefers-color-scheme`, and
+`["variant", selectors]` uses the selectors, each of which must contain `&`. As in
+Tailwind, this variant replaces a plugin's `dark` variant, and a stylesheet's
+`@custom-variant dark` replaces it.
+
+`config()` returns `prefix` and `blocklist`, but these keys do not change the output.
+Generated class names are unique without `prefix`, and blocked candidates still generate
+CSS. The `no-restricted-utilities` lint rule replaces `blocklist`.
 
 Editor catalogs list finite candidates without running their callbacks. Selecting a
 completion resolves its CSS without adding that candidate to the application's used CSS.

@@ -309,6 +309,7 @@ define_lint_rules! {
         ClampedValue => "clamped-value",
         DuplicateDefinition => "duplicate-definition",
         InvalidThemeValue => "invalid-theme-value",
+        IgnoredTailwindFeature => "ignored-tailwind-feature",
     }
     Restriction {
         NoArbitraryColors => "no-arbitrary-colors",
@@ -359,6 +360,7 @@ impl LintKind {
                 Self::InvalidThemeReference
                     | Self::DuplicateDefinition
                     | Self::InvalidThemeValue
+                    | Self::IgnoredTailwindFeature
                     | Self::ImplicitNestingSelector
                     | Self::PreferVariantDirective
             ),
@@ -383,6 +385,7 @@ impl LintKind {
                     | Self::InvalidThemeReference
                     | Self::DuplicateDefinition
                     | Self::InvalidThemeValue
+                    | Self::IgnoredTailwindFeature
                     | Self::ImplicitNestingSelector
                     | Self::PreferVariantDirective
                     | Self::InvalidLintSuppression

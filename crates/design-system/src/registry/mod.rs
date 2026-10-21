@@ -50,4 +50,4 @@ pub(crate) use order::registration_positions;
 pub(crate) use utility_lookup::UtilityLookup;
 
 pub(super) use utilities::extract_custom_utilities;
-pub(super) use variants::extract_custom_variants;
+pub(super) use variants::extract_custom_variants_with_offsets;

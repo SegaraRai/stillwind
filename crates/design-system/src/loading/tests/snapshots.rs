@@ -302,3 +302,95 @@ fn plugin_definitions_precede_builtins_and_the_stylesheet() {
         );
     }
 }
+
+#[test]
+fn stylesheet_variants_replace_plugin_variants_at_any_position() {
+    for root in [
+        "@custom-variant state (&:focus); @plugin 'p';",
+        "@plugin 'p'; @custom-variant state (&:focus);",
+    ] {
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+        let request = requests(loader.provide(0, "root.css".into(), None, None, root.into()));
+        let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+            request[0].id,
+            "plugin".into(),
+            None,
+            None,
+            "@custom-variant state (&:hover);".into(),
+        ) else {
+            panic!("expected loaded snapshot");
+        };
+        let candidate = parse_candidate("state:x").unwrap();
+        let variant = format_args!(
+            "{:?}",
+            resolve_variant(&candidate.variants[0], snapshot.theme()).unwrap()
+        )
+        .to_lean_string();
+        assert!(variant.contains(":focus"), "{root}: {variant}");
+        assert!(!variant.contains(":hover"), "{root}: {variant}");
+    }
+}
+
+#[test]
+fn trailing_plugin_answer_follows_the_root_text() {
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    assert!(loader.request_trailing_plugin("\0settings".into()));
+    let request = requests(loader.provide(
+        0,
+        "root.css".into(),
+        None,
+        None,
+        "@plugin 'p'; @utility probe { color: blue; }".into(),
+    ));
+    assert!(!loader.request_trailing_plugin("\0other".into()));
+    let specifiers = request
+        .iter()
+        .map(|request| request.specifier.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(specifiers, ["p", "\0settings"]);
+    assert!(matches!(
+        &request[1].kind,
+        CssDependencyKind::Plugin { options } if options.is_empty()
+    ));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide_many([
+        input(request[0].id, "plugin", ""),
+        input(
+            request[1].id,
+            "settings",
+            "@custom-variant state (&:hover); @utility icon { width: 1em; }",
+        ),
+    ]) else {
+        panic!("expected loaded snapshot");
+    };
+    let theme = snapshot.theme();
+    assert!(theme.utility_positions()["icon"] < theme.utility_positions()["probe"]);
+    let candidate = parse_candidate("state:x").unwrap();
+    assert!(resolve_variant(&candidate.variants[0], theme).is_ok());
+    assert!(
+        snapshot
+            .sources()
+            .edges
+            .iter()
+            .any(|edge| edge.request.specifier == "\0settings" && edge.target == "settings".into())
+    );
+}
+
+#[test]
+fn config_statements_are_removed_from_the_expansion() {
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+        0,
+        "root.css".into(),
+        None,
+        None,
+        ".a { color: red; } @config './tailwind.config.js'; .b { color: blue; }".into(),
+    ) else {
+        panic!("expected loaded snapshot");
+    };
+    let css = snapshot.theme().custom_css();
+    assert!(!css.contains("@config"), "{css}");
+    assert!(css.contains(".a") && css.contains(".b"), "{css}");
+}

@@ -140,6 +140,8 @@ pub struct LintOverrides {
     pub duplicate_definition: Option<LintSeverity>,
     /// Reporting level for `invalid-theme-value`.
     pub invalid_theme_value: Option<LintSeverity>,
+    /// Reporting level for `ignored-tailwind-feature`.
+    pub ignored_tailwind_feature: Option<LintSeverity>,
     /// Reporting level for `implicit-nesting-selector`.
     pub implicit_nesting_selector: Option<LintSeverity>,
     /// Field-wise `prefer-variant-directive` policy overrides.
@@ -354,6 +356,10 @@ impl LintOverrides {
             ),
             (LintKind::DuplicateDefinition, self.duplicate_definition),
             (LintKind::InvalidThemeValue, self.invalid_theme_value),
+            (
+                LintKind::IgnoredTailwindFeature,
+                self.ignored_tailwind_feature,
+            ),
             (
                 LintKind::ImplicitNestingSelector,
                 self.implicit_nesting_selector,

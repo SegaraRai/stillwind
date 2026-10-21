@@ -257,7 +257,8 @@ impl ThemeIndex {
         &self.inner.declarations.utilities
     }
 
-    /// User variant definitions grouped by syntax form; source order within each form.
+    /// User variant definitions. Definitions from `@plugin` answers precede the
+    /// stylesheet's, and each group keeps source order.
     pub fn variants(&self) -> &[Arc<CustomVariant>] {
         &self.inner.declarations.variants
     }

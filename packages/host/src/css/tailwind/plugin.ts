@@ -177,11 +177,50 @@ function resolveConfig(configs: readonly Record<string, unknown>[]): Record<stri
 }
 
 /**
+ * Returns the `dark` variant that Tailwind's `darkMode` configuration key defines.
+ *
+ * @param setting - `"media"`, `"selector"`, `"class"`, or a tuple of one of these modes and a
+ * selector, which defaults to `.dark`. `["variant", selectors]` uses a selector or a list of
+ * selectors, and each must contain `&`.
+ * @returns The value for `addVariant()`, or undefined when the setting defines no variant,
+ * including `null`, `false`, and the `variant` mode with a selector that Tailwind rejects.
+ */
+function darkModeVariant(setting: unknown): string | string[] | undefined {
+  const [mode, selector = ".dark"] = Array.isArray(setting) ? setting : [setting];
+  switch (mode) {
+    case "media":
+      return "@media (prefers-color-scheme: dark)";
+
+    case "selector":
+      return `&:where(${selector}, ${selector} *)`;
+
+    case "class":
+      return `&:is(${selector} *)`;
+
+    case "variant": {
+      const selectors: unknown[] = Array.isArray(selector) ? selector : [selector];
+      // Tailwind warns and defines no variant for the default selector or a selector without `&`.
+      return selectors.every(
+        (entry): entry is string =>
+          typeof entry === "string" && entry !== ".dark" && entry.includes("&"),
+      )
+        ? (selectors as string[])
+        : undefined;
+    }
+
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Executes Tailwind API handlers once and resolves their registered callbacks on demand.
  *
  * All handlers share one resolved config and theme, as in Tailwind. Each registration keeps the
  * index of the `@plugin` statement that registered it, so the CSS of each statement stays at its
- * own position in the stylesheet.
+ * own position in the stylesheet. The project's configuration and the settings that apply to
+ * every statement belong to an extra owner, whose CSS {@link TailwindRuntime.settingsCss}
+ * returns.
  */
 export class TailwindRuntime {
   /** `addUtilities()` and `addComponents()` registrations, as `@utility` rules. */
@@ -199,7 +238,10 @@ export class TailwindRuntime {
 
   /** Owner whose handler is running, recorded with each registration. */
   #owner = 0;
-  /** Number of `@plugin` statements, which are the owners. */
+  /**
+   * Number of `@plugin` statements. It is also the owner index of the project's configuration
+   * and of the settings for every statement.
+   */
   readonly #owners: number;
   /**
    * `@stillwind-plugin-important` statement for the merged `important` setting, or an empty
@@ -210,8 +252,15 @@ export class TailwindRuntime {
   /**
    * @param plugins - Configured handlers, one for each `@plugin` statement, in stylesheet order.
    * @param tokens - Active CSS theme tokens, which the handlers' `theme()` calls read.
+   * @param project - Project's Tailwind configuration. Its keys replace the same keys of every
+   * plugin configuration, as the keys of a Tailwind `@config` file do. Its plugins register in
+   * {@link TailwindRuntime.settingsCss}.
    */
-  constructor(plugins: readonly PluginWithConfig[], tokens: readonly NativeThemeToken[]) {
+  constructor(
+    plugins: readonly PluginWithConfig[],
+    tokens: readonly NativeThemeToken[],
+    project?: PluginWithConfig["config"],
+  ) {
     const entries: [PluginWithConfig, number][] = [];
     const configs: Record<string, unknown>[] = [];
     /**
@@ -239,6 +288,15 @@ export class TailwindRuntime {
       visit(plugin, owner);
     }
     this.#owners = plugins.length;
+    if (project) {
+      visit(
+        {
+          handler: () => {},
+          config: project,
+        },
+        this.#owners,
+      );
+    }
     this.#theme = new PluginTheme(configs, tokens);
     const config = resolveConfig(configs);
     const addUtilities: PluginAPI["addUtilities"] = (css) =>
@@ -363,6 +421,14 @@ export class TailwindRuntime {
       this.#owner = owner;
       plugin.handler(api);
     }
+    // Tailwind defines the `darkMode` variant after running the handlers, so it replaces a
+    // plugin's `dark` variant. A stylesheet's `@custom-variant dark` still replaces it, because
+    // the native loader gives plugin variants lower precedence.
+    const dark = darkModeVariant(config.darkMode);
+    if (dark) {
+      this.#owner = this.#owners;
+      api.addVariant("dark", dark);
+    }
     // `config.prefix` is not applied: Stillwind generates unique class names, so it does not
     // prefix candidates.
     const { important } = config;
@@ -382,9 +448,9 @@ export class TailwindRuntime {
         ),
       ),
     );
-    if (container && this.#owners) {
+    if (container) {
       this.#utilities.push({
-        owner: 0,
+        owner: this.#owners,
         name: "container",
         css: `@utility container{${container}}`,
       });
@@ -488,15 +554,13 @@ export class TailwindRuntime {
    * `any` and another type is a Tailwind fallback, and a callback that rejects an arbitrary value
    * with an invalid modifier stops the evaluation of later definitions.
    *
-   * The first statement also carries the settings that apply to every statement: the plugins'
-   * theme configuration as a `@stillwind-plugin-theme` block, which native utility resolution
-   * also reads, and the `important` setting.
-   *
-   * @param owner - Index of the statement among the configured handlers.
+   * @param owner - Index of the statement among the configured handlers, or the number of
+   * statements for the settings that {@link TailwindRuntime.settingsCss} describes.
    * @returns Stillwind CSS for the statement's position.
    */
   css(owner: number): string {
-    const output = owner === 0 ? [this.#theme.css(), this.#important].filter(Boolean) : [];
+    const output =
+      owner === this.#owners ? [this.#theme.css(), this.#important].filter(Boolean) : [];
     output.push(
       ...[...this.#globals, ...this.#utilities]
         .filter((entry) => entry.owner === owner)
@@ -566,6 +630,20 @@ export class TailwindRuntime {
       }
     }
     return output.join("\n");
+  }
+
+  /**
+   * Serializes the settings that apply to every statement, followed by the registrations of the
+   * project's configuration, in the form that {@link TailwindRuntime.css} describes.
+   *
+   * The settings are the merged theme configuration as a `@stillwind-plugin-theme` block, which
+   * native utility resolution also reads, the `important` setting, the `dark` variant of the
+   * `darkMode` setting, and the `container` utility of `theme.container`.
+   *
+   * @returns Stillwind CSS for the request that follows the root stylesheet.
+   */
+  settingsCss(): string {
+    return this.css(this.#owners);
   }
 }
 

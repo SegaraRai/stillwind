@@ -51,6 +51,7 @@ const recommended = {
     "invalid-theme-reference": "deny",
     "duplicate-definition": "warn",
     "invalid-theme-value": "deny",
+    "ignored-tailwind-feature": "warn",
     "implicit-nesting-selector": "warn",
   },
 } as const;
@@ -113,6 +114,7 @@ export const lintPresets = {
       "invalid-theme-reference": "deny",
       "duplicate-definition": "deny",
       "invalid-theme-value": "deny",
+      "ignored-tailwind-feature": "deny",
       "implicit-nesting-selector": "deny",
       "unused-lint-suppression": "deny",
     },

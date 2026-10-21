@@ -466,6 +466,8 @@ async function loadDesignSystem(
     session?.newLoader(nativeOptions),
     {
       plugins: config.plugins,
+      tailwind: config.tailwind,
+      important: config.important,
       root: settings.projectRoot,
       previous,
     },

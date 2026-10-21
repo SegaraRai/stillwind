@@ -66,6 +66,26 @@ impl NativeDesignSystemLoader {
         Self::with_sources(options, self.sources().fork_empty())
     }
 
+    /// Adds a `@plugin` request without options after the root's text. Its answer
+    /// follows every authored rule, and its definitions are plugin definitions.
+    ///
+    /// Choose a `specifier` that authored CSS cannot contain, such as one with a NUL
+    /// character, so the request cannot be confused with an authored `@plugin`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error after the root has been supplied.
+    #[napi]
+    pub fn request_trailing_plugin(&mut self, specifier: String) -> napi::Result<()> {
+        if self.loader.request_trailing_plugin(specifier.into()) {
+            Ok(())
+        } else {
+            Err(Error::from_reason(
+                "requestTrailingPlugin must be called before the root is supplied",
+            ))
+        }
+    }
+
     /// Answers one pending request by calling [`Self::provide_many`] with one file.
     /// An absent URI marks the CSS as an internal buffer without a reportable location.
     /// `lint` marks the source for stylesheet lint, and an absent value means false.

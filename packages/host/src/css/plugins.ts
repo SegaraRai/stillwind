@@ -1,4 +1,4 @@
-import type { PluginContext, StillwindPlugin } from "@stillwind/config";
+import type { PluginContext, StillwindPlugin, TailwindConfig } from "@stillwind/config";
 import {
   NativeDesignSystemLoader,
   type NativeCompilerOptions,
@@ -25,6 +25,20 @@ export type TailwindPlugin =
       /** v3-style config, such as `theme.extend`. */
       config?: object;
     };
+
+/** Project settings that the Tailwind plugin adapter applies to the whole CSS graph. */
+export interface TailwindSettings {
+  /** Tailwind configuration, or a promise for one, which replaces Tailwind's `@config`. */
+  tailwind?: TailwindConfig | Promise<TailwindConfig>;
+  /** Value of Tailwind's `important` configuration key. */
+  important?: true | string;
+}
+
+/**
+ * Specifier of the `@plugin` request that the native loader adds after the root stylesheet for
+ * the Tailwind settings. Decoded CSS never contains NUL, so no authored statement has it.
+ */
+const SETTINGS = "\0stillwind-tailwind-settings";
 
 /** A native Stillwind plugin or a plugin using Tailwind v4's JavaScript API. */
 export type LoadedPlugin = StillwindPlugin | TailwindPlugin;
@@ -225,6 +239,8 @@ export class PluginRuntime {
   #loader?: NativeDesignSystemLoader;
   /** Tailwind statements in stylesheet order; an index is the statement's owner index. */
   #tailwindInstances: PluginInstance[] = [];
+  /** Answer to the {@link SETTINGS} request, which the Tailwind runtime generates. */
+  #settingsCss = "";
 
   /**
    * Creates a runtime for one load.
@@ -237,6 +253,8 @@ export class PluginRuntime {
    * @param watch - Registers files that plugins read.
    * @param previous - Runtime of an earlier load of the same project. A statement with the same
    * specifier, options, and plugin resolves the earlier load's candidates of its families again.
+   * @param settings - Project's Tailwind settings. Either field makes the graph use the Tailwind
+   * plugin adapter, as a Tailwind `@plugin` statement does.
    */
   constructor(
     readonly options: NativeCompilerOptions,
@@ -245,6 +263,7 @@ export class PluginRuntime {
     readonly host: PluginHost | undefined,
     readonly watch: (path: string) => void,
     readonly previous?: PluginRuntime,
+    readonly settings?: TailwindSettings,
   ) {}
 
   /** Number of definition batches added after the original load. */
@@ -253,11 +272,16 @@ export class PluginRuntime {
   }
 
   /**
-   * Whether a loaded statement selects a Tailwind plugin, so that {@link PluginRuntime.initialize}
-   * loads the graph again and the original load can skip its canonical spelling index.
+   * Whether the project has Tailwind settings or a loaded statement selects a Tailwind plugin, so
+   * that {@link PluginRuntime.initialize} loads the graph again and the original load can skip
+   * its canonical spelling index.
    */
   get tailwind(): boolean {
-    return [...this.#instances.values()].some((instance) => instance.tailwind);
+    return (
+      this.settings?.tailwind !== undefined ||
+      this.settings?.important !== undefined ||
+      [...this.#instances.values()].some((instance) => instance.tailwind)
+    );
   }
 
   /** Whether any loaded plugin declares a dynamic family. */
@@ -365,15 +389,20 @@ export class PluginRuntime {
    * the graph's CSS uses dynamic candidates. Only the returned loader prepares its canonical
    * spelling index, which takes most of the time of a load.
    *
-   * @param loader - Loader of the completed original load. With Tailwind plugins, it can skip its
-   * canonical spelling index, as {@link PluginRuntime.tailwind} allows.
-   * @returns `loader` without Tailwind plugins, and otherwise a loader with their CSS.
-   * @throws If a handler or a callback fails, or the native loader rejects the generated CSS.
+   * Each later load requests the Tailwind settings after the root stylesheet, as
+   * {@link TailwindRuntime.settingsCss} describes.
+   *
+   * @param loader - Loader of the completed original load. With Tailwind plugins or settings, it
+   * can skip its canonical spelling index, as {@link PluginRuntime.tailwind} allows.
+   * @returns `loader` without Tailwind plugins and settings, and otherwise a loader with their CSS.
+   * @throws If the Tailwind configuration is rejected or invalid, a handler or a callback fails,
+   * or the native loader rejects the generated CSS.
    */
   async initialize(loader: NativeDesignSystemLoader): Promise<NativeDesignSystemLoader> {
     this.#loader = loader;
     const instances = this.#orderedInstances().filter((instance) => instance.tailwind);
-    if (!instances.length) {
+    const project = await this.#projectConfig();
+    if (!instances.length && !project) {
       return loader;
     }
     this.#tailwindInstances = instances;
@@ -381,6 +410,7 @@ export class PluginRuntime {
     this.#tailwind = new TailwindRuntime(
       instances.map((instance) => instance.tailwind!),
       loader.editorQuery().themeTokens(),
+      project,
     );
     if (this.previous) {
       await this.resolve(this.previous.#requested);
@@ -525,6 +555,9 @@ export class PluginRuntime {
     if (intermediate) {
       loader.deferCanonicalIndex();
     }
+    if (this.#tailwind) {
+      loader.requestTrailingPlugin(SETTINGS);
+    }
     let step: NativeCssLoadStep = loader.provide(
       0,
       this.#root.name,
@@ -536,6 +569,17 @@ export class PluginRuntime {
     while (step.kind !== "complete") {
       step = loader.provideMany(
         step.requests.map((request) => {
+          if (
+            this.#tailwind &&
+            request.specifier === SETTINGS &&
+            request.pluginOptions !== undefined
+          ) {
+            return {
+              id: request.id,
+              name: `stillwind-plugin:${SETTINGS.slice(1)}#${this.#generation}`,
+              content: this.#settingsCss,
+            };
+          }
           const instance =
             request.pluginOptions !== undefined
               ? this.#instances.get(instanceKey(request))
@@ -570,11 +614,46 @@ export class PluginRuntime {
     };
   }
 
-  /** Stores the generated CSS of each Tailwind statement as that statement's answer. */
+  /** Stores the generated CSS of each Tailwind statement and of the settings as their answers. */
   #updateTailwindCss(): void {
     for (const [owner, instance] of this.#tailwindInstances.entries()) {
       instance.css = this.#tailwind!.css(owner);
     }
+    this.#settingsCss = this.#tailwind!.settingsCss();
+  }
+
+  /**
+   * Awaits the project's Tailwind configuration and applies its `important` field.
+   * @returns The configuration with `important` applied, or undefined without settings.
+   * @throws If the configuration promise rejects, its value is not an object, or both the field
+   * and the configuration set `important`.
+   */
+  async #projectConfig(): Promise<TailwindConfig | undefined> {
+    const { important } = this.settings ?? {};
+    const tailwind: unknown = await this.settings?.tailwind;
+    if (tailwind === undefined) {
+      return important === undefined
+        ? undefined
+        : {
+            important,
+          };
+    }
+    if (typeof tailwind !== "object" || tailwind === null || Array.isArray(tailwind)) {
+      throw new Error("Stillwind config tailwind must resolve to a Tailwind configuration object");
+    }
+    const config = tailwind as TailwindConfig;
+    if (important === undefined) {
+      return config;
+    }
+    if (config.important !== undefined) {
+      throw new Error(
+        "Stillwind config important must not be set together with tailwind.important",
+      );
+    }
+    return {
+      ...config,
+      important,
+    };
   }
 
   /**

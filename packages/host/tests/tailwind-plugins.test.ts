@@ -6,11 +6,21 @@ import { expect, test } from "vite-plus/test";
 
 import { BrowserProject } from "../src/browser/project.ts";
 import { loadCssGraph } from "../src/css/css.ts";
-import { defaultPluginExport, type LoadedPlugin, type PluginRuntime } from "../src/css/plugins.ts";
+import {
+  defaultPluginExport,
+  type LoadedPlugin,
+  type PluginRuntime,
+  type TailwindSettings,
+} from "../src/css/plugins.ts";
 
 const root = path.resolve(import.meta.dirname);
 
-async function graph(css: string, extension: LoadedPlugin, previous?: PluginRuntime) {
+async function graph(
+  css: string,
+  extension?: LoadedPlugin,
+  previous?: PluginRuntime,
+  settings?: TailwindSettings,
+) {
   return loadCssGraph(
     path.join(root, "theme.css"),
     {},
@@ -21,7 +31,7 @@ async function graph(css: string, extension: LoadedPlugin, previous?: PluginRunt
       sourceMapSource: (id) => id,
       watch: () => {},
       plugins: {
-        load: async () => extension,
+        load: async () => extension ?? expect.fail("unexpected plugin"),
         resolve: async () => undefined,
         read: async () => expect.fail("unexpected read"),
       },
@@ -31,6 +41,7 @@ async function graph(css: string, extension: LoadedPlugin, previous?: PluginRunt
     {
       root,
       previous,
+      ...settings,
     },
   );
 }
@@ -734,4 +745,79 @@ test("plugin config important and container apply to build and hover, and the la
   } finally {
     await project.close();
   }
+});
+
+test("the project's Tailwind configuration applies without a @plugin statement", async () => {
+  const loaded = await graph("@stillwind-slot utilities;", undefined, undefined, {
+    tailwind: Promise.resolve({
+      darkMode: "class",
+      theme: { extend: { colors: { brand: "#123456" } } },
+      plugins: [
+        plugin((api) => {
+          api.addUtilities({
+            ".tidy": {
+              color: api.theme("colors.brand"),
+            },
+          });
+        }),
+      ],
+    }),
+  });
+  const query = loaded.loader.editorQuery();
+  expect(query.previewCandidate("tidy")).toBe("&{color:#123456;}");
+  expect(query.previewCandidate("dark:tidy")).toContain(":is(.dark *)");
+});
+
+test("a stylesheet's dark variant replaces darkMode wherever plugins stand", async () => {
+  const extension = plugin((api) => {
+    api.addUtilities({
+      ".tidy": {
+        margin: "0",
+      },
+    });
+  });
+  for (const css of [
+    '@custom-variant dark (&.authored); @plugin "test"; @stillwind-slot utilities;',
+    '@plugin "test"; @custom-variant dark (&.authored); @stillwind-slot utilities;',
+  ]) {
+    const loaded = await graph(css, extension, undefined, {
+      tailwind: {
+        darkMode: "class",
+      },
+    });
+    const preview = loaded.loader.editorQuery().previewCandidate("dark:tidy");
+    expect(preview, css).toContain(".authored");
+    expect(preview, css).not.toContain(".dark");
+  }
+});
+
+test("the important field applies as Tailwind's important key and rejects a second value", async () => {
+  const source = 'import { style } from "stillwind/react"; export const props = style("tidy");';
+  const project = new BrowserProject({
+    root: "/workspace",
+    files: new Map([
+      ["/workspace/theme.css", "@utility tidy { margin: 0; } @stillwind-slot utilities;"],
+      ["/workspace/entry.tsx", source],
+    ]),
+    config: {
+      css: "theme.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+      important: "#app",
+    },
+  });
+  try {
+    await project.analyze("/workspace/entry.tsx");
+    expect(project.css().css).toMatch(/#app\s*\{[^}]*margin: 0/);
+  } finally {
+    await project.close();
+  }
+  await expect(
+    graph("@stillwind-slot utilities;", undefined, undefined, {
+      important: true,
+      tailwind: Promise.resolve({
+        important: "#app",
+      }),
+    }),
+  ).rejects.toThrow("important must not be set together with tailwind.important");
 });

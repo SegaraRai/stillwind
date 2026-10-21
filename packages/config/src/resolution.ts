@@ -17,7 +17,7 @@ import { mergeConfig } from "./merge.ts";
 import { nonemptyText, strictObject, validate } from "./validation.ts";
 
 /** Inline options that can pass through isolated loader workers. */
-export type SerializableInlineConfig = Omit<InlineConfig, "naming" | "plugins">;
+export type SerializableInlineConfig = Omit<InlineConfig, "naming" | "plugins" | "tailwind">;
 
 /** Build overrides and the selection of a configuration file and project. */
 export interface InlineConfig extends BuildConfig {

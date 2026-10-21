@@ -160,6 +160,8 @@ export class BrowserProject {
         undefined,
         {
           plugins: config.plugins,
+          tailwind: config.tailwind,
+          important: config.important,
           root,
         },
       );

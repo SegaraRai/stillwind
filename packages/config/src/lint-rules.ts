@@ -278,6 +278,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "ignored-tailwind-feature": {
+    category: "hazard",
+    nativeName: "ignoredTailwindFeature",
+    defaults: null,
+    options: null,
+  },
   "no-arbitrary-colors": {
     category: "restriction",
     nativeName: "noArbitraryColors",

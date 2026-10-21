@@ -305,6 +305,12 @@ Other rules check only stylesheets. They check definitions and theme references:
   font size for `--text-*`, and so on. A shadow namespace accepts a comma-separated list
   of shadows. Values that contain `var()`, `theme()`, or `--theme()` are not checked.
   The output does not change.
+- `ignored-tailwind-feature` (hazard, default `warn`) reports Tailwind features that
+  loading ignores. The loader removes a top-level `@config` statement, whose
+  replacement is the project's `tailwind` field. It loads an import without the
+  `important`, `prefix`, `reference`, `source`, and `theme` modifiers. The project's
+  `important` field replaces the `important` modifier. The finding covers the
+  statement or the modifier.
 - `invalid-theme-reference` (input, default `deny`) reports a `theme()` or `--theme()`
   call that names an inactive token without a fallback, in authored rules, `@utility`
   bodies, and variant definitions. Stylesheet rendering omits the declaration that

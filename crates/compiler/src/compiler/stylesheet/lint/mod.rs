@@ -13,7 +13,8 @@
 //! variant selectors without `&`, and [`shadowing`] finds definitions that later
 //! definitions hide. [`theme_values`] checks `@theme` token values, and
 //! [`theme_references`] checks `theme()` and `--theme()` calls and the theme namespaces
-//! that `@utility` definitions read. [`variant_directive`] finds nested rules and
+//! that `@utility` definitions read. [`tailwind_features`] reports the Tailwind
+//! features that loading ignores. [`variant_directive`] finds nested rules and
 //! conditional at-rules that `@variant` can replace, using the reverse index of
 //! [`variant_index`] and the comparable header forms of [`headers`].
 
@@ -23,6 +24,7 @@ mod definitions;
 mod headers;
 mod nesting;
 mod shadowing;
+mod tailwind_features;
 mod theme_references;
 mod theme_values;
 mod variant;

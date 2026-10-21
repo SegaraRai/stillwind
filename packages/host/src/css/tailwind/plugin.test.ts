@@ -259,7 +259,8 @@ test("config() reads Tailwind's resolved keys with bracket paths, and the last c
   );
   expect(observed).toEqual(["red", "red", "missing", "#app", "first"]);
   // The prefix is not applied to candidates.
-  expect(tailwind.css(0)).toBe(
+  expect(tailwind.css(0)).toBe("");
+  expect(tailwind.settingsCss()).toBe(
     "@stillwind-plugin-theme{--color-*:initial;--color-brand:red;}\n@stillwind-plugin-important #app;",
   );
   expect(
@@ -267,13 +268,83 @@ test("config() reads Tailwind's resolved keys with bracket paths, and the last c
       plugin(() => {}, {
         important: true,
       }),
-    ).css(0),
+    ).settingsCss(),
   ).toBe("@stillwind-plugin-important;");
   expect(
     runtime(
       plugin(() => {}, {
         important: false,
       }),
-    ).css(0),
+    ).settingsCss(),
   ).toBe("");
+});
+
+test("the project configuration replaces plugin keys and registers its plugins in the settings", () => {
+  const observed: unknown[] = [];
+  const tailwind = new TailwindRuntime(
+    [
+      configurePlugin(
+        plugin((api) => observed.push(api.config("important"), api.theme("colors.brand")), {
+          important: true,
+          theme: {
+            colors: {
+              brand: "red",
+            },
+          },
+        }) as TailwindPlugin,
+        [],
+      ),
+    ],
+    [],
+    {
+      important: "#app",
+      theme: {
+        extend: {
+          colors: {
+            accent: "blue",
+          },
+        },
+      },
+      plugins: [plugin((api) => api.addVariant("hocus", "&:hover"))],
+    },
+  );
+  expect(observed).toEqual(["#app", "red"]);
+  expect(tailwind.css(0)).toBe("");
+  expect(tailwind.settingsCss()).toBe(
+    [
+      "@stillwind-plugin-theme{--color-*:initial;--color-brand:red;--color-accent:blue;}",
+      "@stillwind-plugin-important #app;",
+      "@custom-variant hocus{&:hover{@slot;}}",
+    ].join("\n"),
+  );
+});
+
+test("darkMode defines the dark variant after the handlers, as Tailwind does", () => {
+  /** Returns the `dark` variant that a project configuration defines, which ends the settings. */
+  const dark = (darkMode: unknown) => {
+    const css = new TailwindRuntime([], [], {
+      darkMode,
+    } as never).settingsCss();
+    const start = css.indexOf("@custom-variant dark");
+    return start < 0 ? undefined : css.slice(start);
+  };
+  expect(dark("selector")).toBe("@custom-variant dark{&:where(.dark, .dark *){@slot;}}");
+  expect(dark(["selector", ".night"])).toBe(
+    "@custom-variant dark{&:where(.night, .night *){@slot;}}",
+  );
+  expect(dark("class")).toBe("@custom-variant dark{&:is(.dark *){@slot;}}");
+  expect(dark("media")).toBe("@custom-variant dark{@media (prefers-color-scheme: dark){@slot;}}");
+  expect(dark(["variant", ["&:not(.light *)", "&.night"]])).toBe(
+    "@custom-variant dark{&:not(.light *){@slot;}\n&.night{@slot;}}",
+  );
+  expect(dark(["variant", ["&:not(.light *)", "@media print"]])).toBeUndefined();
+  expect(dark(["variant", ".dark"])).toBeUndefined();
+  expect(dark(null)).toBeUndefined();
+
+  const tailwind = runtime(
+    plugin((api) => api.addVariant("dark", "&.plugin"), {
+      darkMode: "class",
+    }),
+  );
+  expect(tailwind.css(0)).toBe("@custom-variant dark{&:is(.dark *){@slot;}}");
 });

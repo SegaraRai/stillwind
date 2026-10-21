@@ -154,14 +154,6 @@ pub enum CompileDiagnostic {
         /// Explanation supplied by the underlying parser or map validator.
         detail: LeanStr,
     },
-    /// A CSS import modifier uses an unsupported form.
-    #[error("unsupported import modifier at byte {offset}: {modifier}")]
-    UnsupportedCssImportModifier {
-        /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
-        offset: usize,
-        /// Unsupported CSS import modifier.
-        modifier: LeanStr,
-    },
     /// CSS import modifiers occur outside the supported layer/supports/media order.
     #[error("invalid import modifier order at byte {offset}")]
     InvalidCssImportModifierOrder {

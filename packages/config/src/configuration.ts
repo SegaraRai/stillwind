@@ -69,8 +69,12 @@ type Captured<T> = T extends (...arguments_: never[]) => unknown
       }
     : T;
 
-/** Project settings fixed for a service's lifetime, with provider functions preserved. */
-export type CapturedProjectConfig = Captured<AnalysisProjectConfig>;
+/**
+ * Project settings fixed for a service's lifetime, with provider functions preserved. The Tailwind
+ * configuration keeps the caller's object or promise.
+ */
+export type CapturedProjectConfig = Captured<Omit<AnalysisProjectConfig, "tailwind">> &
+  Pick<AnalysisProjectConfig, "tailwind">;
 
 const capturedProjects = new WeakSet<object>();
 
@@ -84,7 +88,7 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
     return config;
   }
 
-  const { naming, sources, projection, plugins, ...settings } = config;
+  const { naming, sources, projection, plugins, tailwind, ...settings } = config;
   const data = structuredClone(settings);
 
   const capturedSources =
@@ -106,6 +110,12 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
     ...(plugins
       ? {
           plugins: [...plugins],
+        }
+      : {}),
+    // A Tailwind configuration can contain plugin functions, which `structuredClone` rejects.
+    ...(tailwind
+      ? {
+          tailwind,
         }
       : {}),
     ...(naming

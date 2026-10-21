@@ -75,7 +75,8 @@ pub use evaluation::{
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
     CssSourceEdge, CssSourceGraph, CssSourceMapping, DesignSystemLoadError, DesignSystemLoadStep,
-    DesignSystemLoader,
+    DesignSystemLoader, IgnoredTailwindFeature, IgnoredTailwindFeatureKind,
+    ignored_tailwind_features,
 };
 pub use options::{DesignSystemOptions, UtilityOrderMode};
 pub use output::parse_output_template;

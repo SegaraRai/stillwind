@@ -26,6 +26,18 @@ export declare class NativeDesignSystemLoader {
    */
   newLoader(options?: NativeCompilerOptions | undefined | null): NativeDesignSystemLoader
   /**
+   * Adds a `@plugin` request without options after the root's text. Its answer
+   * follows every authored rule, and its definitions are plugin definitions.
+   *
+   * Choose a `specifier` that authored CSS cannot contain, such as one with a NUL
+   * character, so the request cannot be confused with an authored `@plugin`.
+   *
+   * # Errors
+   *
+   * Returns an error after the root has been supplied.
+   */
+  requestTrailingPlugin(specifier: string): void
+  /**
    * Answers one pending request by calling [`Self::provide_many`] with one file.
    * An absent URI marks the CSS as an internal buffer without a reportable location.
    * `lint` marks the source for stylesheet lint, and an absent value means false.
@@ -1313,6 +1325,8 @@ export interface NativeLintOptions {
   duplicateDefinition?: string
   /** Settings for `invalid-theme-value`. */
   invalidThemeValue?: string
+  /** Settings for `ignored-tailwind-feature`. */
+  ignoredTailwindFeature?: string
   /** Settings for `no-arbitrary-colors`. */
   noArbitraryColors?: string
   /** Settings for `no-arbitrary-spacing`. */

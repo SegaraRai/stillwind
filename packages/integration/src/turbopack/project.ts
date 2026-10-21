@@ -188,6 +188,8 @@ export async function createProject(
     undefined,
     {
       plugins: options.compiler.plugins,
+      tailwind: options.compiler.tailwind,
+      important: options.compiler.important,
       root: options.root,
     },
   );

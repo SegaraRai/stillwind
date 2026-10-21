@@ -11,6 +11,7 @@ export {
   type BuildConfig,
   type BuildOptions,
   type NormalizedCompilerConfig,
+  type TailwindConfig,
   type UtilitySortOptions,
 } from "./compiler.ts";
 export {

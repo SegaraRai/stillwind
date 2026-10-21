@@ -59,6 +59,27 @@ test("captured project settings own their data and share only provider functions
   expect(captureProjectConfig(captured)).toBe(captured);
 });
 
+test("captured project settings share the Tailwind configuration with its plugin functions", () => {
+  const tailwind = {
+    plugins: [() => {}],
+  };
+  const promise = Promise.resolve(tailwind);
+  expect(
+    captureProjectConfig({
+      css: "theme.css",
+      files: ["*.tsx"],
+      tailwind,
+    }).tailwind,
+  ).toBe(tailwind);
+  expect(
+    captureProjectConfig({
+      css: "theme.css",
+      files: ["*.tsx"],
+      tailwind: promise,
+    }).tailwind,
+  ).toBe(promise);
+});
+
 test("captured callbacks retain inherited methods and provider receivers", async () => {
   const input = {
     resolverId: "/entry.ts",

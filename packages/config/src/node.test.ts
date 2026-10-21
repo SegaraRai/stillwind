@@ -584,7 +584,7 @@ test.each(["ts", "cjs", "json"])(
   },
 );
 
-test("configuration merge replaces arrays and validates duplicate optional names", () => {
+test("configuration merge replaces arrays and promises and validates duplicate optional names", () => {
   expect(
     mergeConfig(
       {
@@ -614,6 +614,19 @@ test("configuration merge replaces arrays and validates duplicate optional names
     kind: "custom",
     root: ".",
   });
+  const tailwind = Promise.resolve({
+    darkMode: "class" as const,
+  });
+  expect(
+    mergeConfig(
+      {
+        tailwind: Promise.resolve({}),
+      },
+      {
+        tailwind,
+      },
+    ).tailwind,
+  ).toBe(tailwind);
   expect(() =>
     validateConfig({
       projects: [

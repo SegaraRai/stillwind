@@ -12,15 +12,17 @@
 //! Completion is terminal, and dropping an incomplete loader is the entire cancellation
 //! mechanism.
 //!
-//! `imports` parses dependency requests and their conditions. `expansion` combines the
-//! supplied sources while retaining origins. `protocol` defines requests, responses,
-//! and source graphs. `state` owns request tracking and snapshot completion.
+//! `imports` parses dependency requests and their conditions, and records the Tailwind
+//! features that loading ignores. `expansion` combines the supplied sources while
+//! retaining origins. `protocol` defines requests, responses, and source graphs.
+//! `state` owns request tracking and snapshot completion.
 
 mod expansion;
 mod imports;
 mod protocol;
 mod state;
 
+pub use imports::{IgnoredTailwindFeature, IgnoredTailwindFeatureKind, ignored_tailwind_features};
 pub use protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
     CssSourceEdge, CssSourceGraph, CssSourceMapping, DesignSystemLoadStep,

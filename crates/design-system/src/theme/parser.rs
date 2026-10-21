@@ -31,7 +31,7 @@ use super::declarations::{ThemeTokenMode, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
-    extract_custom_utilities, extract_custom_variants, parse_declaration_formats,
+    extract_custom_utilities, extract_custom_variants_with_offsets, parse_declaration_formats,
     parse_relationship_patterns, registration_positions,
 };
 use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
@@ -130,7 +130,18 @@ fn parse_theme_contents(
             utility
         })
         .collect();
-    theme.variants = extract_custom_variants(source.text());
+    // Variant lookup takes the last definition of a name. Plugin definitions therefore
+    // precede the stylesheet's, so an authored `@custom-variant` replaces a plugin's
+    // variant wherever the `@plugin` statement stands, as in Tailwind.
+    let (plugin_variants, variants): (Vec<_>, Vec<_>) =
+        extract_custom_variants_with_offsets(source.text())
+            .into_iter()
+            .partition(|(offset, _)| in_plugin(*offset));
+    theme.variants = plugin_variants
+        .into_iter()
+        .chain(variants)
+        .map(|(_, variant)| variant)
+        .collect();
     theme.properties = extract_property_definitions(source.text());
     // `theme.registry` reads the marker statements of the same text.
     theme.markers = MarkerClasses::selected_by(&theme.utilities, &theme.variants);

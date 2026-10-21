@@ -1,8 +1,8 @@
 import { object } from "./validation.ts";
 
 /**
- * Merges objects recursively. Undefined preserves previous values, arrays are replaced, and a
- * changed provider kind replaces that provider's complete configuration.
+ * Merges objects recursively. Undefined preserves previous values, arrays and promises are
+ * replaced, and a changed provider kind replaces that provider's complete configuration.
  *
  * @param base - Settings to preserve where overrides omit a value.
  * @param overrides - Fields to merge or replace. Neither input is modified.
@@ -26,6 +26,8 @@ function mergeValue(base: unknown, override: unknown): unknown {
   if (
     !object(base) ||
     !object(override) ||
+    typeof base.then === "function" ||
+    typeof override.then === "function" ||
     (override.kind !== undefined && base.kind !== override.kind)
   ) {
     return override;

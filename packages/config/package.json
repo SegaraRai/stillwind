@@ -36,7 +36,16 @@
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
+    "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "tailwindcss": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "tailwindcss": {
+      "optional": true
+    }
   }
 }

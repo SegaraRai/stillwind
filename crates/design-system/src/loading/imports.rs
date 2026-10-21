@@ -8,9 +8,12 @@
 //!
 //! Classless CSS import modifiers are normalized into the wrapper at-rule text that
 //! expansion emits: `layer(...)`, `supports(...)`, and a trailing media query, in that
-//! order. Modifiers that would change how the imported file is interpreted in its own
-//! right (`theme`, `prefix`, `source`, `reference`, `important`) are rejected instead
-//! of being silently ignored.
+//! order. Tailwind's modifiers that change how the imported file is interpreted
+//! (`theme`, `prefix`, `source`, `reference`, `important`) and its top-level `@config`
+//! statement are skipped and recorded as [`IgnoredTailwindFeature`]s, which stylesheet
+//! lint reports.
+
+use std::ops::Range;
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
@@ -37,10 +40,64 @@ pub(super) struct Import {
     pub(super) plugin: Option<Vec<ParsedDeclaration>>,
 }
 
-/// Finds every authored `@import` at the top level of one buffer, in source
-/// order. Blocks and function arguments are consumed as units, so an `@import`
-/// inside a rule or a parenthesized condition is body text, not a dependency.
-/// Unparsable top-level CSS ends the scan with the imports found so far.
+/// A Tailwind feature in a stylesheet that the loader ignores.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IgnoredTailwindFeature {
+    /// Byte range of the `@config` statement, including its semicolon, or of the import
+    /// modifier, including its arguments.
+    pub range: Range<usize>,
+    /// What the range contains.
+    pub kind: IgnoredTailwindFeatureKind,
+}
+
+/// Kind of an [`IgnoredTailwindFeature`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum IgnoredTailwindFeatureKind {
+    /// A top-level `@config` statement. Expansion removes it.
+    Config,
+    /// An import modifier that changes how Tailwind interprets the imported file. The
+    /// import is loaded without it.
+    ImportModifier(
+        /// Modifier name in lowercase: `important`, `prefix`, `reference`, `source`, or
+        /// `theme`.
+        LeanStr,
+    ),
+}
+
+/// Lists the Tailwind features of one buffer that the loader ignores, in source order.
+///
+/// Returns an empty list when the loader rejects the top-level CSS of `css`, because
+/// the load then fails with that error.
+#[must_use]
+pub fn ignored_tailwind_features(css: &str) -> Vec<IgnoredTailwindFeature> {
+    scan(css).map(|scan| scan.ignored).unwrap_or_default()
+}
+
+/// The dependencies of one buffer and the Tailwind features that loading ignores.
+#[derive(Debug, Default)]
+pub(super) struct Scan {
+    /// `@import` and `@plugin` statements in source order.
+    pub(super) imports: Vec<Import>,
+    /// Ignored features in source order.
+    pub(super) ignored: Vec<IgnoredTailwindFeature>,
+}
+
+impl Scan {
+    /// Returns the byte ranges of the `@config` statements, which expansion removes, in
+    /// source order.
+    pub(super) fn removed(&self) -> Vec<Range<usize>> {
+        self.ignored
+            .iter()
+            .filter(|feature| feature.kind == IgnoredTailwindFeatureKind::Config)
+            .map(|feature| feature.range.clone())
+            .collect()
+    }
+}
+
+/// Finds every authored `@import`, `@plugin`, and `@config` at the top level of one
+/// buffer, in source order. Blocks and function arguments are consumed as units, so an
+/// `@import` inside a rule or a parenthesized condition is body text, not a dependency.
+/// Unparsable top-level CSS ends the scan with the statements found so far.
 ///
 /// # Errors
 ///
@@ -48,9 +105,9 @@ pub(super) struct Import {
 /// [`CompileDiagnostic::InvalidCssImportSpecifier`] for an invalid import target, or
 /// modifier errors from [`import_wrappers`]. Offsets refer to `css`. This layer does
 /// not attach source labels or names.
-pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
+pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
     let mut parser = Parser::new(css);
-    let mut imports = Vec::new();
+    let mut scan = Scan::default();
     loop {
         let start = parser.position().byte_index();
         let Ok(token) = parser.next_including_whitespace_and_comments() else {
@@ -71,8 +128,22 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
                 .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
             continue;
         }
+        if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("config")) {
+            // A block, which `@config` never has, ends the statement as well, so the
+            // removed range cannot swallow the rules after it.
+            while let Ok(token) = parser.next_including_whitespace_and_comments() {
+                if matches!(token, Token::Semicolon | Token::CurlyBracketBlock) {
+                    break;
+                }
+            }
+            scan.ignored.push(IgnoredTailwindFeature {
+                range: start..parser.position().byte_index(),
+                kind: IgnoredTailwindFeatureKind::Config,
+            });
+            continue;
+        }
         if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin")) {
-            imports.push(plugin(&mut parser, start)?);
+            scan.imports.push(plugin(&mut parser, start)?);
             continue;
         }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
@@ -99,8 +170,9 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
         let wrappers = import_wrappers(
             tail.strip_suffix(';').unwrap_or(tail),
             tail_start.byte_index(),
+            &mut scan.ignored,
         )?;
-        imports.push(Import {
+        scan.imports.push(Import {
             start,
             end: parser.position().byte_index(),
             specifier: (specifier).into(),
@@ -108,7 +180,7 @@ pub(super) fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
             plugin: None,
         });
     }
-    Ok(imports)
+    Ok(scan)
 }
 
 /// Reads the rest of a `@plugin "specifier";` statement or a
@@ -156,32 +228,41 @@ fn plugin(parser: &mut Parser<'_>, start: usize) -> Result<Import, CompileDiagno
     })
 }
 
-/// Turns the text after a specifier into the wrapper preludes expansion emits:
-/// at most one `layer`, then `supports`, then the media query, in that order.
-/// A misplaced or repeated modifier is reported rather than reordered, and the
-/// first unrecognized token starts the media prelude, which is kept verbatim.
+/// Turns the text after a specifier into the wrapper preludes expansion emits: at most
+/// one `layer`, then `supports`, then the media query, in that order. A misplaced or
+/// repeated modifier is reported rather than reordered, and the first unrecognized
+/// token starts the media prelude, which is kept verbatim. Tailwind's `important`,
+/// `prefix`, `reference`, `source`, and `theme` modifiers add no wrapper, and each is
+/// appended to `ignored`.
 ///
-/// `base_offset` locates `tail` in the buffer, so error offsets are absolute.
+/// `base_offset` locates `tail` in the buffer, so error and `ignored` offsets are
+/// absolute.
 ///
 /// # Errors
 ///
 /// Returns [`CompileDiagnostic::InvalidCssImportModifierOrder`] for a misplaced or repeated
-/// modifier, [`CompileDiagnostic::UnsupportedCssImportModifier`] for a modifier that would
-/// change how the imported file is interpreted in its own right, and
-/// [`CompileDiagnostic::InvalidCssImportModifiers`] or [`CompileDiagnostic::InvalidCssImportModifierBlock`]
-/// when a modifier cannot be tokenized or its block is malformed.
-fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, CompileDiagnostic> {
+/// modifier, and [`CompileDiagnostic::InvalidCssImportModifiers`] or
+/// [`CompileDiagnostic::InvalidCssImportModifierBlock`] when a modifier cannot be tokenized
+/// or its block is malformed.
+fn import_wrappers(
+    tail: &str,
+    base_offset: usize,
+    ignored: &mut Vec<IgnoredTailwindFeature>,
+) -> Result<Vec<LeanStr>, CompileDiagnostic> {
     let mut parser = Parser::new(tail);
     let mut wrappers: Vec<LeanStr> = Vec::new();
     let mut supports_seen = false;
     while !parser.is_exhausted() {
+        parser.skip_whitespace();
         let state = parser.state();
-        match parser
+        let token = parser
             .next()
             .map_err(|error| CompileDiagnostic::InvalidCssImportModifiers {
                 offset: base_offset + state.position().byte_index(),
                 detail: error.kind.to_lean_str(),
-            })? {
+            })?
+            .clone();
+        match &token {
             Token::Ident(name) if name.eq_ignore_ascii_case("layer") => {
                 if !wrappers.is_empty() {
                     return Err(CompileDiagnostic::InvalidCssImportModifierOrder {
@@ -237,13 +318,22 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, Compi
                 });
             }
             Token::Function(name) | Token::Ident(name)
-                if ["prefix", "reference", "source", "theme", "important"]
+                if ["important", "prefix", "reference", "source", "theme"]
                     .iter()
                     .any(|modifier| name.eq_ignore_ascii_case(modifier)) =>
             {
-                return Err(CompileDiagnostic::UnsupportedCssImportModifier {
-                    offset: base_offset + state.position().byte_index(),
-                    modifier: name.to_lean_str(),
+                if matches!(token, Token::Function(_)) {
+                    // The arguments of a function modifier are skipped with it.
+                    let _ = parser.parse_nested_block(|nested| {
+                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, ParseError<()>>(())
+                    });
+                }
+                let name = name.to_ascii_lowercase().to_lean_str();
+                ignored.push(IgnoredTailwindFeature {
+                    range: base_offset + state.position().byte_index()
+                        ..base_offset + parser.position().byte_index(),
+                    kind: IgnoredTailwindFeatureKind::ImportModifier(name),
                 });
             }
             _ => {
@@ -261,6 +351,14 @@ fn import_wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, Compi
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn imports(css: &str) -> Result<Vec<Import>, CompileDiagnostic> {
+        scan(css).map(|scan| scan.imports)
+    }
+
+    fn wrappers(tail: &str, base_offset: usize) -> Result<Vec<LeanStr>, CompileDiagnostic> {
+        import_wrappers(tail, base_offset, &mut Vec::new())
+    }
 
     #[test]
     fn imports_ignore_comments_strings_and_nested_rules_but_resolve_all_packages() {
@@ -315,7 +413,7 @@ mod tests {
     #[test]
     fn modifier_wrappers_preserve_layer_supports_and_media_order() {
         assert_eq!(
-            import_wrappers("layer(foo) supports(display:grid) screen", 0).unwrap(),
+            wrappers("layer(foo) supports(display:grid) screen", 0).unwrap(),
             vec!["@layer foo", "@supports (display:grid)", "@media screen"]
         );
         assert_eq!(
@@ -329,15 +427,15 @@ mod tests {
     #[test]
     fn supports_conditions_keep_function_and_boolean_syntax() {
         assert_eq!(
-            import_wrappers("supports(selector(:has(*)))", 0).unwrap(),
+            wrappers("supports(selector(:has(*)))", 0).unwrap(),
             vec!["@supports selector(:has(*))"]
         );
         assert_eq!(
-            import_wrappers("supports(not (display:grid))", 0).unwrap(),
+            wrappers("supports(not (display:grid))", 0).unwrap(),
             vec!["@supports not (display:grid)"]
         );
         assert_eq!(
-            import_wrappers(
+            wrappers(
                 "layer(a.b) supports((display:grid) and (color:red)) print",
                 0
             )
@@ -348,7 +446,7 @@ mod tests {
                 "@media print"
             ]
         );
-        assert_eq!(import_wrappers("layer", 0).unwrap(), vec!["@layer"]);
+        assert_eq!(wrappers("layer", 0).unwrap(), vec!["@layer"]);
         for invalid in [
             "layer()",
             "layer(a b)",
@@ -357,16 +455,45 @@ mod tests {
             "supports()",
             "supports(display:grid) supports(color:red)",
         ] {
-            assert!(import_wrappers(invalid, 0).is_err(), "{invalid}");
-        }
-        for unsupported in ["prefix(tw)", "reference", "source(none)"] {
-            assert!(matches!(
-                import_wrappers(unsupported, 0),
-                Err(CompileDiagnostic::UnsupportedCssImportModifier { .. })
-            ));
+            assert!(wrappers(invalid, 0).is_err(), "{invalid}");
         }
         let framework = imports("@import 'stillwind' supports(display:grid);").unwrap();
         assert_eq!(framework[0].specifier, "stillwind");
         assert_eq!(framework[0].wrappers, vec!["@supports (display:grid)"]);
+    }
+
+    #[test]
+    fn tailwind_config_and_interpretation_modifiers_are_recorded_and_skipped() {
+        let css = "@import 'tailwindcss' layer(a) theme(static) important; @config './tw.js'; .a{}";
+        let scan = scan(css).unwrap();
+        assert_eq!(scan.imports[0].wrappers, vec!["@layer a"]);
+        let ignored = scan
+            .ignored
+            .iter()
+            .map(|feature| (&css[feature.range.clone()], feature.kind.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            ignored,
+            [
+                (
+                    "theme(static)",
+                    IgnoredTailwindFeatureKind::ImportModifier("theme".into())
+                ),
+                (
+                    "important",
+                    IgnoredTailwindFeatureKind::ImportModifier("important".into())
+                ),
+                ("@config './tw.js';", IgnoredTailwindFeatureKind::Config),
+            ]
+        );
+        assert_eq!(scan.removed(), [scan.ignored[2].range.clone()]);
+        assert_eq!(
+            wrappers("prefix(tw) reference source(none) print", 0).unwrap(),
+            vec!["@media print"]
+        );
+        assert_eq!(
+            ignored_tailwind_features("@import 42; @config 'x';"),
+            [] as [IgnoredTailwindFeature; 0]
+        );
     }
 }

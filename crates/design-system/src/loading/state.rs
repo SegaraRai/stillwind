@@ -16,7 +16,10 @@
 //! loader error.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 use std::sync::Arc;
+
+use lean_string::LeanStr;
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{
@@ -24,7 +27,7 @@ use stillwind_source::{
 };
 
 use super::expansion::ExpandedSource;
-use super::imports::{Import, imports};
+use super::imports::{Import, scan};
 use super::protocol::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssSource, CssSourceEdge, CssSourceGraph,
     DesignSystemLoadStep,
@@ -109,6 +112,9 @@ struct Node {
     /// Index into the graph's source list per import, filled as responses
     /// arrive. `None` means the import is still outstanding.
     targets: Vec<Option<usize>>,
+    /// Byte ranges of the `@config` statements in source order, which expansion
+    /// removes. They never overlap an import's range.
+    removed: Vec<Range<usize>>,
 }
 
 /// Caller-driven loading with independent, monotonically increasing request IDs.
@@ -134,8 +140,12 @@ pub struct DesignSystemLoader {
     pending: BTreeMap<u32, (usize, usize)>,
     /// Next monotonically allocated request id; allocation fails rather than wrapping.
     next_id: u32,
-    /// Whether completion or failure has ended the protocol; further responses are rejected.
+    /// Whether completion or failure has ended the protocol; further responses are
+    /// rejected.
     terminal: bool,
+    /// Specifier of the `@plugin` request that follows the root's text, until the root
+    /// is accepted.
+    trailing_plugin: Option<LeanStr>,
 }
 
 impl DesignSystemLoader {
@@ -165,7 +175,25 @@ impl DesignSystemLoader {
             pending: BTreeMap::new(),
             next_id: 1,
             terminal: false,
+            trailing_plugin: None,
         }
+    }
+
+    /// Adds a `@plugin` request without options after the root's text. The answer
+    /// therefore follows every authored rule in the expansion, and its definitions are
+    /// plugin definitions. Hosts use it for project settings that no stylesheet names.
+    ///
+    /// `specifier` must differ from every authored `@plugin` specifier that the host
+    /// answers differently. Decoded CSS never contains NUL, so a specifier with NUL
+    /// cannot collide.
+    ///
+    /// Returns false, without changing the loader, after the root has been supplied.
+    pub fn request_trailing_plugin(&mut self, specifier: LeanStr) -> bool {
+        if !self.nodes.is_empty() {
+            return false;
+        }
+        self.trailing_plugin = Some(specifier);
+        true
     }
 
     /// Starts standalone loading with the caller's root file identity.
@@ -379,9 +407,23 @@ impl DesignSystemLoader {
         } else {
             self.registry.register(uri, source_map_source, content)?
         };
-        let imports =
-            imports(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
+        let scan =
+            scan(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
+        let removed = scan.removed();
+        let mut imports = scan.imports;
         parse_theme_builder(&source, &name, &[])?;
+        if index == 0
+            && let Some(specifier) = self.trailing_plugin.take()
+        {
+            let end = source.text().len();
+            imports.push(Import {
+                start: end,
+                end,
+                specifier,
+                wrappers: Vec::new(),
+                plugin: Some(Vec::new()),
+            });
+        }
         let mut requests = Vec::new();
         for (import_index, import) in imports.iter().enumerate() {
             let id = self.next_id;
@@ -405,6 +447,7 @@ impl DesignSystemLoader {
             targets: vec![None; imports.len()],
             imports,
             requests,
+            removed,
         });
         self.known.insert(name.clone(), index);
         self.graph.sources.push(CssSource {
@@ -488,14 +531,21 @@ impl DesignSystemLoader {
                 .nodes
                 .get(index)
                 .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let name = &self.graph.sources[index].name;
             let mut output = ExpandedSource::default();
             let mut cursor = 0;
+            let mut removed = node.removed.iter().peekable();
+            // Copies the source up to `end`, leaving out the `@config` statements before it.
+            let mut copy = |output: &mut ExpandedSource, cursor: usize, end: usize| {
+                let mut start = cursor;
+                while let Some(range) = removed.next_if(|range| range.end <= end) {
+                    output.append_source(source, name, start..range.start)?;
+                    start = range.end;
+                }
+                output.append_source(source, name, start..end)
+            };
             for (import, target) in node.imports.iter().zip(&node.targets) {
-                output.append_source(
-                    source,
-                    &self.graph.sources[index].name,
-                    cursor..import.start,
-                )?;
+                copy(&mut output, cursor, import.start)?;
                 let target = target.ok_or(DesignSystemLoadError::InvalidGraph)?;
                 let imported = cache
                     .get(&target)
@@ -503,11 +553,7 @@ impl DesignSystemLoader {
                 output.append_import(imported, &import.wrappers, import.plugin.is_some())?;
                 cursor = import.end;
             }
-            output.append_source(
-                source,
-                &self.graph.sources[index].name,
-                cursor..source.text().len(),
-            )?;
+            copy(&mut output, cursor, source.text().len())?;
             cache.insert(index, output);
         }
         cache.remove(&0).ok_or(DesignSystemLoadError::InvalidGraph)
@@ -531,7 +577,7 @@ mod tests {
                 SourceFile::new(FileId(u32::try_from(index + 1).unwrap()), None, None, text)
                     .unwrap(),
             );
-            let imports = imports(text).unwrap();
+            let imports = scan(text).unwrap().imports;
             let requests = imports
                 .iter()
                 .map(|_| CssFileRequest {
@@ -546,6 +592,7 @@ mod tests {
                 imports,
                 requests,
                 targets,
+                removed: Vec::new(),
             });
             loader.graph.sources.push(CssSource {
                 name: "node.css".into(),

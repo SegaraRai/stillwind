@@ -103,6 +103,8 @@ pub struct NativeLintOptions {
     pub duplicate_definition: Option<String>,
     /// Settings for `invalid-theme-value`.
     pub invalid_theme_value: Option<String>,
+    /// Settings for `ignored-tailwind-feature`.
+    pub ignored_tailwind_feature: Option<String>,
     /// Settings for `no-arbitrary-colors`.
     pub no_arbitrary_colors: Option<String>,
     /// Settings for `no-arbitrary-spacing`.
@@ -325,6 +327,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_theme_value: input
                 .invalid_theme_value
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            ignored_tailwind_feature: input
+                .ignored_tailwind_feature
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             no_arbitrary_colors: input

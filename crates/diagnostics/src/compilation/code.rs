@@ -125,7 +125,6 @@ define_compile_codes! {
         InvalidCssImportSpecifier { .. } => "SW13005",
         InvalidCssImportModifiers { .. } => "SW13006",
         InvalidCssImportModifierBlock { .. } => "SW13007",
-        UnsupportedCssImportModifier { .. } => "SW13008",
         InvalidCssImportModifierOrder { .. } => "SW13009",
         CssImportCycle { .. } => "SW13010",
         ConditionalDefinition { .. } => "SW13011",

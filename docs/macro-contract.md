@@ -79,9 +79,10 @@ The same contract applies to authored stylesheets. A declaration whose `--theme(
 names an inactive token without a fallback is omitted, and `invalid-theme-reference`
 reports the call. [Stylesheet lint](standalone-analysis.md#stylesheet-lint) also checks
 definitions: `implicit-nesting-selector` reports variant selectors without `&`,
-`duplicate-definition` reports definitions that later definitions hide, and
-`invalid-theme-value` reports theme token values of the wrong type. These rules check
-only stylesheets.
+`duplicate-definition` reports definitions that later definitions hide,
+`invalid-theme-value` reports theme token values of the wrong type, and
+`ignored-tailwind-feature` reports Tailwind's `@config` and import modifiers, which
+loading ignores. These rules check only stylesheets.
 
 An arbitrary value without a type hint is emitted as written when the grammar of
 every matching utility definition rejects it, as in Tailwind: `w-[1/2]` emits
