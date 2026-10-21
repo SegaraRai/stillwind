@@ -91,7 +91,7 @@ cost while preserving preparation once per revision. Recheck the preparation
 median and uncached query percentiles with `vp run bench:compiler:browser`.
 
 Sources: [browser measurement](../benchmarks/compiler/canonical.browser.test.ts),
-[operation budgets](../benchmarks/performance/README.md#budget-policy).
+[operation budgets](../benchmarks/performance/DEVELOPMENT.md#budget-policy).
 
 ## Registry context preparation
 

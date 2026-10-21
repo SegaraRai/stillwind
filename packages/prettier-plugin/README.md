@@ -1,11 +1,15 @@
 # Stillwind Prettier plugin
 
-`prettier-plugin-stillwind` sorts recognized Stillwind inputs before Prettier formats a document.
-The plugin uses the nearest `stillwind.config.ts` above the file, including its project scopes,
-theme CSS, and `sort` options. Sorting runs independently of the `prefer-sorted-utilities` lint severity.
-Lint suppression comments control lint diagnostics and fixes; explicit formatting still sorts.
+Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when
+AI agents write much of it.
 
-Install the plugin alongside Prettier 3.7 or newer:
+`prettier-plugin-stillwind` is Stillwind's Prettier plugin. It sorts recognized
+Stillwind inputs before Prettier formats a document.
+
+## Install
+
+Install the plugin alongside Prettier 3.7 or newer within the 3.x series:
 
 ```sh
 vp i -D prettier prettier-plugin-stillwind
@@ -17,6 +21,8 @@ export default {
   plugins: ["prettier-plugin-stillwind"],
 };
 ```
+
+## Languages and plugin order
 
 JavaScript, JSX, TypeScript, TSX, and CSS use Prettier's existing parsers and printers. CSS sorting
 uses `sort.applyUtilities` (true by default), `sort.applyStatements`, and `sort.variantBlocks`
@@ -30,7 +36,15 @@ export default {
 };
 ```
 
-`stillwindConfig` can select an explicit configuration path relative to the working directory.
+## Configuration and behavior
+
+The plugin uses the nearest `stillwind.config.*` above the file, including its project
+scopes, theme CSS, and `sort` options. Sorting runs independently of the
+`prefer-sorted-utilities` lint severity. Lint suppression comments control lint
+diagnostics and fixes; explicit formatting still sorts.
+
+Create a [Stillwind project configuration](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md#configure-a-project)
+before formatting. `stillwindConfig` can select an explicit configuration path relative to the working directory.
 API callers must supply `filepath`; the plugin analyzes the supplied text, including unsaved
 buffers. Files without a discovered configuration or outside its project scopes keep ordinary
 Prettier formatting. Invalid explicit configuration and incomplete or conflicting analysis fail
@@ -43,5 +57,8 @@ the adapter keeps cursors attached to uniquely identifiable tokens within reorde
 Duplicate or ambiguous tokens retain their relative cursor offset within the replacement.
 
 The plugin only sorts. Canonical utility replacements are available through `stillwind lint --fix`.
-The plugin never writes files; Prettier owns saving. Analysis runs in an isolated process, reuses
-that process for nearby requests, reloads configuration for each request, and releases idle processes.
+Prettier owns saving files. The plugin reloads project configuration for each formatting request.
+
+See [Editor sorting](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#editor-sorting)
+for the shared sorting contract and [Lint policies](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#utility-lint-policies)
+for canonical replacements and other checks.

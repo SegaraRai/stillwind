@@ -31,8 +31,8 @@ executable when needed. Both environments require the `wasm32-wasip1-threads`
 Rust target and its build toolchain. These environments are separate from ordinary
 tests. A requested environment's failure is reported rather than silently skipped.
 
-Vite+ 1.0.0 bundles Vitest 5.0.1. The Vitest override and Browser Mode provider use
-that same version. Browser tests run in the browser; Tailwind's global setup
+The Vitest override and Browser Mode provider use the version reported by
+`vp toolchain vitest`. Browser tests run in the browser; Tailwind's global setup
 compiles the expected and actual CSS in Node and provides it to those tests.
 Framework E2E suites start separate applications and retain their Playwright harness.
 
@@ -123,9 +123,12 @@ prerequisites instead of being rewritten by that task.
 
 Platform package generation runs when the configured targets or napi-rs CLI's
 runtime dependencies change. It creates package metadata and has no compilation
-prerequisite. It is selected separately from `generate`. TanStack fixture packages
-also define `generate:routes`; their development, build, and typecheck tasks
-depend on that route generation.
+prerequisite. It is selected separately from `generate`.
+Native platform READMEs reuse the overview from the first paragraph after the heading
+in `packages/native/README.md`.
+
+TanStack fixture packages also define `generate:routes`. Their development, build,
+and typecheck tasks depend on that route generation.
 
 Build dependencies and route generation are declared in the task graph. Vite
 configurations defer loading built integration plugins until the build or server
@@ -191,22 +194,19 @@ not run the test suites; use the tasks above to verify behavior.
 
 ## Review fixtures
 
-Projects under `fixtures/projects` have a stable `project.json`, a theme, ordered
-inputs, and generated expected JS, CSS, diagnostics, and maps. Keep broad Tailwind
-fixtures and package-local test inputs in their owning harnesses. Add the smallest
-representative project when output changes, regenerate explicitly, review the
-expected diff, then compare with `vp run test:fixtures:projects`.
+The [review-fixture guide](../fixtures/projects/DEVELOPMENT.md) defines project layout,
+stable IDs, generation, and comparison. Keep broad Tailwind compatibility cases
+and package-local test inputs in their owning harnesses.
 
 `vp run --filter @stillwind-internal/apps-fixtures-viewer dev` serves the catalog.
-The viewer's build and development tasks generate it first. Production output is
-static. Module fragments omit shared theme/base/property layers; `project.css`
-contains the complete stylesheet. Formatted `.min.css` siblings show optimization
-changes rather than compact production byte sizes.
+Its development and build tasks generate the catalog first; production output is
+static. Module fragments omit shared theme/base/property layers, while
+`project.css` contains the complete stylesheet. Formatted `.min.css` siblings
+show optimization changes rather than compact production byte sizes.
 
 Viewer links use `/#/projects/<project-id>/files/<percent-encoded-source-path>`.
-Project IDs and source paths remain stable so review links keep working. Use the
-relevant permalink in a PR or issue when a representative transform changes.
+Use the relevant permalink in a PR or issue when a representative transform changes.
 
 Performance workloads and measurement boundaries are documented beside their
-[benchmarks](../benchmarks/README.md). Open design and validation work belongs in
+[benchmarks](../benchmarks/DEVELOPMENT.md). Open design and validation work belongs in
 [TODO.md](TODO.md).

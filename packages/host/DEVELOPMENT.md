@@ -1,0 +1,75 @@
+# Host development
+
+`@stillwind/host` shares CSS loading, semantic compilation, output finalization,
+and source mapping between bundler adapters and standalone analysis services.
+See [repository setup](../../DEVELOPMENT.md) for building workspace dependencies.
+
+## Responsibility and public API
+
+Consumers import host services from `@stillwind/host`. The package entrypoint
+collects the explicit exports in each responsibility's `index.ts`:
+
+| Directory          | Responsibility                                                          | Main public operations                                                                  |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/compilation/` | Module compilation, source identities, JavaScript finalization and maps | `compileModule`, `analyzeModule`, `fileModuleDescriptor`, `finalizeModuleWithMap`       |
+| `src/semantics/`   | Semantic backend contracts and the reusable Node checker                | `TypeFactsBackend`, `TypeScriptFactsService`, `resolveTypeFactsEnvironment`             |
+| `src/css/`         | Stylesheet loading, resource URLs and CSS maps                          | `loadCssGraph`, `cssWithSourceMap`, `decodeCssSourceMap`                                |
+| `src/editor/`      | Captured editor queries, previews, colors, and sorting                  | `EditorSnapshot`                                                                        |
+| `src/project/`     | Configuration, captured documents and analysis lifetimes                | `AnalysisWorkspace`, `AnalysisProject`, `EditorProject`, `createFileSystemAnalysisHost` |
+
+Each directory keeps its implementation and unit tests together. Its `index.ts`
+selects operations and input/result contracts for callers. Modules such as
+`module-graph.ts`, `checker-source.ts` and `diagnostic-map.ts` contain internal
+implementation; their implementation classes and helpers are not package APIs.
+Integration tests under `tests/` can inspect these internals when the tested
+contract spans several modules.
+
+## Editor previews
+
+`EditorProject(root, compilerHost, designSystem)` provides a versioned analysis
+boundary for an editor or language-server transport. `designSystem` returns a
+completed `NativeDesignSystemLoader` or a loaded CSS graph with its plugins.
+Each request creates its own native session.
+No CSS asset is published and no bundler contribution registry is updated.
+
+Call `update({ id, version, source })` for each unsaved document, then
+`await analyze(id, abortSignal)`. Use absolute filesystem IDs matching the host
+resolver. Versions must increase while a document remains open. Dependency reads
+prefer the captured document overlays, including files not saved to disk.
+`close(id)` removes the overlay. Call `invalidate()` when disk dependencies or
+the design system change, and schedule analyses of the affected open documents.
+
+Results have `coverage: 'observed'`, the captured project revision and document
+version, dependencies, and one of four statuses:
+
+- `success`: current compiled output, including an empty stylesheet after macro removal.
+- `partial`: diagnostics and any compiler output available, or an analysis error.
+- `stale`: a document, dependency notification, or design system changed during the request.
+- `cancelled`: the request's abort signal was set.
+
+Stale and cancelled results contain no current output. `previousSuccess` is
+separately labelled with its own version and revision; it must not be presented
+as the current document's successful analysis. Clients should also compare the
+result revision/version at publication time. Cancellation is checked between
+asynchronous reads; it cannot interrupt synchronous native compilation or the
+TypeScript checker already executing in the same JavaScript turn.
+
+`EditorProject` supplies compilation previews. `EditorSnapshot` supplies editor queries.
+Syntax recovery depends on the compiler: some malformed documents only produce
+an error with a previous-success preview. Semantic dependency discovery follows
+probe bindings through local declarations and requested barrel exports. Namespace
+requests and declarations without an export slice retain a conservative fallback.
+TypeScript can separately read additional imports and library declarations:
+`checkerStats.overlayReads` and `checkerStats.diskReadRequests` count its overlay
+reads and requests delegated to its filesystem implementation, respectively
+(including unsuccessful reads). These are separate from the host's explicit
+semantic `dependencies`.
+
+Run `vp run --filter @stillwind/host test` for real native/checker verification of
+unsaved imports, dependency edits, broken syntax, macro removal, cancellation,
+and out-of-order completion.
+
+## Source preparation
+
+Converter dependencies, declaration identities, diagnostic codes, and source
+coordinates are defined in [SFC type checking](../../docs/sfc-type-checking.md).

@@ -1,35 +1,42 @@
 # Stillwind for Visual Studio Code
 
-This extension starts the Stillwind language server independently of the CLI. Desktop VS Code uses a Node process. Web VS Code uses a worker, a virtual workspace, and the WASM compiler.
+Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when
+AI agents write much of it.
 
-Add `stillwind.config.*` to your workspace (`ts`, `mts`, `cts`, `js`, `mjs`, `cjs`, or `json`). Set `stillwind.configFile` to select another file. The extension reports Stillwind diagnostics and supplies Quick Fixes from the compiler. `Stillwind: Restart Language Server` reloads configuration and dependency files.
+`@stillwind/vscode-extension` provides Stillwind language support for VS Code.
+It adds compiler diagnostics, Quick Fixes, utility completion, CSS previews,
+color pickers, and sorting.
 
-Hover over a utility, `style()` call, or its bound variable to see the generated CSS with the main selector written as `&`. Completion includes utilities, variants, and theme values from the active design system. Selected items load CSS and a short declaration or variant selector summary. Variant suggestions omit already used variants and continue completion after insertion. Clients with snippet support also receive editable arbitrary variant values, such as `nth-[]:`. Concrete colors have inline swatches and color picker edits.
+## Get started
 
-Quoted `@plugin` paths complete configured plugin names, package dependencies, explicit package
-export subpaths, local scripts, and directories. Resolved paths link to their module files.
-Configured plugins without a module file have no link. Path completion and links use captured
-files, including unsaved buffers, without executing plugins or requiring a valid CSS graph.
+Install the Desktop or Web VSIX with VS Code's **Extensions: Install from VSIX**
+command. Desktop packages target a specific operating system and architecture.
+The extension includes its language server; the CLI is not required.
 
-CSS at-rule completion normally offers syntax for application and theme authors. Set
-`stillwind.completion.registryDirectives` to true to include registry metadata when editing
-utility libraries. This editor setting leaves compilation and lint unchanged. Suggestions
-respect the enclosing block, and compiler intrinsics appear only inside matching definitions.
-Hidden names retain hover and supported argument completions. Details show the intended
-audience and syntax provenance; Tailwind-derived syntax does not imply full compatibility.
+Add a [Stillwind project configuration](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md#configure-a-project)
+to the workspace. The extension discovers `stillwind.config.*`; set
+`stillwind.configFile` to select a path relative to the workspace root.
+Use **Stillwind: Restart Language Server** to reload configuration and dependencies.
 
-Previews add comments after values: `var(--color-brand) /* oklch(63.7% 0.237 25.331) = #fb2c36 */`, `calc(var(--spacing) * 4) /* 1rem = 16px */`, and `1rem /* 16px */`. The `preview` field of a project selects these comments. `themeValues` adds resolved theme values and evaluated `calc()` results, `pixelEquivalents` adds pixel values for rem, and `colorEquivalents` adds hexadecimal sRGB colors. All three are enabled by default. `colorEquivalents: "approximate"`, the default, maps a color outside the sRGB gamut into the gamut and marks the result with `≈`. `"exact"` omits those colors, and `false` omits all color comments. Numbers in comments are rounded to six fractional digits; `≈` marks a rounded number, such as `calc(1.25 / 0.875) ≈ 1.428571`. A `calc()` that evaluates to one value receives one comment after the expression. When the expression combines rem with px, the comment contains the pixel total, such as `calc(var(--spacing) + 1px) /* 5px */`; this total requires `pixelEquivalents`. Other expressions receive comments on the theme references inside them.
+## Features
 
-`Stillwind: Sort Utilities` invokes the `source.sort.stillwind` Code Action. Utility strings use compiler ordering. Arrays, argument lists, and object properties use stable groups: each ref's markers then projections, bases, utilities, and custom properties. Entries within each group keep their authored order. Unsupported expressions and comments separate runs.
+- Hover over utilities, `style()` calls, or bound variables to inspect generated CSS.
+- Complete utilities, variants, and theme values from the active design system.
+- Complete quoted `@plugin` paths and follow links to their resolved modules.
+- Inspect colors and use color pickers in utilities and theme references.
+- Apply compiler Quick Fixes or run **Stillwind: Sort Utilities**.
 
-CSS uses `sort.applyUtilities` to sort arguments inside `@apply` by default. Set
-`sort.applyStatements` or `sort.variantBlocks` to sort adjacent statements or applied variant
-blocks as well. Both default to false. Movement preserves the order of competing property writes.
-CSS color decorators cover `@apply` candidates and active theme references in `theme()`, `--theme()`,
-and `var()`. Picker edits preserve utility variants and modifiers. Editing a theme reference
-replaces its current use with a color literal without editing the referenced declaration.
+CSS at-rule completion normally offers application and theme authoring syntax.
+Enable `stillwind.completion.registryDirectives` when editing utility libraries.
+The project `preview` settings control theme values, pixel equivalents, and colors
+shown in CSS previews. See [Editor previews](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#editor-previews)
+for their options.
 
-Use a document formatter such as Prettier or Oxfmt for layout and whitespace. Stillwind provides sorting and lint fixes as Code Actions. To run them on explicit saves alongside your formatter, configure VS Code:
+## Sort and fix on save
+
+Use a document formatter such as Prettier or Oxfmt for layout and whitespace.
+Enable Stillwind's Code Actions alongside your formatter:
 
 ```json
 {
@@ -41,44 +48,18 @@ Use a document formatter such as Prettier or Oxfmt for layout and whitespace. St
 }
 ```
 
-Canonical utility lint defaults to `warn`. Pixel spacing can become rem-based utilities when the active spacing scale uses rem; other domains, such as border width, retain their units. The project's `rootFontSize` sets the number of pixels per rem for this conversion and for preview comments. It defaults to 16. Media and container query comments always use 16 because browsers evaluate rem there against the initial font size. `source.fixAll.stillwind` applies enabled lint fixes. `source.sort.stillwind` sorts independently of lint severity. Sorting diagnostics are disabled by default. Set `lint: false` to disable all lint rules and fixes. Set `sort: false` to disable sorting, including explicit sorting commands.
+`source.fixAll.stillwind` applies enabled lint fixes and respects suppression
+comments. `source.sort.stillwind` sorts independently of lint severity.
+`lint: false` disables lint rules and fixes. `sort: false` also disables explicit
+sorting commands. Configure sorting targets in the project's `sort` field.
 
-```ts
-import { defineConfig, lintPresets } from "stillwind/config";
+## Web workspaces
 
-export default defineConfig({
-  projects: [
-    {
-      files: ["src/**/*.tsx"],
-      css: "src/theme.css",
-      rootFontSize: 16,
-      lint: {
-        extends: [lintPresets.recommended],
-        rules: {
-          "prefer-canonical-utilities": {
-            pxToRem: true,
-          },
-          "prefer-sorted-utilities": "off",
-        },
-      },
-      preview: {
-        colorEquivalents: "exact",
-      },
-      sort: {
-        stringLiterals: true,
-        arrays: true,
-      },
-    },
-  ],
-});
-```
+The Web extension requires a host with cross-origin isolation. Project configuration
+can import browser-compatible modules; Node built-ins are unavailable. Workspace
+dependencies must be readable through the workspace filesystem.
+The default browser provider supports JS, JSX, TS, and TSX; component documents
+require a custom source or projection provider.
 
-Project lint rules override the selected presets. Source suppression comments also apply. Hover, completion, colors, and edit plans are shared by Desktop and Web VS Code and the static Playground.
-
-The Web extension requires cross-origin isolation: serve `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Browser configuration can import browser-compatible modules. Rolldown bundles configuration from the captured workspace before evaluation. Imports of Node built-ins fail during configuration evaluation.
-
-The Web bundle includes TypeScript standard libraries and fallback Stillwind CSS, declarations, and configuration helpers. Installed workspace packages take precedence. Other dependencies must be readable through the workspace filesystem. Component projections require a custom source or projection provider; the default browser provider handles JS, JSX, TS, and TSX.
-
-Run `vp run build` to bundle the extension and its workers with Vite+ Pack and copy the WASM runtimes and libraries. Run `vp run package:web` to create the Web VSIX. Run `vp run package:desktop` to create a VSIX for the current operating system and architecture. Both packaging commands use the shared manifest and extension sources; neither publishes to a marketplace.
-
-Run `vp run test:browser` to check configuration bundling with the packaged WASM runtime in Chrome. Run `vp run test:package` to check the standalone Desktop server.
+See [project configuration and editor contracts](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md)
+for lint presets, stylesheet support, and sorting options.

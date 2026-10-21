@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     tasks: {
       "generate:platform-packages": {
         command:
-          "napi create-npm-dirs --package-json-path package.json --npm-dir npm && vp fmt npm/**",
+          "napi create-npm-dirs --package-json-path package.json --npm-dir npm && node generate-platform-readmes.ts && vp fmt npm/**",
         cache: false,
       },
       build: {

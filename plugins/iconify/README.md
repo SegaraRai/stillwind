@@ -1,14 +1,18 @@
 # @stillwind/plugin-iconify
 
-Iconify icons as Stillwind utilities. The plugin defines a utility only for the icons that
-modules use, and the compiled CSS contains each icon's SVG once.
+Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when
+AI agents write much of it.
+
+`@stillwind/plugin-iconify` adds Iconify icons as Stillwind utilities. It generates
+CSS for the icons used by your modules and includes each icon's SVG once.
 
 ## Usage
 
 Install the plugin and the icon sets that the project uses:
 
 ```bash
-pnpm add -D @stillwind/plugin-iconify @iconify-json/mdi
+vp i -D @stillwind/plugin-iconify @iconify-json/mdi
 ```
 
 Load the plugin in the project stylesheet:
@@ -17,6 +21,9 @@ Load the plugin in the project stylesheet:
 @import "stillwind";
 @plugin "@stillwind/plugin-iconify";
 ```
+
+Set up the stylesheet and build integration with the
+[Stillwind package guide](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md).
 
 A utility names an icon as `icon-<set>--<icon>` or as `icon-[<set>--<icon>]`. Both spellings
 select the same utility, and variants apply as usual. The `prefer-canonical-utilities` lint
@@ -101,12 +108,18 @@ import { iconify } from "@stillwind/plugin-iconify";
 import { defineConfig } from "stillwind/config";
 
 export default defineConfig({
-  plugins: [
-    iconify({
-      collections: {
-        brand: "/abs/path/brand.json",
-      },
-    }),
+  projects: [
+    {
+      css: "src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      plugins: [
+        iconify({
+          collections: {
+            brand: "/abs/path/brand.json",
+          },
+        }),
+      ],
+    },
   ],
 });
 ```

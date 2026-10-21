@@ -68,23 +68,9 @@ Each directory is checked in this order: `ts`, `mts`, `cts`, `js`, `mjs`, `cjs`,
 A configuration in a nearer directory takes precedence over all files in its parents.
 JavaScript and TypeScript files export settings, a promise, or a factory. JSON files
 contain the settings object directly.
-For Vite, use `stillwind()` without duplicating compiler settings:
-
-```ts
-// vite.config.ts
-import { stillwind } from "@stillwind/integration/vite";
-import { defineConfig } from "vite-plus";
-
-export default defineConfig({
-  plugins: [stillwind()],
-});
-```
-
-Each integration keeps its bundler's plugin or wrapper form. webpack and Rspack use
-`new StillwindPlugin()`, Rsbuild uses `pluginStillwind()`, and Next uses
-`withStillwind(nextConfig)`. Standalone Turbopack uses `stillwindRules({ entries })`.
-These entrypoints accept the same configuration discovery and inline override options.
-Pass those options as the second argument to `withStillwind`.
+The [integration guide](integrations.md) describes plugin and wrapper registration
+for each build tool. Each entrypoint accepts configuration discovery and inline
+override options. Pass those options as the second argument to Next's `withStillwind`.
 
 `stillwind({ configFile: "config/stillwind.config.ts" })` selects another file, relative
 to the application root. An explicit file must exist. `configFile: false` disables
@@ -194,7 +180,7 @@ for CSS generation. Build compilation keeps its existing requirement for this in
 there is no universal runtime fallback for unresolved values. Unverified analysis does
 not return usable CSS or code for a module whose generation requires the unavailable information.
 
-## CLI and editor behavior
+## Analysis lifetimes
 
 Analysis workspaces capture configuration data, provider registries, and the project
 list when opened. Reopen the workspace to apply new settings. Browser workspaces also
@@ -210,38 +196,14 @@ to obtain editable records.
 Editing these copies does not change cached queries. A project query selects the
 snapshot for its current document revision.
 
-```sh
-stillwind fmt
-stillwind fmt --check
-stillwind lint
-stillwind lint --fix
-stillwind lint 'src/**/*.tsx' --format json
-stillwind lint --config ./tools/stillwind.config.ts
-stillwind lsp --stdio
-```
-
-Without `--config`, the CLI searches upward from the working directory. The language
-server searches from each workspace folder. CLI globs narrow the configured
-scopes. Target enumeration includes files that the application never imports.
 Each target's cross-module analysis follows the semantic imports needed by its
-type probes; results report `coverage: "observed"`.
+type probes; results report `coverage: "observed"`. CLI discovery, file selection,
+rewrite guarantees, exit codes, and output formats are documented in the
+[CLI reference](cli.md).
 
-Lint exits with `0` after complete checks without error reports, `1` for compiler
-errors or deny-level findings, and `2` for initialization failures, incomplete
-analysis, or an empty target selection. Warnings preserve exit code `0`.
+## Editor behavior
 
-`fmt` sorts recognized Stillwind inputs in scripts and stylesheets independently of sorting lint
-severity and source lint suppression. It leaves layout and utility spelling intact. `fmt --check`
-writes nothing and returns `1` when sorting would change a file. Use `stillwind fmt && vp fmt` to
-apply sorting and general formatting. The [Prettier plugin](../packages/prettier-plugin/README.md)
-performs sorting within Prettier's parser pipeline.
-
-`lint --fix` applies enabled automatic fixes until they converge and reports findings from the
-final source buffers. Source lint suppression still applies. Both commands compare original and
-final bytes and only save changed files. They preserve modification times for unchanged files.
-Planning fails before saving when analysis is incomplete or overlapping projects disagree on
-the replacement text. See the [CLI reference](../packages/cli/README.md) for saving and exit codes.
-
+The language server discovers configuration from each workspace folder.
 The language server keeps unsaved buffers for dependencies as well as targets.
 Each project serializes analysis and reuses its checker. A changed revision
 discards stale results. Document changes recheck open targets, including their
@@ -255,6 +217,39 @@ still matches. Edits carry LSP document versions. The server forwards actions
 provided by the compiler; it does not invent replacements for findings without
 actions. Initialization failures produce `SW_HOST` errors. Unavailable semantic checks produce
 `SW_UNVERIFIED` information diagnostics, alongside the verified source findings.
+
+## Editor previews
+
+Hovers on utilities, `style()` calls, and bound variables show generated CSS with
+the main selector written as `&`. Completion uses the active design system and
+resolves selected items to CSS and declaration or variant summaries. Variant
+suggestions omit variants already present, continue completion after insertion,
+and offer editable arbitrary values when the client supports snippets.
+
+The project's `preview` field controls comments added after preview values.
+`themeValues` adds resolved theme values and evaluated `calc()` results.
+`pixelEquivalents` adds pixel values for rem. `colorEquivalents` adds hexadecimal
+sRGB colors. All three are enabled by default.
+
+`colorEquivalents: "approximate"`, the default, maps colors outside sRGB into the
+gamut and marks them with `≈`. `"exact"` omits out-of-gamut colors; `false` omits all
+color comments. Numbers are rounded to six fractional digits, and `≈` also marks
+rounded numbers, such as `calc(1.25 / 0.875) ≈ 1.428571`.
+
+A `calc()` that evaluates to one value receives one comment after the expression.
+An expression combining rem and px receives a pixel total when `pixelEquivalents`
+is enabled, such as `calc(var(--spacing) + 1px) /* 5px */`. Other expressions receive
+comments on theme references inside them.
+
+`rootFontSize`, which defaults to 16, controls pixel equivalents and canonical
+px-to-rem utility suggestions. Media and container query comments always use 16,
+because browsers evaluate rem there against the initial font size.
+
+Quoted `@plugin` paths complete configured plugin names, package dependencies,
+explicit export subpaths, local scripts, and directories. Resolved paths link to
+module files; configured plugins without a module file have no link. These queries
+use captured files, including unsaved buffers, without executing plugins or
+requiring a valid CSS graph.
 
 ## Stylesheet lint
 
