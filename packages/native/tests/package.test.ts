@@ -22,7 +22,21 @@ test("packed root package falls back to the separately packed WASI package", () 
       });
       const destination = path.join(packages, name);
       mkdirSync(destination);
-      execFileSync("tar", ["-xzf", archive, "--strip-components=1", "-C", destination]);
+      // MSYS tar on Windows reads `C:` as a remote host and cannot open paths with `\`, so the
+      // arguments are relative and use `/`.
+      execFileSync(
+        "tar",
+        [
+          "-xzf",
+          path.basename(archive),
+          "--strip-components=1",
+          "-C",
+          path.relative(temporary, destination).replaceAll(path.sep, "/"),
+        ],
+        {
+          cwd: temporary,
+        },
+      );
     }
     const wasiModules = path.join(packages, "native-wasm32-wasi/node_modules");
     for (const name of ["@emnapi/core", "@emnapi/runtime", "@napi-rs/wasm-runtime"]) {
