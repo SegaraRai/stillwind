@@ -77,10 +77,11 @@ contract are documented in [SFC type checking](../../docs/sfc-type-checking.md).
 
 `let selected = a; selected = b` can become incompatible after declaration identity
 injection. Use `let selected: typeof a | typeof b = a` in TypeScript, or preserve
-inference through a conditional/generic helper. The checker reports `SHTS002` for
-identity-related type errors and `SHTS003` when an asset expression has lost finite
-identity information. These are compilation errors, including in editor collect
-mode. They cannot be suppressed with Stillwind lint policy.
+inference through a conditional/generic helper. The compiler reports `SW12001` when an
+assignment changes the declaration identities of a value, and `SW12002` when an asset
+expression no longer identifies a finite set of declarations. These are compilation
+errors, so `diagnostics: "collect"` returns them as reports instead of lint findings.
+Stillwind lint settings cannot suppress them.
 
 `TypeFactSource.probes`, facts, asset identities and host dependency specifiers use
 original UTF-8 byte ranges. `scanSource` provides the additional projected UTF-16
