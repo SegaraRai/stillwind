@@ -26,12 +26,15 @@ export async function prepareSource(input: ProjectInput): Promise<PreparedSource
         await import("./astro.ts")
       ).convert(document.code, input.projectionFileName);
       break;
+
     case "svelte":
       projection = (await import("./svelte.ts")).convert(document.code, input.projectionFileName);
       break;
+
     case "vue":
       projection = (await import("./vue.ts")).convert(document.code, input.projectionFileName);
       break;
+
     case "script":
     case "jsx":
       return {

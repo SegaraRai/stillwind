@@ -60,7 +60,11 @@ export async function convert(source: string, filename: string): Promise<SourceP
         converter,
       );
     }
-    scripts.push({ id: 0, start, end });
+    scripts.push({
+      id: 0,
+      start,
+      end,
+    });
   }
 
   for (const script of result.metaRanges.scripts ?? []) {

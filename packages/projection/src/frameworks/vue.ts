@@ -28,7 +28,9 @@ export function convert(source: string, filename: string): SourceProjection {
     typescript: ts.version,
   });
 
-  const parsed = parse(source, { filename });
+  const parsed = parse(source, {
+    filename,
+  });
   if (parsed.errors.length) {
     const error = parsed.errors[0];
     throw new PreparationError(
