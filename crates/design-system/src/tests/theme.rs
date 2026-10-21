@@ -1,8 +1,8 @@
-//! Theme parsing against the real built-in package.
+//! Theme parsing against the real `stillwind` package.
 //!
 //! Pins token extraction and classification with source spans, the `@theme` emission
-//! modes, namespace resets, and the rule that importing the
-//! package is what selects the built-in definitions and default tokens.
+//! modes, namespace resets, and the rule that importing the package is what selects the
+//! package's definitions and default tokens.
 
 use std::sync::Arc;
 
@@ -109,7 +109,7 @@ fn applies_tailwind_defaults_and_namespace_resets() {
 }
 
 #[test]
-fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
+fn individual_imports_require_package_definitions_and_gate_default_theme_tokens() {
     let individual = parse_fixture_theme(
         &SourceFile::new(
             FileId(7),
@@ -126,22 +126,22 @@ fn individual_imports_require_builtins_and_gate_default_theme_tokens() {
     );
     assert!(individual.scale("spacing").is_none());
 
-    let with_builtins = parse_fixture_theme(&SourceFile::new(
+    let with_package_definitions = parse_fixture_theme(&SourceFile::new(
             FileId(7), None, None,
             "@import \"stillwind/theme.css\" layer(theme); @import \"stillwind/utilities.css\" layer(utilities); @import \"stillwind/builtins.css\";",
         ).unwrap())
         .unwrap();
     assert_ne!(
-        with_builtins.registry().utilities(),
+        with_package_definitions.registry().utilities(),
         [] as [Arc<CustomUtility>; 0]
     );
     assert_eq!(
-        with_builtins
+        with_package_definitions
             .scale("spacing")
             .map(|token| token.value.value.as_str()),
         Some("0.25rem")
     );
-    assert!(!with_builtins.custom_css().contains("@import"));
+    assert!(!with_package_definitions.custom_css().contains("@import"));
 
     let aggregate = parse_fixture_theme(
         &SourceFile::new(FileId(7), None, None, "@import \"stillwind\";").unwrap(),

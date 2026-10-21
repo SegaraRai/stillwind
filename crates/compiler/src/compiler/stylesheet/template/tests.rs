@@ -19,7 +19,7 @@ use crate::identifiers::{
 };
 use crate::{CompilerOptions, IdentifierMode, MappedStylesheet};
 
-/// One test's generated names, which the built-in generator always produces.
+/// One test's generated names, which the default generator always produces.
 fn identifiers() -> IdentifierContext {
     IdentifierContext::new(
         GeneratorSet::default(),
@@ -35,7 +35,7 @@ fn layer_name(template: &CssOutputTemplate, options: &CompilerOptions) -> LeanSt
             template: template.source_identity.clone(),
             namespace: options.class_namespace.clone(),
         })
-        .expect("the built-in generator cannot reject a name")
+        .expect("the default generator cannot reject a name")
         .custom_ident()
 }
 

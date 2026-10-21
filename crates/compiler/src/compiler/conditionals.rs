@@ -464,7 +464,7 @@ mod tests {
     use super::*;
     use crate::identifiers::{DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierMode};
 
-    /// One test's names, which the built-in generator always produces.
+    /// One test's names, which the default generator always produces.
     fn identifiers() -> IdentifierContext {
         IdentifierContext::new(
             GeneratorSet::default(),
@@ -474,19 +474,22 @@ mod tests {
     }
 
     /// Lowers with the compiler's own helper names.
-    fn lower_builtin(css: &str, use_css_if: bool) -> Result<LeanString, CompileDiagnostic> {
+    fn lower_with_default_names(
+        css: &str,
+        use_css_if: bool,
+    ) -> Result<LeanString, CompileDiagnostic> {
         lower(css, use_css_if, &identifiers())
     }
 
     /// Guards with the compiler's own gate names.
-    fn guard_builtin(css: &str, condition: &str) -> Result<Guarded, CompileDiagnostic> {
+    fn guard_with_default_names(css: &str, condition: &str) -> Result<Guarded, CompileDiagnostic> {
         guard(css, condition, &identifiers(), &[])
     }
 
     #[test]
     fn runtime_if_preserves_lexical_boundaries_and_priority() {
         let css = r".a:hover{content:'--if(--x,a,b)';background:url('--if(--x,a,b)');/*x*/ width : --if(--x,calc(1px + 2px),3px) ! IMPORTANT /*keep*/;}";
-        let native = lower_builtin(css, true).unwrap();
+        let native = lower_with_default_names(css, true).unwrap();
         assert_eq!(
             native,
             css.replace_text(
@@ -495,7 +498,7 @@ mod tests {
             )
         );
         assert_eq!(
-            guard_builtin(
+            guard_with_default_names(
                 "font-family:a,b;content:'!important';color:red ! IMPORTANT /*keep*/;",
                 "--x"
             )
@@ -503,8 +506,10 @@ mod tests {
             .css,
             "font-family:--if(--x,{a,b},revert-rule);content:--if(--x,{'!important'},revert-rule);color:--if(--x,{red},revert-rule) ! IMPORTANT /*keep*/;"
         );
-        let comma = lower_builtin(
-            &guard_builtin("font-family:a,b;", "--x").unwrap().css,
+        let comma = lower_with_default_names(
+            &guard_with_default_names("font-family:a,b;", "--x")
+                .unwrap()
+                .css,
             false,
         )
         .unwrap();
@@ -515,14 +520,14 @@ mod tests {
     fn runtime_if_nested_and_sibling_functions_keep_offsets() {
         let css = "x:--if(--a,--if(--b,1,2),--if(--c,3,4)) --if(--d,5,6);";
         assert_eq!(
-            lower_builtin(css, true).unwrap(),
+            lower_with_default_names(css, true).unwrap(),
             "x:if(style(--a):if(style(--b):1;else:2);else:if(style(--c):3;else:4)) if(style(--d):5;else:6);"
         );
-        let fallback = lower_builtin(css, false).unwrap();
+        let fallback = lower_with_default_names(css, false).unwrap();
         assert_eq!(fallback.matches(":var(--").count(), 5);
         assert!(!fallback.contains("--if("));
         assert_eq!(
-            lower_builtin("x:--if(--a/*,*/,1,2);", true).unwrap(),
+            lower_with_default_names("x:--if(--a/*,*/,1,2);", true).unwrap(),
             "x:if(style(--a):1;else:2);"
         );
     }
@@ -563,13 +568,17 @@ mod tests {
     #[test]
     fn runtime_if_guard_recurses_into_rules_but_not_custom_property_braces() {
         let css = ".a{--data:{x:y};@media print{&:hover{color:red;}}}";
-        let guarded = guard_builtin(css, "--enabled").unwrap().css;
+        let guarded = guard_with_default_names(css, "--enabled").unwrap().css;
         assert!(
             guarded.contains("--data:--if(--enabled,{{x:y}},revert-rule)"),
             "{guarded}"
         );
         assert!(guarded.contains("color:--if(--enabled,{red},revert-rule)"));
-        assert!(!lower_builtin(&guarded, false).unwrap().contains("--if("));
+        assert!(
+            !lower_with_default_names(&guarded, false)
+                .unwrap()
+                .contains("--if(")
+        );
     }
 }
 

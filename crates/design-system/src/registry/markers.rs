@@ -110,7 +110,7 @@ impl MarkerClasses {
         variants: impl IntoIterator<Item = &'a CustomVariant>,
     ) -> Self {
         let mut markers = Self::selected_by(utilities, variants);
-        // Each scan tokenizes all of `css`, which includes the whole built-in registry.
+        // Each scan tokenizes all of `css`, which includes the whole package CSS.
         if !css.contains("@stillwind-marker") {
             return markers;
         }

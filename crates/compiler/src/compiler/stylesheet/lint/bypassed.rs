@@ -3,9 +3,9 @@
 //! the definitions of their name.
 //!
 //! Statements outside every `@stillwind-registry` block reach `default`, `keyframe`,
-//! and `view-transition` in registration order. A built-in block that replaces
-//! `duration-*` in `view-transition` therefore removes only the definitions before it,
-//! and a later `@utility duration-slow` sets `transition-duration` in a view
+//! and `view-transition` in registration order. A block in the package CSS that
+//! replaces `duration-*` in `view-transition` therefore removes only the definitions
+//! before it, and a later `@utility duration-slow` sets `transition-duration` in a view
 //! transition. Definitions inside blocks name their registries explicitly and are not
 //! reported.
 

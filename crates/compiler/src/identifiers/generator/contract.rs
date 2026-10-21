@@ -41,7 +41,7 @@ impl Identifiers {
 
     /// One compilation's memoized name allocation for these inputs.
     ///
-    /// `hash_length` is the number of base-36 digits the compilation's built-in names
+    /// `hash_length` is the number of base-36 digits the compilation's default names
     /// keep, which comes from [`crate::CompilerOptions::hash_length`].
     pub(crate) fn context(&self, hash_length: usize) -> IdentifierContext {
         IdentifierContext::new(self.generators.clone(), self.mode, hash_length)
@@ -51,12 +51,12 @@ impl Identifiers {
 /// What one generator method returned.
 ///
 /// A host either supplies a name or leaves the family to the compiler. Returning a name
-/// means the compiler writes that text, with no prefix; returning [`Self::Builtin`]
+/// means the compiler writes that text, with no prefix; returning [`Self::Default`]
 /// selects the compiler's own name, with its prefix.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GeneratedName<T> {
     /// The compiler's own name for this request.
-    Builtin,
+    Default,
     /// A host name, cleaned by the family's type and written as returned.
     Provided(T),
 }
@@ -71,9 +71,9 @@ impl<T> GeneratedName<T> {
 /// A host-provided generator. Every method has the family's own arguments.
 ///
 /// Implementations must be pure: the same request must produce the same name, and the
-/// result must not depend on call order, call count, time, randomness, or the build mode.
-/// Every method defaults to [`GeneratedName::Builtin`], so overriding one family is a
-/// supported use.
+/// result must not depend on call order, call count, time, randomness, or the build
+/// mode. Every method defaults to [`GeneratedName::Default`], so overriding one family
+/// is a supported use.
 ///
 /// Generators are called synchronously on the thread that owns the compilation.
 pub trait IdentifierGenerator: std::fmt::Debug {
@@ -87,7 +87,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &ClassContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<UtilityClass>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// A ref marker class, on its way into a class attribute and a class selector.
@@ -100,7 +100,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<RefMarker>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// An `anchor-name` custom-ident.
@@ -113,7 +113,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &LocatorContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<AnchorName>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// A `container-name` custom-ident.
@@ -126,7 +126,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &LocatorContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<ContainerName>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// A `@keyframes` name, referenced by `animation-name`.
@@ -139,7 +139,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<KeyframesName>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// A `view-transition-class` custom-ident, which is also the transition's identity.
@@ -152,7 +152,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &DeclarationContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<ViewTransitionClass>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// A conditional helper or rule-boundary query name, without its leading double
@@ -172,7 +172,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _hash: &IdentifierHash,
         _text_hash: &IdentifierHash,
     ) -> Result<GeneratedName<ConditionHelperName>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// The custom property one guarded view-transition use writes its class token into.
@@ -185,7 +185,7 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &ClassContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<ViewTransitionSlotName>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 
     /// A `@layer` name.
@@ -198,11 +198,11 @@ pub trait IdentifierGenerator: std::fmt::Debug {
         _context: &LayerContext,
         _hash: &IdentifierHash,
     ) -> Result<GeneratedName<LayerName>, LeanString> {
-        Ok(GeneratedName::Builtin)
+        Ok(GeneratedName::Default)
     }
 }
 
-/// The generators one compilation uses, with the built-in generator as fallback.
+/// The generators one compilation uses, with the default generator as fallback.
 ///
 /// Equality compares generator identity, so rebuilding a set from the same generator
 /// compares equal while a different generator never does.

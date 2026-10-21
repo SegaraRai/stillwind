@@ -58,7 +58,7 @@ pub struct CompileResult {
     ///
     /// These are not lint findings: a rejected name comes from the generator rather
     /// than from the source, so it carries no source location. A development
-    /// compilation substitutes the built-in name and records the rejection here; a
+    /// compilation substitutes the default name and records the rejection here; a
     /// release compilation fails with a diagnostic instead.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rejected_names: Vec<RejectedIdentifier>,

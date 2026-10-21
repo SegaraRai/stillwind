@@ -183,11 +183,11 @@ fn framework_imports_gate_baseline_layers() {
         )
     };
 
-    let individual_without_builtins = compiler(
+    let individual_without_package_definitions = compiler(
         "@import \"stillwind/theme.css\" layer(theme);\n@import \"stillwind/utilities.css\" layer(utilities);",
     );
     assert!(
-        individual_without_builtins
+        individual_without_package_definitions
             .lint_findings
             .iter()
             .any(|finding| matches!(finding.diagnostic, LintDiagnostic::UnknownUtility { .. }))

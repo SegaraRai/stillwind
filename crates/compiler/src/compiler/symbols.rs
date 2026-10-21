@@ -294,8 +294,8 @@ fn kind_pool(kind: AssetKind) -> IdentifierPool {
 
 /// The declaration a named asset's generated name is built from.
 ///
-/// `label` is the declaration's authored label, which the built-in generator spells
-/// into the name.
+/// `label` is the declaration's authored label, which the default generator spells into
+/// the name.
 pub(super) fn named_declaration(
     module_id: &ModuleId,
     definition: &Spanned<LeanStr>,

@@ -11,7 +11,9 @@ use cssparser::{Parser, Token};
 /// candidates are supplied explicitly. Other import tails are preserved.
 ///
 /// When a Tailwind import is converted, adds `stillwind/builtins.css` unless a full
-/// Stillwind package import or explicit builtin import already selects it.
+/// Stillwind package import or an explicit `stillwind/builtins.css` import already
+/// selects it.
+///
 /// CSS without supported Tailwind imports is returned unchanged. Import text inside
 /// comments, strings, or nested blocks is ignored. Unrelated imports and other CSS
 /// are preserved.

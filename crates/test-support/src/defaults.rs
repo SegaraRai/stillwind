@@ -1,13 +1,13 @@
-//! The standard package's builtin CSS, concatenated for tests.
+//! The standard package's CSS, concatenated for tests.
 //!
-//! The data is `packages/core/css/builtin-{utilities,variants,metadata}/*.css` plus `builtins.css`,
-//! read at compile time with `include_str!`. The list is hand-maintained, so
-//! adding or renaming a builtin file means updating it here. Order matters and mirrors
-//! the package's own layering (registry metadata, then utility families, then variant
-//! families, then the package entry).
+//! The data is `packages/core/css/builtin-{utilities,variants,metadata}/*.css` plus
+//! `builtins.css`, read at compile time with `include_str!`. The list is hand
+//! maintained, so adding or renaming a package CSS file means updating it here. Order
+//! matters and mirrors the package's own layering (registry metadata, then utility
+//! families, then variant families, then the package entry).
 
-/// The full builtin CSS of the standard package, in package order.
-pub const BUILTIN_REGISTRY_CSS: &str = concat!(
+/// The full CSS of the standard package, in package order.
+pub const PACKAGE_CSS: &str = concat!(
     include_str!("../../../packages/core/css/builtin-metadata/tw-registry-metadata.css"),
     include_str!("../../../packages/core/css/builtin-metadata/tw-relationship-metadata.css"),
     include_str!("../../../packages/core/css/builtin-utilities/tw-layout.css"),

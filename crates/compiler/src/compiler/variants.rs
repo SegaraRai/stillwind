@@ -320,7 +320,7 @@ mod tests {
     /// Renders one authored variant path with the compiler's own helper names.
     fn render_variant_path(body: &str, applications: &[VariantApplication]) -> LeanString {
         render_authored_variant_path(body, applications, &identifiers())
-            .expect("the built-in generator cannot reject a name")
+            .expect("the default generator cannot reject a name")
     }
 
     #[test]
@@ -378,7 +378,7 @@ mod tests {
                 &applications,
                 &identifiers(),
             )
-            .expect("the built-in generator cannot reject a name"),
+            .expect("the default generator cannot reject a name"),
             "@media print{.x:hover{color:red;}}@media print{.x:focus{color:red;}}"
         );
         assert_eq!(

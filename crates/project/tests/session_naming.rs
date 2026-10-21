@@ -61,7 +61,7 @@ fn session_generators_name_generated_classes() {
         .iter()
         .find(|symbol| symbol.kind == GeneratedSymbolKind::Class)
         .expect("class symbol");
-    // The host body is written as returned, with no built-in class prefix.
+    // The host body is written as returned, with no default class prefix.
     assert_eq!(class.name, "fixed7", "{}", class.name);
     assert!(
         session
@@ -127,7 +127,7 @@ impl IdentifierGenerator for FixedKeyframesGenerator {
 fn generated_names_never_reuse_an_authored_name_in_the_same_namespace() {
     let theme = css_source(
         FileId(2),
-        // The host body carries no built-in prefix, so the authored name it collides
+        // The host body carries no default prefix, so the authored name it collides
         // with is the bare one.
         "@theme {} @keyframes authored { to { opacity: 0; } }",
     )

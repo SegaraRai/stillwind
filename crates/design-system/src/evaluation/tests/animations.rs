@@ -1,4 +1,4 @@
-//! Placeholder and value-domain families exercised through real built-ins.
+//! Placeholder and value-domain families exercised through the package's definitions.
 //!
 //! Pins pseudo-element colors, gradient direction and interpolation, size and filter
 //! keywords, and the rule that application CSS adds to a compatibility utility of the

@@ -1,7 +1,7 @@
 //! Theme construction and CSSWG syntax helpers for evaluation tests.
 //!
-//! [`theme`] parses package CSS through the crate's fixture parser. The syntax
-//! helpers expand CSSWG property references for comparisons with builtin domains.
+//! [`theme`] parses package CSS through the crate's fixture parser. The syntax helpers
+//! expand CSSWG property references for comparisons with the package's domains.
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
@@ -121,7 +121,8 @@ pub(super) fn has_complex_csswg_grammar(syntax: &str, terms: &BTreeSet<&str>) ->
         || terms.iter().any(|term| !SIMPLE_CSSWG_TERMS.contains(term))
 }
 
-/// A theme parsed from the standard package, for tests that need built-ins.
+/// A theme parsed from the standard package, for tests that need the package's
+/// definitions.
 pub(super) fn theme() -> ThemeIndex {
     parse_fixture_theme(&SourceFile::new(
             FileId(1),

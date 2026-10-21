@@ -1,7 +1,7 @@
 # Rust crate responsibility boundaries
 
-The Rust workspace separates source analysis, CSS definitions, compilation, and
-mutable project state.
+The Rust workspace separates source analysis, CSS definitions, compilation, and mutable
+project state.
 
 The host projects Vue, Svelte, and Astro sources for Rust analysis. See
 [SFC type checking](sfc-type-checking.md) for projection and coordinate contracts.
@@ -20,10 +20,11 @@ The host projects Vue, Svelte, and Astro sources for Rust analysis. See
 | `semantic`      | Asset identities, finite values and reference constraints, module summaries, module identity, and versioned type facts              |
 | `source`        | Source buffers, spans, coordinate conversion, projections, and content fingerprints                                                 |
 | `syntax`        | Utility expression tokenization and candidate syntax                                                                                |
-| `test-support`  | CSS fixtures, Markdown readers, Tailwind fixture input conversion, builtin package contents, and CSS token assertions               |
+| `test-support`  | CSS fixtures, Markdown readers, Tailwind fixture input conversion, package CSS contents, and CSS token assertions                   |
 
-`css` also exposes optional final asset minification and source-map composition through its
-`minify` feature. See [CSS minification](css-emission.md#final-asset-minification) for the public API.
+`css` also exposes optional final asset minification and source-map composition through
+its `minify` feature. See
+[CSS minification](css-emission.md#final-asset-minification) for the public API.
 
 Tests use `stillwind-test-support` through dev-dependencies. The crate reads the
 standard CSS package from `packages/core`.
@@ -137,33 +138,33 @@ is valid.
 
 ## Cache and reload contracts
 
-Artifact identity includes compiler build content, resolved compilation
-settings, definition content, source/module identity, finalized analysis inputs,
-frontend kind, adapter mode, and semantic revisions. Changing frontend IR for
-the same source revision invalidates the artifact without giving the backend a
-build dependency on the frontend implementation.
+Artifact identity includes compiler build content, resolved compilation settings,
+definition content, source/module identity, finalized analysis inputs, frontend kind,
+adapter mode, and semantic revisions. Changing frontend IR for the same source revision
+invalidates the artifact without giving the backend a build dependency on the frontend
+implementation.
 
-The compiler build fingerprint covers its implementation, production Rust
-dependencies, CSS property data, manifests, and the lockfile. Authored builtin
-CSS is an input owned by `packages/core/css`; Rust does not embed that package's
-default stylesheets in production.
+The compiler build fingerprint covers its implementation, production Rust dependencies,
+CSS property data, manifests, and the lockfile. The package CSS is an input owned by
+`packages/core/css`; Rust does not embed that package's default stylesheets in
+production.
 
-A session owns generation options independently of its snapshot. A reload
-receives both the attempted snapshot and the next generation options and
-publishes a coherent replacement. Failed watch reloads retain the previous
-successful state. Build failures remain errors. Definition dependency indexes
-are conservative; successful reloads still recompile retained analyses.
+A session owns generation options independently of its snapshot. A reload receives both
+the attempted snapshot and the next generation options and publishes a coherent
+replacement. Failed watch reloads retain the previous successful state. Build failures
+remain errors. Definition dependency indexes are conservative; successful reloads still
+recompile retained analyses.
 
 ## Host boundary
 
-`DesignSystemLoader` requests opaque files; the host resolves and reads them.
-Import expansion preserves authored ordering, wrappers, physical provenance,
-and resource owners. There is no general Rust `resolver` crate.
+`DesignSystemLoader` requests opaque files; the host resolves and reads them. Import
+expansion preserves authored ordering, wrappers, physical provenance, and resource
+owners. There is no general Rust `resolver` crate.
 
-The JavaScript host and bundler adapters retain module resolution, environment
-graphs, the TypeScript checker, asynchronous stale-load checks, and editor
-document state. The Rust project layer owns artifacts and stylesheet plans,
-not a duplicate bundler or TypeScript graph.
+The JavaScript host and bundler adapters retain module resolution, environment graphs,
+the TypeScript checker, asynchronous stale-load checks, and editor document state. The
+Rust project layer owns artifacts and stylesheet plans, not a duplicate bundler or
+TypeScript graph.
 
 ## Service entrypoints
 

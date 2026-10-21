@@ -7,9 +7,9 @@
 //! on neither the JavaScript frontend nor the project layer, so the host supplies
 //! opaque source names and contents.
 //!
-//! Result spans address the original, unedited source buffer. Built-in names derive
-//! from canonical content and declaration identity. Host name generators must return
-//! the same name for the same request to preserve names across compilations. When a
+//! Result spans address the original, unedited source buffer. Default names derive from
+//! canonical content and declaration identity. Host name generators must return the
+//! same name for the same request to preserve names across compilations. When a
 //! compilation fails, diagnostics still address the real source, and transforms,
 //! classes, and symbols stay empty.
 //!

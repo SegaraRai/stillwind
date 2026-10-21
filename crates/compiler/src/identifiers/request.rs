@@ -1,21 +1,23 @@
 //! The context one name is allocated from, and the request that carries it.
 //!
-//! A request is what tells the families apart: a ref marker and a keyframes name share their
-//! context type but not their family, and an anonymous layer has a context type of its own. Naming
-//! the family in the request type keeps the identity text, the kind, and the generator method in
-//! one declaration, and gives one compilation one memo entry per family and identity.
+//! A request is what tells the families apart: a ref marker and a keyframes name share
+//! their context type but not their family, and an anonymous layer has a context type
+//! of its own. Naming the family in the request type keeps the identity text, the kind,
+//! and the generator method in one declaration, and gives one compilation one memo
+//! entry per family and identity.
 //!
-//! The identity text is the versioned spelling a request is hashed from. [`NameRequest::hash`]
-//! returns the whole digest, which is what identifies the request, and [`NameRequest::builtin`]
-//! turns it into the compiler's own name. A family whose spelling is not the prefix followed by the
-//! digest declares that spelling here, next to its identity rule.
+//! The identity text is the versioned spelling a request is hashed from.
+//! [`NameRequest::hash`] returns the whole digest, which is what identifies the
+//! request, and [`NameRequest::default_name`] turns it into the compiler's own name. A
+//! family whose spelling is not the prefix followed by the digest declares that
+//! spelling here, next to its identity rule.
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_source::{CssSourceName, ModuleId};
 
 use super::generator::{GeneratedName, IdentifierGenerator};
-use super::kind::{IdentifierKind, builtin_label_separator, builtin_prefix};
+use super::kind::{IdentifierKind, default_label_separator, default_prefix};
 use super::name::{
     AnchorName, ConditionHelperName, ContainerName, KeyframesName, Label, LayerName, RefMarker,
     Token, UtilityClass, ViewTransitionClass, ViewTransitionSlotName,
@@ -26,8 +28,9 @@ const BASE36_DIGITS: &[u8; 36] = b"0123456789abcdefghijklmnopqrstuvwxyz";
 
 /// The canonical hash of one request, which is what identifies what was asked for.
 ///
-/// A generator receives the whole digest rather than the truncated spelling a built-in name
-/// carries, so a generator that wants more of the identity than a name can hold has all of it.
+/// A generator receives the whole digest rather than the truncated spelling a default
+/// name carries, so a generator that wants more of the identity than a name can hold
+/// has all of it.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct IdentifierHash([u8; 32]);
 
@@ -177,8 +180,8 @@ impl LocatorProjection {
 
 /// The context one anonymous layer name is generated from.
 ///
-/// The traversal index is not part of the name: the compiler appends it, so one template's layers
-/// are distinct whatever the generator returns.
+/// The traversal index is not part of the name: the compiler appends it, so one
+/// template's layers are distinct whatever the generator returns.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LayerContext {
     /// Identity of the template the layer belongs to.
@@ -218,7 +221,7 @@ impl ConditionRole {
     ///
     /// A fallback helper needs no marker, because it is the one a declaration reads
     /// directly.
-    const fn builtin_letter(self) -> &'static str {
+    const fn default_letter(self) -> &'static str {
         match self {
             Self::Rule | Self::Fallback => "",
             Self::Gate => "g",
@@ -273,11 +276,11 @@ pub trait NameRequest<T: Token> {
     /// family that spells an authored label writes it, normalized, between the prefix
     /// and the digest; the label is what makes a marker readable in generated markup. A
     /// family whose spelling is neither form overrides this.
-    fn builtin(&self, hash: &IdentifierHash, hash_length: usize) -> LeanString {
-        builtin_spelling(self.kind(), self.label(), &hash.short_base36(hash_length))
+    fn default_name(&self, hash: &IdentifierHash, hash_length: usize) -> LeanString {
+        default_spelling(self.kind(), self.label(), &hash.short_base36(hash_length))
     }
 
-    /// The authored label this family spells into its built-in name, when it has one.
+    /// The authored label this family spells into its default name, when it has one.
     fn label(&self) -> Option<&Label> {
         None
     }
@@ -288,18 +291,18 @@ fn hashed(identity: &str) -> IdentifierHash {
     IdentifierHash::of(identity)
 }
 
-/// Spells one family's built-in name from its prefix, its label, and the request digest.
-fn builtin_spelling(kind: IdentifierKind, label: Option<&Label>, digest: &str) -> LeanString {
+/// Spells one family's default name from its prefix, its label, and the request digest.
+fn default_spelling(kind: IdentifierKind, label: Option<&Label>, digest: &str) -> LeanString {
     match label {
         Some(label) => format_args!(
             "{}{}{}{}",
-            builtin_prefix(kind),
+            default_prefix(kind),
             label.as_str(),
-            builtin_label_separator(kind),
+            default_label_separator(kind),
             digest,
         )
         .to_lean_string(),
-        None => format_args!("{}{}", builtin_prefix(kind), digest).to_lean_string(),
+        None => format_args!("{}{}", default_prefix(kind), digest).to_lean_string(),
     }
 }
 
@@ -385,9 +388,10 @@ trait DeclarationIdentity {
 
 /// A conditional helper request.
 ///
-/// The helper's own hash covers the role as well as the text, so two roles never share a name for
-/// one text. The text's own hash is provided beside it, so a generator may also name helpers by the
-/// text alone and spell the role itself, which is what the built-in name does.
+/// The helper's own hash covers the role as well as the text, so two roles never share
+/// a name for one text. The text's own hash is provided beside it, so a generator may
+/// also name helpers by the text alone and spell the role itself, which is what the
+/// default name does.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConditionHelperRequest(pub ConditionContext);
 
@@ -435,7 +439,7 @@ impl NameRequest<ConditionHelperName> for ConditionHelperRequest {
         generator.condition_helper(&self.0, hash, &self.text_hash())
     }
 
-    fn builtin(&self, _hash: &IdentifierHash, hash_length: usize) -> LeanString {
+    fn default_name(&self, _hash: &IdentifierHash, hash_length: usize) -> LeanString {
         if self.0.role == ConditionRole::Rule {
             return self.text_hash().short_base36(hash_length);
         }
@@ -443,8 +447,8 @@ impl NameRequest<ConditionHelperName> for ConditionHelperRequest {
         // name is the helper's text hash under the spelling of its own role.
         format_args!(
             "{}{}-{}",
-            builtin_prefix(self.kind()),
-            self.0.role.builtin_letter(),
+            default_prefix(self.kind()),
+            self.0.role.default_letter(),
             self.text_hash().short_base36(hash_length),
         )
         .to_lean_string()

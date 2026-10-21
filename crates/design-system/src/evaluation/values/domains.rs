@@ -237,7 +237,7 @@ mod tests {
     use std::sync::Arc;
 
     use stillwind_source::{FileId, SourceFile};
-    use stillwind_test_support::BUILTIN_REGISTRY_CSS;
+    use stillwind_test_support::PACKAGE_CSS;
 
     use super::*;
     use crate::test_support::parse_fixture_theme;
@@ -251,7 +251,7 @@ mod tests {
             vec!["[length]", " --spacing-*", " f(a,b)"]
         );
         let configured = ThemeBuilder {
-            registry: Arc::new(StillwindDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
+            registry: Arc::new(StillwindDefinitions::from_css(PACKAGE_CSS)),
             ..Default::default()
         }
         .finish();

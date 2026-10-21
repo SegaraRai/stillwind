@@ -6,14 +6,14 @@
 use lean_string::ToLeanString;
 
 use stillwind_source::JoinText;
-use stillwind_test_support::{BUILTIN_REGISTRY_CSS, css_tokens};
+use stillwind_test_support::{PACKAGE_CSS, css_tokens};
 
 use super::*;
 use crate::test_support::parse_fixture_theme;
 use crate::{RegistryContext, parse_stillwind_utility_definitions};
 
 #[test]
-fn derives_arbitrary_property_order_from_builtin_css() {
+fn derives_arbitrary_property_order_from_package_css() {
     let transform = resolve_utility("transform-gpu", &theme())
         .expect("transform utility")
         .position
@@ -237,7 +237,7 @@ fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
 fn simple_utility_domains_follow_csswg_formal_syntax() {
     let mut checked = BTreeSet::new();
     let mut failures = Vec::new();
-    for utility in parse_stillwind_utility_definitions(BUILTIN_REGISTRY_CSS) {
+    for utility in parse_stillwind_utility_definitions(PACKAGE_CSS) {
         for declaration in utility.body.split(';') {
             let Some((property, value)) = declaration.split_once(':') else {
                 continue;
@@ -286,7 +286,7 @@ fn simple_utility_domains_follow_csswg_formal_syntax() {
 
     assert!(
         failures.is_empty(),
-        "built-in simple value domains diverge from CSSWG formal syntax:\n{}",
+        "simple value domains of the package diverge from CSSWG formal syntax:\n{}",
         failures.join_text("\n")
     );
     assert!(

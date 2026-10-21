@@ -91,7 +91,7 @@ fn locator_context(declaration: &DeclarationContext) -> LocatorContext {
 }
 
 #[test]
-fn a_host_name_is_written_without_the_builtin_prefix() {
+fn a_host_name_is_written_without_the_default_prefix() {
     let context = IdentifierContext::new(
         GeneratorSet::new(Rc::new(RecordingGenerator::default())),
         IdentifierMode::Release,
@@ -99,18 +99,18 @@ fn a_host_name_is_written_without_the_builtin_prefix() {
     );
     let name = context.class_name(&class_context("0:flex")).unwrap();
     assert_eq!(name.as_str(), "fixed-class");
-    let builtin = IdentifierContext::new(
+    let default_name = IdentifierContext::new(
         GeneratorSet::default(),
         IdentifierMode::Release,
         DEFAULT_HASH_LENGTH,
     )
     .class_name(&class_context("0:flex"))
     .unwrap();
-    assert!(builtin.as_str().starts_with("sw_"), "{builtin:?}");
+    assert!(default_name.as_str().starts_with("sw_"), "{default_name:?}");
 }
 
 #[test]
-fn every_builtin_family_keeps_its_own_prefix() {
+fn every_default_family_name_keeps_its_own_prefix() {
     let context = IdentifierContext::new(
         GeneratorSet::default(),
         IdentifierMode::Release,
@@ -234,7 +234,7 @@ fn a_digest_is_spelled_in_base_36_and_the_length_extends_its_suffix() {
 }
 
 #[test]
-fn the_compilation_hash_length_decides_the_builtin_spelling() {
+fn the_compilation_hash_length_decides_the_default_spelling() {
     let declaration = declaration_context(None);
     let long = IdentifierContext::new(GeneratorSet::default(), IdentifierMode::Release, 12)
         .keyframes_name(&declaration)
@@ -455,17 +455,17 @@ fn a_helper_carries_its_role_in_the_hash_and_its_text_beside_it() {
 }
 
 #[test]
-fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
+fn a_default_name_spells_the_role_and_truncates_the_digest() {
     let request = ConditionHelperRequest(ConditionContext {
         role: ConditionRole::Rule,
         text: ".a{color:red}".to_lean_str(),
     });
-    let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
+    let name = request.default_name(&request.hash(), DEFAULT_HASH_LENGTH);
     let suffix = name.as_str();
     assert_eq!(suffix.len(), DEFAULT_HASH_LENGTH, "{name}");
     assert_eq!(
         name,
-        request.builtin(&request.hash(), DEFAULT_HASH_LENGTH),
+        request.default_name(&request.hash(), DEFAULT_HASH_LENGTH),
         "{name}"
     );
     // The name carries no leading hyphens: the custom-property family's render method adds them.
@@ -486,7 +486,7 @@ fn a_builtin_name_spells_the_role_and_truncates_the_digest() {
             role,
             text: ".a{color:red}".to_lean_str(),
         })
-        .builtin(&request.hash(), DEFAULT_HASH_LENGTH);
+        .default_name(&request.hash(), DEFAULT_HASH_LENGTH);
         assert!(spelled.starts_with(expected), "{spelled}");
         assert!(spelled.ends_with(suffix), "{spelled}");
     }
@@ -498,7 +498,7 @@ fn a_layer_request_names_one_template_and_the_writer_adds_the_index() {
         template: CssSourceName::from("entry"),
         namespace: (LeanString::new()).into(),
     });
-    let name = request.builtin(&request.hash(), DEFAULT_HASH_LENGTH);
+    let name = request.default_name(&request.hash(), DEFAULT_HASH_LENGTH);
     let suffix = name
         .strip_prefix("sw-anon-")
         .unwrap_or_else(|| panic!("{name}"));

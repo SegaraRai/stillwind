@@ -575,7 +575,7 @@ export interface BindingRejectedIdentifier {
   hash: string
   /** Why the name was rejected. */
   reason: string
-  /** Whether the built-in name was substituted for it. */
+  /** Whether the default name was substituted for it. */
   substituted: boolean
 }
 
@@ -834,7 +834,7 @@ export interface NativeCompilerOptions {
   /** Hash of the host's identifier generators, used to invalidate cached artifacts. */
   namingRevision?: string
   /**
-   * Number of base-36 digits a built-in generated name keeps from its request hash.
+   * Number of base-36 digits a default generated name keeps from its request hash.
    * Defaults to 5. Values from 1 to 50 are accepted.
    */
   hashLength?: number

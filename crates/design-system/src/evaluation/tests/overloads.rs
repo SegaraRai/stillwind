@@ -11,7 +11,7 @@ use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 use super::*;
 use crate::test_support::parse_fixture_theme;
 
-/// Parses project CSS on top of the standard built-ins.
+/// Parses project CSS on top of the package CSS.
 fn project(css: &str) -> ThemeIndex {
     parse_fixture_theme(&SourceFile::new(FileId(1), None, None, css).unwrap()).unwrap()
 }

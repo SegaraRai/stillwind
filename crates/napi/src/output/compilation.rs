@@ -219,7 +219,7 @@ pub struct BindingRejectedIdentifier {
     /// Why the name was rejected.
     #[napi(ts_type = "string")]
     pub reason: NativeText,
-    /// Whether the built-in name was substituted for it.
+    /// Whether the default name was substituted for it.
     pub substituted: bool,
 }
 

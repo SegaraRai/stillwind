@@ -3,8 +3,8 @@
 //! This is the syntactic entry point used both for a single file
 //! ([`crate::DesignSystemSnapshot::from_source`]) and for each source the loader
 //! accepts. It reads declared semantics only: no package name, default theme, reset, or
-//! built-in registry is injected, so the definitions a snapshot ends up with are
-//! exactly the ones the host supplied, expanded in authored import order.
+//! package CSS is injected, so the definitions a snapshot ends up with are exactly the
+//! ones the host supplied, expanded in authored import order.
 //!
 //! Because directives are found textually, the buffer is first checked for an
 //! unterminated block, and the retained authored CSS is re-parsed by Lightning CSS so
@@ -231,7 +231,8 @@ fn extract_important(css: &str) -> Option<UtilityImportance> {
 /// Host protocols for dynamically registered candidates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DynamicFamilyKind {
-    /// Native plugin utility names, normalized according to the family's accepted forms.
+    /// Native plugin utility names, normalized according to the family's accepted
+    /// forms.
     Native,
     /// Tailwind utility keys with negative values and modifiers retained.
     Utility,
@@ -416,13 +417,13 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
 #[cfg(test)]
 mod tests {
     use stillwind_css::strip_css_comments;
-    use stillwind_test_support::BUILTIN_REGISTRY_CSS;
+    use stillwind_test_support::PACKAGE_CSS;
 
     use super::*;
 
     #[test]
     fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
-        let source = SourceFile::new(FileId(1), None, None, std::format!("{BUILTIN_REGISTRY_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
+        let source = SourceFile::new(FileId(1), None, None, std::format!("{PACKAGE_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         assert_eq!(theme.tokens().len(), 1);
         assert_eq!(theme.tokens()[0].name.value, "--color-local");

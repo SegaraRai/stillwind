@@ -39,7 +39,7 @@ pub struct RejectedIdentifier {
     /// Why the name was rejected: the generator's message, or why a returned name could
     /// not be used.
     pub reason: LeanStr,
-    /// Whether the built-in name was substituted for it.
+    /// Whether the default name was substituted for it.
     pub substituted: bool,
 }
 
@@ -106,7 +106,7 @@ pub(crate) struct DetachedName {
 /// differ in their label are two spellings and must not share a memo entry.
 type MemoKey = (IdentifierKind, IdentifierHash, Option<Label>);
 
-/// One compilation's name allocation: host generator first, built-in fallback,
+/// One compilation's name allocation: host generator first, default name as fallback,
 /// memoized.
 ///
 /// A request always yields one result within a compilation, so a helper asked twice
@@ -118,7 +118,7 @@ pub struct IdentifierContext {
     generators: GeneratorSet,
     /// Compilation mode deciding whether a rejection falls back or fails.
     mode: IdentifierMode,
-    /// How many base-36 digits of a request hash a built-in name keeps.
+    /// How many base-36 digits of a request hash a default name keeps.
     hash_length: usize,
     memo: RefCell<BTreeMap<MemoKey, Result<LeanStr, LeanStr>>>,
     /// Rejections collected in development mode.
@@ -134,7 +134,7 @@ pub struct IdentifierContext {
 impl IdentifierContext {
     /// Starts a context with the requested generators, mode, and hash length.
     ///
-    /// `hash_length` is the number of base-36 digits a built-in name keeps. It is the
+    /// `hash_length` is the number of base-36 digits a default name keeps. It is the
     /// compilation's own spelling choice and never reaches a host generator, which is
     /// given the whole digest.
     pub fn new(generators: GeneratorSet, mode: IdentifierMode, hash_length: usize) -> Self {
@@ -311,11 +311,11 @@ impl IdentifierContext {
 
     /// The text one request resolves to, asking the host generator first.
     ///
-    /// Normal generation uses a host name without a built-in prefix or a prefixed
-    /// built-in name. A rejected request either fails or, in development mode, uses the
-    /// built-in fallback and records the rejection. The memo and detached records keep
-    /// these original results. A configured display table substitutes the returned
-    /// token after validation, except for requests without a display role.
+    /// Normal generation uses a host name without a default prefix or a prefixed
+    /// default name. A rejected request either fails or, in development mode, uses the
+    /// default name and records the rejection. The memo and detached records keep these
+    /// original results. A configured display table substitutes the returned token
+    /// after validation, except for requests without a display role.
     ///
     /// # Errors
     ///
@@ -369,7 +369,7 @@ impl IdentifierContext {
         })
     }
 
-    /// Asks the host generator, or keeps the built-in name when it declines.
+    /// Asks the host generator, or keeps the default name when it declines.
     fn generate<T: Token, R: NameRequest<T>>(
         &self,
         request: &R,
@@ -377,10 +377,10 @@ impl IdentifierContext {
     ) -> Result<LeanStr, LeanStr> {
         let name = match self.generators.generator() {
             Some(generator) => request.name(generator, hash),
-            None => Ok(GeneratedName::Builtin),
+            None => Ok(GeneratedName::Default),
         };
         match name {
-            Ok(GeneratedName::Builtin) => Ok(request.builtin(hash, self.hash_length).into()),
+            Ok(GeneratedName::Default) => Ok(request.default_name(hash, self.hash_length).into()),
             Ok(GeneratedName::Provided(name)) => Ok(name.as_str().into()),
             Err(message) => Err((message).into()),
         }
@@ -431,7 +431,7 @@ impl IdentifierContext {
             reason: (reason).into(),
             substituted: true,
         });
-        T::new(&request.builtin(hash, self.hash_length))
+        T::new(&request.default_name(hash, self.hash_length))
             .map_err(|error| failure(error.to_lean_string()))
     }
 }

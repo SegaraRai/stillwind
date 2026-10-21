@@ -277,9 +277,9 @@ fn candidate_selector(candidate: &str) -> LeanString {
     .unwrap_or_default()
 }
 
-/// Starts an independent context with built-in release naming and the default hash
-/// length. A true `preview` adds fresh readable names for helpers; it does not select
-/// a CSS subject.
+/// Starts an independent context with default release naming and the default hash
+/// length. A true `preview` adds fresh readable names for helpers; it does not select a
+/// CSS subject.
 pub(super) fn candidate_identifiers(preview: bool) -> IdentifierContext {
     let identifiers = IdentifierContext::new(
         GeneratorSet::default(),

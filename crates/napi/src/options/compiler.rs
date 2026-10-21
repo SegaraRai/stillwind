@@ -34,7 +34,7 @@ pub struct NativeCompilerOptions {
     pub use_css_if: Option<bool>,
     /// Hash of the host's identifier generators, used to invalidate cached artifacts.
     pub naming_revision: Option<String>,
-    /// Number of base-36 digits a built-in generated name keeps from its request hash.
+    /// Number of base-36 digits a default generated name keeps from its request hash.
     /// Defaults to 5. Values from 1 to 50 are accepted.
     pub hash_length: Option<u32>,
     /// Positive finite pixels per rem in the documents that use the CSS.

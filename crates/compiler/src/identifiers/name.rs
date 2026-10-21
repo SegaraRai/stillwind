@@ -1,21 +1,23 @@
 //! Branded generated names: cleaning at construction, escaping at write.
 //!
-//! Each family is a newtype over its canonical spelling, so a name that exists has already been
-//! cleaned, and an arbitrary string cannot be written as a generated name.
+//! Each family is a newtype over its canonical spelling, so a name that exists has
+//! already been cleaned, and an arbitrary string cannot be written as a generated name.
 //!
-//! A family's constructor cleans the name once. It replaces what the family's destinations cannot
-//! carry, and it makes the name usable as a JavaScript object key where the family is written as
-//! one. A built-in name and a host-provided name are cleaned the same way: every built-in name
-//! already satisfies these rules, so the step never changes a built-in name.
+//! A family's constructor cleans the name once. It replaces what the family's
+//! destinations cannot carry, and it makes the name usable as a JavaScript object key
+//! where the family is written as one. A default name and a host-provided name are
+//! cleaned the same way: every default name already satisfies these rules, so the step
+//! never changes a default name.
 //!
-//! A render method escapes for one destination, and a family declares only the render methods its
-//! write sites use. A class token is written to a class attribute and to class selectors as the
-//! same spelling, so one type covers both writes and the token itself is never escaped: the DOM
-//! and the selector share the canonical spelling. A custom-ident family is written to value
-//! positions, where the grammar can escape every character the spelling allows.
+//! A render method escapes for one destination, and a family declares only the render
+//! methods its write sites use. A class token is written to a class attribute and to
+//! class selectors as the same spelling, so one type covers both writes and the token
+//! itself is never escaped: the DOM and the selector share the canonical spelling. A
+//! custom-ident family is written to value positions, where the grammar can escape
+//! every character the spelling allows.
 //!
-//! Escaping is not part of the name. Comparisons, reports, and DOM tokens use the canonical
-//! spelling, so a name never changes meaning by being written somewhere.
+//! Escaping is not part of the name. Comparisons, reports, and DOM tokens use the
+//! canonical spelling, so a name never changes meaning by being written somewhere.
 
 use std::fmt;
 
@@ -36,9 +38,9 @@ pub enum IdentifierNameError {
 
 /// A canonical generated name of one family.
 ///
-/// The identity plumbing builds and compares names through this trait. Cleaning a name into a
-/// family and writing it to a destination are each family's own business, so the inherent
-/// constructor and the render methods are declared per family.
+/// The identity plumbing builds and compares names through this trait. Cleaning a name
+/// into a family and writing it to a destination are each family's own business, so the
+/// inherent constructor and the render methods are declared per family.
 pub trait Token: Sized {
     /// Cleans `name` into this family's canonical spelling.
     ///
@@ -53,8 +55,8 @@ pub trait Token: Sized {
 
 /// Declares one family's brand type, its constructor, and the plumbing [`Token`] impl.
 ///
-/// Render methods stay out of the macro. Which destinations a family reaches, and how each one
-/// escapes, is what a reader of that family needs to see next to it.
+/// Render methods stay out of the macro. Which destinations a family reaches, and how
+/// each one escapes, is what a reader of that family needs to see next to it.
 macro_rules! brand {
     ($(
         $(#[$meta:meta])*
@@ -142,7 +144,8 @@ impl RefMarker {
 }
 
 impl AnchorName {
-    /// This name as the value `anchor-name`, `position-anchor`, and `anchor-scope` take.
+    /// This name as the value `anchor-name`, `position-anchor`, and `anchor-scope`
+    /// take.
     ///
     /// Those properties accept a `<dashed-ident>`, so the leading double hyphen belongs
     /// to the value rather than to the name.
@@ -171,15 +174,17 @@ impl KeyframesName {
 }
 
 impl ViewTransitionClass {
-    /// This token as a `view-transition-class` value, in a declaration or a property value.
+    /// This token as a `view-transition-class` value, in a declaration or a property
+    /// value.
     pub fn custom_ident(&self) -> LeanString {
         escaped_identifier(self.as_str())
     }
 
     /// This token as the class selector a view-transition pseudo-element selects it by.
     ///
-    /// `::view-transition-group()`, `::view-transition-old()`, and `::view-transition-new()`
-    /// select participants by their class, so those rules write the selector spelling.
+    /// `::view-transition-group()`, `::view-transition-old()`, and
+    /// `::view-transition-new()` select participants by their class, so those rules
+    /// write the selector spelling.
     pub fn selector(&self) -> LeanString {
         class_selector(self.as_str())
     }
@@ -219,12 +224,12 @@ impl LayerName {
 
 /// An authored label, cleaned for use inside a generated name.
 ///
-/// A label reaches a generator as part of a declaration context. The built-in generator
-/// spells it into every name the declaration generates, and those names reach the DOM, so
-/// it is cleaned like a class token.
+/// A label reaches a generator as part of a declaration context. The default generator
+/// spells it into every name the declaration generates, and those names reach the DOM,
+/// so it is cleaned like a class token.
 ///
-/// An empty label is no label: a declaration whose authored label cleans to nothing passes
-/// `None` in its context and is named without one, rather than failing.
+/// An empty label is no label: a declaration whose authored label cleans to nothing
+/// passes `None` in its context and is named without one, rather than failing.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Label(LeanStr);
 
@@ -262,9 +267,9 @@ impl Token for Label {
 
 /// Replaces what a class token cannot carry.
 ///
-/// A class attribute is whitespace-separated, so a token cannot hold whitespace, and NUL has
-/// no CSS spelling at all. Both become `_`; every other character is kept, because a selector
-/// and a JavaScript string can escape it.
+/// A class attribute is whitespace-separated, so a token cannot hold whitespace, and
+/// NUL has no CSS spelling at all. Both become `_`; every other character is kept,
+/// because a selector and a JavaScript string can escape it.
 fn class_token(name: &str) -> Result<LeanStr, IdentifierNameError> {
     let canonical: LeanString = name
         .chars()
@@ -279,8 +284,8 @@ fn class_token(name: &str) -> Result<LeanStr, IdentifierNameError> {
 
 /// Keeps a custom-ident as written.
 ///
-/// A custom-ident value can escape every character it can hold, so nothing is replaced. Colon
-/// and slash stay in the spelling for the same reason: a selector escapes them.
+/// A custom-ident value can escape every character it can hold, so nothing is replaced.
+/// Colon and slash stay in the spelling for the same reason: a selector escapes them.
 fn custom_ident(name: &str) -> Result<LeanStr, IdentifierNameError> {
     non_empty(name.into())
 }
@@ -347,7 +352,8 @@ mod tests {
         );
     }
 
-    /// The runtime composes the dynamic half of these names, so both sides read one table.
+    /// The runtime composes the dynamic half of these names, so both sides read one
+    /// table.
     #[test]
     fn composes_names_matching_the_shared_escape_vectors() {
         let path = concat!(

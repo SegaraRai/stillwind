@@ -79,7 +79,7 @@ impl IdentifierGenerator for FailingGenerator {
 }
 
 #[test]
-fn development_mode_falls_back_to_builtin_names_and_reports_the_generator() {
+fn development_mode_falls_back_to_default_names_and_reports_the_generator() {
     let theme = css_source(FileId(2), "").unwrap();
     let snapshot = DesignSystemSnapshot::from_source(
         &theme,
@@ -188,7 +188,7 @@ fn injected_generators_name_handles_and_keep_unhandled_families_built_in() {
         .iter()
         .find(|symbol| symbol.kind == GeneratedSymbolKind::RefMarker)
         .unwrap_or_else(|| panic!("{:?} {:?}", compiled.symbols, compiled.diagnostics));
-    // A host body is written as returned, with no built-in marker prefix.
+    // A host body is written as returned, with no default marker prefix.
     assert_eq!(marker.name, "fixed4", "{}", marker.name);
     let replacement = compiled
         .code_transforms

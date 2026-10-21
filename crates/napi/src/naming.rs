@@ -235,7 +235,7 @@ impl IdentifierGenerator for NativeNaming {
             )),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             UtilityClass::new(&name).map_err(|error| error.to_string())?,
@@ -252,7 +252,7 @@ impl IdentifierGenerator for NativeNaming {
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             RefMarker::new(&name).map_err(|error| error.to_string())?,
@@ -269,7 +269,7 @@ impl IdentifierGenerator for NativeNaming {
             FnArgs::from((locator(context), digest(hash))),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             AnchorName::new(&name).map_err(|error| error.to_string())?,
@@ -286,7 +286,7 @@ impl IdentifierGenerator for NativeNaming {
             FnArgs::from((locator(context), digest(hash))),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             ContainerName::new(&name).map_err(|error| error.to_string())?,
@@ -303,7 +303,7 @@ impl IdentifierGenerator for NativeNaming {
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             KeyframesName::new(&name).map_err(|error| error.to_string())?,
@@ -320,7 +320,7 @@ impl IdentifierGenerator for NativeNaming {
             FnArgs::from((declaration(context), digest(hash))),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             ViewTransitionClass::new(&name).map_err(|error| error.to_string())?,
@@ -345,7 +345,7 @@ impl IdentifierGenerator for NativeNaming {
             )),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             ViewTransitionSlotName::new(&name).map_err(|error| error.to_string())?,
@@ -370,7 +370,7 @@ impl IdentifierGenerator for NativeNaming {
             )),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             ConditionHelperName::new(&name).map_err(|error| error.to_string())?,
@@ -393,7 +393,7 @@ impl IdentifierGenerator for NativeNaming {
             )),
         )?
         else {
-            return Ok(GeneratedName::Builtin);
+            return Ok(GeneratedName::Default);
         };
         Ok(GeneratedName::provided(
             LayerName::new(&name).map_err(|error| error.to_string())?,

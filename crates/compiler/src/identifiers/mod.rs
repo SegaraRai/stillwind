@@ -8,7 +8,7 @@
 //! compilation's memo of allocated names. [`preview`] assigns readable display names
 //! after normal allocation and validation.
 //!
-//! A built-in name carries the family's prefix, which separates compiler names from
+//! A default name carries the family's prefix, which separates compiler names from
 //! authored CSS. A host-provided name is written exactly as returned, with no prefix:
 //! a host that computes its own names owns that separation too.
 
@@ -35,7 +35,7 @@ pub use request::{
 };
 
 pub(crate) use generator::DetachedName;
-pub(crate) use kind::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH, builtin_prefix};
+pub(crate) use kind::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH, default_prefix};
 pub(crate) use name::{escaped_identifier, view_transition_name};
 pub(crate) use preview::{PreviewNames, PreviewRequest};
 pub(crate) use request::declaration_fields;

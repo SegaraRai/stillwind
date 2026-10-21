@@ -183,13 +183,13 @@ pub(in crate::compiler) fn order_utilities(
     utilities
 }
 
-/// Test-only combination against the built-in fixture registry.
+/// Test-only combination against the package CSS.
 #[cfg(test)]
 fn combine_declarations(utilities: &[&CompiledUtility]) -> LeanString {
     use stillwind_design_system::parse_declaration_formats;
-    use stillwind_test_support::BUILTIN_REGISTRY_CSS;
+    use stillwind_test_support::PACKAGE_CSS;
 
-    combine_declarations_with_formats(utilities, &parse_declaration_formats(BUILTIN_REGISTRY_CSS))
+    combine_declarations_with_formats(utilities, &parse_declaration_formats(PACKAGE_CSS))
 }
 
 #[cfg(test)]

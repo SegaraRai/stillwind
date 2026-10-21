@@ -2,7 +2,7 @@
 //!
 //! One family is one kind of name the compiler allocates: a utility class, a ref
 //! marker, an keyframes name, and so on. Identity is not the same thing as a CSS
-//! namespace, because several families can write into one namespace when the built-in
+//! namespace, because several families can write into one namespace when the default
 //! generators reuse a single string per declaration.
 //!
 //! [`IdentifierPool`] groups the families whose names must stay unique among
@@ -12,7 +12,7 @@
 //! reported.
 //!
 //! A prefix (the class, marker, and custom-property prefixes below) marks a name as
-//! compiler-owned and is added by the built-in generator only. A host body is written
+//! compiler-owned and is added by the default generator only. A host body is written
 //! exactly as returned, with no prefix: the prefix separates compiler names from
 //! authored CSS, and a host that computes its own names owns that separation.
 //!
@@ -21,30 +21,30 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The prefix of a built-in utility class token.
+/// The prefix of a default utility class token.
 pub(crate) const DEFAULT_CLASS_PREFIX: &str = "sw_";
 
-/// The prefix that marks a built-in ref marker class token as compiler-owned.
+/// The prefix that marks a default ref marker class token as compiler-owned.
 pub(crate) const DEFAULT_REF_MARKER_PREFIX: &str = "sw_";
 
-/// The prefix of a built-in ref anchor name, without the value's own leading hyphens.
+/// The prefix of a default ref anchor name, without the value's own leading hyphens.
 ///
 /// The anchor properties take a `<dashed-ident>`, so the two hyphens belong to the
 /// value grammar and are added by the family's write methods rather than carried by the
 /// name.
 pub(crate) const DEFAULT_ANCHOR_PREFIX: &str = "sw-a-";
 
-/// The prefix of a built-in container name.
+/// The prefix of a default container name.
 pub(crate) const DEFAULT_CONTAINER_PREFIX: &str = "sw-c-";
 
-/// The prefix of a built-in keyframes name.
+/// The prefix of a default keyframes name.
 pub(crate) const DEFAULT_KEYFRAMES_PREFIX: &str = "sw-kf-";
 
-/// The prefix of a built-in view-transition class token, which is also the transition's
+/// The prefix of a default view-transition class token, which is also the transition's
 /// identity.
 pub(crate) const DEFAULT_VIEW_TRANSITION_CLASS_PREFIX: &str = "sw-vt-";
 
-/// The prefix of a built-in conditional helper, before the role letter and separator.
+/// The prefix of a default conditional helper, before the role letter and separator.
 ///
 /// A helper is a custom property, and that family's render method adds the leading
 /// hyphens, so the canonical spelling this prefix starts carries none.
@@ -54,10 +54,10 @@ pub(crate) const DEFAULT_CONDITION_PREFIX: &str = "sw-if";
 /// without its leading hyphens.
 pub(crate) const DEFAULT_VIEW_TRANSITION_SLOT_PREFIX: &str = "sw-vtc-";
 
-/// The prefix of a built-in anonymous layer name.
+/// The prefix of a default anonymous layer name.
 pub(crate) const DEFAULT_LAYER_PREFIX: &str = "sw-anon-";
 
-/// How many base-36 digits of the request hash a built-in name keeps when a compilation
+/// How many base-36 digits of the request hash a default name keeps when a compilation
 /// does not configure [`crate::CompilerOptions::hash_length`].
 pub(crate) const DEFAULT_HASH_LENGTH: usize = 5;
 
@@ -79,16 +79,17 @@ pub enum IdentifierMode {
     /// never ships a name the host expected to control.
     #[default]
     Release,
-    /// A development compilation. A rejected name falls back to the built-in name and is
-    /// recorded in [`crate::identifiers::RejectedNames`], so a running dev server stays usable while the
-    /// host can warn about the generator.
+    /// A development compilation. A rejected name falls back to the default name and is
+    /// recorded in [`crate::identifiers::RejectedNames`], so a running dev server stays
+    /// usable while the host can warn about the generator.
     Development,
 }
 
 /// One family of generated names.
 ///
-/// The variant decides which pool the resulting name must be checked in and how a report
-/// spells the family. Serialized spelling is used only in reports, never as name content.
+/// The variant decides which pool the resulting name must be checked in and how a
+/// report spells the family. Serialized spelling is used only in reports, never as name
+/// content.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum IdentifierKind {
@@ -191,11 +192,12 @@ impl IdentifierPool {
     }
 }
 
-/// The prefix the built-in generator puts in front of a family's name.
+/// The prefix the default generator puts in front of a family's name.
 ///
 /// A host-provided name is written without it: the prefix exists to separate compiler
-/// names from authored CSS, and a host that computes its own names owns that separation.
-pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
+/// names from authored CSS, and a host that computes its own names owns that
+/// separation.
+pub(crate) const fn default_prefix(kind: IdentifierKind) -> &'static str {
     match kind {
         IdentifierKind::UtilityClass => DEFAULT_CLASS_PREFIX,
         IdentifierKind::RefMarker => DEFAULT_REF_MARKER_PREFIX,
@@ -210,11 +212,11 @@ pub(crate) const fn builtin_prefix(kind: IdentifierKind) -> &'static str {
     }
 }
 
-/// The character a built-in name puts between an authored label and the digest.
+/// The character a default name puts between an authored label and the digest.
 ///
-/// A name separates the parts of its own prefix: the class tokens whose prefix ends in an
-/// underscore keep `_`, and every dash-separated family keeps `-`.
-pub(crate) const fn builtin_label_separator(kind: IdentifierKind) -> char {
+/// A name separates the parts of its own prefix: the class tokens whose prefix ends in
+/// an underscore keep `_`, and every dash-separated family keeps `-`.
+pub(crate) const fn default_label_separator(kind: IdentifierKind) -> char {
     match kind {
         IdentifierKind::UtilityClass | IdentifierKind::RefMarker => '_',
         _ => '-',
@@ -279,8 +281,8 @@ mod tests {
     }
 
     #[test]
-    fn only_families_the_builtin_generator_owns_carry_a_prefix() {
-        assert_eq!(builtin_prefix(IdentifierKind::RuleBoundary), "");
+    fn only_families_the_default_generator_owns_carry_a_prefix() {
+        assert_eq!(default_prefix(IdentifierKind::RuleBoundary), "");
         for kind in [
             IdentifierKind::UtilityClass,
             IdentifierKind::RefMarker,
@@ -292,7 +294,7 @@ mod tests {
             IdentifierKind::ViewTransitionSlot,
             IdentifierKind::LayerName,
         ] {
-            assert!(!builtin_prefix(kind).is_empty(), "{kind:?}");
+            assert!(!default_prefix(kind).is_empty(), "{kind:?}");
         }
     }
 }

@@ -17,7 +17,7 @@ use stillwind_source::ReplaceText;
 use super::super::authored_directives::expand_authored_directives;
 use crate::CompilerOptions;
 use crate::compiler::conditionals::lower;
-use crate::identifiers::{IdentifierContext, IdentifierKind, builtin_prefix};
+use crate::identifiers::{IdentifierContext, IdentifierKind, default_prefix};
 
 /// Returns expanded authored CSS and appends its explicit registration dependencies.
 ///
@@ -55,11 +55,11 @@ pub(super) fn render_authored(
         options.use_css_if,
         identifiers,
     )
-    // The helper prefix is the built-in marker plus the role letter, so replacing the
+    // The helper prefix is the default prefix plus the role letter, so replacing the
     // marker puts every role's spelling under the configured custom-property prefix.
     .map(|css| {
         let marker =
-            format_args!("--{}", builtin_prefix(IdentifierKind::ConditionHelper)).to_lean_string();
+            format_args!("--{}", default_prefix(IdentifierKind::ConditionHelper)).to_lean_string();
         css.replace_text(
             &marker,
             &format_args!("{}if", options.prefix).to_lean_string(),

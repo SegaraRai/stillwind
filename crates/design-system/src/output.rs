@@ -61,9 +61,9 @@ pub fn parse_output_template(
 
 /// Parses every `@stillwind-css-template <name> { ... }` rule in one CSS buffer.
 ///
-/// Each body uses the slot syntax of the output template and describes where the
-/// output of one `style.css()` call goes. A later rule with the same name replaces an
-/// earlier one, so a project can redefine a built-in template. Origins use `FileId(0)`
+/// Each body uses the slot syntax of the output template and describes where the output
+/// of one `style.css()` call goes. A later rule with the same name replaces an earlier
+/// one, so a project can redefine a template of the package. Origins use `FileId(0)`
 /// and UTF-8 byte offsets into `css`, as [`parse_output_template`] describes.
 ///
 /// # Errors

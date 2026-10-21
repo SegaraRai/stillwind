@@ -32,7 +32,7 @@ pub struct KeyframesDefinition {
     pub binding: Spanned<LeanStr>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
-    /// Authored label, which the built-in generator spells into the keyframes name.
+    /// Authored label, which the default generator spells into the keyframes name.
     #[serde(default)]
     pub label: Option<Spanned<LeanStr>>,
     /// Default frames and complete conditional replacements.
@@ -79,7 +79,7 @@ pub struct ViewTransitionDefinition {
     pub binding: Spanned<LeanStr>,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
-    /// Authored label, which the built-in generator spells into the class token.
+    /// Authored label, which the default generator spells into the class token.
     #[serde(default)]
     pub label: Option<Spanned<LeanStr>>,
     /// Option list for the `::view-transition-group` pseudo-element.

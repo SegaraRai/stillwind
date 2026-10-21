@@ -25,10 +25,9 @@ use crate::query::StylesheetSortOptions;
 /// Knobs a host may set per compilation.
 ///
 /// Serialized with camelCase fields and `#[serde(default)]`, so adding a field is
-/// compatible with previously written configuration; defaults match the built-in
-/// `stillwind` package and an unnamespaced project. Runtime-condition output strategy
-/// applies to utilities and authored CSS, independently of design-system prefix
-/// resolution.
+/// compatible with previously written configuration; defaults match the `stillwind`
+/// package and an unnamespaced project. Runtime-condition output strategy applies to
+/// utilities and authored CSS, independently of design-system prefix resolution.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompilerOptions {
@@ -58,11 +57,11 @@ pub struct CompilerOptions {
     ///
     /// A host that computes generated names in JavaScript passes a hash of its
     /// generator functions here, because their output is otherwise invisible to the
-    /// artifact cache. It defaults to the empty string, which denotes the built-in
+    /// artifact cache. It defaults to the empty string, which denotes the default
     /// generators, and carries no meaning for the compiler beyond its effect on the
     /// artifact key.
     pub naming_revision: LeanStr,
-    /// Number of base-36 digits a built-in generated name keeps from its request hash.
+    /// Number of base-36 digits a default generated name keeps from its request hash.
     ///
     /// Every family shares the length. A shorter spelling is easier to read in
     /// generated markup, while a longer one leaves more room before two declarations
@@ -145,8 +144,9 @@ impl CompilerOptions {
 
     /// Substitutes the configured prefixes into generated text.
     ///
-    /// Built-in declarations use the default prefixes. Private-use sentinels prevent
-    /// a configured prefix that contains `--sw-` or `--tw-` from being rewritten again.
+    /// The package's declarations use the default prefixes. Private-use sentinels
+    /// prevent a configured prefix that contains `--sw-` or `--tw-` from being
+    /// rewritten again.
     pub(crate) fn rewrite_generated(&self, value: &(impl ToLeanStr + ?Sized)) -> LeanStr {
         let value = value.to_lean_str();
         if !value.contains('\u{e000}')

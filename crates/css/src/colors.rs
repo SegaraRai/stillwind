@@ -71,8 +71,8 @@ fn rewrite_shadow_color(
     }
 
     // The fallback remains grammar-driven for shadows whose color is not written as the
-    // final component. Built-in theme shadows take the source preserving path above, so
-    // their authored precision is retained.
+    // final component. The package's theme shadows take the source preserving path
+    // above, so their authored precision is retained.
     let color: LeanString = shadow
         .color
         .to_css_string(PrinterOptions::default())

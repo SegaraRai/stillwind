@@ -86,9 +86,10 @@ fn snapshot_validates_css_resolved_configuration() {
     );
 }
 
-/// Importing the package selects built-ins; authoring a theme alone does not.
+/// Importing the package selects the package's definitions; authoring a theme alone
+/// does not.
 #[test]
-fn resolved_registries_include_selected_builtins_and_authored_overloads() {
+fn resolved_registries_include_package_definitions_and_authored_overloads() {
     let snapshot = DesignSystemSnapshot::from_source(
         &SourceFile::new(
             FileId(1), None, None,
