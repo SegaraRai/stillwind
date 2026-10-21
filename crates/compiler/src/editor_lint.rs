@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, SourceEdit, SourceRange,
 };
@@ -14,8 +15,6 @@ use stillwind_ir::{
     ClassExpression, GroupEntry, ModuleAnalysis, RuleExpression, StyleInput, StyleVariant,
 };
 use stillwind_source::{ReplaceText, SourceFile, Span, Spanned};
-
-use stillwind_design_system::ThemeIndex;
 
 use crate::DesignSystemQuery;
 use crate::candidate_fixes::{WrittenSource, detect as detect_fixes};
@@ -219,7 +218,8 @@ fn escape_literal(value: &str, quote: char) -> LeanString {
     value
 }
 
-/// Maps decoded byte boundaries back to a contiguous original literal. Unmapped projections are skipped.
+/// Maps decoded byte boundaries back to a contiguous original literal. Unmapped
+/// projections are skipped.
 pub(crate) fn literal_boundaries(
     source: &SourceFile,
     literal: &Spanned<LeanStr>,
