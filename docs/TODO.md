@@ -93,24 +93,14 @@ median and uncached query percentiles with `vp run bench:compiler:browser`.
 Sources: [browser measurement](../benchmarks/compiler/canonical.browser.test.ts),
 [operation budgets](../benchmarks/performance/README.md#budget-policy).
 
-## Registry contexts
+## Registry context preparation
 
-[Registry contexts](css-emission.md#registry-contexts) leave these parts open:
-
-- The `keyframe` registry keeps the `--tw-*` definitions of shadows, rings, and backdrop
-  filters, so frames switch them halfway through an animation. Backdrop filters can use
-  `--sw-motion-backdrop-*` registrations as filters do. `@property` cannot register
-  `<shadow>`, so shadows would write `box-shadow` and `text-shadow` directly and could
-  not combine with rings in one frame.
-- A stylesheet definition after the built-in blocks reaches `keyframe` and
-  `view-transition` even when its name matches a pattern that a block removes. Evaluate a
-  lint that reports such a definition.
-- Creating the three context indexes took about 2.5ms after a 32ms preparation of the
-  built-in registry in a native release build. Measure the browser cost with
-  `vp run bench:compiler:browser`.
+Creating the three [registry context](css-emission.md#registry-contexts) indexes took
+about 2.5ms after a 32ms preparation of the built-in registry in a native release build.
+Measure the browser cost with `vp run bench:compiler:browser`.
 
 Sources: [registry statements](../crates/design-system/src/registry/contexts.rs),
-[motion contexts](../packages/core/css/builtin-utilities/sw-motion-contexts.css).
+[theme index](../crates/design-system/src/theme/index.rs).
 
 ## Migration guide from Tailwind CSS
 

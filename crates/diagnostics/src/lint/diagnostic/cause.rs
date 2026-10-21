@@ -694,6 +694,25 @@ pub enum LintDiagnostic {
         /// Definition name as written.
         name: LeanStr,
     },
+    /// A stylesheet definition outside every `@stillwind-registry` block registers
+    /// after an undefinition of the `keyframe` or `view-transition` registry, so it
+    /// reaches that registry although the undefinition removed the earlier definitions
+    /// of its name (`bypassed-undefinition`).
+    #[error(
+        "`{directive} {name}` also defines `{name}` in the `{context}` registry, where `{undefinition} {pattern}` removed the earlier definitions"
+    )]
+    BypassedUndefinition {
+        /// Directive of the definition, such as `@utility`.
+        directive: LeanStr,
+        /// Definition name as written.
+        name: LeanStr,
+        /// Registry that the definition reaches, such as `keyframe`.
+        context: LeanStr,
+        /// Undefinition directive, such as `@stillwind-undef-utility`.
+        undefinition: LeanStr,
+        /// Pattern of the undefinition as written.
+        pattern: LeanStr,
+    },
     /// A theme token value matches no value type of its namespace
     /// (`invalid-theme-value`).
     #[error(
@@ -856,6 +875,7 @@ impl LintDiagnostic {
             Self::ImplicitNestingSelector { .. } => LintKind::ImplicitNestingSelector,
             Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
+            Self::BypassedUndefinition { .. } => LintKind::BypassedUndefinition,
             Self::InvalidThemeValue { .. } => LintKind::InvalidThemeValue,
             Self::IgnoredTailwindFeature { .. } => LintKind::IgnoredTailwindFeature,
             Self::UnresolvedThemeReference { .. } | Self::EmptyThemeNamespace { .. } => {

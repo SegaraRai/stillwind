@@ -138,6 +138,8 @@ pub struct LintOverrides {
     pub invalid_theme_reference: Option<LintSeverity>,
     /// Reporting level for `duplicate-definition`.
     pub duplicate_definition: Option<LintSeverity>,
+    /// Reporting level for `bypassed-undefinition`.
+    pub bypassed_undefinition: Option<LintSeverity>,
     /// Reporting level for `invalid-theme-value`.
     pub invalid_theme_value: Option<LintSeverity>,
     /// Reporting level for `ignored-tailwind-feature`.
@@ -355,6 +357,7 @@ impl LintOverrides {
                 self.invalid_theme_reference,
             ),
             (LintKind::DuplicateDefinition, self.duplicate_definition),
+            (LintKind::BypassedUndefinition, self.bypassed_undefinition),
             (LintKind::InvalidThemeValue, self.invalid_theme_value),
             (
                 LintKind::IgnoredTailwindFeature,

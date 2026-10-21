@@ -272,6 +272,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "bypassed-undefinition": {
+    category: "hazard",
+    nativeName: "bypassedUndefinition",
+    defaults: null,
+    options: null,
+  },
   "invalid-theme-value": {
     category: "hazard",
     nativeName: "invalidThemeValue",

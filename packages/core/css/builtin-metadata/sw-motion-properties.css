@@ -124,3 +124,57 @@ Elements never set these properties; only keyframes do.
   inherits: false;
   initial-value: 0;
 }
+
+@stillwind-property --sw-motion-backdrop-blur {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@stillwind-property --sw-motion-backdrop-brightness {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-backdrop-contrast {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-backdrop-grayscale {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@stillwind-property --sw-motion-backdrop-hue-rotate {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@stillwind-property --sw-motion-backdrop-invert {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@stillwind-property --sw-motion-backdrop-opacity {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-backdrop-saturate {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@stillwind-property --sw-motion-backdrop-sepia {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}

@@ -96,7 +96,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 65);
+        assert_eq!(names.len(), 66);
         for name in [
             "custom",
             "",
@@ -161,6 +161,7 @@ mod tests {
                 "clamped-value": "warn",
                 "invalid-theme-reference": "deny",
                 "duplicate-definition": "warn",
+                "bypassed-undefinition": "warn",
                 "invalid-theme-value": "deny",
                 "ignored-tailwind-feature": "warn",
                 "implicit-nesting-selector": "warn",

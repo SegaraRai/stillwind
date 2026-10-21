@@ -1323,6 +1323,8 @@ export interface NativeLintOptions {
   clampedValue?: string
   /** Settings for `duplicate-definition`. */
   duplicateDefinition?: string
+  /** Settings for `bypassed-undefinition`. */
+  bypassedUndefinition?: string
   /** Settings for `invalid-theme-value`. */
   invalidThemeValue?: string
   /** Settings for `ignored-tailwind-feature`. */

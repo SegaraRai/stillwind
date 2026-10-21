@@ -289,6 +289,13 @@ Other rules check only stylesheets. They check definitions and theme references:
   Its fix inserts `& ` before each such branch, which keeps the meaning. The message
   names `scope(document)` for a selector that should select a document-level element,
   but no fix adds it, because the marker changes the meaning.
+- `bypassed-undefinition` (hazard, default `warn`) reports a `@utility`,
+  `@custom-variant`, or `@variant` definition outside every `@stillwind-registry` block
+  that registers after an undefinition of the `keyframe` or `view-transition` registry
+  with a matching pattern. Such a definition reaches that registry although the
+  undefinition removed the earlier definitions of its name. A later undefinition of the
+  registry, or an undefinition that also changes `default`, is not bypassed. The
+  finding covers the definition name.
 - `duplicate-definition` (hazard, default `warn`) reports an earlier `@custom-variant`
   or `@utility` that later definitions with the same name hide completely, so it is
   never used. A later variant definition hides an earlier one when it resolves.

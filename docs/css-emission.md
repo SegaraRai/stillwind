@@ -280,13 +280,16 @@ Compilation does not request a candidate of a dynamic family from the host when 
 
 The built-in blocks make these changes:
 
-- `keyframe` writes the transform and filter families through typed `--sw-motion-*`
-  registrations, such as `--sw-motion-translate-y` with
+- `keyframe` writes the transform, filter, and backdrop-filter families through typed
+  `--sw-motion-*` registrations, such as `--sw-motion-translate-y` with
   `syntax: "<length-percentage>"`. A browser interpolates a typed registration between
   frames. The `--tw-*` registrations of element utilities have `syntax: "*"`, so a
   frame that set `--tw-translate-y` would switch the value halfway through the
-  animation. The registry also removes the `transition`, `duration`, `ease`, `delay`,
-  `animate`, and `drop-shadow` utilities.
+  animation. `@property` cannot register a shadow list, so `shadow-*` and
+  `text-shadow-*` write `box-shadow` and `text-shadow` directly, and a frame cannot
+  combine a shadow with a ring. The registry removes shadow colors, `ring`, `ring-*`,
+  `inset-shadow-*`, `inset-ring`, `inset-ring-*`, `drop-shadow-*`, and the
+  `transition`, `duration`, `ease`, `delay`, and `animate` utilities.
 - `animation` defines `duration-*`, `ease-*`, `delay-*`, and the fill-mode,
   direction, play-state, and iteration words as `animation-*` declarations, and it
   accepts `animation-*` arbitrary properties.
@@ -297,8 +300,9 @@ The built-in blocks make these changes:
 These blocks precede the stylesheet, so they change only built-in and plugin
 definitions. A stylesheet `@utility` with a name that a block replaces also reaches
 `keyframe` and `view-transition`. For example, `@utility duration-slow` sets
-`transition-duration` in a view transition. Write a block that names those registries
-to change such a definition there.
+`transition-duration` in a view transition. The `bypassed-undefinition` lint reports
+such a definition. Write it in a `@stillwind-registry default` block to keep it out of
+the other registries, or in a block that names those registries to define it there.
 
 ## Marker classes
 

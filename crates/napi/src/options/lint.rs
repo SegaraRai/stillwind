@@ -101,6 +101,8 @@ pub struct NativeLintOptions {
     pub clamped_value: Option<String>,
     /// Settings for `duplicate-definition`.
     pub duplicate_definition: Option<String>,
+    /// Settings for `bypassed-undefinition`.
+    pub bypassed_undefinition: Option<String>,
     /// Settings for `invalid-theme-value`.
     pub invalid_theme_value: Option<String>,
     /// Settings for `ignored-tailwind-feature`.
@@ -323,6 +325,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             duplicate_definition: input
                 .duplicate_definition
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            bypassed_undefinition: input
+                .bypassed_undefinition
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_theme_value: input

@@ -22,8 +22,9 @@ use crate::registry::{
     accepts_arbitrary_property,
 };
 use crate::{
-    BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, DynamicFamilyKind,
-    MarkerClasses, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode, UtilityOrderMode,
+    BrowserTargets, BuiltinDefinitions, BypassedUndefinition, CustomUtility, CustomVariant,
+    DynamicFamilyKind, MarkerClasses, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode,
+    UtilityOrderMode,
 };
 
 /// Everything that one stylesheet declares, as the parser collected it. Equality of two
@@ -205,6 +206,25 @@ impl ThemeIndex {
             .declarations
             .registry_statements
             .undefines_utility(RegistryContext::Default, name)
+    }
+
+    /// Returns the undefinition of the `keyframe` or `view-transition` registry that a
+    /// stylesheet definition outside every `@stillwind-registry` block bypasses, as
+    /// [`BypassedUndefinition`] describes. The definition defines a utility when
+    /// `utility` is true and a variant otherwise, has the name `name`, and starts at
+    /// the byte offset `offset` of the parsed text. It must not be inside an `@plugin`
+    /// answer.
+    #[must_use]
+    pub fn bypassed_undefinition(
+        &self,
+        utility: bool,
+        name: &str,
+        offset: usize,
+    ) -> Option<BypassedUndefinition> {
+        self.inner
+            .declarations
+            .registry_statements
+            .bypassed_undefinition(utility, name, offset)
     }
 
     /// Whether arbitrary-property candidates such as `[color:red]` may set `property`

@@ -308,6 +308,7 @@ define_lint_rules! {
         UnsatisfiableVariants => "unsatisfiable-variants",
         ClampedValue => "clamped-value",
         DuplicateDefinition => "duplicate-definition",
+        BypassedUndefinition => "bypassed-undefinition",
         InvalidThemeValue => "invalid-theme-value",
         IgnoredTailwindFeature => "ignored-tailwind-feature",
     }
@@ -359,6 +360,7 @@ impl LintKind {
                 self,
                 Self::InvalidThemeReference
                     | Self::DuplicateDefinition
+                    | Self::BypassedUndefinition
                     | Self::InvalidThemeValue
                     | Self::IgnoredTailwindFeature
                     | Self::ImplicitNestingSelector
@@ -384,6 +386,7 @@ impl LintKind {
                     | Self::PreferTypedVariables
                     | Self::InvalidThemeReference
                     | Self::DuplicateDefinition
+                    | Self::BypassedUndefinition
                     | Self::InvalidThemeValue
                     | Self::IgnoredTailwindFeature
                     | Self::ImplicitNestingSelector

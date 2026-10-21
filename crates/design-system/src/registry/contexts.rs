@@ -147,6 +147,29 @@ enum RegistryOperation {
 struct Statement {
     contexts: Contexts,
     operation: RegistryOperation,
+    /// Byte offset of the directive in the parsed text.
+    offset: usize,
+    /// Whether an `@plugin` answer contains the statement.
+    plugin: bool,
+}
+
+impl Statement {
+    /// Whether this statement registers before a statement outside `@plugin` answers at
+    /// `offset`.
+    fn registers_before(&self, offset: usize) -> bool {
+        self.plugin || self.offset < offset
+    }
+}
+
+/// An undefinition of a registry other than `default` that registers before a
+/// definition outside every block, so that definition reaches the registry despite the
+/// undefinition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BypassedUndefinition {
+    /// Registry that the undefinition changes and the definition reaches.
+    pub context: RegistryContext,
+    /// Pattern of the undefinition as written.
+    pub pattern: LeanStr,
 }
 
 /// Whether the pattern `pattern` matches the definition name `name`.
@@ -328,6 +351,8 @@ impl RegistryStatements {
                 .map(|(offset, operation)| Statement {
                     contexts: contexts_at(offset),
                     operation,
+                    offset,
+                    plugin: in_plugin(offset),
                 })
                 .collect(),
         })
@@ -366,6 +391,47 @@ impl RegistryStatements {
                     RegistryOperation::UndefUtility(pattern) if matches_pattern(pattern, name)
                 )
         })
+    }
+
+    /// Returns the undefinition that a definition outside every block and outside
+    /// `@plugin` answers bypasses. The definition has the name `name`, defines a
+    /// utility when `utility` is true and a variant otherwise, and starts at `offset`.
+    ///
+    /// For `keyframe` and then `view-transition`, the last undefinition of that
+    /// registry whose pattern matches `name` is checked. It is returned when it
+    /// registers before the definition and does not change `default`. A later
+    /// undefinition removes the definition again, and an undefinition that also changes
+    /// `default` removes the earlier definitions there too, so neither is bypassed.
+    pub(crate) fn bypassed_undefinition(
+        &self,
+        utility: bool,
+        name: &str,
+        offset: usize,
+    ) -> Option<BypassedUndefinition> {
+        [RegistryContext::Keyframe, RegistryContext::ViewTransition]
+            .into_iter()
+            .find_map(|context| {
+                let (statement, pattern) = self
+                    .statements
+                    .iter()
+                    .filter(|statement| statement.contexts.contains(context))
+                    .filter_map(|statement| {
+                        let ((RegistryOperation::UndefUtility(pattern), true)
+                        | (RegistryOperation::UndefVariant(pattern), false)) =
+                            (&statement.operation, utility)
+                        else {
+                            return None;
+                        };
+                        matches_pattern(pattern, name).then_some((statement, pattern))
+                    })
+                    .max_by_key(|(statement, _)| (!statement.plugin, statement.offset))?;
+                (statement.registers_before(offset)
+                    && !statement.contexts.contains(RegistryContext::Default))
+                .then(|| BypassedUndefinition {
+                    context,
+                    pattern: pattern.clone(),
+                })
+            })
     }
 }
 

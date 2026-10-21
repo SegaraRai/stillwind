@@ -95,6 +95,46 @@ fn resolves_animation_options_through_the_animation_context() {
 }
 
 #[test]
+fn keyframe_registry_writes_interpolable_shadows_and_backdrop_filters() {
+    let theme = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(2),
+            None,
+            None,
+            "@theme { --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1); --blur-sm: 8px; }",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let keyframe = theme.context(RegistryContext::Keyframe);
+    let declaration =
+        |raw: &str| resolve_utility(raw, keyframe).map(|utility| css_tokens(&utility.declaration));
+    assert_eq!(
+        declaration("shadow-lg"),
+        Some(css_tokens("box-shadow:var(--shadow-lg);"))
+    );
+    assert_eq!(
+        declaration("shadow-none"),
+        Some(css_tokens("box-shadow:0 0 #0000;"))
+    );
+    for removed in ["shadow-red-500", "ring-2", "inset-shadow-sm", "inset-ring"] {
+        assert_eq!(declaration(removed), None, "{removed}");
+    }
+    let backdrop = resolve_utility("backdrop-blur-sm", keyframe)
+        .expect("keyframe backdrop blur")
+        .declaration;
+    assert!(
+        backdrop.contains("--sw-motion-backdrop-blur:var(--blur-sm)")
+            && backdrop.contains("backdrop-filter:blur(var(--sw-motion-backdrop-blur))"),
+        "{backdrop}"
+    );
+    assert!(
+        resolve_utility("ring-2", &theme).is_some(),
+        "default keeps ring utilities"
+    );
+}
+
+#[test]
 fn root_undefinitions_remove_builtins_from_every_root_registry() {
     let theme = parse_fixture_theme(
         &SourceFile::new(

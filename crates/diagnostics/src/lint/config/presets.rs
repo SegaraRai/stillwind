@@ -54,6 +54,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::ClampedValue, LintSeverity::Warn),
     (LintKind::InvalidThemeReference, LintSeverity::Deny),
     (LintKind::DuplicateDefinition, LintSeverity::Warn),
+    (LintKind::BypassedUndefinition, LintSeverity::Warn),
     (LintKind::InvalidThemeValue, LintSeverity::Deny),
     (LintKind::IgnoredTailwindFeature, LintSeverity::Warn),
     (LintKind::ImplicitNestingSelector, LintSeverity::Warn),

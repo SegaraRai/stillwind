@@ -81,9 +81,9 @@ pub use options::{DesignSystemOptions, UtilityOrderMode};
 pub use output::parse_output_template;
 pub use registry::{
     BuiltinArbitraryPropertyOrder, BuiltinDefinitions, BuiltinVariantModifierType,
-    BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, CustomUtility,
-    CustomVariant, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext, UtilityRole,
-    VariantScope, declaration_format, parse_builtin_arbitrary_property_order,
+    BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, BypassedUndefinition,
+    CustomUtility, CustomVariant, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext,
+    UtilityRole, VariantScope, declaration_format, parse_builtin_arbitrary_property_order,
     parse_builtin_utility_definitions, parse_builtin_variant_definitions,
     parse_declaration_formats, parse_omit_token_prefixes, parse_relationship_patterns,
     parse_theme_order, parse_variant_definitions,

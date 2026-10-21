@@ -547,6 +547,415 @@ default utilities for the pseudo-elements, and its timing utilities set the
       hue-rotate(var(--sw-motion-hue-rotate)) invert(var(--sw-motion-invert))
       saturate(var(--sw-motion-saturate)) sepia(var(--sw-motion-sepia));
   }
+
+  /* MARK: `backdrop-filter` */
+
+  @stillwind-undef-utility backdrop-blur-*;
+
+  @stillwind-undef-utility backdrop-brightness-*;
+
+  @stillwind-undef-utility backdrop-contrast-*;
+
+  @stillwind-undef-utility backdrop-grayscale;
+
+  @stillwind-undef-utility backdrop-grayscale-*;
+
+  @stillwind-undef-utility backdrop-hue-rotate-*;
+
+  @stillwind-undef-utility backdrop-invert;
+
+  @stillwind-undef-utility backdrop-invert-*;
+
+  @stillwind-undef-utility backdrop-opacity-*;
+
+  @stillwind-undef-utility backdrop-saturate-*;
+
+  @stillwind-undef-utility backdrop-sepia;
+
+  @stillwind-undef-utility backdrop-sepia-*;
+
+  @stillwind-utility backdrop-blur-none {
+    --sw-motion-backdrop-blur: 0px;
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-blur-* {
+    --sw-motion-backdrop-blur: --value(--blur-*, [length]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-brightness-* {
+    --sw-motion-backdrop-brightness: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-brightness-* {
+    --sw-motion-backdrop-brightness: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-contrast-* {
+    --sw-motion-backdrop-contrast: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-contrast-* {
+    --sw-motion-backdrop-contrast: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-grayscale {
+    --sw-motion-backdrop-grayscale: 1;
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-grayscale-* {
+    --sw-motion-backdrop-grayscale: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-grayscale-* {
+    --sw-motion-backdrop-grayscale: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-invert {
+    --sw-motion-backdrop-invert: 1;
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-invert-* {
+    --sw-motion-backdrop-invert: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-invert-* {
+    --sw-motion-backdrop-invert: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-opacity-* {
+    --sw-motion-backdrop-opacity: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-opacity-* {
+    --sw-motion-backdrop-opacity: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-saturate-* {
+    --sw-motion-backdrop-saturate: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-saturate-* {
+    --sw-motion-backdrop-saturate: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-sepia {
+    --sw-motion-backdrop-sepia: 1;
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-sepia-* {
+    --sw-motion-backdrop-sepia: calc(--value(integer) / 100);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-sepia-* {
+    --sw-motion-backdrop-sepia: --value([number]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-hue-rotate-* {
+    --sw-motion-backdrop-hue-rotate: calc(--value(integer) * 1deg);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  @stillwind-utility backdrop-hue-rotate-* {
+    --sw-motion-backdrop-hue-rotate: --value([angle]);
+    -webkit-backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+    backdrop-filter: blur(var(--sw-motion-backdrop-blur))
+      brightness(var(--sw-motion-backdrop-brightness)) contrast(var(--sw-motion-backdrop-contrast))
+      grayscale(var(--sw-motion-backdrop-grayscale))
+      hue-rotate(var(--sw-motion-backdrop-hue-rotate)) invert(var(--sw-motion-backdrop-invert))
+      opacity(var(--sw-motion-backdrop-opacity)) saturate(var(--sw-motion-backdrop-saturate))
+      sepia(var(--sw-motion-backdrop-sepia));
+  }
+
+  /*
+  MARK: `box-shadow` and `text-shadow`
+
+  `@property` cannot register a shadow list, so these utilities write the shadow
+  properties directly. A browser interpolates two shadow lists of different lengths, but
+  one frame cannot combine a shadow with a ring or an inset shadow, so the utilities that
+  share `box-shadow` through `--tw-*` variables are removed.
+  */
+
+  @stillwind-undef-utility shadow-*;
+
+  @stillwind-undef-utility inset-shadow-*;
+
+  @stillwind-undef-utility ring;
+
+  @stillwind-undef-utility ring-*;
+
+  @stillwind-undef-utility inset-ring;
+
+  @stillwind-undef-utility inset-ring-*;
+
+  @stillwind-undef-utility text-shadow-*;
+
+  @stillwind-utility shadow-none {
+    box-shadow: 0 0 #0000;
+  }
+
+  @stillwind-utility shadow-* {
+    box-shadow: --value(--shadow-*);
+  }
+
+  @stillwind-utility shadow-* {
+    box-shadow: --value([shadow]);
+  }
+
+  @stillwind-utility text-shadow-none {
+    text-shadow: none;
+  }
+
+  @stillwind-utility text-shadow-* {
+    text-shadow: --value(--text-shadow-*);
+  }
+
+  @stillwind-utility text-shadow-* {
+    text-shadow: --value([shadow]);
+  }
 }
 
 @stillwind-registry view-transition {

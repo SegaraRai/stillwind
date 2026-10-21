@@ -14,6 +14,7 @@ use stillwind_diagnostics::{
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
 use super::application::check_application;
+use super::bypassed::check_bypassed_undefinitions;
 use super::definitions::definitions;
 use super::nesting::check_nesting;
 use super::shadowing::{addresses, shadowed_definitions};
@@ -107,10 +108,12 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
                     checker.report(finding);
                 }
             }
-            for definition in definitions(&nodes, source.source.text()) {
-                check_nesting(&mut checker, &definition);
-                check_utility_namespaces(&mut checker, &definition);
+            let source_definitions = definitions(&nodes, source.source.text());
+            for definition in &source_definitions {
+                check_nesting(&mut checker, definition);
+                check_utility_namespaces(&mut checker, definition);
             }
+            check_bypassed_undefinitions(&mut checker, snapshot.sources(), &source_definitions);
             check_theme_values(&mut checker, &nodes);
             check_tailwind_features(&mut checker, source.source.text());
             check_theme_references(&mut checker, &nodes, false);

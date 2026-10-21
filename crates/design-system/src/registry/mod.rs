@@ -31,7 +31,7 @@ mod utilities;
 mod utility_lookup;
 mod variants;
 
-pub use contexts::RegistryContext;
+pub use contexts::{BypassedUndefinition, RegistryContext};
 pub use definitions::BuiltinDefinitions;
 pub use formats::{
     declaration_format, parse_declaration_formats, parse_omit_token_prefixes,
