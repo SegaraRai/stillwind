@@ -56,7 +56,8 @@ impl DesignSystemQuery {
     }
 
     /// Returns the marker names that start with `prefix`, with their forms, from the
-    /// stylesheet and the built-ins. A name that both declare has the wider form.
+    /// stylesheet's definitions and the Stillwind definitions. A name that both declare
+    /// has the wider form.
     pub(super) fn marker_names(&self, prefix: &str) -> Vec<(LeanStr, MarkerForm)> {
         let theme = self.context.design_system.theme();
         let mut names = BTreeMap::<LeanStr, MarkerForm>::new();
@@ -74,8 +75,8 @@ impl DesignSystemQuery {
     }
 }
 
-/// Returns the origins that the stylesheet and the built-ins record for the marker
-/// class `name`.
+/// Returns the origins that the stylesheet's definitions and the Stillwind definitions
+/// record for the marker class `name`.
 fn marker_origins(name: &str, theme: &ThemeIndex) -> BTreeSet<MarkerOrigin> {
     theme
         .markers()

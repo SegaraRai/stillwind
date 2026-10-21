@@ -1,4 +1,4 @@
-//! Resolved immutable lookup views, including selected built-ins and overloads.
+//! Resolved immutable lookup views, including Stillwind definitions and overloads.
 //!
 //! Definitions are stored as shared values grouped by name. Grouping is not a merge: a
 //! name with several definitions keeps them in insertion order, which callers rely on
@@ -34,9 +34,9 @@ pub struct DefinitionRegistry<T> {
 impl<T> DefinitionRegistry<T> {
     /// Groups definitions by name, keeping insertion order inside each group.
     ///
-    /// The grouping is the resolved view of built-ins, framework imports, theme CSS,
-    /// and authored definitions in the order the snapshot supplied them; this
-    /// constructor must not reorder or deduplicate.
+    /// The grouping is the resolved view of Stillwind definitions, framework imports,
+    /// theme CSS, and authored definitions in the order the snapshot supplied them;
+    /// this constructor must not reorder or deduplicate.
     pub(crate) fn new(entries: impl IntoIterator<Item = (LeanStr, Arc<T>)>) -> Self {
         let mut grouped: BTreeMap<LeanStr, Vec<Arc<T>>> = BTreeMap::new();
         for (name, value) in entries {
@@ -78,10 +78,10 @@ impl<T> DefinitionRegistry<T> {
 /// Active theme tokens, keyed by custom-property name.
 pub type ThemeRegistry = DefinitionRegistry<ThemeToken>;
 
-/// Selected built-in and authored utilities, keyed by authored name.
+/// Stillwind and Tailwind-style utility definitions, keyed by authored name.
 pub type UtilityRegistry = DefinitionRegistry<CustomUtility>;
 
-/// Selected built-in and authored variants, keyed by authored name.
+/// Stillwind and Tailwind-style variant definitions, keyed by authored name.
 pub type VariantRegistry = DefinitionRegistry<CustomVariant>;
 
 /// `@stillwind-property` definitions, keyed by property name.

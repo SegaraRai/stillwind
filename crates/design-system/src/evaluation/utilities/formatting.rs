@@ -4,7 +4,7 @@ use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{declaration_ranges, format_numeric_zero, important_declarations};
 
-use super::super::builtins::builtin_declaration_formats;
+use super::super::stillwind::stillwind_declaration_formats;
 use crate::{ThemeIndex, declaration_format};
 
 /// Emits resolved declarations with candidate priority, without optimizing values.
@@ -20,19 +20,19 @@ pub(in crate::evaluation) fn finalize_declaration(
     }
 }
 
-/// Supplies a length type while resolving a declaration, before joining its body.
-/// This metadata describes value semantics, never a request for minification.
+/// Supplies a length type while resolving a declaration, before joining its body. This
+/// metadata describes value semantics, never a request for minification.
 pub(in crate::evaluation) fn resolve_declaration_value(
     declaration: &str,
     theme: &ThemeIndex,
-    builtin: bool,
+    stillwind: bool,
 ) -> LeanString {
     let formats = if theme.declaration_formats().is_empty() {
-        builtin_declaration_formats(theme)
+        stillwind_declaration_formats(theme)
     } else {
         theme.declaration_formats()
     };
-    if !builtin
+    if !stillwind
         && !declaration_ranges(declaration).iter().any(|range| {
             declaration[range.clone()]
                 .split_once(':')

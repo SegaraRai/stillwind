@@ -22,8 +22,9 @@ pub(crate) struct UtilityPrograms {
 type PreparedBody = Result<Option<PreparedUtilityBody>, PropertyRequirementError>;
 
 impl UtilityPrograms {
-    /// Parses the project and built-in bodies using effective theme values. The result
-    /// owns its syntax and does not retain the theme.
+    /// Parses the bodies of the Tailwind-style and Stillwind definitions using
+    /// effective theme values. The result owns its syntax and does not retain the
+    /// theme.
     ///
     /// `base` must be the programs of an index with the same tokens. Its entries are
     /// shared, so only the bodies that `base` lacks are parsed.
@@ -80,7 +81,7 @@ mod tests {
                 .map(|name| CustomUtility {
                     name: name.into(),
                     body: "@stillwind-require-properties invalid; color:red;".into(),
-                    builtin_order: None,
+                    position: None,
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,

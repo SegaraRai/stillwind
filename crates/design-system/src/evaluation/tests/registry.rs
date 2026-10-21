@@ -10,37 +10,37 @@ use stillwind_test_support::{BUILTIN_REGISTRY_CSS, css_tokens};
 
 use super::*;
 use crate::test_support::parse_fixture_theme;
-use crate::{RegistryContext, parse_builtin_utility_definitions};
+use crate::{RegistryContext, parse_stillwind_utility_definitions};
 
 #[test]
 fn derives_arbitrary_property_order_from_builtin_css() {
     let transform = resolve_utility("transform-gpu", &theme())
         .expect("transform utility")
-        .builtin_order
-        .expect("built-in order");
+        .position
+        .expect("position");
     let margin = resolve_utility("[margin:0]", &theme())
         .expect("arbitrary margin")
-        .builtin_order
-        .expect("built-in order");
+        .position
+        .expect("position");
     let margin_left = resolve_utility("[margin-left:1px]", &theme())
         .expect("arbitrary margin-left")
-        .builtin_order
+        .position
         .expect("derived order");
     let all = resolve_utility("[all:unset]", &theme())
         .expect("arbitrary all")
-        .builtin_order
+        .position
         .expect("derived order");
     let background = resolve_utility("[background:red]", &theme())
         .expect("arbitrary background")
-        .builtin_order
+        .position
         .expect("derived order");
     let translate_variable = resolve_utility("[--tw-translate-x:1px]", &theme())
         .expect("positioned Tailwind variable")
-        .builtin_order
+        .position
         .expect("declared order");
     let unknown_tailwind_variable = resolve_utility("[--tw-unknown:1]", &theme())
         .expect("fallback Tailwind variable")
-        .builtin_order
+        .position
         .expect("declared order");
     assert!(margin < margin_left && margin_left < transform);
     assert!(translate_variable < transform);
@@ -135,7 +135,7 @@ fn keyframe_registry_writes_interpolable_shadows_and_backdrop_filters() {
 }
 
 #[test]
-fn root_undefinitions_remove_builtins_from_every_root_registry() {
+fn root_undefinitions_remove_stillwind_definitions_from_every_root_registry() {
     let theme = parse_fixture_theme(
         &SourceFile::new(
             FileId(2),
@@ -237,7 +237,7 @@ fn resolves_related_theme_tokens_through_generic_suffix_metadata() {
 fn simple_utility_domains_follow_csswg_formal_syntax() {
     let mut checked = BTreeSet::new();
     let mut failures = Vec::new();
-    for utility in parse_builtin_utility_definitions(BUILTIN_REGISTRY_CSS) {
+    for utility in parse_stillwind_utility_definitions(BUILTIN_REGISTRY_CSS) {
         for declaration in utility.body.split(';') {
             let Some((property, value)) = declaration.split_once(':') else {
                 continue;

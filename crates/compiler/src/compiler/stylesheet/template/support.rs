@@ -14,7 +14,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate, ValueType, custom_property_usage};
 use stillwind_design_system::{
-    CssSourceGraph, ThemeIndex, builtin_omit_token_prefixes, builtin_property_definitions,
+    CssSourceGraph, ThemeIndex, stillwind_omit_token_prefixes, stillwind_property_definitions,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::Span;
@@ -95,15 +95,15 @@ impl<'a> SupportSelection<'a> {
         for frames in &utility_css.keyframes {
             used.push_str(&frames.css);
         }
-        let builtin = builtin_property_definitions(theme);
+        let stillwind = stillwind_property_definitions(theme);
         if let Some(name) = explicit.iter().find(|name| {
-            !builtin.iter().chain(theme.properties()).any(|property| {
+            !stillwind.iter().chain(theme.properties()).any(|property| {
                 property.name == **name || options.rewrite_generated(&property.name) == **name
             })
         }) {
             return Err(CompileDiagnostic::UnknownRequiredProperty { name: name.clone() });
         }
-        let required = theme.tokens_required_by(&used, false, builtin_omit_token_prefixes(theme));
+        let required = theme.tokens_required_by(&used, false, stillwind_omit_token_prefixes(theme));
         let tokens = theme
             .tokens()
             .iter()

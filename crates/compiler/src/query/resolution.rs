@@ -8,7 +8,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
     DesignSystemRevision, UtilityFailure, UtilityResolutionError, VariantContext,
-    builtin_property_definitions,
+    stillwind_property_definitions,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::ModuleId;
@@ -218,7 +218,7 @@ impl QueryContext {
         let properties = theme
             .properties()
             .iter()
-            .chain(builtin_property_definitions(theme));
+            .chain(stillwind_property_definitions(theme));
         let required_properties = properties
             .filter(|property| {
                 css.contains(property.name.as_str())

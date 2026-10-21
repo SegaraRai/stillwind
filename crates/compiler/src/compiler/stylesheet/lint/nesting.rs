@@ -34,8 +34,8 @@ pub(super) fn check_nesting(checker: &mut Checker<'_>, definition: &Definition<'
     match definition.kind {
         DefinitionKind::Utility => return,
         DefinitionKind::Variant if rest.starts_with("scope(") => return,
-        DefinitionKind::BuiltinVariant if declares_document_scope(rest) => return,
-        DefinitionKind::Variant | DefinitionKind::BuiltinVariant => {}
+        DefinitionKind::StillwindVariant if declares_document_scope(rest) => return,
+        DefinitionKind::Variant | DefinitionKind::StillwindVariant => {}
     }
     match definition.block {
         Some(block) => check_body(checker, block),

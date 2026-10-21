@@ -23,9 +23,9 @@ use super::{
     PropertyRegistry, ThemeRegistry, UtilityRegistry, UtilitySearchIndex, VariantRegistry,
 };
 use crate::{
-    BuiltinDefinitions, CssFileRequest, CssSourceGraph, DesignSystemLoadError,
-    DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions, ThemeIndex, ThemeToken,
-    builtin_theme_order,
+    CssFileRequest, CssSourceGraph, DesignSystemLoadError, DesignSystemLoadStep,
+    DesignSystemLoader, DesignSystemOptions, StillwindDefinitions, ThemeIndex, ThemeToken,
+    stillwind_theme_order,
 };
 
 /// Reports why a snapshot could not be created from supplied CSS.
@@ -116,8 +116,8 @@ pub struct DesignSystemRevision(
 /// Loading identical CSS produces the same hashes even when revision numbers differ.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DefinitionFingerprints {
-    /// Whole-snapshot content, including the compiler version and the selected built-in
-    /// CSS.
+    /// Whole-snapshot content, including the compiler version and the CSS of the
+    /// Stillwind definitions.
     pub content: Fingerprint,
     /// Host-supplied prefixes and utility ordering.
     pub config: Fingerprint,
@@ -221,11 +221,13 @@ impl DesignSystemSnapshot {
         }
     }
 
-    /// Creates a snapshot from the parsed `theme`, host options in `config`, and `sources`.
+    /// Creates a snapshot from the parsed `theme`, host options in `config`, and
+    /// `sources`.
     ///
-    /// Host options are validated before construction. Fingerprints exclude
-    /// source IDs and spans so file read order does not change hashes for identical CSS.
-    /// The supplied CSS determines built-in definitions, either directly or through imports.
+    /// Host options are validated before construction. Fingerprints exclude source IDs
+    /// and spans so file read order does not change hashes for identical CSS. The
+    /// supplied CSS determines the Stillwind definitions, either directly or through
+    /// imports.
     ///
     /// # Errors
     ///
@@ -247,34 +249,34 @@ impl DesignSystemSnapshot {
             format_args!(
                 "{:?}{:?}{:?}{:?}{:?}",
                 semantic_template,
-                builtin_theme_order(&theme),
+                stillwind_theme_order(&theme),
                 theme.variant_positions(),
                 theme.utility_positions(),
                 theme.utility_order(),
             )
             .to_lean_string(),
         );
-        let builtins = theme.registry();
-        let mut declaration_formats = builtins.declaration_formats().clone();
+        let stillwind = theme.registry();
+        let mut declaration_formats = stillwind.declaration_formats().clone();
         declaration_formats.extend(theme.declaration_formats().clone());
-        let mut relationships = builtins.relationships().clone();
+        let mut relationships = stillwind.relationships().clone();
         relationships.extend(theme.relationship_patterns().clone());
         let utility_registry = UtilityRegistry::new(
-            builtins
+            stillwind
                 .utilities()
                 .iter()
                 .chain(theme.utilities())
                 .map(|definition| (definition.name.clone(), Arc::clone(definition))),
         );
         let variant_registry = VariantRegistry::new(
-            builtins
+            stillwind
                 .variants()
                 .iter()
                 .chain(theme.variants())
                 .map(|definition| (definition.name.clone(), Arc::clone(definition))),
         );
         let property_registry = PropertyRegistry::new(
-            builtins
+            stillwind
                 .properties()
                 .iter()
                 .chain(theme.properties())
@@ -340,7 +342,7 @@ impl DesignSystemSnapshot {
             format_args!(
                 "{}\0{}\0{:?}\0{:?}\0{:?}\0",
                 content.0,
-                builtins.source(),
+                stillwind.source(),
                 semantic_template,
                 css_templates,
                 theme.dynamic_utilities(),
@@ -397,6 +399,7 @@ impl DesignSystemSnapshot {
     }
 
     /// Returns the shared set of all effective utility definition names.
+    ///
     /// Callers can clone the `Arc` without copying the names. This snapshot never
     /// changes the set.
     pub fn utility_names(&self) -> &Arc<BTreeSet<LeanStr>> {
@@ -404,6 +407,7 @@ impl DesignSystemSnapshot {
     }
 
     /// Returns the shared set of all effective variant definition names.
+    ///
     /// Callers can clone the `Arc` without copying the names. This snapshot never
     /// changes the set.
     pub fn variant_names(&self) -> &Arc<BTreeSet<LeanStr>> {
@@ -411,6 +415,7 @@ impl DesignSystemSnapshot {
     }
 
     /// Returns the shared set of all effective custom-property definition names.
+    ///
     /// Callers can clone the `Arc` without copying the names. This snapshot never
     /// changes the set.
     pub fn property_names(&self) -> &Arc<BTreeSet<LeanStr>> {
@@ -428,7 +433,7 @@ impl DesignSystemSnapshot {
         &self.inner.sources
     }
 
-    /// Utilities from the selected built-ins and from the project CSS, grouped by name.
+    /// Stillwind and Tailwind-style utility definitions, grouped by name.
     pub fn utilities(&self) -> &UtilityRegistry {
         &self.inner.utilities
     }
@@ -441,23 +446,23 @@ impl DesignSystemSnapshot {
             .get_or_init(|| UtilitySearchIndex::new(&self.inner.utilities))
     }
 
-    /// Returns declaration formats after project CSS overrides the selected built-ins.
+    /// Returns declaration formats after project CSS overrides `@stillwind-format`.
     pub fn declaration_formats(&self) -> &BTreeMap<LeanStr, LeanStr> {
         &self.inner.declaration_formats
     }
 
-    /// Returns relationship patterns after project CSS overrides the selected built-ins.
+    /// Returns relationship patterns after project CSS overrides
+    /// `@stillwind-relationship`.
     pub fn relationships(&self) -> &BTreeSet<LeanStr> {
         &self.inner.relationships
     }
 
-    /// Variants from the selected built-ins and from the project CSS, grouped by name.
+    /// Stillwind and Tailwind-style variant definitions, grouped by name.
     pub fn variants(&self) -> &VariantRegistry {
         &self.inner.variants
     }
 
-    /// `@stillwind-property` definitions from the selected built-ins and the project
-    /// CSS.
+    /// `@stillwind-property` definitions of the loaded CSS.
     pub fn properties(&self) -> &PropertyRegistry {
         &self.inner.properties
     }
@@ -468,12 +473,13 @@ impl DesignSystemSnapshot {
         &self.inner.tokens
     }
 
-    /// The built-in definitions selected by the loaded CSS; empty when it imports none.
-    pub fn builtins(&self) -> &Arc<BuiltinDefinitions> {
+    /// The Stillwind definitions of the loaded CSS; empty when it has none.
+    pub fn stillwind_definitions(&self) -> &Arc<StillwindDefinitions> {
         self.inner.theme.registry()
     }
 
     /// Prepares and shares an analysis for this revision and `key`.
+    ///
     /// The key must include every setting that affects `init`. The initializer runs
     /// once across snapshot clones. Dependencies between analyses must not form cycles.
     /// The result must not retain this snapshot, which would form an ownership cycle.

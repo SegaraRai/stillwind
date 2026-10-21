@@ -230,7 +230,7 @@ pub enum CompileDiagnostic {
         offset: usize,
     },
     /// An authored requirement names a custom property that nothing registers.
-    #[error("required custom property `{name}` has no theme or built-in registration")]
+    #[error("required custom property `{name}` has no `@stillwind-property` registration")]
     UnknownRequiredProperty {
         /// Custom property name, including the leading `--`.
         name: LeanStr,

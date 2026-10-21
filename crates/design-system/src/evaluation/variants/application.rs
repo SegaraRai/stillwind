@@ -20,7 +20,7 @@ use super::resolve::{
     parse_nested_variant, resolve_named_variant_with, resolve_registered_variant_candidate,
     resolve_variant, split_typed_capture,
 };
-use crate::{BuiltinVariantValueType, ThemeIndex};
+use crate::{StillwindVariantValueType, ThemeIndex};
 
 /// A variant's selector, at-rule, declaration, or computed-value effect.
 /// Resolution retains runtime conditions as data; rendering chooses their CSS strategy.
@@ -244,7 +244,7 @@ pub fn repeated_subject_selector(variant: &Variant, theme: &ThemeIndex) -> Optio
                     resolve_registered_variant_candidate(custom, capture, concrete, 0, theme)
                         .ok()?;
                 let inner = capture
-                    .filter(|_| custom.value_type == Some(BuiltinVariantValueType::Variant))
+                    .filter(|_| custom.value_type == Some(StillwindVariantValueType::Variant))
                     .map(|capture| parse_nested_variant(split_typed_capture(custom, capture).0));
                 Some((application, inner))
             })?

@@ -15,7 +15,7 @@ use std::fmt::Write;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{CustomPropertyUsage, PropertyInheritance};
-use stillwind_design_system::{ThemeIndex, builtin_property_definitions};
+use stillwind_design_system::{ThemeIndex, stillwind_property_definitions};
 
 use crate::CompilerOptions;
 
@@ -24,7 +24,8 @@ use crate::CompilerOptions;
 pub(super) struct PropertyOutput {
     /// Complete `@property` rules in registry order after duplicate-name selection.
     pub(super) registrations: LeanStr,
-    /// Builtin fallback declarations in the same selected order, without a selector.
+    /// Fallback declarations of `@stillwind-property` registrations in the same
+    /// selected order, without a selector.
     pub(super) initials: Vec<PropertyInitial>,
 }
 
@@ -40,16 +41,17 @@ impl PropertyOutput {
     }
 }
 
-/// The fallback declaration of one selected builtin registration.
+/// The fallback declaration of one selected `@stillwind-property` registration.
 pub(super) struct PropertyInitial {
     /// `name:value;`, where the value is the registered initial value or `initial`.
     pub(super) declaration: LeanStr,
     /// The registered `inherits` descriptor. A registration without one does not
-    /// inherit, as CSS requires the descriptor and Stillwind's builtins state it.
+    /// inherit, as CSS requires the descriptor and `@stillwind-property` states it.
     pub(super) inherits: bool,
 }
 
-/// Selects registration rules and builtin fallback declarations required by `usage`.
+/// Selects registration rules and `@stillwind-property` fallback declarations required
+/// by `usage`.
 ///
 /// `theme` supplies definitions and activation metadata; `options` rewrites generated
 /// names. `explicit` supplies additional required names, whose existence the caller
@@ -57,8 +59,8 @@ pub(super) struct PropertyInitial {
 /// two empty strings. Input definitions and usage are not modified.
 ///
 /// Duplicates are resolved while walking the registry backwards, so a theme definition
-/// wins over a built-in of the same name, and the list is reversed once more before
-/// emission, so the output keeps the registry's own order.
+/// wins over a `@stillwind-property` registration of the same name, and the list is
+/// reversed once more before emission, so the output keeps the registry's own order.
 ///
 /// Values are not checked against the registered `@property` syntax descriptor.
 #[allow(clippy::too_many_lines)]
@@ -68,8 +70,8 @@ pub(super) fn render_used_properties(
     options: &CompilerOptions,
     explicit: &[LeanStr],
 ) -> PropertyOutput {
-    let builtin_properties = builtin_property_definitions(theme);
-    let definitions = builtin_properties.iter().chain(theme.properties());
+    let stillwind_properties = stillwind_property_definitions(theme);
+    let definitions = stillwind_properties.iter().chain(theme.properties());
     let mut required = definitions
         .clone()
         .filter_map(|property| {
@@ -115,24 +117,24 @@ pub(super) fn render_used_properties(
         .filter_map(|property| {
             let name = options.rewrite_generated(&property.name);
             // Authored @property declarations take precedence over compiler
-            // defaults, including when they intentionally reuse a builtin name.
+            // defaults, including when they intentionally reuse a registered name.
             if !required.contains(name.as_str())
                 || theme.authored_properties().contains(name.as_str())
                 || !seen.insert(name.clone())
             {
                 return None;
             }
-            let builtin = builtin_properties
+            let stillwind = stillwind_properties
                 .iter()
                 .any(|candidate| candidate.name == property.name);
-            Some((name, property.body.as_str(), builtin))
+            Some((name, property.body.as_str(), stillwind))
         })
         .collect::<Vec<_>>();
     properties.reverse();
     let mut output = LeanString::new();
-    let mut builtin_initials = Vec::new();
-    for (name, body, builtin) in &properties {
-        if *builtin {
+    let mut stillwind_initials = Vec::new();
+    for (name, body, stillwind) in &properties {
+        if *stillwind {
             let initial = body
                 .lines()
                 .find_map(|line| line.trim().strip_prefix("initial-value:"))
@@ -144,7 +146,7 @@ pub(super) fn render_used_properties(
                     .strip_prefix("inherits:")
                     .is_some_and(|value| value.trim().trim_end_matches(';').trim() == "true")
             });
-            builtin_initials.push(PropertyInitial {
+            stillwind_initials.push(PropertyInitial {
                 declaration: format_args!("{name}:{initial};").to_lean_string().into(),
                 inherits,
             });
@@ -162,6 +164,6 @@ pub(super) fn render_used_properties(
     }
     PropertyOutput {
         registrations: (output).into(),
-        initials: builtin_initials,
+        initials: stillwind_initials,
     }
 }

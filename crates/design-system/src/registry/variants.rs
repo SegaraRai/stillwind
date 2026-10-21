@@ -3,9 +3,10 @@
 //! `@custom-variant` and `@variant` are user-authored, so a definition is identified by
 //! its body or selector alone. `@stillwind-variant` is compiler-owned and may add a
 //! typed header - a value type, a modifier type, or sort metadata - which is parsed
-//! here and used only for built-ins. Both forms may declare that a variant selects a
-//! document-level target, as [`VariantScope`] describes: a built-in header with
-//! `scope: document`, or `@custom-variant` with `scope(document)` after the name.
+//! here and used only for `@stillwind-variant`. Both forms may declare that a variant
+//! selects a document-level target, as [`VariantScope`] describes: a
+//! `@stillwind-variant` header with `scope: document`, or `@custom-variant` with
+//! `scope(document)` after the name.
 //!
 //! One unescaped `*` captures the variant's argument between literal boundaries; an
 //! escaped `\*` is a literal asterisk in the name. Capture and sort handling stay in
@@ -27,23 +28,23 @@ use crate::is_runtime_condition;
 
 /// Direction applied to a sort group's numeric values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BuiltinVariantSortDirection {
+pub enum StillwindVariantSortDirection {
     /// Smaller values sort first.
     Ascending,
     /// Larger values sort first.
     Descending,
 }
 
-/// Sort metadata authored in a built-in variant header.
+/// Sort metadata authored in a `@stillwind-variant` header.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BuiltinVariantSort {
-    /// Variants sharing a group are ordered by their group's first built-in position;
-    /// the name itself is the group when none is declared.
+pub struct StillwindVariantSort {
+    /// Variants sharing a group are ordered by their group's first position; the name
+    /// itself is the group when none is declared.
     pub group: Option<LeanStr>,
     /// Theme namespace pattern whose token value orders variants in the group.
     pub key: Option<LeanStr>,
     /// Which end of the key's ordering comes first.
-    pub direction: Option<BuiltinVariantSortDirection>,
+    pub direction: Option<StillwindVariantSortDirection>,
     /// Whether the variant also matches a bare token name, such as `lg` for a
     /// breakpoint variant.
     pub bare: bool,
@@ -85,14 +86,16 @@ pub struct CustomVariant {
     pub selector: LeanStr,
     /// Full `@variant` body. Empty for the `@custom-variant` selector shorthand.
     pub body: LeanStr,
-    /// Global registration order for built-in variants (`@stillwind-variant`).
-    pub builtin_order: Option<usize>,
-    /// Optional ordering behavior authored in the built-in definition header.
-    pub sort: Option<BuiltinVariantSort>,
+    /// Byte offset of a `@stillwind-variant` directive in the parsed CSS. `None` for
+    /// `@custom-variant` and `@variant`, whose order comes from
+    /// [`crate::ThemeIndex::variant_positions`].
+    pub position: Option<usize>,
+    /// Optional ordering behavior authored in the `@stillwind-variant` header.
+    pub sort: Option<StillwindVariantSort>,
     /// Grammar and semantic kind of the wildcard capture.
-    pub value_type: Option<BuiltinVariantValueType>,
+    pub value_type: Option<StillwindVariantValueType>,
     /// Grammar required when the capture contains a `/modifier` suffix.
-    pub modifier_type: Option<BuiltinVariantModifierType>,
+    pub modifier_type: Option<StillwindVariantModifierType>,
     /// Whether `&`-less selectors of the body or shorthand are relative to `&`.
     pub scope: VariantScope,
 }
@@ -127,7 +130,7 @@ impl CustomVariant {
 
 /// Grammar and semantic kind of a variant's wildcard capture.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BuiltinVariantValueType {
+pub enum StillwindVariantValueType {
     /// The capture is itself a variant stack, applied inside the definition.
     Variant,
     /// `aria-*` style captures resolved through attribute selectors.
@@ -142,7 +145,7 @@ pub enum BuiltinVariantValueType {
     IfCondition,
 }
 
-impl BuiltinVariantValueType {
+impl StillwindVariantValueType {
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value.trim().strip_prefix('[')?.strip_suffix(']')? {
             "variant" => Some(Self::Variant),
@@ -212,12 +215,12 @@ fn supports_condition_can_match(condition: &SupportsCondition<'_>) -> bool {
 
 /// Grammar required when a capture carries a `/modifier` suffix.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BuiltinVariantModifierType {
+pub enum StillwindVariantModifierType {
     /// The modifier after `/` is a CSS class identifier, escaped for a selector.
     ClassIdentifier,
 }
 
-impl BuiltinVariantModifierType {
+impl StillwindVariantModifierType {
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value.trim().strip_prefix('[')?.strip_suffix(']')? {
             "class-identifier" => Some(Self::ClassIdentifier),
@@ -241,20 +244,20 @@ impl BuiltinVariantModifierType {
 
 /// Parses compiler-owned `@stillwind-variant` definitions in source order.
 ///
-/// `builtin_order` is the byte offset of each directive in `css`, as for built-in
-/// utilities. A definition whose header is invalid is skipped.
+/// `position` is the byte offset of each directive in `css`, as for
+/// `@stillwind-utility`. A definition whose header is invalid is skipped.
 #[must_use]
-pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
+pub fn parse_stillwind_variant_definitions(css: &str) -> Vec<CustomVariant> {
     extract_named_blocks(css, "@stillwind-variant")
         .into_iter()
         .filter_map(|(offset, header, body)| {
-            let header = parse_builtin_variant_header(strip_css_comments(&header).trim())?;
+            let header = parse_stillwind_variant_header(strip_css_comments(&header).trim())?;
             Some(CustomVariant {
                 name: header.name,
                 wildcard: header.wildcard,
                 selector: (LeanString::new()).into(),
                 body: strip_css_comments(&body).trim().into(),
-                builtin_order: Some(offset),
+                position: Some(offset),
                 sort: header.sort,
                 value_type: header.value_type,
                 modifier_type: header.modifier_type,
@@ -265,18 +268,18 @@ pub fn parse_builtin_variant_definitions(css: &str) -> Vec<CustomVariant> {
 }
 
 /// The parsed header of a `@stillwind-variant` definition.
-pub(crate) struct ParsedBuiltinVariantHeader {
+pub(crate) struct ParsedStillwindVariantHeader {
     /// Decoded definition name, retaining a capture asterisk at the recorded offset, if
     /// present.
     name: LeanStr,
     /// UTF-8 byte offset of the unescaped capture in the decoded name, if present.
     wildcard: Option<usize>,
     /// Optional ordering metadata parsed from the definition header.
-    sort: Option<BuiltinVariantSort>,
+    sort: Option<StillwindVariantSort>,
     /// Optional grammar of the wildcard capture.
-    value_type: Option<BuiltinVariantValueType>,
+    value_type: Option<StillwindVariantValueType>,
     /// Optional grammar of the slash modifier.
-    modifier_type: Option<BuiltinVariantModifierType>,
+    modifier_type: Option<StillwindVariantModifierType>,
     /// Declared scope of `&`-less selectors in the body.
     scope: VariantScope,
 }
@@ -308,18 +311,18 @@ pub(crate) fn parse_variant_name(value: &str) -> Option<(LeanStr, Option<usize>)
     (!name.is_empty()).then(|| (name.into(), wildcard))
 }
 
-/// Parses the optional `(key: value, ...)` descriptor list of a built-in variant
+/// Parses the optional `(key: value, ...)` descriptor list of a `@stillwind-variant`
 /// header.
 ///
 /// Unknown keys, unparsable values, and a missing parenthesis pair are all rejected, so
-/// a mistyped built-in registration fails visibly instead of silently dropping its
-/// ordering or typing metadata.
-fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHeader> {
+/// a mistyped `@stillwind-variant` registration fails visibly instead of silently
+/// dropping its ordering or typing metadata.
+fn parse_stillwind_variant_header(header: &str) -> Option<ParsedStillwindVariantHeader> {
     let name_end = header.find(char::is_whitespace).unwrap_or(header.len());
     let (name, wildcard) = parse_variant_name(&header[..name_end])?;
     let arguments = header[name_end..].trim();
     if arguments.is_empty() {
-        return Some(ParsedBuiltinVariantHeader {
+        return Some(ParsedStillwindVariantHeader {
             name,
             wildcard,
             sort: None,
@@ -329,7 +332,7 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
         });
     }
     let arguments = arguments.strip_prefix('(')?.strip_suffix(')')?;
-    let mut sort = BuiltinVariantSort::default();
+    let mut sort = StillwindVariantSort::default();
     let mut has_sort = false;
     let mut value_type = None;
     let mut modifier_type = None;
@@ -338,8 +341,8 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
         let (key, value) = descriptor.trim().split_once(':')?;
         let value = value.trim();
         match key.trim() {
-            "value" => value_type = Some(BuiltinVariantValueType::parse(value)?),
-            "modifier" => modifier_type = Some(BuiltinVariantModifierType::parse(value)?),
+            "value" => value_type = Some(StillwindVariantValueType::parse(value)?),
+            "modifier" => modifier_type = Some(StillwindVariantModifierType::parse(value)?),
             "scope" => scope = VariantScope::parse(value)?,
             "group" => {
                 sort.group = Some(value.to_lean_str());
@@ -351,8 +354,8 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
             }
             "direction" => {
                 sort.direction = Some(match value {
-                    "asc" => BuiltinVariantSortDirection::Ascending,
-                    "desc" => BuiltinVariantSortDirection::Descending,
+                    "asc" => StillwindVariantSortDirection::Ascending,
+                    "desc" => StillwindVariantSortDirection::Descending,
                     _ => return None,
                 });
                 has_sort = true;
@@ -364,7 +367,7 @@ fn parse_builtin_variant_header(header: &str) -> Option<ParsedBuiltinVariantHead
             _ => return None,
         }
     }
-    Some(ParsedBuiltinVariantHeader {
+    Some(ParsedStillwindVariantHeader {
         name,
         wildcard,
         sort: has_sort.then_some(sort),
@@ -438,7 +441,7 @@ pub fn parse_variant_definitions(css: &str) -> Vec<(usize, CustomVariant)> {
                     wildcard,
                     selector: (selector).into(),
                     body: (body).into(),
-                    builtin_order: None,
+                    position: None,
                     sort: None,
                     value_type: None,
                     modifier_type: None,
@@ -469,28 +472,28 @@ mod tests {
     use crate::test_support::variant_definitions;
 
     #[test]
-    fn separates_builtin_variants_from_userland() {
+    fn separates_stillwind_variants_from_tailwind_style_variants() {
         let css = "@utility user-* { color:red; }\
                        @stillwind-utility builtin-* { color:blue; }\
                        @variant user-state { &:hover { @slot; } }\
                        @stillwind-variant builtin-state { &:focus { @slot; } }";
 
         let user_variants = variant_definitions(css);
-        let builtin_variants = parse_builtin_variant_definitions(css);
+        let stillwind_variants = parse_stillwind_variant_definitions(css);
         assert_eq!(user_variants.len(), 1);
         assert_eq!(user_variants[0].name, "user-state");
-        assert_eq!(user_variants[0].builtin_order, None);
-        assert_eq!(builtin_variants.len(), 1);
-        assert_eq!(builtin_variants[0].name, "builtin-state");
+        assert_eq!(user_variants[0].position, None);
+        assert_eq!(stillwind_variants.len(), 1);
+        assert_eq!(stillwind_variants[0].name, "builtin-state");
         assert_eq!(
-            builtin_variants[0].builtin_order,
+            stillwind_variants[0].position,
             css.find("@stillwind-variant")
         );
     }
 
     #[test]
     fn serializes_class_identifier_modifiers_for_css_selectors() {
-        let kind = BuiltinVariantModifierType::ClassIdentifier;
+        let kind = StillwindVariantModifierType::ClassIdentifier;
         assert_eq!(kind.serialize("menu").as_deref(), Some("menu"));
         assert_eq!(
             kind.serialize(r"menu\:open").as_deref(),
@@ -501,10 +504,10 @@ mod tests {
 
     #[test]
     fn validates_nth_and_supports_conditions_through_lightning_css() {
-        assert!(BuiltinVariantValueType::Nth.accepts_css("3n + 1"));
-        assert!(BuiltinVariantValueType::Nth.accepts_css("odd"));
-        assert!(!BuiltinVariantValueType::Nth.accepts_css("not-an-nth"));
-        assert!(BuiltinVariantValueType::SupportsCondition.accepts_css("display: grid"));
+        assert!(StillwindVariantValueType::Nth.accepts_css("3n + 1"));
+        assert!(StillwindVariantValueType::Nth.accepts_css("odd"));
+        assert!(!StillwindVariantValueType::Nth.accepts_css("not-an-nth"));
+        assert!(StillwindVariantValueType::SupportsCondition.accepts_css("display: grid"));
         for (value, expected) in [
             ("--foo: var(--tw)", true),
             ("selector(a:hover)", true),
@@ -516,7 +519,7 @@ mod tests {
             ("unknown-function(x)", false),
         ] {
             assert_eq!(
-                BuiltinVariantValueType::SupportsCondition.accepts_css(value),
+                StillwindVariantValueType::SupportsCondition.accepts_css(value),
                 expected,
                 "{value}"
             );
@@ -525,7 +528,7 @@ mod tests {
 
     #[test]
     fn parses_typed_variant_values_modifiers_and_literal_asterisks() {
-        let variants = parse_builtin_variant_definitions(
+        let variants = parse_stillwind_variant_definitions(
             r"@stillwind-variant \* { :is(& > *) { @slot; } }
                @stillwind-variant group-* (value: [variant], modifier: [class-identifier]) { @slot; }
                @stillwind-variant supports-* (value: [supports-condition]) { @slot; }",
@@ -537,21 +540,21 @@ mod tests {
         assert!(variants[1].wildcard.is_some());
         assert_eq!(
             variants[1].value_type,
-            Some(BuiltinVariantValueType::Variant)
+            Some(StillwindVariantValueType::Variant)
         );
         assert_eq!(
             variants[1].modifier_type,
-            Some(BuiltinVariantModifierType::ClassIdentifier)
+            Some(StillwindVariantModifierType::ClassIdentifier)
         );
         assert_eq!(
             variants[2].value_type,
-            Some(BuiltinVariantValueType::SupportsCondition)
+            Some(StillwindVariantValueType::SupportsCondition)
         );
     }
 
     #[test]
-    fn parses_builtin_variant_sort_options() {
-        let variants = parse_builtin_variant_definitions(
+    fn parses_stillwind_variant_sort_options() {
+        let variants = parse_stillwind_variant_definitions(
             "@stillwind-variant max-* (sort: --breakpoint-*, direction: desc) { @slot; }\
              @stillwind-variant min-* (group: responsive-min, sort: --breakpoint-*, direction: asc, bare: true) { @slot; }",
         );
@@ -563,7 +566,7 @@ mod tests {
         );
         assert_eq!(
             variants[0].sort.as_ref().unwrap().direction,
-            Some(BuiltinVariantSortDirection::Descending)
+            Some(StillwindVariantSortDirection::Descending)
         );
         assert_eq!(
             variants[1].sort.as_ref().unwrap().group.as_deref(),
@@ -574,13 +577,13 @@ mod tests {
 
     #[test]
     fn parses_document_scope_markers() {
-        let builtins = parse_builtin_variant_definitions(
+        let stillwind = parse_stillwind_variant_definitions(
             "@stillwind-variant host (scope: document) { :host { @slot; } }\
              @stillwind-variant hover { &:hover { @slot; } }",
         );
-        assert_eq!(builtins[0].scope, VariantScope::Document);
-        assert_eq!(builtins[1].scope, VariantScope::Nested);
-        assert!(parse_builtin_variant_header("host (scope: element)").is_none());
+        assert_eq!(stillwind[0].scope, VariantScope::Document);
+        assert_eq!(stillwind[1].scope, VariantScope::Nested);
+        assert!(parse_stillwind_variant_header("host (scope: element)").is_none());
 
         let custom = variant_definitions(
             "@custom-variant host scope(document) (:host);\
@@ -615,7 +618,7 @@ mod boundary_tests {
 
     #[test]
     fn functional_patterns_capture_between_decoded_literal_boundaries() {
-        let variants = parse_builtin_variant_definitions(
+        let variants = parse_stillwind_variant_definitions(
             r"
             @stillwind-variant when\(*\) (value: [if-condition]) { @stillwind-intrinsic builtin-if-variant; }
             @stillwind-variant literal\**\* { & { @slot; } }
@@ -627,11 +630,11 @@ mod boundary_tests {
         assert_eq!(variants[0].capture("when()"), None);
         assert_eq!(
             variants[0].value_type,
-            Some(BuiltinVariantValueType::IfCondition)
+            Some(StillwindVariantValueType::IfCondition)
         );
         assert_eq!(variants[1].capture("literal*value*"), Some("value"));
         assert!(parse_variant_name("two-*-*").is_none());
-        assert!(parse_builtin_variant_header(r"when\(*\) (value: [condition])").is_none());
+        assert!(parse_stillwind_variant_header(r"when\(*\) (value: [condition])").is_none());
     }
 
     #[test]
@@ -642,8 +645,8 @@ mod boundary_tests {
         );
         assert_eq!(parse_variant_name("min-*"), Some(("min-*".into(), Some(4))));
         assert_eq!(parse_variant_name(""), None);
-        assert!(parse_builtin_variant_header("min-* (direction: sideways)").is_none());
-        assert!(parse_builtin_variant_header("min-* (unknown: x)").is_none());
-        assert!(parse_builtin_variant_header("min-* (bare: maybe)").is_none());
+        assert!(parse_stillwind_variant_header("min-* (direction: sideways)").is_none());
+        assert!(parse_stillwind_variant_header("min-* (unknown: x)").is_none());
+        assert!(parse_stillwind_variant_header("min-* (bare: maybe)").is_none());
     }
 }

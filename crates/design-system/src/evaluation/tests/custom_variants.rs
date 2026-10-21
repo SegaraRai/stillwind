@@ -1,15 +1,15 @@
 //! User-authored variants and the CSS value functions they use.
 //!
 //! Pins that `@variant` blocks, wildcard selector variants, and container variants
-//! resolve with the same slot syntax as built-ins, and that theme wildcards and typed
-//! modifiers expand inside them.
+//! resolve with the same slot syntax as `@stillwind-variant`, and that theme wildcards
+//! and typed modifiers expand inside them.
 
 use lean_string::ToLeanStr;
 
 use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
 use super::*;
-use crate::evaluation::builtins::COMPAT_COLOR_SUPPORT;
+use crate::evaluation::stillwind::COMPAT_COLOR_SUPPORT;
 use crate::test_support::parse_fixture_theme;
 
 #[test]

@@ -11,8 +11,8 @@ use lean_string::{LeanString, ToLeanStr, ToLeanString};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::decode_arbitrary_value;
 
-use super::super::super::builtins::builtin_variants;
 use super::super::super::context::EvaluationContext;
+use super::super::super::stillwind::stillwind_variants;
 use super::super::application::VariantApplication;
 use super::super::body::{resolve_scoped_variant_body, resolve_variant_body};
 use super::super::negation::{negate, negation_obstacle};
@@ -26,7 +26,7 @@ use super::arbitrary::{
     parse_nested_variant, relative_selector, resolve_nested_variant, shorthand_variant_application,
 };
 use super::{ConditionContext, VariantFailure, VariantFailureReason};
-use crate::{BuiltinVariantValueType, CustomVariant, RuntimeCondition, ThemeIndex};
+use crate::{CustomVariant, RuntimeCondition, StillwindVariantValueType, ThemeIndex};
 
 /// Visits definitions in resolution order, including the registry's bare token form.
 /// Only a successful evaluation stops the search.
@@ -35,14 +35,14 @@ pub(in crate::evaluation) fn resolve_named_variant_with<T>(
     theme: &ThemeIndex,
     mut evaluate: impl FnMut(&CustomVariant, Option<&str>, &str) -> Option<T>,
 ) -> Option<T> {
-    for definitions in [theme.variants(), builtin_variants(theme)] {
+    for definitions in [theme.variants(), stillwind_variants(theme)] {
         for (custom, capture) in registered_variant_candidates(definitions, value) {
             if let Some(result) = evaluate(custom, capture, value) {
                 return Some(result);
             }
         }
     }
-    for custom in builtin_variants(theme) {
+    for custom in stillwind_variants(theme) {
         let Some(namespace) = custom
             .sort
             .as_ref()
@@ -195,7 +195,7 @@ fn is_variable_capture(capture: &str) -> bool {
 #[allow(clippy::too_many_lines)] // One match explains each value type's failures.
 fn resolve_typed_variant(
     custom: &CustomVariant,
-    value_type: BuiltinVariantValueType,
+    value_type: StillwindVariantValueType,
     capture: &str,
     capture_offset: usize,
     theme: &ThemeIndex,
@@ -212,7 +212,7 @@ fn resolve_typed_variant(
             },
         )
     };
-    if value_type == BuiltinVariantValueType::IfCondition {
+    if value_type == StillwindVariantValueType::IfCondition {
         if custom.modifier_type.is_some() || !has_intrinsic_body(custom, "builtin-if-variant") {
             return Err(invalid_definition());
         }
@@ -254,8 +254,8 @@ fn resolve_typed_variant(
         )
     };
     match value_type {
-        BuiltinVariantValueType::IfCondition => Err(invalid_definition()),
-        BuiltinVariantValueType::Variant => {
+        StillwindVariantValueType::IfCondition => Err(invalid_definition()),
+        StillwindVariantValueType::Variant => {
             let inner = parse_nested_variant(value);
             if let Some(selector) = relative_selector(&inner) {
                 return apply_relative_selector(&body, selector).ok_or_else(|| {
@@ -295,8 +295,8 @@ fn resolve_typed_variant(
                 )
             })
         }
-        BuiltinVariantValueType::Aria | BuiltinVariantValueType::Data => {
-            let (name, default_true) = if value_type == BuiltinVariantValueType::Aria {
+        StillwindVariantValueType::Aria | StillwindVariantValueType::Data => {
+            let (name, default_true) = if value_type == StillwindVariantValueType::Aria {
                 ("aria", true)
             } else {
                 ("data", false)
@@ -307,9 +307,9 @@ fn resolve_typed_variant(
                 })
                 .ok_or_else(|| invalid_value(&decode_variant_capture(value)))
         }
-        BuiltinVariantValueType::Nth | BuiltinVariantValueType::SupportsCondition => {
+        StillwindVariantValueType::Nth | StillwindVariantValueType::SupportsCondition => {
             let decoded = decode_variant_capture(value);
-            let css = if value_type == BuiltinVariantValueType::SupportsCondition {
+            let css = if value_type == StillwindVariantValueType::SupportsCondition {
                 supports_feature_test(decoded.clone())
             } else {
                 decoded.clone()
@@ -319,7 +319,7 @@ fn resolve_typed_variant(
                     return Err(VariantFailure::new(
                         value_range,
                         VariantFailureReason::VariableInCondition {
-                            context: if value_type == BuiltinVariantValueType::Nth {
+                            context: if value_type == StillwindVariantValueType::Nth {
                                 ConditionContext::Selector
                             } else {
                                 ConditionContext::Supports
@@ -329,7 +329,7 @@ fn resolve_typed_variant(
                 }
                 return Err(invalid_value(&decoded));
             }
-            let body = if value_type == BuiltinVariantValueType::Nth {
+            let body = if value_type == StillwindVariantValueType::Nth {
                 substitute_quoted_variant_value(&body, &css)
             } else {
                 Some(body.replace_text("--value()", &css))
@@ -360,7 +360,8 @@ pub(in crate::evaluation) fn split_typed_capture<'a>(
     custom: &CustomVariant,
     capture: &'a str,
 ) -> (&'a str, Option<&'a str>) {
-    if custom.value_type == Some(BuiltinVariantValueType::Variant) && custom.modifier_type.is_none()
+    if custom.value_type == Some(StillwindVariantValueType::Variant)
+        && custom.modifier_type.is_none()
     {
         (capture, None)
     } else {

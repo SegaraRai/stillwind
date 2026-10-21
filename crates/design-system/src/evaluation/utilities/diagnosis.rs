@@ -492,7 +492,7 @@ fn diagnose_named_utility(
     }
 }
 
-/// Returns the project and built-in definitions whose names match `lookup`.
+/// Returns the Tailwind-style and Stillwind definitions whose names match `lookup`.
 fn matching_definitions<'a>(lookup: &str, theme: &'a ThemeIndex) -> Vec<&'a CustomUtility> {
     let mut definitions = theme.matching_utilities(lookup);
     definitions.extend(theme.registry().matching_utilities(lookup));

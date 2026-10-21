@@ -130,7 +130,7 @@ mod tests {
                 Arc::new(CustomUtility {
                     name: "tone-*".into(),
                     body: "&:hover { border-width:--value(--spacing-*, [length]); }".into(),
-                    builtin_order: None,
+                    position: None,
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
@@ -141,7 +141,7 @@ mod tests {
                 Arc::new(CustomUtility {
                     name: "tone-*".into(),
                     body: "border-color:--value(--color-*, [color]);".into(),
-                    builtin_order: None,
+                    position: None,
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
@@ -152,7 +152,7 @@ mod tests {
                 Arc::new(CustomUtility {
                     name: "toned".into(),
                     body: "color:red;".into(),
-                    builtin_order: None,
+                    position: None,
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,

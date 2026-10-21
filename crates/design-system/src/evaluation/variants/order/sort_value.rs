@@ -9,8 +9,10 @@ use stillwind_syntax::{Variant, VariantKind, decode_arbitrary_value};
 
 use super::super::resolve::{decode_variant_template, split_variant_modifier};
 use super::compare_variant_sequences;
-use super::position::{builtin_variant_for_order, compound_inner_variant, variant_sort_namespace};
-use crate::{BuiltinVariantSortDirection, ThemeIndex};
+use super::position::{
+    compound_inner_variant, stillwind_variant_for_order, variant_sort_namespace,
+};
+use crate::{StillwindVariantSortDirection, ThemeIndex};
 
 /// Splits a numeric CSS value into its number and unit.
 ///
@@ -33,15 +35,15 @@ pub(super) fn numeric_dimension(value: &str) -> Option<(f64, &str)> {
 pub(super) fn compare_sort_values(
     left: &str,
     right: &str,
-    direction: BuiltinVariantSortDirection,
+    direction: StillwindVariantSortDirection,
 ) -> Ordering {
     match (numeric_dimension(left), numeric_dimension(right)) {
         (Some((left_number, left_unit)), Some((right_number, right_unit))) => {
             left_unit.cmp(right_unit).then_with(|| {
                 let order = left_number.total_cmp(&right_number);
                 match direction {
-                    BuiltinVariantSortDirection::Ascending => order,
-                    BuiltinVariantSortDirection::Descending => order.reverse(),
+                    StillwindVariantSortDirection::Ascending => order,
+                    StillwindVariantSortDirection::Descending => order.reverse(),
                 }
             })
         }
@@ -59,7 +61,7 @@ pub(super) fn variant_sort_value(variant: &Variant, theme: &ThemeIndex) -> Optio
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    let definition = builtin_variant_for_order(variant, theme)?;
+    let definition = stillwind_variant_for_order(variant, theme)?;
     let sort = definition.sort.as_ref()?;
     let namespace = sort
         .key
@@ -130,7 +132,7 @@ pub(super) fn compare_variants_in_group(
             return comparison;
         }
     }
-    let direction = builtin_variant_for_order(left, theme)
+    let direction = stillwind_variant_for_order(left, theme)
         .and_then(|variant| variant.sort.as_ref())
         .and_then(|sort| sort.direction);
     if let Some(direction) = direction
@@ -192,15 +194,15 @@ mod tests {
         assert_eq!(numeric_dimension("12.5rem"), Some((12.5, "rem")));
         assert_eq!(numeric_dimension("auto"), None);
         assert_eq!(
-            compare_sort_values("2px", "10px", BuiltinVariantSortDirection::Ascending),
+            compare_sort_values("2px", "10px", StillwindVariantSortDirection::Ascending),
             Ordering::Less
         );
         assert_eq!(
-            compare_sort_values("2px", "10px", BuiltinVariantSortDirection::Descending),
+            compare_sort_values("2px", "10px", StillwindVariantSortDirection::Descending),
             Ordering::Greater
         );
         assert_eq!(
-            compare_sort_values("2rem", "10px", BuiltinVariantSortDirection::Descending),
+            compare_sort_values("2rem", "10px", StillwindVariantSortDirection::Descending),
             Ordering::Greater
         );
     }

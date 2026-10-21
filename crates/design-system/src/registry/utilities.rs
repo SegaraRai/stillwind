@@ -1,14 +1,14 @@
 //! Utility definition parsing.
 //!
 //! User-authored `@utility` blocks and compiler-owned `@stillwind-utility` blocks use
-//! the same body language but carry different identity: built-ins record the byte
-//! offset they were authored at, while user definitions have none. That offset supplies
-//! the candidate precedence of authored utility ordering, so it must stay the authored
-//! position rather than a counter over parsed definitions. A definition header may also
-//! carry a descriptor list such as `(tw-sort: property)`, which supplies the property
-//! indices of Tailwind utility ordering, or the [`UtilityRole`] flags of a definition
-//! that a Tailwind plugin adapter registers. CSS escapes in a name decode as in
-//! Tailwind, so `@utility foo-1\/2` defines `foo-1/2`.
+//! the same body language but carry different identity: `@stillwind-utility` records
+//! the byte offset they were authored at, while user definitions have none. That offset
+//! supplies the candidate precedence of authored utility ordering, so it must stay the
+//! authored position rather than a counter over parsed definitions. A definition header
+//! may also carry a descriptor list such as `(tw-sort: property)`, which supplies the
+//! property indices of Tailwind utility ordering, or the [`UtilityRole`] flags of a
+//! definition that a Tailwind plugin adapter registers. CSS escapes in a name decode as
+//! in Tailwind, so `@utility foo-1\/2` defines `foo-1/2`.
 //!
 //! Trailing-`*` names are ordinary here; wildcard matching happens when a candidate is
 //! resolved. Duplicate names are preserved in source order because they are separate
@@ -27,17 +27,19 @@ pub struct CustomUtility {
     pub name: LeanStr,
     /// Declaration body, excluding the selector block or `@slot`.
     pub body: LeanStr,
-    /// Global registration order for built-in utilities (`@stillwind-utility`).
-    pub builtin_order: Option<usize>,
+    /// Byte offset of a `@stillwind-utility` directive in the parsed CSS, which orders
+    /// these definitions. `None` for `@utility`, whose order comes from
+    /// [`crate::ThemeIndex::utility_positions`].
+    pub position: Option<usize>,
     /// Property name from the header's `(tw-sort: property)` descriptor, which replaces
     /// the resolved property indices in Tailwind ordering mode.
     pub tw_sort: Option<LeanStr>,
     /// How the definition takes part in resolving its name.
     pub role: UtilityRole,
     /// Whether the answer to a `@plugin` statement contains the definition. Plugin
-    /// definitions of a name are evaluated after built-ins and before the stylesheet's
-    /// definitions, as Tailwind registers plugins before the stylesheet's `@utility`
-    /// rules.
+    /// definitions of a name are evaluated after `@stillwind-utility` definitions and
+    /// before the stylesheet's definitions, as Tailwind registers plugins before the
+    /// stylesheet's `@utility` rules.
     pub plugin: bool,
 }
 
@@ -139,14 +141,14 @@ pub(crate) fn decode_utility_name(raw: &str) -> Option<LeanStr> {
 
 /// Parses compiler-owned `@stillwind-utility` definitions in source order.
 ///
-/// `builtin_order` is the byte offset of each directive in `css`, which positions
-/// built-ins relative to one another and to arbitrary-property positions in authored
+/// `position` is the byte offset of each directive in `css`, which positions these
+/// definitions relative to one another and to arbitrary-property positions in authored
 /// utility mode. A definition whose header has no valid name is skipped.
 #[must_use]
-pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
+pub fn parse_stillwind_utility_definitions(css: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, "@stillwind-utility")
         .into_iter()
-        .filter_map(|(builtin_order, header, body)| {
+        .filter_map(|(position, header, body)| {
             let UtilityHeader {
                 name,
                 tw_sort,
@@ -155,7 +157,7 @@ pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
             Some(CustomUtility {
                 name,
                 body,
-                builtin_order: Some(builtin_order),
+                position: Some(position),
                 tw_sort,
                 role,
                 plugin: false,
@@ -169,9 +171,9 @@ pub fn parse_builtin_utility_definitions(css: &str) -> Vec<CustomUtility> {
 /// Commented example CSS cannot register a definition, and comments inside a header or
 /// body are removed.
 ///
-/// Returned definitions carry no `builtin_order`: authored ordering reads a
-/// definition's position from [`crate::ThemeIndex::utility_positions`], and Tailwind
-/// ordering derives its key from the resolved declarations instead.
+/// Returned definitions carry no `position`: authored ordering reads a definition's
+/// position from [`crate::ThemeIndex::utility_positions`], and Tailwind ordering
+/// derives its key from the resolved declarations instead.
 pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)> {
     extract_named_blocks(css, "@utility")
         .into_iter()
@@ -186,7 +188,7 @@ pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)
                 CustomUtility {
                     name,
                     body: strip_css_comments(&body).trim().into(),
-                    builtin_order: None,
+                    position: None,
                     tw_sort,
                     role,
                     plugin: false,
@@ -211,7 +213,7 @@ mod tests {
             let utilities = if directive == "@utility" {
                 utility_definitions(&css)
             } else {
-                parse_builtin_utility_definitions(&css)
+                parse_stillwind_utility_definitions(&css)
             };
             assert_eq!(utilities.len(), 1);
             assert_eq!(utilities[0].name, "space-x-*");
@@ -229,21 +231,21 @@ mod tests {
     }
 
     #[test]
-    fn separates_builtin_utilities_from_userland() {
+    fn separates_stillwind_utilities_from_tailwind_style_utilities() {
         let css = "@utility user-* { color:red; }\
                        @stillwind-utility builtin-* { color:blue; }\
                        @variant user-state { &:hover { @slot; } }\
                        @stillwind-variant builtin-state { &:focus { @slot; } }";
 
         let user_utilities = utility_definitions(css);
-        let builtin_utilities = parse_builtin_utility_definitions(css);
+        let stillwind_utilities = parse_stillwind_utility_definitions(css);
         assert_eq!(user_utilities.len(), 1);
         assert_eq!(user_utilities[0].name, "user-*");
-        assert_eq!(user_utilities[0].builtin_order, None);
-        assert_eq!(builtin_utilities.len(), 1);
-        assert_eq!(builtin_utilities[0].name, "builtin-*");
+        assert_eq!(user_utilities[0].position, None);
+        assert_eq!(stillwind_utilities.len(), 1);
+        assert_eq!(stillwind_utilities[0].name, "builtin-*");
         assert_eq!(
-            builtin_utilities[0].builtin_order,
+            stillwind_utilities[0].position,
             css.find("@stillwind-utility")
         );
     }
@@ -290,13 +292,13 @@ mod tests {
     fn named_and_ordered_utilities_preserve_bodies_and_exclude_prefix_collisions() {
         let css = "@utility user { color:red; } @stillwind-utility builtin {color:blue;}";
         let users = utility_definitions(css);
-        let builtins = parse_builtin_utility_definitions(css);
+        let stillwind = parse_stillwind_utility_definitions(css);
         assert_eq!(users[0].name, "user");
-        assert_eq!(users[0].builtin_order, None);
-        assert_eq!(builtins[0].body, "color:blue;");
-        assert_eq!(builtins[0].builtin_order, css.find("@stillwind-utility"));
+        assert_eq!(users[0].position, None);
+        assert_eq!(stillwind[0].body, "color:blue;");
+        assert_eq!(stillwind[0].position, css.find("@stillwind-utility"));
         assert_eq!(
-            parse_builtin_utility_definitions("@stillwind-utility-other x {x:y;}"),
+            parse_stillwind_utility_definitions("@stillwind-utility-other x {x:y;}"),
             [] as [CustomUtility; 0]
         );
     }

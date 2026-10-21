@@ -22,8 +22,8 @@ use crate::registry::{
     accepts_arbitrary_property,
 };
 use crate::{
-    BrowserTargets, BuiltinDefinitions, BypassedUndefinition, CustomUtility, CustomVariant,
-    DynamicFamilyKind, MarkerClasses, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode,
+    BrowserTargets, BypassedUndefinition, CustomUtility, CustomVariant, DynamicFamilyKind,
+    MarkerClasses, StillwindDefinitions, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode,
     UtilityOrderMode,
 };
 
@@ -38,7 +38,7 @@ struct ThemeDeclarations {
     css_templates: BTreeMap<LeanStr, CssOutputTemplate>,
     dynamic_utilities: Vec<DynamicFamily>,
     important: Option<UtilityImportance>,
-    registry: Arc<BuiltinDefinitions>,
+    registry: Arc<StillwindDefinitions>,
     tokens: Vec<Arc<ThemeToken>>,
     custom_css: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
@@ -180,11 +180,10 @@ impl ThemeIndex {
         let declarations = &self.inner.declarations;
         let definitions = declarations.registry_statements.definitions(context);
         let derived = ThemeDeclarations {
-            registry: Arc::new(
-                declarations
-                    .registry
-                    .with_definitions(definitions.builtin_utilities, definitions.builtin_variants),
-            ),
+            registry: Arc::new(declarations.registry.with_definitions(
+                definitions.stillwind_utilities,
+                definitions.stillwind_variants,
+            )),
             utilities: definitions.utilities,
             variants: definitions.variants,
             arbitrary_property_rules: definitions.arbitrary_properties,
@@ -233,8 +232,8 @@ impl ThemeIndex {
         accepts_arbitrary_property(&self.inner.declarations.arbitrary_property_rules, property)
     }
 
-    /// Returns the prepared bodies of the project and built-in utilities, shared by
-    /// every clone of this index.
+    /// Returns the prepared bodies of the Tailwind-style and Stillwind utilities,
+    /// shared by every clone of this index.
     pub(crate) fn programs(&self) -> &UtilityPrograms {
         self.inner
             .programs
@@ -271,13 +270,14 @@ impl ThemeIndex {
             .map(|index| &self.inner.declarations.tokens[*index])
     }
 
-    /// First declaration offsets after imports are expanded, shared by user and
-    /// built-in variants.
+    /// First declaration offsets after imports are expanded, shared by Tailwind-style
+    /// and Stillwind variants.
     pub fn variant_positions(&self) -> &BTreeMap<LeanStr, usize> {
         &self.inner.declarations.variant_positions
     }
 
-    /// Authored positions of utility names, shared by user and built-in utilities.
+    /// Authored positions of utility names, shared by Tailwind-style and Stillwind
+    /// utilities.
     ///
     /// A position is the first declaration offset after imports are expanded. Utilities
     /// that a `@plugin` statement defines keep their offsets, and the offsets of other
@@ -349,8 +349,8 @@ impl ThemeIndex {
             .then(|| format_args!("{}{value}", family.prefix).to_lean_string())
     }
 
-    /// Built-in definitions selected by this CSS; empty when it imports none.
-    pub fn registry(&self) -> &Arc<BuiltinDefinitions> {
+    /// Stillwind definitions of this CSS; empty when it has none.
+    pub fn registry(&self) -> &Arc<StillwindDefinitions> {
         &self.inner.declarations.registry
     }
 
@@ -376,8 +376,9 @@ impl ThemeIndex {
         &self.inner.declarations.properties
     }
 
-    /// Marker classes that user definitions select. [`BuiltinDefinitions::markers`]
-    /// holds the markers that the stylesheet declares and that built-ins select.
+    /// Marker classes that user definitions select. [`StillwindDefinitions::markers`]
+    /// holds the markers that the stylesheet declares and that Stillwind definitions
+    /// select.
     pub fn markers(&self) -> &MarkerClasses {
         &self.inner.declarations.markers
     }
@@ -431,7 +432,7 @@ impl ThemeIndex {
         color_fallback(declaration, self)
     }
 
-    /// Theme namespaces that the selected built-in definitions declare.
+    /// Theme namespaces that `@stillwind-theme-namespace` declares.
     #[must_use]
     pub fn namespaces(&self) -> &ThemeNamespaces {
         self.registry().theme_namespaces()

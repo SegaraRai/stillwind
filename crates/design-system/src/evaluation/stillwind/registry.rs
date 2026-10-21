@@ -1,4 +1,4 @@
-//! Lookup helpers for the selected built-in registry.
+//! Lookup helpers for the Stillwind definitions of a theme.
 //!
 //! The registry is shared with the snapshot through an [`Arc`], so these helpers borrow
 //! rather than copy. Ordering is preserved everywhere: exact-name groups keep authored
@@ -8,10 +8,10 @@
 
 use std::sync::Arc;
 
-use crate::{BuiltinDefinitions, CustomVariant, ThemeIndex};
+use crate::{CustomVariant, StillwindDefinitions, ThemeIndex};
 
-/// The built-in definition set selected by this theme.
-pub fn builtin_definitions(theme: &ThemeIndex) -> Arc<BuiltinDefinitions> {
+/// The Stillwind definitions of this theme.
+pub fn stillwind_definitions(theme: &ThemeIndex) -> Arc<StillwindDefinitions> {
     Arc::clone(theme.registry())
 }
 
@@ -32,14 +32,14 @@ pub(in crate::evaluation) fn arbitrary_property_order(property: &str, theme: &Th
             let matches = prefix.map_or(entry.pattern == property, |prefix| {
                 property.starts_with(prefix)
             });
-            matches.then_some((prefix.map_or(usize::MAX, str::len), entry.builtin_order))
+            matches.then_some((prefix.map_or(usize::MAX, str::len), entry.position))
         })
         .max_by_key(|(specificity, _)| *specificity)
         .map_or(usize::MAX, |(_, order)| order)
 }
 
-/// Built-in variant definitions in authored order.
-pub(in crate::evaluation) fn builtin_variants(theme: &ThemeIndex) -> &[Arc<CustomVariant>] {
+/// `@stillwind-variant` definitions in authored order.
+pub(in crate::evaluation) fn stillwind_variants(theme: &ThemeIndex) -> &[Arc<CustomVariant>] {
     theme.registry().variants()
 }
 
@@ -53,7 +53,7 @@ mod tests {
     #[test]
     fn arbitrary_property_order_prefers_exact_patterns_and_sorts_unknowns_last() {
         let theme = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
+            registry: Arc::new(StillwindDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
             ..Default::default()
         }
         .finish();

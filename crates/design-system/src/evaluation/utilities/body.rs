@@ -17,8 +17,8 @@ use stillwind_css::{PropertyRequirementError, ValueType, take_property_requireme
 use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
-use super::super::builtins::COMPAT_COLOR_SUPPORT;
 use super::super::context::ArbitraryValueCheck;
+use super::super::stillwind::COMPAT_COLOR_SUPPORT;
 use super::declarations::resolve_css_declarations;
 use super::nested::{
     NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,
@@ -56,9 +56,9 @@ pub(in crate::evaluation) struct UtilityResolution {
     /// Extra selector targets produced by further overloads.
     pub(in crate::evaluation) additional: Vec<ResolvedUtilityTarget>,
     /// Authored position of the matched definition: its registration offset when the
-    /// snapshot orders by authored position, otherwise the built-in registry offset.
-    /// `None` when the definition has no position, as for synthetic rules.
-    pub(in crate::evaluation) builtin_order: Option<usize>,
+    /// snapshot orders by authored position, otherwise its directive offset. `None`
+    /// when the definition has no position, as for synthetic rules.
+    pub(in crate::evaluation) position: Option<usize>,
     /// `(tw-sort: property)` value authored on the definition header, which replaces
     /// the resolved property indices when the snapshot selects Tailwind ordering.
     pub(in crate::evaluation) tw_sort: Option<LeanStr>,
@@ -75,7 +75,7 @@ impl UtilityResolution {
             selector: None,
             nested: Vec::new(),
             additional: Vec::new(),
-            builtin_order: None,
+            position: None,
             tw_sort: None,
         }
     }
@@ -126,8 +126,8 @@ impl UtilityResolutionDiagnosticData {
     }
 }
 
-/// Resolves one definition body against a candidate name and modifier.
-/// `utility` must belong to `theme` or its selected built-in registry.
+/// Resolves one definition body against a candidate name and modifier. `utility` must
+/// belong to `theme` or its Stillwind definitions.
 ///
 /// `arbitrary_check` selects how typed domains check arbitrary values without a type
 /// hint. Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
@@ -225,7 +225,7 @@ fn resolve_valid_utility_body(
             name,
             modifier,
             theme,
-            utility.builtin_order.is_some(),
+            utility.position.is_some(),
             color_compatibility,
             arbitrary_check,
         )
@@ -371,12 +371,12 @@ fn resolve_valid_utility_body(
             selector: None,
             nested: parent_nested,
             additional,
-            builtin_order: match theme.utility_order() {
+            position: match theme.utility_order() {
                 UtilityOrderMode::Authored => theme
                     .utility_positions()
                     .get(utility.name.as_str())
                     .copied(),
-                UtilityOrderMode::Tailwind => utility.builtin_order,
+                UtilityOrderMode::Tailwind => utility.position,
             },
             tw_sort: utility.tw_sort.clone(),
         })
@@ -393,12 +393,12 @@ fn resolve_valid_utility_body(
             selector,
             nested: resolved_nested,
             additional: Vec::new(),
-            builtin_order: match theme.utility_order() {
+            position: match theme.utility_order() {
                 UtilityOrderMode::Authored => theme
                     .utility_positions()
                     .get(utility.name.as_str())
                     .copied(),
-                UtilityOrderMode::Tailwind => utility.builtin_order,
+                UtilityOrderMode::Tailwind => utility.position,
             },
             tw_sort: utility.tw_sort.clone(),
         })

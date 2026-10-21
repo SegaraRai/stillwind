@@ -164,10 +164,11 @@ mod tests {
     use super::*;
     use crate::{Compiler, CompilerOptions};
 
-    /// Registration order mixes user and built-in definitions without moving an
-    /// override, and the ordering fingerprint follows that mode.
+    /// Registration order mixes `@utility` and `@stillwind-utility` definitions without
+    /// moving an override, and the ordering fingerprint follows that mode.
     #[test]
-    fn registration_order_mixes_user_and_builtin_definitions_without_moving_overrides() {
+    fn registration_order_mixes_tailwind_style_and_stillwind_definitions_without_moving_overrides()
+    {
         let css = "@variant before { &:first-child { @slot; } }
         @stillwind-variant middle { &:hover { @slot; } }
         @variant after { &:last-child { @slot; } }
@@ -245,8 +246,8 @@ mod tests {
         assert_eq!(ordering_fingerprints[0], ordering_fingerprints[2]);
     }
 
-    /// Authored definitions outrank built-ins for editor ordering, and unknown
-    /// candidates have no order at all.
+    /// `@utility` definitions outrank `@stillwind-utility` definitions for editor
+    /// ordering, and unknown candidates have no order at all.
     #[test]
     fn editor_order_uses_custom_utility_and_variant_precedence() {
         let theme = css_source(

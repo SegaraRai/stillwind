@@ -92,7 +92,8 @@ fn user_css_adds_to_compatibility_utilities_of_the_same_name() {
     .unwrap();
     let theme = parse_fixture_theme(&source).unwrap();
 
-    // As in Tailwind, the built-in's declarations come first and the project's follow.
+    // As in Tailwind, the `@stillwind-utility` definition's declarations come first and
+    // the project's follow.
     assert_css_eq!(
         resolve_utility("size-4", &theme).unwrap().declaration,
         "width: calc(var(--spacing) * 4); height: calc(var(--spacing) * 4); \

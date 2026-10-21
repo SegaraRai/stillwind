@@ -16,8 +16,8 @@ pub(super) enum DefinitionKind {
     Utility,
     /// `@custom-variant`, or `@variant` with `@slot` outside a style rule.
     Variant,
-    /// `@stillwind-variant`, which declares a built-in variant.
-    BuiltinVariant,
+    /// `@stillwind-variant`, which declares a variant in Stillwind syntax.
+    StillwindVariant,
 }
 
 /// One definition at-rule of a source.
@@ -74,7 +74,7 @@ fn collect<'a>(nodes: &'a [CssNode], text: &str, found: &mut Vec<Definition<'a>>
             {
                 DefinitionKind::Variant
             }
-            "stillwind-variant" => DefinitionKind::BuiltinVariant,
+            "stillwind-variant" => DefinitionKind::StillwindVariant,
             "theme" | "variant" | "tailwind" => continue,
             name if name.starts_with("stillwind-") => continue,
             _ => {

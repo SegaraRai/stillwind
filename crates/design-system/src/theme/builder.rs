@@ -13,18 +13,18 @@ use super::index::ThemeIndex;
 use super::parser::{DynamicFamily, UtilityImportance};
 use crate::registry::{ArbitraryPropertyRule, RegistryStatements};
 use crate::{
-    BrowserTargets, BuiltinDefinitions, CustomUtility, CustomVariant, MarkerClasses,
+    BrowserTargets, CustomUtility, CustomVariant, MarkerClasses, StillwindDefinitions,
     UtilityOrderMode,
 };
 
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {
-    /// First declaration offsets after imports are expanded, shared by user and
-    /// built-in variants.
+    /// First declaration offsets after imports are expanded, shared by Tailwind-style
+    /// and Stillwind variants.
     pub(crate) variant_positions: BTreeMap<LeanStr, usize>,
-    /// Authored positions of utility names, shared by user and built-in utilities: the
-    /// first declaration offset after imports are expanded. The offset of a name that
-    /// no plugin defines is increased by `utility_position_base`.
+    /// Authored positions of utility names, shared by Tailwind-style and Stillwind
+    /// utilities: the first declaration offset after imports are expanded. The offset
+    /// of a name that no plugin defines is increased by `utility_position_base`.
     pub(crate) utility_positions: BTreeMap<LeanStr, usize>,
     /// Added to the authored positions of utilities that no plugin defines, so plugin
     /// utilities precede them. Zero when no plugin defines a utility.
@@ -37,8 +37,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) dynamic_utilities: Vec<DynamicFamily>,
     /// Importance of class utilities from a Tailwind plugin configuration.
     pub(crate) important: Option<UtilityImportance>,
-    /// Built-in definitions selected by this CSS; empty when it imports none.
-    pub(crate) registry: Arc<BuiltinDefinitions>,
+    /// Stillwind definitions of this CSS; empty when it has none.
+    pub(crate) registry: Arc<StillwindDefinitions>,
     /// Every token in authored order, including resets and superseded values.
     pub(crate) tokens: Vec<ThemeToken>,
     /// Authored CSS outside definition blocks, retained verbatim.

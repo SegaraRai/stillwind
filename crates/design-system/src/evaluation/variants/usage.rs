@@ -23,7 +23,7 @@ use super::substitution::{
     resolve_variant_css_placeholders, resolve_variant_value_with_source,
     substitute_variant_capture, variant_value_capture,
 };
-use crate::{BuiltinVariantValueType, ThemeIndex};
+use crate::{StillwindVariantValueType, ThemeIndex};
 
 /// One resolved variant and the direct values its selected definition uses.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -106,7 +106,7 @@ pub fn resolve_variant_with_usage(
             resolve_registered_variant_candidate(custom, capture, concrete, 0, theme).ok()?;
         let mut tokens = BTreeSet::new();
         let mut media_values = Vec::new();
-        if custom.value_type == Some(BuiltinVariantValueType::Variant) {
+        if custom.value_type == Some(StillwindVariantValueType::Variant) {
             let inner = parse_nested_variant(split_typed_capture(custom, capture?).0);
             // A relative selector resolves only inside its definition and uses no tokens.
             if relative_selector(&inner).is_none() {
@@ -154,7 +154,7 @@ pub fn resolve_variant_with_usage(
             }
         } else {
             tokens.extend(inspect_css_value(&custom.body).1);
-            if custom.value_type == Some(BuiltinVariantValueType::SupportsCondition) {
+            if custom.value_type == Some(StillwindVariantValueType::SupportsCondition) {
                 tokens.extend(application_tokens(&application));
             }
         }

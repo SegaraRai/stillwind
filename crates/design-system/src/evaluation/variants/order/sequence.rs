@@ -8,11 +8,11 @@ use lean_string::LeanStr;
 
 use stillwind_syntax::Variant;
 
-use super::position::{builtin_variant_for_order, compound_inner_variant, variant_order};
+use super::position::{compound_inner_variant, stillwind_variant_for_order, variant_order};
 use super::sort_value::{
     compare_sort_values, compare_variants_in_group, variant_sort_value, variant_tie_text,
 };
-use crate::{BuiltinVariantSortDirection, ThemeIndex};
+use crate::{StillwindVariantSortDirection, ThemeIndex};
 
 /// Compares variant stacks using first registration positions in the expanded CSS.
 /// This uses an order-bit comparison while leaving utility/property ordering
@@ -108,7 +108,7 @@ struct VariantGroupOrder {
     /// [`variant_tie_text`] for groups without comparable sort values.
     tie: LeanStr,
     inner: Option<Box<VariantSequenceOrder>>,
-    direction: Option<BuiltinVariantSortDirection>,
+    direction: Option<StillwindVariantSortDirection>,
     /// Theme token text or a decoded arbitrary capture.
     value: Option<LeanStr>,
 }
@@ -119,7 +119,7 @@ impl VariantGroupOrder {
             tie: variant_tie_text(variant),
             inner: compound_inner_variant(variant, theme)
                 .map(|inner| Box::new(VariantSequenceOrder::new(&[inner], theme))),
-            direction: builtin_variant_for_order(variant, theme)
+            direction: stillwind_variant_for_order(variant, theme)
                 .and_then(|definition| definition.sort.as_ref())
                 .and_then(|sort| sort.direction),
             value: (variant_sort_value(variant, theme)).map(Into::into),
@@ -151,7 +151,7 @@ mod tests {
     use stillwind_syntax::parse_candidate;
 
     use super::*;
-    use crate::BuiltinDefinitions;
+    use crate::StillwindDefinitions;
     use crate::theme::ThemeBuilder;
 
     /// Stacks are ordered by the highest registration position first, and the
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn compare_variant_sequences_orders_by_registry_position() {
         let theme = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(
+            registry: Arc::new(StillwindDefinitions::from_css(
                 "@stillwind-variant early { &:hover { @slot; } }\n@stillwind-variant late { &:focus { @slot; } }",
             )),
             ..Default::default()
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn prepared_keys_preserve_numeric_compound_and_repeated_group_comparisons() {
         let theme = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(
+            registry: Arc::new(StillwindDefinitions::from_css(
                 "@stillwind-theme-namespace --breakpoint-* [length];
                 @stillwind-variant hover { &:hover { @slot; } }
                 @stillwind-variant focus { &:focus { @slot; } }
@@ -283,12 +283,12 @@ mod tests {
             let left = format_args!("{a}px").to_lean_string();
             let right = format_args!("{b}px").to_lean_string();
             proptest::prop_assert_eq!(
-                compare_sort_values(&left, &right, BuiltinVariantSortDirection::Ascending),
+                compare_sort_values(&left, &right, StillwindVariantSortDirection::Ascending),
                 a.cmp(&b)
             );
             proptest::prop_assert_eq!(
-                compare_sort_values(&left, &right, BuiltinVariantSortDirection::Ascending),
-                compare_sort_values(&right, &left, BuiltinVariantSortDirection::Ascending).reverse()
+                compare_sort_values(&left, &right, StillwindVariantSortDirection::Ascending),
+                compare_sort_values(&right, &left, StillwindVariantSortDirection::Ascending).reverse()
             );
         }
     }
@@ -301,12 +301,12 @@ mod sequence_property_tests {
     use stillwind_syntax::parse_candidate;
 
     use super::*;
-    use crate::BuiltinDefinitions;
+    use crate::StillwindDefinitions;
     use crate::theme::ThemeBuilder;
 
     fn theme() -> ThemeIndex {
         ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(
+            registry: Arc::new(StillwindDefinitions::from_css(
                 "@stillwind-variant early { &:hover { @slot; } }\n@stillwind-variant late { &:focus { @slot; } }",
             )),
             ..Default::default()

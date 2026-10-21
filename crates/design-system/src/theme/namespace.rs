@@ -1,11 +1,11 @@
 //! The theme namespaces that CSS declares, their value types and scales, and the token
 //! names that a key selects in any namespace.
 //!
-//! `@stillwind-theme-namespace` declares each namespace that has built-in meaning:
-//! value types, a scale, or classification of `@theme` tokens. Rust code knows only
-//! these kinds of meaning. It never names a namespace, so a stylesheet can add, change,
-//! or remove a namespace without a Rust change. A custom property outside every
-//! declared namespace never creates a value for a declared namespace. An authored
+//! `@stillwind-theme-namespace` declares each namespace that has a meaning to the
+//! compiler: value types, a scale, or classification of `@theme` tokens. Rust code
+//! knows only these kinds of meaning. It never names a namespace, so a stylesheet can
+//! add, change, or remove a namespace without a Rust change. A custom property outside
+//! every declared namespace never creates a value for a declared namespace. An authored
 //! `--value(--size-*)` pattern can still read any namespace through
 //! [`namespace_key_names`].
 

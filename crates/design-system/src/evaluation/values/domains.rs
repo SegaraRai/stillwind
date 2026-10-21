@@ -242,7 +242,7 @@ mod tests {
     use super::*;
     use crate::test_support::parse_fixture_theme;
     use crate::theme::ThemeBuilder;
-    use crate::{BuiltinDefinitions, ThemeIndex};
+    use crate::{StillwindDefinitions, ThemeIndex};
 
     #[test]
     fn domain_lists_keep_function_commas_and_typed_capture_boundaries() {
@@ -251,7 +251,7 @@ mod tests {
             vec!["[length]", " --spacing-*", " f(a,b)"]
         );
         let configured = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
+            registry: Arc::new(StillwindDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
             ..Default::default()
         }
         .finish();

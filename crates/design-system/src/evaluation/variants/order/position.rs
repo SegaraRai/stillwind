@@ -6,20 +6,20 @@ use lean_string::LeanString;
 
 use stillwind_syntax::{Variant, VariantKind};
 
-use super::super::super::builtins::builtin_variants;
+use super::super::super::stillwind::stillwind_variants;
 use super::super::resolve::{parse_nested_variant, split_typed_capture};
 use super::super::substitution::registered_variant_candidates;
-use crate::{BuiltinVariantValueType, CustomVariant, ThemeIndex, ThemeNamespace};
+use crate::{CustomVariant, StillwindVariantValueType, ThemeIndex, ThemeNamespace};
 
-/// The single built-in definition that captures this variant text, if any.
+/// The single `@stillwind-variant` definition that captures this variant text, if any.
 ///
 /// An exact name wins outright; otherwise the matching pattern with the most literal
 /// prefix-plus-suffix bytes wins. Equal specificity selects the last definition.
-pub(super) fn direct_builtin_variant<'a>(
+pub(super) fn direct_stillwind_variant<'a>(
     value: &str,
     theme: &'a ThemeIndex,
 ) -> Option<&'a CustomVariant> {
-    builtin_variants(theme)
+    stillwind_variants(theme)
         .iter()
         .filter_map(|variant| {
             if variant.wildcard.is_none() && variant.name == value {
@@ -45,11 +45,11 @@ pub(in crate::evaluation) fn variant_sort_namespace<'a>(
 
 /// A variant that names a theme token without its prefix, as a bare breakpoint variant
 /// does.
-pub(super) fn bare_builtin_variant<'a>(
+pub(super) fn bare_stillwind_variant<'a>(
     value: &str,
     theme: &'a ThemeIndex,
 ) -> Option<&'a CustomVariant> {
-    builtin_variants(theme)
+    stillwind_variants(theme)
         .iter()
         .map(Arc::as_ref)
         .find(|variant| {
@@ -71,14 +71,14 @@ pub(super) fn bare_builtin_variant<'a>(
 ///
 /// A definition without sort metadata is still a definition; the sort is only consulted
 /// when two variants share a group.
-pub(super) fn builtin_variant_for_order<'a>(
+pub(super) fn stillwind_variant_for_order<'a>(
     variant: &Variant,
     theme: &'a ThemeIndex,
 ) -> Option<&'a CustomVariant> {
     let VariantKind::Named(value) = &variant.kind else {
         return None;
     };
-    direct_builtin_variant(value, theme).or_else(|| bare_builtin_variant(value, theme))
+    direct_stillwind_variant(value, theme).or_else(|| bare_stillwind_variant(value, theme))
 }
 
 /// The ordering group of a variant definition, which defaults to its own name.
@@ -103,11 +103,11 @@ pub(super) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
     } else {
         None
     };
-    let Some(variant) = builtin_variant_for_order(variant, theme).or(custom) else {
+    let Some(variant) = stillwind_variant_for_order(variant, theme).or(custom) else {
         return usize::MAX;
     };
     let group = variant_group(variant);
-    builtin_variants(theme)
+    stillwind_variants(theme)
         .iter()
         .chain(theme.variants())
         .filter(|candidate| variant_group(candidate) == group)
@@ -116,7 +116,7 @@ pub(super) fn variant_order(variant: &Variant, theme: &ThemeIndex) -> usize {
                 .variant_positions()
                 .get(candidate.name.as_str())
                 .copied()
-                .or(candidate.builtin_order)
+                .or(candidate.position)
         })
         .min()
         .unwrap_or(usize::MAX)
@@ -128,17 +128,18 @@ pub(super) fn compound_inner_variant(variant: &Variant, theme: &ThemeIndex) -> O
         return None;
     };
     let capture = compound_variant_capture(theme.variants(), value)
-        .or_else(|| compound_variant_capture(builtin_variants(theme), value))?;
+        .or_else(|| compound_variant_capture(stillwind_variants(theme), value))?;
     Some(parse_nested_variant(&capture))
 }
 
 /// Returns the inner variant of a compound variant, such as `hover` for `group-hover`,
-/// from the project's definitions and then the built-ins whose declared value type is a
+/// from the project's definitions and then the `@stillwind-variant` definitions whose
+/// declared value type is a
 /// variant stack. The compound variant's own modifier, such as `/name`, is excluded.
 /// Returns `None` when no such definition matches `value`.
 pub fn compound_variant_inner(value: &str, theme: &ThemeIndex) -> Option<LeanString> {
     compound_variant_capture(theme.variants(), value)
-        .or_else(|| compound_variant_capture(builtin_variants(theme), value))
+        .or_else(|| compound_variant_capture(stillwind_variants(theme), value))
 }
 
 /// The inner variant text of the first definition whose declared value type is a variant
@@ -150,7 +151,7 @@ pub(super) fn compound_variant_capture(
     registered_variant_candidates(variants, value)
         .into_iter()
         .find_map(|(variant, capture)| {
-            (variant.value_type == Some(BuiltinVariantValueType::Variant))
+            (variant.value_type == Some(StillwindVariantValueType::Variant))
                 .then(|| capture.map(|capture| split_typed_capture(variant, capture).0.into()))?
         })
 }

@@ -62,14 +62,15 @@ pub use evaluation::{
     UtilityTokenUse, VariableMismatch, VariableTypeSource, VariantApplication, VariantContext,
     VariantDeclaration, VariantDiagnosticData, VariantFailure, VariantFailureReason,
     VariantMediaValue, VariantObstacle, VariantRedundancy, VariantSequenceOrder,
-    VariantValueSource, builtin_declaration_formats, builtin_definitions,
-    builtin_omit_token_prefixes, builtin_property_definitions, builtin_theme_order,
-    builtin_utility_token_prefixes, check_candidate_variants, compare_variant_sequences,
+    VariantValueSource, check_candidate_variants, compare_variant_sequences,
     compound_variant_inner, document_scoped_selector, document_target, dynamic_named_spelling,
     exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
     named_domain_values, redundant_variants, repeated_subject_selector, resolve_utility,
-    resolve_variant, resolve_variant_with_usage, suggested_theme_token, theme_value_mismatch,
-    unresolvable_value_namespaces, unsatisfiable_variants, utility_value_range,
+    resolve_variant, resolve_variant_with_usage, stillwind_declaration_formats,
+    stillwind_definitions, stillwind_omit_token_prefixes, stillwind_property_definitions,
+    stillwind_theme_order, stillwind_utility_token_prefixes, suggested_theme_token,
+    theme_value_mismatch, unresolvable_value_namespaces, unsatisfiable_variants,
+    utility_value_range,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,
@@ -80,13 +81,12 @@ pub use loading::{
 pub use options::{DesignSystemOptions, UtilityOrderMode};
 pub use output::parse_output_template;
 pub use registry::{
-    BuiltinArbitraryPropertyOrder, BuiltinDefinitions, BuiltinVariantModifierType,
-    BuiltinVariantSort, BuiltinVariantSortDirection, BuiltinVariantValueType, BypassedUndefinition,
-    CustomUtility, CustomVariant, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext,
-    UtilityRole, VariantScope, declaration_format, parse_builtin_arbitrary_property_order,
-    parse_builtin_utility_definitions, parse_builtin_variant_definitions,
-    parse_declaration_formats, parse_omit_token_prefixes, parse_relationship_patterns,
-    parse_theme_order, parse_variant_definitions,
+    ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant, MarkerClasses,
+    MarkerForm, MarkerOrigin, RegistryContext, StillwindDefinitions, StillwindVariantModifierType,
+    StillwindVariantSort, StillwindVariantSortDirection, StillwindVariantValueType, UtilityRole,
+    VariantScope, declaration_format, parse_arbitrary_property_order, parse_declaration_formats,
+    parse_omit_token_prefixes, parse_relationship_patterns, parse_stillwind_utility_definitions,
+    parse_stillwind_variant_definitions, parse_theme_order, parse_variant_definitions,
 };
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,

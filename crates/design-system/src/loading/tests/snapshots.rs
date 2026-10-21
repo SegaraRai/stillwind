@@ -104,7 +104,7 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     assert!(snapshot.fingerprints().utilities.contains_key("flex"));
     assert!(Arc::ptr_eq(
         &snapshot.utilities().get("flex").unwrap()[0],
-        &snapshot.builtins().utilities()[0]
+        &snapshot.stillwind_definitions().utilities()[0]
     ));
     let unselected = DesignSystemSnapshot::from_source(
         &SourceFile::new(FileId(1), None, None, "@theme { --color-brand:red; }").unwrap(),
@@ -113,7 +113,7 @@ fn resolved_registries_include_selected_builtins_and_authored_overloads() {
     )
     .unwrap();
     assert_eq!(
-        unselected.builtins().utilities(),
+        unselected.stillwind_definitions().utilities(),
         [] as [Arc<CustomUtility>; 0]
     );
     assert!(unselected.utilities().get("flex").is_none());
@@ -273,7 +273,7 @@ fn package_updates_replace_loaded_definitions_without_implicit_defaults() {
 }
 
 #[test]
-fn plugin_definitions_precede_builtins_and_the_stylesheet() {
+fn plugin_definitions_precede_stillwind_definitions_and_the_stylesheet() {
     for root in [
         "@stillwind-utility size-full { width: 100%; } @utility probe { color: blue; } @plugin 'p';",
         "@stillwind-utility size-full { width: 100%; } @plugin 'p'; @utility probe { color: blue; }",

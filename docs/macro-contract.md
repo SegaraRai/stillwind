@@ -699,31 +699,32 @@ template:
 }
 ```
 
-The string contains the template's authored CSS, the rules at `utilities`, and the support
-that the rules require at the other slots: the theme values and keyframes that they use
-together with `@theme static` values, `@property` registrations at `properties`, and
-initial values of registered properties at `property-initials`. A slot that the template
-omits drops its output, so a template chooses which support it includes. The string never
-contains preflight or the project's other rules.
+The string contains the template's authored CSS, the rules at `utilities`, and the
+support that the rules require at the other slots: the theme values and keyframes that
+they use together with `@theme static` values, `@property` registrations at
+`properties`, and initial values of registered properties at `property-initials`. A slot
+that the template omits drops its output, so a template chooses which support it
+includes. The string never contains preflight or the project's other rules.
 
-The built-in `default` template above, from `stillwind/templates.css`, places theme values
-and inherited initial values on the root of the adopting tree, and initial values of
-properties that do not inherit on every element. It emits no `@property` rules, because a
-registration inside a shadow root has no effect, and its initial values are unconditional
-for the same reason. Nothing is layered, so the string joins the cascade of the tree that
-adopts it like any other unlayered stylesheet. A later `@stillwind-css-template` with the
-same name replaces an earlier one, so a project can redefine `default` after importing
-Stillwind, or add templates with other names.
+The package's `default` template above, from `stillwind/templates.css`, places theme
+values and inherited initial values on the root of the adopting tree, and initial values
+of properties that do not inherit on every element. It emits no `@property` rules,
+because a registration inside a shadow root has no effect, and its initial values are
+unconditional for the same reason. Nothing is layered, so the string joins the cascade
+of the tree that adopts it like any other unlayered stylesheet. A later
+`@stillwind-css-template` with the same name replaces an earlier one, so a project can
+redefine `default` after importing Stillwind, or add templates with other names.
 
 A template must contain a utilities slot and cannot contain definitions such as `@theme`
 or `@utility`; either problem is a compilation error. A call inside a `style()` or CVA
 input is omitted with that input, as
-[Materialization and consumption sites](#materialization-and-consumption-sites) describes.
+[Materialization and consumption sites](#materialization-and-consumption-sites)
+describes.
 
 Editors complete and preview each input as a document-level style with the call's group
-keys and `selector` option. The preview of an input shows only its rules, and the preview
-of the whole call shows the string that it lowers to. The `template` option completes the
-names of defined templates, and its preview shows the template.
+keys and `selector` option. The preview of an input shows only its rules, and the
+preview of the whole call shows the string that it lowers to. The `template` option
+completes the names of defined templates, and its preview shows the template.
 
 ## Custom properties
 
@@ -944,8 +945,8 @@ must be that intrinsic statement; extra declarations and unknown intrinsics reje
 The capture preserves CSS text, including slashes in comparison values.
 
 Names belong to the CSS registry. The same definition can register `when\(*\)`
-instead, and an absent registration does not make `if(...)` a built-in name in
-Rust. Literal prefix and suffix text surround the single unescaped `*`; escaped
+instead, and an absent registration does not make `if(...)` a name that
+Rust knows. Literal prefix and suffix text surround the single unescaped `*`; escaped
 asterisks are literal. Ordinary CSS overrides keep their normal registry precedence.
 `--if(...)` remains a compiler-defined value function, independent of variant registration.
 
@@ -968,7 +969,7 @@ variant applies relative to it.
 | `not-*`                                                     | A condition on the anchor                             | Invalid                         |
 | At-rule variants, such as `sm:`, `dark:`, and `supports-*:` | Unaffected                                            | Unaffected                      |
 
-The built-in `host:` variant selects `:host`. A definition declares that its selectors
+The package's `host:` variant selects `:host`. A definition declares that its selectors
 without `&` select a document-level element. `@stillwind-variant` uses
 `scope: document` in its header, and `@custom-variant` uses `scope(document)` after the
 name:
@@ -1049,7 +1050,7 @@ border-color.
 
 The type of a `var()` reference or a CSS-wide keyword cannot be inferred. Such a
 value selects only the earliest registered definition that accepts it, so it never
-sets several properties at once. The built-in definitions are registered in
+sets several properties at once. The package's definitions are registered in
 Tailwind's order:
 
 | Candidate                             | Property                       |

@@ -7,8 +7,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{CssNode, CssNodeKind, find_css_functions, parse_structure};
 use stillwind_design_system::{
-    BuiltinVariantValueType, CustomUtility, DesignSystemRevision, MarkerForm,
-    UtilityResolutionError, builtin_utility_token_prefixes, named_domain_values,
+    CustomUtility, DesignSystemRevision, MarkerForm, StillwindVariantValueType,
+    UtilityResolutionError, named_domain_values, stillwind_utility_token_prefixes,
 };
 use stillwind_syntax::parse_candidate;
 
@@ -359,7 +359,7 @@ impl DesignSystemQuery {
             .map(LeanStr::from)
             .collect();
         {
-            let token_prefixes = builtin_utility_token_prefixes(theme)
+            let token_prefixes = stillwind_utility_token_prefixes(theme)
                 .into_iter()
                 .filter(|(root, _)| {
                     format_args!("{root}-").to_lean_str().starts_with(prefix)
@@ -495,7 +495,7 @@ impl DesignSystemQuery {
         }
         for (_, definitions) in self.context.design_system.variants().iter() {
             for definition in definitions {
-                if definition.value_type != Some(BuiltinVariantValueType::Variant) {
+                if definition.value_type != Some(StillwindVariantValueType::Variant) {
                     continue;
                 }
                 let Some((prefix, suffix)) = definition

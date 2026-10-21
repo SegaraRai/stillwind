@@ -4,7 +4,7 @@
 //! Entry points borrow the immutable [`crate::ThemeIndex`]. The theme owns effective
 //! token lookup and parsed utility programs, which its clones and snapshots share.
 //!
-//! The modules below split the work by subject: [`builtins`] reads the selected
+//! The modules below split the work by subject: [`stillwind`] reads the selected
 //! registry, [`utilities`] matches and expands a utility body, [`values`] resolves
 //! typed value domains and placeholders, and [`variants`] produces selector
 //! applications and their ordering. [`context`] records direct selections for one
@@ -12,18 +12,18 @@
 //! [`syntax`] matches delimiters while reading definition expressions. [`suggestions`]
 //! proposes spellings for unknown utility, variant, and theme token names.
 
-mod builtins;
 mod context;
 mod programs;
+mod stillwind;
 mod suggestions;
 mod syntax;
 mod utilities;
 mod values;
 mod variants;
 
-pub use builtins::{
-    builtin_declaration_formats, builtin_definitions, builtin_omit_token_prefixes,
-    builtin_property_definitions, builtin_theme_order, builtin_utility_token_prefixes,
+pub use stillwind::{
+    stillwind_declaration_formats, stillwind_definitions, stillwind_omit_token_prefixes,
+    stillwind_property_definitions, stillwind_theme_order, stillwind_utility_token_prefixes,
 };
 pub use suggestions::suggested_theme_token;
 pub use utilities::{

@@ -96,7 +96,7 @@ Sources: [browser measurement](../benchmarks/compiler/canonical.browser.test.ts)
 ## Registry context preparation
 
 Creating the three [registry context](css-emission.md#registry-contexts) indexes took
-about 2.5ms after a 32ms preparation of the built-in registry in a native release build.
+about 2.5ms after a 32ms preparation of the package CSS in a native release build.
 Measure the browser cost with `vp run bench:compiler:browser`.
 
 Sources: [registry statements](../crates/design-system/src/registry/contexts.rs),

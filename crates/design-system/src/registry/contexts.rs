@@ -14,7 +14,7 @@
 //! the other statements, each group in source order. An undefinition removes the
 //! matching definitions that precede it in each of its registries, and a definition
 //! adds to them in its own layer. Statements in `@plugin` answers therefore cannot
-//! remove built-in definitions.
+//! remove Stillwind definitions of the package or the stylesheet.
 //!
 //! [`RegistryStatements::parse`] reads the statements of one stylesheet, and
 //! [`RegistryStatements::definitions`] applies them to one registry.
@@ -33,8 +33,8 @@ use stillwind_diagnostics::CompileDiagnostic;
 
 use super::utilities::parse_utility_definitions;
 use super::{
-    CustomUtility, CustomVariant, parse_builtin_utility_definitions,
-    parse_builtin_variant_definitions,
+    CustomUtility, CustomVariant, parse_stillwind_utility_definitions,
+    parse_stillwind_variant_definitions,
 };
 use crate::parse_variant_definitions;
 
@@ -135,11 +135,11 @@ enum RegistryOperation {
     /// properties again.
     ArbitraryProperty(LeanStr),
     /// A `@stillwind-utility` definition.
-    BuiltinUtility(Arc<CustomUtility>),
+    StillwindUtility(Arc<CustomUtility>),
     /// A `@utility` definition.
     Utility(Arc<CustomUtility>),
     /// A `@stillwind-variant` definition.
-    BuiltinVariant(Arc<CustomVariant>),
+    StillwindVariant(Arc<CustomVariant>),
     /// A `@custom-variant` or `@variant` definition.
     Variant(Arc<CustomVariant>),
 }
@@ -208,10 +208,10 @@ pub(crate) fn accepts_arbitrary_property(rules: &[ArbitraryPropertyRule], proper
 /// The definitions of one registry after its statements apply.
 #[derive(Debug, Default)]
 pub(crate) struct ContextDefinitions {
-    /// Built-in utility definitions in registration order.
-    pub(crate) builtin_utilities: Vec<Arc<CustomUtility>>,
-    /// Built-in variant definitions in registration order.
-    pub(crate) builtin_variants: Vec<Arc<CustomVariant>>,
+    /// `@stillwind-utility` definitions in registration order.
+    pub(crate) stillwind_utilities: Vec<Arc<CustomUtility>>,
+    /// `@stillwind-variant` definitions in registration order.
+    pub(crate) stillwind_variants: Vec<Arc<CustomVariant>>,
     /// Plugin and stylesheet utility definitions in registration order.
     pub(crate) utilities: Vec<Arc<CustomUtility>>,
     /// Plugin and stylesheet variant definitions; the last definition of a name wins.
@@ -225,12 +225,12 @@ impl ContextDefinitions {
         match operation {
             RegistryOperation::UndefUtility(pattern) => {
                 let keep = |utility: &Arc<CustomUtility>| !matches_pattern(pattern, &utility.name);
-                self.builtin_utilities.retain(keep);
+                self.stillwind_utilities.retain(keep);
                 self.utilities.retain(keep);
             }
             RegistryOperation::UndefVariant(pattern) => {
                 let keep = |variant: &Arc<CustomVariant>| !matches_pattern(pattern, &variant.name);
-                self.builtin_variants.retain(keep);
+                self.stillwind_variants.retain(keep);
                 self.variants.retain(keep);
             }
             RegistryOperation::UndefArbitraryProperty(pattern) => {
@@ -245,14 +245,14 @@ impl ContextDefinitions {
                     accepted: true,
                 });
             }
-            RegistryOperation::BuiltinUtility(utility) => {
-                self.builtin_utilities.push(Arc::clone(utility));
+            RegistryOperation::StillwindUtility(utility) => {
+                self.stillwind_utilities.push(Arc::clone(utility));
             }
             RegistryOperation::Utility(utility) => {
                 self.utilities.push(Arc::clone(utility));
             }
-            RegistryOperation::BuiltinVariant(variant) => {
-                self.builtin_variants.push(Arc::clone(variant));
+            RegistryOperation::StillwindVariant(variant) => {
+                self.stillwind_variants.push(Arc::clone(variant));
             }
             RegistryOperation::Variant(variant) => {
                 self.variants.push(Arc::clone(variant));
@@ -319,12 +319,12 @@ impl RegistryStatements {
             }
         }
         positioned.extend(
-            parse_builtin_utility_definitions(css)
+            parse_stillwind_utility_definitions(css)
                 .into_iter()
                 .filter_map(|utility| {
                     Some((
-                        utility.builtin_order?,
-                        RegistryOperation::BuiltinUtility(Arc::new(utility)),
+                        utility.position?,
+                        RegistryOperation::StillwindUtility(Arc::new(utility)),
                     ))
                 }),
         );
@@ -335,12 +335,12 @@ impl RegistryStatements {
             },
         ));
         positioned.extend(
-            parse_builtin_variant_definitions(css)
+            parse_stillwind_variant_definitions(css)
                 .into_iter()
                 .filter_map(|variant| {
                     Some((
-                        variant.builtin_order?,
-                        RegistryOperation::BuiltinVariant(Arc::new(variant)),
+                        variant.position?,
+                        RegistryOperation::StillwindVariant(Arc::new(variant)),
                     ))
                 }),
         );
@@ -555,7 +555,7 @@ mod tests {
 
     fn utility_bodies(definitions: &ContextDefinitions) -> Vec<&str> {
         definitions
-            .builtin_utilities
+            .stillwind_utilities
             .iter()
             .chain(&definitions.utilities)
             .map(|utility| utility.body.as_str())

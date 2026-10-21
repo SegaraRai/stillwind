@@ -25,8 +25,9 @@ pub struct ThemeValueMismatch {
 /// Returns the mismatch when `value`, the authored value of the theme token `name`,
 /// matches no value type of the token's namespace.
 ///
-/// The selected built-ins of `theme` declare the value types of each namespace. A value
-/// of a shadow namespace may be a comma-separated list of shadows.
+/// The `@stillwind-theme-namespace` statements of `theme` declare the value types of
+/// each namespace. A value of a shadow namespace may be a comma-separated list of
+/// shadows.
 ///
 /// Returns `None` when `value` matches, and also when the check does not apply: `name`
 /// belongs to no namespace as [`crate::ThemeNamespaces::of_token`] describes, the
@@ -94,13 +95,13 @@ mod tests {
     use stillwind_test_support::BUILTIN_REGISTRY_CSS;
 
     use super::*;
-    use crate::BuiltinDefinitions;
+    use crate::StillwindDefinitions;
     use crate::test_support::parse_fixture_theme;
     use crate::theme::ThemeBuilder;
 
     fn theme() -> ThemeIndex {
         ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
+            registry: Arc::new(StillwindDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
             ..Default::default()
         }
         .finish()

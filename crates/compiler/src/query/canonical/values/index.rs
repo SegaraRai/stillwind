@@ -10,8 +10,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
-    ResolvedUtility, ThemeToken, ThemeTokenMode, UtilityResolutionError,
-    builtin_property_definitions, resolve_utility,
+    ResolvedUtility, ThemeToken, ThemeTokenMode, UtilityResolutionError, resolve_utility,
+    stillwind_property_definitions,
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
@@ -149,7 +149,7 @@ impl<'a> ValuePreparation<'a> {
         let registered: Vec<_> = authored
             .properties()
             .iter()
-            .chain(builtin_property_definitions(authored))
+            .chain(stillwind_property_definitions(authored))
             .map(|property| property.name.clone())
             .collect();
         let required_values: BTreeMap<_, _> = query
@@ -408,15 +408,15 @@ impl CssTemplate {
         }
     }
 
-    /// Checks the emitted structure after substituting the captured value.
-    /// Candidate spelling and source-use records remain specific to each resolution.
+    /// Checks the emitted structure after substituting the captured value. Candidate
+    /// spelling and source-use records remain specific to each resolution.
     fn matches(&self, actual: &ResolvedUtility, value: &str) -> bool {
         let ResolvedUtility {
             diagnostic_data: _,
             candidate: _,
             order,
             required_properties,
-            builtin_order,
+            position,
             declaration,
             selector,
             nested,
@@ -424,7 +424,7 @@ impl CssTemplate {
         } = actual;
         if order != &self.utility.order
             || required_properties != &self.utility.required_properties
-            || builtin_order != &self.utility.builtin_order
+            || position != &self.utility.position
             || declaration != &self.utility.declaration.replace_text(&self.variable, value)
         {
             return false;

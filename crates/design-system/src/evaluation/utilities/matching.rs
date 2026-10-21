@@ -1,11 +1,12 @@
 //! Candidate-to-branch matching and branch merging.
 //!
 //! As in Tailwind, every definition of a name contributes: a project `@utility` adds to
-//! a built-in of the same name instead of replacing it. The definitions are evaluated
-//! in Tailwind's registration order, built-ins first, then plugin registrations, then
-//! the stylesheet's `@utility` definitions, and each one that resolves is emitted in
-//! that order. Within one registry, every matching definition is a typed declaration
-//! branch, and a candidate selects the branches whose value domains accept it.
+//! a `@stillwind-utility` of the same name instead of replacing it. The definitions are
+//! evaluated in Tailwind's registration order, `@stillwind-utility` definitions first,
+//! then plugin registrations, then the stylesheet's `@utility` definitions, and each
+//! one that resolves is emitted in that order. Within one registry, every matching
+//! definition is a typed declaration branch, and a candidate selects the branches whose
+//! value domains accept it.
 //!
 //! Ordering is by branch specificity: an exact name outranks a wildcard, and a wildcard
 //! with typed arbitrary or theme domains outranks a generic one. When an exact
@@ -57,9 +58,9 @@ pub fn dynamic_named_spelling(
 /// Resolves a named candidate through the registry layers.
 ///
 /// Project CSS is consulted first; a successfully resolved project branch wins. If
-/// no project branch resolves, built-in definitions are tried. There is deliberately no
-/// property-prefix fallback: a definition that rejects the candidate's value type is a
-/// non-match, not an invitation to reinterpret the candidate.
+/// no project branch resolves, `@stillwind-utility` definitions are tried. There is
+/// deliberately no property-prefix fallback: a definition that rejects the candidate's
+/// value type is a non-match, not an invitation to reinterpret the candidate.
 ///
 /// An arbitrary value without a type hint that no definition accepts by grammar is
 /// emitted as written, as Tailwind emits it, and the resolution records it in
@@ -163,20 +164,21 @@ fn check_variable(
 /// Resolves a named candidate with every definition of its name and combines the ones
 /// that resolve, in Tailwind's registration order.
 ///
-/// The built-ins form one group of typed branches, the other definitions from `@plugin`
-/// statements form a second group, and the stylesheet's `@utility` definitions form a
-/// third, as [`resolve_css_utility_branches`] describes. The `(functional)`
-/// definitions of the complete candidate also stand for plugin registrations. They are
-/// evaluated after the built-ins and before the other plugin definitions. Tailwind
-/// registers every plugin before the stylesheet's `@utility` rules, regardless of where
-/// `@plugin` appears, and the later definition wins in the cascade.
+/// The `@stillwind-utility` definitions form one group of typed branches, the other
+/// definitions from `@plugin` statements form a second group, and the stylesheet's
+/// `@utility` definitions form a third, as [`resolve_css_utility_branches`] describes.
+/// The `(functional)` definitions of the complete candidate also stand for plugin
+/// registrations. They are evaluated after the `@stillwind-utility` definitions and
+/// before the other plugin definitions. Tailwind registers every plugin before the
+/// stylesheet's `@utility` rules, regardless of where `@plugin` appears, and the later
+/// definition wins in the cascade.
 ///
 /// A candidate is static when an exact definition in either registry has its complete
 /// name, including a leading `-` and the modifier, because Tailwind parses a candidate
 /// with a static utility only as that utility. Then only the exact definitions apply,
 /// and a name such as `@utility foo-1/2` consumes the modifier. Otherwise the candidate
 /// is functional, and an exact definition of the name without the modifier remains one
-/// branch of its registry: the built-ins define `bg-linear-to-r` exactly but accept
+/// branch of its registry: the package defines `bg-linear-to-r` exactly but accept
 /// `bg-linear-to-r/oklch` through `bg-linear-to-*`.
 ///
 /// A `(stop)` definition ends the evaluation and keeps what earlier definitions
@@ -274,7 +276,7 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
         *resolution = Some(next);
         return;
     };
-    base.builtin_order = base.builtin_order.max(next.builtin_order);
+    base.position = base.position.max(next.position);
     if base.tw_sort.is_none() {
         base.tw_sort = next.tw_sort;
     }
@@ -324,7 +326,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     let mut branches = Vec::new();
     let variable = unhinted_arbitrary_value(name).is_some_and(|value| value.contains("var("));
     // Registries list matching definitions newest first, so a project definition
-    // without a built-in position registers earlier the later it appears here.
+    // without a directive position registers earlier the later it appears here.
     for (index, utility) in utilities.enumerate() {
         if let Some(mut resolution) =
             resolve_css_utility_body(utility, name, modifier, theme, arbitrary_check)?
@@ -338,7 +340,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
                 utility.name == name,
                 utility_value_types(utility),
                 resolution,
-                utility.builtin_order.unwrap_or(usize::MAX - index),
+                utility.position.unwrap_or(usize::MAX - index),
             ));
         }
     }
@@ -544,9 +546,9 @@ fn declared_value_types(utility: &CustomUtility, theme: &ThemeIndex) -> Vec<Valu
 
 /// Returns the type hints of the value types that the definitions matching `lookup`
 /// accept in brackets, when there are at least two of them. Project definitions come
-/// first in authored order, followed by built-ins in registry order.
-/// The `[type]` hints anywhere in the definitions come first. A type declared for the
-/// theme namespace of a `--value(--namespace-*)` domain follows when no hinted
+/// first in authored order, followed by `@stillwind-utility` definitions in registry
+/// order. The `[type]` hints anywhere in the definitions come first. A type declared
+/// for the theme namespace of a `--value(--namespace-*)` domain follows when no hinted
 /// definition sets any property of its definition: the color namespace of `shadow-*`
 /// adds `color`, but the font-size namespace of `text-*` adds nothing beside
 /// `[length]`. An empty list means the utility accepts values of one type, so the
@@ -555,9 +557,9 @@ fn fallback_type_hints(lookup: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
     // Registries list matching definitions newest first.
     let mut definitions = theme.matching_utilities(lookup);
     definitions.reverse();
-    let mut builtins = theme.registry().matching_utilities(lookup);
-    builtins.sort_by_key(|definition| definition.builtin_order);
-    definitions.extend(builtins);
+    let mut stillwind = theme.registry().matching_utilities(lookup);
+    stillwind.sort_by_key(|definition| definition.position);
+    definitions.extend(stillwind);
     let mut hinted = Vec::new();
     let mut hinted_properties = HashSet::new();
     let mut namespaced = Vec::new();
@@ -779,7 +781,7 @@ mod tests {
         let exact = CustomUtility {
             name: "w-1".into(),
             body: "width:--value([length]);x:--value([length]);".into(),
-            builtin_order: None,
+            position: None,
             tw_sort: None,
             role: UtilityRole::default(),
             plugin: false,

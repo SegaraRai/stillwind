@@ -353,7 +353,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         family: Family::Stillwind,
         positions: Positions::INTRINSIC_VARIANT,
         syntax: "@stillwind-intrinsic name;",
-        description: "Selects a compiler intrinsic within a built-in definition.",
+        description: "Selects a compiler intrinsic within a @stillwind-variant definition.",
     },
 ];
 

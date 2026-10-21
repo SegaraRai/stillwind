@@ -156,7 +156,7 @@ fn preserves_authored_property_rules_over_compiler_defaults() {
 }
 
 #[test]
-fn filters_and_rewrites_builtin_properties_for_generated_utility_css() {
+fn filters_and_rewrites_stillwind_properties_for_generated_utility_css() {
     let theme = css_source(FileId(2), "@theme {}").unwrap();
     let options = CompilerOptions {
         tailwind_prefix: "--internal-".to_lean_str(),
@@ -209,7 +209,7 @@ fn makes_margin_utility_order_independent() {
 }
 
 #[test]
-fn orders_whole_builtin_utilities_instead_of_individual_properties() {
+fn orders_whole_stillwind_utilities_instead_of_individual_properties() {
     let source = SourceFile::new(
         FileId(1),
         None,

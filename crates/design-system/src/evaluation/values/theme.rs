@@ -327,7 +327,7 @@ mod tests {
 
     use super::*;
     use crate::theme::ThemeBuilder;
-    use crate::{BuiltinDefinitions, parse_theme};
+    use crate::{StillwindDefinitions, parse_theme};
 
     #[test]
     fn scales_use_inline_values_and_track_fixed_key_dependencies() {
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn arbitrary_values_and_variables_must_match_namespace_types() {
         let configured = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
+            registry: Arc::new(StillwindDefinitions::from_css(BUILTIN_REGISTRY_CSS)),
             ..Default::default()
         }
         .finish();

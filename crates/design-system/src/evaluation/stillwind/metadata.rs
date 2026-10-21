@@ -1,4 +1,4 @@
-//! Flat views over the selected built-in definitions.
+//! Flat views over the selected Stillwind definitions.
 //!
 //! Accessors borrow the immutable owner's authored collections. Property emission and
 //! completion use them without copying definitions or rebuilding candidate lookup.
@@ -15,7 +15,7 @@ use stillwind_css::CustomPropertyDefinition;
 use crate::{MarkerClasses, ThemeIndex};
 
 /// Every `@stillwind-property` definition selected by the theme, in authored order.
-pub fn builtin_property_definitions(
+pub fn stillwind_property_definitions(
     theme: &ThemeIndex,
 ) -> &[std::sync::Arc<CustomPropertyDefinition>] {
     theme.registry().properties()
@@ -27,7 +27,7 @@ pub fn builtin_property_definitions(
 /// Completion uses these to offer token names without hard-coding which utility family
 /// owns which namespace. A definition whose body does not name a `--value(--token-*)`
 /// domain contributes nothing.
-pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(LeanStr, LeanStr)> {
+pub fn stillwind_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(LeanStr, LeanStr)> {
     let mut entries = Vec::new();
     for utility in theme.registry().utilities() {
         let Some(prefix) = utility.name.strip_suffix('*') else {
@@ -44,23 +44,23 @@ pub fn builtin_utility_token_prefixes(theme: &ThemeIndex) -> Vec<(LeanStr, LeanS
     entries
 }
 
-/// Marker classes declared or selected by the selected built-ins.
-pub(in crate::evaluation) fn builtin_markers(theme: &ThemeIndex) -> &MarkerClasses {
+/// Marker classes declared or selected by the Stillwind definitions.
+pub(in crate::evaluation) fn stillwind_markers(theme: &ThemeIndex) -> &MarkerClasses {
     theme.registry().markers()
 }
 
-/// Declaration-format metadata declared by the selected built-ins.
-pub fn builtin_declaration_formats(theme: &ThemeIndex) -> &BTreeMap<LeanStr, LeanStr> {
+/// Declaration-format metadata declared by `@stillwind-format`.
+pub fn stillwind_declaration_formats(theme: &ThemeIndex) -> &BTreeMap<LeanStr, LeanStr> {
     theme.registry().declaration_formats()
 }
 
-/// Token-pruning rules declared by the selected built-ins.
-pub fn builtin_omit_token_prefixes(theme: &ThemeIndex) -> &[(LeanStr, LeanStr)] {
+/// Token-pruning rules declared by `@stillwind-omit-token-prefix`.
+pub fn stillwind_omit_token_prefixes(theme: &ThemeIndex) -> &[(LeanStr, LeanStr)] {
     theme.registry().omit_token_prefixes()
 }
 
 /// The authored theme-namespace order used when serializing the theme layer.
-pub fn builtin_theme_order(theme: &ThemeIndex) -> &[LeanStr] {
+pub fn stillwind_theme_order(theme: &ThemeIndex) -> &[LeanStr] {
     theme.registry().theme_order()
 }
 
@@ -70,8 +70,8 @@ pub(in crate::evaluation) const COMPAT_COLOR_MODERN_SPACE: &str = "oklab";
 /// Capability query that decides whether the modern color branch is usable.
 pub(in crate::evaluation) const COMPAT_COLOR_SUPPORT: &str = "color:color-mix(in lab, red, red)";
 
-/// Relationship patterns declared by the selected built-ins.
-pub(in crate::evaluation) fn builtin_relationship_patterns(
+/// Relationship patterns declared by `@stillwind-relationship`.
+pub(in crate::evaluation) fn stillwind_relationship_patterns(
     theme: &ThemeIndex,
 ) -> &BTreeSet<LeanStr> {
     theme.registry().relationships()

@@ -1,6 +1,6 @@
-//! The complete built-in definition set parsed from one CSS buffer.
+//! The Stillwind definitions parsed from one CSS buffer.
 //!
-//! A snapshot keeps the selected built-ins as one immutable value so callers never
+//! A snapshot keeps the Stillwind definitions as one immutable value so callers never
 //! consult a process-global registry: two snapshots built from different CSS stay
 //! independent, and no load can leak definitions into another.
 
@@ -14,8 +14,8 @@ use stillwind_css::{CustomPropertyDefinition, parse_property_definitions};
 use super::contexts::{RegistryContext, RegistryStatements, mask_registry_blocks};
 use super::utility_lookup::UtilityLookup;
 use crate::{
-    BuiltinArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
-    parse_builtin_arbitrary_property_order, parse_declaration_formats, parse_omit_token_prefixes,
+    ArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
+    parse_arbitrary_property_order, parse_declaration_formats, parse_omit_token_prefixes,
     parse_relationship_patterns, parse_theme_order,
 };
 
@@ -24,13 +24,13 @@ use crate::{
 /// Utility, variant, and property definitions retain authored order and repeated names.
 /// Candidate matching preserves each layer's precedence.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct BuiltinDefinitions {
+pub struct StillwindDefinitions {
     source: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
     variants: Vec<Arc<CustomVariant>>,
     properties: Vec<Arc<CustomPropertyDefinition>>,
     utility_lookup: UtilityLookup,
-    arbitrary_property_order: Vec<BuiltinArbitraryPropertyOrder>,
+    arbitrary_property_order: Vec<ArbitraryPropertyOrder>,
     declaration_formats: BTreeMap<LeanStr, LeanStr>,
     relationships: BTreeSet<LeanStr>,
     markers: MarkerClasses,
@@ -39,7 +39,7 @@ pub struct BuiltinDefinitions {
     theme_namespaces: ThemeNamespaces,
 }
 
-impl BuiltinDefinitions {
+impl StillwindDefinitions {
     /// The exact CSS this value was parsed from. It participates in snapshot
     /// fingerprints, so an upstream definition change invalidates artifacts even when
     /// the parsed structures happen to compare equal.
@@ -64,7 +64,7 @@ impl BuiltinDefinitions {
 
     /// Source order for arbitrary properties, used when a utility body sets several of
     /// them and declaration order is observable.
-    pub fn arbitrary_property_order(&self) -> &[BuiltinArbitraryPropertyOrder] {
+    pub fn arbitrary_property_order(&self) -> &[ArbitraryPropertyOrder] {
         &self.arbitrary_property_order
     }
 
@@ -79,7 +79,7 @@ impl BuiltinDefinitions {
     }
 
     /// Marker classes that the CSS declares, including `@stillwind-marker-source`
-    /// statements, and that built-in definitions select.
+    /// statements, and that the Stillwind definitions select.
     pub fn markers(&self) -> &MarkerClasses {
         &self.markers
     }
@@ -99,21 +99,21 @@ impl BuiltinDefinitions {
         &self.theme_namespaces
     }
 
-    /// Returns the built-in definitions whose names match the utility name `name`: the
-    /// wildcard definitions whose prefix `name` starts with, newest first, followed by
-    /// the exact definitions of `name`, newest first.
+    /// Returns the `@stillwind-utility` definitions whose names match the utility name
+    /// `name`: the wildcard definitions whose prefix `name` starts with, newest first,
+    /// followed by the exact definitions of `name`, newest first.
     pub(crate) fn matching_utilities(&self, name: &str) -> Vec<&CustomUtility> {
         self.utility_lookup.matching(name, &self.utilities, true)
     }
 
-    /// Whether a built-in definition has exactly this name.
+    /// Whether a `@stillwind-utility` definition has exactly this name.
     pub(crate) fn has_exact_utility(&self, name: &str) -> bool {
         self.utility_lookup.has_exact(name)
     }
 
-    /// Returns a copy that uses `utilities` and `variants` in place of the built-in
-    /// utility and variant definitions and keeps the other registries, including the
-    /// marker classes.
+    /// Returns a copy that uses `utilities` and `variants` in place of the
+    /// `@stillwind-utility` and `@stillwind-variant` definitions and keeps the other
+    /// registries, including the marker classes.
     pub(crate) fn with_definitions(
         &self,
         utilities: Vec<Arc<CustomUtility>>,
@@ -134,7 +134,7 @@ impl BuiltinDefinitions {
     /// The utility and variant registries hold the definitions of the `default`
     /// registry context, after its undefinitions apply. Statements that only other
     /// contexts read are not part of them, and a malformed `@stillwind-registry` block
-    /// leaves out every built-in utility and variant.
+    /// leaves out every `@stillwind-utility` and `@stillwind-variant` definition.
     pub fn from_css(css: &str) -> Self {
         let masked = mask_registry_blocks(css);
         let definitions = RegistryStatements::parse(css, |_| false)
@@ -143,12 +143,12 @@ impl BuiltinDefinitions {
         Self::from_parts(
             css,
             masked.as_deref().unwrap_or(css),
-            definitions.builtin_utilities,
-            definitions.builtin_variants,
+            definitions.stillwind_utilities,
+            definitions.stillwind_variants,
         )
     }
 
-    /// Builds the registries with the built-in definitions `utilities` and `variants`.
+    /// Builds the registries with the Stillwind definitions `utilities` and `variants`.
     /// The other registries are parsed from `css`, a copy of `source` in which every
     /// `@stillwind-registry` block is blank, and `source` is retained as the
     /// fingerprint text.
@@ -173,7 +173,7 @@ impl BuiltinDefinitions {
                 .into_iter()
                 .map(Arc::new)
                 .collect(),
-            arbitrary_property_order: parse_builtin_arbitrary_property_order(css),
+            arbitrary_property_order: parse_arbitrary_property_order(css),
             declaration_formats: parse_declaration_formats(css),
             relationships: parse_relationship_patterns(css),
             markers,

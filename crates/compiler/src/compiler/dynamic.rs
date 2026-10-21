@@ -24,8 +24,8 @@ use stillwind_syntax::{Utility, parse_candidate, parse_variant_prefix, utility_r
 /// Utility names that a `@stillwind-undef-utility` statement of the `default` registry
 /// context matches are not requested. Native families report unresolved utility names
 /// without modifiers. Tailwind utility families retain negative signs and modifiers
-/// even when a built-in already resolves. Variant requests have an `@variant ` prefix
-/// followed by the complete variant name.
+/// even when a `@stillwind-utility` definition already resolves. Variant requests have
+/// an `@variant ` prefix followed by the complete variant name.
 ///
 /// A bracket candidate such as `icon-[mdi--close]` is reported by its named spelling,
 /// `icon-mdi--close`, when its family accepts both forms, and as written otherwise. A

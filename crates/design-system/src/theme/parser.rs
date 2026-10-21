@@ -33,15 +33,15 @@ use crate::registry::{
     RegistryContext, RegistryStatements, mask_registry_blocks, parse_declaration_formats,
     parse_relationship_patterns, parse_utility_definitions, registration_positions,
 };
-use crate::{BrowserTargets, BuiltinDefinitions, MarkerClasses, UtilityOrderMode};
+use crate::{BrowserTargets, MarkerClasses, StillwindDefinitions, UtilityOrderMode};
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
 ///
 /// Directive text inside comments and strings is not a definition, and spans in the
-/// returned template and tokens refer to `source`. The selected built-ins are taken
-/// from the same buffer, so a caller that supplies no registry CSS receives an empty
-/// registry.
+/// returned template and tokens refer to `source`. The Stillwind definitions are taken
+/// from the same buffer, so a caller that supplies no Stillwind definitions receives an
+/// empty registry.
 ///
 /// # Errors
 ///
@@ -120,11 +120,11 @@ fn parse_theme_contents(
     let definitions = masked.as_deref().unwrap_or(source.text());
     let statements = RegistryStatements::parse(source.text(), in_plugin)?;
     let defaults = statements.definitions(RegistryContext::Default);
-    theme.registry = Arc::new(BuiltinDefinitions::from_parts(
+    theme.registry = Arc::new(StillwindDefinitions::from_parts(
         source.text(),
         definitions,
-        defaults.builtin_utilities,
-        defaults.builtin_variants,
+        defaults.stillwind_utilities,
+        defaults.stillwind_variants,
     ));
     theme.registry_statements = statements;
     let mut plugin_positions = BTreeMap::<LeanStr, usize>::new();
@@ -159,9 +159,9 @@ fn parse_theme_contents(
     );
     theme.utility_positions =
         registration_positions(source.text(), &["@stillwind-utility", "@utility"]);
-    // A plugin supplies defaults that built-ins and the stylesheet can override, so its
-    // utilities take positions before every other utility. Offsets stay below the
-    // length of the text, which therefore separates the two groups.
+    // A plugin supplies defaults that Stillwind definitions and the stylesheet can
+    // override, so its utilities take positions before every other utility. Offsets
+    // stay below the length of the text, which therefore separates the two groups.
     if !plugin_positions.is_empty() {
         theme.utility_position_base = source.text().len();
         for (name, position) in &mut theme.utility_positions {
@@ -203,7 +203,7 @@ pub struct DynamicFamily {
 /// The `important` setting of a Tailwind plugin configuration, declared by
 /// `@stillwind-plugin-important;` for `true` and by `@stillwind-plugin-important
 /// <selector>;` for a selector. It applies to the class utilities that the compiler
-/// generates, including built-ins, and not to `@apply`.
+/// generates, including Stillwind definitions, and not to `@apply`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum UtilityImportance {
     /// Every declaration of a class utility is `!important`.

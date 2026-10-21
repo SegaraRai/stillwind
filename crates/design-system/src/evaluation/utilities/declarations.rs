@@ -59,7 +59,7 @@ pub(in crate::evaluation) struct PreparedDeclarations {
 impl PreparedDeclarations {
     /// Splits a declaration group into declarations and records which placeholder
     /// families they use. A declaration without placeholders also gets its value
-    /// resolved for built-in and for project definitions.
+    /// resolved for Stillwind and for Tailwind-style definitions.
     pub(in crate::evaluation) fn parse(body: &str, theme: &ThemeIndex) -> Self {
         let declarations: Vec<_> = split_css_declarations(body)
             .into_iter()
@@ -105,9 +105,10 @@ struct PreparedDeclaration {
     text: LeanStr,
     /// Placeholders of the value, or `None` when they cannot be prepared.
     values: Option<PreparedValues>,
-    /// Resolved text of a declaration without placeholders, for a built-in definition.
-    static_builtin: Option<LeanStr>,
-    /// Resolved text of a declaration without placeholders, for a project definition.
+    /// Resolved text of a declaration without placeholders, for a Stillwind definition.
+    static_stillwind: Option<LeanStr>,
+    /// Resolved text of a declaration without placeholders, for a Tailwind-style
+    /// definition.
     static_project: Option<LeanStr>,
 }
 
@@ -117,7 +118,7 @@ impl PreparedDeclaration {
         let values = PreparedValues::parse(&text);
         let is_static = values.as_ref().is_some_and(PreparedValues::is_static);
         Self {
-            static_builtin: (is_static.then(|| resolve_declaration_value(&text, theme, true)))
+            static_stillwind: (is_static.then(|| resolve_declaration_value(&text, theme, true)))
                 .map(Into::into),
             static_project: (is_static.then(|| resolve_declaration_value(&text, theme, false)))
                 .map(Into::into),
@@ -126,11 +127,11 @@ impl PreparedDeclaration {
         }
     }
 
-    /// Returns the declaration resolved in advance for a built-in or a project
+    /// Returns the declaration resolved in advance for a Stillwind or a Tailwind-style
     /// definition, or `None` when it has placeholders.
-    fn static_value(&self, builtin: bool) -> Option<&LeanStr> {
-        if builtin {
-            self.static_builtin.as_ref()
+    fn static_value(&self, stillwind: bool) -> Option<&LeanStr> {
+        if stillwind {
+            self.static_stillwind.as_ref()
         } else {
             self.static_project.as_ref()
         }
@@ -153,7 +154,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     name: &str,
     modifier: Option<&Value>,
     theme: &ThemeIndex,
-    builtin: bool,
+    stillwind: bool,
     color_compatibility: bool,
     arbitrary_check: ArbitraryValueCheck,
 ) -> Option<ResolvedCssDeclarations> {
@@ -204,7 +205,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
         let contains_modifier = authored_declaration.contains("--modifier(");
         let contains_required = authored_declaration.contains("--stillwind-builtin-shadow-color(");
         let contains_value = authored_declaration.contains("--value(");
-        let static_value = authored.static_value(builtin);
+        let static_value = authored.static_value(stillwind);
         let resolved = if let Some(value) = static_value {
             Some(value.clone())
         } else if let Some(values) = &authored.values {
@@ -221,7 +222,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
             let declaration = if static_value.is_some() {
                 declaration
             } else {
-                (resolve_declaration_value(&declaration, theme, builtin)).into()
+                (resolve_declaration_value(&declaration, theme, stillwind)).into()
             };
             resolved_placeholder |= contains_placeholder;
             record_tokens(

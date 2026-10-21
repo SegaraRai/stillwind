@@ -192,16 +192,17 @@ utility are emitted once.
 ## Utility definitions with the same name
 
 As in Tailwind, every definition of a utility name contributes: a project `@utility`
-adds to a built-in utility of the same name instead of replacing it. `@utility
-container { padding-inline: 1rem; }` keeps the built-in `width` and `max-width`
+adds to the package's utility of the same name instead of replacing it. `@utility
+container { padding-inline: 1rem; }` keeps the package's `width` and `max-width`
 declarations and adds `padding-inline`. The definitions are evaluated in Tailwind's
-registration order, built-ins first, then plugin registrations, then the stylesheet's
-`@utility` definitions, and each one that resolves is emitted in that order, so a later
-definition wins in the cascade. As in Tailwind, the definitions that `@plugin` statements
-generate are plugin registrations wherever the statements appear, so
-`@utility probe { color: blue; }` overrides a plugin's `probe` before or after its
-`@plugin` statement.
-Within the built-ins, and within the stylesheet's definitions, matching definitions are
+registration order, `@stillwind-utility` definitions first, then plugin registrations,
+then the stylesheet's `@utility` definitions, and each one that resolves is emitted in
+that order, so a later definition wins in the cascade. As in Tailwind, the definitions
+that `@plugin` statements generate are plugin registrations wherever the statements
+appear, so `@utility probe { color: blue; }` overrides a plugin's `probe` before or
+after its `@plugin` statement.
+Within the `@stillwind-utility` definitions, and within the stylesheet's `@utility`
+definitions, matching definitions are
 typed branches of one utility, and a candidate selects the branches that accept its
 value. When selected branches write declarations for the same selector, the later
 definition wins. Rules with different selectors are emitted in registration order, so
@@ -211,7 +212,7 @@ emits the `:first-child` rule last, and it wins for a first paragraph.
 A candidate is static when a definition without `*` has its complete name, including a
 leading `-` and the modifier. Then only such definitions apply, as Tailwind parses a
 candidate with a static utility only as that utility: `@utility shadow-lg { ... }`
-replaces the built-in `shadow-*` for `shadow-lg`. CSS escapes in a definition name are
+replaces the package's `shadow-*` for `shadow-lg`. CSS escapes in a definition name are
 decoded, so `@utility tab-1\/2` defines the static utility `tab-1/2`.
 
 A definition only adds to a utility. `@stillwind-undef-utility` removes definitions, as
@@ -264,9 +265,9 @@ A block contains only these statements, and any other statement is an error:
 
 Statements register in this order: statements in `@plugin` answers first, then the
 other statements, each group in source order. An undefinition therefore removes plugin
-definitions wherever the `@plugin` statement stands. A plugin cannot remove built-in
-definitions, because its statements register before them. The definitions that remain
-resolve in the layer order that
+definitions wherever the `@plugin` statement stands. A plugin cannot remove
+`@stillwind-*` definitions of the package, because its statements register before them.
+The definitions that remain resolve in the layer order that
 [Utility definitions with the same name](#utility-definitions-with-the-same-name)
 describes.
 
@@ -278,7 +279,7 @@ because a pattern for negative names starts with `-`.
 Compilation does not request a candidate of a dynamic family from the host when a
 `default` undefinition matches its name.
 
-The built-in blocks make these changes:
+The package's blocks make these changes:
 
 - `keyframe` writes the transform, filter, and backdrop-filter families through typed
   `--sw-motion-*` registrations, such as `--sw-motion-translate-y` with
@@ -297,7 +298,7 @@ The built-in blocks make these changes:
   `animation-*` definitions of `animation` and adds the words. These set the animations
   of the pseudo-elements, and the other utilities style the pseudo-elements.
 
-These blocks precede the stylesheet, so they change only built-in and plugin
+These blocks precede the stylesheet, so they change only the package's and plugin
 definitions. A stylesheet `@utility` with a name that a block replaces also reaches
 `keyframe` and `view-transition`. For example, `@utility duration-slow` sets
 `transition-duration` in a view transition. The `bypassed-undefinition` lint reports
@@ -445,7 +446,7 @@ one that a `matchUtilities` callback returns, follows [Utility bodies](#utility-
 becomes the statement `@apply p-4;`. The CSS that a `matchUtilities`
 callback returns for one candidate becomes `@utility <candidate> (functional) { ... }`,
 which belongs to the functional utility of its root, so `duration-300` from
-`tailwindcss-animate` adds `animation-duration` to the built-in `transition-duration`.
+`tailwindcss-animate` adds `animation-duration` to the package's `transition-duration`.
 When the plugin registers a `matchUtilities` or `matchVariant` callback, the host runs it
 for each value in `values`, except keys that start with `__`, and passes the selectors of
 the generated CSS in `@stillwind-marker-source` as empty rules. The classes that its selectors name are therefore markers
@@ -497,12 +498,12 @@ Tailwind's key syntax, so `config("theme[colors][brand]")` and
 `config("theme.colors.brand")` read the same value.
 
 `important: true` makes every declaration of a class utility `!important`, including
-built-ins. A selector string, such as `important: "#app"`, nests every class utility
-rule in a rule with that selector, so `p-4` matches only inside `#app`. Neither form
-changes `@apply`, and keyframes stay at the stylesheet root. `theme.container` adds a
-`container` definition after the built-in one, as Tailwind does: `center` adds
-`margin-inline: auto`, `padding` adds `padding-inline` for the default and for each
-breakpoint, and `screens` replaces the maximum widths.
+the package's utilities. A selector string, such as `important: "#app"`, nests every
+class utility rule in a rule with that selector, so `p-4` matches only inside `#app`.
+Neither form changes `@apply`, and keyframes stay at the stylesheet root.
+`theme.container` adds a `container` definition after the package's one, as Tailwind
+does: `center` adds `margin-inline: auto`, `padding` adds `padding-inline` for the
+default and for each breakpoint, and `screens` replaces the maximum widths.
 
 `darkMode` redefines the `dark` variant with Tailwind's mapping. `"selector"` becomes
 `&:where(.dark, .dark *)`, `"class"` becomes `&:is(.dark *)`, and a `[mode, selector]`
@@ -546,7 +547,7 @@ Tailwind and with Stillwind and compare the computed styles in Chrome. Run them 
 `tailwind-plugins` in the E2E matrix.
 
 The projects in [`e2e/plugins/iconify`](../e2e/plugins/iconify/stillwind.config.ts) check
-that built-in sizes override icon sizes in development and production. Run them with
+that the package's sizes override icon sizes in development and production. Run them with
 `vp run --filter @stillwind-internal/e2e-iconify-plugin test:e2e`, or select `iconify-plugin`
 in the E2E matrix.
 

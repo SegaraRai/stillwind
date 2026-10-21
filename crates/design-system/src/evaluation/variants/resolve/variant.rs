@@ -7,7 +7,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_syntax::{Variant, VariantKind};
 
-use super::super::super::builtins::builtin_variants;
+use super::super::super::stillwind::stillwind_variants;
 use super::super::super::suggestions::closest_spelling;
 use super::super::super::values::named_domain_values;
 use super::super::application::{VariantApplication, VariantObstacle};
@@ -178,7 +178,7 @@ impl VariantFailureReason {
                 let names = theme
                     .variants()
                     .iter()
-                    .chain(builtin_variants(theme))
+                    .chain(stillwind_variants(theme))
                     .filter(|custom| custom.capture(&written) == Some(value.as_str()))
                     .flat_map(|custom| named_domain_values(&custom.body, theme))
                     .collect::<Vec<_>>();
@@ -282,8 +282,8 @@ impl fmt::Display for NestingMessage<'_> {
 /// at-rules use the same structural body resolver as named definitions. A relative
 /// selector such as `[>img]` fails, because only a `:has()` slot gives it an anchor
 /// element. A named variant is matched against
-/// project definitions first and built-ins second, and the first definition that
-/// resolves it is used. A CSS definition with `[if-condition]` and the
+/// project definitions first and `@stillwind-variant` definitions second, and the first
+/// definition that resolves it is used. A CSS definition with `[if-condition]` and the
 /// `builtin-if-variant` intrinsic produces a `Conditional` application; its public
 /// spelling comes only from the registered pattern. A `[variant]` definition with the
 /// `builtin-not-variant` intrinsic produces the negation of its inner variant.
@@ -319,8 +319,9 @@ pub fn resolve_variant(
     }
 }
 
-/// Resolves a named variant through project definitions, built-ins, and the registry's
-/// bare token form, and explains a failure as [`resolve_variant`] describes.
+/// Resolves a named variant through project definitions, `@stillwind-variant`
+/// definitions, and the registry's bare token form, and explains a failure as
+/// [`resolve_variant`] describes.
 fn resolve_named_variant(
     value: &str,
     theme: &ThemeIndex,
@@ -334,7 +335,7 @@ fn resolve_named_variant(
             failure = Some(candidate);
         }
     };
-    for definitions in [theme.variants(), builtin_variants(theme)] {
+    for definitions in [theme.variants(), stillwind_variants(theme)] {
         for (custom, capture) in registered_variant_candidates(definitions, value) {
             let offset = custom
                 .wildcard_parts()
@@ -345,7 +346,7 @@ fn resolve_named_variant(
             }
         }
     }
-    for custom in builtin_variants(theme) {
+    for custom in stillwind_variants(theme) {
         let Some(namespace) = custom
             .sort
             .as_ref()
@@ -392,7 +393,7 @@ fn resolve_named_variant(
 /// spelling suggestions for an unknown variant.
 fn variant_names(theme: &ThemeIndex) -> Vec<LeanString> {
     let mut names = Vec::new();
-    for custom in theme.variants().iter().chain(builtin_variants(theme)) {
+    for custom in theme.variants().iter().chain(stillwind_variants(theme)) {
         if custom.wildcard.is_none() {
             names.push(custom.name.to_lean_string());
         }

@@ -9,10 +9,10 @@
 //! definitions set every property that it declares.
 //!
 //! Definitions with a capture, such as `tab-*`, are overloads that resolution falls
-//! back to, and they are not reported. Built-in definitions are not compared, so
-//! redefining a built-in name such as `dark` is not reported. Definitions are ordered
-//! by their position in the stylesheet after import expansion, so a definition in an
-//! imported file can hide one in the importing file.
+//! back to, and they are not reported. `@stillwind-variant` definitions are not
+//! compared, so redefining a name that one defines, such as `dark`, is not reported.
+//! Definitions are ordered by their position in the stylesheet after import expansion,
+//! so a definition in an imported file can hide one in the importing file.
 
 use std::collections::BTreeSet;
 use std::ops::Range;
@@ -115,7 +115,7 @@ fn entries(snapshot: &DesignSystemSnapshot) -> Vec<Entry<'_>> {
         }
         let nodes = parse_structure(text);
         for definition in definitions(&nodes, text) {
-            if definition.kind == DefinitionKind::BuiltinVariant || definition.has_capture(text) {
+            if definition.kind == DefinitionKind::StillwindVariant || definition.has_capture(text) {
                 continue;
             }
             let positions = graph
@@ -206,7 +206,7 @@ fn hiding_definition<'e, 'a>(
                 .filter(|properties| properties.iter().all(|name| covered.contains(name)))
                 .and_then(|_| later.into_iter().max_by_key(|entry| entry.first))
         }
-        DefinitionKind::BuiltinVariant => None,
+        DefinitionKind::StillwindVariant => None,
     }
 }
 

@@ -1,10 +1,10 @@
 //! Variant ordering, as declared by the registry rather than by markup.
 //!
-//! Each built-in variant carries an authored position, and variants sharing a sort
-//! group are ordered by the group's first position so that related variants (for
-//! example a set of breakpoints) sort as one unit. A variant that no definition matches
-//! sorts last, which keeps an unknown spelling from silently acquiring the position of
-//! something it resembles.
+//! Each `@stillwind-variant` definition carries an authored position, and variants
+//! sharing a sort group are ordered by the group's first position so that related
+//! variants (for example a set of breakpoints) sort as one unit. A variant that no
+//! definition matches sorts last, which keeps an unknown spelling from silently
+//! acquiring the position of something it resembles.
 //!
 //! Within a group, a variant's sort key is the value of a theme token; numeric values
 //! compare by unit and then magnitude, with direction applied to magnitude. Anything

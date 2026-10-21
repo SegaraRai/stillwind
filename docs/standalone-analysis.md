@@ -301,17 +301,18 @@ Other rules check only stylesheets. They check definitions and theme references:
   never used. A later variant definition hides an earlier one when it resolves.
   Later `@utility` definitions hide an earlier one when they set every property of
   its declarations, because exact utility definitions merge. Definitions with a
-  capture, such as `tab-*`, are overloads, and redefinitions of built-in names such as
-  `dark` are customizations; neither is reported. The finding covers the name of the
-  hidden definition, and a related location covers the later definition. Definitions
-  are ordered after import expansion, so the later definition can be in another file.
+  capture, such as `tab-*`, are overloads, and redefinitions of the package's names
+  such as `dark` are customizations; neither is reported. The finding covers the name
+  of the hidden definition, and a related location covers the later definition.
+  Definitions are ordered after import expansion, so the later definition can be in
+  another file.
 - `invalid-theme-value` (hazard, default `deny`) reports a `@theme` token value that
   matches no value type of its namespace, such as `--color-brand: 12px` or
-  `--breakpoint-tab: blue`. The value types come from the built-in registry: `<color>`
-  for `--color-*`, `<length>` for `--spacing`, `--breakpoint-*`, and `--container-*`, a
-  font size for `--text-*`, and so on. A shadow namespace accepts a comma-separated list
-  of shadows. Values that contain `var()`, `theme()`, or `--theme()` are not checked.
-  The output does not change.
+  `--breakpoint-tab: blue`. The value types come from `@stillwind-theme-namespace`:
+  `<color>` for `--color-*`, `<length>` for `--spacing`, `--breakpoint-*`, and
+  `--container-*`, a font size for `--text-*`, and so on. A shadow namespace accepts a
+  comma-separated list of shadows. Values that contain `var()`, `theme()`, or
+  `--theme()` are not checked. The output does not change.
 - `ignored-tailwind-feature` (hazard, default `warn`) reports Tailwind features that
   loading ignores. The loader removes a top-level `@config` statement, whose
   replacement is the project's `tailwind` field. It loads an import without the
@@ -350,12 +351,12 @@ do not change.
 
 The comparison ignores whitespace and comments, ASCII case in `@media` conditions and
 pseudo-class names, and spacing in `@supports` conditions. It reads `(min-width: 40rem)`
-as `(width >= 40rem)` and `(max-width: 40rem)` as `(width <= 40rem)`. The built-in
+as `(width >= 40rem)` and `(max-width: 40rem)` as `(width <= 40rem)`. The package's
 `max-*` variants use `width <`, so `max-width` never matches them.
 
 The rule does not report these headers:
 
-- `&:hover` alone, because the built-in `hover` also applies `@media (hover: hover)`.
+- `&:hover` alone, because the package's `hover` also applies `@media (hover: hover)`.
 - Selector lists such as `&:hover, &:focus`, and variants such as `not-hover` that
   emit several rules or add declarations.
 - At-rules outside style rules, because `@variant` there defines a variant.

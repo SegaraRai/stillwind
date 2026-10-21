@@ -9,7 +9,7 @@ use lean_string::{LeanString, ToLeanString};
 use stillwind_diagnostics::MarkerUseErrorKind;
 use stillwind_syntax::{Utility, Value, VariantKind, parse_candidate};
 
-use super::super::builtins::{builtin_markers, builtin_relationship_patterns};
+use super::super::stillwind::{stillwind_markers, stillwind_relationship_patterns};
 use crate::{MarkerForm, ThemeIndex};
 
 /// Whether a Tailwind candidate uses a relationship primitive for which projects may
@@ -29,7 +29,7 @@ pub fn is_tailwind_relationship_candidate(raw: &str, theme: &ThemeIndex) -> bool
         theme
             .relationship_patterns()
             .iter()
-            .chain(builtin_relationship_patterns(theme).iter())
+            .chain(stillwind_relationship_patterns(theme).iter())
             .any(|pattern| {
                 pattern
                     .strip_suffix('*')
@@ -62,7 +62,8 @@ pub enum MarkerUse {
     },
 }
 
-/// Classifies a candidate that names a marker class of `theme` or of its built-ins.
+/// Classifies a candidate that names a marker class of `theme` or of its Stillwind
+/// definitions.
 ///
 /// A marker class is added unconditionally, so a candidate adds one only without
 /// variants, `!`, and a leading `-`. A named modifier is part of the class when the
@@ -84,7 +85,7 @@ pub fn marker_use(raw: &str, theme: &ThemeIndex) -> Option<MarkerUse> {
             .markers()
             .get(name)
             .into_iter()
-            .chain(builtin_markers(theme).get(name))
+            .chain(stillwind_markers(theme).get(name))
             .max()
     };
     let (class, accepted) = match modifier {

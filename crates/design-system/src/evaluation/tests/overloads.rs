@@ -1,9 +1,10 @@
 //! Overloaded CSS definitions and compatibility output.
 //!
-//! Pins that user utilities use the same value domains as built-ins, that overloads are
-//! tried in reverse source order, that CSS fallbacks and extra selector targets survive
-//! merging in registration order, that definitions of one name add to each other as in
-//! Tailwind, and that color alpha emits both the sRGB fallback and the oklab upgrade.
+//! Pins that `@utility` definitions use the same value domains as `@stillwind-utility`,
+//! that overloads are tried in reverse source order, that CSS fallbacks and extra
+//! selector targets survive merging in registration order, that definitions of one name
+//! add to each other as in Tailwind, and that color alpha emits both the sRGB fallback
+//! and the oklab upgrade.
 
 use stillwind_test_support::{CssAssertions as _, assert_css_eq};
 
@@ -35,7 +36,7 @@ fn definitions_of_one_name_add_to_each_other_in_registration_order() {
 #[test]
 fn an_exact_definition_makes_its_complete_candidate_static() {
     // As in Tailwind, a static utility hides the functional ones of its root, so the
-    // built-in `shadow-*` does not apply to `shadow-lg`.
+    // `@stillwind-utility shadow-*` does not apply to `shadow-lg`.
     let theme = project(
         r"@utility shadow-lg { box-shadow: none; }
 @utility tab-1\/2 { tab-size: 2; }",
@@ -71,7 +72,7 @@ fn functional_definitions_join_their_root_and_honor_stop_and_fallback() {
             .declaration,
         "inset: -1rem;"
     );
-    // `(stop)` keeps the built-in result and skips the later registration.
+    // `(stop)` keeps the `@stillwind-utility` result and skips the later registration.
     assert_css_eq!(
         resolve_utility("duration-[1s]", &theme)
             .unwrap()

@@ -21,7 +21,7 @@ use super::super::values::{
 use super::application::{VariantApplication, VariantDeclaration, VariantObstacle};
 use super::body::resolve_variant_body;
 use super::usage::VariantValueSource;
-use crate::{BuiltinVariantModifierType, CustomVariant};
+use crate::{CustomVariant, StillwindVariantModifierType};
 
 /// Substitutes a typed modifier into a definition's quoted macro.
 ///
@@ -30,7 +30,7 @@ use crate::{BuiltinVariantModifierType, CustomVariant};
 /// never changes the emitted selector.
 pub(in crate::evaluation) fn substitute_typed_modifier(
     body: &str,
-    modifier_type: Option<BuiltinVariantModifierType>,
+    modifier_type: Option<StillwindVariantModifierType>,
     modifier: Option<&str>,
 ) -> Option<LeanString> {
     let Some(modifier_type) = modifier_type else {
@@ -177,9 +177,9 @@ pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> Var
 ///
 /// The selector must be relative to the utility - it starts with `&` - and the fragment
 /// after `&` is what replaces the slot. A selector with a pseudo-element, such as
-/// `&::before`, returns `None` for every body, as in Tailwind. The built-in
-/// relationship variants place the slot inside `:is()`, `:where()`, or `:has()`, and
-/// those functions cannot contain pseudo-elements.
+/// `&::before`, returns `None` for every body, as in Tailwind. The package relationship
+/// variants place the slot inside `:is()`, `:where()`, or `:has()`, and those functions
+/// cannot contain pseudo-elements.
 fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     if !selector_is_element_condition(selector, false) {
         return None;
@@ -482,7 +482,11 @@ mod tests {
         );
         assert_eq!(substitute_typed_modifier("&", None, None), Some("&".into()));
         assert_eq!(
-            substitute_typed_modifier("&", Some(BuiltinVariantModifierType::ClassIdentifier), None),
+            substitute_typed_modifier(
+                "&",
+                Some(StillwindVariantModifierType::ClassIdentifier),
+                None
+            ),
             None
         );
         assert_eq!(apply_nested_selector("&:--value() { @slot; }", "div"), None);

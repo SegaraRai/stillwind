@@ -1,9 +1,10 @@
 //! Public variant resolution.
 //!
 //! Resolution answers what one variant contributes to a selector, as a
-//! [`crate::VariantApplication`]. Project definitions are consulted before built-ins. A
-//! variant that resolves to nothing is not an error: [`resolve_variant`] returns a
-//! [`VariantFailure`] that names the cause, and the caller decides how to report it.
+//! [`crate::VariantApplication`]. Project definitions are consulted before
+//! `@stillwind-variant` definitions. A variant that resolves to nothing is not an
+//! error: [`resolve_variant`] returns a [`VariantFailure`] that names the cause, and
+//! the caller decides how to report it.
 //!
 //! [`variant`] resolves one variant and defines the failures that resolution reports.
 //! [`arbitrary`] resolves `[...]` variant text and builds inner variants from captures.

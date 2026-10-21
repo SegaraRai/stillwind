@@ -34,7 +34,7 @@ pub(super) fn check_bypassed_undefinitions(
         let utility = match definition.kind {
             DefinitionKind::Utility => true,
             DefinitionKind::Variant => false,
-            DefinitionKind::BuiltinVariant => continue,
+            DefinitionKind::StillwindVariant => continue,
         };
         let Some(offset) =
             generated_offset(graph, checker.source.id(), definition.node.range.start)

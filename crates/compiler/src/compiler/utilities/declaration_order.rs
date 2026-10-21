@@ -15,7 +15,7 @@ use lean_string::{LeanStr, LeanString};
 
 use stillwind_css::declaration_ranges;
 use stillwind_design_system::{
-    ThemeIndex, VariantDeclaration, builtin_declaration_formats, declaration_format,
+    ThemeIndex, VariantDeclaration, declaration_format, stillwind_declaration_formats,
 };
 use stillwind_source::JoinText;
 
@@ -49,15 +49,16 @@ pub(in crate::compiler) fn prepend_missing_declarations(
 }
 
 /// Combines the declarations of several utilities into one block body.
-//
-// A theme that carries its own declaration formats overrides the built-in set entirely, which is
-// how a project can redefine how a property composes without patching the registry.
+///
+/// A theme that carries its own declaration formats overrides the `@stillwind-format`
+/// set entirely, which is how a project can redefine how a property composes without
+/// patching the registry.
 pub(in crate::compiler) fn combine_declarations_for_theme(
     utilities: &[&CompiledUtility],
     theme: &ThemeIndex,
 ) -> LeanString {
     let formats = if theme.declaration_formats().is_empty() {
-        builtin_declaration_formats(theme)
+        stillwind_declaration_formats(theme)
     } else {
         theme.declaration_formats()
     };
@@ -66,8 +67,8 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
 
 /// The combination itself, with declaration formats supplied by the caller.
 ///
-/// `compose-space` appends a later value at the first occurrence of its property.
-/// Other declarations retain their resolved values without output optimization.
+/// `compose-space` appends a later value at the first occurrence of its property. Other
+/// declarations retain their resolved values without output optimization.
 fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
     formats: &BTreeMap<LeanStr, LeanStr>,

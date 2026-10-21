@@ -18,7 +18,7 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 use stillwind_css::{CssProperty, inspect_css_value};
 use stillwind_syntax::{Candidate, Utility, parse_candidate};
 
-use super::super::builtins::{COMPAT_COLOR_SUPPORT, arbitrary_property_order};
+use super::super::stillwind::{COMPAT_COLOR_SUPPORT, arbitrary_property_order};
 use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
 use super::diagnosis::{
@@ -44,9 +44,9 @@ pub struct ResolvedUtility {
     /// Registrations explicitly required by the selected utility branches.
     pub required_properties: Vec<LeanStr>,
     /// Authored position of the matched definition, from the import-expanded stylesheet
-    /// when the snapshot orders by authored position and from the built-in registry
-    /// otherwise.
-    pub builtin_order: Option<usize>,
+    /// when the snapshot orders by authored position and the directive offset of a
+    /// `@stillwind-utility` definition otherwise.
+    pub position: Option<usize>,
     /// Finalized declarations for the utility itself.
     pub declaration: LeanStr,
     /// Selector the declarations must be nested under, when the branch has one.
@@ -161,7 +161,7 @@ pub struct ResolvedUtilityTarget {
 ///
 /// An arbitrary property (`[color:red]`) becomes a plain declaration positioned by the
 /// registry's arbitrary-property order; a named utility is resolved through the project
-/// registry and then the selected built-ins. Importance is applied to every emitted
+/// registry and then the Stillwind definitions. Importance is applied to every emitted
 /// declaration, including conditional and additional targets, so the flag cannot be
 /// lost by a branch that emits several rules.
 ///
@@ -215,7 +215,7 @@ fn resolve_candidate(
                     tokens: tokens.into_iter().collect(),
                 });
             }
-            resolution.builtin_order = Some(match theme.utility_order() {
+            resolution.position = Some(match theme.utility_order() {
                 UtilityOrderMode::Authored => arbitrary_property_order(property, theme)
                     .saturating_add(theme.utility_position_base()),
                 UtilityOrderMode::Tailwind => arbitrary_property_order(property, theme),
@@ -236,7 +236,7 @@ fn resolve_candidate(
         }
     };
     let order = match theme.utility_order() {
-        UtilityOrderMode::Authored => UtilityOrder::Authored(resolution.builtin_order),
+        UtilityOrderMode::Authored => UtilityOrder::Authored(resolution.position),
         UtilityOrderMode::Tailwind => {
             let groups = std::iter::once(resolution.declaration.as_str())
                 .chain(
@@ -330,7 +330,7 @@ fn resolve_candidate(
         order,
         required_properties: resolution.required_properties,
         candidate,
-        builtin_order: resolution.builtin_order,
+        position: resolution.position,
         declaration: (declaration),
         selector,
         nested,
@@ -358,7 +358,7 @@ fn property_rejects(property: &str, value: &str) -> bool {
         .is_some_and(|property| !property.accepts(value))
 }
 
-/// Resolves a candidate through the project registry and then the selected built-ins.
+/// Resolves a candidate through the project registry and then the Stillwind definitions.
 /// Explains a candidate that cannot be resolved.
 ///
 /// [`super::check_candidate_variants`] checks the parsed variants separately. The inner
@@ -389,7 +389,7 @@ mod tests {
 
     use super::*;
     use crate::theme::ThemeBuilder;
-    use crate::{BuiltinDefinitions, parse_theme};
+    use crate::{StillwindDefinitions, parse_theme};
 
     fn resolve_utility(raw: &str, theme: &ThemeIndex) -> Option<ResolvedUtility> {
         super::resolve_utility(raw, theme).unwrap().ok()
@@ -398,14 +398,14 @@ mod tests {
     #[test]
     fn css_registries_are_isolated_without_process_defaults() {
         let first = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(
+            registry: Arc::new(StillwindDefinitions::from_css(
                 "@stillwind-utility sample { color: red; }",
             )),
             ..Default::default()
         }
         .finish();
         let second = ThemeBuilder {
-            registry: Arc::new(BuiltinDefinitions::from_css(
+            registry: Arc::new(StillwindDefinitions::from_css(
                 "@stillwind-utility sample { color: blue; }",
             )),
             ..Default::default()
@@ -427,10 +427,10 @@ mod tests {
         assert!(resolve_utility("flex", &ThemeIndex::default()).is_none());
     }
 
-    /// A user branch that fails its value domain falls through to the built-in
-    /// definition instead of resolving partially.
+    /// A user branch that fails its value domain falls through to the
+    /// `@stillwind-utility` definition instead of resolving partially.
     #[test]
-    fn failed_user_branch_can_resolve_through_the_builtin_registry() {
+    fn failed_user_branch_can_resolve_through_stillwind_definitions() {
         let theme = parse_theme(
             &SourceFile::new(
                 FileId(1), None, None,
