@@ -4,13 +4,13 @@ description: Reports a media rule around a utility definition, which the compile
 slug: docs/lints/ignored-definition-condition
 ---
 
-<LintRuleSummary name="ignored-definition-condition" />
-
 This rule reports a `@utility` definition inside a condition such as `@media`.
 The compiler registers utilities when it reads the stylesheet, not in the
 browser, so it ignores the condition. The utility then applies at every width.
 
 ## Reported
+
+<DiagnosticExample code="ignored-definition-condition">
 
 ```css
 @media (width >= 40rem) {
@@ -19,6 +19,8 @@ browser, so it ignores the condition. The utility then applies at every width.
   }
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -36,3 +38,7 @@ browser, so it ignores the condition. The utility then applies at every width.
   generated CSS keeps the condition.
 - Or define the utility without a condition, and apply it with a variant, such as
   `md:brand`.
+
+## Rule settings
+
+<LintRuleSummary name="ignored-definition-condition" />

@@ -4,18 +4,20 @@ description: One file imports style() from the entrypoints of two frameworks.
 slug: docs/errors/SW10003
 ---
 
-<CompilerError code="SW10003" category="authoring" />
-
 This error occurs when one file imports Stillwind from the entrypoints of more
 than one framework. The compiler produces props and runtime helpers for one
 framework in each file.
 
 ## Reported
 
+<DiagnosticExample code="SW10003">
+
 ```ts
 import { style as reactStyle } from "stillwind/react";
 import { style as vueStyle } from "stillwind/vue";
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

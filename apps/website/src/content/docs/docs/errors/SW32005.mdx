@@ -4,22 +4,33 @@ description: An answer reached the stylesheet loader after it finished loading.
 slug: docs/errors/SW32005
 ---
 
-<CompilerError code="SW32005" category="host" />
-
 This error occurs when an integration calls `provide` on a stylesheet loader that
 has already finished. A finished loader does not accept late answers or new
 revisions of a stylesheet.
 
 ## Reported
 
-```text
-The loader finishes, and then a delayed file answer arrives for it.
+<DiagnosticExample code="SW32005">
+
+```ts
+import { NativeDesignSystemLoader } from "@stillwind/native";
+
+const loader = new NativeDesignSystemLoader();
+loader.provide(0, "root.css", ".card { color: red; }");
+loader.provide(0, "root.css", ".card { color: blue; }");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-The loader finishes, and no more answers arrive. A change starts a new loader.
+```ts
+import { NativeDesignSystemLoader } from "@stillwind/native";
+
+const loader = new NativeDesignSystemLoader();
+loader.provide(0, "root.css", ".card { color: red; }");
+const next = loader.newLoader();
+next.provide(0, "root.css", ".card { color: blue; }");
 ```
 
 ## How to fix

@@ -4,8 +4,6 @@ description: Reports a physical property that has a logical form, such as ml-4 f
 slug: docs/lints/prefer-logical-properties
 ---
 
-<LintRuleSummary name="prefer-logical-properties" />
-
 This rule reports a utility for a physical property that has a logical form, such
 as `ml-4` (left) for `ms-4` (start). A logical property follows the writing
 direction, so the layout also works in right-to-left languages. The `stylistic`
@@ -13,9 +11,13 @@ preset enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="prefer-logical-properties">
+
 ```tsx
 style("ml-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -30,3 +32,7 @@ style("ms-4");
 - If the side must stay on the left in every language, such as for an icon that
   points left, keep the physical form and add a
   [suppression comment](/docs/configuration/#suppression-comments).
+
+## Rule settings
+
+<LintRuleSummary name="prefer-logical-properties" />

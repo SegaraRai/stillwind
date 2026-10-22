@@ -4,8 +4,6 @@ description: Reports utilities that your project forbids, by name.
 slug: docs/lints/no-restricted-utilities
 ---
 
-<LintRuleSummary name="no-restricted-utilities" />
-
 This rule reports a utility whose name matches a pattern that your project
 forbids. It checks the name as written, not the generated CSS. The rule is off
 until you list utilities.
@@ -18,7 +16,12 @@ until you list utilities.
     "rules": {
       "no-restricted-utilities": {
         "severity": "warn",
-        "utilities": [{ "pattern": "space-*", "message": "Use gap on the container." }]
+        "utilities": [
+          {
+            "pattern": "space-*",
+            "message": "Use gap on the container."
+          }
+        ]
       }
     }
   }
@@ -27,9 +30,13 @@ until you list utilities.
 
 ## Reported
 
+<DiagnosticExample code="no-restricted-utilities">
+
 ```tsx
 style("flex flex-col space-y-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -49,3 +56,7 @@ Patterns accept `*` and `?`, and they are case-sensitive.
 
 To also catch other utilities that produce the same CSS, use
 [no-restricted-declarations](/docs/lints/no-restricted-declarations/).
+
+## Rule settings
+
+<LintRuleSummary name="no-restricted-utilities" />

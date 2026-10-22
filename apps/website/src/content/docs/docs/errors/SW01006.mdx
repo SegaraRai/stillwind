@@ -4,32 +4,58 @@ description: A lint rule has an option value that the compiler cannot use.
 slug: docs/errors/SW01006
 ---
 
-<CompilerError code="SW01006" category="configuration" />
-
 This error occurs when a lint rule has an option value that the compiler cannot
 use, such as an unknown unit or an empty list that the rule requires. The message
 names the rule and the value.
 
 ## Reported
 
-```json
-{
-  "no-restricted-length-units": {
-    "severity": "warn",
-    "rules": [{ "properties": ["width"], "disallow": ["pixels"] }]
-  }
-}
+<DiagnosticExample code="SW01006">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      lint: {
+        rules: {
+          "no-restricted-length-units": {
+            severity: "warn",
+            rules: [{ properties: ["width"], disallow: ["pixels"] }],
+          },
+        },
+      },
+    },
+  ],
+});
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```json
-{
-  "no-restricted-length-units": {
-    "severity": "warn",
-    "rules": [{ "properties": ["width"], "disallow": ["px"] }]
-  }
-}
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      lint: {
+        rules: {
+          "no-restricted-length-units": {
+            severity: "warn",
+            rules: [{ properties: ["width"], disallow: ["px"] }],
+          },
+        },
+      },
+    },
+  ],
+});
 ```
 
 ## How to fix

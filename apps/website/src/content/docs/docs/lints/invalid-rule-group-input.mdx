@@ -4,28 +4,48 @@ description: Reports a class field, custom property, or ref inside an object wit
 slug: docs/lints/invalid-rule-group-input
 ---
 
-<LintRuleSummary name="invalid-rule-group-input" />
-
 This rule reports a `class` field, a custom property, a ref, or a stored `style()`
 result inside an object with variant keys, such as `{ "hover:": ... }`. A variant
 can only condition utilities, so the input is left out.
 
 ## Reported
 
+<DiagnosticExample code="invalid-rule-group-input">
+
+```css
+.external {
+  color: red;
+}
+```
+
 ```tsx
 style({ "hover:": { class: "external" } });
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
+```css
+.external:hover {
+  color: red;
+}
+```
+
 ```tsx
-declare const hovered: boolean;
-style(hovered && { class: "external" });
+style({ class: "external" });
 ```
 
 ## How to fix
 
-- To add a class from another stylesheet in a state, decide the state in
-  JavaScript and pass the `class` field under that condition, as in the example.
+- If you own the other stylesheet, put the state in its selector and attach the
+  class without a variant, as in the example. The element still turns red only
+  while it is hovered.
+- If the stylesheet cannot change and the application already tracks the state
+  in JavaScript, pass the `class` field under that JavaScript condition.
 - If the class only applies styles that Stillwind has as utilities, write those
   utilities under the variant instead, such as `{ "hover:": "opacity-50" }`.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-rule-group-input" />

@@ -4,24 +4,10 @@ description: The integration cannot find the code that TypeScript needs to check
 slug: docs/errors/SW30004
 ---
 
-<CompilerError code="SW30004" category="host" />
-
 This error occurs when the compiler needs type information for an expression, but
 the integration cannot find that expression in the code that TypeScript checks.
 This usually happens in Vue, Svelte, or Astro components, where a converter
 produces the checked code. The message names the operation.
-
-## Reported
-
-```text
-After conversion, the ref in a call such as card.asContainer() has no matching expression in the checked code.
-```
-
-## Fixed
-
-```text
-The converter records where that ref appears in the checked code.
-```
 
 ## How to fix
 

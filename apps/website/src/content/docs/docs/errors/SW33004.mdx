@@ -4,23 +4,9 @@ description: A source range lies outside its file or splits a multibyte characte
 slug: docs/errors/SW33004
 ---
 
-<CompilerError code="SW33004" category="host" />
-
 This error occurs when an integration or a tool passes a source range whose ends
 lie outside the file, or inside a character of several bytes. The message names
 the operation.
-
-## Reported
-
-```text
-The end of the range falls in the middle of the bytes of "é".
-```
-
-## Fixed
-
-```text
-Both ends of the range fall between characters, inside the file.
-```
 
 ## How to fix
 

@@ -4,23 +4,9 @@ description: A source file or a position in it is too large for the compiler's s
 slug: docs/errors/SW15003
 ---
 
-<CompilerError code="SW15003" category="authoring" />
-
 This error occurs when a source file, or a position that the compiler is asked to
 read, does not fit in the compiler's 32-bit source positions. The message shows
 the value and the operation.
-
-## Reported
-
-```text
-A source file larger than 4 GB, or a position beyond the end of the file.
-```
-
-## Fixed
-
-```text
-Source files of a normal size, and positions inside them.
-```
 
 ## How to fix
 

@@ -4,24 +4,9 @@ description: The converted script and the component contain different text at a 
 slug: docs/errors/SW31003
 ---
 
-<CompilerError code="SW31003" category="host" />
-
 This error occurs when the converted script and the original component contain
 different text at a location that the map links. The compiler would edit the
 wrong text, so it stops.
-
-## Reported
-
-```text
-Generated script: "p-4"
-Original component at the mapped range: "p-2"
-```
-
-## Fixed
-
-```text
-Both texts contain "p-4" at the mapped range.
-```
 
 ## How to fix
 

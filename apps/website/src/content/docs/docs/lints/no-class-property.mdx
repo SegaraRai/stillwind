@@ -4,27 +4,48 @@ description: Reports the class field, which adds classes without generated CSS.
 slug: docs/lints/no-class-property
 ---
 
-<LintRuleSummary name="no-class-property" />
-
 This rule reports a `class` field in `style()`. A `class` field adds classes that
 another stylesheet defines, so Stillwind does not check them. Enable this rule
 when every style in the project must come from utilities. No preset enables it.
 
 ## Reported
 
+<DiagnosticExample code="no-class-property">
+
+```css
+.card {
+  border-radius: 8px;
+  padding: 16px;
+}
+```
+
 ```tsx
 style({ class: "card" });
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
+```css
+@utility card {
+  border-radius: 8px;
+  padding: 16px;
+}
+```
+
 ```tsx
-style("rounded-lg border border-gray-200 p-4");
+style("card");
 ```
 
 ## How to fix
 
-- Write the styles of the class as utilities, as in the example.
+- Move the class's declarations into a utility, as in the example. Keep the same
+  declarations so the component's appearance does not change.
 - If a third-party library needs its own class, keep the `class` field and add a
   [suppression comment](/docs/configuration/#suppression-comments) with the
   reason.
+
+## Rule settings
+
+<LintRuleSummary name="no-class-property" />

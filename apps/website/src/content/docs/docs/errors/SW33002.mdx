@@ -4,25 +4,9 @@ description: A requested byte range ends before it starts, or is otherwise unusa
 slug: docs/errors/SW33002
 ---
 
-<CompilerError code="SW33002" category="host" />
-
 This error occurs when an integration or a tool passes a byte range that the
 source operation cannot use, such as a range that ends before it starts. The
 message shows the start, the end, and the operation.
-
-## Reported
-
-```text
-start: 12
-end: 4
-```
-
-## Fixed
-
-```text
-start: 4
-end: 12
-```
 
 ## How to fix
 

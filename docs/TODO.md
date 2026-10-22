@@ -77,7 +77,7 @@ Exact CSS equivalence needs a public query contract that preserves selectors,
 conditions, declaration order, and support requirements; property/value term
 searches cannot prove that equivalence.
 
-Macro references publish actual development and production output. A display of
+Macro references publish actual compiled code and generated CSS. A display of
 each optimization pass requires compiler trace data; the current compiler has no
 public pass-selection or trace API. Preserve the distinction between compiler
 lowering and later bundler minification.

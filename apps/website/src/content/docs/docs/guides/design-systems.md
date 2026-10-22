@@ -67,7 +67,7 @@ To use a breakpoint in JavaScript, pass its name to `style.media()`. See
 
 Enable these rules in `stillwind.config.ts`:
 
-```ts
+```ts title="stillwind.config.ts"
 import { defineConfig, lintPresets } from "stillwind/config";
 
 export default defineConfig({

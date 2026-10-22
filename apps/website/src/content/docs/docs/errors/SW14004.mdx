@@ -4,8 +4,6 @@ description: A utility that you use has an @stillwind-require-properties directi
 slug: docs/errors/SW14004
 ---
 
-<CompilerError code="SW14004" category="authoring" />
-
 This error occurs when you use a utility whose definition contains an invalid
 `@stillwind-require-properties` directive. The message names the utility and the
 position in its definition. The definition can be in your stylesheet or in a
@@ -13,19 +11,39 @@ plugin.
 
 ## Reported
 
-```text
-The definition of the utility lists "tw-rotate-x" in @stillwind-require-properties.
+<DiagnosticExample code="SW14004">
+
+```css
+@utility spin-x {
+  @stillwind-require-properties tw-rotate-x;
+  transform: var(--tw-rotate-x);
+}
 ```
+
+```tsx
+style("spin-x");
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-The definition lists the complete name "--tw-rotate-x".
+```css
+@utility spin-x {
+  @stillwind-require-properties --tw-rotate-x;
+  transform: var(--tw-rotate-x);
+}
+```
+
+```tsx
+style("spin-x");
 ```
 
 ## How to fix
 
-- If the definition is in your stylesheet, fix the directive, as in
-  [SW14003](/docs/errors/SW14003/).
+- Write the full custom property name, including the leading `--`. In the
+  example, change `tw-rotate-x` to `--tw-rotate-x`.
 - If the definition comes from a plugin, report the utility and the plugin
   version to the plugin's maintainer. Turning off a lint rule does not help.
+
+[SW14003](/docs/errors/SW14003/) covers the same mistake in an ordinary CSS rule.

@@ -56,17 +56,8 @@ export default defineConfig({
       },
       test: {
         command: "vp test --run",
-        cache: {
-          ...testCache,
-          input: [
-            ...testCache.input,
-            {
-              pattern: "packages/core/css/**",
-              base: "workspace",
-            },
-          ],
-        },
-        dependsOn: ["build"],
+        cache: testCache,
+        dependsOn: ["stillwind#build"],
       },
     },
   },

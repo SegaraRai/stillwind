@@ -4,17 +4,19 @@ description: Reports a variant that adds no condition, such as hover:hover:.
 slug: docs/lints/redundant-variant
 ---
 
-<LintRuleSummary name="redundant-variant" />
-
 This rule reports a variant that adds no condition, such as a second `hover:` in
 `hover:hover:`. It also reports a variant that another variant in the stack
 already implies.
 
 ## Reported
 
+<DiagnosticExample code="redundant-variant">
+
 ```tsx
 style("hover:hover:p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -28,3 +30,7 @@ Remove the extra variant, and keep the others. The automatic fix removes it.
 
 Variants that can never match together are reported by
 [unsatisfiable-variants](/docs/lints/unsatisfiable-variants/) instead.
+
+## Rule settings
+
+<LintRuleSummary name="redundant-variant" />

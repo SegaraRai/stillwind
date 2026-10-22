@@ -4,8 +4,6 @@ description: Reports utilities that use theme tokens that your project reserves,
 slug: docs/lints/no-restricted-theme-tokens
 ---
 
-<LintRuleSummary name="no-restricted-theme-tokens" />
-
 This rule reports a utility that uses a theme token that your project reserves,
 such as the default palette color behind `bg-blue-500`. Use it to make components
 use role names such as `bg-action`. The rule is off until you list tokens.
@@ -15,16 +13,25 @@ use role names such as `bg-action`. The rule is off until you list tokens.
 ```json
 {
   "lint": {
-    "rules": { "no-restricted-theme-tokens": { "severity": "warn", "tokens": ["--color-blue-*"] } }
+    "rules": {
+      "no-restricted-theme-tokens": {
+        "severity": "warn",
+        "tokens": ["--color-blue-*"]
+      }
+    }
   }
 }
 ```
 
 ## Reported
 
+<DiagnosticExample code="no-restricted-theme-tokens">
+
 ```tsx
 style("bg-blue-500");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -48,3 +55,7 @@ can still refer to the palette in its definition:
 `tokens` lists patterns for the reserved custom properties, such as
 `--color-blue-*`. Patterns accept `*` and `?`, and they are case-sensitive. The
 list must not be empty when the rule is on.
+
+## Rule settings
+
+<LintRuleSummary name="no-restricted-theme-tokens" />

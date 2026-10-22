@@ -4,23 +4,38 @@ description: The first answer to the stylesheet loader does not contain exactly 
 slug: docs/errors/SW32002
 ---
 
-<CompilerError code="SW32002" category="host" />
-
 This error occurs when the first answer that an integration gives the stylesheet
 loader does not contain exactly one stylesheet. The first answer is the root
 stylesheet. The loader then asks for the imports that the root contains.
 
 ## Reported
 
-```text
-First answer: root.css and tokens.css
+<DiagnosticExample code="SW32002">
+
+```ts
+import { NativeDesignSystemLoader } from "@stillwind/native";
+
+const loader = new NativeDesignSystemLoader();
+loader.provideMany([
+  { id: 0, name: "root.css", content: '@import "./tokens.css";' },
+  { id: 1, name: "tokens.css", content: "@theme { --color-brand: red; }" },
+]);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-First answer: root.css
-Later answers: tokens.css, when the loader asks for it
+```ts
+import { NativeDesignSystemLoader } from "@stillwind/native";
+
+const loader = new NativeDesignSystemLoader();
+const step = loader.provide(0, "root.css", '@import "./tokens.css";');
+if (step.kind === "needFile") {
+  for (const request of step.requests) {
+    loader.provide(request.id, "tokens.css", "@theme { --color-brand: red; }");
+  }
+}
 ```
 
 ## How to fix

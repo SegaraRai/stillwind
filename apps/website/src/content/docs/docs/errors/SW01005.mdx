@@ -4,8 +4,6 @@ description: Two different styles would receive the same generated name.
 slug: docs/errors/SW01005
 ---
 
-<CompilerError code="SW01005" category="configuration" />
-
 This error occurs when two different styles, refs, or animations would receive
 the same generated name. The usual cause is a custom `naming` function that
 returns the same name for different requests. A very short `hashLength` can also
@@ -13,21 +11,60 @@ cause it.
 
 ## Reported
 
-```text
-Request for style A -> "button"
-Request for style B -> "button"
+<DiagnosticExample code="SW01005">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      namingRevision: "1",
+      naming: {
+        utilityClass: () => "button",
+      },
+    },
+  ],
+});
 ```
+
+```tsx
+style("p-4");
+style("p-8");
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-Request for style A -> "button_a1b2c"
-Request for style B -> "button_d3e4f"
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      namingRevision: "2",
+      naming: {
+        utilityClass: (_context, hash) => `button_${hash.toString("hex")}`,
+      },
+    },
+  ],
+});
+```
+
+```tsx
+style("p-4");
+style("p-8");
 ```
 
 ## How to fix
 
-- Make the `naming` function keep the hash from the request in the name, as in
-  the example, or return `undefined` to use the default name.
+- Include the hash passed as the callback's second argument in the name, as in
+  the example. This keeps the `button` prefix while distinguishing requests.
+  Return `null` to use the default name for a request.
 - If you use the default names, raise `hashLength`.
 - Change `namingRevision` whenever you change a `naming` function.

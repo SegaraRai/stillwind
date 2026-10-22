@@ -4,34 +4,21 @@ description: The integration requires one framework, but the file imports style(
 slug: docs/errors/SW01001
 ---
 
-<CompilerError code="SW01001" category="configuration" />
-
 This error occurs when the integration is set to one framework, but a file
 imports `style()` from the entrypoint of another framework. The compiler cannot
 produce props for both.
 
-## Reported
-
-```text
-Integration framework: vue
-Import in the file: stillwind/react
-```
-
-## Fixed
-
-```text
-Integration framework: react
-Import in the file: stillwind/react
-```
-
 ## How to fix
 
-- If the file is a React component, set the integration to React, as in the
-  example.
-- If the file belongs to the framework of the integration, import from that
-  entrypoint instead, such as `stillwind/vue`.
-- Check both `stillwind.config.ts` and the integration options. An option in the
-  integration overrides the file.
+- Import from the entrypoint of the file's framework, such as `stillwind/vue`
+  for a Vue component.
+- If the import already matches the component, check the integration that
+  supplied the constraint. A custom integration sets it in the prepared
+  source's `framework` field. Change that field to match the component.
+
+`framework` is not a project option in `stillwind.config.ts`. If an official
+integration supplies the wrong constraint, report the error with the component
+and the Stillwind package versions.
 
 When no framework is set, an import from another framework is reported by
 [mismatched-framework-import](/docs/lints/mismatched-framework-import/) instead.

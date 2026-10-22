@@ -45,7 +45,7 @@ Each token in `@theme` adds utilities. For example, `--color-accent` adds
 
 Create `stillwind.config.ts` in the application root:
 
-```ts
+```ts title="stillwind.config.ts"
 import { defineConfig } from "stillwind/config";
 
 export default defineConfig({
@@ -72,7 +72,7 @@ Add Stillwind to `vite.config.ts`:
 ```ts
 import { stillwind } from "@stillwind/integration/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [stillwind(), react()],

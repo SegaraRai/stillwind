@@ -4,8 +4,6 @@ description: Reports a condition in style.media() that is not a media query, suc
 slug: docs/lints/invalid-media-query
 ---
 
-<LintRuleSummary name="invalid-media-query" />
-
 This rule reports an argument of `style.media()` that is not a media condition.
 `hover:` matches a hovered element, not a property of the device, so it cannot
 become a query for `matchMedia()`. The argument is left out, and when no argument
@@ -13,22 +11,35 @@ remains, the query is `not all`.
 
 ## Reported
 
+<DiagnosticExample code="invalid-media-query">
+
 ```tsx
 style.media("hover");
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
+```css
+@custom-variant can-hover (@media (hover: hover));
+```
+
 ```tsx
-style.media("pointer-fine");
+style.media("can-hover");
 ```
 
 ## How to fix
 
-- To check whether the device has a precise pointer, such as a mouse, use
-  `pointer-fine`, as in the example.
+- To check whether an input device can hover, define a media variant for that
+  capability, as in the example.
+- To style an element while it is hovered, use `hover:` inside `style()`.
 - To check the viewport or user preferences, use media variants such as `md` or
   `motion-safe`.
 - `supports-*` and container queries are not media conditions either.
 
 See [style.media()](/docs/macros/media/#inputs).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-media-query" />

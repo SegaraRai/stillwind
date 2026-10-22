@@ -4,23 +4,9 @@ description: The stylesheet loader ran out of request IDs during one load.
 slug: docs/errors/SW32006
 ---
 
-<CompilerError code="SW32006" category="host" />
-
 This error occurs when the stylesheet loader needs another request ID, but has
 used all the IDs that it can represent. A normal import graph never reaches this
 limit, so the graph is probably growing without end.
-
-## Reported
-
-```text
-An import graph keeps requesting new stylesheets until the loader has no IDs left.
-```
-
-## Fixed
-
-```text
-The import graph requests a finite set of stylesheets.
-```
 
 ## How to fix
 

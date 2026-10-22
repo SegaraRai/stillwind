@@ -4,24 +4,10 @@ description: The compiler cannot find the Stillwind import where it must add run
 slug: docs/errors/SW34001
 ---
 
-<CompilerError code="SW34001" category="host" />
-
 This error occurs when the compiled code needs a runtime or stylesheet import,
 but the compiler cannot find the `stillwind` import that it replaces with those
 imports. In a component with several script blocks, the import must be in the
 same block as the code that uses it.
-
-## Reported
-
-```text
-A converter moves or removes the import from "stillwind/vue" before compilation.
-```
-
-## Fixed
-
-```text
-The converter keeps the import, and records which script block it belongs to.
-```
 
 ## How to fix
 

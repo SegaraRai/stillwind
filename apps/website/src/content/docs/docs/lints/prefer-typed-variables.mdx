@@ -4,8 +4,6 @@ description: Reports a custom property without a type in a utility that accepts 
 slug: docs/lints/prefer-typed-variables
 ---
 
-<LintRuleSummary name="prefer-typed-variables" />
-
 This rule reports a custom property without a type in a utility that accepts
 several types. For example, `text-*` sets a color or a font size, so
 `text-(--brand)` does not show which one you mean. The `stylistic` preset enables
@@ -13,9 +11,13 @@ this rule.
 
 ## Reported
 
+<DiagnosticExample code="prefer-typed-variables">
+
 ```tsx
 style("text-(--brand)");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -28,3 +30,7 @@ style("text-(color:--brand)");
 Add the type that the custom property holds, such as `color:` in the example, or
 `length:` for a font size. The type only chooses the meaning of the utility. It
 does not check the value that the property receives at runtime.
+
+## Rule settings
+
+<LintRuleSummary name="prefer-typed-variables" />

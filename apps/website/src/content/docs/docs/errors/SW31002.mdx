@@ -4,23 +4,9 @@ description: A Stillwind expression in a converted script maps to no place, or s
 slug: docs/errors/SW31002
 ---
 
-<CompilerError code="SW31002" category="host" />
-
 This error occurs when a Stillwind expression in the converted script of a
 component maps to no place in the original component, or to more than one place.
 The compiler must edit the original source, so it needs exactly one location.
-
-## Reported
-
-```text
-A style() call in the generated script has no mapping, or maps to two places.
-```
-
-## Fixed
-
-```text
-The whole style() call maps to one expression in the component.
-```
 
 ## How to fix
 

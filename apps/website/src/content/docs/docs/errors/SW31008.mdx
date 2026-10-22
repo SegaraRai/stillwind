@@ -4,23 +4,8 @@ description: A requested byte offset is outside the source or inside a multibyte
 slug: docs/errors/SW31008
 ---
 
-<CompilerError code="SW31008" category="host" />
-
 This error occurs when an integration or a tool asks for a UTF-8 byte offset that
 is outside the source, or that falls inside a character of several bytes.
-
-## Reported
-
-```text
-Source: é
-UTF-8 byte offset: 1
-```
-
-## Fixed
-
-```text
-For this source, byte offset 0 is the start and byte offset 2 is the end.
-```
 
 ## How to fix
 

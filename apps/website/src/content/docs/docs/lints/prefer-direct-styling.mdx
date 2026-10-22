@@ -4,8 +4,6 @@ description: Reports a selector variant that styles another element, such as [&_
 slug: docs/lints/prefer-direct-styling
 ---
 
-<LintRuleSummary name="prefer-direct-styling" />
-
 This rule reports a selector variant that styles another element from the
 current one, such as `[&_button]:` on a parent. The styles of the button then
 live in the parent, so reading the button does not show them. The `stylistic`
@@ -13,9 +11,13 @@ preset enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="prefer-direct-styling">
+
 ```tsx
 const toolbar = style("flex gap-2 [&_button]:p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -32,3 +34,7 @@ const button = style("p-4");
   Markdown, keep the selector and add a
   [suppression comment](/docs/configuration/#suppression-comments) with the
   reason.
+
+## Rule settings
+
+<LintRuleSummary name="prefer-direct-styling" />

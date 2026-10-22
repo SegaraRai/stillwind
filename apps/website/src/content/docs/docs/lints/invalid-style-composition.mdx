@@ -4,19 +4,21 @@ description: Reports inline styles or custom properties in a base style, which d
 slug: docs/lints/invalid-style-composition
 ---
 
-<LintRuleSummary name="invalid-style-composition" />
-
 This rule reports a base style that contains inline styles or custom properties.
 When you pass a stored `style()` result to another call, only its classes carry
 over. The custom property in the base is lost.
 
 ## Reported
 
+<DiagnosticExample code="invalid-style-composition">
+
 ```tsx
 declare const value: string;
 const base = style("rounded-md", { "--x": value });
 style(base, "p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -34,3 +36,7 @@ style(base, "p-4", { "--x": value });
   ancestor. Custom properties are inherited.
 
 See [Base styles](/docs/macros/style/#base-styles).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-style-composition" />

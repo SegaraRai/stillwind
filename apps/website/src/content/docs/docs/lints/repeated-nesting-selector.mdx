@@ -4,8 +4,6 @@ description: Reports a selector that repeats & to relate two elements, such as [
 slug: docs/lints/repeated-nesting-selector
 ---
 
-<LintRuleSummary name="repeated-nesting-selector" />
-
 This rule reports a selector variant that repeats `&`, such as `[&+&]:`, to relate
 two elements. `&` stands for the generated class of the style, so the selector
 matches any two elements that share the style. When the style is shared or used
@@ -13,15 +11,34 @@ as a base, it can match pairs that you did not mean.
 
 ## Reported
 
+<DiagnosticExample code="repeated-nesting-selector">
+
 ```tsx
-style("[&+&]:mt-4");
+function Items({ labels }: { labels: string[] }) {
+  return (
+    <div>
+      {labels.map((label) => (
+        <div {...style("[&+&]:mt-4")}>{label}</div>
+      ))}
+    </div>
+  );
+}
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
 ```tsx
-const list = style("flex flex-col gap-4");
-const item = style("rounded-md p-4");
+function Items({ labels }: { labels: string[] }) {
+  return (
+    <div {...style("flex flex-col gap-4")}>
+      {labels.map((label) => (
+        <div>{label}</div>
+      ))}
+    </div>
+  );
+}
 ```
 
 ## How to fix
@@ -29,3 +46,7 @@ const item = style("rounded-md p-4");
 - To space items in a list, put `gap` on the list, as in the example.
 - To style an element from the state of a sibling, use refs with
   [`.in()`](/docs/macros/ref/in/).
+
+## Rule settings
+
+<LintRuleSummary name="repeated-nesting-selector" />

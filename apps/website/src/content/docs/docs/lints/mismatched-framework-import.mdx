@@ -4,19 +4,21 @@ description: Reports an import of style() from the entrypoint of another framewo
 slug: docs/lints/mismatched-framework-import
 ---
 
-<LintRuleSummary name="mismatched-framework-import" />
-
 This rule reports a file that imports `style()` from the entrypoint of another
 framework, such as `stillwind/astro` in a React component. Each entrypoint
 returns props in the form of its framework, such as `className` for React.
 
 ## Reported
 
+<DiagnosticExample code="mismatched-framework-import">
+
 ```tsx
 import { style } from "stillwind/astro";
 
 export const props = style("p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ export const props = style("p-4");
 Import from the entrypoint of the framework that renders the element. A React
 island inside an Astro page imports `stillwind/react`. See
 [Framework integrations](/docs/frameworks/#import-style-for-your-framework).
+
+## Rule settings
+
+<LintRuleSummary name="mismatched-framework-import" />

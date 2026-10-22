@@ -4,8 +4,6 @@ description: Reports length units that your project forbids for some properties,
 slug: docs/lints/no-restricted-length-units
 ---
 
-<LintRuleSummary name="no-restricted-length-units" />
-
 This rule reports a length with a unit that your project forbids for the
 property, such as `px` for `width`. Zero lengths are not reported, because they
 need no unit. The rule is off until you list properties and units.
@@ -18,7 +16,12 @@ need no unit. The rule is off until you list properties and units.
     "rules": {
       "no-restricted-length-units": {
         "severity": "warn",
-        "rules": [{ "properties": ["width"], "disallow": ["px"] }]
+        "rules": [
+          {
+            "properties": ["width"],
+            "disallow": ["px"]
+          }
+        ]
       }
     }
   }
@@ -27,9 +30,13 @@ need no unit. The rule is off until you list properties and units.
 
 ## Reported
 
+<DiagnosticExample code="no-restricted-length-units">
+
 ```tsx
 style("w-[20px]");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -48,3 +55,7 @@ example.
 `rules` lists entries with `properties` patterns and the units to `disallow`.
 When several entries match a property, the last one applies, so a later, more
 specific entry can make an exception.
+
+## Rule settings
+
+<LintRuleSummary name="no-restricted-length-units" />

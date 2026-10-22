@@ -4,30 +4,44 @@ description: The prefix and tailwindPrefix settings have the same value.
 slug: docs/errors/SW01003
 ---
 
-<CompilerError code="SW01003" category="configuration" />
-
 This error occurs when `prefix` and `tailwindPrefix` have the same value after
 the defaults apply. Stillwind's own custom properties and the Tailwind-compatible
 ones would then share names.
 
 ## Reported
 
-```ts
-const project = {
-  css: "./src/stillwind.css",
-  files: ["src/**/*.tsx"],
-  prefix: "--tw-",
-};
+<DiagnosticExample code="SW01003">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      prefix: "--tw-",
+    },
+  ],
+});
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```ts
-const project = {
-  css: "./src/stillwind.css",
-  files: ["src/**/*.tsx"],
-  prefix: "--app-",
-};
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      prefix: "--app-",
+    },
+  ],
+});
 ```
 
 ## How to fix

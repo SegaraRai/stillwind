@@ -4,8 +4,6 @@ description: Reports a state update inside an argument of style() or another mac
 slug: docs/lints/mutating-macro-argument
 ---
 
-<LintRuleSummary name="mutating-macro-argument" />
-
 This rule reports an assignment or another state update inside an argument of
 `style()` or another macro. The compiler can evaluate arguments in any order and
 can skip arguments whose result is not used, so the update may run in a
@@ -13,17 +11,21 @@ different order or not at all.
 
 ## Reported
 
+<DiagnosticExample code="mutating-macro-argument">
+
 ```tsx
 let count = 0;
 style({ "--count": count++ });
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
 ```tsx
 let count = 0;
-count++;
-style({ "--count": count });
+const previous = count++;
+style({ "--count": previous });
 ```
 
 ## How to fix
@@ -33,3 +35,7 @@ style({ "--count": count });
   state internally is not reported, so keep such calls out of the arguments too.
 
 See [Side effects in arguments](/docs/macros/style/#side-effects-in-arguments).
+
+## Rule settings
+
+<LintRuleSummary name="mutating-macro-argument" />

@@ -4,18 +4,20 @@ description: Reports a utility or variant definition that replaces an earlier on
 slug: docs/lints/duplicate-definition
 ---
 
-<LintRuleSummary name="duplicate-definition" />
-
 This rule reports a `@utility` or `@custom-variant` definition that replaces an
 earlier definition with the same name. The definitions do not combine, so the
 earlier one is lost. In the example, `hocus` matches focus only, not hover.
 
 ## Reported
 
+<DiagnosticExample code="duplicate-definition">
+
 ```css
 @custom-variant hocus (&:hover);
 @custom-variant hocus (&:focus);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -27,3 +29,7 @@ earlier one is lost. In the example, `hocus` matches focus only, not hover.
 
 - To combine the definitions, write them as one definition, as in the example.
 - If one of the definitions is left over, remove it.
+
+## Rule settings
+
+<LintRuleSummary name="duplicate-definition" />

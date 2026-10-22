@@ -4,17 +4,19 @@ description: Reports a known variant with a value that it does not accept, such 
 slug: docs/lints/invalid-variant
 ---
 
-<LintRuleSummary name="invalid-variant" />
-
 This rule reports a variant whose name is known but whose value is not valid. For
 example, `min-[foo]:` needs a length, and `foo` is not one. The condition never
 matches, so the utilities under it never apply.
 
 ## Reported
 
+<DiagnosticExample code="invalid-variant">
+
 ```tsx
 style("min-[foo]:p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -30,3 +32,7 @@ style("min-[40rem]:p-4");
 
 A variant name that does not exist is reported by
 [unknown-variant](/docs/lints/unknown-variant/) instead.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-variant" />

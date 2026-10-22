@@ -4,29 +4,33 @@ description: Your stylesheet has a CSS syntax error.
 slug: docs/errors/SW13001
 ---
 
-<CompilerError code="SW13001" category="authoring" />
-
 This error occurs when the compiler cannot parse a CSS rule in your stylesheet.
 The message explains what the parser expected.
 
 ## Reported
 
+<DiagnosticExample code="SW13001">
+
 ```css
-.card { color: rgb(; }
+.card {
+  color blue;
+}
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
 ```css
 .card {
-  color: rgb(0 0 255);
+  color: blue;
 }
 ```
 
 ## How to fix
 
-Fix the syntax that the message points to. In the example, `rgb()` had no
-arguments.
+Fix the syntax that the message points to. In the example, the declaration needs
+a colon after `color`.
 
 A syntax error that the compiler finds while it collects custom properties is
 reported as [SW14006](/docs/errors/SW14006/) instead.

@@ -1,0 +1,110 @@
+---
+import type { ComponentProps } from "astro/types";
+import { Code } from "astro:components";
+
+import type { DiagnosticExample } from "./diagnostic-example";
+import DiagnosticMessage from "./DiagnosticMessage.astro";
+
+interface Props {
+  code: string;
+  example: DiagnosticExample;
+}
+
+const { code, example } = Astro.props;
+
+type Transformer = NonNullable<ComponentProps<typeof Code>["transformers"]>[number];
+
+function annotations(sourceIndex: number): Transformer[] {
+  if (!example.inline) {
+    return [];
+  }
+  const source = example.sources[sourceIndex]!.code;
+  const lines = source.split("\n");
+  const offsets = lines.map((_, index) =>
+    lines.slice(0, index).reduce((length, line) => length + line.length + 1, 0),
+  );
+  const labels = example.diagnostics.flatMap((diagnostic, index) =>
+    diagnostic.labels
+      .filter((label) => label.source === sourceIndex)
+      .map((label, labelIndex) => ({
+        ...label,
+        diagnostic,
+        primary: labelIndex === 0,
+        id: `${code}-${index}`,
+      })),
+  );
+  return [
+    {
+      name: "stillwind-diagnostic-ranges",
+      preprocess(_code, options) {
+        options.decorations = labels
+          .filter((label) => label.end > label.start)
+          .map((label) => ({
+            start: label.start,
+            end: label.end,
+            tagName: "mark",
+            alwaysWrap: true,
+            properties: {
+              className: ["diagnostic-range"],
+              "aria-describedby": label.id,
+            },
+          }));
+      },
+      line(node, line) {
+        const start = offsets[line - 1]!;
+        const end = start + lines[line - 1]!.length;
+        const ranges = labels.filter((label) => label.start <= end && label.end >= start);
+        const messages = new Map(
+          ranges
+            .filter((range) => range.primary && range.end >= start && range.end <= end)
+            .map((range) => [range.id, range]),
+        );
+        for (const [id, range] of messages) {
+          const { diagnostic } = range;
+          node.children.push({
+            type: "element",
+            tagName: "span",
+            properties: {
+              id,
+              className: ["diagnostic-annotation"],
+              style: `--diagnostic-column: ${Math.max(0, range.start - start)}`,
+            },
+            children: [
+              {
+                type: "element",
+                tagName: "strong",
+                properties: {},
+                children: [{ type: "text", value: diagnostic.code }],
+              },
+              {
+                type: "text",
+                value: `: ${diagnostic.message}${diagnostic.notes.length ? `\n${diagnostic.notes.join("\n")}` : ""}`,
+              },
+            ],
+          });
+        }
+      },
+    },
+  ];
+}
+---
+
+<div class="diagnostic-example">
+  {example.sources.map((source, index) => (
+    <>
+      {source.title && <p class="diagnostic-filename">{source.title}</p>}
+      <Code
+        code={source.code}
+        lang={source.language}
+        themes={{ light: "github-light", dark: "github-dark" }}
+        defaultColor={false}
+        transformers={annotations(index)}
+      />
+    </>
+  ))}
+  {example.diagnostics
+    .filter((diagnostic) => !example.inline || !diagnostic.labels.length)
+    .map((diagnostic) => (
+      <DiagnosticMessage diagnostic={diagnostic} />
+    ))}
+</div>

@@ -4,17 +4,19 @@ description: Reports a known utility written in a form that it does not accept.
 slug: docs/lints/invalid-utility
 ---
 
-<LintRuleSummary name="invalid-utility" />
-
 This rule reports a utility whose name is known but whose form is not valid. For
 example, `flex` has no negative form, so `-flex` is invalid. The utility produces
 no CSS.
 
 ## Reported
 
+<DiagnosticExample code="invalid-utility">
+
 ```tsx
 style("-flex");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -29,3 +31,7 @@ style("flex");
 
 A utility name or theme value that does not exist is reported by
 [unknown-utility](/docs/lints/unknown-utility/) instead.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-utility" />

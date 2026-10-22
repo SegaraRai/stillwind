@@ -4,26 +4,27 @@ description: An @stillwind-require-properties directive in your stylesheet has i
 slug: docs/errors/SW14003
 ---
 
-<CompilerError code="SW14003" category="authoring" />
-
 This error occurs when an `@stillwind-require-properties` directive in your
 stylesheet has invalid syntax, such as an incomplete custom property name. The
-directive lists the registered custom properties that a utility needs. The
-message gives the position within the rule that contains it.
+directive lists the registered custom properties that a utility needs.
 
 ## Reported
 
+<DiagnosticExample code="SW14003">
+
 ```css
-@utility spin-x {
+.card {
   @stillwind-require-properties tw-rotate-x;
   transform: var(--tw-rotate-x);
 }
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
 ```css
-@utility spin-x {
+.card {
   @stillwind-require-properties --tw-rotate-x;
   transform: var(--tw-rotate-x);
 }

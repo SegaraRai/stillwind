@@ -4,8 +4,6 @@ description: Reports a container or anchor property that a ref method and a util
 slug: docs/lints/conflicting-provider-properties
 ---
 
-<LintRuleSummary name="conflicting-provider-properties" />
-
 This rule reports a container or anchor property that a ref method, such as
 `asContainer()`, and another utility both set on the same element. For example,
 `asContainer("size")` sets `container-type: size`, and `@container` sets it to
@@ -13,10 +11,14 @@ This rule reports a container or anchor property that a ref method, such as
 
 ## Reported
 
+<DiagnosticExample code="conflicting-provider-properties">
+
 ```tsx
 const card = style.ref("card");
 style(card, card.asContainer("size"), "@container");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -30,3 +32,7 @@ style(card, card.asContainer("size"));
 - Set the property in one place. With a ref, pass the container type to
   `asContainer()`, and remove the utility, as in the example.
 - If you want the type from the utility, call `asContainer()` without a type.
+
+## Rule settings
+
+<LintRuleSummary name="conflicting-provider-properties" />

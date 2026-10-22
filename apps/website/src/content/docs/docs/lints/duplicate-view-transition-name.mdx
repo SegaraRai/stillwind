@@ -4,17 +4,19 @@ description: Reports two .for() calls in one style() call.
 slug: docs/lints/duplicate-view-transition-name
 ---
 
-<LintRuleSummary name="duplicate-view-transition-name" />
-
 This rule reports a `style()` call with more than one `.for()`. An element has one
 `view-transition-name`, so only one of the names takes effect.
 
 ## Reported
 
+<DiagnosticExample code="duplicate-view-transition-name">
+
 ```tsx
 const transition = style.viewTransition({ old: "duration-150" });
 style(transition.for("a"), transition.for("b"));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -30,3 +32,7 @@ style(transition.for("a"));
   `style()` call with its own `.for()`.
 - To combine several transitions on one element, pass the others without
   `.for()`, such as `style(fade, slide.for("a"))`.
+
+## Rule settings
+
+<LintRuleSummary name="duplicate-view-transition-name" />

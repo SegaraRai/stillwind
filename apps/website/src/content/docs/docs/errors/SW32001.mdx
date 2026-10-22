@@ -4,28 +4,14 @@ description: A stylesheet with @import was loaded through an API that cannot res
 slug: docs/errors/SW32001
 ---
 
-<CompilerError code="SW32001" category="host" />
-
 This error occurs when a stylesheet that contains `@import` is passed to an API
 that loads a single stylesheet. That API cannot read other files, so it cannot
 resolve the import.
-
-## Reported
-
-```text
-A single-stylesheet API receives a stylesheet with @import "./tokens.css".
-```
-
-## Fixed
-
-```text
-The integration uses DesignSystemLoader and answers each import request with the file.
-```
 
 ## How to fix
 
 - With an official integration, update the Stillwind packages. If the error
   remains, report it with your stylesheet.
-- In your own integration, load stylesheets with `DesignSystemLoader`, and answer
+- In your own integration, load stylesheets with `NativeDesignSystemLoader`, and answer
   each import request. Only imported stylesheets may be answered as unresolved;
   the root stylesheet must exist.

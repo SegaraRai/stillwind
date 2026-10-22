@@ -4,18 +4,20 @@ description: A --theme() call in your stylesheet has invalid syntax.
 slug: docs/errors/SW14007
 ---
 
-<CompilerError code="SW14007" category="authoring" />
-
 This error occurs when a `--theme()` call in your stylesheet has invalid syntax,
-such as no token name. The message gives the position within the value.
+such as no token name.
 
 ## Reported
+
+<DiagnosticExample code="SW14007">
 
 ```css
 .card {
   color: --theme();
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

@@ -4,23 +4,9 @@ description: The type information describes a value as the wrong kind, such as a
 slug: docs/errors/SW30003
 ---
 
-<CompilerError code="SW30003" category="host" />
-
 This error occurs when the type information describes a value as a different kind
 of definition than the code uses it as. For example, it encodes a keyframes
 definition as a ref. The compiler cannot read the fields of one kind as another.
-
-## Reported
-
-```text
-A style.keyframes() definition is encoded as a ref.
-```
-
-## Fixed
-
-```text
-The definition is encoded as keyframes, the kind that its declaration and its use expect.
-```
 
 ## How to fix
 

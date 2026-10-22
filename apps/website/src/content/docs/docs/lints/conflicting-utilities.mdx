@@ -4,17 +4,19 @@ description: Reports utilities that set the same CSS property under the same con
 slug: docs/lints/conflicting-utilities
 ---
 
-<LintRuleSummary name="conflicting-utilities" />
-
 This rule reports two utilities that set the same CSS property under the same
 conditions. Only one of them takes effect. The order of the generated CSS decides
 which one, not the order in your code, so the code does not show the result.
 
 ## Reported
 
+<DiagnosticExample code="conflicting-utilities">
+
 ```tsx
 style("p-2 p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -34,3 +36,7 @@ style("p-4");
 
 `allowShorthandOverrides` allows the supported overrides between a shorthand
 utility and a longhand utility. The rule still reports other conflicts.
+
+## Rule settings
+
+<LintRuleSummary name="conflicting-utilities" />

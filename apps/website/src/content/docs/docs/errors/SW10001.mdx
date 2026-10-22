@@ -4,16 +4,18 @@ description: The JavaScript or TypeScript of a file has a syntax error.
 slug: docs/errors/SW10001
 ---
 
-<CompilerError code="SW10001" category="authoring" />
-
 This error occurs when the compiler cannot parse the JavaScript or TypeScript of
 a file. The message shows the location and the explanation from the parser.
 
 ## Reported
 
+<DiagnosticExample code="SW10001">
+
 ```tsx
 export const props = style("p-4";
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

@@ -4,23 +4,9 @@ description: A source range from one file was applied to another file.
 slug: docs/errors/SW33003
 ---
 
-<CompilerError code="SW33003" category="host" />
-
 This error occurs when a source range that belongs to one file is applied to
 another file. The offsets may be valid numbers in both files, but they point to
 different text. The message shows the expected and the actual file IDs.
-
-## Reported
-
-```text
-A range from file A is applied to file B.
-```
-
-## Fixed
-
-```text
-The range from file A is applied to file A.
-```
 
 ## How to fix
 

@@ -4,17 +4,19 @@ description: Reports a custom variant selector without &, which matches descenda
 slug: docs/lints/prefer-explicit-nesting-selector
 ---
 
-<LintRuleSummary name="prefer-explicit-nesting-selector" />
-
 This rule reports a `@custom-variant` selector without `&`. Without `&`, the
 selector matches descendants of the element, not the element itself. In the
 example, `hocus:` would match hovered elements inside the element.
 
 ## Reported
 
+<DiagnosticExample code="prefer-explicit-nesting-selector">
+
 ```css
 @custom-variant hocus (:hover);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -27,3 +29,7 @@ example, `hocus:` would match hovered elements inside the element.
 - Add `&` where the element belongs in the selector, as in the example.
 - If the variant should match descendants, write that explicitly, such as
   `(& :hover)`.
+
+## Rule settings
+
+<LintRuleSummary name="prefer-explicit-nesting-selector" />

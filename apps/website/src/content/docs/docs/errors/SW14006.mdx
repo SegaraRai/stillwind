@@ -1,33 +1,18 @@
 ---
 title: "SW14006: Property-usage parse failure"
-description: A CSS value has a syntax error that prevents the compiler from finding its custom properties.
+description: The compiler cannot parse CSS while collecting custom-property usage.
 slug: docs/errors/SW14006
 ---
 
-<CompilerError code="SW14006" category="authoring" />
-
-This error occurs when a CSS value has a syntax error, such as an unclosed
-function. The compiler reads values to find the custom properties that they use,
-and it cannot tell which support CSS to include for a value that it cannot read.
-
-## Reported
-
-```css
-@utility glow {
-  box-shadow: 0 0 8px var(--glow-color;
-}
-```
-
-## Fixed
-
-```css
-@utility glow {
-  box-shadow: 0 0 8px var(--glow-color);
-}
-```
+This error occurs when the compiler cannot parse the CSS that it scans for
+custom-property usage. It needs that usage to select property registrations and
+initial values for the output stylesheet.
 
 ## How to fix
 
-- Fix the value in your stylesheet or utility definition, as in the example.
-- If the value comes from a plugin, report the definition and the plugin version
-  to the plugin's maintainer.
+Correct the malformed CSS in the stylesheet or utility definition that produced
+it. If the authored CSS is valid, report a small reproduction and the Stillwind
+and plugin versions.
+
+Syntax errors found while the stylesheet loads usually produce
+[SW13001](/docs/errors/SW13001/) or [SW13002](/docs/errors/SW13002/) instead.

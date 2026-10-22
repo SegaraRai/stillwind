@@ -4,8 +4,6 @@ description: Reports an unknown or malformed field in a style.cva() configuratio
 slug: docs/lints/invalid-cva-config
 ---
 
-<LintRuleSummary name="invalid-cva-config" />
-
 This rule reports a `style.cva()` configuration that the compiler cannot read,
 such as an unknown field, a default for an option that does not exist, or a
 configuration that is not written in the call. The factory ignores the invalid
@@ -13,9 +11,13 @@ part.
 
 ## Reported
 
+<DiagnosticExample code="invalid-cva-config">
+
 ```tsx
 style.cva("p-4", { variant: { size: { small: "p-2" } } });
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ style.cva("p-4", { variants: { size: { small: "p-2" } } });
   `variants` declares.
 
 See [style.cva()](/docs/macros/cva/#configuration).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-cva-config" />

@@ -4,23 +4,9 @@ description: A requested line and column do not exist in the source.
 slug: docs/errors/SW31007
 ---
 
-<CompilerError code="SW31007" category="host" />
-
 This error occurs when an integration or a tool asks for a line and column that
 do not exist in the source. Lines count from zero, and columns count UTF-16 code
 units from zero.
-
-## Reported
-
-```text
-The source has one line, and the request asks for line 4.
-```
-
-## Fixed
-
-```text
-The line exists, and the column is a valid position on that line.
-```
 
 ## How to fix
 

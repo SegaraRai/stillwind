@@ -4,23 +4,9 @@ description: A file imports stillwind/module-css, but the integration provides n
 slug: docs/errors/SW34002
 ---
 
-<CompilerError code="SW34002" category="host" />
-
 This error occurs when a file imports `stillwind/module-css`, but the integration
 did not create the virtual module that replaces the import. The compiled CSS has
 nowhere to go.
-
-## Reported
-
-```text
-A file imports stillwind/module-css, and the build runs without a Stillwind integration.
-```
-
-## Fixed
-
-```text
-The build uses a Stillwind integration, which creates the virtual module.
-```
 
 ## How to fix
 

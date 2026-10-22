@@ -4,23 +4,36 @@ description: An answer to the stylesheet loader names a request that is not pend
 slug: docs/errors/SW32003
 ---
 
-<CompilerError code="SW32003" category="host" />
-
 This error occurs when an integration answers a request that the stylesheet
 loader is not waiting for. The request ID is unknown, or the request already has
 an answer.
 
 ## Reported
 
-```text
-Pending requests: 1, 2
-Answer for request: 99
+<DiagnosticExample code="SW32003">
+
+```ts
+import { NativeDesignSystemLoader } from "@stillwind/native";
+
+const loader = new NativeDesignSystemLoader();
+loader.provide(0, "root.css", '@import "./tokens.css";');
+loader.provide(99, "tokens.css", "@theme { --color-brand: red; }");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-Each answer names one pending request, and each request gets one answer.
+```ts
+import { NativeDesignSystemLoader } from "@stillwind/native";
+
+const loader = new NativeDesignSystemLoader();
+const step = loader.provide(0, "root.css", '@import "./tokens.css";');
+if (step.kind === "needFile") {
+  for (const request of step.requests) {
+    loader.provide(request.id, "tokens.css", "@theme { --color-brand: red; }");
+  }
+}
 ```
 
 ## How to fix

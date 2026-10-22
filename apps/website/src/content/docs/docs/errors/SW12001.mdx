@@ -4,8 +4,6 @@ description: A variable that holds one ref or animation is assigned a different 
 slug: docs/errors/SW12001
 ---
 
-<CompilerError code="SW12001" category="authoring" />
-
 This error occurs when a variable that holds one ref, keyframes, or view
 transition definition is later assigned a different one. The compiler tracks
 which definitions a variable can hold, and the assignment breaks that record.
@@ -13,10 +11,15 @@ The message includes the explanation from TypeScript.
 
 ## Reported
 
+<DiagnosticExample code="SW12001">
+
 ```ts
 let current = style.ref("card");
 current = style.ref("panel");
+style({ [current("hover")]: "underline" });
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -25,6 +28,7 @@ const card = style.ref("card");
 const panel = style.ref("panel");
 let current: typeof card | typeof panel = card;
 current = panel;
+style({ [current("hover")]: "underline" });
 ```
 
 ## How to fix

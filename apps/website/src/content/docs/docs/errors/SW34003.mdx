@@ -4,23 +4,9 @@ description: The integration asked for code edits from a compilation that failed
 slug: docs/errors/SW34003
 ---
 
-<CompilerError code="SW34003" category="host" />
-
 This error occurs when an integration asks for the code edits of a module whose
 compilation failed. A failed compilation has no complete result to turn into
 edits.
-
-## Reported
-
-```text
-Compilation fails, and the integration still asks for its code edits.
-```
-
-## Fixed
-
-```text
-Compilation succeeds, and the integration asks for the edits of that same revision.
-```
 
 ## How to fix
 

@@ -120,6 +120,43 @@
   @apply mbs-5;
 }
 
+.diagnostic-example > * + * {
+  @apply mbs-3;
+}
+
+.diagnostic-filename {
+  @apply text-caption text-muted font-mono;
+}
+
+.diagnostic-range {
+  color: inherit;
+  background: transparent;
+  text-decoration: underline wavy var(--color-danger);
+  text-underline-offset: 0.2em;
+}
+
+.docs-prose .astro-code .diagnostic-annotation {
+  @apply relative block my-3 py-2 px-3 border border-danger/30 rounded-control bg-danger/10 whitespace-pre-wrap font-sans text-body;
+  color: var(--color-danger);
+}
+
+.diagnostic-annotation::before {
+  @apply absolute size-2 border-bs border-s border-danger/30 font-mono text-code;
+  content: "";
+  inset-block-start: 0;
+  inset-inline-start: max(0.75rem, calc(var(--diagnostic-column) * 1ch));
+  background-color: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.diagnostic-message {
+  @apply p-4 border-s-2 border-danger bg-danger/5 rounded-control text-danger text-small;
+}
+
+.diagnostic-message > * + * {
+  @apply mbs-2;
+}
+
 .docs-page-header {
   @apply mbe-10;
 }

@@ -4,19 +4,21 @@ description: Reports a theme token with a value of the wrong type for its namesp
 slug: docs/lints/incompatible-theme-value
 ---
 
-<LintRuleSummary name="incompatible-theme-value" />
-
 This rule reports a theme token whose value does not match the type of its
 namespace. For example, tokens in `--color-*` must be colors, so a length makes
 `bg-brand` and the other color utilities write an invalid value.
 
 ## Reported
 
+<DiagnosticExample code="incompatible-theme-value">
+
 ```css
 @theme {
   --color-brand: 1rem;
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ namespace. For example, tokens in `--color-*` must be colors, so a length makes
 - If the value is right, move the token to the namespace of that type, such as
   `--spacing-*` for a length, as in the example.
 - If the namespace is right, correct the value, such as a color for `--color-*`.
+
+## Rule settings
+
+<LintRuleSummary name="incompatible-theme-value" />

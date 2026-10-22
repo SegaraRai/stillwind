@@ -4,22 +4,42 @@ description: The stylesheet that the css setting selects cannot be found.
 slug: docs/errors/SW01008
 ---
 
-<CompilerError code="SW01008" category="configuration" />
-
 This error occurs when the stylesheet that the `css` setting of the project
 selects cannot be found. Stillwind reads the theme, utilities, and variants from
 that stylesheet, so it cannot compile without it.
 
 ## Reported
 
-```ts
-const project = { css: "./src/stilwind.css", files: ["src/**/*.tsx"] };
+<DiagnosticExample code="SW01008">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stilwind.css",
+      files: ["src/**/*.tsx"],
+    },
+  ],
+});
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```ts
-const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"] };
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+    },
+  ],
+});
 ```
 
 ## How to fix

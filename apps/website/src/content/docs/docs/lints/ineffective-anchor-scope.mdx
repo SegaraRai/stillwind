@@ -4,16 +4,18 @@ description: Reports an empty or repeated ref list in an anchor scope.
 slug: docs/lints/ineffective-anchor-scope
 ---
 
-<LintRuleSummary name="ineffective-anchor-scope" />
-
 This rule reports an anchor scope with an empty ref list, or with a ref listed
 twice. An empty list sets no `anchor-scope`, and a repeated ref adds nothing.
 
 ## Reported
 
+<DiagnosticExample code="ineffective-anchor-scope">
+
 ```tsx
 style(style.anchorScope([]));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ Write the scope that you mean:
 - Use `"none"` to set `anchor-scope: none`.
 
 See [style.anchorScope()](/docs/macros/anchor-scope/#inputs).
+
+## Rule settings
+
+<LintRuleSummary name="ineffective-anchor-scope" />

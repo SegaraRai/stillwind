@@ -4,18 +4,20 @@ description: Reports && or a ternary inside a style.cva() value.
 slug: docs/lints/invalid-cva-input
 ---
 
-<LintRuleSummary name="invalid-cva-input" />
-
 This rule reports a runtime condition, such as `&&` or a ternary, inside the base
 or an option value of `style.cva()`. The compiler generates every value when it
 creates the factory, so the condition cannot choose a style.
 
 ## Reported
 
+<DiagnosticExample code="invalid-cva-input">
+
 ```tsx
 declare const active: boolean;
 style.cva(active && "bg-blue-500");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -35,3 +37,7 @@ button({ active });
   either. Use them in `style()` instead.
 
 See [style.cva()](/docs/macros/cva/#style-values).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-cva-input" />

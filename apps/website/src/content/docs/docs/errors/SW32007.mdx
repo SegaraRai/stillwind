@@ -4,24 +4,10 @@ description: The stylesheet loader ran out of IDs for different stylesheet files
 slug: docs/errors/SW32007
 ---
 
-<CompilerError code="SW32007" category="host" />
-
 This error occurs when the stylesheet loader needs an ID for another stylesheet
 file, but has used all the IDs that it can represent. Each distinct file needs an
 ID, so the graph contains far more files than a normal project, or the same file
 keeps getting new identities.
-
-## Reported
-
-```text
-The resolver returns a new identity for the same file on every request.
-```
-
-## Fixed
-
-```text
-The resolver returns one identity for each file.
-```
 
 ## How to fix
 

@@ -4,24 +4,10 @@ description: A compiled module is too large for the compiler's source positions.
 slug: docs/errors/SW15002
 ---
 
-<CompilerError code="SW15002" category="authoring" />
-
 This error occurs when the compiled code of one module is so large that its
 positions do not fit in the compiler's 32-bit source positions. The source may be
 small while the compiled code is not, for example when a style lists a very large
 number of options.
-
-## Reported
-
-```text
-One module generates more than 4 GB of compiled code.
-```
-
-## Fixed
-
-```text
-The styles are split across several modules, each of a normal size.
-```
 
 ## How to fix
 

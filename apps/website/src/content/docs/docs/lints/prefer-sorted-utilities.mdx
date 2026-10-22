@@ -4,17 +4,19 @@ description: Reports utilities that are not in sorted order.
 slug: docs/lints/prefer-sorted-utilities
 ---
 
-<LintRuleSummary name="prefer-sorted-utilities" analysis="project" />
-
 This rule reports utilities that are not in the order that `stillwind fmt` uses.
 The order does not change the CSS. A consistent order makes utilities easier to
 read and diffs smaller. The `stylistic` preset enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="prefer-sorted-utilities">
+
 ```tsx
 style("px-4 flex");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -29,3 +31,7 @@ also sorts on save with `source.sort.stillwind`.
 
 `stillwind fmt` sorts even when this rule is off. To stop all sorting, set
 `sort: false`. See [Sorting](/docs/configuration/#sorting).
+
+## Rule settings
+
+<LintRuleSummary name="prefer-sorted-utilities" analysis="project" />

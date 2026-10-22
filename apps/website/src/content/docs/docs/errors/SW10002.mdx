@@ -4,17 +4,19 @@ description: A Vue, Svelte, or Astro component has a syntax error.
 slug: docs/errors/SW10002
 ---
 
-<CompilerError code="SW10002" category="authoring" />
-
 This error occurs when the parser of the framework cannot read a Vue, Svelte, or
 Astro component. The message shows the location and the explanation from that
 parser.
 
 ## Reported
 
+<DiagnosticExample code="SW10002">
+
 ```html
 <template><button></template>
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

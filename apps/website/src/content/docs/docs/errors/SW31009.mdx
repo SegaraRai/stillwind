@@ -4,23 +4,9 @@ description: A use of style in a converted component has no mapping to the origi
 slug: docs/errors/SW31009
 ---
 
-<CompilerError code="SW31009" category="host" />
-
 This error occurs when a use of `style` or another macro in the converted script
 of a component has no mapping to the original component. The compiler removes the
 macro import, so it must find every use first.
-
-## Reported
-
-```text
-The converter maps the import of style, but not one of the places that use it.
-```
-
-## Fixed
-
-```text
-Every use of style in the generated script maps to its place in the component.
-```
 
 ## How to fix
 

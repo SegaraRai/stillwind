@@ -4,8 +4,6 @@ description: Reports a top-level utility definition that also applies where the 
 slug: docs/lints/bypassed-undefinition
 ---
 
-<LintRuleSummary name="bypassed-undefinition" />
-
 This rule reports a top-level `@utility` that also applies where Stillwind
 removes the utility on purpose. Inside animation options, for example,
 `duration-*` sets `animation-duration`, and the built-in definitions remove the
@@ -14,11 +12,15 @@ meaning back.
 
 ## Reported
 
+<DiagnosticExample code="bypassed-undefinition">
+
 ```css
 @utility duration-slow {
   transition-duration: 1s;
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -35,3 +37,7 @@ meaning back.
 Define the utility inside `@stillwind-registry default`, as in the example. Then
 it applies in ordinary `style()` calls, and animation options keep their own
 meaning of `duration-*`.
+
+## Rule settings
+
+<LintRuleSummary name="bypassed-undefinition" />

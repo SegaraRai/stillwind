@@ -4,17 +4,20 @@ description: Reports a style.css() argument that is not a utility known at build
 slug: docs/lints/invalid-css-input
 ---
 
-<LintRuleSummary name="invalid-css-input" />
-
 This rule reports an argument of `style.css()` that the compiler cannot turn into
 CSS at build time, such as a number, a runtime condition, a ref, or a stored
 `style()` result. The argument adds nothing to the string.
 
 ## Reported
 
+<DiagnosticExample code="invalid-css-input">
+
 ```tsx
-style.css(42, { selector: ":host" });
+const widthInPixels = 42;
+style.css(widthInPixels, { selector: ":host" });
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -29,3 +32,7 @@ style.css("w-[42px]", { selector: ":host" });
   JavaScript, and read it in a utility such as `w-(--width)`.
 
 [style.css()](/docs/macros/css/#inputs) lists the accepted inputs.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-css-input" />

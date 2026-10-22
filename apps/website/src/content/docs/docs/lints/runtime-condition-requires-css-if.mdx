@@ -4,29 +4,49 @@ description: Reports a runtime CSS condition that needs the useCssIf setting.
 slug: docs/lints/runtime-condition-requires-css-if
 ---
 
-<LintRuleSummary name="runtime-condition-requires-css-if" />
-
 This rule reports a runtime CSS condition, such as `if(--state:active):`, that
 the compiler can only express with the native CSS `if()` function. The project
 does not enable it, so the utility produces no CSS.
 
 ## Reported
 
+<DiagnosticExample code="runtime-condition-requires-css-if">
+
 ```tsx
 style("if(--state:active):block");
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      useCssIf: true,
+    },
+  ],
+});
+```
+
 ```tsx
-style("data-[state=active]:block");
+style("if(--state:active):block");
 ```
 
 ## How to fix
 
-- Set the state as an attribute, such as `data-state="active"`, and use an
-  attribute variant, as in the example. This works in every browser.
 - If the browsers that you support implement CSS `if()`, set `useCssIf: true` in
-  the project, and keep the condition.
+  the project, as in the example. Keep the condition on the custom property.
+- Otherwise, represent the state with an attribute and use an attribute variant.
+  That requires changing the code that sets the state as well.
 
 See [Configuration](/docs/configuration/#generated-css).
+
+## Rule settings
+
+<LintRuleSummary name="runtime-condition-requires-css-if" />

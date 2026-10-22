@@ -4,8 +4,6 @@ description: The style function is used as a value instead of being called.
 slug: docs/errors/SW10005
 ---
 
-<CompilerError code="SW10005" category="authoring" />
-
 This error occurs when the code uses `style` or another macro as a value, such as
 by storing it in a variable or passing it to a function. The compiler replaces
 macro calls at build time and removes the import, so the function does not exist
@@ -13,15 +11,23 @@ at runtime.
 
 ## Reported
 
+<DiagnosticExample code="SW10005">
+
 ```tsx
+import { style } from "stillwind/react";
+
 const macro = style;
 macro("p-4");
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
 ```tsx
-const props = style("p-4");
+import { style as macro } from "stillwind/react";
+
+const props = macro("p-4");
 ```
 
 ## How to fix

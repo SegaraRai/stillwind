@@ -4,23 +4,9 @@ description: The script that a converter generated from a valid component has a 
 slug: docs/errors/SW31004
 ---
 
-<CompilerError code="SW31004" category="host" />
-
 This error occurs when a Vue, Svelte, or Astro component is valid, but the script
 that the converter generates from it cannot be parsed. The message contains the
 explanation from the parser.
-
-## Reported
-
-```text
-The generated script contains an unclosed function call.
-```
-
-## Fixed
-
-```text
-The generated script parses completely as the language that the integration selects.
-```
 
 ## How to fix
 

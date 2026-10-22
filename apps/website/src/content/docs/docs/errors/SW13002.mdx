@@ -4,17 +4,20 @@ description: A CSS block in your stylesheet is not closed.
 slug: docs/errors/SW13002
 ---
 
-<CompilerError code="SW13002" category="authoring" />
-
 This error occurs when a block in your stylesheet opens but does not close before
 the end of the file. The message gives the position as a byte offset from the
 start of the parsed text, counting from zero.
 
 ## Reported
 
+<DiagnosticExample code="SW13002">
+
 ```css
-.card { color: blue;
+.card {
+  color: blue;
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

@@ -4,23 +4,9 @@ description: The compiled CSS of a base style is missing from the build.
 slug: docs/errors/SW11003
 ---
 
-<CompilerError code="SW11003" category="authoring" />
-
 This error occurs when a style uses a base whose compiled CSS is not part of the
 build. The compiler must place the CSS of the base before the style, so it cannot
 continue without it.
-
-## Reported
-
-```text
-derived.ts uses a base from base.ts, but the build compiled only derived.ts.
-```
-
-## Fixed
-
-```text
-The build reaches base.ts through an import, so both modules are compiled.
-```
 
 ## How to fix
 

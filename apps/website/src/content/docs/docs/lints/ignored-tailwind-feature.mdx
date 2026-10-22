@@ -4,21 +4,23 @@ description: Reports Tailwind CSS features that Stillwind ignores in the stylesh
 slug: docs/lints/ignored-tailwind-feature
 ---
 
-<LintRuleSummary name="ignored-tailwind-feature" />
-
 This rule reports a Tailwind CSS feature in your stylesheet that Stillwind
 ignores, such as `@config` or an option on `@import`. Stillwind reads these
 settings from `stillwind.config.ts`, so the line has no effect.
 
 ## Reported
 
+<DiagnosticExample code="ignored-tailwind-feature">
+
 ```css
 @config "./tailwind.config.js";
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
-```ts
+```ts title="stillwind.config.ts"
 import { defineConfig } from "stillwind/config";
 
 import tailwindConfig from "./tailwind.config.js";
@@ -41,3 +43,7 @@ export default defineConfig({
 - Move an `important` option on `@import` to the `important` field.
 - [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/#move-configuration)
   lists every replacement.
+
+## Rule settings
+
+<LintRuleSummary name="ignored-tailwind-feature" />

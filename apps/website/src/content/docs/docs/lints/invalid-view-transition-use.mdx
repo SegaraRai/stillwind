@@ -4,18 +4,20 @@ description: Reports extra or invalid arguments to .for() of a view transition.
 slug: docs/lints/invalid-view-transition-use
 ---
 
-<LintRuleSummary name="invalid-view-transition-use" />
-
 This rule reports a `.for()` call with more than one argument, or with a key that
 is not a string or a number. One `.for()` call names one element, so extra
 arguments do not name more elements.
 
 ## Reported
 
+<DiagnosticExample code="invalid-view-transition-use">
+
 ```tsx
 const transition = style.viewTransition({ old: "duration-150" });
 style(transition.for("a", "b"));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ const second = style(transition.for("b"));
 - Use a string or a number as the key, such as the ID of the item.
 
 See [style.viewTransition()](/docs/macros/view-transition/#name-the-element).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-view-transition-use" />

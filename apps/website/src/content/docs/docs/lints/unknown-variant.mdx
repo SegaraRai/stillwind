@@ -4,17 +4,19 @@ description: Reports a variant that your stylesheet does not define.
 slug: docs/lints/unknown-variant
 ---
 
-<LintRuleSummary name="unknown-variant" />
-
 This rule reports a variant that your stylesheet does not define, such as a
 misspelled `hovr:`. The condition never matches, so the utilities under it never
 apply.
 
 ## Reported
 
+<DiagnosticExample code="unknown-variant">
+
 ```tsx
 style("hovr:p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -27,3 +29,7 @@ style("hover:p-4");
 - Correct the spelling of the variant.
 - To use a variant of your own, define it with `@custom-variant` in your
   stylesheet.
+
+## Rule settings
+
+<LintRuleSummary name="unknown-variant" />

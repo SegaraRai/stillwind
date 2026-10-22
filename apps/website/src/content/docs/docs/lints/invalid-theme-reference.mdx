@@ -4,19 +4,21 @@ description: Reports a --theme() reference to a token that is not defined.
 slug: docs/lints/invalid-theme-reference
 ---
 
-<LintRuleSummary name="invalid-theme-reference" />
-
 This rule reports a `--theme()` reference in your stylesheet to a token that the
 theme does not define, when the reference has no fallback. The declaration that
 contains it produces no CSS.
 
 ## Reported
 
+<DiagnosticExample code="invalid-theme-reference">
+
 ```css
 .card {
   color: --theme(--color-brand);
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -37,3 +39,7 @@ contains it produces no CSS.
 - If the token is optional, add a fallback: `--theme(--color-brand, blue)`.
 
 Malformed `--theme()` syntax causes [SW14007](/docs/errors/SW14007/) instead.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-theme-reference" />

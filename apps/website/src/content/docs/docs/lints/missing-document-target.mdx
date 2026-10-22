@@ -4,8 +4,6 @@ description: Reports a style.css() utility without a selector to apply to.
 slug: docs/lints/missing-document-target
 ---
 
-<LintRuleSummary name="missing-document-target" />
-
 This rule reports a utility in `style.css()` that has no element to style.
 `style.css()` returns a stylesheet, not props for an element, so a utility needs
 a `selector` option or a variant that sets its own selector. Otherwise the utility
@@ -13,9 +11,13 @@ produces no CSS.
 
 ## Reported
 
+<DiagnosticExample code="missing-document-target">
+
 ```tsx
 style.css("p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -29,3 +31,7 @@ style.css("p-4", { selector: ":host" });
 - Or use a variant that sets its own selector, such as `host:p-4`.
 
 See [style.css()](/docs/macros/css/#inputs).
+
+## Rule settings
+
+<LintRuleSummary name="missing-document-target" />

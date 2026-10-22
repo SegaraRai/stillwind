@@ -4,30 +4,35 @@ description: Two styles use each other as a base.
 slug: docs/errors/SW11001
 ---
 
-<CompilerError code="SW11001" category="authoring" />
-
 This error occurs when styles use each other as a base, directly or through other
 styles. The CSS of a base comes before the CSS of the styles built on it, so a
 cycle has no valid order.
 
 ## Reported
 
+<DiagnosticExample code="SW11001">
+
 ```tsx
-const first = style(second);
-const second = style(first);
+const first = style(second, "rounded-md");
+const second = style(first, "p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
 ```tsx
-const first = style("p-2");
-const second = style(first, "p-4");
+const base = style("rounded-md p-4");
+const first = style(base);
+const second = style(base);
 ```
 
 ## How to fix
 
-- Build in one direction only: decide which style is the base, as in the example.
-- If both styles share utilities, move them into a third base that both use.
+- If both styles need the same utilities, move those utilities into a third
+  base, as in the example.
+- If only one style extends the other, keep that dependency and remove the one
+  in the opposite direction.
 
 A cycle between whole modules is reported as [SW11002](/docs/errors/SW11002/)
 instead.

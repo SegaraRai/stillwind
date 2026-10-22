@@ -4,18 +4,20 @@ description: Reports a malformed suppression comment or an unknown rule name in 
 slug: docs/lints/invalid-lint-suppression
 ---
 
-<LintRuleSummary name="invalid-lint-suppression" />
-
 This rule reports a suppression comment that the CLI cannot read, such as a
 comment with a misspelled rule name. The comment suppresses nothing, so the
 finding that you meant to hide still appears.
 
 ## Reported
 
+<DiagnosticExample code="invalid-lint-suppression">
+
 ```tsx
 // swlint-disable-next-line no-arbitary-colors -- Partner brand color.
 style("bg-[#123456]");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -32,3 +34,7 @@ style("bg-[#123456]");
   or a `swlint-disable` and `swlint-enable` pair, followed by rule names.
 
 See [Suppression comments](/docs/configuration/#suppression-comments).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-lint-suppression" />

@@ -4,18 +4,27 @@ description: Your stylesheet has no place for CSS that a feature needs, such as 
 slug: docs/errors/SW14002
 ---
 
-<CompilerError code="SW14002" category="authoring" />
-
 This error occurs when the compiler generates supporting CSS, such as the
 `@keyframes` of an animation, but your stylesheet has no slot for it. The message
 names the missing slot.
 
 ## Reported
 
+<DiagnosticExample code="SW14002">
+
 ```css
 @import "stillwind/utilities.css" layer(utilities);
 @import "stillwind/builtins.css";
 ```
+
+```tsx
+const fade = style.keyframes({
+  to: "opacity-0",
+});
+style(fade(""));
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -23,6 +32,13 @@ names the missing slot.
 @import "stillwind/utilities.css" layer(utilities);
 @import "stillwind/builtins.css";
 @stillwind-slot keyframes;
+```
+
+```tsx
+const fade = style.keyframes({
+  to: "opacity-0",
+});
+style(fade(""));
 ```
 
 ## How to fix

@@ -4,16 +4,18 @@ description: Reports the same utility written twice under the same conditions.
 slug: docs/lints/duplicate-utility
 ---
 
-<LintRuleSummary name="duplicate-utility" />
-
 This rule reports a utility that appears twice under the same conditions, such as
 `p-4 p-4`. The second one adds nothing.
 
 ## Reported
 
+<DiagnosticExample code="duplicate-utility">
+
 ```tsx
 style("p-4 p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -27,3 +29,7 @@ Remove one of them. The automatic fix removes the repeated utility.
 
 Two different utilities that set the same property are reported by
 [conflicting-utilities](/docs/lints/conflicting-utilities/) instead.
+
+## Rule settings
+
+<LintRuleSummary name="duplicate-utility" />

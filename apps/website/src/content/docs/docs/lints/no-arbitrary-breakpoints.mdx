@@ -4,17 +4,19 @@ description: Reports viewport widths written as arbitrary values, such as min-[7
 slug: docs/lints/no-arbitrary-breakpoints
 ---
 
-<LintRuleSummary name="no-arbitrary-breakpoints" />
-
 This rule reports a viewport width written as an arbitrary value, such as
 `min-[713px]:`. The CSS works, but other components and JavaScript cannot refer
 to the same width by name. No preset enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="no-arbitrary-breakpoints">
+
 ```tsx
 style("min-[713px]:p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -35,3 +37,7 @@ name as a variant, as in the example:
 
 If a default breakpoint such as `md:` fits the design, use it instead. To use the
 same width in JavaScript, pass the name to [style.media()](/docs/macros/media/).
+
+## Rule settings
+
+<LintRuleSummary name="no-arbitrary-breakpoints" />

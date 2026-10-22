@@ -4,24 +4,9 @@ description: A requested UTF-16 offset is outside the source or inside a charact
 slug: docs/errors/SW31006
 ---
 
-<CompilerError code="SW31006" category="host" />
-
 This error occurs when an integration or a tool asks for a UTF-16 offset that is
 not a valid position in the source, such as an offset past the end. UTF-16
 offsets count code units, not bytes.
-
-## Reported
-
-```text
-Source length: 20 UTF-16 code units
-Requested offset: 100
-```
-
-## Fixed
-
-```text
-The requested offset is between 0 and 20.
-```
 
 ## How to fix
 

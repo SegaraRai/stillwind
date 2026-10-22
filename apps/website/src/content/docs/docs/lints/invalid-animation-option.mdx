@@ -4,8 +4,6 @@ description: Reports a utility in the options of an animation that is not an ani
 slug: docs/lints/invalid-animation-option
 ---
 
-<LintRuleSummary name="invalid-animation-option" />
-
 This rule reports a utility in the options of an animation that does not set an
 animation property, such as `p-4`. The options accept timing utilities such as
 `duration-300`, `ease-out`, and `delay-150`, and fill modes such as `both`. The
@@ -13,16 +11,20 @@ other utility produces no CSS.
 
 ## Reported
 
+<DiagnosticExample code="invalid-animation-option">
+
 ```tsx
 const fade = style.keyframes({ to: "opacity-100" });
 style(fade("p-4"));
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
 ```tsx
 const fade = style.keyframes({ to: "opacity-100" });
-style("p-4", fade("duration-300"));
+style("p-4", fade(""));
 ```
 
 ## How to fix
@@ -32,3 +34,7 @@ style("p-4", fade("duration-300"));
 - Keep only animation options, such as `duration-300` or `both`, in the options.
 
 See [style.keyframes()](/docs/macros/keyframes/#apply-the-animation).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-animation-option" />

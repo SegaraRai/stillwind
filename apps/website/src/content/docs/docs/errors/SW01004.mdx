@@ -4,22 +4,44 @@ description: The hashLength setting is outside the supported range.
 slug: docs/errors/SW01004
 ---
 
-<CompilerError code="SW01004" category="configuration" />
-
 This error occurs when `hashLength` is not an integer from 1 to 50. The setting
 chooses the number of hash characters in generated names. The message shows the
 value and the maximum.
 
 ## Reported
 
-```ts
-const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"], hashLength: 0 };
+<DiagnosticExample code="SW01004">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      hashLength: 0,
+    },
+  ],
+});
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```ts
-const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"], hashLength: 5 };
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      hashLength: 5,
+    },
+  ],
+});
 ```
 
 ## How to fix

@@ -4,18 +4,20 @@ description: A ref method, ref condition, or animation call is stored or passed 
 slug: docs/errors/SW10004
 ---
 
-<CompilerError code="SW10004" category="authoring" />
-
 Some calls have no value of their own. The compiler turns them into CSS at the
 place where `style()` uses them. This error occurs when such a call is stored in
 a variable or passed to another function instead.
 
 ## Reported
 
+<DiagnosticExample code="SW10004">
+
 ```tsx
 const card = style.ref("card");
 const container = card.asContainer("inline-size");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

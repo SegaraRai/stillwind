@@ -2,10 +2,9 @@ import nimbus, { defineConfig as defineNimbusConfig } from "@cloudflare/nimbus-d
 import { stillwind } from "@stillwind/integration/astro";
 import { defineConfig } from "astro/config";
 
-import { compiledSourcePlugin } from "./src/components/docs/reference/compiled-source";
 import { referenceMarkdown } from "./src/components/docs/reference/markdown";
 
-const componentMap = await referenceMarkdown();
+const { componentMap, sourcePlugin } = await referenceMarkdown();
 
 export default defineConfig({
   compressHTML: "jsx",
@@ -76,7 +75,7 @@ export default defineConfig({
       {
         markdown: {
           componentMap,
-          mdastPlugins: [compiledSourcePlugin],
+          mdastPlugins: [sourcePlugin],
         },
         rules: {
           "nimbus/frontmatter-shape": "error",

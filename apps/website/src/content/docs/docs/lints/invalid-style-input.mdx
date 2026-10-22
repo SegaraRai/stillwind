@@ -4,30 +4,37 @@ description: Reports a style() argument that the compiler cannot compile, such a
 slug: docs/lints/invalid-style-input
 ---
 
-<LintRuleSummary name="invalid-style-input" />
-
 This rule reports an argument of `style()` that the compiler cannot compile, such
 as a number or a `style()` call written inside another `style()` call. The
-argument adds nothing to the element.
+argument adds nothing to the element. A number alone supplies neither a CSS
+property nor a unit. The example intends to set a width in pixels.
 
 ## Reported
+
+<DiagnosticExample code="invalid-style-input">
 
 ```tsx
 style(42);
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
 ```tsx
-style("w-(--width)", { "--width": "42px" });
+style("w-[42px]");
 ```
 
 ## How to fix
 
-- For a value that you know when you write the code, use a utility, such as
-  `w-[42px]` or a theme value.
+- For a value that you know when you write the code, use a utility, as in the
+  example, or a theme value.
 - For a value that changes at runtime, set a custom property and read it in a
-  utility, as in the example.
+  utility, such as `w-(--width)`.
 - Store a `style()` result in a variable before you pass it to another call.
 
 [style()](/docs/macros/style/#inputs) lists the accepted inputs.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-style-input" />

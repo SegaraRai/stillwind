@@ -4,19 +4,21 @@ description: Reports await, yield, or import() inside an argument of style() or 
 slug: docs/lints/suspending-macro-argument
 ---
 
-<LintRuleSummary name="suspending-macro-argument" />
-
 This rule reports `await`, `yield`, or a dynamic `import()` inside an argument of
 `style()` or another macro. The compiler can move or skip argument expressions,
 so the code would not wait or load where you wrote it.
 
 ## Reported
 
+<DiagnosticExample code="suspending-macro-argument">
+
 ```tsx
 async function props() {
   return style({ "--x": await Promise.resolve(1) });
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ async function props() {
 
 Wait for the value before the call, store it in a variable, and pass the
 variable, as in the example.
+
+## Rule settings
+
+<LintRuleSummary name="suspending-macro-argument" />

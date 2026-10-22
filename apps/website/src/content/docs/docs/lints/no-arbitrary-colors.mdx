@@ -4,17 +4,19 @@ description: Reports colors written as arbitrary values, such as bg-[#123456].
 slug: docs/lints/no-arbitrary-colors
 ---
 
-<LintRuleSummary name="no-arbitrary-colors" />
-
 This rule reports a color written as an arbitrary value, such as `bg-[#123456]`.
 The CSS works, but the color does not come from your theme, so a theme change
 does not reach it. No preset enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="no-arbitrary-colors">
+
 ```tsx
 style("bg-[#123456]");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -36,3 +38,7 @@ the example:
 If the color already exists in the theme, use its name instead. To stop
 components from using the default palette directly, also enable
 [no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens/).
+
+## Rule settings
+
+<LintRuleSummary name="no-arbitrary-colors" />

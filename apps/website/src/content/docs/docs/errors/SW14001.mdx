@@ -4,8 +4,6 @@ description: Your stylesheet does not place the generated utility CSS anywhere.
 slug: docs/errors/SW14001
 ---
 
-<CompilerError code="SW14001" category="authoring" />
-
 This error occurs when your stylesheet has no `@stillwind-slot utilities;`. The
 slot marks where the compiler writes the CSS of the utilities that you use. The
 default stylesheet contains it, so the error usually appears when a stylesheet
@@ -13,10 +11,18 @@ imports only some parts of Stillwind.
 
 ## Reported
 
+<DiagnosticExample code="SW14001">
+
 ```css
 @import "stillwind/theme.css" layer(theme);
 @import "stillwind/builtins.css";
 ```
+
+```tsx
+style("p-4");
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -24,6 +30,10 @@ imports only some parts of Stillwind.
 @import "stillwind/theme.css" layer(theme);
 @import "stillwind/utilities.css" layer(utilities);
 @import "stillwind/builtins.css";
+```
+
+```tsx
+style("p-4");
 ```
 
 ## How to fix

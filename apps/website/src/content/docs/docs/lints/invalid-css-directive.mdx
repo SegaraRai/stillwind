@@ -4,17 +4,19 @@ description: Reports a malformed or unsupported Stillwind directive in your styl
 slug: docs/lints/invalid-css-directive
 ---
 
-<LintRuleSummary name="invalid-css-directive" />
-
 This rule reports a Stillwind directive in your stylesheet that the compiler
 cannot read, such as `@stillwind-slot` with an unknown slot name. The compiler
 skips the directive.
 
 ## Reported
 
+<DiagnosticExample code="invalid-css-directive">
+
 ```css
 @stillwind-slot utility;
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -28,3 +30,7 @@ skips the directive.
   generated utilities is `utilities`.
 - If you do not need the directive, remove it. `@import "stillwind"` already
   places the slots that the default stylesheet needs.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-css-directive" />

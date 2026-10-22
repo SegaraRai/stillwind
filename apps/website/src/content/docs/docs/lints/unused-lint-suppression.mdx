@@ -4,8 +4,6 @@ description: Reports a suppression comment that suppresses no finding.
 slug: docs/lints/unused-lint-suppression
 ---
 
-<LintRuleSummary name="unused-lint-suppression" analysis="project" />
-
 This rule reports a suppression comment that suppresses no finding, for example
 because the code was fixed after the comment was added. The comment would hide a
 future finding that nobody has reviewed. The `strict` preset enables this rule.
@@ -13,15 +11,26 @@ future finding that nobody has reviewed. The `strict` preset enables this rule.
 ## Configuration
 
 ```json
-{ "lint": { "rules": { "unknown-utility": "warn", "unused-lint-suppression": "warn" } } }
+{
+  "lint": {
+    "rules": {
+      "unknown-utility": "warn",
+      "unused-lint-suppression": "warn"
+    }
+  }
+}
 ```
 
 ## Reported
+
+<DiagnosticExample code="unused-lint-suppression">
 
 ```tsx
 // swlint-disable-next-line unknown-utility
 style("p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -33,3 +42,7 @@ style("p-4");
 
 Remove the comment, as in the example. If the rule should still report the line,
 check that the comment is on the right line and names the right rule.
+
+## Rule settings
+
+<LintRuleSummary name="unused-lint-suppression" analysis="project" />

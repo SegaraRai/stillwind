@@ -4,8 +4,6 @@ description: The compiler cannot tell which refs or animations a value can hold.
 slug: docs/errors/SW12002
 ---
 
-<CompilerError code="SW12002" category="authoring" />
-
 This error occurs when the compiler cannot tell which refs, keyframes, or view
 transitions a value can hold. When a ref is chosen at runtime, the compiler must
 generate CSS for every ref that it can be. A type annotation that widens the type
@@ -13,11 +11,15 @@ hides that list.
 
 ## Reported
 
+<DiagnosticExample code="SW12002">
+
 ```ts
 const card = style.ref("card");
 const current: ReturnType<typeof style.ref> = card;
 style({ [current("hover")]: "underline" });
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 

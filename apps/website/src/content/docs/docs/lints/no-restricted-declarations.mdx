@@ -4,8 +4,6 @@ description: Reports utilities that produce CSS declarations that your project f
 slug: docs/lints/no-restricted-declarations
 ---
 
-<LintRuleSummary name="no-restricted-declarations" />
-
 This rule reports a utility that produces a CSS declaration that your project
 forbids. It checks the generated declarations, so it also catches other
 utilities and arbitrary values that produce the same declaration. The rule is off
@@ -19,7 +17,12 @@ until you list declarations.
     "rules": {
       "no-restricted-declarations": {
         "severity": "warn",
-        "rules": [{ "properties": ["transition-property"], "values": ["all"] }]
+        "rules": [
+          {
+            "properties": ["transition-property"],
+            "values": ["all"]
+          }
+        ]
       }
     }
   }
@@ -28,9 +31,13 @@ until you list declarations.
 
 ## Reported
 
+<DiagnosticExample code="no-restricted-declarations">
+
 ```tsx
 style("transition-all");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -40,12 +47,18 @@ style("transition-colors");
 
 ## How to fix
 
-Use a utility that produces an allowed declaration. In the example, the project
-forbids transitions on every property, so the fix names the properties that
-change.
+Name the properties that the component actually animates. The example assumes
+that only colors change, so `transition-colors` keeps those transitions. If
+opacity or transforms also change, include them, for example with
+`transition-[color,opacity,transform]`. Do not replace `all` with a list that
+leaves out an intended transition.
 
 ## Options
 
 `rules` lists the restrictions. Each entry has `properties` and `values`
 patterns, and an optional `message` that explains what to use instead. Patterns
 accept `*` and `?` and ignore case. Every matching entry applies.
+
+## Rule settings
+
+<LintRuleSummary name="no-restricted-declarations" />

@@ -4,22 +4,44 @@ description: The prefix or tailwindPrefix setting does not start with -- and end
 slug: docs/errors/SW01002
 ---
 
-<CompilerError code="SW01002" category="configuration" />
-
 This error occurs when `prefix` or `tailwindPrefix` is not a valid prefix for
 custom properties. A prefix must start with `--`, end with `-`, and contain no
 whitespace. The message names the setting.
 
 ## Reported
 
-```ts
-const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"], prefix: "sw" };
+<DiagnosticExample code="SW01002">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      prefix: "sw",
+    },
+  ],
+});
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```ts
-const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"], prefix: "--sw-" };
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      prefix: "--sw-",
+    },
+  ],
+});
 ```
 
 ## How to fix

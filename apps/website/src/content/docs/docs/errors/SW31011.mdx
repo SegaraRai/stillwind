@@ -4,24 +4,9 @@ description: The converter recorded the wrong quote character for an attribute t
 slug: docs/errors/SW31011
 ---
 
-<CompilerError code="SW31011" category="host" />
-
 This error occurs when the converter records a different quote character for an
 attribute than the component uses. The compiler escapes its replacement for the
 recorded quote, so a wrong record could break the attribute.
-
-## Reported
-
-```text
-Attribute in the component: double quotes
-Recorded quote: single quote
-```
-
-## Fixed
-
-```text
-The recorded quote matches the quotes of the attribute.
-```
 
 ## How to fix
 

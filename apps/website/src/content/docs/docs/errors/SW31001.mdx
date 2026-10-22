@@ -4,23 +4,9 @@ description: The mapping between a component and its converted script is malform
 slug: docs/errors/SW31001
 ---
 
-<CompilerError code="SW31001" category="host" />
-
 This error occurs when the map that links a Vue, Svelte, or Astro component to its
 converted script is malformed. For example, a range in the map extends past the
 end of the text that it refers to. The message describes the problem.
-
-## Reported
-
-```text
-A mapped range ends after the end of the generated script.
-```
-
-## Fixed
-
-```text
-Every range stays inside the text that it refers to.
-```
 
 ## How to fix
 

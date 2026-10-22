@@ -4,24 +4,10 @@ description: The compiler needs type information for a value, but the integratio
 slug: docs/errors/SW30001
 ---
 
-<CompilerError code="SW30001" category="host" />
-
 This error occurs when the compiler needs TypeScript type information to compile
 a value, but the integration compiled the file without it. Examples are a ref
 chosen by a condition, or an animation imported from another module. The message
 names the kind of value.
-
-## Reported
-
-```text
-The integration compiles a file that chooses a ref at runtime, without type information.
-```
-
-## Fixed
-
-```text
-The integration collects type information for the file, then compiles the same revision of the file.
-```
 
 ## How to fix
 

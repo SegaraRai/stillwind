@@ -4,8 +4,6 @@ description: A utility requires a custom property that no @stillwind-property re
 slug: docs/errors/SW14005
 ---
 
-<CompilerError code="SW14005" category="authoring" />
-
 This error occurs when a utility requires a custom property, but no
 `@stillwind-property` in the loaded stylesheets registers it. The registration
 provides the initial value and other support CSS. Assigning the property in a
@@ -13,12 +11,20 @@ rule does not register it.
 
 ## Reported
 
+<DiagnosticExample code="SW14005">
+
 ```css
 @utility spin-x {
   @stillwind-require-properties --spin-angle;
   rotate: var(--spin-angle);
 }
 ```
+
+```tsx
+style("spin-x");
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -33,6 +39,10 @@ rule does not register it.
   @stillwind-require-properties --spin-angle;
   rotate: var(--spin-angle);
 }
+```
+
+```tsx
+style("spin-x");
 ```
 
 ## How to fix

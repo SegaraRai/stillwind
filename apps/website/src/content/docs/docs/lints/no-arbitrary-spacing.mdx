@@ -4,32 +4,43 @@ description: Reports margin, padding, and gap written as arbitrary values, such 
 slug: docs/lints/no-arbitrary-spacing
 ---
 
-<LintRuleSummary name="no-arbitrary-spacing" />
-
 This rule reports margin, padding, or gap written as an arbitrary value, such as
 `p-[13px]`. The CSS works, but the value is not on your spacing scale. No preset
 enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="no-arbitrary-spacing">
+
 ```tsx
 style("p-[13px]");
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
+```css
+@theme {
+  --spacing-panel: 13px;
+}
+```
+
 ```tsx
-style("p-3");
+style("p-panel");
 ```
 
 ## How to fix
 
-- Use the nearest value on the scale. With the default `--spacing` of `0.25rem`,
-  `p-3` is 12px, as in the example.
-- If the exact value has a role in your design, add a token, such as
-  `--spacing-panel: 13px` in `@theme`, and use `p-panel`.
+- Give the value a theme name for its role, as in the example. This keeps the
+  same 13px padding while making it available to other components.
+- Use an existing spacing value if the design allows a different size.
 
 ## Options
 
 `properties` lists more CSS properties to check, in addition to margin, padding,
 and gap.
+
+## Rule settings
+
+<LintRuleSummary name="no-arbitrary-spacing" />

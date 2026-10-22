@@ -4,17 +4,19 @@ description: Reports a value outside the range that the browser uses, such as op
 slug: docs/lints/clamped-value
 ---
 
-<LintRuleSummary name="clamped-value" />
-
 This rule reports a literal value outside the range that the browser uses for the
 property. The browser clamps the value to the range, so the extra amount has no
 effect. For example, `opacity-150` behaves the same as `opacity-100`.
 
 ## Reported
 
+<DiagnosticExample code="clamped-value">
+
 ```tsx
 style("opacity-150");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -29,3 +31,7 @@ inside the range.
 
 The rule checks values written in the code. It does not check values that a
 custom property receives at runtime.
+
+## Rule settings
+
+<LintRuleSummary name="clamped-value" />

@@ -4,8 +4,6 @@ description: Reports a state or container variant around a style.keyframes() def
 slug: docs/lints/invalid-keyframes-variant
 ---
 
-<LintRuleSummary name="invalid-keyframes-variant" />
-
 This rule reports a state or container variant, such as `hover:`, around a
 definition inside `style.keyframes()`. A keyframes definition belongs to no
 element, so it cannot be hovered. Only media and `supports-*` variants can choose
@@ -13,10 +11,14 @@ a definition.
 
 ## Reported
 
+<DiagnosticExample code="invalid-keyframes-variant">
+
 ```tsx
 const fade = style.keyframes({ "hover:": { to: "opacity-100" } });
 style(fade("duration-300"));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -33,3 +35,7 @@ style({ "hover:": fade("duration-300") });
   keep the variant in the definition: `"motion-reduce:": { ... }`.
 
 See [style.keyframes()](/docs/macros/keyframes/#define-the-frames).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-keyframes-variant" />

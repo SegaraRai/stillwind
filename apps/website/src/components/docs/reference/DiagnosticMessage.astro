@@ -1,0 +1,18 @@
+---
+import type { ExampleDiagnostic } from "./diagnostic-example";
+
+interface Props {
+  diagnostic: ExampleDiagnostic;
+}
+
+const { diagnostic } = Astro.props;
+---
+
+<div class="diagnostic-message">
+  <p>
+    <strong>{diagnostic.code}</strong>: {diagnostic.message}
+  </p>
+  {diagnostic.notes.map((note) => (
+    <p>{note}</p>
+  ))}
+</div>

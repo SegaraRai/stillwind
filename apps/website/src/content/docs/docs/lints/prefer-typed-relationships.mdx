@@ -4,8 +4,6 @@ description: Reports group-* and peer-* variants that a ref can replace.
 slug: docs/lints/prefer-typed-relationships
 ---
 
-<LintRuleSummary name="prefer-typed-relationships" />
-
 This rule reports `group-*` and `peer-*` variants. They connect elements through
 the class names `group` and `peer`, so any element with the same class can
 match, and nothing checks a misspelled name. A ref connects the elements through a
@@ -13,9 +11,13 @@ variable instead. The `stylistic` preset enables this rule.
 
 ## Reported
 
+<DiagnosticExample code="prefer-typed-relationships">
+
 ```tsx
 style("group-hover:text-red-500");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -33,3 +35,7 @@ const title = style({ [card("hover")]: "text-red-500" });
   [`.in()`](/docs/macros/ref/in/) with a ref on a shared ancestor.
 
 See [Element relationships](/docs/guides/element-relationships/).
+
+## Rule settings
+
+<LintRuleSummary name="prefer-typed-relationships" />

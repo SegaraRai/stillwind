@@ -47,7 +47,7 @@ Use the Vite plugin for React, Preact, Solid, Vue, and Svelte applications:
 ```ts
 import { stillwind } from "@stillwind/integration/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [stillwind(), react()],
@@ -104,7 +104,7 @@ Add the Vite plugin before `sveltekit()`:
 ```ts
 import { stillwind } from "@stillwind/integration/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite-plus";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [stillwind(), sveltekit()],

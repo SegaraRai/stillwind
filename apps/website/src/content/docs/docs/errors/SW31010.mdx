@@ -4,23 +4,9 @@ description: The compiler must edit a part of a component that the converter mar
 slug: docs/errors/SW31010
 ---
 
-<CompilerError code="SW31010" category="host" />
-
 This error occurs when the compiler must replace text in a component, but no
 single editable region from the converter contains the whole replacement. Two
 neighboring regions are not enough.
-
-## Reported
-
-```text
-A replacement starts inside one editable region and ends inside the next one.
-```
-
-## Fixed
-
-```text
-The whole replacement lies inside one editable region.
-```
 
 ## How to fix
 

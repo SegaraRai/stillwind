@@ -4,19 +4,21 @@ description: Reports a style.ref() label or ref method argument that is not a li
 slug: docs/lints/invalid-ref-input
 ---
 
-<LintRuleSummary name="invalid-ref-input" />
-
 This rule reports a `style.ref()` label or a ref method argument that is not a
 literal. The compiler reads these values at build time, so a value from a variable
 cannot name a ref or configure a method.
 
 ## Reported
 
+<DiagnosticExample code="invalid-ref-input">
+
 ```tsx
 declare const label: string;
 const card = style.ref(label);
 style(card);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -34,3 +36,7 @@ style(card);
 - Write method arguments, such as the type of `asContainer()`, as literals.
 
 See [style.ref()](/docs/macros/ref/).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-ref-input" />

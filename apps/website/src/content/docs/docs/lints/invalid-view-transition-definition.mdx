@@ -4,18 +4,20 @@ description: Reports an unknown field in a style.viewTransition() definition.
 slug: docs/lints/invalid-view-transition-definition
 ---
 
-<LintRuleSummary name="invalid-view-transition-definition" />
-
 This rule reports a `style.viewTransition()` definition that the compiler cannot
 read, such as an unknown field. Each field must name a snapshot pseudo-element,
 so an unknown field produces no CSS.
 
 ## Reported
 
+<DiagnosticExample code="invalid-view-transition-definition">
+
 ```tsx
 const transition = style.viewTransition({ before: "opacity-0" });
 style(transition.for("card"));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ style(transition.for("card"));
 - Write each field as a utility string literal.
 
 See [style.viewTransition()](/docs/macros/view-transition/#define-the-snapshot-styles).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-view-transition-definition" />

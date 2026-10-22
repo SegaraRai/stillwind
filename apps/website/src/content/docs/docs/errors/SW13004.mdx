@@ -4,23 +4,34 @@ description: CSS rules or functions in your stylesheet are nested too deeply.
 slug: docs/errors/SW13004
 ---
 
-<CompilerError code="SW13004" category="authoring" />
-
 This error occurs when blocks or functions in your stylesheet are nested deeper
 than the compiler supports. The message gives the limit and the position where
 the nesting exceeds it.
 
-## Reported
+## Flatten selectors
 
-```text
-A rule nests blocks or functions deeper than the limit in the message.
+Replace nested selectors with their full selector. For example:
+
+```css
+.card {
+  & .content {
+    & .title {
+      color: blue;
+    }
+  }
+}
 ```
 
-## Fixed
+The same rule needs no nested blocks:
 
-```text
-The same styles, written with less nesting, stay within the limit.
+```css
+.card .content .title {
+  color: blue;
+}
 ```
+
+This small example is within the limit. Apply the same transformation to the
+deeply nested construct that the error identifies.
 
 ## How to fix
 

@@ -4,36 +4,57 @@ description: Reports a runtime CSS condition that the compiler cannot compile in
 slug: docs/lints/invalid-runtime-condition
 ---
 
-<LintRuleSummary name="invalid-runtime-condition" />
-
 This rule reports a runtime CSS condition, such as `--if()`, that the compiler
-cannot compile where you wrote it. Some comparisons need the native CSS `if()`
-function, and some positions, such as a keyframe, do not support the condition at
-all. The declaration produces no CSS.
+cannot express with the supported CSS. Comparisons of custom-property values,
+for example, need the native CSS `if()` function and `useCssIf: true`. The
+message explains why the condition failed. The declaration produces no CSS.
 
 ## Reported
+
+<DiagnosticExample code="invalid-runtime-condition">
 
 ```tsx
 const fade = style.keyframes({ to: "[color:--if(--mode:compact,red,blue)]" });
 style(fade("duration-300"));
 ```
 
+</DiagnosticExample>
+
 ## Fixed
 
 ```tsx
-declare const compact: boolean;
-const red = style.keyframes({ to: "text-red-500" });
-const blue = style.keyframes({ to: "text-blue-500" });
-style((compact ? red : blue)("duration-300"));
+const fade = style.keyframes({ to: "text-(color:--frame-color)" });
+style("[--frame-color:--if(--mode:compact,red,blue)]", fade("duration-300"));
+```
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      useCssIf: true,
+    },
+  ],
+});
 ```
 
 ## How to fix
 
-- Decide the condition in JavaScript, and choose between complete styles, as in
-  the example.
-- If the browsers that you support implement CSS `if()`, set `useCssIf: true` in
-  the project. Then the compiler emits the native function.
+- Move the condition onto the element, and let the keyframes read the result
+  through a custom property, as in the example. This keeps `--mode` as the
+  source of the condition and keeps the same red and blue values.
+- Enable `useCssIf: true` for comparisons of custom-property values, as in the
+  configuration above. The browsers that you support must implement CSS `if()`.
+- If the message names another unsupported condition, rewrite that condition or
+  set the resulting custom property in JavaScript.
 
 A condition that only needs `useCssIf` is reported by
 [runtime-condition-requires-css-if](/docs/lints/runtime-condition-requires-css-if/)
 instead.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-runtime-condition" />

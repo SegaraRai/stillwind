@@ -4,19 +4,21 @@ description: Reports two independent base styles in one call that set the same p
 slug: docs/lints/ambiguous-style-base-order
 ---
 
-<LintRuleSummary name="ambiguous-style-base-order" analysis="project" />
-
 This rule reports a `style()` call with two base styles that set the same
 property, when neither base is built on the other. The order of the arguments
 does not decide which base wins, so the result is not defined.
 
 ## Reported
 
+<DiagnosticExample code="ambiguous-style-base-order">
+
 ```tsx
 const first = style("p-2");
 const second = style("p-4");
 export const props = style(first, second);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -33,3 +35,7 @@ export const props = style(second);
 - Or remove the property from one of the bases.
 
 Bases that set different properties do not need this.
+
+## Rule settings
+
+<LintRuleSummary name="ambiguous-style-base-order" analysis="project" />

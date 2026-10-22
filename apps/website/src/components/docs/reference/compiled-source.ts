@@ -1,8 +1,38 @@
 import type { MdastPluginInput } from "@cloudflare/nimbus-docs/types";
 
-export const compiledSourcePlugin = {
-  name: "stillwind-compiled-example",
+import type { DiagnosticExample } from "./diagnostic-example";
+
+export const compiledSourcePlugin = (
+  diagnostics: ReadonlyMap<string, DiagnosticExample>,
+  revision: string,
+): MdastPluginInput => ({
+  name: `stillwind-reference-examples-${revision}`,
   mdxJsxFlowElement(node, context) {
+    if (node.name === "DiagnosticExample") {
+      const code = node.attributes.find(
+        (attribute) => attribute.type === "mdxJsxAttribute" && attribute.name === "code",
+      );
+      const example =
+        code?.type === "mdxJsxAttribute" && typeof code.value === "string"
+          ? diagnostics.get(code.value)
+          : undefined;
+      if (!example) {
+        throw new Error("DiagnosticExample requires a known lint rule or error code");
+      }
+      context.replaceNode(node, {
+        ...node,
+        attributes: [
+          ...node.attributes,
+          {
+            type: "mdxJsxAttribute",
+            name: "example",
+            value: { type: "mdxJsxAttributeValueExpression", value: JSON.stringify(example) },
+          },
+        ],
+        children: [],
+      });
+      return;
+    }
     if (node.name !== "CompiledExample") {
       return;
     }
@@ -27,7 +57,7 @@ export const compiledSourcePlugin = {
       children: [],
     });
   },
-} satisfies MdastPluginInput;
+});
 
 export function compiledSource(markdown: string) {
   const match = /^```tsx?\n([\s\S]*?)\n```/m.exec(markdown);

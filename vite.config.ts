@@ -235,7 +235,6 @@ export default defineConfig(({ mode }) => ({
         command: "vp test --run",
         cache: testCache,
         dependsOn: [
-          "@stillwind-internal/apps-website#build",
           "@stillwind/cli#build",
           "@stillwind/host#build",
           "@stillwind/integration#build",

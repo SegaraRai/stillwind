@@ -4,17 +4,19 @@ description: Reports a marker class such as group with a variant or the importan
 slug: docs/lints/invalid-marker-use
 ---
 
-<LintRuleSummary name="invalid-marker-use" />
-
 This rule reports a marker class, such as `group` or `peer`, with a variant or
 the `!` modifier. A marker only names an element for other selectors and has no
 CSS of its own, so a variant cannot turn it on or off.
 
 ## Reported
 
+<DiagnosticExample code="invalid-marker-use">
+
 ```tsx
 style("hover:group");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -34,3 +36,7 @@ const child = style("group-hover:underline");
 
 `ignoredClasses` lists marker class names that the rule does not check. Each name
 must match exactly.
+
+## Rule settings
+
+<LintRuleSummary name="invalid-marker-use" />

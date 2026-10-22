@@ -1,35 +1,17 @@
 ---
 title: "SW13003: Invalid CSS block"
-description: A CSS block in your stylesheet closes with the wrong delimiter.
+description: The compiler cannot read a balanced CSS block.
 slug: docs/errors/SW13003
 ---
 
-<CompilerError code="SW13003" category="authoring" />
-
-This error occurs when the compiler expects one balanced block, but the block
-closes with a different delimiter than it opened with. The message gives the
-position as a byte offset.
-
-## Reported
-
-```css
-.card {
-  color: rgb(0 0 255];
-}
-```
-
-## Fixed
-
-```css
-.card {
-  color: rgb(0 0 255);
-}
-```
+This error occurs when the compiler cannot consume a CSS block while it reads
+the stylesheet, imports, or plugin options. The message gives the position as a
+byte offset.
 
 ## How to fix
 
-Match each opening delimiter with its closing one. In the example, `(` was closed
-with `]`.
+Check the delimiters around that position and any strings or comments inside the
+block. If the stylesheet is valid, report the source and the Stillwind version.
 
-If you write your own integration and the stylesheet is valid, check that the
-integration passed the whole block to the compiler.
+An unclosed block normally produces [SW13002](/docs/errors/SW13002/). Other CSS
+syntax errors can produce [SW13001](/docs/errors/SW13001/).

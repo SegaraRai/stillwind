@@ -4,17 +4,19 @@ description: Reports variants that can never match together, such as portrait:la
 slug: docs/lints/unsatisfiable-variants
 ---
 
-<LintRuleSummary name="unsatisfiable-variants" />
-
 This rule reports stacked variants that can never match at the same time.
 Stacked variants must all match, and a viewport cannot be in portrait and
 landscape orientation at once. The utility never applies.
 
 ## Reported
 
+<DiagnosticExample code="unsatisfiable-variants">
+
 ```tsx
 style("portrait:landscape:p-4");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -27,3 +29,7 @@ style("portrait:p-4 landscape:p-4");
 - To apply the utility in either case, write one utility for each variant, as in
   the example. When the cases cover every situation, drop the variants: `p-4`.
 - To apply the utility in one case only, keep the variant for that case.
+
+## Rule settings
+
+<LintRuleSummary name="unsatisfiable-variants" />

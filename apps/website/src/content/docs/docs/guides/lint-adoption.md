@@ -44,7 +44,7 @@ files that the application does not import.
 Without a `lint` setting, the project uses the `recommended` preset. Add a
 `lint` setting to add presets or change rules:
 
-```ts
+```ts title="stillwind.config.ts"
 import { defineConfig, lintPresets } from "stillwind/config";
 
 export default defineConfig({

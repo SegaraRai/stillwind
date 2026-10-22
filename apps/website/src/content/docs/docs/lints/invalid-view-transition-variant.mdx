@@ -4,8 +4,6 @@ description: Reports a state or container variant in a style.viewTransition() de
 slug: docs/lints/invalid-view-transition-variant
 ---
 
-<LintRuleSummary name="invalid-view-transition-variant" />
-
 This rule reports a state or container variant, such as `hover:`, in a
 `style.viewTransition()` definition. The snapshots are images of the page, not
 the element itself, so they cannot be hovered. Only media and `supports-*`
@@ -13,10 +11,14 @@ variants can condition a snapshot style.
 
 ## Reported
 
+<DiagnosticExample code="invalid-view-transition-variant">
+
 ```tsx
 const transition = style.viewTransition({ old: "hover:opacity-0" });
 style(transition.for("card"));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -36,3 +38,7 @@ style((hovered ? fade : keep).for("card"));
   keep the variant: `old: "motion-reduce:duration-0"`.
 
 See [View transitions](/docs/guides/view-transitions/).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-view-transition-variant" />

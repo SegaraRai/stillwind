@@ -7,7 +7,7 @@ slug: docs/configuration
 `stillwind.config.ts` describes your projects. The build integration, the CLI,
 and the editor all read the same file.
 
-```ts
+```ts title="stillwind.config.ts"
 import { defineConfig } from "stillwind/config";
 
 export default defineConfig({
@@ -104,7 +104,7 @@ where the rules run.
 
 ### Presets and severities
 
-```ts
+```ts title="stillwind.config.ts"
 import { defineConfig, lintPresets } from "stillwind/config";
 
 export default defineConfig({

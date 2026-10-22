@@ -4,23 +4,9 @@ description: One stylesheet name received two different contents during one load
 slug: docs/errors/SW32004
 ---
 
-<CompilerError code="SW32004" category="host" />
-
 This error occurs when an integration gives the stylesheet loader two different
 documents or contents for the same file name during one load. This can happen
 when a file changes while it is loading.
-
-## Reported
-
-```text
-tokens.css is answered with text A, then with text B, in the same load.
-```
-
-## Fixed
-
-```text
-tokens.css has one content for the whole load. A change starts a new load.
-```
 
 ## How to fix
 

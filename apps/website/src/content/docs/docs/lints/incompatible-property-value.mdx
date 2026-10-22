@@ -4,17 +4,19 @@ description: Reports a utility value that the browser rejects for its CSS proper
 slug: docs/lints/incompatible-property-value
 ---
 
-<LintRuleSummary name="incompatible-property-value" />
-
 This rule reports a utility whose value the browser rejects for its CSS property.
 The compiler still writes the CSS, but the browser ignores the declaration. For
 example, `w-[1/2]` writes `width: 1/2`, which is not a valid width.
 
 ## Reported
 
+<DiagnosticExample code="incompatible-property-value">
+
 ```tsx
 style("w-[1/2]");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -27,3 +29,7 @@ style("w-1/2");
 - Use the form of the utility that the theme defines, such as the fraction form
   `w-1/2`, as in the example.
 - In an arbitrary value, write a valid CSS value, such as `w-[50%]`.
+
+## Rule settings
+
+<LintRuleSummary name="incompatible-property-value" />

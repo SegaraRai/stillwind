@@ -4,8 +4,6 @@ description: Reports an imported base style that sets the same property as anoth
 slug: docs/lints/interfering-imported-style-base
 ---
 
-<LintRuleSummary name="interfering-imported-style-base" analysis="project" />
-
 This rule reports a base style from another module that sets the same property as
 another base or utility in the call, when neither is built on the other. The order
 of the arguments does not decide which one wins.
@@ -21,10 +19,14 @@ export const combined = style(first, "p-4");
 
 ## Reported
 
+<DiagnosticExample code="interfering-imported-style-base">
+
 ```tsx
 import { first, second } from "./bases";
 export const props = style(first, second);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -40,3 +42,7 @@ export const props = style(combined);
 - Or remove the property from one of the styles.
 
 Changing the order of the arguments in the importing module does not fix it.
+
+## Rule settings
+
+<LintRuleSummary name="interfering-imported-style-base" analysis="project" />

@@ -4,14 +4,14 @@ description: Reports a condition in your stylesheet that a named variant can rep
 slug: docs/lints/prefer-variant-directive
 ---
 
-<LintRuleSummary name="prefer-variant-directive" />
-
 This rule reports a condition in a rule of your stylesheet, such as an `@media`
 query, that a variant of your theme expresses with the same meaning. The named
 variant keeps the stylesheet in sync when the theme changes the breakpoint. The
 `stylistic` preset enables this rule.
 
 ## Reported
+
+<DiagnosticExample code="prefer-variant-directive">
 
 ```css
 .card {
@@ -20,6 +20,8 @@ variant keeps the stylesheet in sync when the theme changes the breakpoint. The
   }
 }
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -40,3 +42,7 @@ example. The automatic fix applies it.
 
 `pxToRem` treats `px` and `rem` in media queries as equal at 16px per `rem`. With
 it, `@media (width >= 768px)` also matches `md`.
+
+## Rule settings
+
+<LintRuleSummary name="prefer-variant-directive" />

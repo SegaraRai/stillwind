@@ -4,13 +4,13 @@ description: Reports view transitions split across separate style() calls.
 slug: docs/lints/split-view-transition-class
 ---
 
-<LintRuleSummary name="split-view-transition-class" />
-
 This rule reports view transitions that reach one element through separate
 `style()` calls, such as a base style and the call that receives it. Each call
 sets the whole `view-transition-class` list, so one list replaces the other.
 
 ## Reported
+
+<DiagnosticExample code="split-view-transition-class">
 
 ```tsx
 const first = style.viewTransition({ old: "duration-150" });
@@ -18,6 +18,8 @@ const second = style.viewTransition({ new: "duration-150" });
 const base = style(first.for("card"));
 style(base, second);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -32,3 +34,7 @@ style(first, second.for("card"));
 Pass every transition of the element to the same `style()` call, with one
 `.for()`, as in the example. You can still store and share the transition
 definitions themselves.
+
+## Rule settings
+
+<LintRuleSummary name="split-view-transition-class" />

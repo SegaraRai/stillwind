@@ -4,17 +4,19 @@ description: Reports a utility or theme value that your stylesheet does not defi
 slug: docs/lints/unknown-utility
 ---
 
-<LintRuleSummary name="unknown-utility" />
-
 This rule reports a utility that your stylesheet does not define. It also reports
 a known utility with a theme value that does not exist, such as `bg-red-999`. The
 utility produces no CSS.
 
 ## Reported
 
+<DiagnosticExample code="unknown-utility">
+
 ```tsx
-style("bg-red-999");
+style("bg-red-95O");
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -24,10 +26,15 @@ style("bg-red-950");
 
 ## How to fix
 
-- Check the spelling against the theme. The default red palette ends at `950`.
+- Check the spelling against the theme. In the example, the last character is
+  the letter `O` instead of zero. The intended token is `--color-red-950`.
 - To use a value that the theme does not have, add a token to your stylesheet,
   such as `--color-red-999` in `@theme`, or define the utility with `@utility`.
 - For a class that another stylesheet defines, pass it in a `class` field, such as
   `style({ class: "external-card" })`.
 
 [Built-in utilities](/docs/utilities/) lists the utilities of the default theme.
+
+## Rule settings
+
+<LintRuleSummary name="unknown-utility" />

@@ -4,25 +4,10 @@ description: The type information from the integration does not match the source
 slug: docs/errors/SW30002
 ---
 
-<CompilerError code="SW30002" category="host" />
-
 This error occurs when the type information that the integration provides is
 invalid, or belongs to another revision of the source. For example, information
 from an older editor buffer does not apply to the edited text, even if the file
 path is the same.
-
-## Reported
-
-```text
-Type information: revision A of the source
-Compilation: revision B of the source
-```
-
-## Fixed
-
-```text
-Type information and compilation both use revision B, and the same schema version.
-```
 
 ## How to fix
 

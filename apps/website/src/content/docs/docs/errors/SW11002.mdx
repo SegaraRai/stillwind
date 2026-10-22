@@ -4,8 +4,6 @@ description: Two modules each build styles on a base from the other module.
 slug: docs/errors/SW11002
 ---
 
-<CompilerError code="SW11002" category="authoring" />
-
 This error occurs when two modules each build a style on a base from the other
 module. The CSS of each module must come after the CSS of the modules that it
 builds on, so the two modules have no valid order, even when the individual
@@ -13,17 +11,46 @@ styles do not form a cycle.
 
 ## Reported
 
-```text
-a.ts: cardTitle = style(bBase, ...)
-b.ts: panelTitle = style(aBase, ...)
+<DiagnosticExample code="SW11002">
+
+```ts title="entry.ts"
+import { style } from "stillwind/react";
+import { middle } from "./middle";
+
+export const base = style("p-4");
+export const derived = style(middle, "rounded-md");
 ```
+
+```ts title="middle.ts"
+import { style } from "stillwind/react";
+import { base } from "./entry";
+
+export const middle = style(base, "text-blue-600");
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-shared.ts: aBase, bBase
-a.ts: cardTitle = style(bBase, ...)
-b.ts: panelTitle = style(aBase, ...)
+```ts title="base.ts"
+import { style } from "stillwind/react";
+
+export const base = style("p-4");
+```
+
+```ts title="entry.ts"
+import { style } from "stillwind/react";
+import { middle } from "./middle";
+
+export { base } from "./base";
+export const derived = style(middle, "rounded-md");
+```
+
+```ts title="middle.ts"
+import { style } from "stillwind/react";
+import { base } from "./base";
+
+export const middle = style(base, "text-blue-600");
 ```
 
 ## How to fix

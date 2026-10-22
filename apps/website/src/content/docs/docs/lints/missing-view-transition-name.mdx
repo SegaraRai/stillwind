@@ -4,18 +4,20 @@ description: Reports a view transition applied without .for().
 slug: docs/lints/missing-view-transition-name
 ---
 
-<LintRuleSummary name="missing-view-transition-name" />
-
 This rule reports a `style()` call that applies a view transition without
 `.for()`. The transition adds its class, but the element has no
 `view-transition-name`, so the browser does not capture it.
 
 ## Reported
 
+<DiagnosticExample code="missing-view-transition-name">
+
 ```tsx
 const transition = style.viewTransition({ old: "duration-150" });
 style(transition);
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -31,3 +33,7 @@ style(transition.for("card"));
 - When the call combines several transitions, call `.for()` on one of them.
 
 The rule does not check that keys are unique across the page.
+
+## Rule settings
+
+<LintRuleSummary name="missing-view-transition-name" />

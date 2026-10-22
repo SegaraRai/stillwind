@@ -12,11 +12,9 @@ import {
 } from "@stillwind/native";
 
 const require = createRequire(import.meta.url);
-export const defaultStylesheet = '@import "stillwind";';
-
 export async function referenceCompiler(
   options: NativeCompilerOptions = {},
-  stylesheet = defaultStylesheet,
+  stylesheet = '@import "stillwind";',
 ) {
   const { loader } = await loadCssGraph(
     resolve(import.meta.dirname, "Reference.css"),
@@ -41,19 +39,13 @@ export async function referenceCompiler(
     syntax: { language: "tsx", moduleKind: "module" },
   });
   return {
+    loader,
     query: loader.editorQuery(),
     compile(code: string) {
       return new NativeProjectSession(loader, false).compile([source(code)]).modules[0]!;
     },
-    diagnose(code: string) {
-      return new NativeProjectSession(loader, false).diagnose([source(code)])[0]!.reports;
-    },
-    stylesheetReports: () => loader.stylesheetReports(),
   };
 }
-
-export const reactSource = (body: string) =>
-  `import { style } from "stillwind/react";\n\n${body}\n`;
 
 let shared: ReturnType<typeof referenceCompiler> | undefined;
 export const documentationCompiler = () => (shared ??= referenceCompiler());

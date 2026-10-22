@@ -55,7 +55,7 @@ Each macro, lint rule, and compiler error has an authored page under
 `src/content/docs/docs/`. Keep explanations, constraints, examples, and recovery
 guidance in that page. `CompiledExample` renders its authored TypeScript code
 fence together with actual compiler output. `LintRuleSummary` reads current preset
-levels and option metadata; `CompilerError` shares reporting-code presentation.
+levels and option metadata after the rule's explanation and examples.
 These components are registered in `src/components.ts` and have equivalent
 Markdown renderers in `src/components/docs/reference/markdown.ts`. Edit links point
 to the individual page sources.
@@ -66,10 +66,11 @@ endpoint read that collection through Astro's content API. Its Markdown renderer
 includes the same catalog without browser interaction. Component revisions track
 compiler, theme, metadata, and renderer inputs for Nimbus's Markdown cache.
 
-`tests/documentation.test.ts` checks page coverage, stable URLs, links, and agent
-formats. `tests/reference-examples.test.ts` checks the examples in the authored
-pages against native compilation and project analysis. Search tests are colocated.
-The website test task and root JavaScript test task depend on the website build.
+`tests/documentation.test.ts` compares the lint and error pages with the public
+IDs, their index links, and the recommended severities. Keep tests for interactions
+such as utility search, theme switching, and animation controls beside their code.
+The compiler packages test compilation and diagnostics. Displayed macro output
+comes from the compiler during the website build.
 
 Lint rule and compiler error URLs keep the spelling and case of their IDs. When
 an ID is renamed or retired, keep a redirect or a retirement page at its URL.
@@ -127,26 +128,37 @@ input rules to the reference page, and link to it at the end.
 Keep reference pages precise and complete. Order each page as follows: what the
 API does, an example, accepted inputs, behavior, and constraints.
 
-Lint rule and compiler error pages use the same sections:
+Start lint rule and compiler error pages with the cause and its effect. Put
+`Reported` and `Fixed` next when actual code or API inputs show the problem and
+its correction. Follow them with `How to fix`. Put rule options and
+`LintRuleSummary` last.
 
-| Section      | Lint rule page                                        | Compiler error page                 |
-| ------------ | ----------------------------------------------------- | ----------------------------------- |
-| Summary      | `LintRuleSummary`                                     | `CompilerError`                     |
-| Opening      | What the rule reports, and what happens then          | What causes the error               |
-| `Reported`   | Code that the rule reports                            | Code or input that causes the error |
-| `Fixed`      | The same code, corrected                              | The same code or input, corrected   |
-| `How to fix` | The ways to fix the code                              | The ways to fix the code or input   |
-| `Options`    | The meaning of each option, when the rule has options | Not used                            |
+Wrap the fences in `Reported` with `DiagnosticExample` and pass the rule name or
+error code as `code`. The component runs the example at build time. It annotates
+lint ranges and displays compiler errors in a separate block. Configuration and
+project files come from the page's `Configuration` and `Project files` sections.
+
+On compiler error pages about project settings, show a complete
+`stillwind.config.ts` file with the `defineConfig` import, default export, and
+`projects` array with `css` and `files`. Diagnostic examples read that default
+export. Keep lint rule settings as focused fragments when the surrounding text
+already identifies their location.
 
 The `Fixed` example keeps the intent of the `Reported` example. For example, a
 fix for an arbitrary color moves the color into a theme token instead of
-choosing an unrelated palette color. When the intent is ambiguous, `How to fix`
-lists each choice.
+choosing an unrelated palette color. Preserve values, conditions, and side
+effects. Include the CSS or configuration that an example needs. When the
+intent is ambiguous, state the assumption and explain the alternatives.
 
-Pages for host errors describe the integration input instead of source code.
-Pages for internal errors omit `Reported` and `Fixed`, and they explain how to
-report the bug. Tests compile the `Reported` and `Fixed` examples, so keep each
-example complete.
+Code fences contain source code, API data, or actual program output. Write
+descriptions of hypothetical states as prose. For host errors, explain what an
+application developer can do first, then describe the contract for a custom
+integration. Omit example pairs when there is no useful code correction, such
+as a compiler bug or an exhausted identifier space.
+
+Test authored facts against their source, including public IDs and preset
+defaults. Avoid tests that pin wording or markup, repeat the compiler's tests,
+or compile the same example again merely to compare it with its own output.
 
 ### Vocabulary
 

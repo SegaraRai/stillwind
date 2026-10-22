@@ -4,28 +4,75 @@ description: A custom naming function threw an error or returned an invalid name
 slug: docs/errors/SW01007
 ---
 
-<CompilerError code="SW01007" category="configuration" />
-
 This error occurs when a custom `naming` function fails while it generates a
 name. The message shows which kind of name it was generating and the error from
 the function. The compiler does not invent a name in its place.
 
 ## Reported
 
-```text
-The naming function for utility classes throws an error for some requests.
+<DiagnosticExample code="SW01007">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      namingRevision: "1",
+      naming: {
+        utilityClass(context, hash) {
+          if (!context.module.endsWith("Button.tsx")) {
+            throw new Error("Only Button.tsx is supported");
+          }
+          return `button_${hash.toString("hex")}`;
+        },
+      },
+    },
+  ],
+});
 ```
+
+```tsx
+style("p-4");
+```
+
+</DiagnosticExample>
 
 ## Fixed
 
-```text
-The naming function returns a valid name for every request, or undefined to keep
-the default name.
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      namingRevision: "2",
+      naming: {
+        utilityClass(context, hash) {
+          if (!context.module.endsWith("Button.tsx")) {
+            return null;
+          }
+          return `button_${hash.toString("hex")}`;
+        },
+      },
+    },
+  ],
+});
 ```
+
+```tsx
+style("p-4");
+```
+
+The custom name still applies to `Button.tsx`. Other modules use default names.
 
 ## How to fix
 
 - Reproduce the request from the message, and fix the function so that it returns
-  a name or `undefined`.
+  a name or `null` to keep the default name.
 - Keep the function pure: the same request must always produce the same name.
 - Change `namingRevision` whenever you change the function.

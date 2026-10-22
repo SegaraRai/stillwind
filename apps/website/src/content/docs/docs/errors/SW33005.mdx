@@ -4,24 +4,9 @@ description: A requested byte offset lies outside its file or splits a multibyte
 slug: docs/errors/SW33005
 ---
 
-<CompilerError code="SW33005" category="host" />
-
 This error occurs when an integration or a tool passes a byte offset that a
 source operation cannot use, because it lies outside the file or inside a
 character of several bytes. The message shows the offset and the operation.
-
-## Reported
-
-```text
-Source: é
-Requested byte offset for an edit: 1
-```
-
-## Fixed
-
-```text
-Requested byte offset for an edit: 0 or 2
-```
 
 ## How to fix
 

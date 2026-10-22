@@ -4,18 +4,20 @@ description: Reports a style.keyframes() frame key that is not a keyframe positi
 slug: docs/lints/invalid-keyframes-definition
 ---
 
-<LintRuleSummary name="invalid-keyframes-definition" />
-
 This rule reports a `style.keyframes()` definition that the compiler cannot read,
 such as a frame key that is not `from`, `to`, or a percentage. The frame produces
 no CSS.
 
 ## Reported
 
+<DiagnosticExample code="invalid-keyframes-definition">
+
 ```tsx
 const fade = style.keyframes({ middle: "opacity-50" });
 style(fade("duration-300"));
 ```
+
+</DiagnosticExample>
 
 ## Fixed
 
@@ -32,3 +34,7 @@ style(fade("duration-300"));
 - Write the definition as an object literal, as the initial value of a variable.
 
 See [style.keyframes()](/docs/macros/keyframes/#define-the-frames).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-keyframes-definition" />
