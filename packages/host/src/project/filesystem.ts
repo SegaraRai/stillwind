@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import { captureProjectConfig, type AnalysisProjectConfig } from "@stillwind/config";
 import { resolveProjectConfig } from "@stillwind/config/node";
+import { ResolverFactory } from "oxc-resolver";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
 import { completePluginPaths, pluginDirectory } from "../css/plugin-paths.ts";
@@ -31,6 +32,17 @@ export function createFileSystemAnalysisHost(
   const root = resolvedConfig.root!;
   const typeFactsEnvironment = resolveTypeFactsEnvironment(root, resolvedConfig.tsconfig);
   const cssResolver = stylesheetResolver();
+  const frameworkResolver = new ResolverFactory({
+    extensions: [".astro", ".svelte", ".vue"],
+    conditionNames: ["import", "default"],
+    tsconfig:
+      typeFactsEnvironment.project.kind === "configured"
+        ? {
+            configFile: typeFactsEnvironment.project.configPath,
+            references: "auto",
+          }
+        : undefined,
+  });
 
   let documents: ReadonlyMap<string, string> = new Map();
   let buffers: ReadonlyMap<string, string> = new Map();
@@ -88,14 +100,31 @@ export function createFileSystemAnalysisHost(
         : input;
     },
     resolve: async (specifier, importer) => {
-      if (config.sources?.kind !== "custom" || !config.sources.resolve) {
-        return null;
+      if (config.sources?.kind === "custom") {
+        const id = await config.sources.resolve?.(specifier, importer, { root, documents });
+        return id
+          ? {
+              id,
+            }
+          : null;
       }
-      const id = await config.sources.resolve(specifier, importer, {
-        root,
-        documents,
-      });
-      return id ? { id } : null;
+      if (/\.(?:vue|svelte|astro)$/i.test(specifier)) {
+        if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+          const id = path.resolve(path.dirname(importer), specifier);
+          if (buffers.has(documentKey(id))) {
+            return {
+              id,
+            };
+          }
+        }
+        const id = (await frameworkResolver.async(path.dirname(importer), specifier)).path;
+        return id
+          ? {
+              id,
+            }
+          : null;
+      }
+      return null;
     },
     watch: () => {},
     warn: () => {},
@@ -166,6 +195,7 @@ export function createFileSystemAnalysisHost(
     },
     invalidate: async () => {
       cssResolver.clearCache();
+      frameworkResolver.clearCache();
     },
     close: async () => {},
   };

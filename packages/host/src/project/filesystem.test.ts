@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { prepareSource } from "@stillwind/projection";
@@ -11,6 +11,102 @@ import { AnalysisWorkspace } from "./workspace.ts";
 
 const css =
   "@utility red { color: red; } @utility blue { color: blue; } @stillwind-slot utilities;";
+
+test("Astro sorting follows component imports and contextual methods without requiring unrelated identities", async () => {
+  const root = await mkdtemp(
+    path.resolve(import.meta.dirname, "../../../integration/.test-analysis-"),
+  );
+  const entry = path.join(root, "Entry.astro");
+  const child = path.join(root, "Child.astro");
+  const host = createFileSystemAnalysisHost({ css: "root.css", files: ["*.astro"] }, root);
+  const project = new AnalysisProject(host);
+  const source = `---
+import {style} from "stillwind/astro";
+import Child from "./Child.astro";
+import {label} from "./labels";
+
+const card = style("blue red");
+type Transformer = {
+  preprocess(options: {
+    labels: {
+      start: number;
+    }[],
+  }): void;
+  line(node: {
+    children: unknown[];
+  }): void;
+};
+
+const transformer: Transformer = {
+  preprocess(options) {
+    options.labels.filter((label) => label.start > 0).map((label) => ({ ...label }));
+  },
+  line(node) {
+    node.children.push({
+      type: "text",
+      value: label,
+    });
+  },
+};
+---
+
+<div {...card}><Child /></div>`;
+  try {
+    await writeFile(path.join(root, "root.css"), css);
+    await writeFile(path.join(root, "labels.ts"), 'export const label = "label";');
+    await writeFile(entry, source);
+    project.update(child, "<span>child</span>", 1);
+    for (const extension of ["astro", "vue", "svelte"]) {
+      const id = path.join(root, `Buffered.${extension}`);
+      await host.setDocuments(new Map([[id, "buffer"]]));
+      expect(await host.resolve(`./Buffered.${extension}`, entry)).toEqual({
+        id,
+      });
+      expect(await host.resolve(`./Missing.${extension}`, entry)).toBeNull();
+    }
+    const packageRoot = path.join(root, "node_modules", "component");
+    await mkdir(packageRoot, { recursive: true });
+    await writeFile(
+      path.join(packageRoot, "package.json"),
+      JSON.stringify({
+        exports: {
+          "./Head.astro": {
+            import: "./Imported.astro",
+            require: "./Missing.astro",
+          },
+        },
+      }),
+    );
+    const imported = path.join(packageRoot, "Imported.astro");
+    await writeFile(imported, "<meta name='test' />");
+    expect(await host.resolve("component/Head.astro", entry)).toEqual({
+      id: imported,
+    });
+    const result = await project.analyze(entry);
+    expect(
+      result.status,
+      result.error ??
+        JSON.stringify({
+          dependencies: result.graph?.dependencies,
+          unverified: result.graph?.unverified,
+        }),
+    ).toBe("complete");
+    expect(
+      result.graph?.dependencies.filter((dependency) => dependency.status === "unresolved"),
+    ).toEqual([]);
+    const sorted = await project.query(entry, {
+      kind: "sort",
+    });
+    expect(sorted?.edits).toContainEqual(
+      expect.objectContaining({
+        newText: "red blue",
+      }),
+    );
+  } finally {
+    await project.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("source services select configured or isolated TypeScript settings", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-analysis-"));

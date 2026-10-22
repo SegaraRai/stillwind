@@ -127,7 +127,9 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
         if (declaration) {
           const filename = declaration.getSourceFile().fileName;
           resolutions.set(
-            node.moduleSpecifier.text,
+            mapping.moduleSpecifiers.get(
+              `${node.moduleSpecifier.getStart(file)}:${node.moduleSpecifier.end}`,
+            ) ?? node.moduleSpecifier.text,
             sources.find((source) => checkerId(source) === filename)?.resolverId ?? filename,
           );
         }
@@ -463,9 +465,12 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
             );
           }
           if (!existing) {
-            values.push({ ...probe, value });
+            values.push({
+              ...probe,
+              value,
+            });
           }
-        } else if (!(probe.recognitionOnly && !available)) {
+        } else if (!probe.recognitionOnly) {
           unavailable(
             new TypeFactsError(
               mapping.source.moduleId,
@@ -492,7 +497,10 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
       }
       facts.set(mapping.source.moduleId, values);
     }
-    return { facts, unverified };
+    return {
+      facts,
+      unverified,
+    };
   }
 }
 

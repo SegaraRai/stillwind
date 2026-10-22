@@ -368,6 +368,10 @@ export class SourceIndex {
    */
   #styleImport(node: ts.Expression): boolean {
     const namespace = ts.isPropertyAccessExpression(node) && node.name.text === "style";
+    if (!ts.isIdentifier(node) && !(namespace && ts.isIdentifier(node.expression))) {
+      return false;
+    }
+
     const symbol = this.#checker.getSymbolAtLocation(namespace ? node.expression : node);
     if (!symbol || this.#mutated.has(symbol)) {
       return false;
@@ -618,6 +622,14 @@ export class SourceIndex {
       ts.isNonNullExpression(node)
     ) {
       return this.#resolveAsset(source, node.expression, seen);
+    }
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+      const receiver = this.#checker.getSymbolAtLocation(node.expression);
+      if (!receiver?.declarations?.some(ts.isNamespaceImport)) {
+        return undefined;
+      }
+    } else if (!ts.isIdentifier(node)) {
+      return undefined;
     }
     let symbol = this.#checker.getSymbolAtLocation(node);
     if (!symbol || this.#mutated.has(symbol) || seen.has(symbol)) {

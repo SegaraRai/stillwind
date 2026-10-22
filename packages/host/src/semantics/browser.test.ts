@@ -5,9 +5,133 @@ import { fileURLToPath } from "node:url";
 import { summarizeSource } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import type { TypeFactSource } from "./backend.ts";
+import { TypeFactsError, type TypeFactSource } from "./backend.ts";
 import { BrowserTypeFactsService } from "./browser.ts";
 import { resolveTypeFactsEnvironment, TypeScriptFactsService } from "./type-facts.ts";
+
+test.each(["node", "browser"] as const)(
+  "%s keeps authored import keys after checker path rewriting",
+  (backend) => {
+    const root = backend === "browser" ? "/workspace" : import.meta.dirname;
+    const file = path.join(root, "entry.ts").replaceAll("\\", "/");
+    const target = path.join(root, "tokens.ts").replaceAll("\\", "/");
+    const code =
+      'const label="日本"; import {token} from "./tokens"; export {token as alias} from "@tokens";';
+    const source: TypeFactSource = {
+      kind: "direct",
+      moduleId: "entry.ts",
+      resolverId: file,
+      checkerFileName: file,
+      projectionFileName: file,
+      document: {
+        uri: "untitled:entry.ts",
+        code,
+        format: "script",
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
+      probes: [],
+      resolutions: [...code.matchAll(/"(?:\.\/tokens|@tokens)"/g)].map((match) => ({
+        id: target,
+        start: Buffer.byteLength(code.slice(0, match.index)),
+        end: Buffer.byteLength(code.slice(0, match.index + match[0].length)),
+      })),
+    };
+    const dependency: TypeFactSource = {
+      ...source,
+      moduleId: "tokens.ts",
+      resolverId: target,
+      checkerFileName: target,
+      projectionFileName: target,
+      document: {
+        uri: "untitled:tokens.ts",
+        code: 'export const token="red";',
+        format: "script",
+      },
+      resolutions: [],
+    };
+    const service =
+      backend === "browser"
+        ? new BrowserTypeFactsService({
+            root,
+            files: new Map(),
+            tsconfig: false,
+          })
+        : new TypeScriptFactsService(resolveTypeFactsEnvironment(root, false));
+    try {
+      const expected = new Map([
+        ["./tokens", target],
+        ["@tokens", target],
+      ]);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        expect(service.resolveModules([source, dependency], new Map()).get(file)).toEqual(expected);
+      }
+    } finally {
+      service.close();
+    }
+  },
+);
+
+test.each(["node", "browser"] as const)(
+  "%s treats unresolved recognition probes as optional in both collection modes",
+  (backend) => {
+    const root = backend === "browser" ? "/workspace" : import.meta.dirname;
+    const file = path.join(root, "recognition.ts").replaceAll("\\", "/");
+    const code = "declare const value: unknown; value;";
+    const source: TypeFactSource = {
+      kind: "direct",
+      moduleId: "recognition.ts",
+      resolverId: file,
+      checkerFileName: file,
+      projectionFileName: file,
+      document: {
+        uri: "untitled:recognition.ts",
+        code,
+        format: "script",
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
+      probes: [
+        {
+          start: code.lastIndexOf("value"),
+          end: code.lastIndexOf("value") + 5,
+          recognitionOnly: true,
+        },
+      ],
+    };
+    const service =
+      backend === "browser"
+        ? new BrowserTypeFactsService({
+            root,
+            files: new Map(),
+            tsconfig: false,
+          })
+        : new TypeScriptFactsService(resolveTypeFactsEnvironment(root, false));
+    try {
+      const facts = service.collect([source], new Map());
+      expect(facts.get(source.moduleId)).toEqual([]);
+      expect(service.collectAvailable([source], new Map())).toEqual({
+        facts,
+        unverified: [],
+      });
+      const required = {
+        ...source,
+        probes: source.probes.map((probe) => ({
+          ...probe,
+          recognitionOnly: false,
+        })),
+      };
+      expect(() => service.collect([required], new Map())).toThrow(TypeFactsError);
+      expect(service.collectAvailable([required], new Map()).unverified).toHaveLength(1);
+    } finally {
+      service.close();
+    }
+  },
+);
 
 test("browser TS6 and Node TS7 preserve the same finite declaration candidates", async () => {
   const root = fileURLToPath(new URL("../../", import.meta.url));

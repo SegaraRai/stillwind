@@ -96,6 +96,8 @@ export class CheckerSource {
   >();
   /** Producer call ranges after identity insertion, keyed to their asset families. */
   readonly producers = new Map<string, NativeAssetRecord["identity"]["kind"]>();
+  /** Authored module specifiers keyed by their rewritten checker UTF-16 ranges. */
+  readonly moduleSpecifiers = new Map<string, string>();
 
   /**
    * Ordered, nonoverlapping edits in the input buffer. Their cumulative lengths translate between
@@ -180,17 +182,36 @@ export class CheckerSource {
         this.#edits.push({
           at: end - 1,
           end: end - 1,
-          original: { start: asset.callStart, end: asset.callEnd },
+          original: {
+            start: asset.callStart,
+            end: asset.callEnd,
+          },
           text: `${separator}${argument}`,
         });
       }
     }
+    const specifiers: {
+      start: number;
+      end: number;
+      text: string;
+    }[] = [];
     for (const resolution of source.resolutions ?? []) {
       for (const [at, end] of this.targets(resolution.start, resolution.end, "moduleSpecifier")) {
+        const scanner = ts.createScanner(ts.ScriptTarget.Latest, true);
+        scanner.setText(buffer.source.slice(at, end));
+        scanner.scan();
+        specifiers.push({
+          start: at,
+          end,
+          text: scanner.getTokenValue(),
+        });
         this.#edits.push({
           at,
           end,
-          original: { start: resolution.start, end: resolution.end },
+          original: {
+            start: resolution.start,
+            end: resolution.end,
+          },
           text: JSON.stringify(
             path.resolve(ids.get(resolution.id) ?? resolution.id).replaceAll("\\", "/"),
           ),
@@ -236,7 +257,10 @@ export class CheckerSource {
         at: buffer.source.length,
         end: buffer.source.length,
         text: `\nimport {${[...aliases].map(([name, alias]) => `${name} as ${alias}`).join(",")}} from ${JSON.stringify(path.resolve(id).replaceAll("\\", "/"))};\n`,
-        original: { start: 0, end: 0 },
+        original: {
+          start: 0,
+          end: 0,
+        },
       });
     }
     this.#edits.sort((a, b) => a.at - b.at || a.end - b.end);
@@ -252,6 +276,12 @@ export class CheckerSource {
       for (const [start, end] of this.targets(probe.start, probe.end, "expression")) {
         this.probes.set(`${this.toShadow(start)}:${this.toShadow(end, true)}`, probe);
       }
+    }
+    for (const specifier of specifiers) {
+      this.moduleSpecifiers.set(
+        `${this.toShadow(specifier.start)}:${this.toShadow(specifier.end, true)}`,
+        specifier.text,
+      );
     }
     for (const producer of producerRanges) {
       this.producers.set(

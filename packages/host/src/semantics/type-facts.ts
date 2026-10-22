@@ -772,7 +772,11 @@ export class TypeScriptFactsService implements TypeFactsBackend {
           const original = sources.find(
             (source) => normalize(checkerId(source)) === normalize(fileName),
           );
-          resolutions.set(node.moduleSpecifier.text, original?.resolverId ?? fileName);
+          const key = `${node.moduleSpecifier.getStart(file)}:${node.moduleSpecifier.end}`;
+          resolutions.set(
+            mapping.moduleSpecifiers.get(key) ?? node.moduleSpecifier.text,
+            original?.resolverId ?? fileName,
+          );
         }
       });
     }
@@ -1208,7 +1212,7 @@ function factsForSource(
         decoded.kind === "unverified" ||
         (decoded.kind === "unbranded" && !probe.recognitionOnly)
       ) {
-        if (probe.recognitionOnly && !unverified) {
+        if (probe.recognitionOnly) {
           continue;
         }
         const error = new TypeFactsError(
