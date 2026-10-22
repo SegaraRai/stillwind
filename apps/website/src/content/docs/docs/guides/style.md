@@ -1,6 +1,6 @@
 ---
 title: The basics of style()
-slug: docs/style
+slug: docs/guides/style
 description: Apply utilities, variants, conditions, overrides, and runtime values to an element.
 sidebar:
   order: 3
@@ -9,7 +9,7 @@ sidebar:
 `style()` takes Tailwind CSS v4 utilities and returns props for an element.
 You spread the props onto the element instead of writing a `className` string.
 This page uses React. For other frameworks, import `style` from the entrypoint
-listed in [Framework integrations](/docs/frameworks/).
+listed in [Framework integrations](/docs/integrations/).
 
 ## Apply utilities
 
@@ -110,7 +110,7 @@ Choose between complete names instead, such as
 ## Override a style
 
 Store a `style()` result in a variable, and pass it to another `style()` call.
-The later utilities win:
+The compiler places CSS for the new utilities after the base's CSS:
 
 ```tsx
 import { style } from "stillwind/react";
@@ -123,8 +123,13 @@ export function DeleteButton() {
 }
 ```
 
-`dangerButton` is always red, whatever the order of the class names. You can
-export a stored style and use it in other modules.
+In this example, `dangerButton` has a red background because both background
+rules use equally specific selectors. The order of the class names does not
+affect the result. You can export a stored style and use it in other modules.
+
+More specific selectors and `!important` can change which declaration wins.
+See [CSS ordering](/docs/concepts/css-ordering/) for variants, conditions, and multiple
+bases.
 
 Store the inner style in a variable first. A `style()` call written directly
 inside another, such as `style(style("p-4"), "text-sm")`, is not supported.

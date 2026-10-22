@@ -31,7 +31,7 @@ Keep your `@theme`, `@utility`, `@custom-variant`, `@variant`, `@apply`, and
 Replace the Tailwind build plugin, such as `@tailwindcss/vite`, with the
 Stillwind integration. Then create `stillwind.config.ts`, as described in
 [Getting started](/docs/#configure-the-project), and set up your framework, as
-described in [Framework integrations](/docs/frameworks/).
+described in [Framework integrations](/docs/integrations/).
 
 ## Move classes into style()
 
@@ -61,7 +61,7 @@ build class strings:
 | Library                             | Stillwind                                 |
 | ----------------------------------- | ----------------------------------------- |
 | `clsx`, `classnames`                | `style()` with conditions                 |
-| `tailwind-merge`                    | Not needed; a later style always wins     |
+| `tailwind-merge`                    | Compose a base with new utilities         |
 | `cva` from class-variance-authority | `style.cva()` with the same configuration |
 
 ### clsx and classnames
@@ -87,8 +87,10 @@ as `"hover:"`. Rewrite each entry as `loading && "opacity-60"`.
 ### tailwind-merge
 
 Remove `twMerge()` calls. Store the base style and pass it to another `style()`
-call. The later utilities win, whatever the order of the class names. See
-[Override a style](/docs/style/#override-a-style).
+call. The compiler emits the new utilities after the base's CSS. They override
+competing declarations when the other cascade criteria, such as specificity
+and importance, are equal. See [Override a style](/docs/guides/style/#override-a-style)
+and [CSS ordering](/docs/concepts/css-ordering/).
 
 ### cva
 

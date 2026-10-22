@@ -8,9 +8,6 @@ const { componentMap, sourcePlugin } = await referenceMarkdown();
 
 export default defineConfig({
   compressHTML: "jsx",
-  redirects: {
-    "/docs/configuration/lint/": "/docs/configuration/#lint",
-  },
   integrations: [
     nimbus(
       defineNimbusConfig({
@@ -24,14 +21,15 @@ export default defineConfig({
         search: false,
         sidebar: {
           items: [
+            "docs",
             {
               label: "Introduction",
-              items: ["docs/why", "docs", "docs/guides/migrating-from-tailwind"],
+              items: ["docs/why", "docs/guides/migrating-from-tailwind"],
             },
             {
               label: "Writing styles",
               items: [
-                "docs/style",
+                "docs/guides/style",
                 "docs/guides/reusable-styles",
                 "docs/guides/responsive-styles",
                 "docs/guides/animations",
@@ -47,8 +45,12 @@ export default defineConfig({
               ],
             },
             {
+              label: "Concepts",
+              items: ["docs/concepts/how-styles-compile", "docs/concepts/css-ordering"],
+            },
+            {
               label: "Integrations",
-              items: ["docs/frameworks", "docs/how-styles-compile", "docs/guides/shadow-dom"],
+              items: ["docs/integrations", "docs/guides/shadow-dom"],
             },
             {
               label: "Reference",

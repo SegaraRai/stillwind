@@ -100,13 +100,15 @@ Do not explain Tailwind basics. Do explain where Stillwind differs from Tailwind
 
 ### Sidebar groups
 
-The sidebar follows the order in which this reader learns Stillwind:
+Getting started stays at `/docs/` and appears first, outside the sidebar groups.
+The groups follow the order in which this reader learns Stillwind:
 
 | Group                   | Reader question                                     |
 | ----------------------- | --------------------------------------------------- |
-| Introduction            | What is Stillwind, and how do I start or migrate?   |
+| Introduction            | Why use Stillwind, and how do I migrate?            |
 | Writing styles          | How do I write the styles that I need every day?    |
 | Keeping styles in order | How does Stillwind keep the codebase consistent?    |
+| Concepts                | How does Stillwind compile and order styles?        |
 | Integrations            | How do I connect Stillwind to my build and runtime? |
 | Reference               | What exactly does this API, rule, or error do?      |
 
@@ -229,6 +231,10 @@ its default transition name; removing it would skip the cross-fade of the page.
 The documentation navigation stores its open groups and scroll position in
 `sessionStorage` when a page is hidden. The next documentation page restores
 them before its first paint. Groups that contain the current page always open.
+
+Links at the end of each page follow the sidebar order. The previous page appears
+on the left, and the next page appears on the right. Nimbus resolves both links
+from the same sidebar tree that the layout renders.
 
 The header cycles through system, light, and dark preferences. System follows
 the browser's color scheme, including when JavaScript is disabled. Explicit

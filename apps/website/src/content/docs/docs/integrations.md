@@ -1,6 +1,6 @@
 ---
 title: Framework integrations
-slug: docs/frameworks
+slug: docs/integrations
 description: Import style() for your framework, and add Stillwind to your build tool.
 sidebar:
   order: 2
@@ -149,4 +149,4 @@ standalone Turbopack, list every entry module of the application in `entries`.
 
 The [build integration reference](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md)
 describes every option.
-[How styles compile](/docs/how-styles-compile/) explains how the CSS reaches the page.
+[How styles compile](/docs/concepts/how-styles-compile/) explains how the CSS reaches the page.

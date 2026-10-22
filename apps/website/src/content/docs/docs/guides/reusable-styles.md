@@ -11,12 +11,15 @@ which styles apply.
 
 ## Share a base style
 
-Store a `style()` result, and pass it to other `style()` calls:
+Store a `style()` result, and pass it to other `style()` calls. You can export
+the base and import it in other modules:
 
 ```tsx
 import { style } from "stillwind/react";
 
-export const button = style("inline-flex rounded-md px-4 py-2 font-medium");
+export const button = style(
+  "inline-flex rounded-md bg-gray-100 px-4 py-2 font-medium text-gray-900",
+);
 const primaryButton = style(button, "bg-blue-600 text-white");
 const dangerButton = style(button, "bg-red-600 text-white");
 
@@ -30,8 +33,13 @@ export function Actions() {
 }
 ```
 
-The later utilities win over the base, whatever the order of the class names.
-You can export a base and import it in other modules.
+In this example, the derived styles replace the base's background and text
+colors. Their CSS comes after the base's CSS, and their selectors have equal
+specificity. The order of the class names does not affect the result.
+
+A base's `hover:` selector can be more specific than a plain class in the
+derived style. [CSS ordering](/docs/concepts/css-ordering/) explains variants,
+conditions, and multiple bases.
 
 A base passes on its classes only. Custom properties such as
 `{ "--progress": value }` in the base do not carry over, and the CLI reports
@@ -91,7 +99,7 @@ test queries.
 
 For a value from a continuous range, such as a width or a progress percentage,
 set a custom property instead. See
-[Use runtime values](/docs/style/#use-runtime-values).
+[Use runtime values](/docs/guides/style/#use-runtime-values).
 
 ## Migrate CVA components
 

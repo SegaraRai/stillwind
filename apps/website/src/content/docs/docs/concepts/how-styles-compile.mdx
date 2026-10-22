@@ -1,6 +1,6 @@
 ---
 title: How styles compile
-slug: docs/how-styles-compile
+slug: docs/concepts/how-styles-compile
 description: See what Stillwind generates at build time, what JavaScript remains at runtime, and how CSS reaches the page.
 ---
 
@@ -10,55 +10,40 @@ runtime, and how the CSS reaches the page.
 
 ## Static styles
 
-A call with only static utilities compiles to an object literal:
+A call with only static utilities and CSS variants compiles to an object literal:
+
+<CompiledExample>
 
 ```tsx
 import { style } from "stillwind/react";
 
-export const props = style("rounded-md p-4 text-blue-600");
+export const props = style("rounded-md p-4 text-blue-600 hover:text-blue-800 md:p-6");
 ```
 
-The compiled JavaScript contains only the class name:
+</CompiledExample>
 
-```js
-export const props = { className: "sw_5lnfo" };
-```
-
-The compiler writes the CSS for that class to the application's stylesheet:
-
-```css
-.sw_5lnfo {
-  padding: calc(var(--spacing) * 4);
-  color: var(--color-blue-600);
-  border-radius: var(--radius-md);
-}
-```
-
-In this example, the three utilities compile to one class. Variants such as
-`hover:` and `md:` also stay in CSS, so they add no JavaScript.
+In this example, the utilities compile to one class. The browser applies
+`hover:` through a selector and `md:` through a media query. Both stay in CSS,
+so the compiled JavaScript contains only the class name.
 
 ## Conditions and runtime values
 
 A condition or a runtime value needs a small amount of JavaScript:
 
+<CompiledExample>
+
 ```tsx
 import { style } from "stillwind/react";
 
 declare const active: boolean;
-export const props = style("p-4", active && "bg-blue-500", { "--progress": 0.5 });
+declare const progress: number;
+export const props = style("p-4", active && "bg-blue-500", { "--progress": progress });
 ```
 
-The compiled call imports a helper that joins the class names, and it passes the
-custom property as an inline style:
+</CompiledExample>
 
-```js
-import { stillwindClsx } from "stillwind/runtime/react";
-
-export const props = {
-  className: stillwindClsx("sw_5tqrt", active && "sw_35mvl"),
-  style: { "--progress": "0.5" },
-};
-```
+The compiled call imports helpers to join the class names and pass the runtime
+custom property as an inline style.
 
 The CSS for both classes is generated at build time. At runtime, the code only
 chooses class names and sets property values.
@@ -67,9 +52,10 @@ chooses class names and sets property values.
 | -------------------------------------- | ------------------------------------------- |
 | Static utilities and variants          | A class name                                |
 | A condition, such as `active && "..."` | A helper that joins class names             |
-| A custom property                      | An inline `style` value                     |
+| A runtime custom property              | An inline `style` value                     |
 | `style.cva()`                          | A factory that selects compiled class names |
 | `style.media()`                        | A string with the media query               |
+| [`style.css()`](/docs/macros/css/)     | A CSS string that you place yourself        |
 
 Development builds import checked versions of the helpers from
 `stillwind/runtime/react-development`. These versions report invalid values while
@@ -80,9 +66,10 @@ you develop. Production builds use the unchecked helpers.
 The stylesheet contains utility CSS only for the `style()` calls that the build
 compiles. Utilities that no compiled call uses produce no CSS.
 
-The compiler decides the order of the rules. The order does not depend on the
-order of class names or on the order in which the bundler loads modules. The
-rules have the same order in development, production, server, and client builds.
+Stillwind fixes the precedence of its generated rules at build time. Class-name
+order and module-loading order do not change it. Production optimizations can
+combine or move rules without changing the cascade. See
+[CSS ordering](/docs/concepts/css-ordering/) for base styles, conditions, and variants.
 
 ## Delivering CSS to the page
 
@@ -90,7 +77,7 @@ The build integration adds the generated CSS to your application. For Vite and
 the frameworks built on it, the build writes one stylesheet by default.
 The Astro integration also adds the styles to server-rendered pages and islands.
 SvelteKit needs a server hook to add them to server-rendered pages in development.
-See [Framework integrations](/docs/frameworks/) for the setup of each framework.
+See [Framework integrations](/docs/integrations/) for the setup of each framework.
 
-To place the CSS yourself, such as inside a shadow root, see
-[Shadow DOM styles](/docs/guides/shadow-dom/).
+`style.css()` returns its CSS as a string instead of adding it to this stylesheet.
+See [Shadow DOM styles](/docs/guides/shadow-dom/) to place it inside a shadow root.

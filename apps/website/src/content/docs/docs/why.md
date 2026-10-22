@@ -1,20 +1,19 @@
 ---
 title: Why Stillwind
 slug: docs/why
-description: Keep Tailwind-style code consistent when many people and AI agents write it.
+description: Keep Tailwind-style code consistent as AI agents write more of it.
 ---
 
 Tailwind CSS makes styles fast to write, and you can write its classes anywhere.
-When many people and AI agents edit the same codebase, some things become hard
-to keep consistent by hand: colors outside the theme, one-off breakpoints, and
-names that two elements must spell the same way.
+As AI agents write more of your code, it becomes harder to keep theme values,
+breakpoints, and names shared between elements consistent by hand.
 
 Stillwind keeps the Tailwind CSS v4 utilities that you already know. It compiles
 them at build time and checks them, so you can keep styling code in order.
 
 ## Keep values in your theme
 
-AI agents often write values that work but bypass your design system:
+A utility can produce the right appearance while using values outside your theme:
 
 ```tsx
 style("bg-[#3b82f6] p-[13px] min-[713px]:flex");
@@ -34,7 +33,7 @@ lint: {
 },
 ```
 
-To use a breakpoint in JavaScript, call `style.media()` with its name. You do
+To use a breakpoint in JavaScript, call [`style.media()`](/docs/macros/media) with its name. You do
 not need to copy the breakpoint value into your code.
 
 ## Connect elements through variables
@@ -43,7 +42,7 @@ Tailwind connects elements by name: `group/card` on the parent and
 `group-hover/card:` on the child. Tailwind reads these names as strings, so it
 does not check that the two names agree.
 
-In Stillwind, you create the name as a variable with `style.ref()`:
+In Stillwind, you create the name as a variable with [`style.ref()`](/docs/macros/ref):
 
 ```tsx
 import { style } from "stillwind/react";
@@ -121,7 +120,7 @@ The VS Code extension shows the same findings while you edit.
 The compiler turns static utilities into CSS files and class names at build time.
 These styles need no JavaScript at runtime. Conditions and dynamic values add
 only the small runtime helpers that they use. See
-[How styles compile](/docs/how-styles-compile/) for the generated code.
+[How styles compile](/docs/concepts/how-styles-compile/) for the generated code.
 
 ## What changes from Tailwind
 

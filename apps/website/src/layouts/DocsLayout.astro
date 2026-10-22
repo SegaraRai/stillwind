@@ -1,6 +1,6 @@
 ---
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
-import type { SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
+import type { PrevNext, SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
 
 import "@fontsource/instrument-sans/400.css";
 import "@fontsource/instrument-sans/500.css";
@@ -20,9 +20,11 @@ interface Props {
   sidebar: SidebarItem[];
   headings: TOCItem[];
   editUrl?: string;
+  prevNext: PrevNext;
 }
 
-const { title, description, entryId, markdownUrl, sidebar, headings, editUrl } = Astro.props;
+const { title, description, entryId, markdownUrl, sidebar, headings, editUrl, prevNext } =
+  Astro.props;
 const navigationTransition = style.viewTransition({ group: "duration-300 ease-out" });
 ---
 
@@ -51,7 +53,6 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
           aria-label="Documentation"
           {...style({ class: "docs-navigation" }, navigationTransition.for("docs-navigation"))}
         >
-          <p class="docs-label">Documentation</p>
           <DocsSidebar items={sidebar} />
           <div class="docs-agent-links">
             <p class="docs-label">For agents</p>
@@ -93,7 +94,6 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
         </nav>
         <main id="main-content" class="docs-main">
           <header class="docs-page-header">
-            <p class="docs-label">Stillwind / Docs</p>
             <h1>{title}</h1>
             {description && <p class="docs-description">{description}</p>}
             <div class="docs-page-actions">
@@ -108,12 +108,36 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
             <slot />
           </article>
           <footer class="docs-footer">
+            {(prevNext.prev || prevNext.next) && (
+              <nav class="docs-pagination" aria-label="Documentation pages">
+                {prevNext.prev && (
+                  <a
+                    class="docs-pagination-prev"
+                    href={prevNext.prev.href}
+                    rel="prev"
+                    aria-label={`Previous page: ${prevNext.prev.label}`}
+                  >
+                    <span aria-hidden="true">←</span>
+                    <span>{prevNext.prev.label}</span>
+                  </a>
+                )}
+                {prevNext.next && (
+                  <a
+                    class="docs-pagination-next"
+                    href={prevNext.next.href}
+                    rel="next"
+                    aria-label={`Next page: ${prevNext.next.label}`}
+                  >
+                    <span>{prevNext.next.label}</span>
+                    <span aria-hidden="true">→</span>
+                  </a>
+                )}
+              </nav>
+            )}
             {editUrl && <a href={editUrl}>Edit this page ↗</a>}
-            <a href="/">Stillwind home →</a>
           </footer>
         </main>
         <nav class="docs-toc" aria-label="On this page">
-          <p class="docs-label">On this page</p>
           <ul>
             {headings.map((heading) => (
               <li {...style({ "--heading-depth": heading.depth })}>

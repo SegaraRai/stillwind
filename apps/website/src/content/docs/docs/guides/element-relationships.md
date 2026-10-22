@@ -8,7 +8,8 @@ You want to style an element based on another element: a parent's hover state,
 a sibling's state, the width of a container, or the position of an anchor.
 Tailwind connects the two elements by name, such as `group/card` and
 `group-hover/card:`. It reads these names as strings, so it does not check that
-they match.
+they match. Nested groups or containers may also need names to target the right
+ancestor. You must avoid name collisions when nesting components.
 
 In Stillwind, you create the name as a variable with `style.ref()`. A misspelled
 ref is an undefined variable, so TypeScript reports it.

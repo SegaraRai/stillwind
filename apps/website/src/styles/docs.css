@@ -357,7 +357,27 @@
 }
 
 .docs-footer {
-  @apply flex justify-between flex-wrap gap-4 mbs-16 pbs-6 border-bs border-border text-muted text-caption;
+  @apply grid gap-6 mbs-16 pbs-6 border-bs border-border text-muted text-caption;
+}
+
+.docs-footer > a {
+  @apply justify-self-start;
+}
+
+.docs-pagination {
+  @apply grid grid-cols-2 gap-6 text-ui font-medium text-foreground;
+}
+
+.docs-pagination a {
+  @apply flex items-start gap-3 min-inline-0 py-3 wrap-anywhere hover:text-accent;
+}
+
+.docs-pagination-prev {
+  @apply col-start-1;
+}
+
+.docs-pagination-next {
+  @apply col-start-2 justify-end text-end;
 }
 
 .docs-grid {
@@ -399,12 +419,6 @@
 .docs-navigation a[aria-current="page"] {
   @variant max-sidebar {
     @apply border-be-foreground bg-transparent;
-  }
-}
-
-.docs-navigation > .docs-label {
-  @variant max-sidebar {
-    @apply mbe-2;
   }
 }
 

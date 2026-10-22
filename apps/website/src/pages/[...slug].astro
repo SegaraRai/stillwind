@@ -3,6 +3,7 @@ import {
   getDocsPage,
   getDocsStaticPaths,
   getEditUrl,
+  getPrevNext,
   getSidebar,
   getTOC,
 } from "@cloudflare/nimbus-docs/runtime";
@@ -21,6 +22,10 @@ const { entry, Content, headings, markdownUrl } = page;
 const sidebar = await getSidebar(Astro.url.pathname);
 const toc = getTOC(headings);
 const editUrl = await getEditUrl(entry);
+const prevNext = await getPrevNext(Astro.url.pathname, {
+  sidebarTree: sidebar,
+  overrides: { prev: entry.data.prev, next: entry.data.next },
+});
 ---
 
 <DocsLayout
@@ -31,6 +36,7 @@ const editUrl = await getEditUrl(entry);
   sidebar={sidebar}
   headings={toc}
   editUrl={editUrl}
+  prevNext={prevNext}
 >
   <Content components={components} />
 </DocsLayout>

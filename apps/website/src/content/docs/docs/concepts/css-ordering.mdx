@@ -1,0 +1,195 @@
+---
+title: CSS ordering
+description: See how Stillwind orders CSS from different files, calls, conditions, variants, and utilities, and how the browser decides which value wins.
+slug: docs/concepts/css-ordering
+---
+
+This page explains Stillwind's detailed CSS ordering rules for developers debugging
+style conflicts or defining custom utilities and variants. It assumes you already
+use [`style()`](/docs/guides/style/) and [reusable styles](/docs/guides/reusable-styles/),
+and know how the CSS cascade works.
+
+<Aside type="note" title="Prefer styles that do not depend on order">
+
+Avoid relying on which unrelated rule comes last to make your styles work.
+When rules do compete, Stillwind tries to put them in the order that authors
+are most likely to expect.
+
+</Aside>
+
+Stillwind chooses the order of generated CSS at build time. A later declaration
+can override an earlier one. The browser can still prefer an earlier declaration
+because of `!important`, cascade layers, or selector specificity.
+
+## What affects CSS order
+
+In `style(base, "bg-red-600")`, `base` is the result of another `style()` call.
+The new call reuses its classes and adds CSS for the new utilities. Stillwind puts
+the base's CSS first.
+
+Read the following table from top to bottom. Stillwind orders files first, then
+calls within each file, then the rules that each call produces:
+
+| Step | What Stillwind orders               | Which CSS comes first                                                                                                                                                                                         |
+| ---- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Different files                     | A file that defines a base comes before a file that uses it in `style(base, ...)`. For files without this relationship, Stillwind uses a stable order based on their paths.                                   |
+| 2    | `style()` calls in one file         | The base's CSS comes before CSS added by `style(base, ...)`. Other calls follow the order in which they appear in the file.                                                                                   |
+| 3    | JavaScript conditions in one call   | CSS without a JavaScript condition comes first. CSS for conditions follows in the order the conditions are written. If conditions are nested, CSS for the outer condition comes before CSS for the inner one. |
+| 4    | CSS variants on one generated class | Rules without variants come first. The stylesheet sets the order of variants, such as `hover:` before `disabled:` or `sm:` before `md:` in the default stylesheet.                                            |
+| 5    | Utilities with the same variants    | By default, utilities follow the order of their definitions in the stylesheet, regardless of their order in `style()`.                                                                                        |
+
+For example, the variant order in step 4 only applies to rules for the same
+class. It does not move a rule ahead of CSS from an earlier file or call.
+
+The default `utilityOrder` setting is `"authored"`. In this mode, utilities from
+plugins come before utilities defined in the stylesheet. Set `utilityOrder` to
+`"tailwind"` to use Tailwind's property order instead. See
+[Configuration](/docs/configuration/#generated-css).
+
+### A base's rules come before the new call's rules
+
+Step 2 comes before step 3. All of the base's CSS comes first, including its
+conditional rules. The new call's CSS follows, even if it has no condition:
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+declare const active: boolean;
+const base = style("bg-gray-100", active && "bg-blue-600");
+export const danger = style(base, "bg-red-600");
+```
+
+</CompiledExample>
+
+The background is red whether `active` is true or false. All three selectors are
+plain classes, and none of the declarations uses `!important`. The red rule wins
+because it comes last. The same rule applies when you import `base` from another
+file.
+
+### Within one call, conditional rules come last
+
+In this call, the red utility has a JavaScript condition and the blue utility
+does not. Stillwind puts the blue rule first, even though it is written last:
+
+```tsx
+declare const active: boolean;
+const props = style(active && "bg-red-600", "bg-blue-600");
+```
+
+When `active` is false, the element only has the class for blue. When `active`
+is true, it also has the class for red, whose rule comes later. With several
+conditions, a condition written later can override an earlier one when both
+apply, unless specificity or `!important` decides otherwise.
+
+### Within one class, the stylesheet orders variants
+
+The built-in stylesheet defines the `hover` variant before the `disabled`
+variant. Stillwind follows that definition order when it emits their CSS rules,
+even when the hover utility is written last:
+
+```tsx
+const props = style("disabled:bg-gray-300 hover:bg-blue-600");
+```
+
+When the element is both hovered and disabled, the disabled background wins.
+Both selectors have the same specificity, and the disabled rule comes last.
+
+That variant order does not apply across separate calls. Here the new call's
+hover rule follows the base's disabled rule:
+
+```tsx
+const base = style("disabled:bg-gray-300");
+const props = style(base, "hover:bg-blue-600");
+```
+
+When both states match, the background is blue. The selectors still have the
+same specificity, but the rule for the second call comes last.
+
+## What does not affect CSS order
+
+| What you change                                                                                        | What happens                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Reorder utility strings that have no JavaScript condition                                              | Stillwind uses the configured utility order. Splitting a string into arguments does not make the last argument win.                |
+| Reorder existing bases in `style(first, second)`                                                       | The last argument does not become the winning base. Stillwind orders the calls that defined those bases using steps 1 and 2 above. |
+| Reorder class names on an element                                                                      | The browser uses the order of declarations in the stylesheet, regardless of the class attribute's order.                           |
+| Change JavaScript import order, component render order, or which stylesheet finishes downloading first | For the same set of files, the integration keeps the same CSS order.                                                               |
+
+For example, with the default stylesheet, both calls below produce the same
+padding declarations, and `p-4` wins:
+
+```tsx
+style("p-2 p-4");
+style("p-4", "p-2");
+```
+
+[conflicting-utilities](/docs/lints/conflicting-utilities/) reports this
+conflict. Remove the unwanted utility instead of rearranging the input.
+
+If two base styles set the same property, do not use their argument order to
+choose the winner. Define the overriding style by passing the other style as
+its base:
+
+```tsx
+const blue = style("bg-blue-600");
+const red = style(blue, "bg-red-600");
+const props = style(red);
+```
+
+[ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order/) and
+[interfering-imported-style-base](/docs/lints/interfering-imported-style-base/)
+report calls that combine conflicting bases without saying which is built on
+which.
+
+## Specificity and `!important`
+
+Putting a rule later does not make its selector more specific. For example,
+a base's class with `:hover` is more specific than the new call's plain class:
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const base = style("bg-blue-600 hover:bg-blue-800");
+export const danger = style(base, "bg-red-600");
+```
+
+</CompiledExample>
+
+The background is red at rest. On a device that supports hover, it becomes
+blue-800 while hovered: the earlier class with `:hover` beats the later plain
+class. To make the hovered background red too, give the new call its own hover
+rule:
+
+```tsx
+export const danger = style(base, "bg-red-600 hover:bg-red-800");
+```
+
+A declaration with `!important` beats a normal declaration, even if the normal
+one has a more specific selector. Here the base's blue background wins both at
+rest and on hover, despite the red rules coming later:
+
+```tsx
+const base = style("bg-blue-600!");
+const danger = style(base, "bg-red-600 hover:bg-red-800");
+```
+
+Layer order also comes before specificity. Among layers, the last layer wins
+for normal declarations, and the first layer wins for important declarations.
+The browser uses declaration order only when the earlier rules of the
+[CSS cascade](https://www.w3.org/TR/css-cascade-5/#cascade-sort) leave a tie.
+
+To override a shared style, use `style(base, ...)` with the matching variants
+instead of adding `!important`. See [no-important](/docs/lints/no-important/).
+
+## Stylesheet placement
+
+The integration keeps this order during development, in production, and in
+server-rendered pages. A production build may combine or move CSS rules when
+doing so does not change which declaration wins.
+
+If you combine CSS from separate builds, or place the CSS strings returned by
+[`style.css()`](/docs/macros/css/) yourself, you choose which stylesheet comes
+first.
