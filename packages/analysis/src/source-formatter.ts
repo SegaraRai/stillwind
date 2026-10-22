@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { findConfiguration } from "@stillwind/config/node";
 
-import type { RewriteInput, RewriteResult } from "./rewrite.ts";
+import { RewriteFailure, type RewriteInput, type RewriteResult } from "./rewrite.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 
 /** Reuses an isolated process while refreshing trusted configuration for each formatting request. */
@@ -28,7 +28,7 @@ export class SourceFormatter {
   format(input: RewriteInput): Promise<RewriteResult> {
     const task = this.#queue.then(async () => {
       await this.#worker.open(this.config);
-      const results = await this.#worker.rewrite(
+      const { outputs, failures } = await this.#worker.rewrite(
         [
           {
             ...input,
@@ -37,7 +37,10 @@ export class SourceFormatter {
         ],
         "sort",
       );
-      return results[0];
+      if (failures.length) {
+        throw new RewriteFailure(failures[0].message, failures[0].results);
+      }
+      return outputs[0];
     });
     this.#queue = task.catch(() => {});
     return task;

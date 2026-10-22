@@ -1,5 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 
+import type { RewriteFileFailure } from "./rewrite.ts";
+
 /** A replacement with the original bytes retained for verification before saving. */
 export interface FileChange {
   /** Target path. The caller must provide at most one change per file. */
@@ -12,28 +14,34 @@ export interface FileChange {
 
 /**
  * Saves changed bytes once per file. Identical buffers perform no filesystem operations.
- * Verifies all changed originals before any write and checks each again immediately before
- * saving.
+ * Checks each original immediately before saving and continues after a target fails.
  * @param changes - Distinct target paths and original/replacement bytes. Buffers remain unchanged.
- * @returns Completion of verification and sequential writes. Earlier writes remain if a later write fails.
- * @throws If current bytes differ from the original or a filesystem operation fails.
+ * @returns Saved paths and failures. A stale file is left unchanged.
  */
-export async function writeChangedFiles(changes: readonly FileChange[]): Promise<void> {
+export async function writeChangedFiles(changes: readonly FileChange[]): Promise<{
+  changed: string[];
+  failures: RewriteFileFailure[];
+}> {
   const changed = changes.filter((change) => !change.before.equals(change.after));
-  /**
-   * Checks that a planned replacement still targets the bytes captured before rewriting.
-   * @param change - Path and original bytes to compare with disk.
-   * @returns Completion of the byte comparison.
-   * @throws If reading fails or another writer changed the original.
-   */
-  const verify = async (change: FileChange) => {
-    if (!(await readFile(change.file)).equals(change.before)) {
-      throw new Error(`Source changed before saving ${change.file}`);
-    }
-  };
-  await Promise.all(changed.map(verify));
+  const saved: string[] = [];
+  const failures: RewriteFileFailure[] = [];
   for (const change of changed) {
-    await verify(change);
-    await writeFile(change.file, change.after);
+    try {
+      if (!(await readFile(change.file)).equals(change.before)) {
+        throw new Error(`Source changed before saving ${change.file}`);
+      }
+      await writeFile(change.file, change.after);
+      saved.push(change.file);
+    } catch (error) {
+      failures.push({
+        file: change.file,
+        message: error instanceof Error ? error.message : String(error),
+        results: [],
+      });
+    }
   }
+  return {
+    changed: saved,
+    failures,
+  };
 }

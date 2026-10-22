@@ -39,6 +39,24 @@ export interface RewriteResult {
   results: WorkspaceResult[];
 }
 
+/** A target that could not be read, rewritten, or saved. */
+export interface RewriteFileFailure {
+  /** Absolute path of the failed target. */
+  file: string;
+  /** Reason that reading, planning, or saving this target failed. */
+  message: string;
+  /** Analysis findings captured before planning failed, when available. */
+  results: WorkspaceResult[];
+}
+
+/** Independent target outcomes from a shared set of captured buffers. */
+export interface RewriteBatchResult {
+  /** Successful replacements in input order. */
+  outputs: RewriteResult[];
+  /** Failed targets in input order. */
+  failures: RewriteFileFailure[];
+}
+
 /** Owns buffer versions while computing changes against one workspace. Calls must be serialized. */
 export class SourceRewriter {
   /** Increasing version assigned to every buffer in each rewrite pass. */
@@ -48,7 +66,12 @@ export class SourceRewriter {
    * Attaches rewriting to a workspace whose buffers the caller reserves for this rewriter.
    * @param workspace - Open workspace. Serialize rewrite calls and avoid concurrent updates to input paths.
    */
-  constructor(private readonly workspace: AnalysisWorkspace) {}
+  constructor(
+    private readonly workspace: Pick<
+      AnalysisWorkspace,
+      "invalidate" | "update" | "analyze" | "query" | "closeDocument"
+    >,
+  ) {}
 
   /**
    * Computes sorting or converged lint fixes without saving files. All input buffers are visible
@@ -56,50 +79,79 @@ export class SourceRewriter {
    * buffers are removed even when rewriting fails.
    * @param inputs - Distinct absolute paths and complete text. Only sorting uses protected ranges.
    * @param operation - One sort pass or lint-fix passes until the text stops changing.
-   * @returns Final buffers in input order. Fixes return no edits because their offsets span several passes.
-   * @throws If paths repeat, syntax is invalid, analysis is incomplete or fails, edits are invalid
-   * or stale, projects disagree, or fixes do not converge in ten passes.
+   * @returns Successful buffers and failures in input order. Failed buffers retain their original
+   * text in subsequent passes. Fixes return no edits because their offsets span several passes.
+   * @throws If paths repeat or workspace invalidation, buffer installation, or cleanup fails.
    */
   async rewrite(
     inputs: readonly RewriteInput[],
     operation: "sort" | "fixes",
-  ): Promise<RewriteResult[]> {
+  ): Promise<RewriteBatchResult> {
     if (new Set(inputs.map((input) => input.file)).size !== inputs.length) {
       throw new Error("Rewrite inputs must have distinct file paths");
     }
     let buffers = inputs;
-    const seen = new Set<string>();
+    const failures = new Map<string, RewriteFileFailure>();
+    const originals = new Map(inputs.map((input) => [input.file, input.source]));
+    const seen = new Map(inputs.map((input) => [input.file, new Set<string>()]));
     try {
       this.workspace.invalidate();
-      for (let pass = 0; pass < 10; pass++) {
-        const key = JSON.stringify(buffers.map((input) => input.source));
-        if (seen.has(key)) {
-          throw new Error("Stillwind fixes did not converge");
-        }
-        seen.add(key);
+      for (;;) {
+        const snapshot = JSON.stringify([
+          buffers.map((input) => input.source),
+          [...failures.keys()],
+        ]);
         const version = ++this.#version;
         for (const input of buffers) {
           this.workspace.update(input.file, input.source, version);
         }
         const outputs: RewriteResult[] = [];
+        let changed = false;
         for (const input of buffers) {
-          outputs.push(await this.#rewriteBuffer(input, operation));
+          if (failures.has(input.file)) {
+            continue;
+          }
+          try {
+            const output = await this.#rewriteBuffer(input, operation);
+            if (operation === "fixes" && output.code !== input.source) {
+              const history = seen.get(input.file)!;
+              if (history.has(snapshot)) {
+                throw new RewriteFailure("Stillwind fixes did not converge", output.results);
+              }
+              if (history.size >= 10) {
+                throw new RewriteFailure("Stillwind fixes exceeded ten passes", output.results);
+              }
+              history.add(snapshot);
+              changed = true;
+            }
+            outputs.push(output);
+          } catch (error) {
+            failures.set(input.file, {
+              file: input.file,
+              message: error instanceof Error ? error.message : String(error),
+              results: error instanceof RewriteFailure ? error.results : [],
+            });
+            changed ||= input.source !== originals.get(input.file);
+          }
         }
-        if (
-          operation === "sort" ||
-          outputs.every((output, index) => output.code === buffers[index].source)
-        ) {
-          return outputs.map((output) => ({
-            ...output,
-            edits: operation === "sort" ? output.edits : [],
-          }));
+        if (operation === "sort" || !changed) {
+          return {
+            outputs: outputs.map((output) => ({
+              ...output,
+              edits: operation === "sort" ? output.edits : [],
+            })),
+            failures: inputs.flatMap((input) => {
+              const failure = failures.get(input.file);
+              return failure ? [failure] : [];
+            }),
+          };
         }
-        buffers = outputs.map((output) => ({
-          file: output.file,
-          source: output.code,
+        const replacements = new Map(outputs.map((output) => [output.file, output.code]));
+        buffers = inputs.map((input) => ({
+          file: input.file,
+          source: replacements.get(input.file) ?? input.source,
         }));
       }
-      throw new Error("Stillwind fixes exceeded ten passes");
     } finally {
       for (const input of inputs) {
         this.workspace.closeDocument(input.file);

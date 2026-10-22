@@ -472,6 +472,38 @@ test("quiet preserves warning thresholds and CLI failures retain CSS reports", a
     const cssText = await run(root, ["lint", "--color", "never"]);
     expect(cssText.stderr).toContain("root.css:1:1: error SW13002");
     expect(cssText.stderr).toContain("1 | @theme {");
+    await writeFile(
+      path.join(root, "healthy.css"),
+      "@utility block {display:block;} @utility flex {display:flex;} @stillwind-slot utilities;",
+    );
+    const healthy = path.join(root, "healthy.tsx");
+    await writeFile(
+      healthy,
+      'import {style} from "stillwind/react"; const card=style("flex block");',
+    );
+    await writeFile(
+      path.join(root, "stillwind.config.json"),
+      JSON.stringify({
+        projects: [
+          {
+            css: "root.css",
+            files: ["entry.tsx"],
+            typeFacts: false,
+          },
+          {
+            css: "healthy.css",
+            files: ["healthy.tsx"],
+            typeFacts: false,
+          },
+        ],
+      }),
+    );
+    const partial = await run(root, ["fmt", "--format", "json"]);
+    expect(partial.code).toBe(2);
+    const outcomes: CliResult = JSON.parse(partial.stdout);
+    expect(outcomes.changed.map(path.normalize)).toEqual([healthy]);
+    expect(outcomes.failures).toHaveLength(1);
+    expect(await readFile(healthy, "utf8")).toContain('style("block flex")');
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -501,7 +533,7 @@ test("CLI reports unsupported targets and invalid project settings", async () =>
   }
 });
 
-test("failed batch planning preserves previously planned sources and reports unresolved targets", async () => {
+test("fmt saves healthy targets around failures and check mode reports every outcome without writing", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-batch-"));
   try {
     await writeFile(
@@ -515,19 +547,54 @@ test("failed batch planning preserves previously planned sources and reports unr
     const file = path.join(root, "a-entry.tsx");
     const source = 'import {style} from "stillwind/react";const card=style("flex block");';
     await writeFile(file, source);
-    await writeFile(path.join(root, "z-unsupported.txt"), "unsupported");
-    const result = await run(root, ["fmt"]);
-    expect(result.code).toBe(2);
-    expect(result.stderr).toContain("Incomplete analysis");
-    expect(await readFile(file, "utf8")).toBe(source);
-    expect((await run(root, ["fmt", "absent.tsx"])).code).toBe(2);
-    await rm(path.join(root, "z-unsupported.txt"));
+    const brokenFile = path.join(root, "b-broken.tsx");
     const broken = source + "const broken=(";
-    await writeFile(file, broken);
-    const syntaxError = await run(root, ["fmt"]);
-    expect(syntaxError.code).toBe(2);
-    expect(syntaxError.stderr).toContain("JavaScript parse error");
-    expect(await readFile(file, "utf8")).toBe(broken);
+    await writeFile(brokenFile, broken);
+    const unsupported = path.join(root, "c-unsupported.txt");
+    await writeFile(unsupported, "unsupported");
+    const invalid = path.join(root, "d-invalid.tsx");
+    await writeFile(invalid, Buffer.from([0xff]));
+    const last = path.join(root, "z-entry.tsx");
+    await writeFile(last, source);
+    const unchanged = await stat(brokenFile);
+    const check = await run(root, ["fmt", "--check", "--format", "json"]);
+    expect(check.code).toBe(2);
+    const planned: CliResult = JSON.parse(check.stdout);
+    expect(planned.changed.map(path.normalize)).toEqual([file, last]);
+    expect(planned.failures.map((failure) => path.normalize(failure.file!)).sort()).toEqual([
+      brokenFile,
+      unsupported,
+      invalid,
+    ]);
+    expect(planned.summary).toMatchObject({
+      files: 6,
+      failures: 3,
+      changed: 2,
+    });
+    expect(await readFile(file, "utf8")).toBe(source);
+    expect(await readFile(last, "utf8")).toBe(source);
+    const result = await run(root, ["fmt", "--format", "json"]);
+    expect(result.code).toBe(2);
+    expect(JSON.parse(result.stdout).changed.map(path.normalize)).toEqual([file, last]);
+    expect(await readFile(file, "utf8")).toBe(source.replace("flex block", "block flex"));
+    expect(await readFile(last, "utf8")).toBe(source.replace("flex block", "block flex"));
+    expect(await readFile(brokenFile, "utf8")).toBe(broken);
+    expect((await stat(brokenFile)).mtimeMs).toBe(unchanged.mtimeMs);
+    expect(await readFile(unsupported, "utf8")).toBe("unsupported");
+    expect(await readFile(invalid)).toEqual(Buffer.from([0xff]));
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'export default {projects:[{css:"root.css",files:["*.tsx","*.txt"],typeFacts:false,lint:{rules:{"prefer-sorted-utilities":"deny"}}}]}',
+    );
+    await writeFile(file, source);
+    const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
+    expect(fixed.code).toBe(2);
+    const linted: CliResult = JSON.parse(fixed.stdout);
+    expect(linted.changed.map(path.normalize)).toEqual([file]);
+    expect(linted.failures).toHaveLength(3);
+    expect(await readFile(file, "utf8")).toBe(source.replace("flex block", "block flex"));
+    expect(await readFile(brokenFile, "utf8")).toBe(broken);
+    expect((await run(root, ["fmt", "absent.tsx"])).code).toBe(2);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

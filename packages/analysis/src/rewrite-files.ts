@@ -4,6 +4,7 @@ import path from "node:path";
 import { findConfiguration } from "@stillwind/config/node";
 import type { WorkspaceResult } from "@stillwind/host";
 
+import type { RewriteFileFailure, RewriteInput } from "./rewrite.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 import { writeChangedFiles } from "./write.ts";
 
@@ -25,6 +26,8 @@ interface RewriteFilesResult {
   changed: string[];
   /** Original findings for sorting and final findings for lint fixes, in project and target order. */
   results: WorkspaceResult[];
+  /** Targets that could not be read, rewritten, or saved. */
+  failures: RewriteFileFailure[];
 }
 
 /**
@@ -32,9 +35,9 @@ interface RewriteFilesResult {
  * @param options - Configuration discovery and optional filters within configured target scopes.
  * @param operation - Utility sorting or converged lint fixes.
  * @param write - Whether to verify and save changed bytes after every replacement is planned.
- * @returns Configuration, sorted changed paths, and findings grouped in project order.
- * @throws If selection is empty, a source is not valid UTF-8, or discovery, reading, rewriting,
- * saving, or worker cleanup fails.
+ * @returns Configuration, sorted changed paths, findings, and independent target failures.
+ * Saving reports only paths whose writes succeeded. Check mode reports planned changes.
+ * @throws If selection is empty, configuration, worker communication, or cleanup fails.
  */
 export async function rewriteFiles(
   options: RewriteOptions,
@@ -49,30 +52,58 @@ export async function rewriteFiles(
     if (!files.length) {
       throw new Error("No analysis targets matched the configured scopes");
     }
-    const originals = await Promise.all(
-      files.map(async (file) => ({ file, before: await readFile(file) })),
-    );
-    const inputs = originals.map(({ file, before }) => {
-      const source = before.toString("utf8");
-      if (!Buffer.from(source).equals(before)) {
-        throw new Error(`Source is not valid UTF-8: ${file}`);
+    const failures: RewriteFileFailure[] = [];
+    const originals = new Map<string, Buffer>();
+    const inputs: RewriteInput[] = [];
+    const reads = await Promise.allSettled(files.map((file) => readFile(file)));
+    for (const [index, read] of reads.entries()) {
+      const file = files[index];
+      try {
+        if (read.status === "rejected") {
+          throw read.reason;
+        }
+        const source = read.value.toString("utf8");
+        if (!Buffer.from(source).equals(read.value)) {
+          throw new Error(`Source is not valid UTF-8: ${file}`);
+        }
+        originals.set(file, read.value);
+        inputs.push({
+          file,
+          source,
+        });
+      } catch (error) {
+        failures.push({
+          file,
+          message: error instanceof Error ? error.message : String(error),
+          results: [],
+        });
       }
-      return { file, source };
-    });
-    const outputs = await worker.rewrite(inputs, operation);
-    const changes = originals.map((original, index) => ({
-      ...original,
-      after: Buffer.from(outputs[index].code),
-    }));
-    if (write) {
-      await writeChangedFiles(changes);
     }
+    const batch = await worker.rewrite(inputs, operation);
+    failures.push(...batch.failures);
+    const changes = batch.outputs.map((output) => ({
+      file: output.file,
+      before: originals.get(output.file)!,
+      after: Buffer.from(output.code),
+    }));
+    let changed = changes
+      .filter((change) => !change.before.equals(change.after))
+      .map((change) => change.file);
+    if (write) {
+      const saved = await writeChangedFiles(changes);
+      changed = saved.changed;
+      failures.push(...saved.failures);
+    }
+    changed.sort();
+    failures.sort((a, b) => a.file.localeCompare(b.file));
+    const results = [...batch.outputs, ...batch.failures]
+      .flatMap((output) => output.results)
+      .sort((a, b) => a.project - b.project || a.result.entry.localeCompare(b.result.entry));
     return {
       config,
-      changed: changes
-        .filter((change) => !change.before.equals(change.after))
-        .map((change) => change.file),
-      results: outputs.flatMap((output) => output.results).sort((a, b) => a.project - b.project),
+      changed,
+      results,
+      failures,
     };
   } finally {
     await worker.close();

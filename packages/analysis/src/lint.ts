@@ -2,6 +2,7 @@ import type { WorkspaceResult } from "@stillwind/host";
 
 import { lintReports } from "./reports.ts";
 import { resolveRewriteConfig, rewriteFiles, type RewriteOptions } from "./rewrite-files.ts";
+import type { RewriteFileFailure } from "./rewrite.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 
 /** Lint results preserve project membership and identify incomplete analysis. */
@@ -12,6 +13,8 @@ export interface LintResult {
   results: WorkspaceResult[];
   /** Files whose bytes changed when fix was requested. */
   changed?: string[];
+  /** Targets that could not be read, fixed, or saved when fix was requested. */
+  failures?: RewriteFileFailure[];
   /**
    * - 0: successful checks
    * - 1: compiler errors or denied lint
@@ -27,7 +30,7 @@ export interface LintResult {
  * configured targets from the process working directory.
  * @returns Results and an exit code. Readonly lint returns code 2 for empty selection or incomplete analysis.
  * @throws If configuration discovery, worker initialization, target enumeration, or cleanup fails.
- * Fix mode also throws when planning or saving fails, including empty selection and incomplete analysis.
+ * Fix mode reports failures per target and continues with healthy targets. Empty selection throws.
  */
 export async function lint(
   options: RewriteOptions & {
@@ -39,11 +42,13 @@ export async function lint(
     const result = await rewriteFiles(options, "fixes", true);
     return {
       ...result,
-      exitCode: result.results.some(({ result }) =>
-        result.reports.some((report) => report.severity === "error"),
-      )
-        ? 1
-        : 0,
+      exitCode: result.failures.length
+        ? 2
+        : result.results.some(({ result }) =>
+              result.reports.some((report) => report.severity === "error"),
+            )
+          ? 1
+          : 0,
     };
   }
   const config = resolveRewriteConfig(options);
@@ -105,7 +110,12 @@ export function formatLint(result: LintResult): string {
       }
     }
   }
-  if (!result.results.length) {
+  for (const failure of result.failures ?? []) {
+    if (!failure.results.some(({ result }) => result.status !== "complete")) {
+      lines.push(`${failure.file}: ${failure.message}`);
+    }
+  }
+  if (!result.results.length && !result.failures?.length) {
     lines.push("No analysis targets matched the configured scopes");
   }
   return lines.join("\n");

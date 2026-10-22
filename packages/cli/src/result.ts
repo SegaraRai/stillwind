@@ -1,5 +1,5 @@
 import { lintReports } from "@stillwind/analysis";
-import type { FormatResult, LintResult } from "@stillwind/analysis/node";
+import type { LintResult } from "@stillwind/analysis/node";
 
 export type CliCommand = "lint" | "fmt" | null;
 
@@ -42,10 +42,17 @@ export interface ResultPolicy {
 /** Projects analysis into CLI data before visibility filtering and rendering. */
 export function cliResult(
   command: CliCommand,
-  result: Pick<LintResult | FormatResult, "config" | "results" | "changed">,
+  result: Pick<LintResult, "config" | "results" | "changed" | "failures">,
   policy: ResultPolicy = {},
 ): CliResult {
-  const diagnostics = command === "fmt" ? [] : lintReports(result.results);
+  const failedFiles = new Set(result.failures?.map((failure) => failure.file));
+  const diagnostics = lintReports(
+    command === "fmt"
+      ? result.results.filter(
+          ({ result }) => result.status !== "complete" || failedFiles.has(result.entry),
+        )
+      : result.results,
+  );
   const failures: CliFailure[] = result.results.flatMap(({ project, result }) =>
     result.status === "complete"
       ? []
@@ -73,8 +80,20 @@ export function cliResult(
           },
         ],
   );
-  if (!result.results.length) {
-    failures.push({ message: "No analysis targets matched the configured scopes", details: [] });
+  for (const failure of result.failures ?? []) {
+    if (!failures.some((existing) => existing.file === failure.file)) {
+      failures.push({
+        file: failure.file,
+        message: failure.message,
+        details: [],
+      });
+    }
+  }
+  if (!result.results.length && !failures.length) {
+    failures.push({
+      message: "No analysis targets matched the configured scopes",
+      details: [],
+    });
   }
   const changed = [...new Set(result.changed ?? [])].sort();
   const errors = diagnostics.filter(({ report }) => report.severity === "error").length;
@@ -89,7 +108,10 @@ export function cliResult(
     failures,
     changed,
     summary: {
-      files: new Set(result.results.map(({ result }) => result.entry)).size,
+      files: new Set([
+        ...result.results.map(({ result }) => result.entry),
+        ...(result.failures ?? []).map((failure) => failure.file),
+      ]).size,
       errors,
       warnings,
       failures: failures.length,
@@ -115,12 +137,22 @@ export function failureResult(
     error instanceof Error && "results" in error && Array.isArray(error.results)
       ? (error.results as LintResult["results"])
       : [];
-  const result = cliResult("lint", { config: results[0]?.config ?? "", results }, policy);
+  const result = cliResult(
+    "lint",
+    {
+      config: results[0]?.config ?? "",
+      results,
+    },
+    policy,
+  );
   result.command = command;
   result.config = results[0]?.config ?? null;
   if (!results.length || !result.failures.length) {
     result.failures = [
-      { message: error instanceof Error ? error.message : String(error), details: [] },
+      {
+        message: error instanceof Error ? error.message : String(error),
+        details: [],
+      },
     ];
   }
   result.summary.failures = result.failures.length;

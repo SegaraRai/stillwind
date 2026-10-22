@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import type { EditorRequest, WorkspaceResult } from "@stillwind/host";
 
-import { RewriteFailure, type RewriteInput, type RewriteResult } from "./rewrite.ts";
+import { RewriteFailure, type RewriteInput, type RewriteBatchResult } from "./rewrite.ts";
 
 /** Requests sent to the process that owns trusted config evaluation and plugin lifetimes. */
 export type WorkerRequest =
@@ -240,11 +240,14 @@ export class AnalysisWorker {
   /**
    * Computes replacements from captured buffers without writing files.
    * @param inputs - Distinct absolute target paths and complete original text.
-   * @param operation - Utility sorting or lint fixes that must converge within ten passes.
-   * @returns Replacements and project findings in input order. Captured buffers are removed after planning.
-   * @throws If analysis is incomplete, edits are invalid or conflicting, fixes do not converge, or transport fails.
+   * @param operation - Utility sorting or lint fixes, limited to ten changing passes per target.
+   * @returns Successful replacements and target failures in input order. Captured buffers are removed after planning.
+   * @throws If workspace setup, buffer installation, cleanup, or transport fails.
    */
-  rewrite(inputs: readonly RewriteInput[], operation: "sort" | "fixes"): Promise<RewriteResult[]> {
+  rewrite(
+    inputs: readonly RewriteInput[],
+    operation: "sort" | "fixes",
+  ): Promise<RewriteBatchResult> {
     return this.request({
       method: "rewrite",
       inputs,

@@ -35,8 +35,9 @@ stillwind fmt --check && vp fmt --check
 
 `lint` only reports findings. `lint --fix` applies supported automatic fixes, including sorting
 when the effective `prefer-sorted-utilities` severity enables it. Lint suppression remains effective.
-Fixes run against buffers until they converge, with a ten-pass limit. Findings and the exit code
-describe the final buffers. All selected buffers are visible to dependency analysis in each pass.
+Fixes run against buffers until they converge, with at most ten changing passes per target.
+Findings and the exit code describe the final buffers. All selected buffers are visible to dependency
+analysis in each pass.
 
 ## Saving files
 
@@ -44,8 +45,11 @@ Both commands compare original and final bytes before saving. Files with identic
 never opened for writing, and their modification times remain unchanged. UTF-8 BOMs, line endings,
 and trailing newlines remain intact outside edited ranges. Files must contain valid UTF-8.
 The CLI verifies original bytes before saving and rejects sources changed during planning.
-Planning completes for the batch before writes begin; I/O failures during saving can leave earlier
-files saved. When projects overlap, every owning project must produce the same final text.
+Planning completes for the batch before writes begin. A target that cannot be read, analyzed, or
+rewritten is left unchanged. Other targets continue, including after a saving failure. The CLI
+reports all failures and successful writes, and returns `2` when any target fails. `--check` reports
+planned changes and failures without writing. A shared configuration or CSS failure affects every
+target that requires it. When projects overlap, every owning project must produce the same final text.
 
 ## Exit codes
 
