@@ -95,3 +95,7 @@ minimumReleaseAgeExclude:
   - oxfmt@0.73.0
   - oxlint@1.88.0
   - vite-plus@1.2.0
+  - "@astrojs/markdown-satteri@0.4.5"
+  - "@astrojs/prism@4.1.1"
+  - "@astrojs/telemetry@3.4.1"
+  - astro@7.4.2
