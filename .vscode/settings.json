@@ -5,6 +5,9 @@
   "[markdown]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
+  "[mdx]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
   "[json]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
