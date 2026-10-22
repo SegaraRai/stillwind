@@ -1,0 +1,25 @@
+---
+title: "SW01004: Invalid hash length"
+description: Select a supported number of base-36 digits for generated identifiers.
+slug: docs/errors/SW01004
+---
+
+<CompilerError code="SW01004" category="configuration" />
+
+The requested `hashLength` cannot spell a valid generated-name digest. The
+message includes the rejected length and the maximum accepted by that compiler.
+
+## Rejected
+
+```ts
+const options = { hashLength: 0 };
+```
+
+## Corrected
+
+```ts
+const options = { hashLength: 5 };
+```
+
+Five digits is the default. Use a supported integer and retain consistent
+naming settings across builds that share styles.

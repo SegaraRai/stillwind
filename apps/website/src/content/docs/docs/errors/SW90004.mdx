@@ -1,0 +1,25 @@
+---
+title: "SW90004: Inconsistent macro import metadata"
+description: Report frontend import spans or realm metadata that disagree with the source.
+slug: docs/errors/SW90004
+---
+
+<CompilerError code="SW90004" category="internal" />
+
+The frontend produced macro import spans or realm metadata inconsistent with
+the source. The compiler cannot use those records as a valid transformation anchor.
+
+## Violated invariant
+
+```text
+A recognized macro import's metadata describes a different source range or import realm.
+```
+
+## Required invariant
+
+```text
+The metadata agrees with the recognized macro import in the same source revision.
+```
+
+Report the original import statement, component format, and converter/integration
+versions. Include the source revision when the failure occurs only after editor changes.

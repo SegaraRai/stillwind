@@ -1,0 +1,26 @@
+---
+title: "SW14002: Missing support slot"
+description: Keep the output destination required by generated support CSS.
+slug: docs/errors/SW14002
+---
+
+<CompilerError code="SW14002" category="authoring" />
+
+Generated output requires a support slot that the entry graph does not provide.
+The diagnostic names the exact slot. For example, an animation can require a
+destination for its keyframe definition.
+
+## Rejected template contract
+
+```text
+An animation emits keyframes, but the template has no keyframes slot.
+```
+
+## Corrected entry
+
+```css
+@import "stillwind";
+```
+
+Use the standard entry or add the named `@stillwind-slot` to the authored
+template. Copying only a utility preview omits support and does not repair the template.

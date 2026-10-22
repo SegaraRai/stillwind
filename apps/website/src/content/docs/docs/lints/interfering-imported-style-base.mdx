@@ -1,0 +1,37 @@
+---
+title: interfering-imported-style-base
+description: Resolve property overlap involving an imported CSS producer.
+slug: docs/lints/interfering-imported-style-base
+---
+
+<LintRuleSummary name="interfering-imported-style-base" analysis="project" />
+
+An imported base can overlap another base or a direct contribution without a
+producer dependency that establishes CSS order. Project analysis follows the
+original owners, including transitive imports.
+
+## Project files
+
+```ts title="bases.ts"
+import { style } from "stillwind/react";
+export const first = style("p-2");
+export const second = style("p-4");
+export const combined = style(first, "p-4");
+```
+
+## Reported
+
+```tsx
+import { first, second } from "./bases";
+export const props = style(first, second);
+```
+
+## Accepted
+
+```tsx
+import { combined } from "./bases";
+export const props = style(combined);
+```
+
+The combined export establishes derivation where the producer is defined.
+Moving class-string positions at the consumer does not create that dependency.

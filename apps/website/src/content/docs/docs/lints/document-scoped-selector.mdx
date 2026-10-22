@@ -1,0 +1,26 @@
+---
+title: document-scoped-selector
+description: Put rules that do not depend on the styled element in the document stylesheet.
+slug: docs/lints/document-scoped-selector
+---
+
+<LintRuleSummary name="document-scoped-selector" />
+
+This selector replaces the utility subject with a document-wide target. The
+result no longer depends on attaching the generated class to the component.
+
+## Reported
+
+```tsx
+style("[:root]:text-red-500");
+```
+
+## Accepted
+
+```tsx
+style("text-red-500");
+```
+
+The corrected example styles the receiving element. If the root is the intended
+target, author a `:root` rule in the CSS entrypoint instead of hiding that ownership
+inside a component macro.

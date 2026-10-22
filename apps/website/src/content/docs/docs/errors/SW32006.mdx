@@ -1,0 +1,25 @@
+---
+title: "SW32006: CSS request IDs exhausted"
+description: Keep the loader's request set within its representable ID range.
+slug: docs/errors/SW32006
+---
+
+<CompilerError code="SW32006" category="host" />
+
+The loader cannot allocate another request identifier. The error concerns its
+protocol state, rather than a custom-property or utility name.
+
+## Invalid state
+
+```text
+The current loading session needs another ID after exhausting its request-ID range.
+```
+
+## Valid state
+
+```text
+All requests in the loading session have representable, distinct request IDs.
+```
+
+Reduce an unexpectedly expanding import graph and reproduce with its source
+counts. An embedding must not wrap an exhausted counter or reuse a still-live ID.

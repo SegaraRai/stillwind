@@ -1,0 +1,25 @@
+---
+title: "SW33005: Invalid source byte offset"
+description: Supply a usable UTF-8 byte position to the source operation.
+slug: docs/errors/SW33005
+---
+
+<CompilerError code="SW33005" category="host" />
+
+A source operation rejected a byte position. The diagnostic includes the rejected
+offset and the operation that attempted to use it.
+
+## Invalid offset contract
+
+```text
+The requested byte position is outside the buffer or violates its UTF-8 boundary contract.
+```
+
+## Valid offset contract
+
+```text
+The position is a checked UTF-8 byte boundary accepted by that operation in the same buffer.
+```
+
+Convert editor coordinates explicitly and invalidate stored offsets after edits.
+This code describes the source operation; coordinate-conversion APIs can instead report [SW31008](/docs/errors/SW31008/).

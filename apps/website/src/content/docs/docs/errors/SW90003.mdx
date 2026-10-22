@@ -1,0 +1,25 @@
+---
+title: "SW90003: Inconsistent internal CSS graph"
+description: Report a loader graph that disagrees with its tracked dependencies.
+slug: docs/errors/SW90003
+---
+
+<CompilerError code="SW90003" category="internal" />
+
+The loader's source graph is inconsistent with its tracked dependency state.
+This indicates a compiler invariant failure rather than an unknown imported utility.
+
+## Violated invariant
+
+```text
+Retained CSS graph nodes and their tracked dependency relationships disagree.
+```
+
+## Required invariant
+
+```text
+The retained graph and dependency state describe the same loaded source snapshot.
+```
+
+Include the import graph and update sequence in a compiler report. Note whether
+the error follows an added, removed, or changed stylesheet import.

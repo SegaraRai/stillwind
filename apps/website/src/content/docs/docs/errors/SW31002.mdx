@@ -1,0 +1,25 @@
+---
+title: "SW31002: Ambiguous or missing original range"
+description: Give each generated expression or declaration one verifiable original range.
+slug: docs/errors/SW31002
+---
+
+<CompilerError code="SW31002" category="host" />
+
+A generated span has no unique corresponding original-source range. The compiler
+cannot safely apply its edit to one of several possible source locations.
+
+## Invalid correspondence
+
+```text
+A generated macro span is unmapped or has more than one possible original range.
+```
+
+## Valid correspondence
+
+```text
+The complete span identifies one unambiguous original expression or declaration.
+```
+
+Repair the converter mapping for the complete syntax span. Supplying only a
+nearby token's position does not establish correspondence for the whole expression.

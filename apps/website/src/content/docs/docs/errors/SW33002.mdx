@@ -1,0 +1,26 @@
+---
+title: "SW33002: Invalid source byte range"
+description: Supply ordered byte-range endpoints that the source operation can use.
+slug: docs/errors/SW33002
+---
+
+<CompilerError code="SW33002" category="host" />
+
+A source operation rejected the requested byte range. The diagnostic includes
+its start, end, and operation context.
+
+## Invalid range
+
+```text
+start: 12
+end: 4
+```
+
+## Valid range contract
+
+```text
+start <= end; both endpoints belong to the same buffer and satisfy its boundary requirements.
+```
+
+Use half-open UTF-8 byte ranges where the API requires them. Refresh ranges
+after source edits and preserve their owning buffer revision.

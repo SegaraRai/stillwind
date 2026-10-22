@@ -1,0 +1,25 @@
+---
+title: "SW33003: Span belongs to another file"
+description: Apply spans to the source object that owns their file identity.
+slug: docs/errors/SW33003
+---
+
+<CompilerError code="SW33003" category="host" />
+
+The span's file ID differs from the source file expected by the operation.
+Coincidentally valid numeric offsets do not make a span portable between files.
+
+## Invalid operation
+
+```text
+Apply a span owned by file A to the source object for file B.
+```
+
+## Valid operation
+
+```text
+Resolve that span against the source object for file A.
+```
+
+Keep identity with coordinates through projections and caches. The expected and
+actual file IDs in the diagnostic identify the mismatch.

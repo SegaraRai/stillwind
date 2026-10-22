@@ -1,0 +1,27 @@
+---
+title: "SW11003: Unavailable style base"
+description: Supply the compiled producer artifact required by a derived style.
+slug: docs/errors/SW11003
+---
+
+<CompilerError code="SW11003" category="authoring" />
+
+A retained composition dependency names a producer whose compiled artifact is
+unavailable. The compiler cannot place a derived stylesheet relative to an absent base.
+
+## Rejected artifact set
+
+```text
+Derived producer depends on Base; the selected artifacts contain only Derived.
+```
+
+## Accepted artifact set
+
+```text
+Base is available in the same compilation graph before Derived is rendered.
+```
+
+Keep producer sources reachable through supported module resolution. For an
+integration embedding, retain dependency artifacts for the same graph revision.
+General style types without finite producers can also report
+[unverified-style-base](/docs/lints/unverified-style-base/).

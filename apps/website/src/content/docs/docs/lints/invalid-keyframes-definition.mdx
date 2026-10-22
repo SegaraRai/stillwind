@@ -1,0 +1,27 @@
+---
+title: invalid-keyframes-definition
+description: Define keyframes with static frame selectors and literal utilities.
+slug: docs/lints/invalid-keyframes-definition
+---
+
+<LintRuleSummary name="invalid-keyframes-definition" />
+
+Frame keys must identify CSS keyframe positions. An arbitrary name such as
+`middle` is not a frame selector. Invalid definitions cannot supply that frame body.
+
+## Reported
+
+```tsx
+const fade = style.keyframes({ middle: "opacity-50" });
+style(fade("duration-300"));
+```
+
+## Accepted
+
+```tsx
+const fade = style.keyframes({ "50%": "opacity-50" });
+style(fade("duration-300"));
+```
+
+Write the definition object in a binding initializer and keep frame values
+variant-free. See [keyframe definitions](/docs/macros/keyframes/).

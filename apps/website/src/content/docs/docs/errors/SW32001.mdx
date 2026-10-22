@@ -1,0 +1,26 @@
+---
+title: "SW32001: CSS imports need host resolution"
+description: Use the loader protocol when a single CSS buffer refers to other sources.
+slug: docs/errors/SW32001
+---
+
+<CompilerError code="SW32001" category="host" />
+
+A single-buffer loading API encountered imports that require host resolution.
+Its input does not include a resolver capable of answering those requests.
+
+## Invalid loading choice
+
+```text
+A single-buffer API receives @import "./tokens.css" and cannot resolve that file.
+```
+
+## Valid loading choice
+
+```text
+The host uses DesignSystemLoader and answers its ordered import requests.
+```
+
+Use the supported host's CSS graph loader. An embedding must resolve each
+requested import with its source or an explicit unresolved answer where allowed;
+the configured root cannot be unresolved.

@@ -1,0 +1,25 @@
+---
+title: "SW31007: Invalid UTF-16 position"
+description: Supply an existing zero-based line and UTF-16 column.
+slug: docs/errors/SW31007
+---
+
+<CompilerError code="SW31007" category="host" />
+
+The line/column position cannot be converted to a source offset. The compiler's
+position uses a zero-based line and UTF-16 code-unit column.
+
+## Invalid request
+
+```text
+The source has one line; the request identifies line 4.
+```
+
+## Valid request
+
+```text
+The line exists, and its UTF-16 column identifies a valid boundary on that line.
+```
+
+Convert one-based UI positions before calling the host API. Refresh positions
+after buffer edits, and do not reuse coordinates from the generated component buffer as original positions.

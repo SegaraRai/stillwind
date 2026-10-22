@@ -1,0 +1,28 @@
+---
+title: "SW11002: CSS module ordering cycle"
+description: Remove composition dependencies that require contradictory ordering between producer modules.
+slug: docs/errors/SW11002
+---
+
+<CompilerError code="SW11002" category="authoring" />
+
+The style dependency graph requires module A after B and module B after A.
+Even when individual values appear separate, no whole-module CSS order can
+satisfy both requirements.
+
+## Rejected dependency graph
+
+```text
+A's derived style consumes B's base.
+B's derived style consumes A's base.
+```
+
+## Corrected dependency graph
+
+```text
+Shared module defines the bases.
+A and B derive from Shared; neither requires the other after itself.
+```
+
+Move shared producers into a lower dependency module or colocate the coupled
+styles. Reordering JavaScript imports does not remove the contradictory requirements.

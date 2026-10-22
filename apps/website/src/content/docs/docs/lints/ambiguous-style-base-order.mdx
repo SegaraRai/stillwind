@@ -1,0 +1,30 @@
+---
+title: ambiguous-style-base-order
+description: Establish a producer dependency when independent composition bases overlap.
+slug: docs/lints/ambiguous-style-base-order
+---
+
+<LintRuleSummary name="ambiguous-style-base-order" analysis="project" />
+
+Two independent bases set padding. Listing one before the other in `style()`
+does not establish their relative stylesheet order. Project analysis follows
+producer dependencies to detect this ambiguity.
+
+## Reported
+
+```tsx
+const first = style("p-2");
+const second = style("p-4");
+export const props = style(first, second);
+```
+
+## Accepted
+
+```tsx
+const first = style("p-2");
+const second = style(first, "p-4");
+export const props = style(second);
+```
+
+The corrected producer explicitly derives from the first base. This gives the
+compiler a dependency to order. Nonoverlapping bases do not need this relationship.

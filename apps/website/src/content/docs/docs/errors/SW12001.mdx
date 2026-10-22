@@ -1,0 +1,26 @@
+---
+title: "SW12001: Incompatible declaration assignment"
+description: Preserve the declaration identities carried by a checked value.
+slug: docs/errors/SW12001
+---
+
+<CompilerError code="SW12001" category="authoring" />
+
+An assignment changes the identity set that the checker associates with a ref
+or another Stillwind declaration. The diagnostic includes the checker's explanation.
+
+## Rejected identity contract
+
+```text
+A value checked as declaration A is assigned unrelated declaration B.
+```
+
+## Accepted identity contract
+
+```text
+The type retains A, or explicitly represents the finite union of A and B.
+```
+
+Keep inferred declaration types through assignments, parameters, and exports.
+Use an explicit finite union when selection is intentional. A generic widened
+identity that cannot be enumerated is covered by [SW12002](/docs/errors/SW12002/).

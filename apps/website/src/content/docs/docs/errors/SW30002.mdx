@@ -1,0 +1,27 @@
+---
+title: "SW30002: Invalid or stale TypeScript facts"
+description: Keep checker schemas, payloads, ranges, and source revisions compatible.
+slug: docs/errors/SW30002
+---
+
+<CompilerError code="SW30002" category="host" />
+
+The supplied facts failed schema, revision, range, or payload validation. Facts
+from a previous editor buffer cannot be attached to changed text merely because
+the module path is unchanged.
+
+## Invalid snapshot pair
+
+```text
+Facts: source revision A
+Compilation: changed source revision B
+```
+
+## Valid snapshot pair
+
+```text
+Facts and compilation use the same schema and source revision B.
+```
+
+Recompute facts after source changes and keep host/native package versions
+compatible. Include the rejected schema and revision relationship when reporting an integration bug.

@@ -1,0 +1,25 @@
+---
+title: no-arbitrary-breakpoints
+description: Require named viewport breakpoints instead of one-off width values.
+slug: docs/lints/no-arbitrary-breakpoints
+---
+
+<LintRuleSummary name="no-arbitrary-breakpoints" />
+
+The arbitrary viewport threshold is valid CSS but bypasses a shared layout
+decision. Named breakpoints let CSS and JavaScript refer to the same condition.
+
+## Reported
+
+```tsx
+style("min-[713px]:p-4");
+```
+
+## Accepted
+
+```tsx
+style("md:p-4");
+```
+
+Name the intended threshold in `@theme`. Use [style.media()](/docs/macros/media/)
+when browser code must follow that same named condition.

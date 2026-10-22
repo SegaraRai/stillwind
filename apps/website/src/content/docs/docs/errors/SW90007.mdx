@@ -1,0 +1,25 @@
+---
+title: "SW90007: Overlapping source replacements"
+description: Report generated edits that overlap instead of forming a valid replacement sequence.
+slug: docs/errors/SW90007
+---
+
+<CompilerError code="SW90007" category="internal" />
+
+Generated source replacements overlap. The diagnostic includes the later
+replacement span and the preceding replacement's start.
+
+## Violated invariant
+
+```text
+Two generated replacements require incompatible edits to overlapping source text.
+```
+
+## Required invariant
+
+```text
+The replacement sequence satisfies the transform's nonoverlap contract.
+```
+
+Report the affected source ranges and macro nesting/composition that produced
+them. Changing the order in which a host applies overlapping edits does not repair the compiler's plan.

@@ -1,0 +1,27 @@
+---
+title: invalid-animation-option
+description: Use utilities from the animation-options registry at animation use sites.
+slug: docs/lints/invalid-animation-option
+---
+
+<LintRuleSummary name="invalid-animation-option" />
+
+An animation use accepts timing and other animation options. A layout utility
+such as `p-4` has no meaning in that registry and is omitted from the use.
+
+## Reported
+
+```tsx
+const fade = style.keyframes({ to: "opacity-100" });
+style(fade("p-4"));
+```
+
+## Accepted
+
+```tsx
+const fade = style.keyframes({ to: "opacity-100" });
+style(fade("duration-300"));
+```
+
+Place layout utilities beside the animation use in the surrounding `style()`.
+Animation fill options include `both`, `forwards`, and `backwards`.

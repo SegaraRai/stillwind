@@ -1,0 +1,25 @@
+---
+title: "SW15002: Rendered source is too large"
+description: Keep transformed output within the supported source-coordinate range.
+slug: docs/errors/SW15002
+---
+
+<CompilerError code="SW15002" category="authoring" />
+
+Rendered source exceeds the 32-bit coordinate range. A smaller input is not
+sufficient if one transformation still expands it beyond the output limit.
+
+## Rejected output contract
+
+```text
+One rendered module needs positions beyond the supported coordinate range.
+```
+
+## Accepted output contract
+
+```text
+The rendered module and its mappings fit the supported coordinate range.
+```
+
+Reduce the expansion or split the producer into smaller modules. Retain the
+original input and output-size evidence when reporting unexpectedly large compiler output.

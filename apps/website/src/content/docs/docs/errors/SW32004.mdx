@@ -1,0 +1,25 @@
+---
+title: "SW32004: Conflicting CSS source"
+description: Keep document identity and contents consistent for one host source name.
+slug: docs/errors/SW32004
+---
+
+<CompilerError code="SW32004" category="host" />
+
+One host source name was supplied with different document identity or contents
+during the same load. The loader cannot treat both answers as one immutable source.
+
+## Invalid source contract
+
+```text
+Name tokens.css first identifies text A, then identifies different text B in the same load.
+```
+
+## Valid source contract
+
+```text
+One source name identifies one consistent document and content buffer during that load.
+```
+
+Capture a coherent filesystem/editor snapshot for loading. Start a reload when
+the source changes instead of mixing revisions inside an existing snapshot.

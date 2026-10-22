@@ -1,0 +1,123 @@
+---
+title: Compiler error reference
+description: Find a compiler error by its code, and see whether to fix the source, fix the configuration, or report a bug.
+slug: docs/errors
+---
+
+A compiler error stops the compilation of a module. Unlike a lint finding, you
+cannot turn it off or suppress it with a comment. Each error page explains what
+causes the error and how to fix it.
+
+The first digits of a code tell you what to do next:
+
+| Codes             | What to do                                           |
+| ----------------- | ---------------------------------------------------- |
+| SW01xxx           | Fix `stillwind.config.ts` or the integration options |
+| SW10xxx – SW15xxx | Fix your components, `style()` calls, or stylesheet  |
+| SW30xxx – SW34xxx | Check your integration, or report a bug              |
+| SW90xxx           | Report a bug                                         |
+
+## Fix the configuration
+
+- [SW01001](/docs/errors/SW01001/): Framework constraint conflict
+- [SW01002](/docs/errors/SW01002/): Invalid property prefix
+- [SW01003](/docs/errors/SW01003/): Conflicting property prefixes
+- [SW01004](/docs/errors/SW01004/): Invalid hash length
+- [SW01005](/docs/errors/SW01005/): Generated identifier collision
+- [SW01006](/docs/errors/SW01006/): Invalid lint configuration
+- [SW01007](/docs/errors/SW01007/): Identifier generator failed
+- [SW01008](/docs/errors/SW01008/): Unresolved root stylesheet
+
+## Fix your components and style() calls
+
+- [SW10001](/docs/errors/SW10001/): JavaScript parse error
+- [SW10002](/docs/errors/SW10002/): Invalid component syntax
+- [SW10003](/docs/errors/SW10003/): Mixed framework macros
+- [SW10004](/docs/errors/SW10004/): Unconsumed macro use
+- [SW10005](/docs/errors/SW10005/): Untransformed macro reference
+- [SW11001](/docs/errors/SW11001/): Style composition cycle
+- [SW11002](/docs/errors/SW11002/): CSS module ordering cycle
+- [SW11003](/docs/errors/SW11003/): Unavailable style base
+- [SW12001](/docs/errors/SW12001/): Incompatible declaration assignment
+- [SW12002](/docs/errors/SW12002/): Declaration identities unavailable
+
+## Fix your stylesheet
+
+- [SW13001](/docs/errors/SW13001/): Authored CSS parse error
+- [SW13002](/docs/errors/SW13002/): Unterminated CSS block
+- [SW13003](/docs/errors/SW13003/): Invalid CSS block
+- [SW13004](/docs/errors/SW13004/): CSS nesting limit exceeded
+- [SW14001](/docs/errors/SW14001/): Missing utilities slot
+- [SW14002](/docs/errors/SW14002/): Missing support slot
+- [SW14003](/docs/errors/SW14003/): Malformed property requirement
+- [SW14004](/docs/errors/SW14004/): Malformed utility property requirement
+- [SW14005](/docs/errors/SW14005/): Required property is unregistered
+- [SW14006](/docs/errors/SW14006/): Property-usage parse failure
+- [SW14007](/docs/errors/SW14007/): Malformed theme reference
+- [SW15001](/docs/errors/SW15001/): CSS offset exceeds source coordinates
+- [SW15002](/docs/errors/SW15002/): Rendered source is too large
+- [SW15003](/docs/errors/SW15003/): Source size or offset is too large
+
+## Check your integration
+
+These errors come from the connection between the compiler and the build tool
+or the editor. With an official integration, update the Stillwind packages
+first. If the error remains, report it as a bug. If you write your own
+integration, the error page explains which input to fix.
+
+### Type information
+
+- [SW30001](/docs/errors/SW30001/): TypeScript checker facts required
+- [SW30002](/docs/errors/SW30002/): Invalid or stale TypeScript facts
+- [SW30003](/docs/errors/SW30003/): Incompatible symbolic fact kinds
+- [SW30004](/docs/errors/SW30004/): Checker expression unavailable
+
+### Vue, Svelte, and Astro components
+
+- [SW31001](/docs/errors/SW31001/): Invalid projection map
+- [SW31002](/docs/errors/SW31002/): Ambiguous or missing original range
+- [SW31003](/docs/errors/SW31003/): Projection content mismatch
+- [SW31004](/docs/errors/SW31004/): Invalid converter output syntax
+- [SW31005](/docs/errors/SW31005/): Component projection preparation failed
+- [SW31006](/docs/errors/SW31006/): Invalid UTF-16 offset
+- [SW31007](/docs/errors/SW31007/): Invalid UTF-16 position
+- [SW31008](/docs/errors/SW31008/): Invalid UTF-8 offset
+- [SW31009](/docs/errors/SW31009/): Unmapped macro binding read
+- [SW31010](/docs/errors/SW31010/): Edit outside an editable projection region
+- [SW31011](/docs/errors/SW31011/): Attribute quote mismatch
+
+### Stylesheet loading and source files
+
+- [SW32001](/docs/errors/SW32001/): CSS imports need host resolution
+- [SW32002](/docs/errors/SW32002/): Invalid initial CSS batch
+- [SW32003](/docs/errors/SW32003/): Unknown or duplicate CSS request
+- [SW32004](/docs/errors/SW32004/): Conflicting CSS source
+- [SW32005](/docs/errors/SW32005/): CSS loader already completed
+- [SW32006](/docs/errors/SW32006/): CSS request IDs exhausted
+- [SW32007](/docs/errors/SW32007/): CSS source IDs exhausted
+- [SW33001](/docs/errors/SW33001/): Original map on an internal source
+- [SW33002](/docs/errors/SW33002/): Invalid source byte range
+- [SW33003](/docs/errors/SW33003/): Span belongs to another file
+- [SW33004](/docs/errors/SW33004/): Invalid source span
+- [SW33005](/docs/errors/SW33005/): Invalid source byte offset
+
+### Code transformation
+
+- [SW34001](/docs/errors/SW34001/): Missing macro import anchor
+- [SW34002](/docs/errors/SW34002/): Missing module CSS target
+- [SW34003](/docs/errors/SW34003/): Transform requested after failed compilation
+
+## Report a bug
+
+These errors mean that the compiler produced an inconsistent result. Please
+[open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and, if possible, the source that causes it.
+
+- [SW90001](/docs/errors/SW90001/): Invalid generated CSS block
+- [SW90002](/docs/errors/SW90002/): Missing retained rule
+- [SW90003](/docs/errors/SW90003/): Inconsistent internal CSS graph
+- [SW90004](/docs/errors/SW90004/): Inconsistent macro import metadata
+- [SW90005](/docs/errors/SW90005/): Macro anchor removal edit missing
+- [SW90006](/docs/errors/SW90006/): Invalid transform expression mapping
+- [SW90007](/docs/errors/SW90007/): Overlapping source replacements
+- [SW90008](/docs/errors/SW90008/): Invalid compiler-produced source coordinates

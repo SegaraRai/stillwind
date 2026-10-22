@@ -1,0 +1,27 @@
+---
+title: "SW13002: Unterminated CSS block"
+description: Close each CSS block before its source buffer ends.
+slug: docs/errors/SW13002
+---
+
+<CompilerError code="SW13002" category="authoring" />
+
+The CSS scanner found an opening block with no closing delimiter. The message
+reports a zero-based UTF-8 byte offset in the buffer being parsed.
+
+## Rejected
+
+```css
+.card { color: blue;
+```
+
+## Corrected
+
+```css
+.card {
+  color: blue;
+}
+```
+
+Check nested functions, strings, and comments as well as braces when locating
+the unmatched delimiter. Use the reported source buffer when interpreting byte offsets.

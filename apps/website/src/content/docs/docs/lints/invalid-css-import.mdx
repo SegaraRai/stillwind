@@ -1,0 +1,26 @@
+---
+title: invalid-css-import
+description: Resolve imported CSS through the project's host and stylesheet graph.
+slug: docs/lints/invalid-css-import
+---
+
+<LintRuleSummary name="invalid-css-import" />
+
+The host cannot resolve this stylesheet import, so the imported contribution is
+skipped. Check its path relative to the importing stylesheet and its package exports.
+
+## Reported
+
+```css
+@import "./missing-stylesheet.css";
+```
+
+## Accepted
+
+```css
+@import "stillwind";
+```
+
+The corrected example imports the installed default entry. For application CSS,
+supply an existing file and keep its imports reachable through the integration's
+resolver. Loader protocol failures are documented under [compiler errors](/docs/errors/).

@@ -1,0 +1,28 @@
+---
+title: mismatched-framework-import
+description: Match the macro entrypoint to the original component format.
+slug: docs/lints/mismatched-framework-import
+---
+
+<LintRuleSummary name="mismatched-framework-import" />
+
+These examples are TSX/JSX documents. An Astro macro import expects an Astro
+component's source format, rather than this script format.
+
+## Reported
+
+```tsx
+import { style } from "stillwind/astro";
+export const props = style("p-4");
+```
+
+## Accepted
+
+```tsx
+import { style } from "stillwind/react";
+export const props = style("p-4");
+```
+
+Choose the entrypoint for the component and its renderer. An explicit host
+framework constraint that conflicts with an import can instead produce
+[SW01001](/docs/errors/SW01001/). See [framework integration](/docs/frameworks/).

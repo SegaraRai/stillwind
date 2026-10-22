@@ -1,0 +1,119 @@
+---
+title: style()
+description: Compile utilities, conditions, custom properties, and base styles into props for an element.
+slug: docs/macros/style
+sidebar:
+  order: 1
+---
+
+`style(...inputs)` returns props for one element. The compiler generates the CSS
+for its utilities at build time. React receives `className` and `style`; the
+other frameworks receive `class` and `style`. Spread the result onto the element.
+
+## Inputs
+
+| Input                       | Example                              | Effect                                              |
+| --------------------------- | ------------------------------------ | --------------------------------------------------- |
+| A utility string            | `"rounded-md p-4 hover:bg-blue-700"` | Adds the utilities                                  |
+| An array                    | `["p-4", "text-sm"]`                 | Adds each item                                      |
+| A condition                 | `active && "bg-blue-500"`            | Adds the item when the condition is true at runtime |
+| A ternary                   | `dark ? "bg-black" : "bg-white"`     | Adds one of the two items                           |
+| An object with variant keys | `{ "hover:": "underline" }`          | Adds the value under the variant                    |
+| A custom property           | `{ "--progress": value }`            | Sets the property in the inline style               |
+| A `class` field             | `{ class: className }`               | Adds classes from other stylesheets without CSS     |
+| A stored `style()` result   | `base`                               | Adds the classes of the base                        |
+
+`false`, `null`, and `undefined` add nothing. Ref, keyframes, and view transition
+calls are also inputs; see [style.ref()](/docs/macros/ref/),
+[style.keyframes()](/docs/macros/keyframes/), and
+[style.viewTransition()](/docs/macros/view-transition/).
+
+Write utility names as literals. The compiler reads them from the source, so a
+name that your code builds at runtime produces no CSS.
+
+Inside an object with variant keys, write utilities only. A `class` field, a
+custom property, a ref, or a stored `style()` result belongs outside that object.
+[invalid-rule-group-input](/docs/lints/invalid-rule-group-input/) reports these
+inputs.
+
+## Static input
+
+A call with only static input compiles to a plain object. The compiler decides
+the order of the CSS rules, so no runtime library merges classes.
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+export const props = style("rounded-md p-4 text-blue-600");
+```
+
+</CompiledExample>
+
+## Conditions and custom properties
+
+Variants such as `hover:` stay in CSS. A JavaScript condition only chooses which
+compiled class the element gets. A custom property becomes part of the inline
+style.
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+declare const active: boolean;
+export const props = style("p-4", active && "bg-blue-500", { "--progress": 0.5 });
+```
+
+</CompiledExample>
+
+The production build imports `stillwindClsx` to join class names. The
+development build imports a checked version that reports invalid values.
+
+## Base styles
+
+A stored `style()` result passed to another call is a base. The later utilities
+win over the base, because the compiler orders their CSS after the base's CSS.
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+const base = style("rounded-md p-2");
+export const props = style(base, "p-4 bg-blue-600 text-white");
+```
+
+</CompiledExample>
+
+A base passes on its classes only. Its inline style and custom properties do
+not carry over, and [invalid-style-composition](/docs/lints/invalid-style-composition/)
+reports them. Set them in the call that receives the base.
+
+When two bases in one call set the same property, their order is not defined.
+[ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order/) reports
+this case.
+
+Store a base in a variable before you pass it. A `style()` call written
+directly inside another call produces no CSS, and
+[invalid-style-input](/docs/lints/invalid-style-input/) reports it.
+
+## How props combine at runtime
+
+When the compiler cannot reduce a call to a plain object, a runtime helper
+combines the inputs:
+
+- Classes keep their order.
+- A later inline style replaces an earlier one.
+- A later custom property replaces an earlier one with the same name.
+- Custom properties apply on top of an inline style.
+
+## Side effects in arguments
+
+The compiler can evaluate arguments in any order, and it can skip arguments
+whose result is not used. Arguments must not perform I/O, change shared state,
+or depend on how often they run. Calculate such values before the call.
+[mutating-macro-argument](/docs/lints/mutating-macro-argument/) and
+[suspending-macro-argument](/docs/lints/suspending-macro-argument/) report the
+cases that the CLI can detect.
+
+See [The basics of style()](/docs/style/) and
+[Reusable styles](/docs/guides/reusable-styles/) for task-based guides.

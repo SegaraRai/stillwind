@@ -1,0 +1,25 @@
+---
+title: "SW90002: Missing retained rule"
+description: Report a stylesheet contribution whose rule is absent from the retained artifact.
+slug: docs/errors/SW90002
+---
+
+<CompilerError code="SW90002" category="internal" />
+
+A stylesheet contribution refers to a rule that its retained artifact does not
+contain. The compiler's rule reference and artifact snapshot disagree.
+
+## Violated invariant
+
+```text
+A retained stylesheet contribution points to a rule missing from that artifact.
+```
+
+## Required invariant
+
+```text
+Each retained rule reference resolves within the artifact that owns the contribution.
+```
+
+Report the source, stylesheet, and whether a reload or incremental update preceded
+the failure. Preserve a minimal sequence when a clean build does not reproduce it.

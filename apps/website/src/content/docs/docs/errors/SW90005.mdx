@@ -1,0 +1,25 @@
+---
+title: "SW90005: Macro anchor removal edit missing"
+description: Report an import anchor with no corresponding removal edit for runtime imports.
+slug: docs/errors/SW90005
+---
+
+<CompilerError code="SW90005" category="internal" />
+
+The compiler selected a macro import anchor, but that import has no removal
+edit where runtime imports can be inserted. Selection and edit construction have diverged.
+
+## Violated invariant
+
+```text
+A selected macro import anchor has no corresponding removal edit.
+```
+
+## Required invariant
+
+```text
+The selected anchor has the removal edit that receives its runtime imports.
+```
+
+Report the source and import span with the generated transformation data if
+available. This differs from a host that supplies no verified anchor at all, [SW34001](/docs/errors/SW34001/).

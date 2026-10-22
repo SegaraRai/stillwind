@@ -1,0 +1,27 @@
+---
+title: "SW12002: Declaration identities unavailable"
+description: Keep a finite set of declaration identities through the checked data flow.
+slug: docs/errors/SW12002
+---
+
+<CompilerError code="SW12002" category="authoring" />
+
+The checker can no longer determine the finite declarations that a value may
+refer to. Dynamic ref and animation uses need those identities to generate every
+possible CSS contribution and correlate its runtime selection.
+
+## Rejected identity contract
+
+```text
+A specific ref is widened to a type that represents an unknown declaration identity.
+```
+
+## Accepted identity contract
+
+```text
+The ref keeps its inferred identity or a finite union of known declaration identities.
+```
+
+Preserve inferred types through function returns and module exports. Make the
+producer bodies available through supported resolution. A missing host checker
+snapshot is a separate integration contract, [SW30001](/docs/errors/SW30001/).

@@ -1,0 +1,64 @@
+---
+title: style.keyframes()
+description: Define keyframes in a component, and apply them with animation options in style().
+slug: docs/macros/keyframes
+---
+
+`style.keyframes(definition)` defines an animation. Calling the result inside
+`style()` applies the animation, and its argument sets the animation's options.
+The compiler generates a unique animation name.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+const fade = style.keyframes({ from: "opacity-0", to: "opacity-100" });
+export const props = style(fade("duration-300 ease-in-out"));
+```
+
+</CompiledExample>
+
+## Define the frames
+
+Write `style.keyframes()` as the initial value of a variable, with an object
+literal as its argument:
+
+| Key                                   | Value                                                                        |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `from`, `to`, or a percentage         | A utility string for that frame, without variants                            |
+| A variant, such as `"motion-reduce:"` | A complete definition that replaces the whole animation under that condition |
+| `label`                               | An optional string literal that appears in the generated name                |
+
+Under a variant, the definition replaces every frame. It does not inherit frames
+from the ordinary definition. Use media and `supports-*` variants here. Selector
+and container variants are not supported.
+
+You can export the definition and import it in other modules.
+
+## Apply the animation
+
+Call the definition inside `style()`, such as `fade("duration-300 ease-in-out")`.
+The argument is a string literal of animation options. Timing utilities set
+animation properties here: `duration-300` sets `animation-duration`, not
+`transition-duration`. A utility that is not an animation option, such as
+`p-4`, produces no CSS, and
+[invalid-animation-option](/docs/lints/invalid-animation-option/) reports it.
+
+Write the call directly in `style()`. Storing `fade("duration-300")` in a
+variable causes [SW10004](/docs/errors/SW10004/).
+
+To turn the animation on or off by condition, put the call under a variant, such
+as `{ "motion-safe:": fade("duration-300") }`.
+
+## Generated code
+
+When the compiler knows which animation a call uses, the call becomes plain
+class names, and the definition variable can become `undefined` in JavaScript.
+The compiler writes every `@keyframes` rule that the calls need, together with
+the theme values that the frames use.
+
+See [Animations](/docs/guides/animations/) for task-based examples, and
+[invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant/) for
+unsupported variants.

@@ -1,0 +1,25 @@
+---
+title: "SW01003: Conflicting property prefixes"
+description: Keep Stillwind-owned and Tailwind-compatible custom-property namespaces distinct.
+slug: docs/errors/SW01003
+---
+
+<CompilerError code="SW01003" category="configuration" />
+
+The effective `prefix` and `tailwindPrefix` are equal. Generated properties from
+the two naming domains would share a namespace.
+
+## Rejected
+
+```ts
+const options = { prefix: "--sw-", tailwindPrefix: "--sw-" };
+```
+
+## Corrected
+
+```ts
+const options = { prefix: "--sw-", tailwindPrefix: "--tw-" };
+```
+
+Check merged project settings and adapter overrides. Different valid prefixes
+must remain different after defaults are applied.

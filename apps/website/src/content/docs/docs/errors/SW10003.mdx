@@ -1,0 +1,26 @@
+---
+title: "SW10003: Mixed framework macros"
+description: Import value macros for one framework within each source module.
+slug: docs/errors/SW10003
+---
+
+<CompilerError code="SW10003" category="authoring" />
+
+One module imports value macros for more than one framework. The compiler needs
+one framework contract for that module's props and runtime helpers.
+
+## Rejected
+
+```ts
+import { style as reactStyle } from "stillwind/react";
+import { style as vueStyle } from "stillwind/vue";
+```
+
+## Corrected
+
+```ts
+import { style } from "stillwind/react";
+```
+
+Keep different framework components in separate modules. A project may contain
+several frameworks; this restriction applies to one module's macro imports.

@@ -1,0 +1,36 @@
+---
+title: no-restricted-theme-tokens
+description: Reserve raw theme tokens while allowing independent semantic aliases.
+slug: docs/lints/no-restricted-theme-tokens
+---
+
+<LintRuleSummary name="no-restricted-theme-tokens" />
+
+The rule checks direct references to restricted theme custom properties. Patterns
+are case-sensitive. A semantic alias remains an independent token even when its
+definition points to a reserved palette token.
+
+## Configuration
+
+```json
+{
+  "lint": {
+    "rules": { "no-restricted-theme-tokens": { "severity": "warn", "tokens": ["--color-blue-*"] } }
+  }
+}
+```
+
+## Reported
+
+```tsx
+style("bg-blue-500");
+```
+
+## Accepted
+
+```tsx
+style("bg-white");
+```
+
+An enabled rule needs nonempty token patterns. Missing required policy data is
+a configuration failure, not a lint exception. See [design systems](/docs/guides/design-systems/).

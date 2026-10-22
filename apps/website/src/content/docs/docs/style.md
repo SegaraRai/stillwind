@@ -1,53 +1,72 @@
 ---
 title: The basics of style()
-description: Apply utilities, use variants and conditions, and compose reusable styles.
+slug: docs/style
+description: Apply utilities, variants, conditions, overrides, and runtime values to an element.
 sidebar:
   order: 3
 ---
 
-`style()` returns props for an element. The compiler reads its utility inputs
-and emits the corresponding CSS. This page uses React; choose your framework's
-entrypoint from [Framework integrations](/docs/frameworks/).
+`style()` takes Tailwind CSS v4 utilities and returns props for an element.
+You spread the props onto the element instead of writing a `className` string.
+This page uses React. For other frameworks, import `style` from the entrypoint
+listed in [Framework integrations](/docs/frameworks/).
 
 ## Apply utilities
 
-Spread the result onto an element:
-
 ```tsx
 import { style } from "stillwind/react";
 
-<section {...style("flex flex-col gap-4 rounded-lg bg-white p-6")}>
-  <h2 {...style("text-xl font-semibold")}>Your workspace</h2>
-  <p {...style("text-gray-600")}>Keep your component styles together.</p>
-</section>;
+export function Workspace() {
+  return (
+    <section {...style("flex flex-col gap-4 rounded-lg bg-white p-6")}>
+      <h2 {...style("text-xl font-semibold")}>Your workspace</h2>
+      <p {...style("text-gray-600")}>Keep your component styles together.</p>
+    </section>
+  );
+}
 ```
 
-Utilities resolve against the stylesheet selected by `stillwind.config.ts`.
-Custom theme tokens become available through their corresponding utilities,
-such as `bg-accent` for `--color-accent`.
+The compiler reads the utilities at build time and generates their CSS.
+In React, `style()` returns a `className` prop.
+
+Utilities and variants come from the stylesheet that `stillwind.config.ts`
+selects. A token that you add to `@theme` adds utilities, such as `bg-accent`
+for `--color-accent`.
 
 ## Add variants
 
-Use variants inside the utility string for states and responsive rules:
+Write variants as in Tailwind:
 
 ```tsx
 import { style } from "stillwind/react";
 
-<button
-  {...style(
-    "rounded-md bg-accent px-4 py-2 text-white hover:opacity-90 focus-visible:outline-2 md:px-6",
-  )}
->
-  Save changes
-</button>;
+export function SaveButton() {
+  return (
+    <button {...style("rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 md:px-6")}>
+      Save changes
+    </button>
+  );
+}
 ```
 
-The compiler emits selectors and media queries for these static variants.
-Their availability depends on the definitions in your project's stylesheet.
+To apply several utilities under the same variant, use an object. Each key is
+a variant followed by a colon:
 
-## Choose styles with conditions
+```tsx
+import { style } from "stillwind/react";
 
-Use a condition to select complete utility strings:
+export function Link() {
+  return (
+    <a href="/docs/" {...style("text-blue-600", { "hover:": "text-blue-800 underline" })}>
+      Documentation
+    </a>
+  );
+}
+```
+
+## Style states
+
+When the element has an attribute for the state, use a variant:
 
 ```tsx
 import { style } from "stillwind/react";
@@ -56,7 +75,9 @@ export function SaveButton({ loading }: { loading: boolean }) {
   return (
     <button
       disabled={loading}
-      {...style("rounded-md bg-accent px-4 py-2 text-white", loading && "cursor-wait opacity-60")}
+      {...style(
+        "rounded-md bg-blue-600 px-4 py-2 text-white disabled:cursor-wait disabled:opacity-60",
+      )}
     >
       {loading ? "Saving…" : "Save changes"}
     </button>
@@ -64,56 +85,93 @@ export function SaveButton({ loading }: { loading: boolean }) {
 }
 ```
 
-The compiler can determine both utility branches while the condition selects
-the active result at runtime. Keep utility construction static; avoid creating
-utility names from unrestricted runtime strings.
+The element keeps the same classes, and the browser applies the `disabled:`
+styles while the button is disabled. [Reusable styles](/docs/guides/reusable-styles/)
+shows the same approach with `aria-*` and `data-*` attributes.
 
-## Compose completed styles
-
-Store a completed `style()` result and pass it into another call:
+When no attribute represents the state, pass a condition and a string, as with `clsx`:
 
 ```tsx
 import { style } from "stillwind/react";
 
-const button = style("rounded-md px-4 py-2 font-medium");
-const primaryButton = style(button, "bg-accent text-white");
-
-<button {...primaryButton}>Save changes</button>;
+export function Row({ selected }: { selected: boolean }) {
+  return <li {...style("px-4 py-2", selected && "bg-blue-50 font-medium")}>Inbox</li>;
+}
 ```
 
-Completed results can be exported, passed to functions, and shared across
-modules. Store an inner result before composing it; direct nested calls such
-as `style(style("p-4"), "text-sm")` are unsupported.
+The compiler generates CSS for both strings. At runtime, the condition decides
+whether the element gets `bg-blue-50 font-medium`.
 
-## Pass dynamic values as custom properties
+Write complete utility names in the source. The compiler cannot generate CSS for
+a name that your code builds at runtime, such as `` `bg-${color}-600` ``.
+Choose between complete names instead, such as
+`color === "red" ? "bg-red-600" : "bg-blue-600"`.
 
-For a runtime value, use a custom property and a static utility that reads it:
+## Override a style
+
+Store a `style()` result in a variable, and pass it to another `style()` call.
+The later utilities win:
+
+```tsx
+import { style } from "stillwind/react";
+
+const button = style("rounded-md bg-blue-600 px-4 py-2 text-white");
+const dangerButton = style(button, "bg-red-600");
+
+export function DeleteButton() {
+  return <button {...dangerButton}>Delete</button>;
+}
+```
+
+`dangerButton` is always red, whatever the order of the class names. You can
+export a stored style and use it in other modules.
+
+Store the inner style in a variable first. A `style()` call written directly
+inside another, such as `style(style("p-4"), "text-sm")`, is not supported.
+[Reusable styles](/docs/guides/reusable-styles/) covers shared styles and
+component options in more detail.
+
+## Use runtime values
+
+For a value that is known only at runtime, set a CSS custom property and read it
+in a utility:
 
 ```tsx
 import { style } from "stillwind/react";
 
 export function Progress({ value }: { value: number }) {
   return (
-    <div
-      {...style("h-2 w-(--progress) rounded-full bg-accent", {
-        "--progress": `${value}%`,
-      })}
-    />
+    <div {...style("h-2 w-(--progress) rounded-full bg-blue-600", { "--progress": `${value}%` })} />
   );
 }
 ```
 
-Here, the utility remains static and the custom property's value changes at
-runtime. Keep the value within the range your component accepts; this example
-expects a number from 0 to 100.
+The utility `w-(--progress)` stays the same, so its CSS is generated at build
+time. Only the value of `--progress` changes at runtime.
 
-## Keep inputs pure
+## Add classes from other stylesheets
 
-Calculate values and perform effects before calling `style()`. Macro inputs
-must not perform I/O, update state, or depend on their evaluation order or count.
-The compiler can omit unused expressions.
+To add a class that another stylesheet defines, pass it in a `class` field:
 
-Invalid inputs and project policies produce diagnostics. Whether a finding
-stops the build depends on the finding and configured lint severity. See the
-[macro contracts](https://github.com/SegaraRai/stillwind/blob/main/docs/macro-contract.md)
-for input rules, refs, animation declarations, CVA, and CSS ordering.
+```tsx
+import { style } from "stillwind/react";
+
+export function Card({ className }: { className?: string }) {
+  return <article {...style("rounded-lg p-4", { class: className })} />;
+}
+```
+
+Stillwind passes these classes through and does not generate CSS for them.
+
+## Keep arguments free of side effects
+
+The compiler can evaluate the arguments of `style()` in any order, and it can
+skip arguments whose result is not used. Calculate values and perform effects,
+such as state updates or I/O, before you call `style()`.
+
+## Next steps
+
+- [Reusable styles](/docs/guides/reusable-styles/) shares styles and defines component options.
+- [Responsive styles](/docs/guides/responsive-styles/) names breakpoints and uses them in JavaScript.
+- [Checks in the editor and CI](/docs/guides/lint-adoption/) finds misspelled utilities and other mistakes.
+- [The style() reference](/docs/macros/style/) lists every accepted input.

@@ -18,6 +18,67 @@
   @apply grid gap-1.5 p-0 list-none;
 }
 
+.docs-sidebar-group > summary {
+  @apply cursor-pointer py-2 px-3 text-foreground font-medium;
+}
+
+.docs-sidebar-group > ul {
+  @apply ms-2 ps-2 border-s border-border;
+}
+
+.docs-navigation li a {
+  @apply wrap-anywhere;
+}
+
+.utility-explorer {
+  @apply grid gap-5;
+}
+
+.utility-catalog-meta,
+.utility-explorer [role="status"] {
+  @apply text-caption text-muted;
+}
+
+.utility-search {
+  @apply grid grid-cols-[minmax(0,1fr)] items-end gap-control p-panel rounded-panel border border-border bg-surface;
+
+  @variant sidebar {
+    @apply grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto];
+  }
+}
+
+.utility-search-field {
+  @apply grid gap-2 min-inline-0 text-ui font-medium;
+}
+
+.utility-search :is(input, select) {
+  @apply min-inline-0 inline-full block-11 px-3 border border-border rounded-control bg-background text-foreground font-normal;
+}
+
+.utility-search button {
+  @apply cursor-pointer block-11 px-4 rounded-control bg-action text-action-foreground text-ui font-medium;
+
+  @variant hover {
+    @apply bg-action-hover;
+  }
+}
+
+.utility-explorer [data-utility-results] {
+  @apply grid gap-5;
+}
+
+.utility-result {
+  @apply min-inline-0;
+}
+
+.utility-result h3 {
+  @apply mbs-0 mbe-3 text-body;
+}
+
+.utility-result pre {
+  @apply bg-surface;
+}
+
 .docs-navigation li a {
   @apply block py-2 px-3 border-s-2 border-transparent text-muted;
 }
@@ -41,6 +102,22 @@
 
 .docs-main {
   @apply min-inline-0;
+}
+
+.reference-summary {
+  @apply grid gap-4 p-panel border border-border rounded-panel bg-surface;
+}
+
+.compiled-example > * + * {
+  @apply mbs-5;
+}
+
+.compiled-example > details {
+  @apply py-3;
+}
+
+.compiled-example summary {
+  @apply cursor-pointer text-ui text-muted;
 }
 
 .docs-page-header {
@@ -242,13 +319,13 @@
 
 .docs-navigation {
   @variant max-sidebar {
-    @apply static max-block-none pbe-6 border-be border-border;
+    @apply static max-block-64 pbe-6 border-be border-border;
   }
 }
 
 .docs-navigation ul {
   @variant max-sidebar {
-    @apply flex flex-wrap gap-y-1 gap-x-3;
+    @apply grid grid-cols-[minmax(0,1fr)] gap-1;
   }
 }
 

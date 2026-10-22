@@ -1,0 +1,25 @@
+---
+title: "SW31004: Invalid converter output syntax"
+description: Make component conversion produce code accepted by the selected script parser.
+slug: docs/errors/SW31004
+---
+
+<CompilerError code="SW31004" category="host" />
+
+The original component was converted, but its generated code cannot be parsed
+with the configured language and module kind. The detail contains the parser's explanation.
+
+## Invalid converter output
+
+```text
+The generated script contains an unterminated function call.
+```
+
+## Valid converter output
+
+```text
+The generated script parses completely with the host-selected parser configuration.
+```
+
+Retain the original component, generated buffer, and converter version. Repair
+the conversion or parser selection. Original component syntax failures use [SW10002](/docs/errors/SW10002/).

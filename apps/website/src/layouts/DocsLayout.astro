@@ -7,6 +7,7 @@ import "@fontsource/instrument-sans/500.css";
 import { style } from "stillwind/astro";
 
 import "../assets/fonts/jetbrains-mono.css";
+import DocsSidebar from "../components/DocsSidebar.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import ThemeHead from "../components/ThemeHead.astro";
 
@@ -46,21 +47,7 @@ const { title, description, entryId, markdownUrl, sidebar, headings, editUrl } =
       <div class="docs-grid">
         <nav class="docs-navigation" aria-label="Documentation">
           <p class="docs-label">Documentation</p>
-          <ul>
-            {sidebar.map(
-              (item) =>
-                item.type !== "group" && (
-                  <li>
-                    <a
-                      href={item.href}
-                      aria-current={item.type === "link" && item.isCurrent ? "page" : undefined}
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ),
-            )}
-          </ul>
+          <DocsSidebar items={sidebar} />
           <div class="docs-agent-links">
             <p class="docs-label">For agents</p>
             <a href="/docs/llms.txt">Documentation index ↗</a>

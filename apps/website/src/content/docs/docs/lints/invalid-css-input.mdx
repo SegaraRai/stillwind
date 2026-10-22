@@ -1,0 +1,25 @@
+---
+title: invalid-css-input
+description: Keep stylesheet exports within the static style.css() input domain.
+slug: docs/lints/invalid-css-input
+---
+
+<LintRuleSummary name="invalid-css-input" />
+
+`style.css()` must render a stylesheet during compilation. A number, dynamic
+condition, ref, or completed style result cannot supply its utility rules.
+
+## Reported
+
+```tsx
+style.css(42);
+```
+
+## Accepted
+
+```tsx
+style.css("p-4", { selector: ":host" });
+```
+
+Keep `selector` and `template` in the final literal options object. The
+[stylesheet-export reference](/docs/macros/css/) describes support and placement.

@@ -1,50 +1,31 @@
 ---
 title: Framework integrations
-description: Connect Stillwind to your build and import the style API for your framework.
+slug: docs/frameworks
+description: Import style() for your framework, and add Stillwind to your build tool.
 sidebar:
   order: 2
 ---
 
-First create your CSS entrypoint and `stillwind.config.ts` as described in
-[Getting started](/docs/). Each build adapter discovers that configuration from
-the application root.
+Each application needs two things: the `style` import for its component framework,
+and the Stillwind integration for its build tool. This page assumes that you have
+created the stylesheet and `stillwind.config.ts` from [Getting started](/docs/).
+Each integration finds `stillwind.config.ts` in the application root.
 
-## Choose the style entrypoint
+## Import style() for your framework
 
-Use the entrypoint for the framework that renders the element:
+Import `style` from the entrypoint of the framework that renders the element:
 
-| Framework | Import             | Generated class prop | Generated style value |
-| --------- | ------------------ | -------------------- | --------------------- |
-| React     | `stillwind/react`  | `className`          | Object                |
-| Preact    | `stillwind/preact` | `class`              | Object                |
-| Solid     | `stillwind/solid`  | `class`              | Object                |
-| Vue       | `stillwind/vue`    | `class`              | Object                |
-| Svelte    | `stillwind/svelte` | `class`              | String                |
-| Astro     | `stillwind/astro`  | `class`              | String                |
+| Framework | Import             | Class prop  |
+| --------- | ------------------ | ----------- |
+| React     | `stillwind/react`  | `className` |
+| Preact    | `stillwind/preact` | `class`     |
+| Solid     | `stillwind/solid`  | `class`     |
+| Vue       | `stillwind/vue`    | `class`     |
+| Svelte    | `stillwind/svelte` | `class`     |
+| Astro     | `stillwind/astro`  | `class`     |
 
-Spread the returned props with your framework's normal syntax. In Vue templates,
-use `v-bind="style(...)"`.
-
-## Vite
-
-React, Preact, Solid, Vue, and Svelte applications use the Vite adapter alongside
-their framework plugin. For example, a React application's `vite.config.ts` is:
-
-```ts
-import { stillwind } from "@stillwind/integration/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
-
-export default defineConfig({
-  plugins: [stillwind(), react()],
-});
-```
-
-Keep Stillwind before the framework's JSX transform. Plugins that split routes
-or server functions run before Stillwind. For TanStack Start, the order is
-`[tanstackStart(), stillwind(), react()]`.
-
-Vue templates can use the same API after the Vite adapter is registered:
+Spread the result with your framework's syntax. In JSX, Svelte, and Astro, write
+`{...style("...")}`. In Vue templates, write `v-bind="style('...')"`:
 
 ```vue
 <script setup lang="ts">
@@ -56,10 +37,33 @@ import { style } from "stillwind/vue";
 </template>
 ```
 
+A component uses the entrypoint of its own framework. For example, a React
+island inside an Astro page imports `stillwind/react`.
+
+## Vite
+
+Use the Vite plugin for React, Preact, Solid, Vue, and Svelte applications:
+
+```ts
+import { stillwind } from "@stillwind/integration/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
+  plugins: [stillwind(), react()],
+});
+```
+
+Place `stillwind()` before the framework plugin, because Stillwind must compile
+styles before the framework compiles JSX or templates.
+
+Some plugins split routes or server functions before compilation, such as the
+TanStack Start plugin. Place those plugins before `stillwind()`:
+`[tanstackStart(), stillwind(), react()]`.
+
 ## Astro
 
-Register the Astro integration in `astro.config.ts` and keep your other
-integrations:
+Add the integration to `astro.config.ts`:
 
 ```ts
 import { stillwind } from "@stillwind/integration/astro";
@@ -70,23 +74,12 @@ export default defineConfig({
 });
 ```
 
-Import the Astro entrypoint in `.astro` components:
-
-```astro
----
-import { style } from "stillwind/astro";
----
-
-<button {...style("rounded-md bg-accent px-4 py-2 text-white")}>Save changes</button>
-```
-
-The integration registers the Vite adapter and supplies automatic SSR styles
-for pages and islands. An island written in React still imports
-`stillwind/react` inside its React component.
+The integration also adds styles to server-rendered pages and islands. Keep your
+other integrations, such as `@astrojs/react`.
 
 ## Next.js
 
-Wrap your existing configuration in `next.config.mjs`:
+Wrap your configuration in `next.config.mjs`:
 
 ```js
 import { withStillwind } from "@stillwind/integration/next";
@@ -94,13 +87,19 @@ import { withStillwind } from "@stillwind/integration/next";
 export default withStillwind({});
 ```
 
-The wrapper adds the webpack and Turbopack loaders. Use `stillwind/react` in
-components. Existing `use client` and `use server` directives are preserved.
-Set the wrapper's `root` option when Next.js runs outside the application root.
+Pass your existing configuration to `withStillwind()`. The wrapper works with
+both webpack and Turbopack, and it keeps `"use client"` and `"use server"`
+directives.
+
+The stylesheet includes the routes under `app/`, `pages/`, `src/app/`, and
+`src/pages/`, and the modules
+that they import with static import paths. A module that you import through a
+computed path, or a route written in MDX, gets no styles. If Next.js runs from a
+directory other than the application root, set the `root` option.
 
 ## SvelteKit
 
-Register Stillwind before SvelteKit in `vite.config.ts`:
+Add the Vite plugin before `sveltekit()`:
 
 ```ts
 import { stillwind } from "@stillwind/integration/vite";
@@ -112,22 +111,42 @@ export default defineConfig({
 });
 ```
 
-Add `src/hooks.server.ts` so development SSR includes styles with JavaScript
-disabled:
+In development, add the server hook so that server-rendered pages include their
+styles before JavaScript runs. Create `src/hooks.server.ts`:
 
 ```ts
 export { handle } from "@stillwind/integration/sveltekit/handle";
 ```
 
-If you already have a server handle, compose both handles with SvelteKit's
-`sequence` helper. Use `stillwind/svelte` in components. Production uses the
-emitted stylesheets.
+If you already have a `handle`, combine both with `sequence()` from
+`@sveltejs/kit/hooks`.
+
+## Nuxt
+
+Add the module to `nuxt.config.ts`:
+
+```ts
+import { stillwind } from "@stillwind/integration/nuxt";
+
+export default defineNuxtConfig({
+  modules: [stillwind()],
+});
+```
+
+The module sets up Vite and server rendering. Do not add the Vite plugin as well.
 
 ## Other build tools
 
-Stillwind also provides Nuxt, webpack, Rspack, Rsbuild, and standalone Turbopack
-integrations. See the
-[build integration reference](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md)
-for their configuration and CSS delivery contracts.
+| Build tool | Import                             | Registration                       |
+| ---------- | ---------------------------------- | ---------------------------------- |
+| webpack    | `@stillwind/integration/webpack`   | `plugins: [new StillwindPlugin()]` |
+| Rspack     | `@stillwind/integration/rspack`    | `plugins: [new StillwindPlugin()]` |
+| Rsbuild    | `@stillwind/integration/rsbuild`   | `plugins: [pluginStillwind()]`     |
+| Turbopack  | `@stillwind/integration/turbopack` | Add `stillwindRules({ entries })`  |
 
-Continue with [The basics of style()](/docs/style/) to write component styles.
+With webpack and Vue, place `StillwindPlugin` before `VueLoaderPlugin`. With
+standalone Turbopack, list every entry module of the application in `entries`.
+
+The [build integration reference](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md)
+describes every option.
+[How styles compile](/docs/how-styles-compile/) explains how the CSS reaches the page.

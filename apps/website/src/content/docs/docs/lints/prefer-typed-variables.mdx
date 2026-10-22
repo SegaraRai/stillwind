@@ -1,0 +1,25 @@
+---
+title: prefer-typed-variables
+description: State the intended value type when a variable enters a utility family with several domains.
+slug: docs/lints/prefer-typed-variables
+---
+
+<LintRuleSummary name="prefer-typed-variables" />
+
+`text-*` accepts more than one value type. A bare custom property does not state
+whether the utility should treat its value as a color or another supported domain.
+
+## Reported
+
+```tsx
+style("text-(--brand)");
+```
+
+## Accepted
+
+```tsx
+style("text-(color:--brand)");
+```
+
+Choose the type that matches the custom property's contract. The annotation
+guides utility resolution; it does not validate every runtime value assigned to the property.

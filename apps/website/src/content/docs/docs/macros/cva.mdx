@@ -1,0 +1,89 @@
+---
+title: style.cva()
+description: Create a factory that selects compiled styles by option, with the configuration of class-variance-authority.
+slug: docs/macros/cva
+---
+
+`style.cva(base?, config?)` creates a factory with the configuration format of
+`cva` from class-variance-authority. The compiler generates the CSS for every
+option at build time. Calling the factory selects the compiled classes for the
+chosen options and returns props for an element.
+
+`style.cva()` exists mainly to migrate existing CVA components. For new
+components, see [Reusable styles](/docs/guides/reusable-styles/).
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+export const button = style.cva("inline-flex rounded-md", {
+  variants: { size: { small: "px-2 py-1", large: "px-4 py-2" } },
+  defaultVariants: { size: "small" },
+  compoundVariants: [{ size: "large", class: "font-medium" }],
+});
+export const props = button({ size: "large" });
+```
+
+</CompiledExample>
+
+## Configuration
+
+Write the configuration as an object literal in the call:
+
+| Field              | Value                                                            |
+| ------------------ | ---------------------------------------------------------------- |
+| `variants`         | Each option name maps each value to a style                      |
+| `defaultVariants`  | The value that each option uses when the call passes `undefined` |
+| `compoundVariants` | Entries that add `class` when every listed option matches        |
+
+`class` and `className` cannot be option names, because the factory uses them
+for classes from other stylesheets. An option with the values `true` and
+`false` accepts booleans.
+
+Use `VariantProps<typeof button>` from your framework's entrypoint to type the
+options.
+
+## Style values
+
+The base and each option value accept utility strings, arrays, objects with
+variant keys, `true`, `false`, `null`, `undefined`, and custom properties.
+
+They do not accept `&&`, ternaries, stored `style()` results, refs, animations,
+or `class` fields. To choose a style at runtime, pass a different option to the
+factory. [invalid-cva-input](/docs/lints/invalid-cva-input/) reports these
+values, and [invalid-cva-config](/docs/lints/invalid-cva-config/) reports a
+malformed configuration.
+
+A custom property value can be an expression. The factory evaluates it once,
+when the factory is created. Custom properties stay in the inline style, so a
+later option can replace them.
+
+## Calling the factory
+
+| Option value | Result                                |
+| ------------ | ------------------------------------- |
+| `undefined`  | Uses the value from `defaultVariants` |
+| `null`       | Adds nothing for that option          |
+| A value      | Adds the style of that value          |
+
+The result combines, in order: the base, the selected values in the order of
+the keys of `variants`, every matching compound variant in array order, and the
+`class` or `className` from the call. The option values are not passed to the
+element. Each call returns a new props object.
+
+The factory does not merge utilities at runtime. When two selected styles set
+the same property, the compiler's CSS order decides which one wins.
+
+The props that the factory returns cannot be passed to `style()` as a base.
+
+## Generated code
+
+The compiler creates the factory with `stillwindCva` from the framework runtime,
+together with the compiled class names. Factory calls stay ordinary JavaScript.
+The development build checks the selected values and the classes from other
+stylesheets.
+
+See [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/#cva) to
+convert existing `cva` calls.

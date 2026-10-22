@@ -1,0 +1,25 @@
+---
+title: incompatible-property-value
+description: Replace emitted values that the receiving CSS property cannot use.
+slug: docs/lints/incompatible-property-value
+---
+
+<LintRuleSummary name="incompatible-property-value" />
+
+The utility resolves and its output remains emitted, but the browser rejects the
+value for that property. An arbitrary fraction does not automatically become a width percentage.
+
+## Reported
+
+```tsx
+style("w-[1/2]");
+```
+
+## Accepted
+
+```tsx
+style("w-1/2");
+```
+
+Use the family's fraction form or a valid CSS value such as an explicit percentage.
+This finding differs from an input failure that omits the contribution.

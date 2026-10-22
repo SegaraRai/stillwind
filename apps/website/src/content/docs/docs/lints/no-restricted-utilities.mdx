@@ -1,0 +1,40 @@
+---
+title: no-restricted-utilities
+description: Reject authored utility spellings that match project restrictions.
+slug: docs/lints/no-restricted-utilities
+---
+
+<LintRuleSummary name="no-restricted-utilities" />
+
+This rule matches the authored utility spelling independently of its resolved
+declarations. Patterns are case-sensitive and support `*` and `?`.
+
+## Configuration
+
+```json
+{
+  "lint": {
+    "rules": {
+      "no-restricted-utilities": {
+        "severity": "warn",
+        "utilities": [{ "pattern": "absolute", "message": "Use a layout component." }]
+      }
+    }
+  }
+}
+```
+
+## Reported
+
+```tsx
+style("absolute");
+```
+
+## Accepted
+
+```tsx
+style("relative");
+```
+
+Use [no-restricted-declarations](/docs/lints/no-restricted-declarations/) when the
+policy must also catch other spellings that resolve to a forbidden property/value.

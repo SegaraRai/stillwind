@@ -1,0 +1,27 @@
+---
+title: unknown-utility
+description: Register or correct a utility or theme value that does not resolve.
+slug: docs/lints/unknown-utility
+---
+
+<LintRuleSummary name="unknown-utility" />
+
+The active design system cannot resolve the candidate. This includes a known
+family whose requested named theme value is absent. The contribution emits no
+utility declarations.
+
+## Reported
+
+```tsx
+style("bg-red-999");
+```
+
+## Accepted
+
+```tsx
+style("bg-red-900");
+```
+
+Check spelling and the configured CSS entrypoint. Add intentional custom values
+with `@theme` or `@utility`; use `{ class: value }` for classes owned by another
+stylesheet. The [explorer](/docs/utilities/) uses the default design system.

@@ -1,0 +1,26 @@
+---
+title: conflicting-utilities
+description: Resolve utilities that compete for an overlapping CSS property domain.
+slug: docs/lints/conflicting-utilities
+---
+
+<LintRuleSummary name="conflicting-utilities" />
+
+Both utilities supply padding under the same conditions. Their class-string
+order is not a runtime instruction to merge the values.
+
+## Reported
+
+```tsx
+style("p-2 p-4");
+```
+
+## Accepted
+
+```tsx
+style("p-4");
+```
+
+Choose the intended value or separate the conditions. `allowShorthandOverrides`
+defaults to false; enable it only when the project intends to allow the supported
+shorthand/longhand override patterns. It does not disable all property conflicts.

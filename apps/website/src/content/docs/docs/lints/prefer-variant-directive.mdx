@@ -1,0 +1,34 @@
+---
+title: prefer-variant-directive
+description: Reuse an equivalent named variant in authored CSS rules.
+slug: docs/lints/prefer-variant-directive
+---
+
+<LintRuleSummary name="prefer-variant-directive" />
+
+An authored condition can use a registered variant with the same supported
+meaning. The named form keeps the condition in the design-system vocabulary.
+
+## Reported
+
+```css
+.card {
+  @media (width >= 48rem) {
+    display: flex;
+  }
+}
+```
+
+## Accepted
+
+```css
+.card {
+  @variant md {
+    display: flex;
+  }
+}
+```
+
+The example uses the default `md` breakpoint. `pxToRem` defaults to false;
+when enabled, supported query conversion uses 16px per rem. This applied
+`@variant` form belongs inside authored CSS rules.

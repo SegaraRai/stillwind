@@ -1,0 +1,26 @@
+---
+title: "SW01006: Invalid lint configuration"
+description: Supply policy options that the compiler can evaluate.
+slug: docs/errors/SW01006
+---
+
+<CompilerError code="SW01006" category="configuration" />
+
+The message identifies the lint rule and invalid policy detail. This is a
+configuration error, independent of whether authored styles violate that policy.
+
+## Rejected policy value
+
+```json
+{ "disallow": ["pixels"] }
+```
+
+## Corrected policy value
+
+```json
+{ "disallow": ["px"] }
+```
+
+These are option excerpts for [restricted length units](/docs/lints/no-restricted-length-units/).
+Use supported units and supply required nonempty patterns for enabled restriction
+rules. Public configuration validation can fail before this native diagnostic.

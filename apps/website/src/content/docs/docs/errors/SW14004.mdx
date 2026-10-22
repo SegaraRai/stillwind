@@ -1,0 +1,27 @@
+---
+title: "SW14004: Malformed utility property requirement"
+description: Correct a property requirement inside the utility that was matched.
+slug: docs/errors/SW14004
+---
+
+<CompilerError code="SW14004" category="authoring" />
+
+A matched utility definition contains a malformed property requirement. The
+diagnostic identifies that utility and a byte offset within its definition body.
+The faulty body can belong to authored CSS or a loaded plugin definition.
+
+## Rejected utility contract
+
+```text
+The matched utility's @stillwind-require-properties directive has malformed names or syntax.
+```
+
+## Corrected utility contract
+
+```text
+Its requirement directive names complete registered custom properties with supported syntax.
+```
+
+Repair the definition rather than changing the use's lint severity. When the
+definition belongs to a dependency, reduce the failing utility and report that
+body and plugin version to its maintainer.

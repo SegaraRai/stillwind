@@ -1,0 +1,25 @@
+---
+title: "SW33004: Invalid source span"
+description: Keep spans inside their source bounds and on valid UTF-8 boundaries.
+slug: docs/errors/SW33004
+---
+
+<CompilerError code="SW33004" category="host" />
+
+The source rejected a span's bounds or UTF-8 boundaries. The span carries its
+file identity and half-open byte range; both are part of the input contract.
+
+## Invalid span contract
+
+```text
+An endpoint falls outside the source or inside a multibyte character.
+```
+
+## Valid span contract
+
+```text
+Both endpoints are ordered valid boundaries in the span's owning source.
+```
+
+Construct the span from checked offsets for the same revision. Use the operation
+context to find which host path supplied the rejected span.

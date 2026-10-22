@@ -1,0 +1,26 @@
+---
+title: "SW01008: Unresolved root stylesheet"
+description: Resolve the configured CSS entry instead of answering its root request as unresolved.
+slug: docs/errors/SW01008
+---
+
+<CompilerError code="SW01008" category="configuration" />
+
+The loader received an unresolved answer for its root stylesheet. An imported
+dependency can have an unresolved response, but the configured root must exist
+to establish the design system.
+
+## Rejected response
+
+```text
+Root CSS request -> unresolved
+```
+
+## Accepted response
+
+```text
+Root CSS request -> the configured entry's identity and source text
+```
+
+Check the project's `css` path and the integration's resolution environment.
+Read the root and answer that request with its source before loading imports.

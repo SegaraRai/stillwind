@@ -1,0 +1,28 @@
+---
+title: invalid-ref-input
+description: Declare refs with literal labels and supported provider arguments.
+slug: docs/lints/invalid-ref-input
+---
+
+<LintRuleSummary name="invalid-ref-input" />
+
+A ref label is a compile-time naming hint. A runtime string cannot create
+different ref identities or serve as that label.
+
+## Reported
+
+```tsx
+declare const label: string;
+const card = style.ref(label);
+style(card);
+```
+
+## Accepted
+
+```tsx
+const card = style.ref("card");
+style(card);
+```
+
+Preserve declaration identity through inferred types. Ref providers also require
+their literal argument forms; see [ref methods](/docs/macros/ref/).

@@ -1,0 +1,26 @@
+---
+title: "SW01002: Invalid property prefix"
+description: Give generated custom properties a supported namespace prefix.
+slug: docs/errors/SW01002
+---
+
+<CompilerError code="SW01002" category="configuration" />
+
+`prefix` and `tailwindPrefix` must start with `--` and end with `-`. The diagnostic
+names the rejected option. Public configuration validation may reject it before
+native compilation constructs this code.
+
+## Rejected
+
+```ts
+const options = { prefix: "sw" };
+```
+
+## Corrected
+
+```ts
+const options = { prefix: "--sw-" };
+```
+
+Use the same naming configuration for related client and server builds. Also
+keep the two property namespaces [distinct](/docs/errors/SW01003/).

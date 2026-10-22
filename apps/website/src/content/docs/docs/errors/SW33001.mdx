@@ -1,0 +1,25 @@
+---
+title: "SW33001: Original map on an internal source"
+description: Register internal buffers without original-document source-map entries.
+slug: docs/errors/SW33001
+---
+
+<CompilerError code="SW33001" category="host" />
+
+An internal buffer was given a source-map entry for an original document.
+That registration claims an original-source relationship the internal buffer does not own.
+
+## Invalid registration
+
+```text
+An internal source buffer carries an original-document source-map entry.
+```
+
+## Valid registration
+
+```text
+The internal buffer has no original-document source-map entry.
+```
+
+Distinguish original documents from internal generated buffers in the host's
+source registration path. The diagnostic's operation context identifies the failing registration.

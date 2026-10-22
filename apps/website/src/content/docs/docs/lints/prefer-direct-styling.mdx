@@ -1,0 +1,25 @@
+---
+title: prefer-direct-styling
+description: Attach styles to their receiving element when the project discourages descendant styling.
+slug: docs/lints/prefer-direct-styling
+---
+
+<LintRuleSummary name="prefer-direct-styling" />
+
+The selector styles another element from the current subject. Direct attachment
+makes the receiving element and ownership explicit.
+
+## Reported
+
+```tsx
+style("[&_button]:p-4");
+```
+
+## Accepted
+
+```tsx
+style("p-4");
+```
+
+Apply the corrected call to the button itself. Retain a scoped exception when
+the application deliberately styles externally owned markup that cannot receive props.

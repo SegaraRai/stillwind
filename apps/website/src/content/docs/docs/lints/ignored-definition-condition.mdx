@@ -1,0 +1,33 @@
+---
+title: ignored-definition-condition
+description: Place runtime CSS conditions inside a utility body instead of around its definition.
+slug: docs/lints/ignored-definition-condition
+---
+
+<LintRuleSummary name="ignored-definition-condition" />
+
+The loader cannot condition registration of this design-system definition with
+the enclosing media rule. It ignores that condition while retaining the definition.
+
+## Reported
+
+```css
+@media (width >= 40rem) {
+  @utility brand {
+    color: red;
+  }
+}
+```
+
+## Accepted
+
+```css
+@utility brand {
+  @media (width >= 40rem) {
+    color: red;
+  }
+}
+```
+
+The corrected body retains the media condition on emitted declarations.
+Design-system registration and runtime CSS matching happen at different stages.

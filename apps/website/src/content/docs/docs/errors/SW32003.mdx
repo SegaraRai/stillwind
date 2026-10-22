@@ -1,0 +1,26 @@
+---
+title: "SW32003: Unknown or duplicate CSS request"
+description: Answer only request IDs that are currently outstanding.
+slug: docs/errors/SW32003
+---
+
+<CompilerError code="SW32003" category="host" />
+
+A response does not correspond to an outstanding loader request. The ID may be
+unknown or may already have been answered.
+
+## Invalid response
+
+```text
+Pending IDs: 1, 2
+Response ID: 99
+```
+
+## Valid response
+
+```text
+Each response answers one pending ID exactly once.
+```
+
+Keep request state per loader instance. Do not reuse IDs or delayed responses
+from an earlier loading session after starting a reload.

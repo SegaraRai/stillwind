@@ -1,0 +1,27 @@
+---
+title: invalid-view-transition-definition
+description: Use supported snapshot buckets in a transition definition.
+slug: docs/lints/invalid-view-transition-definition
+---
+
+<LintRuleSummary name="invalid-view-transition-definition" />
+
+The snapshot buckets are `group`, `imagePair`, `old`, and `new`. An unknown field
+cannot select a browser transition pseudo-element.
+
+## Reported
+
+```tsx
+const transition = style.viewTransition({ unknown: "opacity-0" });
+style(transition.for("card"));
+```
+
+## Accepted
+
+```tsx
+const transition = style.viewTransition({ old: "opacity-0" });
+style(transition.for("card"));
+```
+
+Write literal utility strings in the buckets. Use media or supports variants
+inside those strings when a snapshot style needs a condition.

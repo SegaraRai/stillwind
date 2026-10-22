@@ -1,0 +1,25 @@
+---
+title: no-class-property
+description: Restrict external class inputs when the project requires compiled styling.
+slug: docs/lints/no-class-property
+---
+
+<LintRuleSummary name="no-class-property" />
+
+The `class` input adds external classes without generating utility CSS. This
+policy prohibits that escape from the project's compiled style vocabulary.
+
+## Reported
+
+```tsx
+style({ class: "external" });
+```
+
+## Accepted
+
+```tsx
+style("p-4");
+```
+
+Use compiled rules when they own the style. If a third-party stylesheet requires
+external classes, keep the exception narrow rather than treating its names as utilities.

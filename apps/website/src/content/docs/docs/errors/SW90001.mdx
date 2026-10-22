@@ -1,0 +1,26 @@
+---
+title: "SW90001: Invalid generated CSS block"
+description: Report generated CSS that cannot be split into complete rule blocks.
+slug: docs/errors/SW90001
+---
+
+<CompilerError code="SW90001" category="internal" />
+
+Compiler-generated CSS cannot be split into complete rule blocks. The byte
+offset identifies the invalid position within the generated contribution.
+
+## Violated invariant
+
+```text
+A generated contribution contains an incomplete or invalid CSS rule block.
+```
+
+## Required invariant
+
+```text
+Every generated contribution can be consumed as complete CSS rule blocks.
+```
+
+Report the original macro source, CSS entrypoint, compiler version, and generated
+contribution. The required invariant belongs to the compiler; application code
+should not need to repair its internal generated buffer.

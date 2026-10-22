@@ -1,34 +1,33 @@
 ---
 title: Getting started
-description: Add Stillwind to your application and compile your first component styles.
+slug: docs
+description: Add Stillwind to a Vite and React application, style a component, and check your styles.
 sidebar:
   order: 1
 ---
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-Write styles in your components, share them through ordinary modules, and check
-them against your project's design system.
+This guide adds Stillwind to a Vite application that uses React. At the end, a
+button uses Stillwind styles, and the CLI checks them. For another framework or
+build tool, follow the same steps and use the build setup from
+[Framework integrations](/docs/frameworks/).
 
-Stillwind supports React, Preact, Solid, Vue, Svelte, and Astro. This guide uses
-React for the component example. Choose the matching entrypoint and build adapter
-in [Framework integrations](/docs/frameworks/).
+<Aside type="caution" title="Pre-alpha">
+  Stillwind is in pre-alpha. Test your application's build and pages before you release changes.
+</Aside>
 
-## Install
-
-Run these commands in your application:
+## Install the packages
 
 ```sh
 vp i stillwind
-vp i -D @stillwind/integration
+vp i -D @stillwind/integration @stillwind/cli
 ```
 
-Stillwind is in pre-alpha. Check diagnostics when adopting it and validate your
-application's build and browser behavior before releasing changes.
+`stillwind` provides the style API. `@stillwind/integration` compiles your styles
+during development and builds. `@stillwind/cli` checks your styles from the command line.
 
 ## Create a stylesheet
 
-Create `src/stillwind.css`. The `stillwind` import supplies the default theme,
-preflight, utilities, and compiler slots. Add your own theme tokens below it:
+Create `src/stillwind.css`:
 
 ```css
 @import "stillwind";
@@ -38,12 +37,13 @@ preflight, utilities, and compiler slots. Add your own theme tokens below it:
 }
 ```
 
-Utilities such as `bg-accent` use the tokens from this stylesheet.
+`@import "stillwind"` loads the default Tailwind CSS v4 theme and utilities.
+Each token in `@theme` adds utilities. For example, `--color-accent` adds
+`bg-accent` and `text-accent`.
 
 ## Configure the project
 
-Create `stillwind.config.ts` in the application root. Select the stylesheet and
-the source files that contain styles:
+Create `stillwind.config.ts` in the application root:
 
 ```ts
 import { defineConfig } from "stillwind/config";
@@ -58,14 +58,16 @@ export default defineConfig({
 });
 ```
 
-<Aside type="note" title="Analysis scope">
-  The `files` globs select source files for the language server (LSP) and CLI, including files that
-  the application never imports. Build adapters use the bundler's module graph to select source
-  modules and ignore these globs.
+`css` selects the stylesheet. `files` selects the files that the CLI and the
+editor check.
+
+<Aside type="note" title="Builds ignore files">
+  The build compiles every module that your application imports, whether or not `files` matches it.
+  The CLI and the language server (LSP) use `files` to find source files, including files that the
+  application does not import.
 </Aside>
 
-The build adapter discovers this file from your application root. For a Vite
-application using React, register Stillwind before the React plugin:
+Add Stillwind to `vite.config.ts`:
 
 ```ts
 import { stillwind } from "@stillwind/integration/vite";
@@ -77,40 +79,57 @@ export default defineConfig({
 });
 ```
 
-The adapter compiles styles and delivers the generated CSS. See
-[Framework integrations](/docs/frameworks/) for Astro, Next.js, and the other
-frameworks.
+Place `stillwind()` before `react()`. Stillwind must compile styles before React
+compiles JSX. The plugin finds `stillwind.config.ts` in the application root.
 
 ## Style a component
-
-Import `style` from the entrypoint for your framework. Spread the returned props
-onto the element:
 
 ```tsx
 import { style } from "stillwind/react";
 
-export function SaveButton() {
+export function SaveButton({ loading }: { loading: boolean }) {
   return (
-    <button {...style("rounded-md bg-accent px-4 py-2 text-white hover:opacity-90")}>
+    <button
+      disabled={loading}
+      {...style(
+        "rounded-md bg-accent px-4 py-2 text-white hover:opacity-90",
+        loading && "opacity-60",
+      )}
+    >
       Save changes
     </button>
   );
 }
 ```
 
-The compiler emits CSS for the static utilities. Conditions and dynamic values
-can also require runtime helpers or inline custom properties.
+`style()` returns props, such as `className`, so you spread the result onto the
+element. Each argument adds utilities. `loading && "opacity-60"` adds
+`opacity-60` only while `loading` is true.
+
+Start the development server. The button uses the accent color from your
+stylesheet. The build writes the CSS for these utilities to a static CSS file.
+
+## Check your styles
+
+Change `bg-accent` to `bg-acent`, and run the CLI from the application root:
+
+```sh
+vp exec stillwind lint
+```
+
+The CLI reports `bg-acent` as an unknown utility. The build does not report this
+mistake: the misspelled utility produces no CSS, and the page still renders.
+Run the CLI in CI to catch such mistakes before you merge them.
 
 ## Next steps
 
-- [Framework integrations](/docs/frameworks/) connects Stillwind to your build.
-- [The basics of style()](/docs/style/) covers variants, conditions, and composition.
-- [CLI reference](https://github.com/SegaraRai/stillwind/blob/main/docs/cli.md)
-  describes checks, sorting, and diagnostics.
+- [Why Stillwind](/docs/why/) explains what Stillwind checks and why.
+- [The basics of style()](/docs/style/) covers variants, conditions, and reusable styles.
+- [Design systems](/docs/guides/design-systems/) restricts colors, spacing, and breakpoints to your theme.
+- [Checks in the editor and CI](/docs/guides/lint-adoption/) adds the CLI to CI and the editor.
 
 ## Read with an AI agent
 
 Every documentation page has a **View as Markdown** link. Give your agent the
 [documentation index](/docs/llms.txt), or retrieve the
-[full documentation](/llms-full.txt) in one request. Both formats are generated
-from the same source as these pages.
+[full documentation](/llms-full.txt) in one request.

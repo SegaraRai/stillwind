@@ -1,0 +1,26 @@
+---
+title: "SW10005: Untransformed macro reference"
+description: Use recognized macro call forms instead of leaving a runtime macro binding read.
+slug: docs/errors/SW10005
+---
+
+<CompilerError code="SW10005" category="authoring" />
+
+After lowering, a reference to the macro binding remains. The macro import must
+be removable, so an unhandled read cannot be left as an ordinary runtime function.
+
+## Rejected
+
+```tsx
+const macro = style;
+macro("p-4");
+```
+
+## Corrected
+
+```tsx
+const props = style("p-4");
+```
+
+Keep macro calls in their supported syntax. Reuse completed styles or declaration
+values instead of passing the macro function itself around.

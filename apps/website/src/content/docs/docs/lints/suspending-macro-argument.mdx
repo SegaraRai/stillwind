@@ -1,0 +1,30 @@
+---
+title: suspending-macro-argument
+description: Resolve await, yield, and dynamic imports outside macro arguments.
+slug: docs/lints/suspending-macro-argument
+---
+
+<LintRuleSummary name="suspending-macro-argument" />
+
+Macro lowering can move or omit argument expressions. Suspension and dynamic
+module loading must remain in the application's ordinary execution flow.
+
+## Reported
+
+```tsx
+async function props() {
+  return style({ "--x": await Promise.resolve(1) });
+}
+```
+
+## Accepted
+
+```tsx
+async function props() {
+  const value = await Promise.resolve(1);
+  return style({ "--x": value });
+}
+```
+
+Await or yield before calling the macro, then pass the completed value. This is
+an argument contract; suppression does not establish safe evaluation semantics.

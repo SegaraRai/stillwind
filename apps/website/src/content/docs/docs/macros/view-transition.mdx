@@ -1,0 +1,93 @@
+---
+title: style.viewTransition()
+description: Define view transition snapshot styles, and give each element a transition name with .for().
+slug: docs/macros/view-transition
+---
+
+`style.viewTransition(definition)` defines the styles of view transition
+snapshots. Passing the result to `style()` adds its transition class to the
+element. Calling `.for(key)` also gives the element a `view-transition-name`.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+const transition = style.viewTransition({ old: "duration-150", new: "delay-150 duration-150" });
+export const props = style(transition.for("product-42"));
+```
+
+</CompiledExample>
+
+## Define the snapshot styles
+
+Write `style.viewTransition()` as the initial value of a variable, with an
+object literal as its argument:
+
+| Field       | Styles                                                        |
+| ----------- | ------------------------------------------------------------- |
+| `group`     | `::view-transition-group()`                                   |
+| `imagePair` | `::view-transition-image-pair()`                              |
+| `old`       | `::view-transition-old()`                                     |
+| `new`       | `::view-transition-new()`                                     |
+| `label`     | An optional string literal that appears in the generated name |
+
+Each field except `label` is a utility string literal. Timing utilities set
+animation properties, such as `animation-duration`. Media and `supports-*`
+variants can condition a utility. State and container variants are not
+supported.
+
+You can export the definition and import it in other modules.
+
+## Name the element
+
+`transition.for(key)` adds the transition class and sets
+`view-transition-name` from the key. The key is a string or a number. Without a
+key, Stillwind uses an empty string.
+
+Use a key that stays the same for the same item before and after the update.
+Items on the page at the same time need different keys. Stillwind cannot check
+that keys are unique across the page or that the old and new snapshots pair
+correctly. Rendering a component many times does not create new names.
+
+Write `.for()` directly in `style()`. You cannot store its result in a variable
+and use it later.
+
+## Dynamic keys
+
+With a literal key, the compiler writes the name into the CSS. With a key that
+is known only at runtime, a helper builds the name, and the element receives it
+as an inline style.
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+const transition = style.viewTransition({ old: "duration-150", new: "duration-150" });
+declare const id: string;
+export const props = style(transition.for(id));
+```
+
+</CompiledExample>
+
+When a variant conditions a dynamic name, such as `{ "md:": transition.for(id) }`,
+the name goes through a custom property so that CSS can apply it only under the
+condition.
+
+A dynamic key follows the same rules as other `style()` arguments: it must not
+have side effects. Neither helper starts a view transition.
+
+## Combine transitions on one element
+
+One `style()` call can add several transition classes, but only one `.for()`.
+Pass the other definitions without `.for()`, such as `style(fade, slide.for(id))`.
+
+Transition classes from separate `style()` calls do not combine. Each call sets
+the whole `view-transition-class` list, so one list replaces the other.
+[split-view-transition-class](/docs/lints/split-view-transition-class/) and
+[duplicate-view-transition-name](/docs/lints/duplicate-view-transition-name/)
+report these cases.
+
+See [View transitions](/docs/guides/view-transitions/) to start a transition
+from your application.

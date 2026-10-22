@@ -1,0 +1,29 @@
+---
+title: ignored-tailwind-feature
+description: Move supported configuration out of Tailwind-only CSS directives and import modifiers.
+slug: docs/lints/ignored-tailwind-feature
+---
+
+<LintRuleSummary name="ignored-tailwind-feature" />
+
+Stillwind does not load Tailwind configuration through this CSS directive.
+Leaving it in the stylesheet does not activate that configuration.
+
+## Reported
+
+```css
+@config "./tailwind.config.js";
+```
+
+## Accepted
+
+```css
+@theme {
+  --color-brand: blue;
+}
+```
+
+The accepted example defines its token directly. To retain supported legacy
+configuration, use the project's `tailwind` field. Use `important` for that
+project policy and remove unsupported import modifiers. The
+[migration guide](/docs/guides/migrating-from-tailwind/) lists the replacements and limits.

@@ -1,0 +1,26 @@
+---
+title: prefer-logical-properties
+description: Prefer logical property counterparts for writing-direction-aware layouts.
+slug: docs/lints/prefer-logical-properties
+---
+
+<LintRuleSummary name="prefer-logical-properties" />
+
+The physical margin has a logical counterpart. A logical start margin follows
+the element's writing direction instead of always choosing its physical left edge.
+
+## Reported
+
+```tsx
+style("ml-4");
+```
+
+## Accepted
+
+```tsx
+style("ms-4");
+```
+
+Review whether the original rule describes a physical coordinate or a logical
+layout role. This preference reports valid emitted CSS; it does not prove the
+replacement preserves an application's intended geometry.

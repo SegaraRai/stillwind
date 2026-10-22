@@ -1,0 +1,28 @@
+---
+title: "SW01005: Generated identifier collision"
+description: Give distinct generated symbols distinct published identifiers.
+slug: docs/errors/SW01005
+---
+
+<CompilerError code="SW01005" category="configuration" />
+
+Two generated definitions would publish the same identifier. A custom naming
+callback that returns one fixed class for every request can cause this conflict.
+
+## Rejected naming contract
+
+```text
+Request A -> button
+Distinct request B -> button
+```
+
+## Corrected naming contract
+
+```text
+Request A -> button_a
+Distinct request B -> button_b
+```
+
+Use the default naming callbacks or preserve the request's distinguishing hash.
+Callbacks must be pure and stable for the session. Update `namingRevision` when
+their behavior changes; for default-name collisions, review `hashLength`.

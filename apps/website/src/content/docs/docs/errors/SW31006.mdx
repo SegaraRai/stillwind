@@ -1,0 +1,26 @@
+---
+title: "SW31006: Invalid UTF-16 offset"
+description: Supply an existing UTF-16 code-unit boundary in the same source buffer.
+slug: docs/errors/SW31006
+---
+
+<CompilerError code="SW31006" category="host" />
+
+The requested UTF-16 code-unit offset cannot be converted to a source position.
+Byte offsets and UTF-16 offsets are different coordinate systems.
+
+## Invalid request
+
+```text
+Buffer length: 20 UTF-16 code units
+Requested offset: 100
+```
+
+## Valid request
+
+```text
+The requested offset identifies a valid boundary within that same 20-unit buffer.
+```
+
+Use the original buffer's revision and convert from the caller's coordinate
+system explicitly. Include non-ASCII text in a reproduction when the bug depends on unit conversion.

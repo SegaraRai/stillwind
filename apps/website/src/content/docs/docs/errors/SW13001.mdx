@@ -1,0 +1,28 @@
+---
+title: "SW13001: Authored CSS parse error"
+description: Correct retained stylesheet syntax before rendering generated output.
+slug: docs/errors/SW13001
+---
+
+<CompilerError code="SW13001" category="authoring" />
+
+The retained authored CSS failed stylesheet parsing. The diagnostic detail
+describes the parser failure; a recognized utility name cannot repair malformed
+surrounding CSS syntax.
+
+## Rejected
+
+```css
+.card { color: rgb(; }
+```
+
+## Corrected
+
+```css
+.card {
+  color: rgb(0 0 255);
+}
+```
+
+Repair the reported stylesheet and retry the same entrypoint. Parsing failures
+while collecting property usage are reported separately as [SW14006](/docs/errors/SW14006/).

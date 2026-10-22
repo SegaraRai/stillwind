@@ -1,0 +1,25 @@
+---
+title: "SW13004: CSS nesting limit exceeded"
+description: Keep CSS construct depth within the scanner's supported limit.
+slug: docs/errors/SW13004
+---
+
+<CompilerError code="SW13004" category="authoring" />
+
+A nested CSS construct exceeds the scanner's depth limit. The diagnostic includes
+the accepted limit and the UTF-8 byte offset where processing exceeded it.
+
+## Rejected structure
+
+```text
+The nested construct is deeper than the limit included in this diagnostic.
+```
+
+## Accepted structure
+
+```text
+Every nested construct stays within that limit.
+```
+
+Flatten the nesting or split the source into simpler rules. Use the limit from
+the running compiler; splitting unrelated files does not reduce a single construct's depth.

@@ -1,0 +1,26 @@
+---
+title: "SW34001: Missing macro import anchor"
+description: Retain a verified macro import in the realm where runtime imports must be inserted.
+slug: docs/errors/SW34001
+---
+
+<CompilerError code="SW34001" category="host" />
+
+A module needs a runtime or stylesheet import, but the use's import realm has
+no verified macro import to anchor that edit. A nearby import from another realm
+does not establish the required insertion point.
+
+## Invalid preparation contract
+
+```text
+A runtime use survives, but its realm has no verified macro import anchor.
+```
+
+## Valid preparation contract
+
+```text
+The host preserves the macro import and verified realm metadata for that runtime use.
+```
+
+Use the supported source-preparation path. If a converter strips or relocates
+imports, repair its realm metadata before requesting transform edits.

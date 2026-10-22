@@ -1,0 +1,63 @@
+---
+import { Code } from "astro:components";
+import type { LintRule } from "stillwind/config";
+
+import { lintRuleSummary } from "./lint-rule-summary";
+
+interface Props {
+  name: LintRule;
+  analysis?: "project";
+}
+const { rule, levels } = lintRuleSummary(Astro.props.name);
+---
+
+<div class="reference-summary">
+  <p>
+    Category: <strong>{rule.category}</strong>.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Preset</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {levels.map(({ preset, severity }) => (
+        <tr>
+          <td>{preset}</td>
+          <td>{severity}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  {rule.options ? (
+    <>
+      <p>
+        Option fields:{" "}
+        {rule.options.map((option) => (
+          <>
+            <code>{option}</code>{" "}
+          </>
+        ))}
+        .
+      </p>
+      <p>Default detection options:</p>
+      <Code
+        code={JSON.stringify(rule.defaults, null, 2)}
+        lang="json"
+        themes={{ light: "github-light", dark: "github-dark" }}
+        defaultColor={false}
+      />
+    </>
+  ) : (
+    <p>
+      This rule accepts a severity: <code>warn</code>, <code>deny</code>, or <code>off</code>.
+    </p>
+  )}
+  <p>
+    <a href="/docs/configuration/lint/">Configure lint</a> to set presets, options, and suppression.
+    Build adapters skip lint detection; the CLI enforces denied findings.
+  </p>
+  {Astro.props.analysis === "project" && <p>These examples use complete project analysis.</p>}
+</div>

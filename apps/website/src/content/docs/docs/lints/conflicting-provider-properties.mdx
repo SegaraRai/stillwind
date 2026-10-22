@@ -1,0 +1,27 @@
+---
+title: conflicting-provider-properties
+description: Avoid competing provider declarations whose relative output order is not guaranteed.
+slug: docs/lints/conflicting-provider-properties
+---
+
+<LintRuleSummary name="conflicting-provider-properties" />
+
+A ref provider and another rule can set the same container or anchor property.
+Their relative generated order is not an application override contract.
+
+## Reported
+
+```tsx
+const card = style.ref("card");
+style(card, card.asContainer("size"), "@container");
+```
+
+## Accepted
+
+```tsx
+const card = style.ref("card");
+style(card, card.asContainer("size"));
+```
+
+Keep one supplier for the provider property in that condition region. Preserve
+the matching marker attachment; it is required independently of this conflict.

@@ -1,0 +1,25 @@
+---
+title: "SW15001: CSS offset exceeds source coordinates"
+description: Keep parsed CSS positions within the supported 32-bit source range.
+slug: docs/errors/SW15001
+---
+
+<CompilerError code="SW15001" category="authoring" />
+
+A parsed CSS byte position cannot be represented by the compiler's 32-bit source
+coordinates. This is a size/offset limit, rather than a utility spelling problem.
+
+## Rejected input contract
+
+```text
+The CSS operation needs a byte offset beyond the supported 32-bit source range.
+```
+
+## Accepted input contract
+
+```text
+Every parsed position fits the source coordinate representation.
+```
+
+Reduce or split the generated input that causes the oversized buffer. Include
+the failing operation and input sizes when the source was generated unexpectedly.

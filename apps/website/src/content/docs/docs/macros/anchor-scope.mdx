@@ -1,0 +1,62 @@
+---
+title: style.anchorScope()
+description: Limit where an anchor name is visible, so that each component instance uses its own anchor.
+slug: docs/macros/anchor-scope
+---
+
+`style.anchorScope(scope)` sets `anchor-scope` on an element. Inside that
+element, a positioned element finds only the anchors that are also inside it.
+Use it when a component with an anchor renders more than once on a page.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+const trigger = style.ref("trigger");
+export const provider = style(trigger, trigger.asAnchor());
+export const scope = style(style.anchorScope([trigger]));
+export const popover = style("absolute", trigger.positionAnchor(), "top-[anchor(bottom)]");
+```
+
+</CompiledExample>
+
+Three elements work together:
+
+| Element     | Call                                   | Sets              |
+| ----------- | -------------------------------------- | ----------------- |
+| The anchor  | `style(trigger, trigger.asAnchor())`   | `anchor-name`     |
+| An ancestor | `style(style.anchorScope([trigger]))`  | `anchor-scope`    |
+| The popover | `style(trigger.positionAnchor(), ...)` | `position-anchor` |
+
+Put the scope on the ancestor that contains one anchor and its popover.
+
+## Inputs
+
+| Scope            | Effect                                |
+| ---------------- | ------------------------------------- |
+| An array of refs | Limits the anchor names of those refs |
+| `"all"`          | Limits every anchor name              |
+| `"none"`         | Sets `anchor-scope: none`             |
+
+Write the array or keyword directly in the call. When a variable in the array
+can hold one of several refs, the scope includes every ref that it can hold.
+
+An empty array sets nothing, and repeated refs add nothing.
+[ineffective-anchor-scope](/docs/lints/ineffective-anchor-scope/) reports both.
+
+`style.anchorScope()` only sets the CSS property. It does not attach a ref, it
+does not create an anchor name, and it does not affect `.in()` conditions.
+
+You can also set the scope on the anchor itself with
+`trigger.asAnchor(scope)`. See [style.ref()](/docs/macros/ref/#anchor-positioning).
+
+## Generated code
+
+The compiler turns the scope into generated anchor names or the keyword. When
+it knows every ref, no JavaScript reads the refs at runtime. Stillwind does not
+position elements with JavaScript; the browser's CSS anchor positioning does.
+
+See [Element relationships](/docs/guides/element-relationships/#position-an-element-at-an-anchor)
+for a complete example.

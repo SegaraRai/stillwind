@@ -40,14 +40,120 @@ Each page has an `index.md` alternate and an `index.mdx` source alternate.
 `/llms-full.txt` contains all discoverable documentation. These endpoints use
 Nimbus's helpers and the same content collection as HTML.
 
-`tests/documentation.test.ts` checks the built HTML, Markdown, indexes, and code
-examples. The website test task and the root JavaScript test task depend on the
-website build.
+Each macro, lint rule, and compiler error has an authored page under
+`src/content/docs/docs/`. Keep explanations, constraints, examples, and recovery
+guidance in that page. `CompiledExample` renders its authored TypeScript code
+fence together with actual compiler output. `LintRuleSummary` reads current preset
+levels and option metadata; `CompilerError` shares reporting-code presentation.
+These components are registered in `src/components.ts` and have equivalent
+Markdown renderers in `src/components/reference/markdown.ts`. Edit links point
+to the individual page sources.
+
+The `utilities` content collection uses a loader to read the default registry's
+finite completions and representative numeric samples. The explorer and JSON
+endpoint read that collection through Astro's content API. Its Markdown renderer
+includes the same catalog without browser interaction. Component revisions track
+compiler, theme, metadata, and renderer inputs for Nimbus's Markdown cache.
+
+`tests/documentation.test.ts` checks page coverage, stable URLs, links, and agent
+formats. `tests/reference-examples.test.ts` checks the examples in the authored
+pages against native compilation and project analysis. Search tests are colocated.
+The website test task and root JavaScript test task depend on the website build.
+
+Lint rule and compiler error URLs keep the spelling and case of their IDs. When
+an ID is renamed or retired, keep a redirect or a retirement page at its URL.
+The lint rule and compiler error index pages link every page in their directory.
+
+`astro.config.ts` lists the sidebar explicitly. Add each new page to the group
+that matches its reader task. Directory groups under **Reference** pick up new
+macro, lint, and error pages automatically.
 
 Set `SITE_URL` to the deployment origin before building for publication. It
 defaults to `http://localhost:4322` for local previews and controls absolute
 links in metadata, agent indexes, and the sitemap. Build and content-sync task
 caches include this variable.
+
+## Writing documentation
+
+The site documents Stillwind for its users. Contracts for maintainers stay in the
+repository's `docs/` folder. These rules apply to the site in addition to the
+repository's writing guidelines.
+
+### Reader
+
+Write for one reader: a developer who knows Tailwind CSS v4 and builds an
+application with a bundler and a component framework. The reader also lets AI
+agents write code, and the reader wants that styling code to stay in order.
+Do not explain Tailwind basics. Do explain where Stillwind differs from Tailwind.
+
+### Sidebar groups
+
+The sidebar follows the order in which this reader learns Stillwind:
+
+| Group                   | Reader question                                     |
+| ----------------------- | --------------------------------------------------- |
+| Introduction            | What is Stillwind, and how do I start or migrate?   |
+| Writing styles          | How do I write the styles that I need every day?    |
+| Keeping styles in order | How does Stillwind keep the codebase consistent?    |
+| Integrations            | How do I connect Stillwind to my build and runtime? |
+| Reference               | What exactly does this API, rule, or error do?      |
+
+Put a page in the group whose question it answers. A guide that shows a
+Stillwind-specific check, such as theme restrictions or element references,
+belongs in **Keeping styles in order** even when it also teaches an API.
+
+### Guide pages
+
+Start each guide with the reader's goal. When the goal is hard to reach in
+Tailwind, state that problem in one or two sentences before the solution.
+Then show code, explain what the code produces, and list constraints last.
+
+Show the common path only. Move edge cases, generated JavaScript, and complete
+input rules to the reference page, and link to it at the end.
+
+### Reference pages
+
+Keep reference pages precise and complete. Order each page as follows: what the
+API does, an example, accepted inputs, behavior, and constraints. Each lint rule
+page states what the rule reports and how to fix the reported code. Each error
+page states what causes the error and how to fix it.
+
+### Vocabulary
+
+Write in terms of what the reader writes and sees. Use compiler terms only on
+reference pages that need them, and define each term where it first appears.
+
+| Avoid in guides                        | Write instead                                               |
+| -------------------------------------- | ----------------------------------------------------------- |
+| lowers, lowering                       | compiles to                                                 |
+| materialize, materialized value        | store in a variable, use as a value                         |
+| contribution lowers as empty           | the utility produces no CSS                                 |
+| condition lowers as false              | the condition never matches                                 |
+| declaration site, declaration identity | each `style.ref()` call creates one name                    |
+| provider, consumer                     | the element that defines the name, the element that uses it |
+| standalone analysis                    | the CLI and the editor                                      |
+| producer module                        | the module that contains the style                          |
+
+### Facts in one place
+
+State each shared fact on one page and link to it from other pages. For example,
+the page about checks in the editor and CI explains that builds do not run lint
+rules. Other pages link to that explanation instead of repeating it.
+
+### Caveats
+
+Add a caveat only where a reader is likely to make the mistake. Do not answer
+questions that the page does not raise, such as how the CLI writes files or
+which internal optimizations exist. Do not write "This is A, not B" to defend
+the design.
+
+### Index pages
+
+Index pages help the reader choose a page. Group entries by the reader's
+concern and give each entry a one-line description. Group lint rules by what
+they catch, such as invalid input, conflicting styles, design system policies,
+and preferred spelling. Group compiler errors by the reader's next action:
+fix the source, fix the configuration, or report a bug.
 
 ## Theme
 

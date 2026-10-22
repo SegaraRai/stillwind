@@ -1,0 +1,26 @@
+---
+title: "SW31011: Attribute quote mismatch"
+description: Record the delimiter actually used by a quoted editable attribute.
+slug: docs/errors/SW31011
+---
+
+<CompilerError code="SW31011" category="host" />
+
+A quoted editable region is not delimited by the quote recorded in its metadata.
+The compiler cannot safely escape a replacement using the wrong delimiter.
+
+## Invalid region metadata
+
+```text
+Original attribute: double-quoted
+Recorded delimiter: single quote
+```
+
+## Valid region metadata
+
+```text
+The recorded delimiter agrees with both delimiters in the original attribute.
+```
+
+Use the exact source revision when preparing the region. Recompute the quote
+metadata after source edits or converter changes.

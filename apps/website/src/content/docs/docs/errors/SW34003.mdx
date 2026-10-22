@@ -1,0 +1,25 @@
+---
+title: "SW34003: Transform requested after failed compilation"
+description: Publish source replacements only for a successfully compiled module revision.
+slug: docs/errors/SW34003
+---
+
+<CompilerError code="SW34003" category="host" />
+
+The host passed a failed compilation to source-transform rendering. The compiler
+cannot turn an incomplete artifact into valid replacement edits.
+
+## Invalid sequence
+
+```text
+Compilation fails -> the host requests source replacements for that failed result.
+```
+
+## Valid sequence
+
+```text
+Compilation succeeds -> the host renders replacements for that same module revision.
+```
+
+Handle fatal diagnostics before requesting edits. If the editor retains a previous
+successful result, keep its revision distinct from the current failed analysis.

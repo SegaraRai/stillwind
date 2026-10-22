@@ -1,0 +1,25 @@
+---
+title: "SW31001: Invalid projection map"
+description: Keep component projection ranges structurally valid for both buffers.
+slug: docs/errors/SW31001
+---
+
+<CompilerError code="SW31001" category="host" />
+
+The framework projection map failed structural validation. The diagnostic detail
+describes the rejected map relationship.
+
+## Invalid range contract
+
+```text
+A mapped range extends past the end of its original or generated buffer.
+```
+
+## Valid range contract
+
+```text
+Each range stays within the buffer it names and satisfies the map's structural rules.
+```
+
+Validate the converter's ranges against the exact buffers supplied to compilation.
+If the map is valid but cannot identify one original range, see [SW31002](/docs/errors/SW31002/).

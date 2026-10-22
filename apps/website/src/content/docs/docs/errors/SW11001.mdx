@@ -1,0 +1,27 @@
+---
+title: "SW11001: Style composition cycle"
+description: Keep completed-style producer dependencies acyclic.
+slug: docs/errors/SW11001
+---
+
+<CompilerError code="SW11001" category="authoring" />
+
+Style producers form a cycle. Each producer needs its base to be available and
+ordered first; a cycle supplies no valid dependency order.
+
+## Rejected
+
+```tsx
+const first = style(second);
+const second = style(first);
+```
+
+## Corrected
+
+```tsx
+const first = style("p-2");
+const second = style(first, "p-4");
+```
+
+Extract a common base or keep one direction of derivation. A cycle between
+whole producer modules has its own code, [SW11002](/docs/errors/SW11002/).

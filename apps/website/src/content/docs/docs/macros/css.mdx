@@ -1,0 +1,54 @@
+---
+title: style.css()
+description: Compile utilities into a CSS string that you place yourself, such as in a shadow root.
+slug: docs/macros/css
+---
+
+`style.css(...rules, options?)` compiles utilities into a CSS string. Unlike
+`style()`, it adds nothing to the page's stylesheet. You decide where the string
+goes, such as a shadow root.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+export const css = style.css("p-4 text-blue-600", { selector: ":host" });
+```
+
+</CompiledExample>
+
+## Inputs
+
+`rules` accepts utility strings, arrays, objects with variant keys, and `false`,
+`null`, or `undefined`. All of them must be known at build time. Runtime
+conditions, refs, `class` fields, custom properties, and stored `style()`
+results are not accepted, and [invalid-css-input](/docs/lints/invalid-css-input/)
+reports them.
+
+The last argument can be an options object literal:
+
+| Option     | Value                                                                              |
+| ---------- | ---------------------------------------------------------------------------------- |
+| `selector` | The selector that utilities without their own selector style, such as `:host`      |
+| `template` | The name of an `@stillwind-css-template` in your stylesheet; defaults to `default` |
+
+A variant that sets its own selector, such as `host:` or `[button]:`, keeps that
+selector. A utility without `selector` and without such a variant produces no
+CSS, and [missing-document-target](/docs/lints/missing-document-target/) reports it.
+
+## Output
+
+The compiler replaces the call with a string literal at build time. No CSS
+compiler runs in the browser.
+
+The string contains the theme values, keyframes, and other supporting CSS that
+the template and the utilities need. It never contains the preflight reset.
+
+Add the string to the page yourself, for example with
+`CSSStyleSheet.replaceSync()` and a shadow root's `adoptedStyleSheets`. The
+previews in [Built-in utilities](/docs/utilities/) leave out the supporting CSS,
+so they cannot replace this string.
+
+See [Shadow DOM styles](/docs/guides/shadow-dom/) for a complete example.

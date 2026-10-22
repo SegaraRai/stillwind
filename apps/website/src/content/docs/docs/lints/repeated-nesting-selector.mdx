@@ -1,0 +1,25 @@
+---
+title: repeated-nesting-selector
+description: Express element relationships with refs instead of repeated generated class subjects.
+slug: docs/lints/repeated-nesting-selector
+---
+
+<LintRuleSummary name="repeated-nesting-selector" />
+
+Repeating `&` relates generated class identities. It does not reliably identify
+the application's intended pair of elements when styles are shared or composed.
+
+## Reported
+
+```tsx
+style("[&+&]:mt-4");
+```
+
+## Accepted
+
+```tsx
+style("mt-4");
+```
+
+The accepted example applies spacing directly. To preserve a sibling condition,
+declare refs and an explicit scope as shown in [element relationships](/docs/guides/element-relationships/).

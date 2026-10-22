@@ -1,0 +1,64 @@
+---
+import { getEntry } from "astro:content";
+
+import type { UtilityCatalog } from "../lib/utilities/search";
+
+const catalog: UtilityCatalog = (await getEntry("utilities", "default"))!.data;
+const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
+  catalog.records.find((record) => record.name === name)!,
+);
+---
+
+<div class="utility-explorer" data-utility-explorer data-catalog="/docs/utilities/catalog.json">
+  <p class="utility-catalog-meta">
+    Stillwind {catalog.version} · {catalog.records.length.toLocaleString("en")} built-in spellings ·
+    Default theme
+  </p>
+  <form class="utility-search" role="search" aria-label="Built-in utility search">
+    <div class="utility-search-field">
+      <label for="utility-mode">Search direction</label>
+      <select id="utility-mode" name="mode">
+        <option value="utility">Utility → CSS</option>
+        <option value="css">CSS → utilities</option>
+      </select>
+    </div>
+    <div class="utility-search-field">
+      <label for="utility-query">Utility or CSS terms</label>
+      <input
+        id="utility-query"
+        name="q"
+        type="search"
+        value="p-4"
+        placeholder="p-4 or display: flex"
+        autocomplete="off"
+      />
+    </div>
+    <button type="submit">Search</button>
+  </form>
+  <p role="status" aria-live="polite">
+    Enable JavaScript to search. Representative examples follow.
+  </p>
+  <div data-utility-results>
+    {examples.map((record) => (
+      <section class="utility-result">
+        <h3>
+          <code>{record.name}</code>
+        </h3>
+        <pre><code>{record.css}</code></pre>
+      </section>
+    ))}
+  </div>
+  <p class="utility-catalog-meta">
+    Catalog revision <code>{catalog.revision.slice(0, 12)}</code>.{" "}
+    <a href="/docs/utilities/index.md">Full catalog as Markdown ↗</a>
+  </p>
+</div>
+
+<script>
+  import { mountUtilityExplorer } from "../lib/utilities/explorer";
+
+  const root = document.querySelector<HTMLElement>("[data-utility-explorer]");
+  if (root) {
+    void mountUtilityExplorer(root);
+  }
+</script>

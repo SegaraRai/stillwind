@@ -1,0 +1,139 @@
+---
+title: Lint rule reference
+description: Find a lint rule by the kind of mistake or policy that it reports.
+slug: docs/lints
+---
+
+Lint rules report mistakes and project policies in your styles. The CLI and the
+editor run them. [Checks in the editor and CI](/docs/guides/lint-adoption/)
+explains where the rules run, and [Lint configuration](/docs/configuration/lint/)
+covers presets, severities, and suppression comments.
+
+The **Default** column shows the severity in the `recommended` preset, which a
+project uses when it has no `lint` setting. Each rule page shows its severity in
+every preset.
+
+## Misspelled or invalid utilities
+
+A utility or variant that these rules report produces no CSS.
+
+| Rule                                                  | Reports                                                       | Default |
+| ----------------------------------------------------- | ------------------------------------------------------------- | ------- |
+| [unknown-utility](/docs/lints/unknown-utility/)       | A utility or theme value that your stylesheet does not define | warn    |
+| [invalid-utility](/docs/lints/invalid-utility/)       | A known utility written in a form that it does not accept     | deny    |
+| [unknown-variant](/docs/lints/unknown-variant/)       | A variant that your stylesheet does not define                | warn    |
+| [invalid-variant](/docs/lints/invalid-variant/)       | A known variant with an invalid value, such as `min-[foo]:`   | deny    |
+| [invalid-marker-use](/docs/lints/invalid-marker-use/) | A marker class such as `group` with a variant or `!`          | warn    |
+
+## Invalid arguments to Stillwind APIs
+
+An argument that these rules report adds no CSS, and a condition that they
+report never matches.
+
+| Rule                                                                                  | Reports                                                                     | Default |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------- |
+| [invalid-style-input](/docs/lints/invalid-style-input/)                               | A `style()` argument that it cannot compile, such as a number               | deny    |
+| [invalid-rule-group-input](/docs/lints/invalid-rule-group-input/)                     | A `class` field or ref inside a variant key of `style()`                    | deny    |
+| [invalid-style-composition](/docs/lints/invalid-style-composition/)                   | Inline styles or custom properties in a base style, which do not carry over | deny    |
+| [invalid-css-input](/docs/lints/invalid-css-input/)                                   | A `style.css()` argument that is not a static utility                       | deny    |
+| [missing-document-target](/docs/lints/missing-document-target/)                       | A `style.css()` utility without a selector                                  | deny    |
+| [invalid-ref-input](/docs/lints/invalid-ref-input/)                                   | A `style.ref()` label or ref method argument that is not a literal          | deny    |
+| [invalid-cva-config](/docs/lints/invalid-cva-config/)                                 | An unknown or malformed field in a `style.cva()` configuration              | deny    |
+| [invalid-cva-input](/docs/lints/invalid-cva-input/)                                   | `&&` or a ternary inside a `style.cva()` value                              | deny    |
+| [invalid-keyframes-definition](/docs/lints/invalid-keyframes-definition/)             | A frame key that is not a keyframe position, such as `middle`               | deny    |
+| [invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant/)                   | A selector or container variant around a keyframes definition               | deny    |
+| [invalid-keyframes-use](/docs/lints/invalid-keyframes-use/)                           | An animation applied with an argument that is not an options string         | deny    |
+| [invalid-animation-option](/docs/lints/invalid-animation-option/)                     | A utility that is not an animation option, such as `p-4`                    | deny    |
+| [invalid-view-transition-definition](/docs/lints/invalid-view-transition-definition/) | An unknown field in a `style.viewTransition()` definition                   | deny    |
+| [invalid-view-transition-variant](/docs/lints/invalid-view-transition-variant/)       | A state or container variant in a view transition definition                | deny    |
+| [invalid-view-transition-use](/docs/lints/invalid-view-transition-use/)               | Extra or invalid arguments to `.for()`                                      | deny    |
+| [invalid-media-query](/docs/lints/invalid-media-query/)                               | A condition in `style.media()` that is not a media query, such as `hover`   | deny    |
+| [invalid-runtime-condition](/docs/lints/invalid-runtime-condition/)                   | A runtime CSS condition that Stillwind cannot compile                       | deny    |
+| [runtime-condition-requires-css-if](/docs/lints/runtime-condition-requires-css-if/)   | A runtime CSS condition that needs `useCssIf`                               | deny    |
+
+## Arguments and imports
+
+| Rule                                                                    | Reports                                                     | Default |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------- | ------- |
+| [mutating-macro-argument](/docs/lints/mutating-macro-argument/)         | A state update inside a `style()` argument                  | deny    |
+| [suspending-macro-argument](/docs/lints/suspending-macro-argument/)     | `await`, `yield`, or `import()` inside a `style()` argument | deny    |
+| [mismatched-framework-import](/docs/lints/mismatched-framework-import/) | An import from the entrypoint of another framework          | warn    |
+
+## Conflicting or duplicated styles
+
+| Rule                                                                            | Reports                                                                 | Default |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------- |
+| [conflicting-utilities](/docs/lints/conflicting-utilities/)                     | Utilities that set the same property, such as `p-2 p-4`                 | warn    |
+| [duplicate-utility](/docs/lints/duplicate-utility/)                             | The same utility twice under the same conditions                        | warn    |
+| [conflicting-provider-properties](/docs/lints/conflicting-provider-properties/) | A container or anchor property that a ref method and a utility both set | warn    |
+| [ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order/)           | Two base styles in one call that set the same property                  | warn    |
+| [interfering-imported-style-base](/docs/lints/interfering-imported-style-base/) | An imported base style that sets the same property as another style     | warn    |
+| [unverified-style-base](/docs/lints/unverified-style-base/)                     | A base style whose origin the CLI cannot determine from its type        | warn    |
+
+## Styles that do not apply as written
+
+| Rule                                                                          | Reports                                                                  | Default |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------- |
+| [missing-ref-attachment](/docs/lints/missing-ref-attachment/)                 | `asContainer()` or `asAnchor()` in a call that does not attach the ref   | warn    |
+| [ineffective-anchor-scope](/docs/lints/ineffective-anchor-scope/)             | An empty or repeated ref list in an anchor scope                         | warn    |
+| [missing-view-transition-name](/docs/lints/missing-view-transition-name/)     | A view transition applied without `.for()`                               | warn    |
+| [duplicate-view-transition-name](/docs/lints/duplicate-view-transition-name/) | Two `.for()` calls in one `style()` call                                 | warn    |
+| [split-view-transition-class](/docs/lints/split-view-transition-class/)       | View transitions split across separate `style()` calls                   | warn    |
+| [document-scoped-selector](/docs/lints/document-scoped-selector/)             | A selector that styles the whole document instead of the element         | deny    |
+| [repeated-nesting-selector](/docs/lints/repeated-nesting-selector/)           | A selector that repeats `&` to relate two elements                       | warn    |
+| [incompatible-property-value](/docs/lints/incompatible-property-value/)       | A value that the browser rejects for the property                        | deny    |
+| [clamped-value](/docs/lints/clamped-value/)                                   | A value outside the range that the browser uses, such as opacity above 1 | warn    |
+| [unsatisfiable-variants](/docs/lints/unsatisfiable-variants/)                 | Variants that can never match together, such as `portrait:landscape:`    | warn    |
+
+## Stylesheet definitions
+
+| Rule                                                                      | Reports                                                          | Default |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------- |
+| [invalid-css-import](/docs/lints/invalid-css-import/)                     | A stylesheet import that cannot be resolved                      | deny    |
+| [invalid-css-directive](/docs/lints/invalid-css-directive/)               | A malformed or unsupported Stillwind directive                   | deny    |
+| [invalid-theme-reference](/docs/lints/invalid-theme-reference/)           | A reference to a theme token that is not defined                 | deny    |
+| [incompatible-theme-value](/docs/lints/incompatible-theme-value/)         | A theme value of the wrong type, such as a length for a color    | deny    |
+| [duplicate-definition](/docs/lints/duplicate-definition/)                 | A utility or variant definition that replaces an earlier one     | warn    |
+| [bypassed-undefinition](/docs/lints/bypassed-undefinition/)               | A definition that bypasses an undefinition in another context    | warn    |
+| [ignored-definition-condition](/docs/lints/ignored-definition-condition/) | A media rule around a definition, which the compiler ignores     | deny    |
+| [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature/)         | Tailwind-only directives such as `@config`, which have no effect | warn    |
+
+## Project policies
+
+These rules enforce choices of your project. No preset enables them.
+
+| Rule                                                                  | Reports                                                       | Default |
+| --------------------------------------------------------------------- | ------------------------------------------------------------- | ------- |
+| [no-arbitrary-colors](/docs/lints/no-arbitrary-colors/)               | Colors written as values, such as `bg-[#123456]`              | off     |
+| [no-arbitrary-spacing](/docs/lints/no-arbitrary-spacing/)             | Spacing written as values, such as `p-[13px]`                 | off     |
+| [no-arbitrary-breakpoints](/docs/lints/no-arbitrary-breakpoints/)     | Viewport widths written as values, such as `min-[713px]:`     | off     |
+| [no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens/) | Utilities that use the theme tokens that you list             | off     |
+| [no-restricted-utilities](/docs/lints/no-restricted-utilities/)       | The utilities that you list                                   | off     |
+| [no-restricted-declarations](/docs/lints/no-restricted-declarations/) | Utilities that produce the CSS declarations that you list     | off     |
+| [no-restricted-length-units](/docs/lints/no-restricted-length-units/) | Length units that you forbid for the properties that you list | off     |
+| [no-important](/docs/lints/no-important/)                             | The `!` modifier                                              | off     |
+| [no-class-property](/docs/lints/no-class-property/)                   | The `class` field, which adds classes without generated CSS   | off     |
+
+## Preferred spelling
+
+These rules report code that works but has a clearer form. The `stylistic`
+preset enables the rules that are off by default.
+
+| Rule                                                                              | Reports                                                                  | Default |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------- |
+| [prefer-canonical-utilities](/docs/lints/prefer-canonical-utilities/)             | A utility with a shorter equivalent, such as `px-[16px]` for `px-4`      | warn    |
+| [redundant-variant](/docs/lints/redundant-variant/)                               | A variant that adds no condition, such as `hover:hover:`                 | warn    |
+| [prefer-explicit-nesting-selector](/docs/lints/prefer-explicit-nesting-selector/) | A custom variant selector without `&`                                    | warn    |
+| [prefer-sorted-utilities](/docs/lints/prefer-sorted-utilities/)                   | Utilities that are not in sorted order                                   | off     |
+| [prefer-typed-relationships](/docs/lints/prefer-typed-relationships/)             | `group-*` and `peer-*` variants that a ref can replace                   | off     |
+| [prefer-direct-styling](/docs/lints/prefer-direct-styling/)                       | A selector that styles another element, such as `[&_button]:`            | off     |
+| [prefer-logical-properties](/docs/lints/prefer-logical-properties/)               | A physical property with a logical form, such as `ml-4`                  | off     |
+| [prefer-typed-variables](/docs/lints/prefer-typed-variables/)                     | A custom property without a type in a utility that accepts several types | off     |
+| [prefer-variant-directive](/docs/lints/prefer-variant-directive/)                 | A media rule in your CSS that a named variant can replace                | off     |
+
+## Suppression comments
+
+| Rule                                                              | Reports                                     | Default |
+| ----------------------------------------------------------------- | ------------------------------------------- | ------- |
+| [invalid-lint-suppression](/docs/lints/invalid-lint-suppression/) | A malformed comment or an unknown rule name | warn    |
+| [unused-lint-suppression](/docs/lints/unused-lint-suppression/)   | A comment that suppresses no finding        | off     |

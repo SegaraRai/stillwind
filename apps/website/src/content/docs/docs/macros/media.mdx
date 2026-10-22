@@ -1,0 +1,54 @@
+---
+title: style.media()
+description: Turn named breakpoints and other media variants into a media query string for JavaScript.
+slug: docs/macros/media
+---
+
+`style.media(...conditions)` returns a media query string, such as the argument
+of `matchMedia()`. It uses the definitions of variants such as `md:` and
+`motion-safe:` from your stylesheet, so JavaScript and CSS use the same
+conditions.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+export const query = style.media("md:motion-safe", "print");
+export const matches = window.matchMedia(query);
+```
+
+</CompiledExample>
+
+This query matches a viewport at least as wide as `md` without a reduced-motion
+preference, or a printed page.
+
+## Inputs
+
+Each argument is a string literal or a template literal without interpolations.
+It contains one or more variants. The final colon is optional.
+
+| Form                     | Meaning                          |
+| ------------------------ | -------------------------------- |
+| Variants in one argument | Every condition must match       |
+| Several arguments        | At least one argument must match |
+
+Only variants that are media conditions are accepted. `hover` and other element
+states, `supports-*`, and container queries are not media conditions. An
+argument that is not a media condition is left out, and
+[invalid-media-query](/docs/lints/invalid-media-query/) reports it. When no
+argument remains, the result is `not all`.
+
+Write `style.media()` outside other Stillwind calls.
+
+## Output
+
+The compiler replaces the call with a string literal. The string has no `@media`
+and no braces. The call adds no CSS.
+
+When you change a breakpoint in your stylesheet, the string changes the next
+time the module compiles.
+
+`matchMedia()` is a browser API. Call it on the client, and remove its listeners
+when their component unmounts. See [Responsive styles](/docs/guides/responsive-styles/).

@@ -1,0 +1,26 @@
+---
+title: prefer-typed-relationships
+description: Use explicit ref identities for relationships that would otherwise depend on group or peer conventions.
+slug: docs/lints/prefer-typed-relationships
+---
+
+<LintRuleSummary name="prefer-typed-relationships" />
+
+Implicit group and peer relationships can depend on unrelated elements carrying
+the same conventional marker. Refs identify the declaration that owns the relationship.
+
+## Reported
+
+```tsx
+style("group-hover:text-red-500");
+```
+
+## Accepted
+
+```tsx
+style("hover:text-red-500");
+```
+
+This accepted example intentionally changes the target to its own hover state.
+To preserve another element's state, declare and attach a ref, then use its
+condition with the appropriate scope. See [element relationships](/docs/guides/element-relationships/).

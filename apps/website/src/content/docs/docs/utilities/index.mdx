@@ -1,0 +1,43 @@
+---
+title: Built-in utilities
+description: Look up the CSS of a built-in utility, or find utilities by the CSS that they produce.
+slug: docs/utilities
+sidebar:
+  order: 4
+---
+
+Type a utility name to see its CSS. To go the other way, switch the direction to
+**CSS → utilities** and type a declaration such as `display: flex`. The URL
+keeps your search, so you can share the results.
+
+<UtilityExplorer />
+
+## What the explorer lists
+
+The explorer lists the utilities of the default theme, with sample values for
+numeric utilities such as spacing and sizes. The compiler generates every
+preview.
+
+Many utilities accept any number or an arbitrary value, so a utility that the
+explorer does not list can still be valid. For example, `p-123` and `w-[37px]`
+work without a definition. To check such a utility, hover over it in the editor.
+
+The explorer uses the default theme. Utilities from your own `@theme` tokens,
+such as `bg-brand`, do not appear here. See
+[Design systems](/docs/guides/design-systems/) to add them.
+
+## Read a preview
+
+Each preview shows the declarations of one utility. `&` stands for the styled
+element. Comments show the resolved theme values and pixel sizes.
+
+A preview leaves out the theme variables and other supporting CSS that the full
+stylesheet contains. The [macro reference](/docs/macros/) shows complete
+generated stylesheets.
+
+When you search by CSS, a result is a candidate. Check its preview before you
+replace your CSS, because variants and shorthand properties can change what a
+utility does.
+
+The Markdown version of this page contains the full list, so AI agents can read
+it without the interactive search.

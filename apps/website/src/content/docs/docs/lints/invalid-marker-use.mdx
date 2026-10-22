@@ -1,0 +1,26 @@
+---
+title: invalid-marker-use
+description: Attach marker classes without ordinary utility variants or important modifiers.
+slug: docs/lints/invalid-marker-use
+---
+
+<LintRuleSummary name="invalid-marker-use" />
+
+Markers such as `group` identify an element for other selectors. They are not
+ordinary declaration utilities, so a variant cannot condition their attachment.
+
+## Reported
+
+```tsx
+style("hover:group");
+```
+
+## Accepted
+
+```tsx
+style("group");
+```
+
+Put the state condition on the consuming utility. `ignoredClasses` accepts exact
+decoded marker names when a project intentionally excludes specific marker checks.
+Use [refs](/docs/macros/ref/) for typed element relationships.

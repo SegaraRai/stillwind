@@ -1,0 +1,26 @@
+---
+title: "SW32002: Invalid initial CSS batch"
+description: Supply exactly one root source in the loader's first response.
+slug: docs/errors/SW32002
+---
+
+<CompilerError code="SW32002" category="host" />
+
+The initial loader response contains a source count other than one. The first
+response establishes the root; dependency requests follow from that root's contents.
+
+## Invalid response
+
+```text
+Initial batch: root.css and tokens.css supplied as two initial sources
+```
+
+## Valid response
+
+```text
+Initial batch: root.css only
+Later batches: answers to import requests issued by the loader
+```
+
+Do not preload the entire graph into the first response. Respect the request
+identities returned by each subsequent load step.

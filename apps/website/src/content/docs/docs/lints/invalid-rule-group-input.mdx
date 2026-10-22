@@ -1,0 +1,25 @@
+---
+title: invalid-rule-group-input
+description: Keep external classes and element attachments outside CSS variant groups.
+slug: docs/lints/invalid-rule-group-input
+---
+
+<LintRuleSummary name="invalid-rule-group-input" />
+
+CSS variant groups contain rules. External classes do not become conditional
+CSS declarations, so a `class` input inside a group is omitted.
+
+## Reported
+
+```tsx
+style({ "hover:": { class: "external" } });
+```
+
+## Accepted
+
+```tsx
+style({ class: "external", "hover:": "opacity-50" });
+```
+
+Keep external classes at the root. Use a JavaScript condition around the root
+class input when its presence must depend on application state.

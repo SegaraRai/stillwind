@@ -1,0 +1,25 @@
+---
+title: prefer-canonical-utilities
+description: Use an equivalent spelling selected by the active design system's canonical rules.
+slug: docs/lints/prefer-canonical-utilities
+---
+
+<LintRuleSummary name="prefer-canonical-utilities" />
+
+The active theme can express this value with a shorter scale utility. Canonical
+comparison checks supported declaration semantics; it does not rewrite arbitrary CSS.
+
+## Reported
+
+```tsx
+style("px-[16px]");
+```
+
+## Accepted
+
+```tsx
+style("px-4");
+```
+
+`pxToRem` defaults to true. Whether a replacement exists depends on the loaded
+theme and canonical policy. Review the suggested fix against the project's root-size assumptions.

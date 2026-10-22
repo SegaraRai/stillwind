@@ -1,0 +1,27 @@
+---
+title: "SW30001: TypeScript checker facts required"
+description: Supply checker facts for a value that local source analysis cannot resolve.
+slug: docs/errors/SW30001
+---
+
+<CompilerError code="SW30001" category="host" />
+
+Native compilation reached a nonlocal input or dynamic declaration receiver
+whose meaning requires TypeScript facts. The diagnostic identifies the kind of
+value, such as a conditional ref or a nonlocal animation receiver.
+
+## Invalid host sequence
+
+```text
+Compile a checker-dependent receiver without supplying its captured facts.
+```
+
+## Valid host sequence
+
+```text
+Prepare the source, capture its checker facts, and compile that same source revision.
+```
+
+Use the supported integration or analysis host. An embedding must finish semantic
+queries before native compilation. If the facts exist but fail validation, see
+[SW30002](/docs/errors/SW30002/).

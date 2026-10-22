@@ -1,0 +1,26 @@
+---
+title: duplicate-utility
+description: Remove repeated utilities under equivalent conditions.
+slug: docs/lints/duplicate-utility
+---
+
+<LintRuleSummary name="duplicate-utility" />
+
+Repeating the same utility under equivalent conditions adds no distinct style.
+This finding identifies the duplicate spelling; it does not remove valid output
+unless an applicable fix is requested.
+
+## Reported
+
+```tsx
+style("p-4 p-4");
+```
+
+## Accepted
+
+```tsx
+style("p-4");
+```
+
+Remove the redundant occurrence. Different utilities that overlap a property
+domain are covered by [conflicting-utilities](/docs/lints/conflicting-utilities/).

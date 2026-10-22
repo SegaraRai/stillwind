@@ -1,0 +1,25 @@
+---
+title: "SW90006: Invalid transform expression mapping"
+description: Report invalid expression correspondence inside generated source replacements.
+slug: docs/errors/SW90006
+---
+
+<CompilerError code="SW90006" category="internal" />
+
+A generated source transform contains invalid expression-mapping metadata.
+The diagnostic identifies the original call span carrying that replacement.
+
+## Violated invariant
+
+```text
+A retained expression occurrence has an invalid correspondence in the generated replacement.
+```
+
+## Required invariant
+
+```text
+Every retained occurrence has its own valid original/generated transform correspondence.
+```
+
+Report the original expression and its generated replacement. Preserve repeated
+or conditional uses in a reduction when removing them makes the mapping failure disappear.

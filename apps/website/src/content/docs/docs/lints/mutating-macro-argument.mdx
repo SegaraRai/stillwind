@@ -1,0 +1,28 @@
+---
+title: mutating-macro-argument
+description: Perform shared-state updates before entering a macro argument.
+slug: docs/lints/mutating-macro-argument
+---
+
+<LintRuleSummary name="mutating-macro-argument" />
+
+Macro arguments obey a purity contract. Their evaluation order and count are not
+an application side-effect protocol, and unused expressions can be omitted.
+
+## Reported
+
+```tsx
+let count = 0;
+style({ "--count": count++ });
+```
+
+## Accepted
+
+```tsx
+let count = 0;
+count++;
+style({ "--count": count });
+```
+
+Move assignments, updates, and stateful work before the macro. The rule detects
+visible mutations; a clean result does not prove that an arbitrary function is pure.

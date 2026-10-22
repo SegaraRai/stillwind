@@ -1,0 +1,28 @@
+---
+title: invalid-lint-suppression
+description: Use recognized swlint directives and public rule IDs.
+slug: docs/lints/invalid-lint-suppression
+---
+
+<LintRuleSummary name="invalid-lint-suppression" />
+
+A misspelled rule name cannot suppress the intended finding. Malformed
+suppression syntax can report this rule as well.
+
+## Reported
+
+```tsx
+// swlint-disable-next-line unknown-rule
+style("p-4");
+```
+
+## Accepted
+
+```tsx
+// swlint-disable-next-line unknown-utility
+style("unknown-utility-name");
+```
+
+Use the exact public ID and keep the scope narrow. Add a reason after `--`.
+Suppression affects reporting and fixes; it cannot restore invalid emitted input
+or suppress a fatal compiler error. See [suppression syntax](/docs/configuration/lint/#suppression).

@@ -1,0 +1,25 @@
+---
+title: "SW30004: Checker expression unavailable"
+description: Map a required original expression to a usable checker expression.
+slug: docs/errors/SW30004
+---
+
+<CompilerError code="SW30004" category="host" />
+
+A semantic query needs an original expression, but the host cannot locate its
+usable target in the checker source. The detail identifies the failed operation.
+
+## Invalid projection contract
+
+```text
+The original macro receiver has no usable checker expression after conversion.
+```
+
+## Valid projection contract
+
+```text
+The converter supplies a correspondence that identifies that receiver in the checker source.
+```
+
+Reproduce with the original component and converter version. An embedding must
+preserve the expression correspondence used by its TypeScript service, including unsaved revisions.

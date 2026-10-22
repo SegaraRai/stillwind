@@ -1,0 +1,25 @@
+---
+title: ineffective-anchor-scope
+description: Use a nonempty ref list or an explicit anchor-scope keyword.
+slug: docs/lints/ineffective-anchor-scope
+---
+
+<LintRuleSummary name="ineffective-anchor-scope" />
+
+An empty ref list emits no scope declaration. Duplicate identities also make
+part of a scope list redundant. Neither case communicates a useful explicit scope.
+
+## Reported
+
+```tsx
+style(style.anchorScope([]));
+```
+
+## Accepted
+
+```tsx
+style(style.anchorScope("none"));
+```
+
+Use `none` to emit `anchor-scope: none`, `all` for all names, or a list of the
+specific refs. Omission and an empty list do not reset an inherited/cascaded scope.

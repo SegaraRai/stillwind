@@ -1,0 +1,29 @@
+---
+title: "SW10004: Unconsumed macro use"
+description: Consume projections and applied declarations at their supported style input positions.
+slug: docs/errors/SW10004
+---
+
+<CompilerError code="SW10004" category="authoring" />
+
+A ref projection, variant, or applied declaration has no independently
+materialized value. Storing the use prevents the compiler from consuming it at
+the position whose CSS and props it must modify.
+
+## Rejected
+
+```tsx
+const card = style.ref("card");
+const provider = card.asContainer("inline-size");
+```
+
+## Corrected
+
+```tsx
+const card = style.ref("card");
+const props = style(card, card.asContainer("inline-size"));
+```
+
+Store and transport the declaration, then apply its use directly inside
+`style()`. Ref condition chains belong directly in computed keys or complete
+utility-template variant segments. See [ref methods](/docs/macros/ref/).

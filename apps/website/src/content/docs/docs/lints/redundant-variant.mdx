@@ -1,0 +1,25 @@
+---
+title: redundant-variant
+description: Remove repeated or implied conditions that add no restriction.
+slug: docs/lints/redundant-variant
+---
+
+<LintRuleSummary name="redundant-variant" />
+
+Testing hover twice adds no condition beyond the first test. The rule can also
+identify supported implications between conditions in the active design system.
+
+## Reported
+
+```tsx
+style("hover:hover:p-4");
+```
+
+## Accepted
+
+```tsx
+style("hover:p-4");
+```
+
+Remove the redundant condition while retaining the intended target and remaining
+conditions. A contradictory stack instead reports [unsatisfiable-variants](/docs/lints/unsatisfiable-variants/).

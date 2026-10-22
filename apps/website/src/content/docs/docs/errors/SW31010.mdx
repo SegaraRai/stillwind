@@ -1,0 +1,25 @@
+---
+title: "SW31010: Edit outside an editable projection region"
+description: Make every required replacement fit one host-declared editable region.
+slug: docs/errors/SW31010
+---
+
+<CompilerError code="SW31010" category="host" />
+
+No editable region contains a required edit. A range covered only by the union
+of separate regions does not establish that one valid region contains the replacement.
+
+## Invalid edit contract
+
+```text
+A replacement crosses the boundary of the converter's declared editable region.
+```
+
+## Valid edit contract
+
+```text
+The complete replacement lies inside one editable region for that original buffer.
+```
+
+Repair region boundaries or the conversion that selected the edit. Keep its
+original range and region metadata when reporting the integration failure.

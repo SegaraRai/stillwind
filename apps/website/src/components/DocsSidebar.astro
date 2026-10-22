@@ -1,0 +1,42 @@
+---
+import type { SidebarItem } from "@cloudflare/nimbus-docs/types";
+
+import DocsSidebar from "./DocsSidebar.astro";
+
+interface Props {
+  items: SidebarItem[];
+}
+const { items } = Astro.props;
+const current = (item: SidebarItem): boolean =>
+  item.type === "group"
+    ? item.indexHref === Astro.url.pathname || item.children.some(current)
+    : item.type === "link" && Boolean(item.isCurrent);
+---
+
+<ul>
+  {items.map((item) => (
+    <li>
+      {item.type === "group" ? (
+        <details class="docs-sidebar-group" open={current(item) || item.collapsed === false}>
+          <summary>{item.label}</summary>
+          {item.indexHref && (
+            <a
+              href={item.indexHref}
+              aria-current={item.indexHref === Astro.url.pathname ? "page" : undefined}
+            >
+              Overview
+            </a>
+          )}
+          <DocsSidebar items={item.children} />
+        </details>
+      ) : (
+        <a
+          href={item.href}
+          aria-current={item.type === "link" && item.isCurrent ? "page" : undefined}
+        >
+          {item.label}
+        </a>
+      )}
+    </li>
+  ))}
+</ul>

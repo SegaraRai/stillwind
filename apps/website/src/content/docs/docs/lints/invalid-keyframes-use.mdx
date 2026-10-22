@@ -1,0 +1,27 @@
+---
+title: invalid-keyframes-use
+description: Apply an animation with its supported literal option string.
+slug: docs/lints/invalid-keyframes-use
+---
+
+<LintRuleSummary name="invalid-keyframes-use" />
+
+An animation use accepts its literal options string. A numeric argument cannot
+be interpreted as an animation duration or a utility list.
+
+## Reported
+
+```tsx
+const fade = style.keyframes({ to: "opacity-100" });
+style(fade(42));
+```
+
+## Accepted
+
+```tsx
+const fade = style.keyframes({ to: "opacity-100" });
+style(fade("duration-300"));
+```
+
+Consume the use directly inside `style()`. A valid use with an invalid option
+instead reports [invalid-animation-option](/docs/lints/invalid-animation-option/).

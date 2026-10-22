@@ -1,0 +1,25 @@
+---
+title: "SW32005: CSS loader already completed"
+description: Stop supplying file responses after the loader reaches a terminal state.
+slug: docs/errors/SW32005
+---
+
+<CompilerError code="SW32005" category="host" />
+
+The host called `provide` after loading had completed. A completed loader is
+not a mutable destination for late responses or a new stylesheet revision.
+
+## Invalid sequence
+
+```text
+Loader completes -> a delayed file response is supplied to that loader.
+```
+
+## Valid sequence
+
+```text
+Loader completes -> no more responses; a reload starts a new loading lifecycle.
+```
+
+Cancel or discard outstanding asynchronous work when its loading session ends.
+Keep response ownership separate across concurrent or successive loads.

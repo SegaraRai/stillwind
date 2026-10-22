@@ -1,0 +1,26 @@
+---
+title: "SW14001: Missing utilities slot"
+description: Retain a destination for generated utility rules in the CSS entry graph.
+slug: docs/errors/SW14001
+---
+
+<CompilerError code="SW14001" category="authoring" />
+
+The output template has no `@stillwind-slot utilities;` destination for the
+generated class rules. Defining utilities alone does not place their compiled uses.
+
+## Rejected template contract
+
+```text
+The CSS entry graph defines utilities but supplies no utilities output slot.
+```
+
+## Corrected entry
+
+```css
+@import "stillwind";
+```
+
+The standard entry supplies the required slots. When authoring a replacement
+template, preserve `@stillwind-slot utilities;` and the support destinations
+required by its features. See [SW14002](/docs/errors/SW14002/).

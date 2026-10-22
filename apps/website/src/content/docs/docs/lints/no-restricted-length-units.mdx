@@ -1,0 +1,40 @@
+---
+title: no-restricted-length-units
+description: Restrict nonzero length units for selected CSS properties.
+slug: docs/lints/no-restricted-length-units
+---
+
+<LintRuleSummary name="no-restricted-length-units" />
+
+The last matching property rule decides which units are forbidden. Property
+matching ignores ASCII case. Zero lengths are excluded because they do not need a unit.
+
+## Configuration
+
+```json
+{
+  "lint": {
+    "rules": {
+      "no-restricted-length-units": {
+        "severity": "warn",
+        "rules": [{ "properties": ["width"], "disallow": ["px"] }]
+      }
+    }
+  }
+}
+```
+
+## Reported
+
+```tsx
+style("w-[20px]");
+```
+
+## Accepted
+
+```tsx
+style("w-5");
+```
+
+Choose units appropriate to the property and design system. Configure a later,
+more specific property entry when one domain needs an exception to a broad policy.

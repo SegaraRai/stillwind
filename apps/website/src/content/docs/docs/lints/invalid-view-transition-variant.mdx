@@ -1,0 +1,27 @@
+---
+title: invalid-view-transition-variant
+description: Keep element-state and container variants out of transition snapshot utilities.
+slug: docs/lints/invalid-view-transition-variant
+---
+
+<LintRuleSummary name="invalid-view-transition-variant" />
+
+Transition snapshots accept media and supports conditions. A snapshot utility
+cannot test the original element's hover state through an ordinary selector variant.
+
+## Reported
+
+```tsx
+const transition = style.viewTransition({ old: "hover:opacity-0" });
+style(transition.for("card"));
+```
+
+## Accepted
+
+```tsx
+const transition = style.viewTransition({ old: "motion-safe:opacity-0" });
+style(transition.for("card"));
+```
+
+Choose transition definitions or application states before capture when the
+effect must depend on application interaction. See [view transitions](/docs/guides/view-transitions/).

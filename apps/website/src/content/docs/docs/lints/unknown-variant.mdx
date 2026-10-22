@@ -1,0 +1,25 @@
+---
+title: unknown-variant
+description: Correct a variant name or define it in the active stylesheet.
+slug: docs/lints/unknown-variant
+---
+
+<LintRuleSummary name="unknown-variant" />
+
+An unregistered variant cannot supply its selector or condition. Turning off the
+finding does not make the misspelled condition match.
+
+## Reported
+
+```tsx
+style("hovr:p-4");
+```
+
+## Accepted
+
+```tsx
+style("hover:p-4");
+```
+
+Use the registered spelling, or declare a custom variant in the configured CSS.
+See [design systems](/docs/guides/design-systems/) for stylesheet ownership.

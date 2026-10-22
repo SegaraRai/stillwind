@@ -1,0 +1,27 @@
+---
+title: "SW10001: JavaScript parse error"
+description: Correct script syntax before Stillwind analyzes macro inputs.
+slug: docs/errors/SW10001
+---
+
+<CompilerError code="SW10001" category="authoring" />
+
+The configured script parser rejected the source. Parser details and the source
+location accompany the compiler diagnostic; macro argument validation has not
+made this script valid.
+
+## Rejected
+
+```tsx
+export const props = style("p-4";
+```
+
+## Corrected
+
+```tsx
+export const props = style("p-4");
+```
+
+Correct the reported syntax and confirm that the host selected the document's
+actual language and module kind. Component-converter output has a separate
+contract, [SW31004](/docs/errors/SW31004/).

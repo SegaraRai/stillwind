@@ -1,0 +1,29 @@
+---
+title: invalid-style-composition
+description: Compose completed class props while keeping style payloads at their receiving call.
+slug: docs/lints/invalid-style-composition
+---
+
+<LintRuleSummary name="invalid-style-composition" />
+
+A composition base contributes the receiving framework's class prop. Its inline
+style or custom-property payload is not inherited. The finding makes that loss
+visible; it does not convert the payload into a composable value.
+
+## Reported
+
+```tsx
+declare const value: string;
+const base = style({ "--x": value });
+style(base, "p-4");
+```
+
+## Accepted
+
+```tsx
+const base = style("rounded-md");
+style(base, "p-4");
+```
+
+Supply custom properties at the receiving call. Use completed props from the same
+framework, and bind the base before composing it. See [composition](/docs/macros/style/#composition).

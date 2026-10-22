@@ -1,0 +1,25 @@
+---
+title: invalid-media-query
+description: Pass media-only conditions to style.media().
+slug: docs/lints/invalid-media-query
+---
+
+<LintRuleSummary name="invalid-media-query" />
+
+`style.media()` returns a media query. Selector variants such as `hover` cannot
+be converted into conditions for `matchMedia()`.
+
+## Reported
+
+```tsx
+style.media("hover");
+```
+
+## Accepted
+
+```tsx
+style.media("md:motion-safe");
+```
+
+Invalid arguments do not become matching queries. With no valid argument, the
+result is `not all`. Supports and container conditions also belong outside this macro.

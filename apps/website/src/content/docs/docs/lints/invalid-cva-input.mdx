@@ -1,0 +1,28 @@
+---
+title: invalid-cva-input
+description: Pass runtime choices through factory selections instead of CVA utility expressions.
+slug: docs/lints/invalid-cva-input
+---
+
+<LintRuleSummary name="invalid-cva-input" />
+
+CVA compiles every visual option when the factory is created. JavaScript guards
+and ternaries cannot select utility values inside its base or options.
+
+## Reported
+
+```tsx
+declare const active: boolean;
+style.cva(active && "p-4");
+```
+
+## Accepted
+
+```tsx
+style.cva("p-4", {
+  variants: { active: { true: "bg-blue-500", false: null } },
+});
+```
+
+Call the returned factory with the current `active` value. Expressions inside
+custom-property values have a separate capture contract; see [CVA](/docs/macros/cva/#style-values).

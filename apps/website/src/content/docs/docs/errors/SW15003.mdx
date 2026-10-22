@@ -1,0 +1,25 @@
+---
+title: "SW15003: Source size or offset is too large"
+description: Keep source operations inside the supported 32-bit coordinate space.
+slug: docs/errors/SW15003
+---
+
+<CompilerError code="SW15003" category="authoring" />
+
+A source operation requested a length or offset beyond the supported 32-bit
+coordinate space. The diagnostic carries the rejected value and operation context.
+
+## Rejected operation contract
+
+```text
+A source buffer length or requested offset exceeds the representable range.
+```
+
+## Accepted operation contract
+
+```text
+Both the buffer and every requested coordinate fit that range.
+```
+
+Split oversized sources. If an ordinary source produces an impossible offset,
+preserve the operation context and report the caller that supplied that coordinate.

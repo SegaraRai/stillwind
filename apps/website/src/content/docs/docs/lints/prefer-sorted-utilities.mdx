@@ -1,0 +1,26 @@
+---
+title: prefer-sorted-utilities
+description: Keep utility strings in the configured compiler order.
+slug: docs/lints/prefer-sorted-utilities
+---
+
+<LintRuleSummary name="prefer-sorted-utilities" analysis="project" />
+
+The CLI and editor compare the literal with the compiler's ordering service.
+This reports a formatting preference; it does not change the utility's meaning.
+
+## Reported
+
+```tsx
+style("px-4 flex");
+```
+
+## Accepted
+
+```tsx
+style("flex px-4");
+```
+
+`lint --fix` can apply enabled, unsuppressed sorting fixes. Explicit `fmt` runs
+independently of this rule's severity and suppression. `sort: false` disables
+sorting and its diagnostics and fixes. See [lint configuration](/docs/configuration/lint/#sorting-and-source-selection).

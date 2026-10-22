@@ -1,0 +1,30 @@
+---
+title: split-view-transition-class
+description: Combine transition class suppliers in one call before the cascade replaces a class list.
+slug: docs/lints/split-view-transition-class
+---
+
+<LintRuleSummary name="split-view-transition-class" />
+
+Transition class lists from separate style calls replace each other through the
+cascade. Composing their completed props does not merge those CSS list declarations.
+
+## Reported
+
+```tsx
+const first = style.viewTransition({ old: "duration-150" });
+const second = style.viewTransition({ new: "duration-150" });
+const base = style(first.for("card"));
+style(base, second);
+```
+
+## Accepted
+
+```tsx
+const first = style.viewTransition({ old: "duration-150" });
+const second = style.viewTransition({ new: "duration-150" });
+style(first, second.for("card"));
+```
+
+The corrected call combines the classes and supplies one participant name.
+Keep the declarations reusable; consume their applied uses at that call.

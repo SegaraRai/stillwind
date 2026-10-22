@@ -1,0 +1,27 @@
+---
+title: invalid-keyframes-variant
+description: Restrict keyframe definition branches with media or supports conditions.
+slug: docs/lints/invalid-keyframes-variant
+---
+
+<LintRuleSummary name="invalid-keyframes-variant" />
+
+A keyframe definition has no hovered element. Selector and container variants
+cannot condition that definition; media and supports variants can.
+
+## Reported
+
+```tsx
+const fade = style.keyframes({ "hover:": { to: "opacity-100" } });
+style(fade("duration-300"));
+```
+
+## Accepted
+
+```tsx
+const fade = style.keyframes({ "motion-safe:": { to: "opacity-100" } });
+style(fade("duration-300"));
+```
+
+To animate a hovered element, put the hover condition around the animation use
+in `style()`. A matching definition branch replaces the complete frame body.

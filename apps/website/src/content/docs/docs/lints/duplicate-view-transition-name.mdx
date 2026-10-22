@@ -1,0 +1,27 @@
+---
+title: duplicate-view-transition-name
+description: Supply one transition participant name in a style call.
+slug: docs/lints/duplicate-view-transition-name
+---
+
+<LintRuleSummary name="duplicate-view-transition-name" />
+
+Several `.for()` uses in one call compete to supply the participant name. Their
+presence does not create several independently named captures for one element.
+
+## Reported
+
+```tsx
+const transition = style.viewTransition({ old: "duration-150" });
+style(transition.for("a"), transition.for("b"));
+```
+
+## Accepted
+
+```tsx
+const transition = style.viewTransition({ old: "duration-150" });
+style(transition.for("a"));
+```
+
+Additional declarations can contribute transition classes without another
+`.for()` call. See [combining declarations](/docs/macros/view-transition/#combine-declarations).

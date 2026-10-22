@@ -1,0 +1,37 @@
+---
+title: unverified-style-base
+description: Make composition producer identities and their bodies available to project analysis.
+slug: docs/lints/unverified-style-base
+---
+
+<LintRuleSummary name="unverified-style-base" analysis="project" />
+
+The checker recognizes a style result but cannot identify its finite producers.
+The compiler cannot verify the base's CSS dependency from a general return type.
+This check requires project analysis and TypeScript facts.
+
+## Project files
+
+```ts title="globals.d.ts"
+declare module "virtual:styles" {
+  import { style } from "stillwind/react";
+  export const base: ReturnType<typeof style>;
+}
+```
+
+## Reported
+
+```tsx
+import { base } from "virtual:styles";
+export const props = style(base, "p-4");
+```
+
+## Accepted
+
+```tsx
+const base = style("rounded-md");
+export const props = style(base, "p-4");
+```
+
+Keep inferred declaration identities across exports and make the producer source
+available to the host. An ambient declaration alone does not supply its CSS artifact.

@@ -1,0 +1,28 @@
+---
+title: "SW01001: Framework constraint conflict"
+description: Match the host's explicit framework constraint to the imported macro entrypoint.
+slug: docs/errors/SW01001
+---
+
+<CompilerError code="SW01001" category="configuration" />
+
+The host selected a framework explicitly, but the source imports a different
+framework's macro. This constraint is stronger than an editor preference.
+
+## Rejected configuration
+
+```text
+Host framework: vue
+Source import: stillwind/react
+```
+
+## Corrected configuration
+
+```text
+Host framework: react
+Source import: stillwind/react
+```
+
+Choose the integration and import for the actual component renderer. Check
+effective overrides when the project config and adapter both supply a framework.
+Format-only findings use [mismatched-framework-import](/docs/lints/mismatched-framework-import/).

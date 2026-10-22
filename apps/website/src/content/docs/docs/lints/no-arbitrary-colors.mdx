@@ -1,0 +1,26 @@
+---
+title: no-arbitrary-colors
+description: Require named theme colors instead of arbitrary color literals.
+slug: docs/lints/no-arbitrary-colors
+---
+
+<LintRuleSummary name="no-arbitrary-colors" />
+
+This project policy requires a named color vocabulary. The arbitrary literal
+would compile, but it bypasses that vocabulary.
+
+## Reported
+
+```tsx
+style("bg-[#123456]");
+```
+
+## Accepted
+
+```tsx
+style("bg-blue-500");
+```
+
+Define a semantic color token when the value represents a product role.
+To reserve raw palette tokens as well, configure
+[no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens/).

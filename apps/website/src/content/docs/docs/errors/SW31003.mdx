@@ -1,0 +1,26 @@
+---
+title: "SW31003: Projection content mismatch"
+description: Preserve source text at verified original/generated correspondences.
+slug: docs/errors/SW31003
+---
+
+<CompilerError code="SW31003" category="host" />
+
+Mapped generated text differs from its original expression or declaration.
+Matching ranges alone do not prove that the compiler can edit the original safely.
+
+## Invalid correspondence
+
+```text
+Generated macro token: "p-4"
+Mapped original token: "p-2"
+```
+
+## Valid correspondence
+
+```text
+The verified generated token and original token contain the same source text.
+```
+
+Check converter rewrites, escape handling, and stale buffer reuse. Keep both
+buffers and the mapping entry when reporting the failure.

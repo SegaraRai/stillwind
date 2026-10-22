@@ -1,0 +1,25 @@
+---
+title: "SW30003: Incompatible symbolic fact kinds"
+description: Preserve each declaration's kind while translating checker values.
+slug: docs/errors/SW30003
+---
+
+<CompilerError code="SW30003" category="host" />
+
+Checker metadata assigns a symbolic value to an incompatible asset kind. The
+compiler cannot interpret the fields of an animation declaration as ref identity metadata.
+
+## Invalid fact contract
+
+```text
+A keyframes declaration is encoded as a ref value.
+```
+
+## Valid fact contract
+
+```text
+The symbolic kind agrees with the declaration and the operation that consumes it.
+```
+
+Repair the host's checker-to-symbolic conversion and refresh the facts. Keep the
+producer declaration, encoded kind, and consuming operation in the reproduction.

@@ -1,0 +1,26 @@
+---
+title: "SW10002: Invalid component syntax"
+description: Correct the original component before framework projection.
+slug: docs/errors/SW10002
+---
+
+<CompilerError code="SW10002" category="authoring" />
+
+The framework's component parser rejected the original source. The diagnostic
+detail comes from that parser, before a valid projected script is available.
+
+## Rejected component
+
+```html
+<template><button></template>
+```
+
+## Corrected component
+
+```html
+<template><button></button></template>
+```
+
+Use the framework parser's location and explanation to repair the component.
+If valid original source becomes invalid generated script, report the converter
+failure described by [SW31004](/docs/errors/SW31004/).

@@ -1,0 +1,32 @@
+---
+title: bypassed-undefinition
+description: Scope added utilities so they respect registry-context undefinitions.
+slug: docs/lints/bypassed-undefinition
+---
+
+<LintRuleSummary name="bypassed-undefinition" />
+
+A root definition can bypass an undefinition in another registry context. The
+built-in animation contexts undefine transition timing families before supplying
+their animation meanings. A root transition utility can interfere with that boundary.
+
+## Reported
+
+```css
+@utility duration-slow {
+  transition-duration: 1s;
+}
+```
+
+## Accepted
+
+```css
+@stillwind-registry default {
+  @utility duration-slow {
+    transition-duration: 1s;
+  }
+}
+```
+
+Keep the transition utility in the default registry when that is its intended
+domain. This check concerns registry undefinitions, rather than resetting a theme namespace.

@@ -1,0 +1,25 @@
+---
+title: invalid-style-input
+description: Use the static input forms that style() can compile.
+slug: docs/lints/invalid-style-input
+---
+
+<LintRuleSummary name="invalid-style-input" />
+
+An ordinary number is not a utility input. Unsupported contributions lower as
+empty; changing the reporting severity does not make them valid.
+
+## Reported
+
+```tsx
+style(42);
+```
+
+## Accepted
+
+```tsx
+style("p-4");
+```
+
+Use literal utilities for static styles. Put a runtime numeric value in a
+custom property consumed by a static utility. See [style()](/docs/macros/style/).

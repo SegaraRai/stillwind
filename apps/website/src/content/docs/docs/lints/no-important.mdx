@@ -1,0 +1,25 @@
+---
+title: no-important
+description: Prohibit important utility modifiers in a project's authored styles.
+slug: docs/lints/no-important
+---
+
+<LintRuleSummary name="no-important" />
+
+The utility is valid, but its important modifier violates this policy. The
+restriction makes specificity escapes visible to CLI and editor analysis.
+
+## Reported
+
+```tsx
+style("p-4!");
+```
+
+## Accepted
+
+```tsx
+style("p-4");
+```
+
+Resolve the intended ownership or cascade relationship instead of adding an
+important modifier. This rule is separate from the project's global `important` option.
