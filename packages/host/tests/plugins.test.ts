@@ -213,6 +213,23 @@ test("plugin CSS replaces the statement and resolves both spellings of dynamic u
   expect(calls).toStrictEqual([["demo-blue", "demo-red"]]);
 });
 
+test("plugins resolve dynamic utilities in arrays of style results", async () => {
+  const { plugin, calls } = demoPlugin();
+  const loaded = await load(plugin);
+  const session = new NativeProjectSession(loaded.loader, false);
+  attachPlugins(session, loaded.plugins);
+
+  const css = await compile(
+    session,
+    `import { style } from "stillwind/react";
+export const items = [{ props: style("demo-red") }, { props: style("demo-[blue]") }];`,
+  );
+
+  expect(calls).toStrictEqual([["demo-blue", "demo-red"]]);
+  expect(css).toContain("color: red");
+  expect(css).toContain("color: blue");
+});
+
 test("plugin options keep quoted delimiters and omit comments", async () => {
   const received: Record<string, string>[] = [];
   const plugin = definePlugin({

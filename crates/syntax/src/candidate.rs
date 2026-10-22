@@ -18,10 +18,8 @@ pub struct CandidatePrefix<'a> {
 }
 
 impl<'a> CandidatePrefix<'a> {
-    /// Reads raw spelling, retaining EOF inside a quote, escape, or group. Returns
-    /// `None` for a closing bracket of the wrong kind or without an opener.
-    pub fn parse(raw: &'a str) -> Option<Self> {
-        let mut result = Self {
+    fn new(raw: &'a str) -> Self {
+        Self {
             raw,
             separators: Vec::new(),
             closing: Vec::new(),
@@ -29,7 +27,13 @@ impl<'a> CandidatePrefix<'a> {
             parenthesis_openings: Vec::new(),
             quote: None,
             escaped: false,
-        };
+        }
+    }
+
+    /// Reads raw spelling, retaining EOF inside a quote, escape, or group. Returns
+    /// `None` for a closing bracket of the wrong kind or without an opener.
+    pub fn parse(raw: &'a str) -> Option<Self> {
+        let mut result = Self::new(raw);
         for (offset, character) in raw.char_indices() {
             result.advance(offset, character)?;
         }
@@ -140,15 +144,7 @@ impl<'a> CandidatePrefix<'a> {
 /// Host punctuation separates candidates; quotes and punctuation inside bracketed
 /// arbitrary values remain in the candidate. Registry lookup belongs to the caller.
 pub fn source_candidate_tokens(text: &str) -> Vec<&str> {
-    let mut state = CandidatePrefix {
-        raw: text,
-        separators: Vec::new(),
-        closing: Vec::new(),
-        parenthesis_depth: 0,
-        parenthesis_openings: Vec::new(),
-        quote: None,
-        escaped: false,
-    };
+    let mut state = CandidatePrefix::new(text);
     let mut result = Vec::new();
     let mut start = 0;
     for (index, character) in text.char_indices() {
@@ -160,7 +156,9 @@ pub fn source_candidate_tokens(text: &str) -> Vec<&str> {
                     '"' | '\u{27}' | '`' | ',' | ';' | '{' | '}' | '<' | '>' | '='
                 )
                 || (character == '(' && !text[start..index].ends_with(['-', '/']))
-                || character == ')');
+                || (character == '['
+                    && !source_candidate_bracket(&text[start..index], &text[index..]))
+                || matches!(character, ')' | ']'));
         if boundary {
             if start < index {
                 result.push(&text[start..index]);
@@ -184,6 +182,39 @@ pub fn source_candidate_tokens(text: &str) -> Vec<&str> {
         result.push(&text[start..]);
     }
     result
+}
+
+/// Whether an opening bracket belongs to an arbitrary value, modifier, property, or
+/// variant. `prefix` precedes the bracket, and `tail` starts with it.
+fn source_candidate_bracket(prefix: &str, tail: &str) -> bool {
+    if prefix.ends_with(['-', '/']) {
+        return true;
+    }
+    if !prefix.is_empty() && !prefix.ends_with(':') && prefix != "!" && !prefix.ends_with(":!") {
+        return false;
+    }
+    if tail[1..].starts_with(['\'', '"', '`', '{']) {
+        return false;
+    }
+    let property = tail[1..].trim_start_matches(|character: char| {
+        character.is_alphanumeric() || matches!(character, '-' | '_')
+    });
+    if property.starts_with(':') {
+        return true;
+    }
+    let mut group = CandidatePrefix::new(tail);
+    for (index, character) in tail.char_indices() {
+        if group.quote.is_none() && !group.escaped && matches!(character, '{' | '}' | '`') {
+            return false;
+        }
+        if group.advance(index, character).is_none() {
+            return false;
+        }
+        if group.closing.is_empty() {
+            return tail[index + character.len_utf8()..].starts_with(':');
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -236,6 +267,42 @@ mod tests {
                 "icon-(--name)/[x]",
                 "data-[x=')']:icon-a",
                 "other"
+            ]
+        );
+    }
+
+    #[test]
+    fn source_scanning_separates_array_and_index_brackets() {
+        for (source, expected) in [
+            (
+                r#"["icon-a", 'icon-b', `icon-c`]"#,
+                &["icon-a", "icon-b", "icon-c"][..],
+            ),
+            (
+                r#"[style("icon-a"), style("icon-b")]"#,
+                &["style", "icon-a", "style", "icon-b"][..],
+            ),
+            (r#"[["icon-a"], ["icon-b"]]"#, &["icon-a", "icon-b"][..]),
+            (
+                r#"icons[style("icon-a")]"#,
+                &["icons", "style", "icon-a"][..],
+            ),
+        ] {
+            assert_eq!(source_candidate_tokens(source), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn source_scanning_keeps_candidate_groups_inside_arrays() {
+        let source = r#"[style("icon-[f(']')]"), "icon-(--name)/[x]", "[&[data-x=']']]:icon-a", "[--tone:var(--color)]"]"#;
+        assert_eq!(
+            source_candidate_tokens(source),
+            [
+                "style",
+                "icon-[f(']')]",
+                "icon-(--name)/[x]",
+                "[&[data-x=']']]:icon-a",
+                "[--tone:var(--color)]",
             ]
         );
     }
