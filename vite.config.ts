@@ -96,22 +96,16 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order",
         ],
       },
-      "generate:fixtures:projects": {
-        command: "",
-        dependsOn: ["@stillwind-internal/tools-projects#generate:fixtures:projects"],
-      },
-      "generate:fixtures:tailwind": {
-        command: "",
-        dependsOn: ["@stillwind-internal/tools-tailwind#generate:fixtures:tailwind"],
-      },
-      "generate:tailwind-order": {
-        command: "",
-        dependsOn: ["@stillwind-internal/tools-tailwind#generate:tailwind-order"],
-      },
-      "generate:webref": {
-        command: "",
-        dependsOn: ["@stillwind-internal/tools-webref#generate:webref"],
-      },
+      "generate:fixtures:projects":
+        "vp run @stillwind-internal/tools-projects#generate:fixtures:projects",
+      "generate:fixtures:tailwind":
+        "vp run @stillwind-internal/tools-tailwind#generate:fixtures:tailwind",
+      "generate:tailwind-order":
+        "vp run @stillwind-internal/tools-tailwind#generate:tailwind-order",
+      "generate:webref": "vp run @stillwind-internal/tools-webref#generate:webref",
+      // dev
+      "dev:play": "vp run @stillwind-internal/apps-play#dev",
+      "dev:web": "vp run @stillwind-internal/apps-website#dev",
       // fmt
       fmt: {
         command: "",
@@ -223,42 +217,15 @@ export default defineConfig(({ mode }) => ({
         dependsOn: ["check", "test"],
       },
       // bench
-      "bench:architecture": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:architecture"],
-      },
-      "bench:compiler": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:compiler"],
-      },
-      "bench:compiler:browser": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:compiler:browser"],
-      },
-      "bench:compiler:wasm": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:compiler:wasm"],
-      },
-      "bench:host": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:host"],
-      },
-      "bench:sorting": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:sorting"],
-      },
-      "bench:sorting:wasm": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:sorting:wasm"],
-      },
-      "bench:sorting:profile": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:sorting:profile"],
-      },
-      "bench:source-map": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#bench:source-map"],
-      },
+      "bench:architecture": "vp run @stillwind-internal/benchmarks#bench:architecture",
+      "bench:compiler": "vp run @stillwind-internal/benchmarks#bench:compiler",
+      "bench:compiler:browser": "vp run @stillwind-internal/benchmarks#bench:compiler:browser",
+      "bench:compiler:wasm": "vp run @stillwind-internal/benchmarks#bench:compiler:wasm",
+      "bench:host": "vp run @stillwind-internal/benchmarks#bench:host",
+      "bench:sorting": "vp run @stillwind-internal/benchmarks#bench:sorting",
+      "bench:sorting:wasm": "vp run @stillwind-internal/benchmarks#bench:sorting:wasm",
+      "bench:sorting:profile": "vp run @stillwind-internal/benchmarks#bench:sorting:profile",
+      "bench:source-map": "vp run @stillwind-internal/benchmarks#bench:source-map",
       // test
       test: {
         command: "",
@@ -297,10 +264,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/tools-webref#generate:webref",
         ],
       },
-      "test:fixtures:projects": {
-        command: "",
-        dependsOn: ["@stillwind-internal/tools-projects#test:fixtures:projects"],
-      },
+      "test:fixtures:projects": "vp run @stillwind-internal/tools-projects#test:fixtures:projects",
       "test:tailwind": {
         command: "",
         dependsOn: [
@@ -319,14 +283,8 @@ export default defineConfig(({ mode }) => ({
         cache: false,
         dependsOn: ["@stillwind/language-server#build", "@stillwind/native#collect:local"],
       },
-      "test:performance": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#test:performance"],
-      },
-      "test:performance:full": {
-        command: "",
-        dependsOn: ["@stillwind-internal/benchmarks#test:performance:full"],
-      },
+      "test:performance": "vp run @stillwind-internal/benchmarks#test:performance",
+      "test:performance:full": "vp run @stillwind-internal/benchmarks#test:performance:full",
       "test:e2e": {
         command: "",
         dependsOn: [
@@ -334,18 +292,9 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/e2e-play#test:e2e",
         ],
       },
-      "test:e2e:play": {
-        command: "",
-        dependsOn: ["@stillwind-internal/e2e-play#test:e2e"],
-      },
-      "test:e2e:primary": {
-        command: "",
-        dependsOn: ["@stillwind-internal/e2e-harness#test:e2e:primary"],
-      },
-      "test:e2e:compatibility": {
-        command: "",
-        dependsOn: ["@stillwind-internal/e2e-harness#test:e2e:compatibility"],
-      },
+      "test:e2e:play": "vp run @stillwind-internal/e2e-play#test:e2e",
+      "test:e2e:primary": "vp run @stillwind-internal/e2e-harness#test:e2e:primary",
+      "test:e2e:compatibility": "vp run @stillwind-internal/e2e-harness#test:e2e:compatibility",
     },
   },
 }));
