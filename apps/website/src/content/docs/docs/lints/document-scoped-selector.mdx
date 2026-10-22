@@ -5,9 +5,9 @@ slug: docs/lints/document-scoped-selector
 ---
 
 This rule reports a variant that replaces the element with a document-wide
-target, such as `[:root]:`. The style then applies to the root of the page from
-inside a component, and it no longer depends on the element that receives the
-props.
+target, such as `[:root]:`. Stillwind compiles CSS statically, so including this
+declaration in your code affects the document even when the element is not
+rendered.
 
 ## Reported
 

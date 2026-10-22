@@ -6,7 +6,8 @@ slug: docs/lints/redundant-variant
 
 This rule reports a variant that adds no condition, such as a second `hover:` in
 `hover:hover:`. It also reports a variant that another variant in the stack
-already implies.
+already implies. With the default breakpoints, `sm:` is redundant in `sm:md:`
+because every width that matches `md:` also matches `sm:`.
 
 ## Reported
 
@@ -14,6 +15,7 @@ already implies.
 
 ```tsx
 style("hover:hover:p-4");
+style("sm:md:p-4");
 ```
 
 </DiagnosticExample>
@@ -22,6 +24,7 @@ style("hover:hover:p-4");
 
 ```tsx
 style("hover:p-4");
+style("md:p-4");
 ```
 
 ## How to fix

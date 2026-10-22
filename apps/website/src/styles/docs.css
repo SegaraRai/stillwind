@@ -124,8 +124,12 @@
   @apply mbs-3;
 }
 
-.diagnostic-filename {
-  @apply text-caption text-muted font-mono;
+.diagnostic-example .astro-code > code {
+  @apply grid;
+}
+
+.diagnostic-example .astro-code .line {
+  min-block-size: 1lh;
 }
 
 .diagnostic-range {
@@ -138,6 +142,10 @@
 .docs-prose .astro-code .diagnostic-annotation {
   @apply relative block my-3 py-2 px-3 border border-danger/30 rounded-control bg-danger/10 whitespace-pre-wrap font-sans text-body;
   color: var(--color-danger);
+}
+
+.docs-prose .astro-code .line:last-child > .diagnostic-annotation:last-child {
+  @apply mbe-1;
 }
 
 .diagnostic-annotation::before {
@@ -240,6 +248,18 @@
 
 .docs-prose pre {
   @apply max-inline-full p-panel overflow-x-auto border border-border rounded-panel leading-[1.7] wrap-normal;
+}
+
+.docs-prose .nb-code-title {
+  @apply px-panel py-3 border border-border border-be-0 rounded-t-panel bg-surface-muted text-small font-mono text-muted;
+}
+
+.docs-prose .nb-code-title-lang {
+  @apply hidden;
+}
+
+.docs-prose .nb-code-figure-titled > pre {
+  @apply mbs-0 rounded-t-none;
 }
 
 .docs-prose pre code {
@@ -397,5 +417,11 @@
 .docs-prose pre {
   @variant max-sidebar {
     @apply p-4;
+  }
+}
+
+.docs-prose .nb-code-title {
+  @variant max-sidebar {
+    @apply px-4;
   }
 }

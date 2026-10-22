@@ -91,8 +91,12 @@ function annotations(sourceIndex: number): Transformer[] {
 
 <div class="diagnostic-example">
   {example.sources.map((source, index) => (
-    <>
-      {source.title && <p class="diagnostic-filename">{source.title}</p>}
+    <figure class:list={["nb-code-figure", { "nb-code-figure-titled": source.title }]}>
+      {source.title && (
+        <figcaption class="nb-code-title">
+          <span class="nb-code-title-name">{source.title}</span>
+        </figcaption>
+      )}
       <Code
         code={source.code}
         lang={source.language}
@@ -100,7 +104,7 @@ function annotations(sourceIndex: number): Transformer[] {
         defaultColor={false}
         transformers={annotations(index)}
       />
-    </>
+    </figure>
   ))}
   {example.diagnostics
     .filter((diagnostic) => !example.inline || !diagnostic.labels.length)
