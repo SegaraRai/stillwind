@@ -1,25 +1,17 @@
 ---
 title: "SW90005: Macro anchor removal edit missing"
-description: Report an import anchor with no corresponding removal edit for runtime imports.
+description: The compiler chose a Stillwind import to replace, but did not plan its replacement.
 slug: docs/errors/SW90005
 ---
 
 <CompilerError code="SW90005" category="internal" />
 
-The compiler selected a macro import anchor, but that import has no removal
-edit where runtime imports can be inserted. Selection and edit construction have diverged.
+This error occurs when the compiler chooses the `stillwind` import where it adds runtime imports, but does not plan the edit that replaces it. If the integration provided no usable import at all, the error is [SW34001](/docs/errors/SW34001/) instead.
 
-## Violated invariant
+## How to report
 
-```text
-A selected macro import anchor has no corresponding removal edit.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-The selected anchor has the removal edit that receives its runtime imports.
-```
-
-Report the source and import span with the generated transformation data if
-available. This differs from a host that supplies no verified anchor at all, [SW34001](/docs/errors/SW34001/).
+- The file and its `stillwind` import
+- The version of the Stillwind packages

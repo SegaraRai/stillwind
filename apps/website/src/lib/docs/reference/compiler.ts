@@ -42,10 +42,8 @@ export async function referenceCompiler(
   });
   return {
     query: loader.editorQuery(),
-    compile(code: string, mode = "production") {
-      const session = new NativeProjectSession(loader, false, mode);
-      const module = session.compile([source(code)]).modules[0]!;
-      return { ...module, documentCss: module.diagnostics.length ? "" : session.css().css };
+    compile(code: string) {
+      return new NativeProjectSession(loader, false).compile([source(code)]).modules[0]!;
     },
     diagnose(code: string) {
       return new NativeProjectSession(loader, false).diagnose([source(code)])[0]!.reports;

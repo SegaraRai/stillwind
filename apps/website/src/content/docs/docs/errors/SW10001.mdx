@@ -1,27 +1,31 @@
 ---
 title: "SW10001: JavaScript parse error"
-description: Correct script syntax before Stillwind analyzes macro inputs.
+description: The JavaScript or TypeScript of a file has a syntax error.
 slug: docs/errors/SW10001
 ---
 
 <CompilerError code="SW10001" category="authoring" />
 
-The configured script parser rejected the source. Parser details and the source
-location accompany the compiler diagnostic; macro argument validation has not
-made this script valid.
+This error occurs when the compiler cannot parse the JavaScript or TypeScript of
+a file. The message shows the location and the explanation from the parser.
 
-## Rejected
+## Reported
 
 ```tsx
 export const props = style("p-4";
 ```
 
-## Corrected
+## Fixed
 
 ```tsx
 export const props = style("p-4");
 ```
 
-Correct the reported syntax and confirm that the host selected the document's
-actual language and module kind. Component-converter output has a separate
-contract, [SW31004](/docs/errors/SW31004/).
+## How to fix
+
+- Fix the syntax at the location in the message, as in the example.
+- If the file parses in your editor, check that the integration treats it as the
+  right language, such as TypeScript with JSX for a `.tsx` file.
+
+Errors in code that a Vue, Svelte, or Astro converter generated are reported as
+[SW31004](/docs/errors/SW31004/) instead.

@@ -1,25 +1,18 @@
 ---
 title: "SW90004: Inconsistent macro import metadata"
-description: Report frontend import spans or realm metadata that disagree with the source.
+description: The compiler recorded the Stillwind import at the wrong place.
 slug: docs/errors/SW90004
 ---
 
 <CompilerError code="SW90004" category="internal" />
 
-The frontend produced macro import spans or realm metadata inconsistent with
-the source. The compiler cannot use those records as a valid transformation anchor.
+This error occurs when the compiler's record of a `stillwind` import does not match the source, for example after an edit in the editor.
 
-## Violated invariant
+## How to report
 
-```text
-A recognized macro import's metadata describes a different source range or import realm.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-The metadata agrees with the recognized macro import in the same source revision.
-```
-
-Report the original import statement, component format, and converter/integration
-versions. Include the source revision when the failure occurs only after editor changes.
+- The import statement and the type of the file, such as `.tsx` or `.vue`
+- The versions of the Stillwind and framework packages
+- Whether the error appears only after an edit, and which edit

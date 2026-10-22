@@ -1,25 +1,29 @@
 ---
 title: "SW15003: Source size or offset is too large"
-description: Keep source operations inside the supported 32-bit coordinate space.
+description: A source file or a position in it is too large for the compiler's source positions.
 slug: docs/errors/SW15003
 ---
 
 <CompilerError code="SW15003" category="authoring" />
 
-A source operation requested a length or offset beyond the supported 32-bit
-coordinate space. The diagnostic carries the rejected value and operation context.
+This error occurs when a source file, or a position that the compiler is asked to
+read, does not fit in the compiler's 32-bit source positions. The message shows
+the value and the operation.
 
-## Rejected operation contract
-
-```text
-A source buffer length or requested offset exceeds the representable range.
-```
-
-## Accepted operation contract
+## Reported
 
 ```text
-Both the buffer and every requested coordinate fit that range.
+A source file larger than 4 GB, or a position beyond the end of the file.
 ```
 
-Split oversized sources. If an ordinary source produces an impossible offset,
-preserve the operation context and report the caller that supplied that coordinate.
+## Fixed
+
+```text
+Source files of a normal size, and positions inside them.
+```
+
+## How to fix
+
+- Split a very large source file into smaller files.
+- If the file has a normal size, the position came from an integration or a tool.
+  Report the error with the operation from the message.

@@ -1,26 +1,31 @@
 ---
 title: "SW34001: Missing macro import anchor"
-description: Retain a verified macro import in the realm where runtime imports must be inserted.
+description: The compiler cannot find the Stillwind import where it must add runtime imports.
 slug: docs/errors/SW34001
 ---
 
 <CompilerError code="SW34001" category="host" />
 
-A module needs a runtime or stylesheet import, but the use's import realm has
-no verified macro import to anchor that edit. A nearby import from another realm
-does not establish the required insertion point.
+This error occurs when the compiled code needs a runtime or stylesheet import,
+but the compiler cannot find the `stillwind` import that it replaces with those
+imports. In a component with several script blocks, the import must be in the
+same block as the code that uses it.
 
-## Invalid preparation contract
-
-```text
-A runtime use survives, but its realm has no verified macro import anchor.
-```
-
-## Valid preparation contract
+## Reported
 
 ```text
-The host preserves the macro import and verified realm metadata for that runtime use.
+A converter moves or removes the import from "stillwind/vue" before compilation.
 ```
 
-Use the supported source-preparation path. If a converter strips or relocates
-imports, repair its realm metadata before requesting transform edits.
+## Fixed
+
+```text
+The converter keeps the import, and records which script block it belongs to.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages and the framework
+  packages. If the error remains, report it with the component.
+- In your own converter, keep the Stillwind import in place, and record its
+  script block correctly.

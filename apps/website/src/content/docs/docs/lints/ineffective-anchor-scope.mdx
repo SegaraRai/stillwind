@@ -1,13 +1,13 @@
 ---
 title: ineffective-anchor-scope
-description: Use a nonempty ref list or an explicit anchor-scope keyword.
+description: Reports an empty or repeated ref list in an anchor scope.
 slug: docs/lints/ineffective-anchor-scope
 ---
 
 <LintRuleSummary name="ineffective-anchor-scope" />
 
-An empty ref list emits no scope declaration. Duplicate identities also make
-part of a scope list redundant. Neither case communicates a useful explicit scope.
+This rule reports an anchor scope with an empty ref list, or with a ref listed
+twice. An empty list sets no `anchor-scope`, and a repeated ref adds nothing.
 
 ## Reported
 
@@ -15,11 +15,19 @@ part of a scope list redundant. Neither case communicates a useful explicit scop
 style(style.anchorScope([]));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style(style.anchorScope("none"));
+const trigger = style.ref("trigger");
+style(style.anchorScope([trigger]));
 ```
 
-Use `none` to emit `anchor-scope: none`, `all` for all names, or a list of the
-specific refs. Omission and an empty list do not reset an inherited/cascaded scope.
+## How to fix
+
+Write the scope that you mean:
+
+- List the refs whose anchor names this element limits, as in the example.
+- Use `"all"` to limit every anchor name.
+- Use `"none"` to set `anchor-scope: none`.
+
+See [style.anchorScope()](/docs/macros/anchor-scope/#inputs).

@@ -1,26 +1,35 @@
 ---
 title: "SW14001: Missing utilities slot"
-description: Retain a destination for generated utility rules in the CSS entry graph.
+description: Your stylesheet does not place the generated utility CSS anywhere.
 slug: docs/errors/SW14001
 ---
 
 <CompilerError code="SW14001" category="authoring" />
 
-The output template has no `@stillwind-slot utilities;` destination for the
-generated class rules. Defining utilities alone does not place their compiled uses.
+This error occurs when your stylesheet has no `@stillwind-slot utilities;`. The
+slot marks where the compiler writes the CSS of the utilities that you use. The
+default stylesheet contains it, so the error usually appears when a stylesheet
+imports only some parts of Stillwind.
 
-## Rejected template contract
-
-```text
-The CSS entry graph defines utilities but supplies no utilities output slot.
-```
-
-## Corrected entry
+## Reported
 
 ```css
-@import "stillwind";
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/builtins.css";
 ```
 
-The standard entry supplies the required slots. When authoring a replacement
-template, preserve `@stillwind-slot utilities;` and the support destinations
-required by its features. See [SW14002](/docs/errors/SW14002/).
+## Fixed
+
+```css
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+```
+
+## How to fix
+
+- Import `stillwind/utilities.css`, which contains the slot, as in the example.
+- Or write `@stillwind-slot utilities;` where the utilities should go.
+- If you do not need a custom selection, import `stillwind` instead.
+
+Other slots that a feature needs are reported as [SW14002](/docs/errors/SW14002/).

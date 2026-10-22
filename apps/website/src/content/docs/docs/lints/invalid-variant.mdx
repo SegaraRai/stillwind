@@ -1,13 +1,14 @@
 ---
 title: invalid-variant
-description: Supply a valid argument and supported chain to a recognized variant.
+description: Reports a known variant with a value that it does not accept, such as min-[foo].
 slug: docs/lints/invalid-variant
 ---
 
 <LintRuleSummary name="invalid-variant" />
 
-The variant exists, but its input cannot resolve. `min-[foo]` does not provide a
-valid viewport length. The resulting condition cannot preserve the intended rule.
+This rule reports a variant whose name is known but whose value is not valid. For
+example, `min-[foo]:` needs a length, and `foo` is not one. The condition never
+matches, so the utilities under it never apply.
 
 ## Reported
 
@@ -15,11 +16,17 @@ valid viewport length. The resulting condition cannot preserve the intended rule
 style("min-[foo]:p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("md:p-4");
+style("min-[40rem]:p-4");
 ```
 
-Use a named breakpoint or a valid arbitrary value for the required domain.
-A misspelled variant name instead reports [unknown-variant](/docs/lints/unknown-variant/).
+## How to fix
+
+- Give the variant a value of the type that it accepts, such as a length for
+  `min-[...]`.
+- Prefer a named breakpoint, such as `md:`, when one matches the width.
+
+A variant name that does not exist is reported by
+[unknown-variant](/docs/lints/unknown-variant/) instead.

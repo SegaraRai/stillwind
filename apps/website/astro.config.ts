@@ -2,13 +2,16 @@ import nimbus, { defineConfig as defineNimbusConfig } from "@cloudflare/nimbus-d
 import { stillwind } from "@stillwind/integration/astro";
 import { defineConfig } from "astro/config";
 
-import { compiledSourcePlugin } from "./src/components/reference/compiled-source";
-import { referenceMarkdown } from "./src/components/reference/markdown";
+import { compiledSourcePlugin } from "./src/components/docs/reference/compiled-source";
+import { referenceMarkdown } from "./src/components/docs/reference/markdown";
 
 const componentMap = await referenceMarkdown();
 
 export default defineConfig({
   compressHTML: "jsx",
+  redirects: {
+    "/docs/configuration/lint/": "/docs/configuration/#lint",
+  },
   integrations: [
     nimbus(
       defineNimbusConfig({
@@ -51,10 +54,7 @@ export default defineConfig({
             {
               label: "Reference",
               items: [
-                {
-                  label: "Configuration",
-                  autogenerate: { directory: "docs/configuration" },
-                },
+                "docs/configuration",
                 {
                   label: "Macros",
                   autogenerate: { directory: "docs/macros" },

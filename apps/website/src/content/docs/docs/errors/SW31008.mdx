@@ -1,26 +1,30 @@
 ---
 title: "SW31008: Invalid UTF-8 offset"
-description: Keep byte offsets within the source and on UTF-8 code-point boundaries.
+description: A requested byte offset is outside the source or inside a multibyte character.
 slug: docs/errors/SW31008
 ---
 
 <CompilerError code="SW31008" category="host" />
 
-The requested UTF-8 byte offset cannot be converted to a source position.
-An offset inside a multibyte character is not a valid code-point boundary.
+This error occurs when an integration or a tool asks for a UTF-8 byte offset that
+is outside the source, or that falls inside a character of several bytes.
 
-## Invalid request
+## Reported
 
 ```text
-Buffer: é
+Source: é
 UTF-8 byte offset: 1
 ```
 
-## Valid request
+## Fixed
 
 ```text
-For that buffer, byte offsets 0 and 2 identify its beginning and end.
+For this source, byte offset 0 is the start and byte offset 2 is the end.
 ```
 
-Use UTF-8 byte coordinates for byte APIs. Convert UTF-16 editor positions with
-the source service instead of treating a character count as a byte count.
+## How to fix
+
+- With an official integration, report the error with the file and the action
+  that caused it.
+- In your own integration, use byte offsets for byte-based APIs. Convert UTF-16
+  editor positions with the source service instead of counting characters.

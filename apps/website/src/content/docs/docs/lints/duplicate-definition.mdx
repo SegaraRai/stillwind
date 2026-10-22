@@ -1,13 +1,14 @@
 ---
 title: duplicate-definition
-description: Keep one intended definition for each registry identity.
+description: Reports a utility or variant definition that replaces an earlier one with the same name.
 slug: docs/lints/duplicate-definition
 ---
 
 <LintRuleSummary name="duplicate-definition" />
 
-A later definition hides an earlier definition with the same identity. The
-earlier hover meaning of `hocus` is lost rather than combined with focus.
+This rule reports a `@utility` or `@custom-variant` definition that replaces an
+earlier definition with the same name. The definitions do not combine, so the
+earlier one is lost. In the example, `hocus` matches focus only, not hover.
 
 ## Reported
 
@@ -16,11 +17,13 @@ earlier hover meaning of `hocus` is lost rather than combined with focus.
 @custom-variant hocus (&:focus);
 ```
 
-## Accepted
+## Fixed
 
 ```css
-@custom-variant hocus (&:focus);
+@custom-variant hocus (&:hover, &:focus);
 ```
 
-Remove the unintended duplicate or express the combined selector in one definition.
-This finding describes registry definitions, rather than repeated utilities at a use site.
+## How to fix
+
+- To combine the definitions, write them as one definition, as in the example.
+- If one of the definitions is left over, remove it.

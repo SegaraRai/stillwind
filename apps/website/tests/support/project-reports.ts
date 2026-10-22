@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { AnalysisProject, createFileSystemAnalysisHost } from "@stillwind/host";
 import type { AnalysisProjectConfig } from "stillwind/config";
 
-import { defaultStylesheet } from "../../src/lib/reference/compiler";
+import { defaultStylesheet } from "../../src/lib/docs/reference/compiler";
 
 export async function projectReports(
   code: string,

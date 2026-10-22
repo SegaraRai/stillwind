@@ -1,26 +1,33 @@
 ---
 title: "SW14006: Property-usage parse failure"
-description: Provide parseable CSS while the compiler collects custom-property uses.
+description: A CSS value has a syntax error that prevents the compiler from finding its custom properties.
 slug: docs/errors/SW14006
 ---
 
 <CompilerError code="SW14006" category="authoring" />
 
-CSS parsing failed during collection of custom-property usage. The detail comes
-from that parsing operation; the compiler cannot reliably determine required support
-from a value it cannot parse.
+This error occurs when a CSS value has a syntax error, such as an unclosed
+function. The compiler reads values to find the custom properties that they use,
+and it cannot tell which support CSS to include for a value that it cannot read.
 
-## Rejected value contract
+## Reported
 
-```text
-A value contains an unterminated function or another syntax error during property-use collection.
+```css
+@utility glow {
+  box-shadow: 0 0 8px var(--glow-color;
+}
 ```
 
-## Accepted value contract
+## Fixed
 
-```text
-The value parses completely, including its custom-property references and fallbacks.
+```css
+@utility glow {
+  box-shadow: 0 0 8px var(--glow-color);
+}
 ```
 
-Correct the reported value in the original stylesheet or utility definition.
-If it was produced by a plugin, include that definition and plugin version in a reproduction.
+## How to fix
+
+- Fix the value in your stylesheet or utility definition, as in the example.
+- If the value comes from a plugin, report the definition and the plugin version
+  to the plugin's maintainer.

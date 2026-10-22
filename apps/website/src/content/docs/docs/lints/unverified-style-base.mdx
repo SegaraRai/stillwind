@@ -1,37 +1,49 @@
 ---
 title: unverified-style-base
-description: Make composition producer identities and their bodies available to project analysis.
+description: Reports a base style whose source the CLI cannot find from its type.
 slug: docs/lints/unverified-style-base
 ---
 
 <LintRuleSummary name="unverified-style-base" analysis="project" />
 
-The checker recognizes a style result but cannot identify its finite producers.
-The compiler cannot verify the base's CSS dependency from a general return type.
-This check requires project analysis and TypeScript facts.
+This rule reports a base style whose type does not show which `style()` call
+created it, such as a value declared as `ReturnType<typeof style>`. The compiler
+cannot find the CSS of the base, so it cannot order the later utilities after it.
 
 ## Project files
 
 ```ts title="globals.d.ts"
 declare module "virtual:styles" {
   import { style } from "stillwind/react";
+
   export const base: ReturnType<typeof style>;
 }
+```
+
+```ts title="styles.ts"
+import { style } from "stillwind/react";
+
+export const base = style("rounded-md");
 ```
 
 ## Reported
 
 ```tsx
 import { base } from "virtual:styles";
+
 export const props = style(base, "p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-const base = style("rounded-md");
+import { base } from "./styles";
+
 export const props = style(base, "p-4");
 ```
 
-Keep inferred declaration identities across exports and make the producer source
-available to the host. An ambient declaration alone does not supply its CSS artifact.
+## How to fix
+
+- Import the base from the source module that calls `style()`, as in the example.
+- Keep the type that TypeScript infers when you export a style. A type annotation
+  such as `ReturnType<typeof style>` hides the source.

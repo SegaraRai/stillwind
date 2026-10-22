@@ -1,25 +1,31 @@
 ---
 title: "SW34003: Transform requested after failed compilation"
-description: Publish source replacements only for a successfully compiled module revision.
+description: The integration asked for code edits from a compilation that failed.
 slug: docs/errors/SW34003
 ---
 
 <CompilerError code="SW34003" category="host" />
 
-The host passed a failed compilation to source-transform rendering. The compiler
-cannot turn an incomplete artifact into valid replacement edits.
+This error occurs when an integration asks for the code edits of a module whose
+compilation failed. A failed compilation has no complete result to turn into
+edits.
 
-## Invalid sequence
-
-```text
-Compilation fails -> the host requests source replacements for that failed result.
-```
-
-## Valid sequence
+## Reported
 
 ```text
-Compilation succeeds -> the host renders replacements for that same module revision.
+Compilation fails, and the integration still asks for its code edits.
 ```
 
-Handle fatal diagnostics before requesting edits. If the editor retains a previous
-successful result, keep its revision distinct from the current failed analysis.
+## Fixed
+
+```text
+Compilation succeeds, and the integration asks for the edits of that same revision.
+```
+
+## How to fix
+
+- With an official integration, fix the error that the compilation reported
+  first. If only this error appears, report it.
+- In your own integration, handle compiler errors before you ask for edits. If
+  the editor keeps an older successful result, keep its revision separate from
+  the failed one.

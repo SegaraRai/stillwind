@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { lintRules } from "stillwind/config";
 import { expect, test } from "vite-plus/test";
 
-import type { UtilityCatalog } from "../src/lib/utilities/search";
+import type { UtilityCatalog } from "../src/lib/docs/utilities/search";
 
 const output = new URL("../dist/", import.meta.url);
 
@@ -162,7 +162,7 @@ test("covers all public lint IDs and every explicit compiler reporting code with
   }
 });
 
-test.each(["lints", "errors", "macros"])(
+test.each(["lints", "errors", "macros", "macros/ref"])(
   "links every %s page from its index",
   async (directory) => {
     const source = new URL(`../src/content/docs/docs/${directory}/`, import.meta.url);
@@ -185,7 +185,7 @@ test("preserves shared reference components in HTML and agent Markdown", async (
   expect(error).toContain("Category: **host**");
   expect(error).toContain("UTF-8 byte offset: 1");
   const macro = await readFile(new URL("docs/macros/ref/index.md", output), "utf8");
-  expect(macro).toContain("### Production JavaScript");
+  expect(macro).toContain("### Compiled code");
   expect(macro).toContain("container-type: inline-size;");
 });
 

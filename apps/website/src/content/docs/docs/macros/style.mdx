@@ -45,6 +45,7 @@ the order of the CSS rules, so no runtime library merges classes.
 
 ```tsx
 import { style } from "stillwind/react";
+
 export const props = style("rounded-md p-4 text-blue-600");
 ```
 
@@ -60,14 +61,17 @@ style.
 
 ```tsx
 import { style } from "stillwind/react";
+
 declare const active: boolean;
-export const props = style("p-4", active && "bg-blue-500", { "--progress": 0.5 });
+export const props = style("p-4", active && "bg-blue-500", {
+  "--progress": 0.5,
+});
 ```
 
 </CompiledExample>
 
-The production build imports `stillwindClsx` to join class names. The
-development build imports a checked version that reports invalid values.
+The compiled code imports `stillwindClsx` to join class names. In development,
+Stillwind imports a checked version that reports invalid values.
 
 ## Base styles
 
@@ -78,6 +82,7 @@ win over the base, because the compiler orders their CSS after the base's CSS.
 
 ```tsx
 import { style } from "stillwind/react";
+
 const base = style("rounded-md p-2");
 export const props = style(base, "p-4 bg-blue-600 text-white");
 ```

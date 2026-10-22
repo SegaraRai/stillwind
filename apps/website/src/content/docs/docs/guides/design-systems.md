@@ -5,9 +5,10 @@ slug: docs/guides/design-systems
 ---
 
 You want every component to use the same colors, spacing, and breakpoints.
-In Tailwind, nothing stops code from using `bg-[#3b82f6]` or `min-[713px]:`
-instead of your tokens. In Stillwind, you define tokens in your stylesheet and
-enable rules that report values outside them.
+Tailwind accepts arbitrary values such as `bg-[#3b82f6]` and `min-[713px]:`,
+which is useful for one-off designs. In a shared codebase, you may want every
+value to come from your tokens instead. In Stillwind, you define tokens in your
+stylesheet and can enable rules that report values outside them.
 
 ## Define tokens by role
 
@@ -114,4 +115,4 @@ The rule reports utilities that use a matching token, such as `bg-blue-500`.
 Your role tokens can still use palette colors in their definitions.
 
 For more restrictions, such as banned utilities or length units, see
-[Lint configuration](/docs/configuration/lint/#detection-options).
+[Configuration](/docs/configuration/#rule-options).

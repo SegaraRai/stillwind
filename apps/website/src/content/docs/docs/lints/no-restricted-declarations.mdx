@@ -1,13 +1,15 @@
 ---
 title: no-restricted-declarations
-description: Enforce policies on resolved CSS declarations and parsed shorthand components.
+description: Reports utilities that produce CSS declarations that your project forbids.
 slug: docs/lints/no-restricted-declarations
 ---
 
 <LintRuleSummary name="no-restricted-declarations" />
 
-The rule checks resolved declarations rather than one authored utility name.
-Property and serialized-value patterns ignore ASCII case. Every matching restriction applies.
+This rule reports a utility that produces a CSS declaration that your project
+forbids. It checks the generated declarations, so it also catches other
+utilities and arbitrary values that produce the same declaration. The rule is off
+until you list declarations.
 
 ## Configuration
 
@@ -17,7 +19,7 @@ Property and serialized-value patterns ignore ASCII case. Every matching restric
     "rules": {
       "no-restricted-declarations": {
         "severity": "warn",
-        "rules": [{ "properties": ["position"], "values": ["absolute"] }]
+        "rules": [{ "properties": ["transition-property"], "values": ["all"] }]
       }
     }
   }
@@ -27,14 +29,23 @@ Property and serialized-value patterns ignore ASCII case. Every matching restric
 ## Reported
 
 ```tsx
-style("absolute");
+style("transition-all");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("relative");
+style("transition-colors");
 ```
 
-Both property and value patterns belong to the receiving CSS domain. Use the
-optional message to explain the component or design rule that authors should follow.
+## How to fix
+
+Use a utility that produces an allowed declaration. In the example, the project
+forbids transitions on every property, so the fix names the properties that
+change.
+
+## Options
+
+`rules` lists the restrictions. Each entry has `properties` and `values`
+patterns, and an optional `message` that explains what to use instead. Patterns
+accept `*` and `?` and ignore case. Every matching entry applies.

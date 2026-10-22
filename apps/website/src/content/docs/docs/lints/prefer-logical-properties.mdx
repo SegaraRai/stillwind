@@ -1,13 +1,15 @@
 ---
 title: prefer-logical-properties
-description: Prefer logical property counterparts for writing-direction-aware layouts.
+description: Reports a physical property that has a logical form, such as ml-4 for ms-4.
 slug: docs/lints/prefer-logical-properties
 ---
 
 <LintRuleSummary name="prefer-logical-properties" />
 
-The physical margin has a logical counterpart. A logical start margin follows
-the element's writing direction instead of always choosing its physical left edge.
+This rule reports a utility for a physical property that has a logical form, such
+as `ml-4` (left) for `ms-4` (start). A logical property follows the writing
+direction, so the layout also works in right-to-left languages. The `stylistic`
+preset enables this rule.
 
 ## Reported
 
@@ -15,12 +17,16 @@ the element's writing direction instead of always choosing its physical left edg
 style("ml-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("ms-4");
 ```
 
-Review whether the original rule describes a physical coordinate or a logical
-layout role. This preference reports valid emitted CSS; it does not prove the
-replacement preserves an application's intended geometry.
+## How to fix
+
+- If the margin separates the element from the content before it, use the
+  logical form, as in the example.
+- If the side must stay on the left in every language, such as for an icon that
+  points left, keep the physical form and add a
+  [suppression comment](/docs/configuration/#suppression-comments).

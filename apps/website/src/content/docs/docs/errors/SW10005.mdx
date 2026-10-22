@@ -1,26 +1,30 @@
 ---
 title: "SW10005: Untransformed macro reference"
-description: Use recognized macro call forms instead of leaving a runtime macro binding read.
+description: The style function is used as a value instead of being called.
 slug: docs/errors/SW10005
 ---
 
 <CompilerError code="SW10005" category="authoring" />
 
-After lowering, a reference to the macro binding remains. The macro import must
-be removable, so an unhandled read cannot be left as an ordinary runtime function.
+This error occurs when the code uses `style` or another macro as a value, such as
+by storing it in a variable or passing it to a function. The compiler replaces
+macro calls at build time and removes the import, so the function does not exist
+at runtime.
 
-## Rejected
+## Reported
 
 ```tsx
 const macro = style;
 macro("p-4");
 ```
 
-## Corrected
+## Fixed
 
 ```tsx
 const props = style("p-4");
 ```
 
-Keep macro calls in their supported syntax. Reuse completed styles or declaration
-values instead of passing the macro function itself around.
+## How to fix
+
+- Call `style()` directly, as in the example.
+- To share a style, store and pass the result of `style()`, not the function.

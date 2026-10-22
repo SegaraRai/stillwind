@@ -1,13 +1,14 @@
 ---
 title: runtime-condition-requires-css-if
-description: Enable native CSS if() when a computed-value comparison cannot use the fallback lowering.
+description: Reports a runtime CSS condition that needs the useCssIf setting.
 slug: docs/lints/runtime-condition-requires-css-if
 ---
 
 <LintRuleSummary name="runtime-condition-requires-css-if" />
 
-The default `useCssIf: false` fallback cannot express every computed-value
-comparison. This condition cannot be preserved by merely suppressing its finding.
+This rule reports a runtime CSS condition, such as `if(--state:active):`, that
+the compiler can only express with the native CSS `if()` function. The project
+does not enable it, so the utility produces no CSS.
 
 ## Reported
 
@@ -15,12 +16,17 @@ comparison. This condition cannot be preserved by merely suppressing its finding
 style("if(--state:active):block");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("block");
+style("data-[state=active]:block");
 ```
 
-The accepted example removes the condition. To keep the comparison, set the
-project's `useCssIf: true` and verify that the application's browser targets
-support the native condition. That configuration changes the generated CSS contract.
+## How to fix
+
+- Set the state as an attribute, such as `data-state="active"`, and use an
+  attribute variant, as in the example. This works in every browser.
+- If the browsers that you support implement CSS `if()`, set `useCssIf: true` in
+  the project, and keep the condition.
+
+See [Configuration](/docs/configuration/#generated-css).

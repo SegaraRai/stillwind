@@ -1,13 +1,14 @@
 ---
 title: invalid-keyframes-definition
-description: Define keyframes with static frame selectors and literal utilities.
+description: Reports a style.keyframes() frame key that is not a keyframe position, such as middle.
 slug: docs/lints/invalid-keyframes-definition
 ---
 
 <LintRuleSummary name="invalid-keyframes-definition" />
 
-Frame keys must identify CSS keyframe positions. An arbitrary name such as
-`middle` is not a frame selector. Invalid definitions cannot supply that frame body.
+This rule reports a `style.keyframes()` definition that the compiler cannot read,
+such as a frame key that is not `from`, `to`, or a percentage. The frame produces
+no CSS.
 
 ## Reported
 
@@ -16,12 +17,18 @@ const fade = style.keyframes({ middle: "opacity-50" });
 style(fade("duration-300"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const fade = style.keyframes({ "50%": "opacity-50" });
 style(fade("duration-300"));
 ```
 
-Write the definition object in a binding initializer and keep frame values
-variant-free. See [keyframe definitions](/docs/macros/keyframes/).
+## How to fix
+
+- Name each frame with `from`, `to`, or a percentage such as `"50%"`.
+- Write frame utilities without variants. To use a different animation under a
+  condition, add a whole definition under a variant key.
+- Write the definition as an object literal, as the initial value of a variable.
+
+See [style.keyframes()](/docs/macros/keyframes/#define-the-frames).

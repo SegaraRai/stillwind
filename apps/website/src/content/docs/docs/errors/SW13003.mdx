@@ -1,26 +1,35 @@
 ---
 title: "SW13003: Invalid CSS block"
-description: Supply a CSS construct that the scanner can consume as one balanced block.
+description: A CSS block in your stylesheet closes with the wrong delimiter.
 slug: docs/errors/SW13003
 ---
 
 <CompilerError code="SW13003" category="authoring" />
 
-A scanner operation expected one balanced block and could not consume the
-construct at the reported UTF-8 byte offset. An unmatched or incorrect delimiter
-can violate that operation's input contract.
+This error occurs when the compiler expects one balanced block, but the block
+closes with a different delimiter than it opened with. The message gives the
+position as a byte offset.
 
-## Rejected block contract
+## Reported
 
-```text
-The selected block begins at an opening delimiter but closes with a different delimiter.
+```css
+.card {
+  color: rgb(0 0 255];
+}
 ```
 
-## Accepted block contract
+## Fixed
 
-```text
-The opening and closing delimiters match, and the complete block lies in the same buffer.
+```css
+.card {
+  color: rgb(0 0 255);
+}
 ```
 
-Correct the retained source around that offset. If a host selected the wrong
-buffer slice, reproduce the operation and repair the slice rather than editing unrelated CSS.
+## How to fix
+
+Match each opening delimiter with its closing one. In the example, `(` was closed
+with `]`.
+
+If you write your own integration and the stylesheet is valid, check that the
+integration passed the whole block to the compiler.

@@ -1,25 +1,30 @@
 ---
 title: "SW33004: Invalid source span"
-description: Keep spans inside their source bounds and on valid UTF-8 boundaries.
+description: A source range lies outside its file or splits a multibyte character.
 slug: docs/errors/SW33004
 ---
 
 <CompilerError code="SW33004" category="host" />
 
-The source rejected a span's bounds or UTF-8 boundaries. The span carries its
-file identity and half-open byte range; both are part of the input contract.
+This error occurs when an integration or a tool passes a source range whose ends
+lie outside the file, or inside a character of several bytes. The message names
+the operation.
 
-## Invalid span contract
-
-```text
-An endpoint falls outside the source or inside a multibyte character.
-```
-
-## Valid span contract
+## Reported
 
 ```text
-Both endpoints are ordered valid boundaries in the span's owning source.
+The end of the range falls in the middle of the bytes of "é".
 ```
 
-Construct the span from checked offsets for the same revision. Use the operation
-context to find which host path supplied the rejected span.
+## Fixed
+
+```text
+Both ends of the range fall between characters, inside the file.
+```
+
+## How to fix
+
+- With an official integration, report the error with the file and the action
+  that caused it.
+- In your own integration, build ranges from checked offsets of the same revision
+  of the file.

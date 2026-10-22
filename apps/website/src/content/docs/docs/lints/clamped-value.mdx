@@ -1,13 +1,14 @@
 ---
 title: clamped-value
-description: Keep literal values within the property's effective range.
+description: Reports a value outside the range that the browser uses, such as opacity above 1.
 slug: docs/lints/clamped-value
 ---
 
 <LintRuleSummary name="clamped-value" />
 
-The literal opacity exceeds its usable range. The compiler emits the value,
-but browser clamping prevents the extra magnitude from changing the result.
+This rule reports a literal value outside the range that the browser uses for the
+property. The browser clamps the value to the range, so the extra amount has no
+effect. For example, `opacity-150` behaves the same as `opacity-100`.
 
 ## Reported
 
@@ -15,11 +16,16 @@ but browser clamping prevents the extra magnitude from changing the result.
 style("opacity-150");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("opacity-100");
 ```
 
-Use the intended endpoint or a value inside the range. This check addresses
-literal values; a runtime custom property's application contract remains the caller's responsibility.
+## How to fix
+
+Use the end of the range that the value reaches, as in the example, or a value
+inside the range.
+
+The rule checks values written in the code. It does not check values that a
+custom property receives at runtime.

@@ -1,25 +1,30 @@
 ---
 title: "SW32005: CSS loader already completed"
-description: Stop supplying file responses after the loader reaches a terminal state.
+description: An answer reached the stylesheet loader after it finished loading.
 slug: docs/errors/SW32005
 ---
 
 <CompilerError code="SW32005" category="host" />
 
-The host called `provide` after loading had completed. A completed loader is
-not a mutable destination for late responses or a new stylesheet revision.
+This error occurs when an integration calls `provide` on a stylesheet loader that
+has already finished. A finished loader does not accept late answers or new
+revisions of a stylesheet.
 
-## Invalid sequence
-
-```text
-Loader completes -> a delayed file response is supplied to that loader.
-```
-
-## Valid sequence
+## Reported
 
 ```text
-Loader completes -> no more responses; a reload starts a new loading lifecycle.
+The loader finishes, and then a delayed file answer arrives for it.
 ```
 
-Cancel or discard outstanding asynchronous work when its loading session ends.
-Keep response ownership separate across concurrent or successive loads.
+## Fixed
+
+```text
+The loader finishes, and no more answers arrive. A change starts a new loader.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages. If the error
+  remains, report it.
+- In your own integration, cancel or ignore pending file reads when a load ends,
+  and keep the answers of each load separate.

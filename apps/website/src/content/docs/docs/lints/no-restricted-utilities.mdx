@@ -1,13 +1,14 @@
 ---
 title: no-restricted-utilities
-description: Reject authored utility spellings that match project restrictions.
+description: Reports utilities that your project forbids, by name.
 slug: docs/lints/no-restricted-utilities
 ---
 
 <LintRuleSummary name="no-restricted-utilities" />
 
-This rule matches the authored utility spelling independently of its resolved
-declarations. Patterns are case-sensitive and support `*` and `?`.
+This rule reports a utility whose name matches a pattern that your project
+forbids. It checks the name as written, not the generated CSS. The rule is off
+until you list utilities.
 
 ## Configuration
 
@@ -17,7 +18,7 @@ declarations. Patterns are case-sensitive and support `*` and `?`.
     "rules": {
       "no-restricted-utilities": {
         "severity": "warn",
-        "utilities": [{ "pattern": "absolute", "message": "Use a layout component." }]
+        "utilities": [{ "pattern": "space-*", "message": "Use gap on the container." }]
       }
     }
   }
@@ -27,14 +28,24 @@ declarations. Patterns are case-sensitive and support `*` and `?`.
 ## Reported
 
 ```tsx
-style("absolute");
+style("flex flex-col space-y-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("relative");
+style("flex flex-col gap-4");
 ```
 
-Use [no-restricted-declarations](/docs/lints/no-restricted-declarations/) when the
-policy must also catch other spellings that resolve to a forbidden property/value.
+## How to fix
+
+Follow the message of the matching entry. In the example, the project prefers
+`gap` to `space-*`, so the fix keeps the same spacing with `gap-4`.
+
+## Options
+
+`utilities` lists entries with a name `pattern` and an optional `message`.
+Patterns accept `*` and `?`, and they are case-sensitive.
+
+To also catch other utilities that produce the same CSS, use
+[no-restricted-declarations](/docs/lints/no-restricted-declarations/).

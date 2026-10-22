@@ -1,28 +1,33 @@
 ---
 title: "SW01005: Generated identifier collision"
-description: Give distinct generated symbols distinct published identifiers.
+description: Two different styles would receive the same generated name.
 slug: docs/errors/SW01005
 ---
 
 <CompilerError code="SW01005" category="configuration" />
 
-Two generated definitions would publish the same identifier. A custom naming
-callback that returns one fixed class for every request can cause this conflict.
+This error occurs when two different styles, refs, or animations would receive
+the same generated name. The usual cause is a custom `naming` function that
+returns the same name for different requests. A very short `hashLength` can also
+cause it.
 
-## Rejected naming contract
-
-```text
-Request A -> button
-Distinct request B -> button
-```
-
-## Corrected naming contract
+## Reported
 
 ```text
-Request A -> button_a
-Distinct request B -> button_b
+Request for style A -> "button"
+Request for style B -> "button"
 ```
 
-Use the default naming callbacks or preserve the request's distinguishing hash.
-Callbacks must be pure and stable for the session. Update `namingRevision` when
-their behavior changes; for default-name collisions, review `hashLength`.
+## Fixed
+
+```text
+Request for style A -> "button_a1b2c"
+Request for style B -> "button_d3e4f"
+```
+
+## How to fix
+
+- Make the `naming` function keep the hash from the request in the name, as in
+  the example, or return `undefined` to use the default name.
+- If you use the default names, raise `hashLength`.
+- Change `namingRevision` whenever you change a `naming` function.

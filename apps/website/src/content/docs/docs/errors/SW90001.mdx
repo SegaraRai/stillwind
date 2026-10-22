@@ -1,26 +1,18 @@
 ---
 title: "SW90001: Invalid generated CSS block"
-description: Report generated CSS that cannot be split into complete rule blocks.
+description: The compiler generated CSS that is not made of complete rules.
 slug: docs/errors/SW90001
 ---
 
 <CompilerError code="SW90001" category="internal" />
 
-Compiler-generated CSS cannot be split into complete rule blocks. The byte
-offset identifies the invalid position within the generated contribution.
+This error occurs when the CSS that the compiler generates for a style cannot be split into complete rules. The message gives the position in the generated CSS. Your code does not need to change; the compiler made a mistake.
 
-## Violated invariant
+## How to report
 
-```text
-A generated contribution contains an incomplete or invalid CSS rule block.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-Every generated contribution can be consumed as complete CSS rule blocks.
-```
-
-Report the original macro source, CSS entrypoint, compiler version, and generated
-contribution. The required invariant belongs to the compiler; application code
-should not need to repair its internal generated buffer.
+- The `style()` call or utility that causes the error
+- Your stylesheet, or the parts that the utility uses
+- The version of the Stillwind packages

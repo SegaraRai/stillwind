@@ -1,14 +1,14 @@
 ---
 title: invalid-utility
-description: Correct unsupported value forms of a recognized utility.
+description: Reports a known utility written in a form that it does not accept.
 slug: docs/lints/invalid-utility
 ---
 
 <LintRuleSummary name="invalid-utility" />
 
-The utility family is recognized, but the authored form is invalid. For example,
-the negative modifier cannot give `display: flex` a meaningful negative value.
-The invalid contribution is omitted.
+This rule reports a utility whose name is known but whose form is not valid. For
+example, `flex` has no negative form, so `-flex` is invalid. The utility produces
+no CSS.
 
 ## Reported
 
@@ -16,11 +16,16 @@ The invalid contribution is omitted.
 style("-flex");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("flex");
 ```
 
-Inspect the utility's supported value and modifier forms. An unregistered family
-or missing theme value instead reports [unknown-utility](/docs/lints/unknown-utility/).
+## How to fix
+
+- Remove the modifier or value that the utility does not accept.
+- Check the accepted forms in [Built-in utilities](/docs/utilities/).
+
+A utility name or theme value that does not exist is reported by
+[unknown-utility](/docs/lints/unknown-utility/) instead.

@@ -1,25 +1,32 @@
 ---
 title: "SW15002: Rendered source is too large"
-description: Keep transformed output within the supported source-coordinate range.
+description: A compiled module is too large for the compiler's source positions.
 slug: docs/errors/SW15002
 ---
 
 <CompilerError code="SW15002" category="authoring" />
 
-Rendered source exceeds the 32-bit coordinate range. A smaller input is not
-sufficient if one transformation still expands it beyond the output limit.
+This error occurs when the compiled code of one module is so large that its
+positions do not fit in the compiler's 32-bit source positions. The source may be
+small while the compiled code is not, for example when a style lists a very large
+number of options.
 
-## Rejected output contract
-
-```text
-One rendered module needs positions beyond the supported coordinate range.
-```
-
-## Accepted output contract
+## Reported
 
 ```text
-The rendered module and its mappings fit the supported coordinate range.
+One module generates more than 4 GB of compiled code.
 ```
 
-Reduce the expansion or split the producer into smaller modules. Retain the
-original input and output-size evidence when reporting unexpectedly large compiler output.
+## Fixed
+
+```text
+The styles are split across several modules, each of a normal size.
+```
+
+## How to fix
+
+- Split the module into smaller modules.
+- Reduce the number of style combinations that one call generates.
+
+If the module has a normal size, report the error as a bug with the size of the
+input and the output.

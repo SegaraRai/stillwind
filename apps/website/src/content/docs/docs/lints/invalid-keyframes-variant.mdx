@@ -1,13 +1,15 @@
 ---
 title: invalid-keyframes-variant
-description: Restrict keyframe definition branches with media or supports conditions.
+description: Reports a state or container variant around a style.keyframes() definition.
 slug: docs/lints/invalid-keyframes-variant
 ---
 
 <LintRuleSummary name="invalid-keyframes-variant" />
 
-A keyframe definition has no hovered element. Selector and container variants
-cannot condition that definition; media and supports variants can.
+This rule reports a state or container variant, such as `hover:`, around a
+definition inside `style.keyframes()`. A keyframes definition belongs to no
+element, so it cannot be hovered. Only media and `supports-*` variants can choose
+a definition.
 
 ## Reported
 
@@ -16,12 +18,18 @@ const fade = style.keyframes({ "hover:": { to: "opacity-100" } });
 style(fade("duration-300"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-const fade = style.keyframes({ "motion-safe:": { to: "opacity-100" } });
-style(fade("duration-300"));
+const fade = style.keyframes({ to: "opacity-100" });
+style({ "hover:": fade("duration-300") });
 ```
 
-To animate a hovered element, put the hover condition around the animation use
-in `style()`. A matching definition branch replaces the complete frame body.
+## How to fix
+
+- To animate an element while it is in a state, put the variant around the
+  animation in `style()`, as in the example.
+- To use a different animation for a media condition, such as reduced motion,
+  keep the variant in the definition: `"motion-reduce:": { ... }`.
+
+See [style.keyframes()](/docs/macros/keyframes/#define-the-frames).

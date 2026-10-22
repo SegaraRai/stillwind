@@ -20,6 +20,7 @@
 
   --spacing: 0.25rem;
   --spacing-gutter: clamp(1.5rem, 5.4vw, 5rem);
+  --spacing-docs-gutter: clamp(1rem, 2.5vw, 2.5rem);
   --spacing-columns: clamp(1.75rem, 4vw, 4rem);
   --spacing-control: 0.75rem;
   --spacing-panel: 1.5rem;
@@ -34,10 +35,13 @@
   --breakpoint-inline: 40rem;
   --breakpoint-sidebar: 52.5rem;
   --breakpoint-outline: 70rem;
+  --breakpoint-docs-outline: 85rem;
 
   --container-page: 85rem;
-  --container-navigation: 11.25rem;
-  --container-outline: 10.5rem;
+  --container-docs: 96rem;
+  --container-navigation: 15rem;
+  --container-outline: 13rem;
+  --container-prose: 48rem;
 
   --text-label: 0.625rem;
   --text-label--line-height: 1.6;

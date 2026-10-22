@@ -1,25 +1,30 @@
 ---
 title: "SW31002: Ambiguous or missing original range"
-description: Give each generated expression or declaration one verifiable original range.
+description: A Stillwind expression in a converted script maps to no place, or several places, in the component.
 slug: docs/errors/SW31002
 ---
 
 <CompilerError code="SW31002" category="host" />
 
-A generated span has no unique corresponding original-source range. The compiler
-cannot safely apply its edit to one of several possible source locations.
+This error occurs when a Stillwind expression in the converted script of a
+component maps to no place in the original component, or to more than one place.
+The compiler must edit the original source, so it needs exactly one location.
 
-## Invalid correspondence
-
-```text
-A generated macro span is unmapped or has more than one possible original range.
-```
-
-## Valid correspondence
+## Reported
 
 ```text
-The complete span identifies one unambiguous original expression or declaration.
+A style() call in the generated script has no mapping, or maps to two places.
 ```
 
-Repair the converter mapping for the complete syntax span. Supplying only a
-nearby token's position does not establish correspondence for the whole expression.
+## Fixed
+
+```text
+The whole style() call maps to one expression in the component.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages and the framework
+  packages. If the error remains, report it with the component.
+- In your own converter, map the whole expression. A mapping for a nearby token
+  is not enough.

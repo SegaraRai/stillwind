@@ -5,8 +5,11 @@ import DocsSidebar from "./DocsSidebar.astro";
 
 interface Props {
   items: SidebarItem[];
+  /** Key of the enclosing group; nested group keys join the labels with "/". */
+  parent?: string;
 }
-const { items } = Astro.props;
+const { items, parent } = Astro.props;
+const groupKey = (label: string) => (parent ? `${parent}/${label}` : label);
 const current = (item: SidebarItem): boolean =>
   item.type === "group"
     ? item.indexHref === Astro.url.pathname || item.children.some(current)
@@ -17,7 +20,11 @@ const current = (item: SidebarItem): boolean =>
   {items.map((item) => (
     <li>
       {item.type === "group" ? (
-        <details class="docs-sidebar-group" open={current(item) || item.collapsed === false}>
+        <details
+          class="docs-sidebar-group"
+          data-sidebar-group={groupKey(item.label)}
+          open={current(item) || item.collapsed === false}
+        >
           <summary>{item.label}</summary>
           {item.indexHref && (
             <a
@@ -27,7 +34,7 @@ const current = (item: SidebarItem): boolean =>
               Overview
             </a>
           )}
-          <DocsSidebar items={item.children} />
+          <DocsSidebar items={item.children} parent={groupKey(item.label)} />
         </details>
       ) : (
         <a

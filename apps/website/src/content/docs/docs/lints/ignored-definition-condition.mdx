@@ -1,13 +1,14 @@
 ---
 title: ignored-definition-condition
-description: Place runtime CSS conditions inside a utility body instead of around its definition.
+description: Reports a media rule around a utility definition, which the compiler ignores.
 slug: docs/lints/ignored-definition-condition
 ---
 
 <LintRuleSummary name="ignored-definition-condition" />
 
-The loader cannot condition registration of this design-system definition with
-the enclosing media rule. It ignores that condition while retaining the definition.
+This rule reports a `@utility` definition inside a condition such as `@media`.
+The compiler registers utilities when it reads the stylesheet, not in the
+browser, so it ignores the condition. The utility then applies at every width.
 
 ## Reported
 
@@ -19,7 +20,7 @@ the enclosing media rule. It ignores that condition while retaining the definiti
 }
 ```
 
-## Accepted
+## Fixed
 
 ```css
 @utility brand {
@@ -29,5 +30,9 @@ the enclosing media rule. It ignores that condition while retaining the definiti
 }
 ```
 
-The corrected body retains the media condition on emitted declarations.
-Design-system registration and runtime CSS matching happen at different stages.
+## How to fix
+
+- Put the condition inside the body of the utility, as in the example. Then the
+  generated CSS keeps the condition.
+- Or define the utility without a condition, and apply it with a variant, such as
+  `md:brand`.

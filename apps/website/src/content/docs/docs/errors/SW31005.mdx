@@ -1,25 +1,31 @@
 ---
 title: "SW31005: Component projection preparation failed"
-description: Complete converter and checker projection preparation before compilation.
+description: The converter for a Vue, Svelte, or Astro component failed before compilation.
 slug: docs/errors/SW31005
 ---
 
 <CompilerError code="SW31005" category="host" />
 
-A converter or checker projection could not prepare the required correspondence.
-The diagnostic includes the projection adapter's explanation of that failure.
+This error occurs when the converter that prepares a Vue, Svelte, or Astro
+component for compilation or type checking fails. The message contains the
+explanation from the converter.
 
-## Invalid preparation result
-
-```text
-Preparation fails before it can supply the required original/checker correspondence.
-```
-
-## Valid preparation result
+## Reported
 
 ```text
-Preparation returns the supported document and correspondence required by its consumer.
+The converter stops before it produces the script and its map.
 ```
 
-Reproduce with compatible framework and integration versions. An embedding must
-propagate preparation failure instead of compiling a partially prepared projection.
+## Fixed
+
+```text
+The converter returns the script and the map that the compiler needs.
+```
+
+## How to fix
+
+- With an official integration, check that the framework and Stillwind package
+  versions are supported, and update them. If the error remains, report it with
+  the component.
+- In your own integration, report the converter failure instead of compiling a
+  partly prepared component.

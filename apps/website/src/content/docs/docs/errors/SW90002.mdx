@@ -1,25 +1,19 @@
 ---
 title: "SW90002: Missing retained rule"
-description: Report a stylesheet contribution whose rule is absent from the retained artifact.
+description: The compiler refers to a CSS rule that its own results do not contain.
 slug: docs/errors/SW90002
 ---
 
 <CompilerError code="SW90002" category="internal" />
 
-A stylesheet contribution refers to a rule that its retained artifact does not
-contain. The compiler's rule reference and artifact snapshot disagree.
+This error occurs when the compiler refers to a CSS rule that its stored results for a module do not contain. It can follow an incremental update in the development server or the editor.
 
-## Violated invariant
+## How to report
 
-```text
-A retained stylesheet contribution points to a rule missing from that artifact.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-Each retained rule reference resolves within the artifact that owns the contribution.
-```
-
-Report the source, stylesheet, and whether a reload or incremental update preceded
-the failure. Preserve a minimal sequence when a clean build does not reproduce it.
+- The source file and your stylesheet
+- Whether the error appeared after a reload or an edit, and whether a clean build also fails
+- The steps that reproduce it, if a clean build succeeds
+- The version of the Stillwind packages

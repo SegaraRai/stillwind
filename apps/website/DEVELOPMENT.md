@@ -3,6 +3,21 @@
 The Astro site uses the workspace Stillwind integration with `src/styles.css`.
 The compiler generates displayed diagnostics and CSS at build time.
 
+## Source layout
+
+Code is grouped by the part of the site that uses it:
+
+| Part    | Components                | Scripts and data   | Styles                   |
+| ------- | ------------------------- | ------------------ | ------------------------ |
+| Shared  | `src/components/site/`    | `src/lib/site/`    | `src/styles/site.css`    |
+| Landing | `src/components/landing/` | `src/lib/landing/` | `src/styles/landing.css` |
+| Docs    | `src/components/docs/`    | `src/lib/docs/`    | `src/styles/docs.css`    |
+
+`src/styles/theme.css` defines the tokens for every part. `src/styles.css` is the
+Stillwind stylesheet entry and imports the other stylesheets. Import styles with
+Stillwind directives through that entry so the compiler expands them before Astro
+bundles the generated CSS. Shared code must not import landing or docs code.
+
 ## Local tasks
 
 Run from the repository root:
@@ -31,10 +46,6 @@ Use MDX for pages with Nimbus components. `src/components.ts` registers the loca
 Aside component, which supports `note`, `tip`, `caution`, and `danger`. Its styles
 use the shared theme through `src/styles/docs.css`.
 
-`src/styles/docs.css` uses `@apply` and is imported by the Stillwind stylesheet
-entry, `src/styles.css`. Import styles with Stillwind directives through that
-entry so the compiler expands them before Astro bundles the generated CSS.
-
 Each page has an `index.md` alternate and an `index.mdx` source alternate.
 `/llms.txt` links to `/docs/llms.txt`, which lists the documentation pages.
 `/llms-full.txt` contains all discoverable documentation. These endpoints use
@@ -46,7 +57,7 @@ guidance in that page. `CompiledExample` renders its authored TypeScript code
 fence together with actual compiler output. `LintRuleSummary` reads current preset
 levels and option metadata; `CompilerError` shares reporting-code presentation.
 These components are registered in `src/components.ts` and have equivalent
-Markdown renderers in `src/components/reference/markdown.ts`. Edit links point
+Markdown renderers in `src/components/docs/reference/markdown.ts`. Edit links point
 to the individual page sources.
 
 The `utilities` content collection uses a loader to read the default registry's
@@ -114,9 +125,28 @@ input rules to the reference page, and link to it at the end.
 ### Reference pages
 
 Keep reference pages precise and complete. Order each page as follows: what the
-API does, an example, accepted inputs, behavior, and constraints. Each lint rule
-page states what the rule reports and how to fix the reported code. Each error
-page states what causes the error and how to fix it.
+API does, an example, accepted inputs, behavior, and constraints.
+
+Lint rule and compiler error pages use the same sections:
+
+| Section      | Lint rule page                                        | Compiler error page                 |
+| ------------ | ----------------------------------------------------- | ----------------------------------- |
+| Summary      | `LintRuleSummary`                                     | `CompilerError`                     |
+| Opening      | What the rule reports, and what happens then          | What causes the error               |
+| `Reported`   | Code that the rule reports                            | Code or input that causes the error |
+| `Fixed`      | The same code, corrected                              | The same code or input, corrected   |
+| `How to fix` | The ways to fix the code                              | The ways to fix the code or input   |
+| `Options`    | The meaning of each option, when the rule has options | Not used                            |
+
+The `Fixed` example keeps the intent of the `Reported` example. For example, a
+fix for an arbitrary color moves the color into a theme token instead of
+choosing an unrelated palette color. When the intent is ambiguous, `How to fix`
+lists each choice.
+
+Pages for host errors describe the integration input instead of source code.
+Pages for internal errors omit `Reported` and `Fixed`, and they explain how to
+report the bug. Tests compile the `Reported` and `Fixed` examples, so keep each
+example complete.
 
 ### Vocabulary
 
@@ -147,6 +177,18 @@ questions that the page does not raise, such as how the CLI writes files or
 which internal optimizations exist. Do not write "This is A, not B" to defend
 the design.
 
+### Comparisons with Tailwind CSS
+
+Stillwind builds on Tailwind CSS. When a page compares them, describe each
+difference as a result of their designs, not as a flaw of Tailwind. Tailwind
+reads class names as strings, so it needs no build step and accepts classes
+anywhere. In return, it cannot check how those strings relate to each other.
+Stillwind compiles `style()` calls, so it needs a build tool and can run those
+checks.
+
+Do not write that Tailwind fails silently, that nothing stops a mistake, or that
+its users lose track of their code.
+
 ### Index pages
 
 Index pages help the reader choose a page. Group entries by the reader's
@@ -164,6 +206,18 @@ semantic colors such as `bg-background`, `bg-surface`, `text-foreground`,
 for focus indicators and `danger`, `warning`, and `success` for status. Each color
 uses `light-dark()` so its public name stays the same in both schemes.
 
+The landing page uses `landing-shell`, and documentation pages use the wider
+`docs-shell`. Navigation between pages uses cross-document view transitions of
+type `page`, which `src/styles/site.css` enables only without a reduced-motion
+preference. `SiteHeader` and the documentation navigation name themselves with
+`style.viewTransition()`, so the header resizes between the two widths and the
+navigation stays in place between documentation pages. The root element keeps
+its default transition name; removing it would skip the cross-fade of the page.
+
+The documentation navigation stores its open groups and scroll position in
+`sessionStorage` when a page is hidden. The next documentation page restores
+them before its first paint. Groups that contain the current page always open.
+
 The header cycles through system, light, and dark preferences. System follows
 the browser's color scheme, including when JavaScript is disabled. Explicit
 choices persist in local storage and apply in the head before page content.
@@ -172,10 +226,13 @@ choices persist in local storage and apply in the head before page content.
 | ------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `--spacing`                                                               | A 4px base at the default root size; half steps supply 2px gaps |
 | `gutter`, `columns`, `control`, `panel`, `stack`, `section` spacing       | Page padding, column gaps, and shared component spacing         |
+| `docs-gutter` spacing                                                     | Page padding and column gaps of the documentation layout        |
+| `page`, `docs`, `navigation`, `outline`, `prose` containers               | Landing and documentation widths, side columns, and line length |
 | `inline`, `control`, `panel` radii                                        | 3px for inline code, 4px for controls, 8px for panels           |
 | `inline` breakpoint                                                       | 40rem: horizontal groups and larger navigation                  |
 | `sidebar` breakpoint                                                      | 52.5rem: side navigation and paired content                     |
 | `outline` breakpoint                                                      | 70rem: the page outline and full demonstration layout           |
+| `docs-outline` breakpoint                                                 | 85rem: the outline column of documentation pages                |
 | `label`, `caption`, `ui`, `small`, `body`, `lead` text                    | 10, 12, 13, 14, 16, and 18px at the default root size           |
 | `heading-small`, `heading`, `title`, `section`, `display` text            | Heading roles; large titles scale within defined limits         |
 | `code`, `code-inline`, `code-display`, `code-output`, `code-feature` text | Reading and demonstration code roles                            |
@@ -191,13 +248,13 @@ coordinates and illustration dimensions remain local to their presentation.
 
 ## Presentation contracts
 
-`src/lib/code-morph.ts` measures source tokens, and `src/lib/scroll.ts` supplies
+`src/lib/landing/code-morph.ts` measures source tokens, and `src/lib/landing/scroll.ts` supplies
 normalized progress. CSS interpolates measured positions and visibility.
 Only spaces and variant colons divide utility strings, so wrappers keep a
 variant and its utility on one line. Reports identify utilities through source
 ranges. Controllers release browser subscriptions when disposed.
 
-`src/lib/features/` separates source examples, presentation, progress,
+`src/lib/landing/features/` separates source examples, presentation, progress,
 relationships, and motion. Examples use the real Astro macro APIs. Keep source,
 explanation, and interactive preview consistent when editing an example.
 

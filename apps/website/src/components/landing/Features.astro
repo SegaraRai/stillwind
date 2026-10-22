@@ -1,11 +1,10 @@
 ---
 import { style } from "stillwind/astro";
 
-import { featureTopics } from "../lib/features/examples";
-import { featureScrollLength } from "../lib/features/scenes";
+import { featureTopics } from "../../lib/landing/features/examples";
+import { featureScrollLength } from "../../lib/landing/features/scenes";
 import FeatureSource from "./FeatureSource.astro";
 
-const contracts = "https://github.com/SegaraRai/stillwind/blob/main/docs/macro-contract.md";
 const stops = featureTopics.flatMap((topic) =>
   topic.frames.map((frame) => ({
     topic: topic.name,
@@ -82,7 +81,7 @@ const stops = featureTopics.flatMap((topic) =>
           </button>
         ))}
       </div>
-      <a href={contracts} {...style("nav-link text-caption text-muted")}>
+      <a href="/docs/macros/" {...style("nav-link text-caption text-muted")}>
         Explore the API ↗
       </a>
     </div>
@@ -98,7 +97,7 @@ const stops = featureTopics.flatMap((topic) =>
 </section>
 
 <script>
-  import { mountFeatures } from "../lib/features";
+  import { mountFeatures } from "../../lib/landing/features";
 
   const features = document.querySelector<HTMLElement>("[data-features]");
   if (features) {

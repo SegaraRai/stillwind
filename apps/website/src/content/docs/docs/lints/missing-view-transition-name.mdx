@@ -1,13 +1,14 @@
 ---
 title: missing-view-transition-name
-description: Supply a participant name when applying transition snapshot classes.
+description: Reports a view transition applied without .for().
 slug: docs/lints/missing-view-transition-name
 ---
 
 <LintRuleSummary name="missing-view-transition-name" />
 
-A transition declaration contributes its class but does not itself name the
-participant. This call has no participant-name supplier.
+This rule reports a `style()` call that applies a view transition without
+`.for()`. The transition adds its class, but the element has no
+`view-transition-name`, so the browser does not capture it.
 
 ## Reported
 
@@ -16,12 +17,17 @@ const transition = style.viewTransition({ old: "duration-150" });
 style(transition);
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const transition = style.viewTransition({ old: "duration-150" });
 style(transition.for("card"));
 ```
 
-Use a stable key for the logical participant. Repeated simultaneous participants
-need distinct keys; this rule does not prove document-wide uniqueness.
+## How to fix
+
+- Call `.for()` with a key that stays the same for the item before and after the
+  update, such as its ID.
+- When the call combines several transitions, call `.for()` on one of them.
+
+The rule does not check that keys are unique across the page.

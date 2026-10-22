@@ -1,26 +1,33 @@
 ---
 title: "SW32007: CSS source IDs exhausted"
-description: Keep the loaded source set within the source-file allocator's range.
+description: The stylesheet loader ran out of IDs for different stylesheet files.
 slug: docs/errors/SW32007
 ---
 
 <CompilerError code="SW32007" category="host" />
 
-The loader cannot allocate another source-file identity. Request IDs and source
-identities have different roles; reducing duplicate requests alone may not reduce
-the number of distinct source files.
+This error occurs when the stylesheet loader needs an ID for another stylesheet
+file, but has used all the IDs that it can represent. Each distinct file needs an
+ID, so the graph contains far more files than a normal project, or the same file
+keeps getting new identities.
 
-## Invalid state
-
-```text
-The graph needs more source identities than the allocator can represent.
-```
-
-## Valid state
+## Reported
 
 ```text
-Every source in the loaded graph has a representable source-file identity.
+The resolver returns a new identity for the same file on every request.
 ```
 
-Inspect unexpected graph expansion or identity churn. Reduce the source set and
-recreate the loader/session when appropriate; retain counts and resolver identities in a report.
+## Fixed
+
+```text
+The resolver returns one identity for each file.
+```
+
+## How to fix
+
+- Check your stylesheets and plugins for imports that generate new paths
+  repeatedly.
+- With an official integration, report the error with the number of stylesheets
+  and how the resolver names them.
+- In your own integration, give each file one stable identity, and create a new
+  loader when you start over.

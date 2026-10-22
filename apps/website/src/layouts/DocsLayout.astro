@@ -7,9 +7,9 @@ import "@fontsource/instrument-sans/500.css";
 import { style } from "stillwind/astro";
 
 import "../assets/fonts/jetbrains-mono.css";
-import DocsSidebar from "../components/DocsSidebar.astro";
-import SiteHeader from "../components/SiteHeader.astro";
-import ThemeHead from "../components/ThemeHead.astro";
+import DocsSidebar from "../components/docs/DocsSidebar.astro";
+import SiteHeader from "../components/site/SiteHeader.astro";
+import ThemeHead from "../components/site/ThemeHead.astro";
 
 interface Props {
   title: string;
@@ -22,6 +22,7 @@ interface Props {
 }
 
 const { title, description, entryId, markdownUrl, sidebar, headings, editUrl } = Astro.props;
+const navigationTransition = style.viewTransition({ group: "duration-300 ease-out" });
 ---
 
 <!doctype html>
@@ -42,10 +43,13 @@ const { title, description, entryId, markdownUrl, sidebar, headings, editUrl } =
     <a href="#main-content" {...style("skip-link")}>
       Skip to content
     </a>
-    <div {...style("site-shell")}>
+    <div {...style("docs-shell")}>
       <SiteHeader docs="/docs/" repository="https://github.com/SegaraRai/stillwind" />
       <div class="docs-grid">
-        <nav class="docs-navigation" aria-label="Documentation">
+        <nav
+          aria-label="Documentation"
+          {...style({ class: "docs-navigation" }, navigationTransition.for("docs-navigation"))}
+        >
           <p class="docs-label">Documentation</p>
           <DocsSidebar items={sidebar} />
           <div class="docs-agent-links">
@@ -53,6 +57,38 @@ const { title, description, entryId, markdownUrl, sidebar, headings, editUrl } =
             <a href="/docs/llms.txt">Documentation index ↗</a>
             <a href="/llms-full.txt">Full documentation ↗</a>
           </div>
+          <script is:inline>
+            // Restores the open groups and the scroll position from the previous documentation page
+            // before the first paint. Groups that contain the current page stay open.
+            (() => {
+              const key = "stillwind:docs-sidebar";
+              const nav = document.currentScript.parentElement;
+              const groups = () => nav.querySelectorAll("details[data-sidebar-group]");
+              try {
+                const state = JSON.parse(sessionStorage.getItem(key) ?? "null");
+                if (state) {
+                  for (const group of groups()) {
+                    if (!group.querySelector('[aria-current="page"]')) {
+                      group.open = state.open.includes(group.dataset.sidebarGroup);
+                    }
+                  }
+                  nav.scrollTop = state.scrollTop;
+                }
+              } catch {}
+              addEventListener("pagehide", () => {
+                try {
+                  const open = [...groups()].filter((group) => group.open);
+                  sessionStorage.setItem(
+                    key,
+                    JSON.stringify({
+                      open: open.map((group) => group.dataset.sidebarGroup),
+                      scrollTop: nav.scrollTop,
+                    }),
+                  );
+                } catch {}
+              });
+            })();
+          </script>
         </nav>
         <main id="main-content" class="docs-main">
           <header class="docs-page-header">

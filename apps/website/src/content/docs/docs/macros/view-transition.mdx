@@ -14,7 +14,11 @@ element. Calling `.for(key)` also gives the element a `view-transition-name`.
 
 ```tsx
 import { style } from "stillwind/react";
-const transition = style.viewTransition({ old: "duration-150", new: "delay-150 duration-150" });
+
+const transition = style.viewTransition({
+  old: "duration-150",
+  new: "delay-150 duration-150",
+});
 export const props = style(transition.for("product-42"));
 ```
 
@@ -64,7 +68,12 @@ as an inline style.
 
 ```tsx
 import { style } from "stillwind/react";
-const transition = style.viewTransition({ old: "duration-150", new: "duration-150" });
+
+const transition = style.viewTransition({
+  old: "duration-150",
+  new: "duration-150",
+});
+
 declare const id: string;
 export const props = style(transition.for(id));
 ```

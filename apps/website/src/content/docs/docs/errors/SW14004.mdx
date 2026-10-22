@@ -1,27 +1,31 @@
 ---
 title: "SW14004: Malformed utility property requirement"
-description: Correct a property requirement inside the utility that was matched.
+description: A utility that you use has an @stillwind-require-properties directive with invalid syntax.
 slug: docs/errors/SW14004
 ---
 
 <CompilerError code="SW14004" category="authoring" />
 
-A matched utility definition contains a malformed property requirement. The
-diagnostic identifies that utility and a byte offset within its definition body.
-The faulty body can belong to authored CSS or a loaded plugin definition.
+This error occurs when you use a utility whose definition contains an invalid
+`@stillwind-require-properties` directive. The message names the utility and the
+position in its definition. The definition can be in your stylesheet or in a
+plugin.
 
-## Rejected utility contract
-
-```text
-The matched utility's @stillwind-require-properties directive has malformed names or syntax.
-```
-
-## Corrected utility contract
+## Reported
 
 ```text
-Its requirement directive names complete registered custom properties with supported syntax.
+The definition of the utility lists "tw-rotate-x" in @stillwind-require-properties.
 ```
 
-Repair the definition rather than changing the use's lint severity. When the
-definition belongs to a dependency, reduce the failing utility and report that
-body and plugin version to its maintainer.
+## Fixed
+
+```text
+The definition lists the complete name "--tw-rotate-x".
+```
+
+## How to fix
+
+- If the definition is in your stylesheet, fix the directive, as in
+  [SW14003](/docs/errors/SW14003/).
+- If the definition comes from a plugin, report the utility and the plugin
+  version to the plugin's maintainer. Turning off a lint rule does not help.

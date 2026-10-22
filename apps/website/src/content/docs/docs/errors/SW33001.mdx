@@ -1,25 +1,30 @@
 ---
 title: "SW33001: Original map on an internal source"
-description: Register internal buffers without original-document source-map entries.
+description: An internal generated buffer was registered with a map to an original document.
 slug: docs/errors/SW33001
 ---
 
 <CompilerError code="SW33001" category="host" />
 
-An internal buffer was given a source-map entry for an original document.
-That registration claims an original-source relationship the internal buffer does not own.
+This error occurs when an integration registers an internal, generated buffer
+with a source map entry for an original document. Only original documents may
+have such entries. The message names the operation.
 
-## Invalid registration
-
-```text
-An internal source buffer carries an original-document source-map entry.
-```
-
-## Valid registration
+## Reported
 
 ```text
-The internal buffer has no original-document source-map entry.
+An internal generated buffer is registered with an original-document source map entry.
 ```
 
-Distinguish original documents from internal generated buffers in the host's
-source registration path. The diagnostic's operation context identifies the failing registration.
+## Fixed
+
+```text
+The internal buffer is registered without an original-document source map entry.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages. If the error
+  remains, report it.
+- In your own integration, register original documents and generated buffers
+  through separate paths.

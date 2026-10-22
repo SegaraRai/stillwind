@@ -1,29 +1,39 @@
 ---
 title: invalid-theme-reference
-description: Supply an active theme token or a fallback when resolving authored theme references.
+description: Reports a --theme() reference to a token that is not defined.
 slug: docs/lints/invalid-theme-reference
 ---
 
 <LintRuleSummary name="invalid-theme-reference" />
 
-This stylesheet reference names an inactive token without a fallback. The
-receiving declaration cannot resolve and is omitted.
+This rule reports a `--theme()` reference in your stylesheet to a token that the
+theme does not define, when the reference has no fallback. The declaration that
+contains it produces no CSS.
 
 ## Reported
 
 ```css
 .card {
-  color: --theme(--color-missing);
+  color: --theme(--color-brand);
 }
 ```
 
-## Accepted
+## Fixed
 
 ```css
+@theme {
+  --color-brand: oklch(0.6 0.2 250);
+}
+
 .card {
-  color: --theme(--color-missing, blue);
+  color: --theme(--color-brand);
 }
 ```
 
-Define the intended token or provide a fallback. Malformed `--theme()` syntax has
-a separate fatal contract, [SW14007](/docs/errors/SW14007/).
+## How to fix
+
+- Define the token in `@theme`, as in the example, or correct the spelling of its
+  name.
+- If the token is optional, add a fallback: `--theme(--color-brand, blue)`.
+
+Malformed `--theme()` syntax causes [SW14007](/docs/errors/SW14007/) instead.

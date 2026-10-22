@@ -1,13 +1,15 @@
 ---
 title: mutating-macro-argument
-description: Perform shared-state updates before entering a macro argument.
+description: Reports a state update inside an argument of style() or another macro.
 slug: docs/lints/mutating-macro-argument
 ---
 
 <LintRuleSummary name="mutating-macro-argument" />
 
-Macro arguments obey a purity contract. Their evaluation order and count are not
-an application side-effect protocol, and unused expressions can be omitted.
+This rule reports an assignment or another state update inside an argument of
+`style()` or another macro. The compiler can evaluate arguments in any order and
+can skip arguments whose result is not used, so the update may run in a
+different order or not at all.
 
 ## Reported
 
@@ -16,7 +18,7 @@ let count = 0;
 style({ "--count": count++ });
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 let count = 0;
@@ -24,5 +26,10 @@ count++;
 style({ "--count": count });
 ```
 
-Move assignments, updates, and stateful work before the macro. The rule detects
-visible mutations; a clean result does not prove that an arbitrary function is pure.
+## How to fix
+
+- Run the update before the call, and pass the result, as in the example.
+- The rule detects updates that it can see in the source. A function that changes
+  state internally is not reported, so keep such calls out of the arguments too.
+
+See [Side effects in arguments](/docs/macros/style/#side-effects-in-arguments).

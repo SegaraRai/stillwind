@@ -1,26 +1,32 @@
 ---
 title: "SW14002: Missing support slot"
-description: Keep the output destination required by generated support CSS.
+description: Your stylesheet has no place for CSS that a feature needs, such as keyframes.
 slug: docs/errors/SW14002
 ---
 
 <CompilerError code="SW14002" category="authoring" />
 
-Generated output requires a support slot that the entry graph does not provide.
-The diagnostic names the exact slot. For example, an animation can require a
-destination for its keyframe definition.
+This error occurs when the compiler generates supporting CSS, such as the
+`@keyframes` of an animation, but your stylesheet has no slot for it. The message
+names the missing slot.
 
-## Rejected template contract
-
-```text
-An animation emits keyframes, but the template has no keyframes slot.
-```
-
-## Corrected entry
+## Reported
 
 ```css
-@import "stillwind";
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
 ```
 
-Use the standard entry or add the named `@stillwind-slot` to the authored
-template. Copying only a utility preview omits support and does not repair the template.
+## Fixed
+
+```css
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+@stillwind-slot keyframes;
+```
+
+## How to fix
+
+- Add the slot that the message names, as in the example. `stillwind/theme.css`
+  contains the `theme` and `keyframes` slots.
+- If you do not need a custom selection, import `stillwind` instead.

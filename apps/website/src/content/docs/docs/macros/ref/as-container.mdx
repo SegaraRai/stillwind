@@ -1,0 +1,46 @@
+---
+title: ref.asContainer()
+description: Make the element that has a ref a named container for ref.at() queries.
+slug: docs/macros/ref/as-container
+sidebar:
+  order: 4
+---
+
+`card.asContainer(type?)` sets `container-name` on the element, and it sets
+`container-type` when you pass a type. Query the container with
+[`card.at()`](/docs/macros/ref/at/).
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const card = style.ref("card");
+export const container = style(card, card.asContainer("inline-size"), "p-4");
+```
+
+</CompiledExample>
+
+## Inputs
+
+The type is a string literal:
+
+- `normal`, `size`, `inline-size`, or `scroll-state`
+- a supported combination of these
+- a CSS-wide keyword
+
+Without a type, Stillwind does not set `container-type`, and the cascade decides
+its value. A type stored in a variable is not accepted.
+
+## Behavior
+
+Pass `card` and `card.asContainer()` in the same `style()` call. The container
+declarations apply only to an element that has the ref, and
+[missing-ref-attachment](/docs/lints/missing-ref-attachment/) reports a call
+without it.
+
+When another rule on the element also sets `container-name` or `container-type`,
+[conflicting-provider-properties](/docs/lints/conflicting-provider-properties/)
+reports it.

@@ -1,13 +1,14 @@
 ---
 title: missing-ref-attachment
-description: Attach the ref marker in the same call that supplies its provider.
+description: Reports asContainer() or asAnchor() in a call that does not attach the ref.
 slug: docs/lints/missing-ref-attachment
 ---
 
 <LintRuleSummary name="missing-ref-attachment" />
 
-Provider CSS from `asContainer()` and `asAnchor()` applies only to an element
-carrying the corresponding marker. The provider does not attach that marker itself.
+This rule reports `asContainer()` or `asAnchor()` in a `style()` call that does not
+also attach the ref. The container or anchor applies only to an element that has
+the ref, so without it, nothing happens.
 
 ## Reported
 
@@ -16,12 +17,15 @@ const card = style.ref("card");
 style(card.asContainer("inline-size"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const card = style.ref("card");
 style(card, card.asContainer("inline-size"));
 ```
 
-Keep attachment and provider in the same `style()` call. A `positionAnchor()`
-consumer has a different role and does not need the provider's marker on its target.
+## How to fix
+
+Pass the ref and the method in the same `style()` call, as in the example.
+
+`positionAnchor()` is not reported. The positioned element does not need the ref.

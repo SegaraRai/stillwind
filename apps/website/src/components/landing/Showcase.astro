@@ -1,9 +1,9 @@
 ---
 import { style } from "stillwind/astro";
 
-import { styleParts } from "../lib/code-morph";
-import { createExamples } from "../lib/examples";
-import { showcaseScenes, showcaseScrollLength } from "../lib/showcase";
+import { styleParts } from "../../lib/landing/code-morph";
+import { createExamples } from "../../lib/landing/examples";
+import { showcaseScenes, showcaseScrollLength } from "../../lib/landing/showcase";
 
 const examples = await createExamples();
 const keys = ["block", "text", "inline", "color", "shape"];
@@ -318,7 +318,7 @@ const results = [
 </section>
 
 <script>
-  import { mountShowcase } from "../lib/showcase";
+  import { mountShowcase } from "../../lib/landing/showcase";
 
   const story = document.querySelector<HTMLElement>("[data-story]");
   if (story) {

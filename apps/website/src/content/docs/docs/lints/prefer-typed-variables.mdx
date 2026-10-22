@@ -1,13 +1,15 @@
 ---
 title: prefer-typed-variables
-description: State the intended value type when a variable enters a utility family with several domains.
+description: Reports a custom property without a type in a utility that accepts several types.
 slug: docs/lints/prefer-typed-variables
 ---
 
 <LintRuleSummary name="prefer-typed-variables" />
 
-`text-*` accepts more than one value type. A bare custom property does not state
-whether the utility should treat its value as a color or another supported domain.
+This rule reports a custom property without a type in a utility that accepts
+several types. For example, `text-*` sets a color or a font size, so
+`text-(--brand)` does not show which one you mean. The `stylistic` preset enables
+this rule.
 
 ## Reported
 
@@ -15,11 +17,14 @@ whether the utility should treat its value as a color or another supported domai
 style("text-(--brand)");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("text-(color:--brand)");
 ```
 
-Choose the type that matches the custom property's contract. The annotation
-guides utility resolution; it does not validate every runtime value assigned to the property.
+## How to fix
+
+Add the type that the custom property holds, such as `color:` in the example, or
+`length:` for a font size. The type only chooses the meaning of the utility. It
+does not check the value that the property receives at runtime.

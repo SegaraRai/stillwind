@@ -6,9 +6,9 @@ slug: docs/guides/element-relationships
 
 You want to style an element based on another element: a parent's hover state,
 a sibling's state, the width of a container, or the position of an anchor.
-In Tailwind, you connect the two elements by matching names, such as
-`group/card` and `group-hover/card:`. If the names differ, nothing reports it,
-and the style never applies.
+Tailwind connects the two elements by name, such as `group/card` and
+`group-hover/card:`. It reads these names as strings, so it does not check that
+they match.
 
 In Stillwind, you create the name as a variable with `style.ref()`. A misspelled
 ref is an undefined variable, so TypeScript reports it.

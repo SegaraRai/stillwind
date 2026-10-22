@@ -1,13 +1,14 @@
 ---
 title: no-restricted-length-units
-description: Restrict nonzero length units for selected CSS properties.
+description: Reports length units that your project forbids for some properties, such as px for width.
 slug: docs/lints/no-restricted-length-units
 ---
 
 <LintRuleSummary name="no-restricted-length-units" />
 
-The last matching property rule decides which units are forbidden. Property
-matching ignores ASCII case. Zero lengths are excluded because they do not need a unit.
+This rule reports a length with a unit that your project forbids for the
+property, such as `px` for `width`. Zero lengths are not reported, because they
+need no unit. The rule is off until you list properties and units.
 
 ## Configuration
 
@@ -30,11 +31,20 @@ matching ignores ASCII case. Zero lengths are excluded because they do not need 
 style("w-[20px]");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("w-5");
 ```
 
-Choose units appropriate to the property and design system. Configure a later,
-more specific property entry when one domain needs an exception to a broad policy.
+## How to fix
+
+Write the same size with an allowed unit. With the default `--spacing` of
+`0.25rem`, `w-5` is `1.25rem`, which is 20px at the default font size, as in the
+example.
+
+## Options
+
+`rules` lists entries with `properties` patterns and the units to `disallow`.
+When several entries match a property, the last one applies, so a later, more
+specific entry can make an exception.

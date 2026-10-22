@@ -1,13 +1,14 @@
 ---
 title: invalid-ref-input
-description: Declare refs with literal labels and supported provider arguments.
+description: Reports a style.ref() label or ref method argument that is not a literal.
 slug: docs/lints/invalid-ref-input
 ---
 
 <LintRuleSummary name="invalid-ref-input" />
 
-A ref label is a compile-time naming hint. A runtime string cannot create
-different ref identities or serve as that label.
+This rule reports a `style.ref()` label or a ref method argument that is not a
+literal. The compiler reads these values at build time, so a value from a variable
+cannot name a ref or configure a method.
 
 ## Reported
 
@@ -17,12 +18,19 @@ const card = style.ref(label);
 style(card);
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const card = style.ref("card");
 style(card);
 ```
 
-Preserve declaration identity through inferred types. Ref providers also require
-their literal argument forms; see [ref methods](/docs/macros/ref/).
+## How to fix
+
+- Write the label as a string literal.
+- If you need a different ref for each case, declare one ref for each case and
+  choose between the refs at runtime. Each `style.ref()` call already creates a
+  separate name, so the label does not need to differ.
+- Write method arguments, such as the type of `asContainer()`, as literals.
+
+See [style.ref()](/docs/macros/ref/).

@@ -1,26 +1,32 @@
 ---
 title: "SW31003: Projection content mismatch"
-description: Preserve source text at verified original/generated correspondences.
+description: The converted script and the component contain different text at a mapped location.
 slug: docs/errors/SW31003
 ---
 
 <CompilerError code="SW31003" category="host" />
 
-Mapped generated text differs from its original expression or declaration.
-Matching ranges alone do not prove that the compiler can edit the original safely.
+This error occurs when the converted script and the original component contain
+different text at a location that the map links. The compiler would edit the
+wrong text, so it stops.
 
-## Invalid correspondence
-
-```text
-Generated macro token: "p-4"
-Mapped original token: "p-2"
-```
-
-## Valid correspondence
+## Reported
 
 ```text
-The verified generated token and original token contain the same source text.
+Generated script: "p-4"
+Original component at the mapped range: "p-2"
 ```
 
-Check converter rewrites, escape handling, and stale buffer reuse. Keep both
-buffers and the mapping entry when reporting the failure.
+## Fixed
+
+```text
+Both texts contain "p-4" at the mapped range.
+```
+
+## How to fix
+
+- With an official integration, save the file and build again, in case the
+  editor passed an old buffer. If the error remains, report it with the
+  component.
+- In your own converter, check rewrites and escaping of the mapped text, and do
+  not reuse a map for a changed buffer.

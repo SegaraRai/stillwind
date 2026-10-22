@@ -1,26 +1,30 @@
 ---
 title: "SW01008: Unresolved root stylesheet"
-description: Resolve the configured CSS entry instead of answering its root request as unresolved.
+description: The stylesheet that the css setting selects cannot be found.
 slug: docs/errors/SW01008
 ---
 
 <CompilerError code="SW01008" category="configuration" />
 
-The loader received an unresolved answer for its root stylesheet. An imported
-dependency can have an unresolved response, but the configured root must exist
-to establish the design system.
+This error occurs when the stylesheet that the `css` setting of the project
+selects cannot be found. Stillwind reads the theme, utilities, and variants from
+that stylesheet, so it cannot compile without it.
 
-## Rejected response
+## Reported
 
-```text
-Root CSS request -> unresolved
+```ts
+const project = { css: "./src/stilwind.css", files: ["src/**/*.tsx"] };
 ```
 
-## Accepted response
+## Fixed
 
-```text
-Root CSS request -> the configured entry's identity and source text
+```ts
+const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"] };
 ```
 
-Check the project's `css` path and the integration's resolution environment.
-Read the root and answer that request with its source before loading imports.
+## How to fix
+
+- Check the path in `css`. It is relative to the `root` of the project, or to the
+  configuration file when `root` is not set.
+- If you write your own integration, answer the request for the root stylesheet
+  with its source text. Only imported stylesheets may be unresolved.

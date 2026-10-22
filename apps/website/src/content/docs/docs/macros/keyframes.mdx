@@ -14,7 +14,11 @@ The compiler generates a unique animation name.
 
 ```tsx
 import { style } from "stillwind/react";
-const fade = style.keyframes({ from: "opacity-0", to: "opacity-100" });
+
+const fade = style.keyframes({
+  from: "opacity-0",
+  to: "opacity-100",
+});
 export const props = style(fade("duration-300 ease-in-out"));
 ```
 

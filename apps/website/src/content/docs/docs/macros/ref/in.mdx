@@ -1,0 +1,53 @@
+---
+title: ref().in()
+description: Style an element from the state of a sibling, inside an ancestor that has another ref.
+slug: docs/macros/ref/in
+sidebar:
+  order: 2
+---
+
+`trigger("hover").in(card)` matches while the `trigger` element is hovered and an
+element with the `card` ref contains both the `trigger` element and the styled
+element. Use it to style an element from the state of a sibling.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const card = style.ref("card");
+const trigger = style.ref("trigger");
+export const container = style(card, "p-4");
+export const button = style(trigger, "rounded-md px-4 py-2");
+export const text = style({ [trigger("hover").in(card)]: "text-blue-600" });
+```
+
+</CompiledExample>
+
+## Inputs
+
+The receiver is a [ref condition](/docs/macros/ref/condition/), such as
+`trigger("hover")` or `trigger()`. The argument is one of these:
+
+| Argument               | The scope element                           |
+| ---------------------- | ------------------------------------------- |
+| `card`                 | Has the `card` ref                          |
+| `card("focus-within")` | Has the `card` ref and matches the variants |
+
+The argument cannot use `.in()` or `.at()` itself.
+
+## Behavior
+
+The scope element must be a strict ancestor of both elements. It cannot be the
+styled element itself.
+
+Calling `.in()` more than once adds each scope as another condition, and every
+condition must match.
+
+Write the whole chain directly as a computed key in `style()`. You cannot store it
+in a variable and use it later.
+
+See [Element relationships](/docs/guides/element-relationships/#react-to-a-siblings-state)
+for a task-based example.

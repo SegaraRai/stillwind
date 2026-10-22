@@ -1,25 +1,31 @@
 ---
 title: invalid-css-input
-description: Keep stylesheet exports within the static style.css() input domain.
+description: Reports a style.css() argument that is not a utility known at build time.
 slug: docs/lints/invalid-css-input
 ---
 
 <LintRuleSummary name="invalid-css-input" />
 
-`style.css()` must render a stylesheet during compilation. A number, dynamic
-condition, ref, or completed style result cannot supply its utility rules.
+This rule reports an argument of `style.css()` that the compiler cannot turn into
+CSS at build time, such as a number, a runtime condition, a ref, or a stored
+`style()` result. The argument adds nothing to the string.
 
 ## Reported
 
 ```tsx
-style.css(42);
+style.css(42, { selector: ":host" });
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style.css("p-4", { selector: ":host" });
+style.css("w-[42px]", { selector: ":host" });
 ```
 
-Keep `selector` and `template` in the final literal options object. The
-[stylesheet-export reference](/docs/macros/css/) describes support and placement.
+## How to fix
+
+- Write the style as utilities that are known at build time.
+- For a value that changes at runtime, set a custom property on the element with
+  JavaScript, and read it in a utility such as `w-(--width)`.
+
+[style.css()](/docs/macros/css/#inputs) lists the accepted inputs.

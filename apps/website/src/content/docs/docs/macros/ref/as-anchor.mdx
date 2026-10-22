@@ -1,0 +1,50 @@
+---
+title: ref.asAnchor()
+description: Make the element that has a ref a named anchor for CSS anchor positioning.
+slug: docs/macros/ref/as-anchor
+sidebar:
+  order: 5
+---
+
+`trigger.asAnchor(scope?)` sets `anchor-name` on the element. Position another
+element against it with [`trigger.positionAnchor()`](/docs/macros/ref/position-anchor/).
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const trigger = style.ref("trigger");
+export const button = style(trigger, trigger.asAnchor());
+export const popover = style("absolute", trigger.positionAnchor(), "top-[anchor(bottom)]");
+```
+
+</CompiledExample>
+
+## Inputs
+
+The optional scope also sets `anchor-scope` on the element:
+
+| Scope            | Effect                                             |
+| ---------------- | -------------------------------------------------- |
+| Omitted          | Sets no `anchor-scope`                             |
+| `"all"`          | Limits every anchor name to this element's subtree |
+| `"none"`         | Sets `anchor-scope: none`                          |
+| An array of refs | Limits the anchor names of those refs              |
+
+Write the array directly in the call. The array includes the `trigger` ref only
+when you list it. An empty array sets nothing, and
+[ineffective-anchor-scope](/docs/lints/ineffective-anchor-scope/) reports it.
+
+## Behavior
+
+Pass `trigger` and `trigger.asAnchor()` in the same `style()` call. The anchor
+name applies only to an element that has the ref, and
+[missing-ref-attachment](/docs/lints/missing-ref-attachment/) reports a call
+without it.
+
+To limit the anchor name from an ancestor instead, use
+[style.anchorScope()](/docs/macros/anchor-scope/). Stillwind generates CSS only,
+so check that the browsers you support implement anchor positioning.

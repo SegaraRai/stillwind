@@ -1,7 +1,7 @@
 ---
 import { getEntry } from "astro:content";
 
-import type { UtilityCatalog } from "../lib/utilities/search";
+import type { UtilityCatalog } from "../../lib/docs/utilities/search";
 
 const catalog: UtilityCatalog = (await getEntry("utilities", "default"))!.data;
 const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
@@ -55,7 +55,7 @@ const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
 </div>
 
 <script>
-  import { mountUtilityExplorer } from "../lib/utilities/explorer";
+  import { mountUtilityExplorer } from "../../lib/docs/utilities/explorer";
 
   const root = document.querySelector<HTMLElement>("[data-utility-explorer]");
   if (root) {

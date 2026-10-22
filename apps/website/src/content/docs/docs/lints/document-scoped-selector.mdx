@@ -1,13 +1,15 @@
 ---
 title: document-scoped-selector
-description: Put rules that do not depend on the styled element in the document stylesheet.
+description: Reports a selector variant that styles the whole document instead of the element.
 slug: docs/lints/document-scoped-selector
 ---
 
 <LintRuleSummary name="document-scoped-selector" />
 
-This selector replaces the utility subject with a document-wide target. The
-result no longer depends on attaching the generated class to the component.
+This rule reports a variant that replaces the element with a document-wide
+target, such as `[:root]:`. The style then applies to the root of the page from
+inside a component, and it no longer depends on the element that receives the
+props.
 
 ## Reported
 
@@ -15,12 +17,16 @@ result no longer depends on attaching the generated class to the component.
 style("[:root]:text-red-500");
 ```
 
-## Accepted
+## Fixed
 
-```tsx
-style("text-red-500");
+```css
+:root {
+  @apply text-red-500;
+}
 ```
 
-The corrected example styles the receiving element. If the root is the intended
-target, author a `:root` rule in the CSS entrypoint instead of hiding that ownership
-inside a component macro.
+## How to fix
+
+- To style the root of the page, write a rule in your stylesheet, as in the
+  example.
+- To style the element itself, remove the variant: `style("text-red-500")`.

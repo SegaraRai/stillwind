@@ -1,0 +1,41 @@
+---
+import { fatalNote, issues, type ErrorCategory } from "./compiler-error";
+
+interface Props {
+  code: string;
+  category: ErrorCategory;
+}
+const { code, category } = Astro.props;
+---
+
+<div class="reference-summary">
+  <p>
+    Code:{" "}
+    <strong>
+      <code>{code}</code>
+    </strong>
+    . Category: <strong>{category}</strong>.{" "}
+    {category === "configuration" && (
+      <>
+        Fix <code>stillwind.config.ts</code> or the integration options.
+      </>
+    )}
+    {category === "authoring" && (
+      <>
+        Fix your components, <code>style()</code> calls, or stylesheet.
+      </>
+    )}
+    {category === "host" && (
+      <>
+        Check your integration. With an official integration, update the Stillwind packages, or
+        report a bug.
+      </>
+    )}
+    {category === "internal" && (
+      <>
+        This is a bug in the compiler. <a href={issues}>Report it</a> with the error message.
+      </>
+    )}
+  </p>
+  <p>{fatalNote}</p>
+</div>

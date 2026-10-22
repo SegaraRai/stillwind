@@ -18,11 +18,25 @@ components, see [Reusable styles](/docs/guides/reusable-styles/).
 
 ```tsx
 import { style } from "stillwind/react";
+
 export const button = style.cva("inline-flex rounded-md", {
-  variants: { size: { small: "px-2 py-1", large: "px-4 py-2" } },
-  defaultVariants: { size: "small" },
-  compoundVariants: [{ size: "large", class: "font-medium" }],
+  variants: {
+    size: {
+      small: "px-2 py-1",
+      large: "px-4 py-2",
+    },
+  },
+  defaultVariants: {
+    size: "small",
+  },
+  compoundVariants: [
+    {
+      size: "large",
+      class: "font-medium",
+    },
+  ],
 });
+
 export const props = button({ size: "large" });
 ```
 

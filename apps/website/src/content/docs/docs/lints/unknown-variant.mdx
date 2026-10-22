@@ -1,13 +1,14 @@
 ---
 title: unknown-variant
-description: Correct a variant name or define it in the active stylesheet.
+description: Reports a variant that your stylesheet does not define.
 slug: docs/lints/unknown-variant
 ---
 
 <LintRuleSummary name="unknown-variant" />
 
-An unregistered variant cannot supply its selector or condition. Turning off the
-finding does not make the misspelled condition match.
+This rule reports a variant that your stylesheet does not define, such as a
+misspelled `hovr:`. The condition never matches, so the utilities under it never
+apply.
 
 ## Reported
 
@@ -15,11 +16,14 @@ finding does not make the misspelled condition match.
 style("hovr:p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("hover:p-4");
 ```
 
-Use the registered spelling, or declare a custom variant in the configured CSS.
-See [design systems](/docs/guides/design-systems/) for stylesheet ownership.
+## How to fix
+
+- Correct the spelling of the variant.
+- To use a variant of your own, define it with `@custom-variant` in your
+  stylesheet.

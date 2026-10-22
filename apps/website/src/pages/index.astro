@@ -6,16 +6,14 @@ import { style } from "stillwind/astro";
 
 import "../assets/fonts/jetbrains-mono.css";
 import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
-import Features from "../components/Features.astro";
-import Showcase from "../components/Showcase.astro";
-import SiteHeader from "../components/SiteHeader.astro";
-import ThemeHead from "../components/ThemeHead.astro";
+import Features from "../components/landing/Features.astro";
+import Showcase from "../components/landing/Showcase.astro";
+import SiteHeader from "../components/site/SiteHeader.astro";
+import ThemeHead from "../components/site/ThemeHead.astro";
 
 const repository = "https://github.com/SegaraRai/stillwind";
 const docs = "/docs/";
 const integrations = "/docs/frameworks/";
-const contracts = "/docs/style/";
-const cssEmission = `${repository}/blob/main/docs/css-emission.md`;
 const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
 ---
 
@@ -38,7 +36,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
     <a href="#main" {...style("skip-link")}>
       Skip to content
     </a>
-    <div {...style("site-shell")}>
+    <div {...style("landing-shell")}>
       <SiteHeader docs={docs} repository={repository} />
 
       <main id="main">
@@ -146,7 +144,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
               <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
               <p {...style("text-muted text-caption/relaxed")}>
                 Utility strings, arrays, and conditions fit existing components.{" "}
-                <a href={`${contracts}#cva`} {...style("nav-link")}>
+                <a href="/docs/macros/cva/" {...style("nav-link")}>
                   CVA-compatible factories ↗
                 </a>{" "}
                 are available when you need them.
@@ -156,7 +154,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
               <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
               <p {...style("text-muted text-caption/relaxed")}>
                 Use{" "}
-                <a href={cssEmission} {...style("nav-link")}>
+                <a href="/docs/guides/shadow-dom/" {...style("nav-link")}>
                   explicit CSS exports ↗
                 </a>{" "}
                 to place compiled styles in a Shadow DOM or another scope you control.
@@ -177,5 +175,14 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
         </a>
       </footer>
     </div>
+    <script>
+      import { mountHeader } from "../lib/landing/header";
+
+      const slot = document.querySelector<HTMLElement>("[data-header-slot]");
+      const story = document.querySelector<HTMLElement>("[data-story]");
+      if (slot && story) {
+        mountHeader(slot, story);
+      }
+    </script>
   </body>
 </html>

@@ -1,13 +1,14 @@
 ---
 title: invalid-rule-group-input
-description: Keep external classes and element attachments outside CSS variant groups.
+description: Reports a class field, custom property, or ref inside an object with variant keys.
 slug: docs/lints/invalid-rule-group-input
 ---
 
 <LintRuleSummary name="invalid-rule-group-input" />
 
-CSS variant groups contain rules. External classes do not become conditional
-CSS declarations, so a `class` input inside a group is omitted.
+This rule reports a `class` field, a custom property, a ref, or a stored `style()`
+result inside an object with variant keys, such as `{ "hover:": ... }`. A variant
+can only condition utilities, so the input is left out.
 
 ## Reported
 
@@ -15,11 +16,16 @@ CSS declarations, so a `class` input inside a group is omitted.
 style({ "hover:": { class: "external" } });
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style({ class: "external", "hover:": "opacity-50" });
+declare const hovered: boolean;
+style(hovered && { class: "external" });
 ```
 
-Keep external classes at the root. Use a JavaScript condition around the root
-class input when its presence must depend on application state.
+## How to fix
+
+- To add a class from another stylesheet in a state, decide the state in
+  JavaScript and pass the `class` field under that condition, as in the example.
+- If the class only applies styles that Stillwind has as utilities, write those
+  utilities under the variant instead, such as `{ "hover:": "opacity-50" }`.

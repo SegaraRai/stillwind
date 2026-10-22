@@ -1,25 +1,18 @@
 ---
 title: "SW90006: Invalid transform expression mapping"
-description: Report invalid expression correspondence inside generated source replacements.
+description: The compiler generated a code edit with an invalid link to the original expression.
 slug: docs/errors/SW90006
 ---
 
 <CompilerError code="SW90006" category="internal" />
 
-A generated source transform contains invalid expression-mapping metadata.
-The diagnostic identifies the original call span carrying that replacement.
+This error occurs when an edit that the compiler generates links to the original expression incorrectly. The message names the `style()` call.
 
-## Violated invariant
+## How to report
 
-```text
-A retained expression occurrence has an invalid correspondence in the generated replacement.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-Every retained occurrence has its own valid original/generated transform correspondence.
-```
-
-Report the original expression and its generated replacement. Preserve repeated
-or conditional uses in a reduction when removing them makes the mapping failure disappear.
+- The `style()` call from the message
+- Other uses of the same style in the file, because repeated or conditional uses can matter
+- The version of the Stillwind packages

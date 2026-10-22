@@ -1,26 +1,37 @@
 ---
 title: "SW12001: Incompatible declaration assignment"
-description: Preserve the declaration identities carried by a checked value.
+description: A variable that holds one ref or animation is assigned a different one.
 slug: docs/errors/SW12001
 ---
 
 <CompilerError code="SW12001" category="authoring" />
 
-An assignment changes the identity set that the checker associates with a ref
-or another Stillwind declaration. The diagnostic includes the checker's explanation.
+This error occurs when a variable that holds one ref, keyframes, or view
+transition definition is later assigned a different one. The compiler tracks
+which definitions a variable can hold, and the assignment breaks that record.
+The message includes the explanation from TypeScript.
 
-## Rejected identity contract
+## Reported
 
-```text
-A value checked as declaration A is assigned unrelated declaration B.
+```ts
+let current = style.ref("card");
+current = style.ref("panel");
 ```
 
-## Accepted identity contract
+## Fixed
 
-```text
-The type retains A, or explicitly represents the finite union of A and B.
+```ts
+const card = style.ref("card");
+const panel = style.ref("panel");
+let current: typeof card | typeof panel = card;
+current = panel;
 ```
 
-Keep inferred declaration types through assignments, parameters, and exports.
-Use an explicit finite union when selection is intentional. A generic widened
-identity that cannot be enumerated is covered by [SW12002](/docs/errors/SW12002/).
+## How to fix
+
+- Declare each definition in its own `const`, and give the variable an explicit
+  union of their types, as in the example.
+- In a function that accepts several definitions, use a generic parameter instead
+  of a wider type.
+- Keep the types that TypeScript infers when you pass definitions through
+  exports.

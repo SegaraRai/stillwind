@@ -1,13 +1,14 @@
 ---
 title: prefer-sorted-utilities
-description: Keep utility strings in the configured compiler order.
+description: Reports utilities that are not in sorted order.
 slug: docs/lints/prefer-sorted-utilities
 ---
 
 <LintRuleSummary name="prefer-sorted-utilities" analysis="project" />
 
-The CLI and editor compare the literal with the compiler's ordering service.
-This reports a formatting preference; it does not change the utility's meaning.
+This rule reports utilities that are not in the order that `stillwind fmt` uses.
+The order does not change the CSS. A consistent order makes utilities easier to
+read and diffs smaller. The `stylistic` preset enables this rule.
 
 ## Reported
 
@@ -15,12 +16,16 @@ This reports a formatting preference; it does not change the utility's meaning.
 style("px-4 flex");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("flex px-4");
 ```
 
-`lint --fix` can apply enabled, unsuppressed sorting fixes. Explicit `fmt` runs
-independently of this rule's severity and suppression. `sort: false` disables
-sorting and its diagnostics and fixes. See [lint configuration](/docs/configuration/lint/#sorting-and-source-selection).
+## How to fix
+
+Run `stillwind fmt`, or `stillwind lint --fix` with this rule enabled. The editor
+also sorts on save with `source.sort.stillwind`.
+
+`stillwind fmt` sorts even when this rule is off. To stop all sorting, set
+`sort: false`. See [Sorting](/docs/configuration/#sorting).

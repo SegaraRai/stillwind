@@ -1,26 +1,42 @@
 ---
 title: "SW01006: Invalid lint configuration"
-description: Supply policy options that the compiler can evaluate.
+description: A lint rule has an option value that the compiler cannot use.
 slug: docs/errors/SW01006
 ---
 
 <CompilerError code="SW01006" category="configuration" />
 
-The message identifies the lint rule and invalid policy detail. This is a
-configuration error, independent of whether authored styles violate that policy.
+This error occurs when a lint rule has an option value that the compiler cannot
+use, such as an unknown unit or an empty list that the rule requires. The message
+names the rule and the value.
 
-## Rejected policy value
-
-```json
-{ "disallow": ["pixels"] }
-```
-
-## Corrected policy value
+## Reported
 
 ```json
-{ "disallow": ["px"] }
+{
+  "no-restricted-length-units": {
+    "severity": "warn",
+    "rules": [{ "properties": ["width"], "disallow": ["pixels"] }]
+  }
+}
 ```
 
-These are option excerpts for [restricted length units](/docs/lints/no-restricted-length-units/).
-Use supported units and supply required nonempty patterns for enabled restriction
-rules. Public configuration validation can fail before this native diagnostic.
+## Fixed
+
+```json
+{
+  "no-restricted-length-units": {
+    "severity": "warn",
+    "rules": [{ "properties": ["width"], "disallow": ["px"] }]
+  }
+}
+```
+
+## How to fix
+
+- Correct the value named in the message. In the example, the unit is `px`, not
+  `pixels`.
+- Give the rules that need a list, such as `no-restricted-theme-tokens`, at least
+  one entry.
+
+Each [lint rule page](/docs/lints/) describes its options.

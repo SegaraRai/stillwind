@@ -4,8 +4,8 @@ import { readFile } from "node:fs/promises";
 import type { GeneratedMarkdownComponentTransform } from "@cloudflare/nimbus-docs/types";
 import { lintRules, type LintRule } from "stillwind/config";
 
-import { compilerRevision, documentationCompiler } from "../../lib/reference/compiler";
-import { loadUtilityCatalog, utilityCatalogMarkdown } from "../../lib/utilities/catalog";
+import { compilerRevision, documentationCompiler } from "../../../lib/docs/reference/compiler";
+import { loadUtilityCatalog, utilityCatalogMarkdown } from "../../../lib/docs/utilities/catalog";
 import { compiledExampleMarkdown, compileWith } from "./compiled-example";
 import { compiledSource } from "./compiled-source";
 import { compilerErrorMarkdown, type ErrorCategory } from "./compiler-error";

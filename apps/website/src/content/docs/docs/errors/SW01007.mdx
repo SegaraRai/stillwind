@@ -1,26 +1,31 @@
 ---
 title: "SW01007: Identifier generator failed"
-description: Make host naming callbacks return a supported result without throwing.
+description: A custom naming function threw an error or returned an invalid name.
 slug: docs/errors/SW01007
 ---
 
 <CompilerError code="SW01007" category="configuration" />
 
-A host-provided naming callback failed. The diagnostic carries the identifier
-family and callback failure text. The compiler cannot replace a failed callback
-with an invented successful result.
+This error occurs when a custom `naming` function fails while it generates a
+name. The message shows which kind of name it was generating and the error from
+the function. The compiler does not invent a name in its place.
 
-## Rejected callback behavior
-
-```text
-The utility naming callback throws while handling a request.
-```
-
-## Accepted callback behavior
+## Reported
 
 ```text
-The callback returns a valid name, or undefined to retain the compiler's name.
+The naming function for utility classes throws an error for some requests.
 ```
 
-Reproduce the request with the same naming configuration and correct the
-callback. Keep callbacks pure and stable; update `namingRevision` with their behavior.
+## Fixed
+
+```text
+The naming function returns a valid name for every request, or undefined to keep
+the default name.
+```
+
+## How to fix
+
+- Reproduce the request from the message, and fix the function so that it returns
+  a name or `undefined`.
+- Keep the function pure: the same request must always produce the same name.
+- Change `namingRevision` whenever you change the function.

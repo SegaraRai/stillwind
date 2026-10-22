@@ -7,10 +7,11 @@ interface Props {
 }
 
 const { docs, repository } = Astro.props;
+const headerTransition = style.viewTransition({ group: "duration-300 ease-out" });
 ---
 
 <div data-header-slot>
-  <header data-site-header>
+  <header data-site-header {...style(headerTransition.for("site-header"))}>
     <a href="/" aria-label="Stillwind home" data-site-brand {...style("nav-link")}>
       Stillwind
     </a>
@@ -43,19 +44,10 @@ const { docs, repository } = Astro.props;
 </div>
 
 <script>
-  import { mountHeader } from "../lib/header";
-  import { mountThemeControl } from "../lib/theme";
+  import { mountThemeControl } from "../../lib/site/theme";
 
   const themeButton = document.querySelector<HTMLButtonElement>("[data-theme-toggle]");
   if (themeButton) {
-    const disposeTheme = mountThemeControl(themeButton);
-    document.addEventListener("astro:before-swap", disposeTheme, { once: true });
-  }
-
-  const slot = document.querySelector<HTMLElement>("[data-header-slot]");
-  const story = document.querySelector<HTMLElement>("[data-story]");
-  if (slot && story) {
-    const dispose = mountHeader(slot, story);
-    document.addEventListener("astro:before-swap", dispose, { once: true });
+    mountThemeControl(themeButton);
   }
 </script>

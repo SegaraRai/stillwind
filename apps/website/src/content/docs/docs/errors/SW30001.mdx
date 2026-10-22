@@ -1,27 +1,34 @@
 ---
 title: "SW30001: TypeScript checker facts required"
-description: Supply checker facts for a value that local source analysis cannot resolve.
+description: The compiler needs type information for a value, but the integration did not provide it.
 slug: docs/errors/SW30001
 ---
 
 <CompilerError code="SW30001" category="host" />
 
-Native compilation reached a nonlocal input or dynamic declaration receiver
-whose meaning requires TypeScript facts. The diagnostic identifies the kind of
-value, such as a conditional ref or a nonlocal animation receiver.
+This error occurs when the compiler needs TypeScript type information to compile
+a value, but the integration compiled the file without it. Examples are a ref
+chosen by a condition, or an animation imported from another module. The message
+names the kind of value.
 
-## Invalid host sequence
-
-```text
-Compile a checker-dependent receiver without supplying its captured facts.
-```
-
-## Valid host sequence
+## Reported
 
 ```text
-Prepare the source, capture its checker facts, and compile that same source revision.
+The integration compiles a file that chooses a ref at runtime, without type information.
 ```
 
-Use the supported integration or analysis host. An embedding must finish semantic
-queries before native compilation. If the facts exist but fail validation, see
+## Fixed
+
+```text
+The integration collects type information for the file, then compiles the same revision of the file.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages. If the error
+  remains, report it with the file that causes it.
+- In your own integration, run the type queries before compilation, and pass
+  their results with the same revision of the source.
+
+Type information that exists but does not match the source is reported as
 [SW30002](/docs/errors/SW30002/).

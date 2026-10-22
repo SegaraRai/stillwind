@@ -1,28 +1,35 @@
 ---
 title: "SW11002: CSS module ordering cycle"
-description: Remove composition dependencies that require contradictory ordering between producer modules.
+description: Two modules each build styles on a base from the other module.
 slug: docs/errors/SW11002
 ---
 
 <CompilerError code="SW11002" category="authoring" />
 
-The style dependency graph requires module A after B and module B after A.
-Even when individual values appear separate, no whole-module CSS order can
-satisfy both requirements.
+This error occurs when two modules each build a style on a base from the other
+module. The CSS of each module must come after the CSS of the modules that it
+builds on, so the two modules have no valid order, even when the individual
+styles do not form a cycle.
 
-## Rejected dependency graph
-
-```text
-A's derived style consumes B's base.
-B's derived style consumes A's base.
-```
-
-## Corrected dependency graph
+## Reported
 
 ```text
-Shared module defines the bases.
-A and B derive from Shared; neither requires the other after itself.
+a.ts: cardTitle = style(bBase, ...)
+b.ts: panelTitle = style(aBase, ...)
 ```
 
-Move shared producers into a lower dependency module or colocate the coupled
-styles. Reordering JavaScript imports does not remove the contradictory requirements.
+## Fixed
+
+```text
+shared.ts: aBase, bBase
+a.ts: cardTitle = style(bBase, ...)
+b.ts: panelTitle = style(aBase, ...)
+```
+
+## How to fix
+
+- Move the shared bases into a module that both modules import, as in the
+  example.
+- Or put the styles that depend on each other in the same module.
+
+Changing the order of the imports does not fix it.

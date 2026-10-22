@@ -1,25 +1,29 @@
 ---
 title: "SW31010: Edit outside an editable projection region"
-description: Make every required replacement fit one host-declared editable region.
+description: The compiler must edit a part of a component that the converter marks as not editable.
 slug: docs/errors/SW31010
 ---
 
 <CompilerError code="SW31010" category="host" />
 
-No editable region contains a required edit. A range covered only by the union
-of separate regions does not establish that one valid region contains the replacement.
+This error occurs when the compiler must replace text in a component, but no
+single editable region from the converter contains the whole replacement. Two
+neighboring regions are not enough.
 
-## Invalid edit contract
-
-```text
-A replacement crosses the boundary of the converter's declared editable region.
-```
-
-## Valid edit contract
+## Reported
 
 ```text
-The complete replacement lies inside one editable region for that original buffer.
+A replacement starts inside one editable region and ends inside the next one.
 ```
 
-Repair region boundaries or the conversion that selected the edit. Keep its
-original range and region metadata when reporting the integration failure.
+## Fixed
+
+```text
+The whole replacement lies inside one editable region.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages and the framework
+  packages. If the error remains, report it with the component.
+- In your own converter, choose region boundaries that cover whole expressions.

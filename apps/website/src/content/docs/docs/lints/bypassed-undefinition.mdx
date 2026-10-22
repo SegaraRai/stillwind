@@ -1,14 +1,16 @@
 ---
 title: bypassed-undefinition
-description: Scope added utilities so they respect registry-context undefinitions.
+description: Reports a top-level utility definition that also applies where the built-in definitions remove it.
 slug: docs/lints/bypassed-undefinition
 ---
 
 <LintRuleSummary name="bypassed-undefinition" />
 
-A root definition can bypass an undefinition in another registry context. The
-built-in animation contexts undefine transition timing families before supplying
-their animation meanings. A root transition utility can interfere with that boundary.
+This rule reports a top-level `@utility` that also applies where Stillwind
+removes the utility on purpose. Inside animation options, for example,
+`duration-*` sets `animation-duration`, and the built-in definitions remove the
+`transition-duration` meaning there. A top-level `duration-slow` would bring that
+meaning back.
 
 ## Reported
 
@@ -18,7 +20,7 @@ their animation meanings. A root transition utility can interfere with that boun
 }
 ```
 
-## Accepted
+## Fixed
 
 ```css
 @stillwind-registry default {
@@ -28,5 +30,8 @@ their animation meanings. A root transition utility can interfere with that boun
 }
 ```
 
-Keep the transition utility in the default registry when that is its intended
-domain. This check concerns registry undefinitions, rather than resetting a theme namespace.
+## How to fix
+
+Define the utility inside `@stillwind-registry default`, as in the example. Then
+it applies in ordinary `style()` calls, and animation options keep their own
+meaning of `duration-*`.

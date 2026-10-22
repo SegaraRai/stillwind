@@ -1,25 +1,30 @@
 ---
 title: "SW33003: Span belongs to another file"
-description: Apply spans to the source object that owns their file identity.
+description: A source range from one file was applied to another file.
 slug: docs/errors/SW33003
 ---
 
 <CompilerError code="SW33003" category="host" />
 
-The span's file ID differs from the source file expected by the operation.
-Coincidentally valid numeric offsets do not make a span portable between files.
+This error occurs when a source range that belongs to one file is applied to
+another file. The offsets may be valid numbers in both files, but they point to
+different text. The message shows the expected and the actual file IDs.
 
-## Invalid operation
-
-```text
-Apply a span owned by file A to the source object for file B.
-```
-
-## Valid operation
+## Reported
 
 ```text
-Resolve that span against the source object for file A.
+A range from file A is applied to file B.
 ```
 
-Keep identity with coordinates through projections and caches. The expected and
-actual file IDs in the diagnostic identify the mismatch.
+## Fixed
+
+```text
+The range from file A is applied to file A.
+```
+
+## How to fix
+
+- With an official integration, report the error with the files and the action
+  that caused it.
+- In your own integration, keep the file ID together with each range through
+  caches and conversions.

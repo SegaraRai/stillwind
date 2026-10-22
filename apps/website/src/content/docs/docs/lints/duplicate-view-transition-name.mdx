@@ -1,13 +1,13 @@
 ---
 title: duplicate-view-transition-name
-description: Supply one transition participant name in a style call.
+description: Reports two .for() calls in one style() call.
 slug: docs/lints/duplicate-view-transition-name
 ---
 
 <LintRuleSummary name="duplicate-view-transition-name" />
 
-Several `.for()` uses in one call compete to supply the participant name. Their
-presence does not create several independently named captures for one element.
+This rule reports a `style()` call with more than one `.for()`. An element has one
+`view-transition-name`, so only one of the names takes effect.
 
 ## Reported
 
@@ -16,12 +16,17 @@ const transition = style.viewTransition({ old: "duration-150" });
 style(transition.for("a"), transition.for("b"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const transition = style.viewTransition({ old: "duration-150" });
 style(transition.for("a"));
 ```
 
-Additional declarations can contribute transition classes without another
-`.for()` call. See [combining declarations](/docs/macros/view-transition/#combine-declarations).
+## How to fix
+
+- Keep one `.for()` for the element, as in the example.
+- If the names belong to different elements, give each element its own
+  `style()` call with its own `.for()`.
+- To combine several transitions on one element, pass the others without
+  `.for()`, such as `style(fade, slide.for("a"))`.

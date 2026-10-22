@@ -1,13 +1,15 @@
 ---
 title: prefer-typed-relationships
-description: Use explicit ref identities for relationships that would otherwise depend on group or peer conventions.
+description: Reports group-* and peer-* variants that a ref can replace.
 slug: docs/lints/prefer-typed-relationships
 ---
 
 <LintRuleSummary name="prefer-typed-relationships" />
 
-Implicit group and peer relationships can depend on unrelated elements carrying
-the same conventional marker. Refs identify the declaration that owns the relationship.
+This rule reports `group-*` and `peer-*` variants. They connect elements through
+the class names `group` and `peer`, so any element with the same class can
+match, and nothing checks a misspelled name. A ref connects the elements through a
+variable instead. The `stylistic` preset enables this rule.
 
 ## Reported
 
@@ -15,12 +17,19 @@ the same conventional marker. Refs identify the declaration that owns the relati
 style("group-hover:text-red-500");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("hover:text-red-500");
+const card = style.ref("card");
+const container = style(card);
+const title = style({ [card("hover")]: "text-red-500" });
 ```
 
-This accepted example intentionally changes the target to its own hover state.
-To preserve another element's state, declare and attach a ref, then use its
-condition with the appropriate scope. See [element relationships](/docs/guides/element-relationships/).
+## How to fix
+
+- Replace `group` with a ref on the parent, and `group-hover:` with a condition on
+  that ref, as in the example.
+- Replace `peer` with a ref on the sibling, and use
+  [`.in()`](/docs/macros/ref/in/) with a ref on a shared ancestor.
+
+See [Element relationships](/docs/guides/element-relationships/).

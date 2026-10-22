@@ -1,14 +1,14 @@
 ---
 title: interfering-imported-style-base
-description: Resolve property overlap involving an imported CSS producer.
+description: Reports an imported base style that sets the same property as another style in the call.
 slug: docs/lints/interfering-imported-style-base
 ---
 
 <LintRuleSummary name="interfering-imported-style-base" analysis="project" />
 
-An imported base can overlap another base or a direct contribution without a
-producer dependency that establishes CSS order. Project analysis follows the
-original owners, including transitive imports.
+This rule reports a base style from another module that sets the same property as
+another base or utility in the call, when neither is built on the other. The order
+of the arguments does not decide which one wins.
 
 ## Project files
 
@@ -26,12 +26,17 @@ import { first, second } from "./bases";
 export const props = style(first, second);
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 import { combined } from "./bases";
 export const props = style(combined);
 ```
 
-The combined export establishes derivation where the producer is defined.
-Moving class-string positions at the consumer does not create that dependency.
+## How to fix
+
+- In the module that defines the styles, build the overriding style on the other
+  one, as `combined` does. Then import that style.
+- Or remove the property from one of the styles.
+
+Changing the order of the arguments in the importing module does not fix it.

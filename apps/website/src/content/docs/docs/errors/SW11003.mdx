@@ -1,27 +1,33 @@
 ---
 title: "SW11003: Unavailable style base"
-description: Supply the compiled producer artifact required by a derived style.
+description: The compiled CSS of a base style is missing from the build.
 slug: docs/errors/SW11003
 ---
 
 <CompilerError code="SW11003" category="authoring" />
 
-A retained composition dependency names a producer whose compiled artifact is
-unavailable. The compiler cannot place a derived stylesheet relative to an absent base.
+This error occurs when a style uses a base whose compiled CSS is not part of the
+build. The compiler must place the CSS of the base before the style, so it cannot
+continue without it.
 
-## Rejected artifact set
-
-```text
-Derived producer depends on Base; the selected artifacts contain only Derived.
-```
-
-## Accepted artifact set
+## Reported
 
 ```text
-Base is available in the same compilation graph before Derived is rendered.
+derived.ts uses a base from base.ts, but the build compiled only derived.ts.
 ```
 
-Keep producer sources reachable through supported module resolution. For an
-integration embedding, retain dependency artifacts for the same graph revision.
-General style types without finite producers can also report
+## Fixed
+
+```text
+The build reaches base.ts through an import, so both modules are compiled.
+```
+
+## How to fix
+
+- Import the base from its source module with a path that the bundler can
+  resolve.
+- If you write your own integration, keep the compiled results of all modules of
+  the same build together.
+
+A base whose type does not show its source is reported by
 [unverified-style-base](/docs/lints/unverified-style-base/).

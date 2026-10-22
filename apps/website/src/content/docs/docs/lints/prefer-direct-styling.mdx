@@ -1,25 +1,34 @@
 ---
 title: prefer-direct-styling
-description: Attach styles to their receiving element when the project discourages descendant styling.
+description: Reports a selector variant that styles another element, such as [&_button]:.
 slug: docs/lints/prefer-direct-styling
 ---
 
 <LintRuleSummary name="prefer-direct-styling" />
 
-The selector styles another element from the current subject. Direct attachment
-makes the receiving element and ownership explicit.
+This rule reports a selector variant that styles another element from the
+current one, such as `[&_button]:` on a parent. The styles of the button then
+live in the parent, so reading the button does not show them. The `stylistic`
+preset enables this rule.
 
 ## Reported
 
 ```tsx
-style("[&_button]:p-4");
+const toolbar = style("flex gap-2 [&_button]:p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("p-4");
+const toolbar = style("flex gap-2");
+const button = style("p-4");
 ```
 
-Apply the corrected call to the button itself. Retain a scoped exception when
-the application deliberately styles externally owned markup that cannot receive props.
+## How to fix
+
+- Give the styles to the element itself with its own `style()` call, as in the
+  example.
+- If the element comes from markup that you cannot change, such as rendered
+  Markdown, keep the selector and add a
+  [suppression comment](/docs/configuration/#suppression-comments) with the
+  reason.

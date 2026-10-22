@@ -1,13 +1,14 @@
 ---
 title: invalid-marker-use
-description: Attach marker classes without ordinary utility variants or important modifiers.
+description: Reports a marker class such as group with a variant or the important modifier.
 slug: docs/lints/invalid-marker-use
 ---
 
 <LintRuleSummary name="invalid-marker-use" />
 
-Markers such as `group` identify an element for other selectors. They are not
-ordinary declaration utilities, so a variant cannot condition their attachment.
+This rule reports a marker class, such as `group` or `peer`, with a variant or
+the `!` modifier. A marker only names an element for other selectors and has no
+CSS of its own, so a variant cannot turn it on or off.
 
 ## Reported
 
@@ -15,12 +16,21 @@ ordinary declaration utilities, so a variant cannot condition their attachment.
 style("hover:group");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("group");
+const parent = style("group");
+const child = style("group-hover:underline");
 ```
 
-Put the state condition on the consuming utility. `ignoredClasses` accepts exact
-decoded marker names when a project intentionally excludes specific marker checks.
-Use [refs](/docs/macros/ref/) for typed element relationships.
+## How to fix
+
+- Add the marker without a variant, and put the condition on the utilities of the
+  element that reacts, such as `group-hover:underline`.
+- To connect elements with names that TypeScript checks, use
+  [style.ref()](/docs/macros/ref/) instead of `group` and `peer`.
+
+## Options
+
+`ignoredClasses` lists marker class names that the rule does not check. Each name
+must match exactly.

@@ -1,29 +1,38 @@
 ---
 title: "SW10004: Unconsumed macro use"
-description: Consume projections and applied declarations at their supported style input positions.
+description: A ref method, ref condition, or animation call is stored or passed somewhere other than directly in style().
 slug: docs/errors/SW10004
 ---
 
 <CompilerError code="SW10004" category="authoring" />
 
-A ref projection, variant, or applied declaration has no independently
-materialized value. Storing the use prevents the compiler from consuming it at
-the position whose CSS and props it must modify.
+Some calls have no value of their own. The compiler turns them into CSS at the
+place where `style()` uses them. This error occurs when such a call is stored in
+a variable or passed to another function instead.
 
-## Rejected
+## Reported
 
 ```tsx
 const card = style.ref("card");
-const provider = card.asContainer("inline-size");
+const container = card.asContainer("inline-size");
 ```
 
-## Corrected
+## Fixed
 
 ```tsx
 const card = style.ref("card");
 const props = style(card, card.asContainer("inline-size"));
 ```
 
-Store and transport the declaration, then apply its use directly inside
-`style()`. Ref condition chains belong directly in computed keys or complete
-utility-template variant segments. See [ref methods](/docs/macros/ref/).
+## How to fix
+
+Write the call directly where `style()` uses it:
+
+| Call                                                                                    | Where to write it                     |
+| --------------------------------------------------------------------------------------- | ------------------------------------- |
+| `card.asContainer()`, `card.asAnchor()`, `card.positionAnchor()`, `style.anchorScope()` | An argument of `style()`              |
+| An animation such as `fade("duration-300")`, and `transition.for(key)`                  | An argument of `style()`              |
+| `card()`, `card("hover")`, `.in()`, and `card.at()`                                     | A computed key, or a utility template |
+
+You can still store and pass the definitions themselves, such as the result of
+`style.ref()` or `style.keyframes()`, and the result of `style()`.

@@ -1,13 +1,14 @@
 ---
 title: no-arbitrary-breakpoints
-description: Require named viewport breakpoints instead of one-off width values.
+description: Reports viewport widths written as arbitrary values, such as min-[713px]:.
 slug: docs/lints/no-arbitrary-breakpoints
 ---
 
 <LintRuleSummary name="no-arbitrary-breakpoints" />
 
-The arbitrary viewport threshold is valid CSS but bypasses a shared layout
-decision. Named breakpoints let CSS and JavaScript refer to the same condition.
+This rule reports a viewport width written as an arbitrary value, such as
+`min-[713px]:`. The CSS works, but other components and JavaScript cannot refer
+to the same width by name. No preset enables this rule.
 
 ## Reported
 
@@ -15,11 +16,22 @@ decision. Named breakpoints let CSS and JavaScript refer to the same condition.
 style("min-[713px]:p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("md:p-4");
+style("sidebar:p-4");
 ```
 
-Name the intended threshold in `@theme`. Use [style.media()](/docs/macros/media/)
-when browser code must follow that same named condition.
+## How to fix
+
+Name the width in your theme after the layout change that it causes, and use the
+name as a variant, as in the example:
+
+```css
+@theme {
+  --breakpoint-sidebar: 713px;
+}
+```
+
+If a default breakpoint such as `md:` fits the design, use it instead. To use the
+same width in JavaScript, pass the name to [style.media()](/docs/macros/media/).

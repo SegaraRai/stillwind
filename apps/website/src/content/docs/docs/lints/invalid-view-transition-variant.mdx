@@ -1,13 +1,15 @@
 ---
 title: invalid-view-transition-variant
-description: Keep element-state and container variants out of transition snapshot utilities.
+description: Reports a state or container variant in a style.viewTransition() definition.
 slug: docs/lints/invalid-view-transition-variant
 ---
 
 <LintRuleSummary name="invalid-view-transition-variant" />
 
-Transition snapshots accept media and supports conditions. A snapshot utility
-cannot test the original element's hover state through an ordinary selector variant.
+This rule reports a state or container variant, such as `hover:`, in a
+`style.viewTransition()` definition. The snapshots are images of the page, not
+the element itself, so they cannot be hovered. Only media and `supports-*`
+variants can condition a snapshot style.
 
 ## Reported
 
@@ -16,12 +18,21 @@ const transition = style.viewTransition({ old: "hover:opacity-0" });
 style(transition.for("card"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-const transition = style.viewTransition({ old: "motion-safe:opacity-0" });
-style(transition.for("card"));
+declare const hovered: boolean;
+const fade = style.viewTransition({ old: "opacity-0" });
+const keep = style.viewTransition({ old: "opacity-100" });
+style((hovered ? fade : keep).for("card"));
 ```
 
-Choose transition definitions or application states before capture when the
-effect must depend on application interaction. See [view transitions](/docs/guides/view-transitions/).
+## How to fix
+
+- To use a different transition depending on the state of the element, define
+  one transition for each case and choose between them in JavaScript before the
+  update, as in the example.
+- To use a different transition for a media condition, such as reduced motion,
+  keep the variant: `old: "motion-reduce:duration-0"`.
+
+See [View transitions](/docs/guides/view-transitions/).

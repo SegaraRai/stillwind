@@ -14,6 +14,7 @@ Use it when a component with an anchor renders more than once on a page.
 
 ```tsx
 import { style } from "stillwind/react";
+
 const trigger = style.ref("trigger");
 export const provider = style(trigger, trigger.asAnchor());
 export const scope = style(style.anchorScope([trigger]));
@@ -50,7 +51,7 @@ An empty array sets nothing, and repeated refs add nothing.
 does not create an anchor name, and it does not affect `.in()` conditions.
 
 You can also set the scope on the anchor itself with
-`trigger.asAnchor(scope)`. See [style.ref()](/docs/macros/ref/#anchor-positioning).
+`trigger.asAnchor(scope)`. See [ref.asAnchor()](/docs/macros/ref/as-anchor/).
 
 ## Generated code
 

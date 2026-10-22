@@ -1,7 +1,15 @@
-/* The website's CSS entry expands these utilities before Astro renders the documentation. */
+/* Layout and presentation of the documentation pages. The website's CSS entry expands these
+   utilities before Astro renders the documentation. */
+
+/* Documentation pages use a wider shell so that tables and code fit beside the navigation. */
+@utility docs-shell {
+  inline-size: min(100%, var(--container-docs));
+  margin-inline: auto;
+  @apply px-docs-gutter;
+}
 
 .docs-grid {
-  @apply grid grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-columns pbs-12 pbe-20;
+  @apply grid grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-docs-gutter pbs-12 pbe-20;
 }
 
 .docs-navigation,
@@ -112,14 +120,6 @@
   @apply mbs-5;
 }
 
-.compiled-example > details {
-  @apply py-3;
-}
-
-.compiled-example summary {
-  @apply cursor-pointer text-ui text-muted;
-}
-
 .docs-page-header {
   @apply mbe-10;
 }
@@ -151,6 +151,10 @@
 
 .docs-prose {
   @apply text-body wrap-anywhere;
+}
+
+.docs-prose > :is(p, ul, ol, blockquote, h2, h3, h4) {
+  @apply max-inline-prose;
 }
 
 .docs-prose > * + * {
@@ -300,13 +304,13 @@
 }
 
 .docs-grid {
-  @variant max-outline {
+  @variant max-docs-outline {
     @apply grid-cols-[var(--container-navigation)_minmax(0,1fr)] gap-stack;
   }
 }
 
 .docs-toc {
-  @variant max-outline {
+  @variant max-docs-outline {
     @apply hidden;
   }
 }

@@ -2,7 +2,7 @@ import { docsCollection } from "@cloudflare/nimbus-docs/content";
 import { z } from "astro/zod";
 import { defineCollection } from "astro:content";
 
-import { utilityCatalogLoader } from "./lib/utilities/catalog";
+import { utilityCatalogLoader } from "./lib/docs/utilities/catalog";
 
 export const collections = {
   docs: defineCollection(docsCollection()),

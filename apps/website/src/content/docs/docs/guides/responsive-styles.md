@@ -4,10 +4,10 @@ description: Name breakpoints once, and use them in utilities, authored CSS, and
 slug: docs/guides/responsive-styles
 ---
 
-You want components to change layout at the same widths. In Tailwind, a
-JavaScript check such as `matchMedia("(width >= 52.5rem)")` copies the breakpoint
-value, and the copy can drift from the CSS. In Stillwind, you name each
-breakpoint once and use the name everywhere.
+You want components to change layout at the same widths. Tailwind defines
+breakpoints in CSS, so a JavaScript check such as
+`matchMedia("(width >= 52.5rem)")` repeats the value. In Stillwind, you name each
+breakpoint once and use the name in both CSS and JavaScript.
 
 ## Name breakpoints by layout role
 

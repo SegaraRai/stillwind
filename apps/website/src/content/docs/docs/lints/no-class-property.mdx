@@ -1,25 +1,30 @@
 ---
 title: no-class-property
-description: Restrict external class inputs when the project requires compiled styling.
+description: Reports the class field, which adds classes without generated CSS.
 slug: docs/lints/no-class-property
 ---
 
 <LintRuleSummary name="no-class-property" />
 
-The `class` input adds external classes without generating utility CSS. This
-policy prohibits that escape from the project's compiled style vocabulary.
+This rule reports a `class` field in `style()`. A `class` field adds classes that
+another stylesheet defines, so Stillwind does not check them. Enable this rule
+when every style in the project must come from utilities. No preset enables it.
 
 ## Reported
 
 ```tsx
-style({ class: "external" });
+style({ class: "card" });
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("p-4");
+style("rounded-lg border border-gray-200 p-4");
 ```
 
-Use compiled rules when they own the style. If a third-party stylesheet requires
-external classes, keep the exception narrow rather than treating its names as utilities.
+## How to fix
+
+- Write the styles of the class as utilities, as in the example.
+- If a third-party library needs its own class, keep the `class` field and add a
+  [suppression comment](/docs/configuration/#suppression-comments) with the
+  reason.

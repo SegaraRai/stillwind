@@ -1,25 +1,31 @@
 ---
 title: "SW31007: Invalid UTF-16 position"
-description: Supply an existing zero-based line and UTF-16 column.
+description: A requested line and column do not exist in the source.
 slug: docs/errors/SW31007
 ---
 
 <CompilerError code="SW31007" category="host" />
 
-The line/column position cannot be converted to a source offset. The compiler's
-position uses a zero-based line and UTF-16 code-unit column.
+This error occurs when an integration or a tool asks for a line and column that
+do not exist in the source. Lines count from zero, and columns count UTF-16 code
+units from zero.
 
-## Invalid request
-
-```text
-The source has one line; the request identifies line 4.
-```
-
-## Valid request
+## Reported
 
 ```text
-The line exists, and its UTF-16 column identifies a valid boundary on that line.
+The source has one line, and the request asks for line 4.
 ```
 
-Convert one-based UI positions before calling the host API. Refresh positions
-after buffer edits, and do not reuse coordinates from the generated component buffer as original positions.
+## Fixed
+
+```text
+The line exists, and the column is a valid position on that line.
+```
+
+## How to fix
+
+- With an official integration, report the error with the file and the action
+  that caused it.
+- In your own integration, convert positions from one-based editor numbers, and
+  compute them again after each edit. Do not use positions in the converted
+  script as positions in the original component.

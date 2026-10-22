@@ -1,26 +1,29 @@
 ---
 title: "SW01002: Invalid property prefix"
-description: Give generated custom properties a supported namespace prefix.
+description: The prefix or tailwindPrefix setting does not start with -- and end with -.
 slug: docs/errors/SW01002
 ---
 
 <CompilerError code="SW01002" category="configuration" />
 
-`prefix` and `tailwindPrefix` must start with `--` and end with `-`. The diagnostic
-names the rejected option. Public configuration validation may reject it before
-native compilation constructs this code.
+This error occurs when `prefix` or `tailwindPrefix` is not a valid prefix for
+custom properties. A prefix must start with `--`, end with `-`, and contain no
+whitespace. The message names the setting.
 
-## Rejected
-
-```ts
-const options = { prefix: "sw" };
-```
-
-## Corrected
+## Reported
 
 ```ts
-const options = { prefix: "--sw-" };
+const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"], prefix: "sw" };
 ```
 
-Use the same naming configuration for related client and server builds. Also
-keep the two property namespaces [distinct](/docs/errors/SW01003/).
+## Fixed
+
+```ts
+const project = { css: "./src/stillwind.css", files: ["src/**/*.tsx"], prefix: "--sw-" };
+```
+
+## How to fix
+
+- Add `--` at the start and `-` at the end, as in the example.
+- Use the same value in client and server builds that share styles.
+- Keep `prefix` and `tailwindPrefix` different. See [SW01003](/docs/errors/SW01003/).

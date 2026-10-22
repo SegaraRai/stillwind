@@ -1,13 +1,14 @@
 ---
 title: ignored-tailwind-feature
-description: Move supported configuration out of Tailwind-only CSS directives and import modifiers.
+description: Reports Tailwind CSS features that Stillwind ignores in the stylesheet, such as @config.
 slug: docs/lints/ignored-tailwind-feature
 ---
 
 <LintRuleSummary name="ignored-tailwind-feature" />
 
-Stillwind does not load Tailwind configuration through this CSS directive.
-Leaving it in the stylesheet does not activate that configuration.
+This rule reports a Tailwind CSS feature in your stylesheet that Stillwind
+ignores, such as `@config` or an option on `@import`. Stillwind reads these
+settings from `stillwind.config.ts`, so the line has no effect.
 
 ## Reported
 
@@ -15,15 +16,28 @@ Leaving it in the stylesheet does not activate that configuration.
 @config "./tailwind.config.js";
 ```
 
-## Accepted
+## Fixed
 
-```css
-@theme {
-  --color-brand: blue;
-}
+```ts
+import { defineConfig } from "stillwind/config";
+
+import tailwindConfig from "./tailwind.config.js";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      tailwind: tailwindConfig,
+    },
+  ],
+});
 ```
 
-The accepted example defines its token directly. To retain supported legacy
-configuration, use the project's `tailwind` field. Use `important` for that
-project policy and remove unsupported import modifiers. The
-[migration guide](/docs/guides/migrating-from-tailwind/) lists the replacements and limits.
+## How to fix
+
+- Move the configuration to the `tailwind` field of the project in
+  `stillwind.config.ts`, as in the example, and remove `@config`.
+- Move an `important` option on `@import` to the `important` field.
+- [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/#move-configuration)
+  lists every replacement.

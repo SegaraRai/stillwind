@@ -1,13 +1,14 @@
 ---
 title: unsatisfiable-variants
-description: Remove condition stacks whose alternatives all exclude each other.
+description: Reports variants that can never match together, such as portrait:landscape:.
 slug: docs/lints/unsatisfiable-variants
 ---
 
 <LintRuleSummary name="unsatisfiable-variants" />
 
-One viewport cannot be portrait and landscape at the same time. Every
-alternative in this stack is contradictory, so its CSS cannot match as intended.
+This rule reports stacked variants that can never match at the same time.
+Stacked variants must all match, and a viewport cannot be in portrait and
+landscape orientation at once. The utility never applies.
 
 ## Reported
 
@@ -15,11 +16,14 @@ alternative in this stack is contradictory, so its CSS cannot match as intended.
 style("portrait:landscape:p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("portrait:p-4");
+style("portrait:p-4 landscape:p-4");
 ```
 
-Choose the intended conjunction or split alternatives into separate inputs.
-The finding reports the contradiction without redefining the emitted conditions.
+## How to fix
+
+- To apply the utility in either case, write one utility for each variant, as in
+  the example. When the cases cover every situation, drop the variants: `p-4`.
+- To apply the utility in one case only, keep the variant for that case.

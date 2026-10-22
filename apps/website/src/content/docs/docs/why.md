@@ -4,10 +4,10 @@ slug: docs/why
 description: Keep Tailwind-style code consistent when many people and AI agents write it.
 ---
 
-Tailwind CSS makes styles fast to write, but nothing checks how they are written.
-When many people and AI agents edit the same codebase, styles slowly drift:
-colors that are not in the theme, breakpoints that no layout defines, and names
-that only work when two strings happen to match.
+Tailwind CSS makes styles fast to write, and you can write its classes anywhere.
+When many people and AI agents edit the same codebase, some things become hard
+to keep consistent by hand: colors outside the theme, one-off breakpoints, and
+names that two elements must spell the same way.
 
 Stillwind keeps the Tailwind CSS v4 utilities that you already know. It compiles
 them at build time and checks them, so you can keep styling code in order.
@@ -39,9 +39,9 @@ not need to copy the breakpoint value into your code.
 
 ## Connect elements through variables
 
-In Tailwind, you connect elements by matching names: `group/card` on the parent
-and `group-hover/card:` on the child. If the two names differ, the style silently
-does nothing.
+Tailwind connects elements by name: `group/card` on the parent and
+`group-hover/card:` on the child. Tailwind reads these names as strings, so it
+does not check that the two names agree.
 
 In Stillwind, you create the name as a variable with `style.ref()`:
 
@@ -65,8 +65,9 @@ not affect each other.
 
 ## Define animations next to the component
 
-In Tailwind, keyframes and view transition names live in a global stylesheet.
-As the codebase grows, nobody knows which component still uses which name.
+With Tailwind, as with plain CSS, keyframes and view transition names live in a
+global stylesheet. In a large codebase, it takes effort to find which component
+uses which name.
 
 In Stillwind, you define them in the component that uses them:
 
@@ -132,6 +133,10 @@ them in a different place:
 - Stillwind needs a build tool. It supports Vite, Astro, Next.js, SvelteKit,
   Nuxt, webpack, Rspack, Rsbuild, and Turbopack.
 - Some Tailwind settings move to `stillwind.config.ts`.
+
+Tailwind CSS remains the better fit when a project has no build tool, or when
+classes come from places that Stillwind does not compile, such as HTML from a
+CMS.
 
 [Getting started](/docs/) adds Stillwind to a new application.
 [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/) moves an

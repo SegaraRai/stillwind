@@ -4,10 +4,10 @@ description: Define keyframes in the component that uses them, and respect reduc
 slug: docs/guides/animations
 ---
 
-You want to animate a component. In Tailwind, you write `@keyframes` in a global
-stylesheet and register the animation in the theme. As the codebase grows, nobody
-knows which component still uses which animation. In Stillwind, you define the
-keyframes in the component that uses them.
+You want to animate a component. With Tailwind, as with plain CSS, you write
+`@keyframes` in a global stylesheet and register the animation in the theme.
+In Stillwind, you can define the keyframes in the component that uses them, so
+the animation stays next to the code that uses it.
 
 ## Define and apply keyframes
 

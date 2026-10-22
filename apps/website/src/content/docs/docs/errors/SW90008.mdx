@@ -1,26 +1,18 @@
 ---
 title: "SW90008: Invalid compiler-produced source coordinates"
-description: Report coordinates produced by the compiler and rejected by its source validation.
+description: The compiler produced a source position that is not valid.
 slug: docs/errors/SW90008
 ---
 
 <CompilerError code="SW90008" category="internal" />
 
-The compiler applied coordinates that it produced, and the source rejected
-them. The diagnostic carries the operation context and the source failure detail.
+This error occurs when the compiler produces a source position that is outside the file or inside a character. When an integration passes an invalid position instead, the error is one of the `SW33xxx` codes.
 
-## Violated invariant
+## How to report
 
-```text
-A compiler-produced span or offset fails the checked source-coordinate contract.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-Compiler-produced coordinates satisfy the source's bounds, identity, and boundary checks.
-```
-
-Report the original source, operation context, and failure detail. Invalid
-coordinates supplied by a host use the `SW33...` family instead; the distinction
-identifies which side must repair the coordinate construction.
+- The source file
+- The operation and the detail from the message
+- The version of the Stillwind packages

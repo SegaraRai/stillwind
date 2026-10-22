@@ -1,13 +1,14 @@
 ---
 title: no-arbitrary-spacing
-description: Keep margin, padding, and gap on the project's spacing vocabulary.
+description: Reports margin, padding, and gap written as arbitrary values, such as p-[13px].
 slug: docs/lints/no-arbitrary-spacing
 ---
 
 <LintRuleSummary name="no-arbitrary-spacing" />
 
-An arbitrary padding length bypasses the configured spacing scale. This policy
-does not invalidate the CSS; the CLI reports the project restriction.
+This rule reports margin, padding, or gap written as an arbitrary value, such as
+`p-[13px]`. The CSS works, but the value is not on your spacing scale. No preset
+enables this rule.
 
 ## Reported
 
@@ -15,12 +16,20 @@ does not invalidate the CSS; the CLI reports the project restriction.
 style("p-[13px]");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("p-3");
 ```
 
-Use a scale value or define a named semantic spacing token. The `properties`
-option adds property domains beyond the built-in margin, padding, and gap domains;
-it does not replace those built-in domains.
+## How to fix
+
+- Use the nearest value on the scale. With the default `--spacing` of `0.25rem`,
+  `p-3` is 12px, as in the example.
+- If the exact value has a role in your design, add a token, such as
+  `--spacing-panel: 13px` in `@theme`, and use `p-panel`.
+
+## Options
+
+`properties` lists more CSS properties to check, in addition to margin, padding,
+and gap.

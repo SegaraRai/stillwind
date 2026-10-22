@@ -1,25 +1,31 @@
 ---
 title: "SW31009: Unmapped macro binding read"
-description: Preserve verified original correspondence for every macro binding reference.
+description: A use of style in a converted component has no mapping to the original component.
 slug: docs/errors/SW31009
 ---
 
 <CompilerError code="SW31009" category="host" />
 
-A macro binding has reads without verified projection correspondence. The compiler
-cannot prove that it found every original reference before replacing the macro import.
+This error occurs when a use of `style` or another macro in the converted script
+of a component has no mapping to the original component. The compiler removes the
+macro import, so it must find every use first.
 
-## Invalid mapping contract
-
-```text
-The converter maps the macro declaration but omits one of its binding reads.
-```
-
-## Valid mapping contract
+## Reported
 
 ```text
-Every macro read that must be transformed has verified correspondence in the original source.
+The converter maps the import of style, but not one of the places that use it.
 ```
 
-Audit declaration and reference mappings together. Include the omitted read and
-both buffers in a converter reproduction; renaming the original macro does not repair the map.
+## Fixed
+
+```text
+Every use of style in the generated script maps to its place in the component.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages and the framework
+  packages. If the error remains, report it with the component.
+- In your own converter, map the import and every use together.
+
+Renaming `style` in the component does not fix it.

@@ -1,13 +1,15 @@
 ---
 title: conflicting-provider-properties
-description: Avoid competing provider declarations whose relative output order is not guaranteed.
+description: Reports a container or anchor property that a ref method and a utility both set.
 slug: docs/lints/conflicting-provider-properties
 ---
 
 <LintRuleSummary name="conflicting-provider-properties" />
 
-A ref provider and another rule can set the same container or anchor property.
-Their relative generated order is not an application override contract.
+This rule reports a container or anchor property that a ref method, such as
+`asContainer()`, and another utility both set on the same element. For example,
+`asContainer("size")` sets `container-type: size`, and `@container` sets it to
+`inline-size`. Only one value takes effect, and the code does not show which.
 
 ## Reported
 
@@ -16,12 +18,15 @@ const card = style.ref("card");
 style(card, card.asContainer("size"), "@container");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const card = style.ref("card");
 style(card, card.asContainer("size"));
 ```
 
-Keep one supplier for the provider property in that condition region. Preserve
-the matching marker attachment; it is required independently of this conflict.
+## How to fix
+
+- Set the property in one place. With a ref, pass the container type to
+  `asContainer()`, and remove the utility, as in the example.
+- If you want the type from the utility, call `asContainer()` without a type.

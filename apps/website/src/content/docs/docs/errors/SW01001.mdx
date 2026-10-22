@@ -1,28 +1,37 @@
 ---
 title: "SW01001: Framework constraint conflict"
-description: Match the host's explicit framework constraint to the imported macro entrypoint.
+description: The integration requires one framework, but the file imports style() for another framework.
 slug: docs/errors/SW01001
 ---
 
 <CompilerError code="SW01001" category="configuration" />
 
-The host selected a framework explicitly, but the source imports a different
-framework's macro. This constraint is stronger than an editor preference.
+This error occurs when the integration is set to one framework, but a file
+imports `style()` from the entrypoint of another framework. The compiler cannot
+produce props for both.
 
-## Rejected configuration
-
-```text
-Host framework: vue
-Source import: stillwind/react
-```
-
-## Corrected configuration
+## Reported
 
 ```text
-Host framework: react
-Source import: stillwind/react
+Integration framework: vue
+Import in the file: stillwind/react
 ```
 
-Choose the integration and import for the actual component renderer. Check
-effective overrides when the project config and adapter both supply a framework.
-Format-only findings use [mismatched-framework-import](/docs/lints/mismatched-framework-import/).
+## Fixed
+
+```text
+Integration framework: react
+Import in the file: stillwind/react
+```
+
+## How to fix
+
+- If the file is a React component, set the integration to React, as in the
+  example.
+- If the file belongs to the framework of the integration, import from that
+  entrypoint instead, such as `stillwind/vue`.
+- Check both `stillwind.config.ts` and the integration options. An option in the
+  integration overrides the file.
+
+When no framework is set, an import from another framework is reported by
+[mismatched-framework-import](/docs/lints/mismatched-framework-import/) instead.

@@ -1,14 +1,15 @@
 ---
 title: invalid-runtime-condition
-description: Use computed-value conditions that the selected CSS lowering can represent.
+description: Reports a runtime CSS condition that the compiler cannot compile in its position.
 slug: docs/lints/invalid-runtime-condition
 ---
 
 <LintRuleSummary name="invalid-runtime-condition" />
 
-The condition grammar, its declaration context, and `useCssIf` determine whether
-a runtime CSS test can lower. This keyframe value requests an unsupported
-comparison under the default fallback mode.
+This rule reports a runtime CSS condition, such as `--if()`, that the compiler
+cannot compile where you wrote it. Some comparisons need the native CSS `if()`
+function, and some positions, such as a keyframe, do not support the condition at
+all. The declaration produces no CSS.
 
 ## Reported
 
@@ -17,13 +18,22 @@ const fade = style.keyframes({ to: "[color:--if(--mode:compact,red,blue)]" });
 style(fade("duration-300"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-const fade = style.keyframes({ to: "text-red-500" });
-style(fade("duration-300"));
+declare const compact: boolean;
+const red = style.keyframes({ to: "text-red-500" });
+const blue = style.keyframes({ to: "text-blue-500" });
+style((compact ? red : blue)("duration-300"));
 ```
 
-The accepted input removes the computed comparison. Do not assume that changing
-severity restores it. Ordinary candidate syntax failures use
-[invalid-utility](/docs/lints/invalid-utility/) or [invalid-variant](/docs/lints/invalid-variant/).
+## How to fix
+
+- Decide the condition in JavaScript, and choose between complete styles, as in
+  the example.
+- If the browsers that you support implement CSS `if()`, set `useCssIf: true` in
+  the project. Then the compiler emits the native function.
+
+A condition that only needs `useCssIf` is reported by
+[runtime-condition-requires-css-if](/docs/lints/runtime-condition-requires-css-if/)
+instead.

@@ -1,28 +1,34 @@
 ---
 title: invalid-lint-suppression
-description: Use recognized swlint directives and public rule IDs.
+description: Reports a malformed suppression comment or an unknown rule name in one.
 slug: docs/lints/invalid-lint-suppression
 ---
 
 <LintRuleSummary name="invalid-lint-suppression" />
 
-A misspelled rule name cannot suppress the intended finding. Malformed
-suppression syntax can report this rule as well.
+This rule reports a suppression comment that the CLI cannot read, such as a
+comment with a misspelled rule name. The comment suppresses nothing, so the
+finding that you meant to hide still appears.
 
 ## Reported
 
 ```tsx
-// swlint-disable-next-line unknown-rule
-style("p-4");
+// swlint-disable-next-line no-arbitary-colors -- Partner brand color.
+style("bg-[#123456]");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-// swlint-disable-next-line unknown-utility
-style("unknown-utility-name");
+// swlint-disable-next-line no-arbitrary-colors -- Partner brand color.
+style("bg-[#123456]");
 ```
 
-Use the exact public ID and keep the scope narrow. Add a reason after `--`.
-Suppression affects reporting and fixes; it cannot restore invalid emitted input
-or suppress a fatal compiler error. See [suppression syntax](/docs/configuration/lint/#suppression).
+## How to fix
+
+- Correct the rule name. The [lint rule reference](/docs/lints/) lists every
+  name.
+- Check the form of the comment: `swlint-disable-next-line`, `swlint-disable-line`,
+  or a `swlint-disable` and `swlint-enable` pair, followed by rule names.
+
+See [Suppression comments](/docs/configuration/#suppression-comments).

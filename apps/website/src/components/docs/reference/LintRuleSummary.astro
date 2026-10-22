@@ -1,0 +1,58 @@
+---
+import type { LintRule } from "stillwind/config";
+
+import { lintRuleSummary, projectAnalysisNote } from "./lint-rule-summary";
+
+interface Props {
+  name: LintRule;
+  analysis?: "project";
+}
+const { levels, options } = lintRuleSummary(Astro.props.name);
+---
+
+<div class="reference-summary">
+  <table>
+    <thead>
+      <tr>
+        <th>Preset</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {levels.map(({ preset, severity }) => (
+        <tr>
+          <td>
+            <code>{preset}</code>
+          </td>
+          <td>{severity}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  {options.length > 0 && (
+    <table>
+      <thead>
+        <tr>
+          <th>Option</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+        {options.map(({ option, value }) => (
+          <tr>
+            <td>
+              <code>{option}</code>
+            </td>
+            <td>
+              <code>{value}</code>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+  <p>
+    <a href="/docs/configuration/#lint">Configure lint</a> to change the severity or options.
+  </p>
+  {Astro.props.analysis === "project" && <p>{projectAnalysisNote}</p>}
+</div>

@@ -1,13 +1,14 @@
 ---
 title: incompatible-theme-value
-description: Match a theme value to its namespace's declared value types.
+description: Reports a theme token with a value of the wrong type for its namespace, such as a length for a color.
 slug: docs/lints/incompatible-theme-value
 ---
 
 <LintRuleSummary name="incompatible-theme-value" />
 
-The color namespace expects a color. A length can be retained as authored theme
-data while still being incompatible with the namespace's declared domain.
+This rule reports a theme token whose value does not match the type of its
+namespace. For example, tokens in `--color-*` must be colors, so a length makes
+`bg-brand` and the other color utilities write an invalid value.
 
 ## Reported
 
@@ -17,13 +18,16 @@ data while still being incompatible with the namespace's declared domain.
 }
 ```
 
-## Accepted
+## Fixed
 
 ```css
 @theme {
-  --color-brand: blue;
+  --spacing-brand: 1rem;
 }
 ```
 
-Move the value to the appropriate namespace or correct its type. For a variable
-whose utility family has several types, also consider [prefer-typed-variables](/docs/lints/prefer-typed-variables/).
+## How to fix
+
+- If the value is right, move the token to the namespace of that type, such as
+  `--spacing-*` for a length, as in the example.
+- If the namespace is right, correct the value, such as a color for `--color-*`.

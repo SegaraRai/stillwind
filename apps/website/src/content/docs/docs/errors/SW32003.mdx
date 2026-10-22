@@ -1,26 +1,31 @@
 ---
 title: "SW32003: Unknown or duplicate CSS request"
-description: Answer only request IDs that are currently outstanding.
+description: An answer to the stylesheet loader names a request that is not pending.
 slug: docs/errors/SW32003
 ---
 
 <CompilerError code="SW32003" category="host" />
 
-A response does not correspond to an outstanding loader request. The ID may be
-unknown or may already have been answered.
+This error occurs when an integration answers a request that the stylesheet
+loader is not waiting for. The request ID is unknown, or the request already has
+an answer.
 
-## Invalid response
-
-```text
-Pending IDs: 1, 2
-Response ID: 99
-```
-
-## Valid response
+## Reported
 
 ```text
-Each response answers one pending ID exactly once.
+Pending requests: 1, 2
+Answer for request: 99
 ```
 
-Keep request state per loader instance. Do not reuse IDs or delayed responses
-from an earlier loading session after starting a reload.
+## Fixed
+
+```text
+Each answer names one pending request, and each request gets one answer.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages. If the error
+  remains, report it.
+- In your own integration, keep the request state for each loader, and do not
+  pass late answers from an earlier load to a new one.

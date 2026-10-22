@@ -1,13 +1,14 @@
 ---
 title: unused-lint-suppression
-description: Remove suppression directives that suppress no enabled finding.
+description: Reports a suppression comment that suppresses no finding.
 slug: docs/lints/unused-lint-suppression
 ---
 
 <LintRuleSummary name="unused-lint-suppression" analysis="project" />
 
-This check needs the findings from the complete analysis run. A suppression
-for an inactive or absent finding leaves an unnecessary exception in the source.
+This rule reports a suppression comment that suppresses no finding, for example
+because the code was fixed after the comment was added. The comment would hide a
+future finding that nobody has reviewed. The `strict` preset enables this rule.
 
 ## Configuration
 
@@ -22,11 +23,13 @@ for an inactive or absent finding leaves an unnecessary exception in the source.
 style("p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("p-4");
 ```
 
-Remove the obsolete directive after correcting the source. Preserve a suppression
-only when the enabled rule still reports the intentional exception at that location.
+## How to fix
+
+Remove the comment, as in the example. If the rule should still report the line,
+check that the comment is on the right line and names the right rule.

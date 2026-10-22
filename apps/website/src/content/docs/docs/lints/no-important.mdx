@@ -1,25 +1,32 @@
 ---
 title: no-important
-description: Prohibit important utility modifiers in a project's authored styles.
+description: Reports utilities with the important modifier, such as p-4!.
 slug: docs/lints/no-important
 ---
 
 <LintRuleSummary name="no-important" />
 
-The utility is valid, but its important modifier violates this policy. The
-restriction makes specificity escapes visible to CLI and editor analysis.
+This rule reports a utility with the `!` modifier, which makes its declarations
+`!important`. An important declaration wins over styles that would normally
+override it, which makes later changes harder. No preset enables this rule.
 
 ## Reported
 
 ```tsx
-style("p-4!");
+const base = style("p-2");
+style(base, "p-4!");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("p-4");
+const base = style("p-2");
+style(base, "p-4");
 ```
 
-Resolve the intended ownership or cascade relationship instead of adding an
-important modifier. This rule is separate from the project's global `important` option.
+## How to fix
+
+- To override a shared style, pass it as a base. The later utilities win without
+  `!`, as in the example.
+- To win over a stylesheet that you do not control, use the `important` field of
+  the project instead. See [Configuration](/docs/configuration/#generated-css).

@@ -1,26 +1,31 @@
 ---
 title: "SW32002: Invalid initial CSS batch"
-description: Supply exactly one root source in the loader's first response.
+description: The first answer to the stylesheet loader does not contain exactly one stylesheet.
 slug: docs/errors/SW32002
 ---
 
 <CompilerError code="SW32002" category="host" />
 
-The initial loader response contains a source count other than one. The first
-response establishes the root; dependency requests follow from that root's contents.
+This error occurs when the first answer that an integration gives the stylesheet
+loader does not contain exactly one stylesheet. The first answer is the root
+stylesheet. The loader then asks for the imports that the root contains.
 
-## Invalid response
-
-```text
-Initial batch: root.css and tokens.css supplied as two initial sources
-```
-
-## Valid response
+## Reported
 
 ```text
-Initial batch: root.css only
-Later batches: answers to import requests issued by the loader
+First answer: root.css and tokens.css
 ```
 
-Do not preload the entire graph into the first response. Respect the request
-identities returned by each subsequent load step.
+## Fixed
+
+```text
+First answer: root.css
+Later answers: tokens.css, when the loader asks for it
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages. If the error
+  remains, report it.
+- In your own integration, give only the root stylesheet first, and answer the
+  later requests with the IDs that the loader returns.

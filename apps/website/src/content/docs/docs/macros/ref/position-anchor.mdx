@@ -1,0 +1,43 @@
+---
+title: ref.positionAnchor()
+description: Position the styled element against the anchor that a ref names.
+slug: docs/macros/ref/position-anchor
+sidebar:
+  order: 6
+---
+
+`trigger.positionAnchor()` sets `position-anchor` on the styled element, so that
+`anchor()` values in its other utilities refer to the `trigger` anchor.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const trigger = style.ref("trigger");
+export const button = style(trigger, trigger.asAnchor());
+export const popover = style(
+  "absolute",
+  trigger.positionAnchor(),
+  "top-[anchor(bottom)] left-[anchor(left)]",
+);
+```
+
+</CompiledExample>
+
+## Inputs
+
+`positionAnchor()` takes no arguments.
+
+## Behavior
+
+The styled element does not need the `trigger` ref. The anchor element needs it,
+together with [`trigger.asAnchor()`](/docs/macros/ref/as-anchor/).
+
+Write the call directly in `style()`. You cannot store it in a variable and use
+it later.
+
+See [Element relationships](/docs/guides/element-relationships/#position-an-element-at-an-anchor)
+for a complete example with an anchor scope.

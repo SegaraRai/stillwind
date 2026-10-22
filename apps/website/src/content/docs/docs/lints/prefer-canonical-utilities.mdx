@@ -1,13 +1,14 @@
 ---
 title: prefer-canonical-utilities
-description: Use an equivalent spelling selected by the active design system's canonical rules.
+description: Reports a utility that the theme can write in a shorter form, such as px-[16px] for px-4.
 slug: docs/lints/prefer-canonical-utilities
 ---
 
 <LintRuleSummary name="prefer-canonical-utilities" />
 
-The active theme can express this value with a shorter scale utility. Canonical
-comparison checks supported declaration semantics; it does not rewrite arbitrary CSS.
+This rule reports a utility that your theme can write in a shorter, standard
+form with the same CSS, such as `px-[16px]` for `px-4`. The standard form shows
+that the value is on the scale.
 
 ## Reported
 
@@ -15,11 +16,19 @@ comparison checks supported declaration semantics; it does not rewrite arbitrary
 style("px-[16px]");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("px-4");
 ```
 
-`pxToRem` defaults to true. Whether a replacement exists depends on the loaded
-theme and canonical policy. Review the suggested fix against the project's root-size assumptions.
+## How to fix
+
+Use the suggested form. The automatic fix applies it.
+
+## Options
+
+`pxToRem` compares `px` values with `rem` values by using `rootFontSize`. With the
+default root size of 16px, `px-[16px]` matches `px-4`, which is `1rem`. Turn the
+option off if your documents use another root size and you have not set
+`rootFontSize`.

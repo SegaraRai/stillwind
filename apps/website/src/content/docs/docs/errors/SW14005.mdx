@@ -1,26 +1,42 @@
 ---
 title: "SW14005: Required property is unregistered"
-description: Register the custom property named by a generated support requirement.
+description: A utility requires a custom property that no @stillwind-property registers.
 slug: docs/errors/SW14005
 ---
 
 <CompilerError code="SW14005" category="authoring" />
 
-A requirement names a custom property with no `@stillwind-property` registration
-in the loaded design system. A declaration that merely assigns the property does
-not supply that registration's support contract.
+This error occurs when a utility requires a custom property, but no
+`@stillwind-property` in the loaded stylesheets registers it. The registration
+provides the initial value and other support CSS. Assigning the property in a
+rule does not register it.
 
-## Rejected registry contract
+## Reported
 
-```text
-A requirement names --custom-value; no registration provides --custom-value.
+```css
+@utility spin-x {
+  @stillwind-require-properties --spin-angle;
+  rotate: var(--spin-angle);
+}
 ```
 
-## Accepted registry contract
+## Fixed
 
-```text
-The loaded graph registers --custom-value before rendering output that requires it.
+```css
+@stillwind-property --spin-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@utility spin-x {
+  @stillwind-require-properties --spin-angle;
+  rotate: var(--spin-angle);
+}
 ```
 
-Load the definition that owns the required support or correct the requirement's
-name. Review custom utilities and plugin definitions when the standard entry already loads correctly.
+## How to fix
+
+- Register the property with `@stillwind-property`, as in the example.
+- If the property comes from Stillwind or a plugin, check that the stylesheet
+  imports the file that registers it, and check the spelling of the name.

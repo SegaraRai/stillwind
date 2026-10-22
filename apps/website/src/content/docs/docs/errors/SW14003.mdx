@@ -1,26 +1,38 @@
 ---
 title: "SW14003: Malformed property requirement"
-description: Use complete custom-property names in authored requirement directives.
+description: An @stillwind-require-properties directive in your stylesheet has invalid syntax.
 slug: docs/errors/SW14003
 ---
 
 <CompilerError code="SW14003" category="authoring" />
 
-An authored `@stillwind-require-properties` directive contains malformed names
-or syntax. The byte offset is relative to the CSS body that contains the directive.
+This error occurs when an `@stillwind-require-properties` directive in your
+stylesheet has invalid syntax, such as an incomplete custom property name. The
+directive lists the registered custom properties that a utility needs. The
+message gives the position within the rule that contains it.
 
-## Rejected requirement form
-
-```text
-The requirement lists an incomplete custom-property name or malformed arguments.
-```
-
-## Supported requirement form
+## Reported
 
 ```css
-@stillwind-require-properties --tw-rotate-x;
+@utility spin-x {
+  @stillwind-require-properties tw-rotate-x;
+  transform: var(--tw-rotate-x);
+}
 ```
 
-Use the complete registered name. A syntactically valid requirement for an
-unregistered property is a different failure, [SW14005](/docs/errors/SW14005/).
-Requirements inside a matched utility use [SW14004](/docs/errors/SW14004/).
+## Fixed
+
+```css
+@utility spin-x {
+  @stillwind-require-properties --tw-rotate-x;
+  transform: var(--tw-rotate-x);
+}
+```
+
+## How to fix
+
+Write each name in full, including the leading `--`, as in the example.
+
+A valid name that no registration provides is reported as
+[SW14005](/docs/errors/SW14005/). An invalid directive inside a utility from a
+plugin is reported as [SW14004](/docs/errors/SW14004/).

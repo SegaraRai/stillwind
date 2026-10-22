@@ -1,13 +1,14 @@
 ---
 title: conflicting-utilities
-description: Resolve utilities that compete for an overlapping CSS property domain.
+description: Reports utilities that set the same CSS property under the same conditions, such as p-2 p-4.
 slug: docs/lints/conflicting-utilities
 ---
 
 <LintRuleSummary name="conflicting-utilities" />
 
-Both utilities supply padding under the same conditions. Their class-string
-order is not a runtime instruction to merge the values.
+This rule reports two utilities that set the same CSS property under the same
+conditions. Only one of them takes effect. The order of the generated CSS decides
+which one, not the order in your code, so the code does not show the result.
 
 ## Reported
 
@@ -15,12 +16,21 @@ order is not a runtime instruction to merge the values.
 style("p-2 p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style("p-4");
 ```
 
-Choose the intended value or separate the conditions. `allowShorthandOverrides`
-defaults to false; enable it only when the project intends to allow the supported
-shorthand/longhand override patterns. It does not disable all property conflicts.
+## How to fix
+
+- Keep the utility that you want, and remove the other.
+- If the values belong to different states or widths, add a variant to one of
+  them, such as `p-2 md:p-4`.
+- If one utility overrides a shared style, pass the shared style as a base. See
+  [Override a style](/docs/style/#override-a-style).
+
+## Options
+
+`allowShorthandOverrides` allows the supported overrides between a shorthand
+utility and a longhand utility. The rule still reports other conflicts.

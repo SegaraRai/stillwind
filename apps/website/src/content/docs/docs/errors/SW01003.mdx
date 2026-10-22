@@ -1,25 +1,37 @@
 ---
 title: "SW01003: Conflicting property prefixes"
-description: Keep Stillwind-owned and Tailwind-compatible custom-property namespaces distinct.
+description: The prefix and tailwindPrefix settings have the same value.
 slug: docs/errors/SW01003
 ---
 
 <CompilerError code="SW01003" category="configuration" />
 
-The effective `prefix` and `tailwindPrefix` are equal. Generated properties from
-the two naming domains would share a namespace.
+This error occurs when `prefix` and `tailwindPrefix` have the same value after
+the defaults apply. Stillwind's own custom properties and the Tailwind-compatible
+ones would then share names.
 
-## Rejected
-
-```ts
-const options = { prefix: "--sw-", tailwindPrefix: "--sw-" };
-```
-
-## Corrected
+## Reported
 
 ```ts
-const options = { prefix: "--sw-", tailwindPrefix: "--tw-" };
+const project = {
+  css: "./src/stillwind.css",
+  files: ["src/**/*.tsx"],
+  prefix: "--tw-",
+};
 ```
 
-Check merged project settings and adapter overrides. Different valid prefixes
-must remain different after defaults are applied.
+## Fixed
+
+```ts
+const project = {
+  css: "./src/stillwind.css",
+  files: ["src/**/*.tsx"],
+  prefix: "--app-",
+};
+```
+
+## How to fix
+
+- Give the two settings different values. In the example, `prefix` used the
+  default value of `tailwindPrefix`, `--tw-`.
+- Check the values that the integration options add on top of the file.

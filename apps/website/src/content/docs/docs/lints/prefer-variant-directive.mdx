@@ -1,13 +1,15 @@
 ---
 title: prefer-variant-directive
-description: Reuse an equivalent named variant in authored CSS rules.
+description: Reports a condition in your stylesheet that a named variant can replace.
 slug: docs/lints/prefer-variant-directive
 ---
 
 <LintRuleSummary name="prefer-variant-directive" />
 
-An authored condition can use a registered variant with the same supported
-meaning. The named form keeps the condition in the design-system vocabulary.
+This rule reports a condition in a rule of your stylesheet, such as an `@media`
+query, that a variant of your theme expresses with the same meaning. The named
+variant keeps the stylesheet in sync when the theme changes the breakpoint. The
+`stylistic` preset enables this rule.
 
 ## Reported
 
@@ -19,7 +21,7 @@ meaning. The named form keeps the condition in the design-system vocabulary.
 }
 ```
 
-## Accepted
+## Fixed
 
 ```css
 .card {
@@ -29,6 +31,12 @@ meaning. The named form keeps the condition in the design-system vocabulary.
 }
 ```
 
-The example uses the default `md` breakpoint. `pxToRem` defaults to false;
-when enabled, supported query conversion uses 16px per rem. This applied
-`@variant` form belongs inside authored CSS rules.
+## How to fix
+
+Replace the condition with `@variant` and the name of the variant, as in the
+example. The automatic fix applies it.
+
+## Options
+
+`pxToRem` treats `px` and `rem` in media queries as equal at 16px per `rem`. With
+it, `@media (width >= 768px)` also matches `md`.

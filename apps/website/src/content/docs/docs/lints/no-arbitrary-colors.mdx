@@ -1,13 +1,14 @@
 ---
 title: no-arbitrary-colors
-description: Require named theme colors instead of arbitrary color literals.
+description: Reports colors written as arbitrary values, such as bg-[#123456].
 slug: docs/lints/no-arbitrary-colors
 ---
 
 <LintRuleSummary name="no-arbitrary-colors" />
 
-This project policy requires a named color vocabulary. The arbitrary literal
-would compile, but it bypasses that vocabulary.
+This rule reports a color written as an arbitrary value, such as `bg-[#123456]`.
+The CSS works, but the color does not come from your theme, so a theme change
+does not reach it. No preset enables this rule.
 
 ## Reported
 
@@ -15,12 +16,23 @@ would compile, but it bypasses that vocabulary.
 style("bg-[#123456]");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("bg-blue-500");
+style("bg-brand");
 ```
 
-Define a semantic color token when the value represents a product role.
-To reserve raw palette tokens as well, configure
+## How to fix
+
+Add the color to your theme with a name for its role, and use that name, as in
+the example:
+
+```css
+@theme {
+  --color-brand: #123456;
+}
+```
+
+If the color already exists in the theme, use its name instead. To stop
+components from using the default palette directly, also enable
 [no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens/).

@@ -4,14 +4,14 @@ import { compilerOptions } from "@stillwind/host";
 import { lintRules, type LintRule, type LintRules } from "stillwind/config";
 import { expect, test } from "vite-plus/test";
 
-import { compileWith } from "../src/components/reference/compiled-example";
-import { compiledSource } from "../src/components/reference/compiled-source";
+import { compileWith } from "../src/components/docs/reference/compiled-example";
+import { compiledSource } from "../src/components/docs/reference/compiled-source";
 import {
   defaultStylesheet,
   documentationCompiler,
   reactSource,
   referenceCompiler,
-} from "../src/lib/reference/compiler";
+} from "../src/lib/docs/reference/compiler";
 import { projectReports } from "./support/project-reports";
 
 const content = new URL("../src/content/docs/docs/", import.meta.url);
@@ -50,7 +50,7 @@ test.each(lintPages)(
     );
     for (const [section, reported] of [
       ["Reported", true],
-      ["Accepted", false],
+      ["Fixed", false],
     ] as const) {
       const example = blocks(section)[0];
       expect(example, `${file}: ${section}`).toBeTruthy();
@@ -83,11 +83,14 @@ test.each(lintPages)(
 
 test("the macro pages publish the actual compiled output of their own source examples", async () => {
   const compiler = await documentationCompiler();
-  const files = (await readdir(new URL("macros/", content))).filter((file) => file !== "index.mdx");
+  const files = (await readdir(new URL("macros/", content), { recursive: true }))
+    .map((file) => file.replaceAll("\\", "/"))
+    .filter((file) => file.endsWith(".mdx") && file !== "index.mdx");
   for (const file of files) {
     const page = await readFile(new URL(`macros/${file}`, content), "utf8");
+    const route = file.replace(/(\/index)?\.mdx$/, "");
     const markdown = await readFile(
-      new URL(`../dist/docs/macros/${file.replace(/\.mdx$/, "")}/index.md`, import.meta.url),
+      new URL(`../dist/docs/macros/${route}/index.md`, import.meta.url),
       "utf8",
     );
     const examples = [...page.matchAll(/<CompiledExample>([\s\S]*?)<\/CompiledExample>/g)];
@@ -95,7 +98,7 @@ test("the macro pages publish the actual compiled output of their own source exa
     for (const [, block] of examples) {
       const example = compileWith(compiler, compiledSource(block));
       expect(markdown, file).toContain(example.source.trim());
-      expect(markdown, file).toContain(example.production.trim());
+      expect(markdown, file).toContain(example.code.trim());
       if (example.css) {
         expect(markdown, file).toContain(example.css.trim());
       }

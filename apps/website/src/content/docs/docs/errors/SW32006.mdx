@@ -1,25 +1,31 @@
 ---
 title: "SW32006: CSS request IDs exhausted"
-description: Keep the loader's request set within its representable ID range.
+description: The stylesheet loader ran out of request IDs during one load.
 slug: docs/errors/SW32006
 ---
 
 <CompilerError code="SW32006" category="host" />
 
-The loader cannot allocate another request identifier. The error concerns its
-protocol state, rather than a custom-property or utility name.
+This error occurs when the stylesheet loader needs another request ID, but has
+used all the IDs that it can represent. A normal import graph never reaches this
+limit, so the graph is probably growing without end.
 
-## Invalid state
-
-```text
-The current loading session needs another ID after exhausting its request-ID range.
-```
-
-## Valid state
+## Reported
 
 ```text
-All requests in the loading session have representable, distinct request IDs.
+An import graph keeps requesting new stylesheets until the loader has no IDs left.
 ```
 
-Reduce an unexpectedly expanding import graph and reproduce with its source
-counts. An embedding must not wrap an exhausted counter or reuse a still-live ID.
+## Fixed
+
+```text
+The import graph requests a finite set of stylesheets.
+```
+
+## How to fix
+
+- Check your stylesheets and plugins for imports that generate new paths
+  repeatedly.
+- With an official integration, report the error with the number of stylesheets
+  in the graph.
+- In your own integration, do not reuse request IDs that are still pending.

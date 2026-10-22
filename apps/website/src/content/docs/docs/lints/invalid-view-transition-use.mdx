@@ -1,13 +1,14 @@
 ---
 title: invalid-view-transition-use
-description: Supply one optional pairing key when applying a transition participant.
+description: Reports extra or invalid arguments to .for() of a view transition.
 slug: docs/lints/invalid-view-transition-use
 ---
 
 <LintRuleSummary name="invalid-view-transition-use" />
 
-`.for()` accepts one optional string or number key. Extra arguments do not name
-extra participants and make the use invalid.
+This rule reports a `.for()` call with more than one argument, or with a key that
+is not a string or a number. One `.for()` call names one element, so extra
+arguments do not name more elements.
 
 ## Reported
 
@@ -16,12 +17,17 @@ const transition = style.viewTransition({ old: "duration-150" });
 style(transition.for("a", "b"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const transition = style.viewTransition({ old: "duration-150" });
-style(transition.for("a"));
+const first = style(transition.for("a"));
+const second = style(transition.for("b"));
 ```
 
-Apply each participant to its own element with a stable key. Keep the `.for()`
-call at its consumption site. See [transition participants](/docs/macros/view-transition/#for).
+## How to fix
+
+- Give each element its own `.for()` call with its own key, as in the example.
+- Use a string or a number as the key, such as the ID of the item.
+
+See [style.viewTransition()](/docs/macros/view-transition/#name-the-element).

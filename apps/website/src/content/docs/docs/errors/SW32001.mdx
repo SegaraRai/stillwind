@@ -1,26 +1,31 @@
 ---
 title: "SW32001: CSS imports need host resolution"
-description: Use the loader protocol when a single CSS buffer refers to other sources.
+description: A stylesheet with @import was loaded through an API that cannot resolve imports.
 slug: docs/errors/SW32001
 ---
 
 <CompilerError code="SW32001" category="host" />
 
-A single-buffer loading API encountered imports that require host resolution.
-Its input does not include a resolver capable of answering those requests.
+This error occurs when a stylesheet that contains `@import` is passed to an API
+that loads a single stylesheet. That API cannot read other files, so it cannot
+resolve the import.
 
-## Invalid loading choice
-
-```text
-A single-buffer API receives @import "./tokens.css" and cannot resolve that file.
-```
-
-## Valid loading choice
+## Reported
 
 ```text
-The host uses DesignSystemLoader and answers its ordered import requests.
+A single-stylesheet API receives a stylesheet with @import "./tokens.css".
 ```
 
-Use the supported host's CSS graph loader. An embedding must resolve each
-requested import with its source or an explicit unresolved answer where allowed;
-the configured root cannot be unresolved.
+## Fixed
+
+```text
+The integration uses DesignSystemLoader and answers each import request with the file.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages. If the error
+  remains, report it with your stylesheet.
+- In your own integration, load stylesheets with `DesignSystemLoader`, and answer
+  each import request. Only imported stylesheets may be answered as unresolved;
+  the root stylesheet must exist.

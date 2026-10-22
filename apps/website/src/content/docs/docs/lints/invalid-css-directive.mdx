@@ -1,28 +1,30 @@
 ---
 title: invalid-css-directive
-description: Correct malformed or unsupported Stillwind stylesheet directives.
+description: Reports a malformed or unsupported Stillwind directive in your stylesheet.
 slug: docs/lints/invalid-css-directive
 ---
 
 <LintRuleSummary name="invalid-css-directive" />
 
-A Stillwind directive with an unsupported slot name cannot define an output
-destination. That directive is skipped.
+This rule reports a Stillwind directive in your stylesheet that the compiler
+cannot read, such as `@stillwind-slot` with an unknown slot name. The compiler
+skips the directive.
 
 ## Reported
 
 ```css
-@stillwind-slot unknown;
+@stillwind-slot utility;
 ```
 
-## Accepted
+## Fixed
 
 ```css
-@utility brand {
-  color: red;
-}
+@stillwind-slot utilities;
 ```
 
-Use supported directives with their required arguments. The accepted example
-defines a utility rather than requesting an unknown slot. When replacing the
-stylesheet template, retain the [required output slots](/docs/errors/SW14001/).
+## How to fix
+
+- Check the name and the arguments of the directive. For example, the slot for
+  generated utilities is `utilities`.
+- If you do not need the directive, remove it. `@import "stillwind"` already
+  places the slots that the default stylesheet needs.

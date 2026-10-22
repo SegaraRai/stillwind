@@ -1,13 +1,15 @@
 ---
 title: invalid-animation-option
-description: Use utilities from the animation-options registry at animation use sites.
+description: Reports a utility in the options of an animation that is not an animation option, such as p-4.
 slug: docs/lints/invalid-animation-option
 ---
 
 <LintRuleSummary name="invalid-animation-option" />
 
-An animation use accepts timing and other animation options. A layout utility
-such as `p-4` has no meaning in that registry and is omitted from the use.
+This rule reports a utility in the options of an animation that does not set an
+animation property, such as `p-4`. The options accept timing utilities such as
+`duration-300`, `ease-out`, and `delay-150`, and fill modes such as `both`. The
+other utility produces no CSS.
 
 ## Reported
 
@@ -16,12 +18,17 @@ const fade = style.keyframes({ to: "opacity-100" });
 style(fade("p-4"));
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 const fade = style.keyframes({ to: "opacity-100" });
-style(fade("duration-300"));
+style("p-4", fade("duration-300"));
 ```
 
-Place layout utilities beside the animation use in the surrounding `style()`.
-Animation fill options include `both`, `forwards`, and `backwards`.
+## How to fix
+
+- Move the utility out of the animation options and into the `style()` call, as
+  in the example.
+- Keep only animation options, such as `duration-300` or `both`, in the options.
+
+See [style.keyframes()](/docs/macros/keyframes/#apply-the-animation).

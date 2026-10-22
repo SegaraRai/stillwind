@@ -1,25 +1,18 @@
 ---
 title: "SW90007: Overlapping source replacements"
-description: Report generated edits that overlap instead of forming a valid replacement sequence.
+description: The compiler planned two code edits that overlap.
 slug: docs/errors/SW90007
 ---
 
 <CompilerError code="SW90007" category="internal" />
 
-Generated source replacements overlap. The diagnostic includes the later
-replacement span and the preceding replacement's start.
+This error occurs when the compiler plans two edits that change the same text. The message shows the positions of both edits. Applying the edits in another order does not help.
 
-## Violated invariant
+## How to report
 
-```text
-Two generated replacements require incompatible edits to overlapping source text.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-The replacement sequence satisfies the transform's nonoverlap contract.
-```
-
-Report the affected source ranges and macro nesting/composition that produced
-them. Changing the order in which a host applies overlapping edits does not repair the compiler's plan.
+- The code at the positions in the message
+- How the styles there are nested or used as bases
+- The version of the Stillwind packages

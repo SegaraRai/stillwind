@@ -1,0 +1,64 @@
+---
+title: style.ref() and ref methods
+description: Name an element with a ref, and style other elements from its state, size, or anchor position.
+slug: docs/macros/ref
+sidebar:
+  order: 2
+---
+
+`style.ref(label?)` creates a ref: a name for an element that other styles can
+refer to. Attach the ref to an element with `style(ref)`. Then use its methods to
+style other elements from that element's state, size, or position.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const card = style.ref("card");
+export const container = style(card, card.asContainer("inline-size"));
+export const child = style({
+  [card("hover")]: "text-blue-600",
+  [card.at("width >= 40rem")]: "grid-cols-2",
+});
+```
+
+</CompiledExample>
+
+## Declare a ref
+
+Write `style.ref()` as the initial value of a variable: `const card = style.ref("card")`.
+The optional label must be a string literal. It appears in generated names and
+helps you read them.
+
+Each `style.ref()` call in the source creates one name. Rendering a component
+many times does not create new names, and two refs with the same label stay
+separate. You can export a ref, import it, and pass it as an argument.
+
+## Methods
+
+| Method                                                          | Where to write it           | Effect                                                 |
+| --------------------------------------------------------------- | --------------------------- | ------------------------------------------------------ |
+| `style(card)`                                                   | A `style()` argument        | Attaches the ref to the element                        |
+| [`card()`](/docs/macros/ref/condition/)                         | A computed key in `style()` | Matches inside the ref element, optionally in a state  |
+| [`.in()`](/docs/macros/ref/in/)                                 | After a ref condition       | Matches inside a shared ancestor, such as for siblings |
+| [`card.at()`](/docs/macros/ref/at/)                             | A computed key in `style()` | Matches a container query on the ref element           |
+| [`card.asContainer()`](/docs/macros/ref/as-container/)          | A `style()` argument        | Makes the ref element a named container                |
+| [`trigger.asAnchor()`](/docs/macros/ref/as-anchor/)             | A `style()` argument        | Makes the ref element a named anchor                   |
+| [`trigger.positionAnchor()`](/docs/macros/ref/position-anchor/) | A `style()` argument        | Positions the styled element against the anchor        |
+
+Write each method call directly in `style()`. You cannot store the result of a
+method call in a variable and use it later.
+
+## Generated code
+
+When the compiler knows which ref a call uses, the ref becomes plain class names
+and selectors, and the ref variable can become `undefined` in JavaScript. When a
+call chooses among several refs at runtime, the generated code keeps the fields
+that the choice needs. The compiled code reads those fields directly. In
+development, Stillwind checks them first. The code does not watch the DOM.
+
+See [Element relationships](/docs/guides/element-relationships/) for task-based
+examples.

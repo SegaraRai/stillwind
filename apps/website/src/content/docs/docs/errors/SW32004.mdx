@@ -1,25 +1,30 @@
 ---
 title: "SW32004: Conflicting CSS source"
-description: Keep document identity and contents consistent for one host source name.
+description: One stylesheet name received two different contents during one load.
 slug: docs/errors/SW32004
 ---
 
 <CompilerError code="SW32004" category="host" />
 
-One host source name was supplied with different document identity or contents
-during the same load. The loader cannot treat both answers as one immutable source.
+This error occurs when an integration gives the stylesheet loader two different
+documents or contents for the same file name during one load. This can happen
+when a file changes while it is loading.
 
-## Invalid source contract
-
-```text
-Name tokens.css first identifies text A, then identifies different text B in the same load.
-```
-
-## Valid source contract
+## Reported
 
 ```text
-One source name identifies one consistent document and content buffer during that load.
+tokens.css is answered with text A, then with text B, in the same load.
 ```
 
-Capture a coherent filesystem/editor snapshot for loading. Start a reload when
-the source changes instead of mixing revisions inside an existing snapshot.
+## Fixed
+
+```text
+tokens.css has one content for the whole load. A change starts a new load.
+```
+
+## How to fix
+
+- With an official integration, save the file and build again. If the error
+  remains, report it.
+- In your own integration, read the files from one snapshot for each load, and
+  start a new load when a file changes.

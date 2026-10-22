@@ -1,27 +1,39 @@
 ---
 title: "SW12002: Declaration identities unavailable"
-description: Keep a finite set of declaration identities through the checked data flow.
+description: The compiler cannot tell which refs or animations a value can hold.
 slug: docs/errors/SW12002
 ---
 
 <CompilerError code="SW12002" category="authoring" />
 
-The checker can no longer determine the finite declarations that a value may
-refer to. Dynamic ref and animation uses need those identities to generate every
-possible CSS contribution and correlate its runtime selection.
+This error occurs when the compiler cannot tell which refs, keyframes, or view
+transitions a value can hold. When a ref is chosen at runtime, the compiler must
+generate CSS for every ref that it can be. A type annotation that widens the type
+hides that list.
 
-## Rejected identity contract
+## Reported
 
-```text
-A specific ref is widened to a type that represents an unknown declaration identity.
+```ts
+const card = style.ref("card");
+const current: ReturnType<typeof style.ref> = card;
+style({ [current("hover")]: "underline" });
 ```
 
-## Accepted identity contract
+## Fixed
 
-```text
-The ref keeps its inferred identity or a finite union of known declaration identities.
+```ts
+const card = style.ref("card");
+const current = card;
+style({ [current("hover")]: "underline" });
 ```
 
-Preserve inferred types through function returns and module exports. Make the
-producer bodies available through supported resolution. A missing host checker
-snapshot is a separate integration contract, [SW30001](/docs/errors/SW30001/).
+## How to fix
+
+- Remove the type annotation, and keep the type that TypeScript infers, as in the
+  example.
+- When a value can hold several refs, use an explicit union of their types, such
+  as `typeof card | typeof panel`, or a generic parameter.
+- Make the source modules of the definitions reachable through imports.
+
+If the integration did not provide type information at all, the error is
+[SW30001](/docs/errors/SW30001/) instead.

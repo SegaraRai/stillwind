@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { loadCssGraph } from "@stillwind/host";
 import { NativeProjectSession, type NativePreparedSource } from "@stillwind/native";
 
-import themeCss from "../styles/theme.css?raw";
+import themeCss from "../../styles/theme.css?raw";
 
 const require = createRequire(import.meta.url);
 const theme = `

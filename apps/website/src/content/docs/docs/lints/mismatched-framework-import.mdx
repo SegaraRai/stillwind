@@ -1,28 +1,33 @@
 ---
 title: mismatched-framework-import
-description: Match the macro entrypoint to the original component format.
+description: Reports an import of style() from the entrypoint of another framework.
 slug: docs/lints/mismatched-framework-import
 ---
 
 <LintRuleSummary name="mismatched-framework-import" />
 
-These examples are TSX/JSX documents. An Astro macro import expects an Astro
-component's source format, rather than this script format.
+This rule reports a file that imports `style()` from the entrypoint of another
+framework, such as `stillwind/astro` in a React component. Each entrypoint
+returns props in the form of its framework, such as `className` for React.
 
 ## Reported
 
 ```tsx
 import { style } from "stillwind/astro";
+
 export const props = style("p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 import { style } from "stillwind/react";
+
 export const props = style("p-4");
 ```
 
-Choose the entrypoint for the component and its renderer. An explicit host
-framework constraint that conflicts with an import can instead produce
-[SW01001](/docs/errors/SW01001/). See [framework integration](/docs/frameworks/).
+## How to fix
+
+Import from the entrypoint of the framework that renders the element. A React
+island inside an Astro page imports `stillwind/react`. See
+[Framework integrations](/docs/frameworks/#import-style-for-your-framework).

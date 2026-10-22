@@ -1,26 +1,30 @@
 ---
 title: "SW34002: Missing module CSS target"
-description: Allocate a virtual module for an explicit stillwind/module-css import.
+description: A file imports stillwind/module-css, but the integration provides no module for it.
 slug: docs/errors/SW34002
 ---
 
 <CompilerError code="SW34002" category="host" />
 
-The source requests an explicit module CSS import, but the host supplied no
-virtual module target for it. A compiled CSS value still needs a delivery mechanism
-owned by the integration.
+This error occurs when a file imports `stillwind/module-css`, but the integration
+did not create the virtual module that replaces the import. The compiled CSS has
+nowhere to go.
 
-## Invalid integration contract
-
-```text
-The source imports stillwind/module-css without a host-allocated virtual target.
-```
-
-## Valid integration contract
+## Reported
 
 ```text
-The adapter supplies the virtual target used to replace that explicit import.
+A file imports stillwind/module-css, and the build runs without a Stillwind integration.
 ```
 
-Confirm that the build-tool integration owns the source transformation. An
-embedding must allocate the target before rendering replacement imports.
+## Fixed
+
+```text
+The build uses a Stillwind integration, which creates the virtual module.
+```
+
+## How to fix
+
+- Check that the build tool runs the Stillwind integration on this file. See
+  [Framework integrations](/docs/frameworks/).
+- In your own integration, create the virtual module before you render the
+  replacement imports.

@@ -1,25 +1,18 @@
 ---
 title: "SW90003: Inconsistent internal CSS graph"
-description: Report a loader graph that disagrees with its tracked dependencies.
+description: The compiler's record of your stylesheet imports does not match the loaded stylesheets.
 slug: docs/errors/SW90003
 ---
 
 <CompilerError code="SW90003" category="internal" />
 
-The loader's source graph is inconsistent with its tracked dependency state.
-This indicates a compiler invariant failure rather than an unknown imported utility.
+This error occurs when the compiler's record of your stylesheet imports does not match the stylesheets that it loaded. It often follows a change to an `@import`.
 
-## Violated invariant
+## How to report
 
-```text
-Retained CSS graph nodes and their tracked dependency relationships disagree.
-```
+[Open an issue](https://github.com/SegaraRai/stillwind/issues) with the error
+message and:
 
-## Required invariant
-
-```text
-The retained graph and dependency state describe the same loaded source snapshot.
-```
-
-Include the import graph and update sequence in a compiler report. Note whether
-the error follows an added, removed, or changed stylesheet import.
+- Your stylesheet and the files that it imports
+- Whether you had just added, removed, or changed an `@import`
+- The version of the Stillwind packages

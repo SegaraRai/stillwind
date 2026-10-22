@@ -1,14 +1,14 @@
 ---
 title: no-restricted-theme-tokens
-description: Reserve raw theme tokens while allowing independent semantic aliases.
+description: Reports utilities that use theme tokens that your project reserves, such as the default palette.
 slug: docs/lints/no-restricted-theme-tokens
 ---
 
 <LintRuleSummary name="no-restricted-theme-tokens" />
 
-The rule checks direct references to restricted theme custom properties. Patterns
-are case-sensitive. A semantic alias remains an independent token even when its
-definition points to a reserved palette token.
+This rule reports a utility that uses a theme token that your project reserves,
+such as the default palette color behind `bg-blue-500`. Use it to make components
+use role names such as `bg-action`. The rule is off until you list tokens.
 
 ## Configuration
 
@@ -26,11 +26,25 @@ definition points to a reserved palette token.
 style("bg-blue-500");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
-style("bg-white");
+style("bg-action");
 ```
 
-An enabled rule needs nonempty token patterns. Missing required policy data is
-a configuration failure, not a lint exception. See [design systems](/docs/guides/design-systems/).
+## How to fix
+
+Use the role token that stands for the color, as in the example. The role token
+can still refer to the palette in its definition:
+
+```css
+@theme {
+  --color-action: var(--color-blue-500);
+}
+```
+
+## Options
+
+`tokens` lists patterns for the reserved custom properties, such as
+`--color-blue-*`. Patterns accept `*` and `?`, and they are case-sensitive. The
+list must not be empty when the rule is on.

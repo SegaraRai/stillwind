@@ -1,13 +1,14 @@
 ---
 title: suspending-macro-argument
-description: Resolve await, yield, and dynamic imports outside macro arguments.
+description: Reports await, yield, or import() inside an argument of style() or another macro.
 slug: docs/lints/suspending-macro-argument
 ---
 
 <LintRuleSummary name="suspending-macro-argument" />
 
-Macro lowering can move or omit argument expressions. Suspension and dynamic
-module loading must remain in the application's ordinary execution flow.
+This rule reports `await`, `yield`, or a dynamic `import()` inside an argument of
+`style()` or another macro. The compiler can move or skip argument expressions,
+so the code would not wait or load where you wrote it.
 
 ## Reported
 
@@ -17,7 +18,7 @@ async function props() {
 }
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 async function props() {
@@ -26,5 +27,7 @@ async function props() {
 }
 ```
 
-Await or yield before calling the macro, then pass the completed value. This is
-an argument contract; suppression does not establish safe evaluation semantics.
+## How to fix
+
+Wait for the value before the call, store it in a variable, and pass the
+variable, as in the example.

@@ -1,13 +1,15 @@
 ---
 title: missing-document-target
-description: Give stylesheet exports a selector for utilities that do not select their own target.
+description: Reports a style.css() utility without a selector to apply to.
 slug: docs/lints/missing-document-target
 ---
 
 <LintRuleSummary name="missing-document-target" />
 
-`style.css()` has no implicit component element. A plain utility needs a selector
-option or a selector-replacing variant; otherwise that utility is omitted.
+This rule reports a utility in `style.css()` that has no element to style.
+`style.css()` returns a stylesheet, not props for an element, so a utility needs
+a `selector` option or a variant that sets its own selector. Otherwise the utility
+produces no CSS.
 
 ## Reported
 
@@ -15,11 +17,15 @@ option or a selector-replacing variant; otherwise that utility is omitted.
 style.css("p-4");
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style.css("p-4", { selector: ":host" });
 ```
 
-Use `:host` for the shadow host or another explicit subject appropriate to the
-consumer. See [style.css()](/docs/macros/css/#select-the-utility-target).
+## How to fix
+
+- Add a `selector` option, such as `:host` for the shadow host.
+- Or use a variant that sets its own selector, such as `host:p-4`.
+
+See [style.css()](/docs/macros/css/#inputs).

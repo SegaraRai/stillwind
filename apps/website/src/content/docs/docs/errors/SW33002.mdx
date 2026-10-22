@@ -1,26 +1,32 @@
 ---
 title: "SW33002: Invalid source byte range"
-description: Supply ordered byte-range endpoints that the source operation can use.
+description: A requested byte range ends before it starts, or is otherwise unusable.
 slug: docs/errors/SW33002
 ---
 
 <CompilerError code="SW33002" category="host" />
 
-A source operation rejected the requested byte range. The diagnostic includes
-its start, end, and operation context.
+This error occurs when an integration or a tool passes a byte range that the
+source operation cannot use, such as a range that ends before it starts. The
+message shows the start, the end, and the operation.
 
-## Invalid range
+## Reported
 
 ```text
 start: 12
 end: 4
 ```
 
-## Valid range contract
+## Fixed
 
 ```text
-start <= end; both endpoints belong to the same buffer and satisfy its boundary requirements.
+start: 4
+end: 12
 ```
 
-Use half-open UTF-8 byte ranges where the API requires them. Refresh ranges
-after source edits and preserve their owning buffer revision.
+## How to fix
+
+- With an official integration, report the error with the file and the action
+  that caused it.
+- In your own integration, pass half-open UTF-8 byte ranges with the start before
+  the end, and compute them again after each edit.

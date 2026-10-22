@@ -1,26 +1,33 @@
 ---
 title: invalid-cva-config
-description: Declare CVA axes, defaults, and compounds with supported static fields.
+description: Reports an unknown or malformed field in a style.cva() configuration.
 slug: docs/lints/invalid-cva-config
 ---
 
 <LintRuleSummary name="invalid-cva-config" />
 
-CVA configuration accepts `variants`, `defaultVariants`, and `compoundVariants`.
-Unknown fields, invalid axes, and malformed static configuration cannot define
-the intended factory.
+This rule reports a `style.cva()` configuration that the compiler cannot read,
+such as an unknown field, a default for an option that does not exist, or a
+configuration that is not written in the call. The factory ignores the invalid
+part.
 
 ## Reported
 
 ```tsx
-style.cva("p-4", { unknown: true });
+style.cva("p-4", { variant: { size: { small: "p-2" } } });
 ```
 
-## Accepted
+## Fixed
 
 ```tsx
 style.cva("p-4", { variants: { size: { small: "p-2" } } });
 ```
 
-Write the configuration directly in the call. Defaults and compound conditions
-must name declared axes and literal options. See [CVA](/docs/macros/cva/).
+## How to fix
+
+- Use the fields `variants`, `defaultVariants`, and `compoundVariants`.
+- Write the configuration as an object literal in the call.
+- In `defaultVariants` and `compoundVariants`, use only options and values that
+  `variants` declares.
+
+See [style.cva()](/docs/macros/cva/#configuration).

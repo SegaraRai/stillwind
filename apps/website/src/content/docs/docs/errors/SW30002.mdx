@@ -1,27 +1,32 @@
 ---
 title: "SW30002: Invalid or stale TypeScript facts"
-description: Keep checker schemas, payloads, ranges, and source revisions compatible.
+description: The type information from the integration does not match the source or the compiler version.
 slug: docs/errors/SW30002
 ---
 
 <CompilerError code="SW30002" category="host" />
 
-The supplied facts failed schema, revision, range, or payload validation. Facts
-from a previous editor buffer cannot be attached to changed text merely because
-the module path is unchanged.
+This error occurs when the type information that the integration provides is
+invalid, or belongs to another revision of the source. For example, information
+from an older editor buffer does not apply to the edited text, even if the file
+path is the same.
 
-## Invalid snapshot pair
-
-```text
-Facts: source revision A
-Compilation: changed source revision B
-```
-
-## Valid snapshot pair
+## Reported
 
 ```text
-Facts and compilation use the same schema and source revision B.
+Type information: revision A of the source
+Compilation: revision B of the source
 ```
 
-Recompute facts after source changes and keep host/native package versions
-compatible. Include the rejected schema and revision relationship when reporting an integration bug.
+## Fixed
+
+```text
+Type information and compilation both use revision B, and the same schema version.
+```
+
+## How to fix
+
+- With an official integration, check that all `@stillwind/*` packages have the
+  same version, then update them. If the error remains, report it.
+- In your own integration, collect the type information again after every source
+  change, and use the host and native packages from the same release.

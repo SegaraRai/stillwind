@@ -1,15 +1,15 @@
 ---
 title: "SW14007: Malformed theme reference"
-description: Give --theme() a supported token reference and optional fallback.
+description: A --theme() call in your stylesheet has invalid syntax.
 slug: docs/errors/SW14007
 ---
 
 <CompilerError code="SW14007" category="authoring" />
 
-The syntax of a `--theme()` call is invalid. The reported byte offset is within
-the containing value, rather than necessarily at the beginning of the stylesheet.
+This error occurs when a `--theme()` call in your stylesheet has invalid syntax,
+such as no token name. The message gives the position within the value.
 
-## Rejected
+## Reported
 
 ```css
 .card {
@@ -17,7 +17,7 @@ the containing value, rather than necessarily at the beginning of the stylesheet
 }
 ```
 
-## Corrected
+## Fixed
 
 ```css
 .card {
@@ -25,6 +25,10 @@ the containing value, rather than necessarily at the beginning of the stylesheet
 }
 ```
 
-Supply a complete theme custom-property name. A syntactically valid reference
-to an inactive token without a fallback instead produces the
-[invalid-theme-reference](/docs/lints/invalid-theme-reference/) input finding.
+## How to fix
+
+Write the full name of a theme token, with an optional fallback after a comma,
+such as `--theme(--color-brand, blue)`.
+
+A valid reference to a token that the theme does not define is reported by
+[invalid-theme-reference](/docs/lints/invalid-theme-reference/) instead.

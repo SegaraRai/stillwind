@@ -74,7 +74,7 @@ Each rule has a severity. `warn` reports a warning, `deny` reports an error,
 and `off` disables the rule and its fixes. To adopt a new rule, set it to `warn`
 first, fix the existing code, and then change it to `deny`.
 
-[Lint configuration](/docs/configuration/lint/) describes rule options, and the
+[Configuration](/docs/configuration/#lint) describes rule options, and the
 [lint rule reference](/docs/lints/) lists every rule.
 
 ## Run the checks in CI

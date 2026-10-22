@@ -1,25 +1,33 @@
 ---
 title: "SW31004: Invalid converter output syntax"
-description: Make component conversion produce code accepted by the selected script parser.
+description: The script that a converter generated from a valid component has a syntax error.
 slug: docs/errors/SW31004
 ---
 
 <CompilerError code="SW31004" category="host" />
 
-The original component was converted, but its generated code cannot be parsed
-with the configured language and module kind. The detail contains the parser's explanation.
+This error occurs when a Vue, Svelte, or Astro component is valid, but the script
+that the converter generates from it cannot be parsed. The message contains the
+explanation from the parser.
 
-## Invalid converter output
-
-```text
-The generated script contains an unterminated function call.
-```
-
-## Valid converter output
+## Reported
 
 ```text
-The generated script parses completely with the host-selected parser configuration.
+The generated script contains an unclosed function call.
 ```
 
-Retain the original component, generated buffer, and converter version. Repair
-the conversion or parser selection. Original component syntax failures use [SW10002](/docs/errors/SW10002/).
+## Fixed
+
+```text
+The generated script parses completely as the language that the integration selects.
+```
+
+## How to fix
+
+- With an official integration, update the Stillwind packages and the framework
+  packages. If the error remains, report it with the component.
+- In your own converter, fix the generated code, or select the right language
+  for the parser.
+
+A syntax error in the component itself is reported as
+[SW10002](/docs/errors/SW10002/) instead.
