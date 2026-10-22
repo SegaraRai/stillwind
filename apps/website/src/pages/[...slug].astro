@@ -1,0 +1,36 @@
+---
+import {
+  getDocsPage,
+  getDocsStaticPaths,
+  getEditUrl,
+  getSidebar,
+  getTOC,
+} from "@cloudflare/nimbus-docs/runtime";
+
+import { components } from "../components";
+import DocsLayout from "../layouts/DocsLayout.astro";
+
+export const getStaticPaths = getDocsStaticPaths;
+
+const page = await getDocsPage(Astro);
+if (page instanceof Response) {
+  return page;
+}
+
+const { entry, Content, headings, markdownUrl } = page;
+const sidebar = await getSidebar(Astro.url.pathname);
+const toc = getTOC(headings);
+const editUrl = await getEditUrl(entry);
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  entryId={entry.id}
+  markdownUrl={markdownUrl}
+  sidebar={sidebar}
+  headings={toc}
+  editUrl={editUrl}
+>
+  <Content components={components} />
+</DocsLayout>

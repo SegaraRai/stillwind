@@ -18,18 +18,39 @@ const { docs, repository } = Astro.props;
       <a href={docs} {...style("nav-link")}>
         Docs
       </a>
-      <a href="#examples" {...style("nav-link")}>
+      <a href="/#examples" {...style("nav-link")}>
         Examples
       </a>
       <a href={repository} {...style("nav-link")}>
         GitHub <span aria-hidden="true">↗</span>
       </a>
+      <button type="button" data-theme-toggle aria-label="Color theme" hidden>
+        <svg data-theme-icon="system" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="13" rx="2"></rect>
+          <path d="M8 21h8m-4-4v4"></path>
+        </svg>
+        <svg data-theme-icon="light" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"></path>
+        </svg>
+        <svg data-theme-icon="dark" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"></path>
+        </svg>
+        <span data-theme-status {...style("sr-only")} aria-live="polite"></span>
+      </button>
     </nav>
   </header>
 </div>
 
 <script>
   import { mountHeader } from "../lib/header";
+  import { mountThemeControl } from "../lib/theme";
+
+  const themeButton = document.querySelector<HTMLButtonElement>("[data-theme-toggle]");
+  if (themeButton) {
+    const disposeTheme = mountThemeControl(themeButton);
+    document.addEventListener("astro:before-swap", disposeTheme, { once: true });
+  }
 
   const slot = document.querySelector<HTMLElement>("[data-header-slot]");
   const story = document.querySelector<HTMLElement>("[data-story]");

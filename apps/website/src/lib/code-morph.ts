@@ -1,3 +1,5 @@
+import { style } from "stillwind/astro";
+
 interface CodePart {
   key: string;
   text: string;
@@ -170,7 +172,8 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
     const before = measured![index]!.parts;
     const after = measured![index + 1]!.parts;
     const utilities =
-      view.innerWidth >= 640 && layouts[index]!.hasAttribute("data-sort-source")
+      view.matchMedia(style.media("inline")).matches &&
+      layouts[index]!.hasAttribute("data-sort-source")
         ? [...measured![index]!.utilities.keys()]
         : [];
     const fragment = host.ownerDocument.createDocumentFragment();
@@ -179,10 +182,10 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
       const to = after.get(key);
       const color = (part: MeasuredPart | undefined) =>
         part?.finding
-          ? "var(--color-diagnostic)"
+          ? "var(--color-danger)"
           : key.startsWith("syntax-")
             ? "var(--color-muted)"
-            : "var(--color-ink)";
+            : "var(--color-foreground)";
       const addToken = (text: string, entering: boolean, leaving: boolean) => {
         const start = from ?? to!;
         const end = to ?? from!;

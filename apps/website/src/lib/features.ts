@@ -1,3 +1,5 @@
+import { style } from "stillwind/astro";
+
 import { featureTopics } from "./features/examples";
 import { createMotionDemos } from "./features/motion";
 import { createFeaturePresentation } from "./features/presentation";
@@ -22,8 +24,8 @@ export function mountFeatures(root: HTMLElement): () => void {
   const cues = [...root.querySelectorAll<HTMLButtonElement>("[data-feature-cue]")];
   const abort = new view.AbortController();
   const signal = abort.signal;
-  const reducedMotion = view.matchMedia("(prefers-reduced-motion: reduce)");
-  const compact = view.matchMedia("(width < 1120px)");
+  const reducedMotion = view.matchMedia(style.media("motion-reduce"));
+  const compact = view.matchMedia(style.media("max-outline"));
   let enhanced = false;
   let active = -1;
   let activeFrame = -1;
@@ -72,8 +74,12 @@ export function mountFeatures(root: HTMLElement): () => void {
     presentation.setActive(scene, frame, enhanced);
   };
   const controller = trackScroll(root, {
-    media:
-      "(min-width: 1120px) and (min-height: 720px) and (prefers-reduced-motion: no-preference), (840px <= width < 1120px) and (min-height: 740px) and (prefers-reduced-motion: no-preference), (640px <= width < 840px) and (min-height: 900px) and (prefers-reduced-motion: no-preference), (320px <= width < 640px) and (min-height: 800px) and (prefers-reduced-motion: no-preference)",
+    media: style.media(
+      "outline:pin-features:motion-safe",
+      "sidebar:max-outline:pin-features-sidebar:motion-safe",
+      "inline:max-sidebar:pin-features-inline:motion-safe",
+      "demo:max-inline:pin-features-compact:motion-safe",
+    ),
     onEnable(enabled) {
       enhanced = enabled;
       root.toggleAttribute("data-enhanced", enabled);

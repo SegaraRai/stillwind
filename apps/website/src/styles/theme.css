@@ -1,0 +1,102 @@
+/* Semantic tokens are shared by the website, documentation, and compiled examples. */
+@theme static {
+  --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-display: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --color-background: light-dark(#f4f7fc, #131b2b);
+  --color-surface: light-dark(#ffffff, #1b263b);
+  --color-surface-muted: light-dark(#e6edf9, #283752);
+  --color-foreground: light-dark(#202b45, #e4edff);
+  --color-muted: light-dark(#596a88, #a8b8d4);
+  --color-border: light-dark(#cad5e8, #3d506f);
+  --color-action: light-dark(#354fa2, #b6cdff);
+  --color-action-foreground: light-dark(#f7faff, #172448);
+  --color-action-hover: light-dark(#293f88, #96b6ff);
+  --color-accent: light-dark(#3569bc, #8bcff4);
+  --color-danger: light-dark(#a04b40, #f1a297);
+  --color-warning: light-dark(#805a19, #e4c276);
+  --color-success: light-dark(#3d6844, #a4c991);
+
+  --spacing: 0.25rem;
+  --spacing-gutter: clamp(1.5rem, 5.4vw, 5rem);
+  --spacing-columns: clamp(1.75rem, 4vw, 4rem);
+  --spacing-control: 0.75rem;
+  --spacing-panel: 1.5rem;
+  --spacing-stack: 2rem;
+  --spacing-section: 4rem;
+
+  --radius-inline: 0.1875rem;
+  --radius-control: 0.25rem;
+  --radius-panel: 0.5rem;
+
+  --breakpoint-demo: 20rem;
+  --breakpoint-inline: 40rem;
+  --breakpoint-sidebar: 52.5rem;
+  --breakpoint-outline: 70rem;
+
+  --container-page: 85rem;
+  --container-navigation: 11.25rem;
+  --container-outline: 10.5rem;
+
+  --text-label: 0.625rem;
+  --text-label--line-height: 1.6;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.6;
+  --text-ui: 0.8125rem;
+  --text-ui--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.6;
+  --text-body: 1rem;
+  --text-body--line-height: 1.8;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.65;
+  --text-heading-small: 1.25rem;
+  --text-heading-small--line-height: 1.4;
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 1.35;
+  --text-title: clamp(2rem, 4vw, 3rem);
+  --text-title--line-height: 1.12;
+  --text-section: clamp(1.75rem, 3.15vw, 2.625rem);
+  --text-section--line-height: 1.12;
+  --text-display: clamp(2.75rem, 7.4vw, 6.5rem);
+  --text-display--line-height: 1.02;
+  --text-code: 0.8125rem;
+  --text-code--line-height: 1.7;
+  --text-code-inline: 0.875em;
+  --text-code-display: clamp(1.5rem, 2.55vw, 2.25rem);
+  --text-code-output: clamp(1.25rem, 2.6vw, 1.75rem);
+  --text-code-feature: clamp(1.0625rem, 1.7vw, 1.4375rem);
+
+  --duration-420: 420ms;
+  --duration-300: 300ms;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root {
+  @variant max-inline {
+    --text-display: clamp(2.125rem, 10.5vw, 2.75rem);
+    --text-code-display: clamp(1rem, 4.7vw, 1.5rem);
+    --text-code-output: clamp(1.0625rem, 4.7vw, 1.375rem);
+    --text-code-feature: clamp(0.71875rem, 3.3vw, 0.8125rem);
+  }
+}
+
+::selection {
+  @apply text-action-foreground bg-action;
+}
+
+:focus-visible {
+  @apply outline-2 outline-accent outline-offset-4;
+}

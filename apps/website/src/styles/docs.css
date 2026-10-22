@@ -1,0 +1,283 @@
+/* The website's CSS entry expands these utilities before Astro renders the documentation. */
+
+.docs-grid {
+  @apply grid grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-columns pbs-12 pbe-20;
+}
+
+.docs-navigation,
+.docs-toc {
+  @apply sticky inset-bs-8 max-block-[calc(100dvh-64px)] overflow-y-auto text-ui;
+}
+
+.docs-label {
+  @apply mbe-4 text-muted font-mono text-label tracking-[0.08em] uppercase;
+}
+
+.docs-navigation ul,
+.docs-toc ul {
+  @apply grid gap-1.5 p-0 list-none;
+}
+
+.docs-navigation li a {
+  @apply block py-2 px-3 border-s-2 border-transparent text-muted;
+}
+
+.docs-navigation a[aria-current="page"] {
+  @apply border-foreground bg-surface-muted text-foreground;
+}
+
+.docs-navigation a:hover,
+.docs-toc a:hover {
+  @apply text-foreground underline underline-offset-4;
+}
+
+.docs-agent-links {
+  @apply grid gap-2.5 mbs-9 pbs-6 border-bs border-border text-caption;
+}
+
+.docs-agent-links .docs-label {
+  @apply mbe-0;
+}
+
+.docs-main {
+  @apply min-inline-0;
+}
+
+.docs-page-header {
+  @apply mbe-10;
+}
+
+.docs-page-header h1 {
+  @apply text-title tracking-[-0.045em];
+}
+
+.docs-description {
+  @apply mbs-5 text-muted text-lead;
+}
+
+.docs-page-actions {
+  @apply flex items-center flex-wrap gap-y-3 gap-x-5 mbs-6 text-caption;
+}
+
+.docs-page-actions a,
+.docs-page-actions button {
+  @apply underline underline-offset-4;
+}
+
+.docs-page-actions button {
+  @apply cursor-pointer;
+}
+
+.docs-page-actions [role="status"] {
+  @apply text-muted;
+}
+
+.docs-prose {
+  @apply text-body wrap-anywhere;
+}
+
+.docs-prose > * + * {
+  @apply mbs-5;
+}
+
+.docs-prose h2 {
+  @apply mbs-12 text-heading tracking-[-0.025em];
+}
+
+.docs-prose h3 {
+  @apply mbs-8 text-heading-small font-medium;
+}
+
+.docs-prose :is(h2, h3) {
+  @apply scroll-mbs-8;
+}
+
+.docs-prose a {
+  @apply underline underline-offset-4;
+}
+
+.docs-prose :is(ul, ol) {
+  @apply ps-6;
+}
+
+.docs-prose ul {
+  @apply list-disc;
+}
+
+.docs-prose ol {
+  @apply list-decimal;
+}
+
+.docs-prose li + li {
+  @apply mbs-2;
+}
+
+.docs-prose code {
+  @apply font-mono text-code-inline;
+}
+
+.docs-prose :not(pre) > code {
+  @apply py-0.5 px-1 border border-border rounded-inline bg-surface-muted;
+}
+
+.docs-prose pre {
+  @apply max-inline-full p-panel overflow-x-auto border border-border rounded-panel leading-[1.7] wrap-normal;
+}
+
+.docs-prose pre code {
+  @apply p-0 text-code;
+}
+
+.docs-prose .astro-code,
+.docs-prose .astro-code span {
+  @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
+}
+
+.docs-prose .astro-code {
+  @apply bg-surface;
+}
+
+.docs-prose table {
+  @apply block max-inline-full overflow-x-auto border-collapse text-ui;
+}
+
+.docs-prose :is(th, td) {
+  @apply p-3 border-be border-border text-start;
+}
+
+.docs-prose th {
+  @apply font-medium;
+}
+
+.docs-prose blockquote {
+  @apply py-3 px-5 border-s-2 border-muted text-muted;
+}
+
+.docs-prose strong {
+  @apply font-semibold;
+}
+
+.docs-aside {
+  @apply flex items-start gap-control p-4 border border-accent/30 rounded-panel bg-accent/5;
+}
+
+.docs-aside-icon {
+  @apply shrink-0 size-5 mbs-1 fill-none stroke-current [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round];
+}
+
+.docs-aside-content {
+  @apply min-inline-0 flex-1;
+}
+
+.docs-aside-title {
+  @apply mbe-2 text-body font-semibold;
+}
+
+.docs-aside-title,
+.docs-aside-icon {
+  @apply text-accent;
+}
+
+.docs-aside-body {
+  @apply text-small text-foreground;
+}
+
+.docs-aside-body > * + * {
+  @apply mbs-3;
+}
+
+.docs-aside[data-aside-type="tip"] {
+  @apply border-success/30 bg-success/5;
+}
+
+.docs-aside[data-aside-type="tip"] :is(.docs-aside-title, .docs-aside-icon) {
+  @apply text-success;
+}
+
+.docs-aside[data-aside-type="caution"] {
+  @apply border-warning/30 bg-warning/5;
+}
+
+.docs-aside[data-aside-type="caution"] :is(.docs-aside-title, .docs-aside-icon) {
+  @apply text-warning;
+}
+
+.docs-aside[data-aside-type="danger"] {
+  @apply border-danger/30 bg-danger/5;
+}
+
+.docs-aside[data-aside-type="danger"] :is(.docs-aside-title, .docs-aside-icon) {
+  @apply text-danger;
+}
+
+.docs-toc li {
+  @apply ps-[calc((var(--heading-depth)_-_2)*10px)];
+}
+
+.docs-toc a {
+  @apply block py-1 text-muted;
+}
+
+.docs-footer {
+  @apply flex justify-between flex-wrap gap-4 mbs-16 pbs-6 border-bs border-border text-muted text-caption;
+}
+
+.docs-grid {
+  @variant max-outline {
+    @apply grid-cols-[var(--container-navigation)_minmax(0,1fr)] gap-stack;
+  }
+}
+
+.docs-toc {
+  @variant max-outline {
+    @apply hidden;
+  }
+}
+
+.docs-grid {
+  @variant max-sidebar {
+    @apply grid-cols-[minmax(0,1fr)] pbs-6;
+  }
+}
+
+.docs-navigation {
+  @variant max-sidebar {
+    @apply static max-block-none pbe-6 border-be border-border;
+  }
+}
+
+.docs-navigation ul {
+  @variant max-sidebar {
+    @apply flex flex-wrap gap-y-1 gap-x-3;
+  }
+}
+
+.docs-navigation li a {
+  @variant max-sidebar {
+    @apply py-2 px-0 border-s-0 border-be-2 border-transparent;
+  }
+}
+
+.docs-navigation a[aria-current="page"] {
+  @variant max-sidebar {
+    @apply border-be-foreground bg-transparent;
+  }
+}
+
+.docs-navigation > .docs-label {
+  @variant max-sidebar {
+    @apply mbe-2;
+  }
+}
+
+.docs-agent-links {
+  @variant max-sidebar {
+    @apply hidden;
+  }
+}
+
+.docs-prose pre {
+  @variant max-sidebar {
+    @apply p-4;
+  }
+}

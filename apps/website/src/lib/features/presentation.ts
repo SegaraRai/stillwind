@@ -1,3 +1,5 @@
+import { style } from "stillwind/astro";
+
 import { createCodeMorph } from "../code-morph";
 import { featureTopics } from "./examples";
 import { featureOffsets, featureScenes, type featurePosition } from "./scenes";
@@ -5,6 +7,7 @@ import { featureOffsets, featureScenes, type featurePosition } from "./scenes";
 /** Controls source visibility, navigation labels, highlights, and measured connectors. */
 export function createFeaturePresentation(root: HTMLElement, signal: AbortSignal) {
   const view = root.ownerDocument.defaultView!;
+  const stacked = view.matchMedia(style.media("max-sidebar"));
   const panels = [...root.querySelectorAll<HTMLElement>("[data-feature-panel]")];
   const steps = [...root.querySelectorAll<HTMLAnchorElement>("[data-feature-step]")];
   const frames = panels.map((panel) => [
@@ -196,7 +199,7 @@ export function createFeaturePresentation(root: HTMLElement, signal: AbortSignal
       const y2 = target.top - bounds.top + target.height / 2;
       const line = panel.querySelector<SVGPathElement>("[data-feature-line]")!;
       line.style.opacity = String(focusOpacity);
-      if (view.innerWidth < 840) {
+      if (stacked.matches) {
         const endX = target.left - bounds.left + target.width / 2;
         const endY = target.top - bounds.top - 12;
         const gutter = Math.min(

@@ -1,0 +1,116 @@
+---
+title: Getting started
+description: Add Stillwind to your application and compile your first component styles.
+sidebar:
+  order: 1
+---
+
+Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
+Write styles in your components, share them through ordinary modules, and check
+them against your project's design system.
+
+Stillwind supports React, Preact, Solid, Vue, Svelte, and Astro. This guide uses
+React for the component example. Choose the matching entrypoint and build adapter
+in [Framework integrations](/docs/frameworks/).
+
+## Install
+
+Run these commands in your application:
+
+```sh
+vp i stillwind
+vp i -D @stillwind/integration
+```
+
+Stillwind is in pre-alpha. Check diagnostics when adopting it and validate your
+application's build and browser behavior before releasing changes.
+
+## Create a stylesheet
+
+Create `src/stillwind.css`. The `stillwind` import supplies the default theme,
+preflight, utilities, and compiler slots. Add your own theme tokens below it:
+
+```css
+@import "stillwind";
+
+@theme {
+  --color-accent: oklch(0.6 0.2 250);
+}
+```
+
+Utilities such as `bg-accent` use the tokens from this stylesheet.
+
+## Configure the project
+
+Create `stillwind.config.ts` in the application root. Select the stylesheet and
+the source files that contain styles:
+
+```ts
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx,vue,svelte,astro}"],
+    },
+  ],
+});
+```
+
+<Aside type="note" title="Analysis scope">
+  The `files` globs select source files for the language server (LSP) and CLI, including files that
+  the application never imports. Build adapters use the bundler's module graph to select source
+  modules and ignore these globs.
+</Aside>
+
+The build adapter discovers this file from your application root. For a Vite
+application using React, register Stillwind before the React plugin:
+
+```ts
+import { stillwind } from "@stillwind/integration/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite-plus";
+
+export default defineConfig({
+  plugins: [stillwind(), react()],
+});
+```
+
+The adapter compiles styles and delivers the generated CSS. See
+[Framework integrations](/docs/frameworks/) for Astro, Next.js, and the other
+frameworks.
+
+## Style a component
+
+Import `style` from the entrypoint for your framework. Spread the returned props
+onto the element:
+
+```tsx
+import { style } from "stillwind/react";
+
+export function SaveButton() {
+  return (
+    <button {...style("rounded-md bg-accent px-4 py-2 text-white hover:opacity-90")}>
+      Save changes
+    </button>
+  );
+}
+```
+
+The compiler emits CSS for the static utilities. Conditions and dynamic values
+can also require runtime helpers or inline custom properties.
+
+## Next steps
+
+- [Framework integrations](/docs/frameworks/) connects Stillwind to your build.
+- [The basics of style()](/docs/style/) covers variants, conditions, and composition.
+- [CLI reference](https://github.com/SegaraRai/stillwind/blob/main/docs/cli.md)
+  describes checks, sorting, and diagnostics.
+
+## Read with an AI agent
+
+Every documentation page has a **View as Markdown** link. Give your agent the
+[documentation index](/docs/llms.txt), or retrieve the
+[full documentation](/llms-full.txt) in one request. Both formats are generated
+from the same source as these pages.

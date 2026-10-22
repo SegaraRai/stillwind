@@ -6,13 +6,15 @@ import { pathToFileURL } from "node:url";
 import { loadCssGraph } from "@stillwind/host";
 import { NativeProjectSession, type NativePreparedSource } from "@stillwind/native";
 
+import themeCss from "../styles/theme.css?raw";
+
 const require = createRequire(import.meta.url);
 const theme = `
 @layer theme, utilities;
 @import "stillwind/theme.css" layer(theme);
 @import "stillwind/builtins.css";
 @layer utilities { @stillwind-slot utilities; }
-@theme { --color-ink: #242624; --color-paper: #f4f4f2; }
+${themeCss}
 `;
 
 /** Compiles the website specimens against Stillwind's built-in utilities at build time. */
@@ -77,9 +79,9 @@ export async function createExamples() {
         return { ...report, utilityIndex };
       });
   };
-  const unchecked = "py-2 text-paper px-4 bg-inlk rounded-md";
-  const restricted = "py-2 text-paper min-[713px]:px-6 bg-[#d9e2f0] rounded-md";
-  const unordered = "py-2 text-paper px-[16px] bg-ink rounded-md";
+  const unchecked = "py-2 text-action-foreground px-4 bg-actoin rounded-control";
+  const restricted = "py-2 text-action-foreground min-[713px]:px-6 bg-[#d9e2f0] rounded-control";
+  const unordered = "py-2 text-action-foreground px-[16px] bg-action rounded-control";
   const canonicalized = unordered
     .split(" ")
     .map((candidate) => query.canonicalCandidate(candidate) ?? candidate)

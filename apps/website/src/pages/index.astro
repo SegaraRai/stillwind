@@ -9,11 +9,12 @@ import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
 import Features from "../components/Features.astro";
 import Showcase from "../components/Showcase.astro";
 import SiteHeader from "../components/SiteHeader.astro";
+import ThemeHead from "../components/ThemeHead.astro";
 
 const repository = "https://github.com/SegaraRai/stillwind";
-const docs = `${repository}#configure-an-application`;
-const integrations = `${repository}/blob/main/packages/integration/README.md`;
-const contracts = `${repository}/blob/main/docs/macro-contract.md`;
+const docs = "/docs/";
+const integrations = "/docs/frameworks/";
+const contracts = "/docs/style/";
 const cssEmission = `${repository}/blob/main/docs/css-emission.md`;
 const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
 ---
@@ -23,18 +24,17 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
+    <ThemeHead />
     <meta
       name="description"
       content="Familiar utilities. Enforced rules. Stillwind checks component styles against your design system and compiles static utilities to CSS."
     />
-    <meta name="theme-color" content="#f4f4f2" />
     <title>Stillwind — Familiar utilities. Enforced rules.</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={jetbrainsMono} as="font" type="font/woff2" crossorigin />
   </head>
-  <body {...style("font-sans text-ink antialiased bg-paper")}>
+  <body {...style("font-sans text-body text-foreground antialiased bg-background")}>
     <a href="#main" {...style("skip-link")}>
       Skip to content
     </a>
@@ -42,30 +42,33 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
       <SiteHeader docs={docs} repository={repository} />
 
       <main id="main">
-        <section aria-labelledby="tagline" {...style("py-16 md:py-28")}>
+        <section aria-labelledby="tagline" {...style("py-16 sidebar:py-28")}>
           <h1 id="tagline" {...style("hero-title")}>
             Familiar utilities.
             <span {...style("hero-second-line")}>Enforced rules.</span>
           </h1>
           <div
             {...style(
-              "flex mbs-10 flex-col justify-between gap-9 md:mbs-12 md:flex-row md:items-end",
+              "flex mbs-10 flex-col justify-between gap-9 sidebar:mbs-12 sidebar:flex-row sidebar:items-end",
             )}
           >
             <div>
               <p
                 {...style(
-                  "max-inline-117.5 text-base/[1.55] text-muted sm:text-lg/[1.55] md:text-xl/[1.55]",
+                  "max-inline-117.5 text-body/[1.55] text-muted inline:text-lead/[1.55] sidebar:text-heading-small/[1.55]",
                 )}
               >
                 A compiler for component styles. Write familiar utilities, enforce your design
                 system, and ship static CSS.
               </p>
               <div {...style("flex mbs-7 flex-wrap items-center gap-7")}>
-                <a href={docs} {...style("text-paper bg-ink action-link hover:bg-soft-ink")}>
+                <a
+                  href={docs}
+                  {...style("text-action-foreground bg-action action-link hover:bg-action-hover")}
+                >
                   Get started <span aria-hidden="true">↗</span>
                 </a>
-                <a href="#examples" {...style("text-sm nav-link")}>
+                <a href="#examples" {...style("text-small nav-link")}>
                   See it in practice{" "}
                   <span aria-hidden="true" {...style("ms-3")}>
                     ↓
@@ -73,7 +76,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                 </a>
               </div>
             </div>
-            <p {...style("max-inline-57.5 font-mono text-[11px] text-muted leading-[1.7]")}>
+            <p {...style("max-inline-64 font-mono text-caption text-muted leading-[1.7]")}>
               For people who write code.
               <br />
               And agents that write a lot of it.
@@ -85,53 +88,60 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
         <Showcase />
         <Features />
 
-        <section aria-labelledby="start" {...style("py-16 border-rule border-bs md:py-32")}>
-          <div {...style("flex flex-col justify-between gap-8 md:flex-row md:items-end")}>
+        <section aria-labelledby="start" {...style("py-16 border-border border-bs sidebar:py-32")}>
+          <div {...style("flex flex-col justify-between gap-8 sidebar:flex-row sidebar:items-end")}>
             <div>
-              <h2 id="start" {...style("mbe-5 text-[34px] tracking-[-0.04em] md:text-[48px]")}>
+              <h2 id="start" {...style("mbe-5 text-title tracking-[-0.04em] sidebar:text-title")}>
                 Start with your framework.
               </h2>
-              <p {...style("max-inline-122.5 text-muted text-sm/relaxed")}>
+              <p {...style("max-inline-122.5 text-muted text-small/relaxed")}>
                 Keep the component model you know. Add Stillwind to your build and import the style
                 API for your framework. Currently in pre-alpha.
               </p>
             </div>
-            <a href={docs} {...style("shrink-0 text-paper bg-ink action-link hover:bg-soft-ink")}>
+            <a
+              href={docs}
+              {...style(
+                "shrink-0 text-action-foreground bg-action action-link hover:bg-action-hover",
+              )}
+            >
               Read the setup guide <span aria-hidden="true">↗</span>
             </a>
           </div>
           <nav
             aria-label="Framework integration guides"
-            {...style("grid my-10 grid-cols-2 gap-x-7 gap-y-6 sm:grid-cols-3 lg:grid-cols-6")}
+            {...style(
+              "grid my-10 grid-cols-2 gap-x-7 gap-y-6 inline:grid-cols-3 outline:grid-cols-6",
+            )}
           >
             {frameworks.map((framework) => (
               <a
                 href={`${integrations}#${framework === "Astro" ? "astro" : "vite"}`}
-                {...style("block pbs-4 border-rule border-bs nav-link")}
+                {...style("block pbs-4 border-border border-bs nav-link")}
               >
-                <span {...style("flex items-center justify-between text-sm")}>
+                <span {...style("flex items-center justify-between text-small")}>
                   {framework}
                   <span aria-hidden="true" {...style("text-muted")}>
                     ↗
                   </span>
                 </span>
-                <span {...style("block mbs-2 font-mono text-muted text-[10px]")}>
+                <span {...style("block mbs-2 font-mono text-muted text-label")}>
                   stillwind/{framework.toLowerCase()}
                 </span>
               </a>
             ))}
           </nav>
-          <div {...style("grid gap-7 md:grid-cols-3 md:gap-12")}>
+          <div {...style("grid gap-7 sidebar:grid-cols-3 sidebar:gap-12")}>
             <div>
-              <h3 {...style("mbe-2 text-sm")}>Tailwind CSS compatibility</h3>
-              <p {...style("text-muted text-xs/relaxed")}>
+              <h3 {...style("mbe-2 text-small")}>Tailwind CSS compatibility</h3>
+              <p {...style("text-muted text-caption/relaxed")}>
                 Use Tailwind CSS v4 utilities, theme variables, and CSS directives. JavaScript
                 plugins are not supported.
               </p>
             </div>
             <div>
-              <h3 {...style("mbe-2 text-sm")}>Room for existing patterns</h3>
-              <p {...style("text-muted text-xs/relaxed")}>
+              <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
+              <p {...style("text-muted text-caption/relaxed")}>
                 Utility strings, arrays, and conditions fit existing components.{" "}
                 <a href={`${contracts}#cva`} {...style("nav-link")}>
                   CVA-compatible factories ↗
@@ -140,8 +150,8 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
               </p>
             </div>
             <div>
-              <h3 {...style("mbe-2 text-sm")}>CSS for Web Components</h3>
-              <p {...style("text-muted text-xs/relaxed")}>
+              <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
+              <p {...style("text-muted text-caption/relaxed")}>
                 Use{" "}
                 <a href={cssEmission} {...style("nav-link")}>
                   explicit CSS exports ↗
@@ -155,7 +165,7 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
 
       <footer
         {...style(
-          "flex py-6 flex-wrap justify-between gap-4 font-mono text-[10px] text-muted border-rule border-bs",
+          "flex py-6 flex-wrap justify-between gap-4 font-mono text-label text-muted border-border border-bs",
         )}
       >
         <span>Stillwind · Open source · MIT</span>

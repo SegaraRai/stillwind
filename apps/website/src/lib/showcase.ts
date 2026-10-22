@@ -1,3 +1,5 @@
+import { style } from "stillwind/astro";
+
 import { createCodeMorph, morphPosition } from "./code-morph";
 import { trackScroll } from "./scroll";
 
@@ -97,8 +99,10 @@ export function mountShowcase(root: HTMLElement): () => void {
     });
   };
   const controller = trackScroll(root, {
-    media:
-      "(min-width: 640px) and (min-height: 720px) and (prefers-reduced-motion: no-preference), (320px <= width < 640px) and (min-height: 760px) and (prefers-reduced-motion: no-preference)",
+    media: style.media(
+      "inline:pin-story:motion-safe",
+      "demo:max-inline:pin-story-compact:motion-safe",
+    ),
     onEnable(enabled) {
       enhanced = enabled;
       root.toggleAttribute("data-enhanced", enabled);

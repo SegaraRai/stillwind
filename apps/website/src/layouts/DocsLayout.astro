@@ -1,0 +1,128 @@
+---
+import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
+import type { SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
+
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import { style } from "stillwind/astro";
+
+import "../assets/fonts/jetbrains-mono.css";
+import SiteHeader from "../components/SiteHeader.astro";
+import ThemeHead from "../components/ThemeHead.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  entryId: string;
+  markdownUrl: string;
+  sidebar: SidebarItem[];
+  headings: TOCItem[];
+  editUrl?: string;
+}
+
+const { title, description, entryId, markdownUrl, sidebar, headings, editUrl } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <ThemeHead />
+    <NimbusHead
+      title={title}
+      description={description}
+      markdownUrl={markdownUrl}
+      collection="docs"
+      entryId={entryId}
+    />
+  </head>
+  <body {...style("font-sans text-body text-foreground antialiased bg-background")}>
+    <a href="#main-content" {...style("skip-link")}>
+      Skip to content
+    </a>
+    <div {...style("site-shell")}>
+      <SiteHeader docs="/docs/" repository="https://github.com/SegaraRai/stillwind" />
+      <div class="docs-grid">
+        <nav class="docs-navigation" aria-label="Documentation">
+          <p class="docs-label">Documentation</p>
+          <ul>
+            {sidebar.map(
+              (item) =>
+                item.type !== "group" && (
+                  <li>
+                    <a
+                      href={item.href}
+                      aria-current={item.type === "link" && item.isCurrent ? "page" : undefined}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ),
+            )}
+          </ul>
+          <div class="docs-agent-links">
+            <p class="docs-label">For agents</p>
+            <a href="/docs/llms.txt">Documentation index ↗</a>
+            <a href="/llms-full.txt">Full documentation ↗</a>
+          </div>
+        </nav>
+        <main id="main-content" class="docs-main">
+          <header class="docs-page-header">
+            <p class="docs-label">Stillwind / Docs</p>
+            <h1>{title}</h1>
+            {description && <p class="docs-description">{description}</p>}
+            <div class="docs-page-actions">
+              <a href={markdownUrl}>View as Markdown ↗</a>
+              <button type="button" data-copy-markdown={markdownUrl} hidden>
+                Copy page
+              </button>
+              <span role="status" data-copy-status></span>
+            </div>
+          </header>
+          <article class="docs-prose" data-pagefind-body>
+            <slot />
+          </article>
+          <footer class="docs-footer">
+            {editUrl && <a href={editUrl}>Edit this page ↗</a>}
+            <a href="/">Stillwind home →</a>
+          </footer>
+        </main>
+        <nav class="docs-toc" aria-label="On this page">
+          <p class="docs-label">On this page</p>
+          <ul>
+            {headings.map((heading) => (
+              <li {...style({ "--heading-depth": heading.depth })}>
+                <a href={`#${heading.slug}`}>{heading.text}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </body>
+</html>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>("[data-copy-markdown]");
+  const status = document.querySelector<HTMLElement>("[data-copy-status]");
+  if (button && status) {
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "";
+      try {
+        const response = await fetch(button.dataset.copyMarkdown!);
+        if (!response.ok) {
+          throw new Error(`Markdown request failed: ${response.status}`);
+        }
+        await navigator.clipboard.writeText(await response.text());
+        status.textContent = "Copied.";
+      } catch {
+        status.textContent = "Could not copy. Open the Markdown link to copy the page.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>

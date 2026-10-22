@@ -5,7 +5,8 @@ export default defineConfig({
   root: import.meta.dirname,
   test: {
     name: "website",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    css: true,
   },
   run: {
     tasks: {
@@ -20,8 +21,9 @@ export default defineConfig({
       },
       build: {
         command: "astro build",
-        dependsOn: ["generate:types"],
+        dependsOn: ["typecheck"],
         cache: {
+          env: ["SITE_URL"],
           input: [
             { auto: true },
             {
@@ -29,6 +31,7 @@ export default defineConfig({
               base: "workspace",
             },
             "!.astro/**",
+            "!.nimbus/**",
             "!dist/**",
           ],
           output: ["dist/**"],
@@ -42,7 +45,8 @@ export default defineConfig({
         command: "astro sync",
         dependsOn: ["@stillwind/integration#build"],
         cache: {
-          input: [{ auto: true }, "!.astro/**"],
+          env: ["SITE_URL"],
+          input: [{ auto: true }, "!.astro/**", "!.nimbus/**"],
           output: [".astro/**/*.d.ts"],
         },
       },
@@ -62,7 +66,7 @@ export default defineConfig({
             },
           ],
         },
-        dependsOn: ["@stillwind/host#build", "stillwind#build"],
+        dependsOn: ["build"],
       },
     },
   },

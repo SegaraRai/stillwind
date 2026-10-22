@@ -13,7 +13,7 @@ it("builds the displayed findings, canonical utilities, and CSS with the compile
     "no-arbitrary-colors",
   ]);
   expect(examples.restrictions.every((report) => report.severity === "error")).toBe(true);
-  expect(examples.unchecked.split(" ")[examples.unknown.utilityIndex]).toBe("bg-inlk");
+  expect(examples.unchecked.split(" ")[examples.unknown.utilityIndex]).toBe("bg-actoin");
   expect(
     examples.restrictions
       .map((report) => examples.restricted.split(" ")[report.utilityIndex])
@@ -27,7 +27,7 @@ it("builds the displayed findings, canonical utilities, and CSS with the compile
     severity: "warning",
   });
   expect(examples.unordered.split(" ")[examples.canonical[0]!.utilityIndex]).toBe("px-[16px]");
-  expect(examples.canonicalized).toBe("py-2 text-paper px-4 bg-ink rounded-md");
+  expect(examples.canonicalized).toBe("py-2 text-action-foreground px-4 bg-action rounded-control");
   expect(examples.css).toContain("padding-inline:");
   expect(examples.css).toContain("background-color:");
   expect(examples.compiledCode).toContain("className:");

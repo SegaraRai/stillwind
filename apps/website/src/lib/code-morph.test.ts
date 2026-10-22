@@ -4,13 +4,13 @@ import { morphPosition, styleParts } from "./code-morph";
 
 it("keeps utility names and arbitrary values intact, splitting only colons and spaces", () => {
   const parts = styleParts(
-    "rounded-md hover:min-[713px]:px-[16px] bg-[#d9e2f0]",
+    "rounded-control hover:min-[713px]:px-[16px] bg-[#d9e2f0]",
     ["shape", "inline", "color"],
     ["inline", "color"],
   );
   expect(parts.map((part) => part.text)).toEqual([
     'style("',
-    "rounded-md",
+    "rounded-control",
     " ",
     "hover",
     ":",
@@ -22,7 +22,7 @@ it("keeps utility names and arbitrary values intact, splitting only colons and s
     '")',
   ]);
   expect(parts.map((part) => part.text).join("")).toBe(
-    'style("rounded-md hover:min-[713px]:px-[16px] bg-[#d9e2f0]")',
+    'style("rounded-control hover:min-[713px]:px-[16px] bg-[#d9e2f0]")',
   );
   expect(parts.filter((part) => part.finding).map((part) => part.text)).toEqual([
     "hover",
@@ -41,11 +41,11 @@ it("keeps utility names and arbitrary values intact, splitting only colons and s
 });
 
 it("keeps a utility key when its variants or source order change", () => {
-  const before = styleParts("rounded-md px-4", ["shape", "inline"]);
-  const after = styleParts("hover:px-6 rounded-md", ["inline", "shape"]);
+  const before = styleParts("rounded-control px-4", ["shape", "inline"]);
+  const after = styleParts("hover:px-6 rounded-control", ["inline", "shape"]);
   expect(before.find((part) => part.key === "inline")?.text).toBe("px-4");
   expect(after.find((part) => part.key === "inline")?.text).toBe("px-6");
-  expect(after.find((part) => part.key === "shape")?.text).toBe("rounded-md");
+  expect(after.find((part) => part.key === "shape")?.text).toBe("rounded-control");
   expect(new Set(after.map((part) => part.key)).size).toBe(after.length);
   expect(() => styleParts("px-4 py-2", ["inline"])).toThrow();
 });

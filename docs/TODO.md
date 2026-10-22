@@ -68,6 +68,82 @@ warnings without treating valid cross-component pairing as a collision.
 
 Source: [view-transition analysis](../crates/compiler/src/style_analysis/view_transition.rs).
 
+## Public documentation references
+
+Keep `/docs/`, `/docs/frameworks/`, and `/docs/style/` as the entry guides. Use the
+following route structure when adding the references and task guides:
+
+| Route                       | Content                                                             |
+| --------------------------- | ------------------------------------------------------------------- |
+| `/docs/guides/<task>/`      | Task guides with complete examples and links to API contracts       |
+| `/docs/utilities/`          | One searchable catalog with utility-to-CSS and CSS-to-utility modes |
+| `/docs/macros/<macro>/`     | Macro inputs, consumption sites, runtime behavior, and emitted CSS  |
+| `/docs/configuration/lint/` | Presets, severity, rule options, suppression, and build behavior    |
+| `/docs/lints/<rule-id>/`    | One reference per public kebab-case lint ID                         |
+| `/docs/errors/<SW-code>/`   | One reference per explicit compiler error code, preserving case     |
+
+Use `style`, `ref`, `keyframes`, `view-transition`, `anchor-scope`, `media`, `css`,
+and `cva` for macro slugs. Give related methods explicit anchors on their owning
+page. Guide slugs should describe tasks: `element-relationships`,
+`responsive-styles`, `animations`, `view-transitions`, `reusable-styles`,
+`design-systems`, and `lint-adoption`. Guides explain complete workflows; macro
+pages state the API contract and link back to those workflows.
+
+Store published slugs and anchors explicitly. Keep redirects or aliases after a
+rename, and retain a retirement page when a diagnostic disappears. Compiler codes
+can currently change before the first release. Freeze published code identities
+or record their aliases before exposing permanent diagnostic links from tooling.
+
+The utility explorer should preserve its mode and query in the URL, for example
+`/docs/utilities/?mode=utility&q=p-4` or
+`/docs/utilities/?mode=css&q=display%3Aflex`. Build the default-theme catalog from
+the registry, and resolve numeric and arbitrary candidates on demand. These
+domains are not finite. Distinguish utilities from marker classes that emit no
+CSS. Show the candidate's CSS and any support declarations separately.
+
+Forward lookup can reuse `completeCandidate()` and `previewCandidate()`. The
+latter omits document support declarations, so complete compilation examples must
+also use the compiler. Start CSS lookup with property and value searches over
+these generated records. Label partial matches and show the complete utility
+output. Arbitrary CSS equivalence has no public query API. If exact reverse
+conversion is added, reuse canonical normalization and required-property checks
+in Rust, and define its supported input shape. Preserve selectors, conditions,
+declaration order, and support requirements. Show the compiler version and theme
+that determine each result.
+
+Generate macro examples from actual compilations with their framework and
+compiler options. Explain the general runtime form, then show the actual
+expression, fold, and render stages and the selected output: direct props, a
+class expression, or a runtime merge. Cover static input, conditions, custom
+properties, composition, and finite declaration selection. The compiler chooses
+between these forms; it has no public switch that exposes every stage as a
+separate optimization level. A step-by-step display needs compiler trace data.
+Keep bundler minification separate from compiler lowering.
+
+Generate lint IDs, categories, defaults, options, and compiler error codes from
+their existing catalogs. Add curated examples that verify the reported code,
+location, effective settings, and corrected input. Describe whether an input is
+omitted or output is kept, independently of lint severity. Configuration and
+authoring errors need reproducible failing and passing inputs. Host and internal
+errors need the violated contract, reproduction steps, and recovery or reporting
+guidance when application source cannot fix them.
+
+Feed the explorer, HTML references, per-page Markdown, and agent indexes from
+the same generated records. Include the static utility catalog and compilation
+examples in Markdown so agent readers receive the reference without browser
+interaction. Check registry coverage, preserved URLs, diagnostic examples, and
+generated output. Validate the explorer's two modes in the browser.
+
+Sources: [query API](../packages/native/binding.d.ts),
+[canonical index](../crates/compiler/src/query/canonical/index.rs),
+[macro API](../packages/core/src/macro/style.ts),
+[fragment compilation](../crates/compiler/src/compiler/fragment/mod.rs),
+[runtime forms](runtime.md#lowering-and-materialization),
+[lint catalog](../crates/diagnostics/src/lint/config/catalog.rs),
+[generated lint metadata](../packages/config/src/lint-rules.ts),
+[compiler error codes](../crates/diagnostics/src/compilation/code.rs),
+[website compilation examples](../apps/website/src/lib/examples.ts).
+
 ## Measurement coverage
 
 `TypeScriptFactsService` enables checker timing collection but exposes only

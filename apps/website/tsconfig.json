@@ -5,6 +5,6 @@
     "allowImportingTsExtensions": true,
     "skipLibCheck": true
   },
-  "include": [".astro/types.d.ts", "src", "*.ts"],
+  "include": [".astro/types.d.ts", "src", "tests", "*.ts"],
   "exclude": ["dist"]
 }

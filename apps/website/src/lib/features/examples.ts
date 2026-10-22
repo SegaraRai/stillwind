@@ -5,21 +5,21 @@ export const featureTopics = [
     frames: [
       {
         label: "Utility strings",
-        source: 'style("rounded-md px-4 py-2")',
-        focus: '"rounded-md px-4 py-2"',
+        source: 'style("rounded-control px-4 py-2")',
+        focus: '"rounded-control px-4 py-2"',
         description: "Write a utility string with the Tailwind CSS classes you know.",
       },
       {
         label: "JavaScript conditions",
-        source: 'style("rounded-md px-4 py-2", emphasized && "shadow-sm")',
+        source: 'style("rounded-control px-4 py-2", emphasized && "shadow-sm")',
         focus: 'emphasized && "shadow-sm"',
         description:
           "Combine utilities with JavaScript conditions. A false condition contributes no classes.",
       },
       {
         label: "Arrays",
-        source: 'style(["rounded-md px-4 py-2", emphasized && "shadow-sm"])',
-        focus: '["rounded-md px-4 py-2", emphasized && "shadow-sm"]',
+        source: 'style(["rounded-control px-4 py-2", emphasized && "shadow-sm"])',
+        focus: '["rounded-control px-4 py-2", emphasized && "shadow-sm"]',
         description:
           "Compose strings and conditional values in arrays. Keep related inputs together.",
       },
@@ -27,11 +27,11 @@ export const featureTopics = [
         label: "CSS states",
         source: [
           "style(",
-          '  ["rounded-md px-4 py-2", emphasized && "shadow-sm"],',
-          '  { "aria-pressed:": "bg-ink text-paper" },',
+          '  ["rounded-control px-4 py-2", emphasized && "shadow-sm"],',
+          '  { "aria-pressed:": "bg-action text-action-foreground" },',
           ")",
         ].join("\n"),
-        focus: '"aria-pressed:": "bg-ink text-paper"',
+        focus: '"aria-pressed:": "bg-action text-action-foreground"',
         description:
           "Use an attribute to select CSS rules. Toggling aria-pressed updates the button while its class name stays the same.",
       },
@@ -39,13 +39,13 @@ export const featureTopics = [
         label: "Variant groups",
         source: [
           "style(",
-          '  ["rounded-md px-4 py-2", emphasized && "shadow-sm"],',
+          '  ["rounded-control px-4 py-2", emphasized && "shadow-sm"],',
           "  {",
-          '    "aria-pressed:": ["bg-ink text-paper", "font-medium"],',
+          '    "aria-pressed:": ["bg-action text-action-foreground", "font-medium"],',
           "  },",
           ")",
         ].join("\n"),
-        focus: '["bg-ink text-paper", "font-medium"]',
+        focus: '["bg-action text-action-foreground", "font-medium"]',
         description:
           "Group strings and arrays under one variant. The aria-pressed state applies the grouped rules together.",
       },
@@ -53,16 +53,16 @@ export const featureTopics = [
         label: "Nested variants",
         source: [
           "style(",
-          '  ["rounded-md px-4 py-2", emphasized && "shadow-sm"],',
+          '  ["rounded-control px-4 py-2", emphasized && "shadow-sm"],',
           "  {",
           '    "aria-pressed:": [',
-          '      "bg-ink text-paper font-medium",',
-          '      { "hover:": "bg-soft-ink" },',
+          '      "bg-action text-action-foreground font-medium",',
+          '      { "hover:": "bg-action-hover" },',
           "    ],",
           "  },",
           ")",
         ].join("\n"),
-        focus: '{ "hover:": "bg-soft-ink" }',
+        focus: '{ "hover:": "bg-action-hover" }',
         description:
           "Nest variants to describe conditions that apply together. Hover styles only apply while the button is pressed.",
       },
@@ -70,11 +70,11 @@ export const featureTopics = [
         label: "CSS custom properties",
         source: [
           "style(",
-          '  ["rounded-md px-4 py-2", emphasized && "shadow-sm"],',
+          '  ["rounded-control px-4 py-2", emphasized && "shadow-sm"],',
           "  {",
           '    "--accent": accent,',
           '    "aria-pressed:": [',
-          '      "bg-(--accent) text-paper font-medium",',
+          '      "bg-(--accent) text-action-foreground font-medium",',
           '      { "hover:": "brightness-110" },',
           "    ],",
           "  },",
