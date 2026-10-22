@@ -69,7 +69,7 @@
   },
   "devDependencies": {
     "@rsbuild/core": "^2.2.14",
-    "@rspack/core": "^2.2.8",
+    "@rspack/core": "^2.2.9",
     "@stillwind-internal/tools-fixture-css": "workspace:*",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@sveltejs/kit": "^3.1.0",
