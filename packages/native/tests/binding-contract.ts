@@ -1017,6 +1017,123 @@ export const invalidSuppression=style('paint-brand');`;
     }
   });
 
+  test("value-for lists apply value policies across one-shot and session APIs", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `@stillwind-property --Size {
+  activation: declared; syntax: "*"; inherits: false; value-for: width, height, width;
+}
+@utility box-* { --Size:--value([length]); }
+@stillwind-slot properties;
+*, ::before, ::after { @stillwind-slot property-initials; }
+@stillwind-slot utilities;`;
+    const source = `import {style} from 'stillwind/react'; export const box=style('box-[20px]');`;
+    const options: import("../binding.js").NativeCompilerOptions = {
+      lint: {
+        preferCanonicalUtilities: {
+          severity: "off",
+        },
+        preferLogicalProperties: {
+          severity: "warn",
+        },
+        noArbitrarySpacing: {
+          properties: ["height"],
+        },
+        noRestrictedLengthUnits: {
+          rules: [
+            {
+              properties: ["width", "height"],
+              disallow: ["px"],
+            },
+          ],
+        },
+      },
+    };
+    const expected = [
+      "no-arbitrary-spacing",
+      "no-restricted-length-units",
+      "no-restricted-length-units",
+    ];
+    const output = compileSource(oneShotInput(source, "value-for.tsx", css), options);
+    expect(output.diagnostics).toEqual([]);
+    expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual(expected);
+    expect(output.css).toContain("@property --Size");
+    expect(output.css).not.toContain("value-for");
+    const loader = new NativeDesignSystemLoader(options);
+    loader.provide(0, "root.css", css, sourceUri("root.css"));
+    const session = new NativeProjectSession(loader, false);
+    expect(
+      session
+        .diagnose([
+          {
+            kind: "direct",
+            moduleId: "value-for.tsx",
+            document: { code: source, uri: sourceUri("value-for.tsx"), format: "jsx" },
+            syntax: { language: "tsx", moduleKind: "unambiguous" },
+          },
+        ])[0]
+        .reports.map((report: { code: string }) => report.code)
+        .sort(),
+    ).toEqual(expected);
+  });
+
+  test("value policies inspect mask and filter colors through aliases", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `@stillwind-property --paint {
+  syntax: "*"; inherits: false; value-for: mask-image, filter, backdrop-filter;
+}
+@stillwind-slot keyframes;
+@stillwind-slot utilities;`;
+    const options: import("../binding.js").NativeCompilerOptions = {
+      lint: {
+        preferCanonicalUtilities: {
+          severity: "off",
+        },
+        noArbitraryColors: "warn",
+      },
+    };
+    const loader = new NativeDesignSystemLoader(options);
+    loader.provide(0, "root.css", css, sourceUri("root.css"));
+    const session = new NativeProjectSession(loader, false);
+    for (const [value, expected] of [
+      ["red", 3],
+      ["var(--runtime)", 0],
+    ] as const) {
+      for (const expression of [
+        `style(${JSON.stringify(`[--paint:${value}]`)})`,
+        `style.keyframes({from:${JSON.stringify(`[--paint:${value}]`)}})`,
+      ]) {
+        const source = `import {style} from 'stillwind/react'; export const paint=${expression};`;
+        const reports = Array.from<string>({ length: expected }).fill("no-arbitrary-colors");
+        const output = compileSource(oneShotInput(source, "paint.tsx", css), options);
+        expect(output.diagnostics).toEqual([]);
+        expect(output.reports.map((report: { code: string }) => report.code)).toEqual(reports);
+        expect(
+          session
+            .diagnose([
+              {
+                kind: "direct",
+                moduleId: "paint.tsx",
+                document: {
+                  code: source,
+                  uri: sourceUri("paint.tsx"),
+                  format: "jsx",
+                },
+                syntax: {
+                  language: "tsx",
+                  moduleKind: "unambiguous",
+                },
+              },
+            ])[0]
+            .reports.map((report: { code: string }) => report.code),
+        ).toEqual(reports);
+      }
+    }
+  });
+
   test("implementation checks preserve captured values across one-shot and session APIs", async () => {
     const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
       bindingSpecifier

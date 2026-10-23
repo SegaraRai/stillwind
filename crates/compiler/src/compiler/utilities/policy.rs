@@ -261,6 +261,46 @@ fn check_length_units(
     reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
     findings: &mut Vec<LintFinding>,
 ) {
+    for property in value_properties(property, theme) {
+        check_property_length_units(property, value, theme, settings, span, reported, findings);
+    }
+}
+
+/// Returns the properties used by value policies for a declaration of `property`.
+///
+/// The last registration of a custom property supplies its `value-for` list. Project
+/// registrations override Stillwind registrations, including when they omit the list.
+/// An ordinary property or a registration without a list retains its own name.
+/// The result borrows the inputs and does not change declaration effects or emission.
+fn value_properties<'a>(property: &'a str, theme: &'a ThemeIndex) -> impl Iterator<Item = &'a str> {
+    let targets = if property.starts_with("--") {
+        theme
+            .properties()
+            .iter()
+            .rev()
+            .chain(theme.registry().properties().iter().rev())
+            .find(|definition| definition.name == property)
+            .map_or(&[][..], |definition| definition.value_for.as_slice())
+    } else {
+        &[][..]
+    };
+    targets
+        .iter()
+        .map(LeanStr::as_str)
+        .chain(targets.is_empty().then_some(property))
+}
+
+/// Appends findings for the length units of `value` under one effective `property`.
+/// `theme` resolves referenced tokens, and `reported` receives keys of new findings.
+fn check_property_length_units(
+    property: &str,
+    value: &str,
+    theme: &ThemeIndex,
+    settings: &LintSettings,
+    span: Span,
+    reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
+    findings: &mut Vec<LintFinding>,
+) {
     if settings.enabled_for_detection(LintKind::NoRestrictedLengthUnits)
         && let Some(LintConfig::NoRestrictedLengthUnits(config)) =
             settings.get(LintKind::NoRestrictedLengthUnits)
@@ -442,43 +482,45 @@ fn check_source_policies(
 ) {
     let mut reported = BTreeSet::new();
     for usage in &utility.diagnostic_data.arbitrary_uses {
-        let (color, spacing) = arbitrary_value_flags(&usage.property, &usage.value, usage.color);
-        if color
-            && settings.enabled_for_detection(LintKind::NoArbitraryColors)
-            && reported.insert((
-                LintKind::NoArbitraryColors,
-                usage.property.clone(),
-                usage.value.clone(),
-            ))
-        {
-            findings.push(LintFinding::new(
-                LintDiagnostic::ArbitraryColor {
-                    property: usage.property.clone(),
-                    value: usage.value.clone(),
-                },
-                span,
-            ));
-        }
-        if spacing
-            && settings.enabled_for_detection(LintKind::NoArbitrarySpacing)
-            && let Some(LintConfig::NoArbitrarySpacing(config)) =
-                settings.get(LintKind::NoArbitrarySpacing)
-            && let Some((domain, _)) = property_value_domains(&usage.property, &usage.value)
-                .into_iter()
-                .find(|(domain, _)| spacing_property(domain, &config.properties))
-            && reported.insert((
-                LintKind::NoArbitrarySpacing,
-                (domain.clone()).into(),
-                usage.value.clone(),
-            ))
-        {
-            findings.push(LintFinding::new(
-                LintDiagnostic::ArbitrarySpacing {
-                    property: (domain).into(),
-                    value: usage.value.clone(),
-                },
-                span,
-            ));
+        for property in value_properties(&usage.property, theme) {
+            let (color, spacing) = arbitrary_value_flags(property, &usage.value, usage.color);
+            if color
+                && settings.enabled_for_detection(LintKind::NoArbitraryColors)
+                && reported.insert((
+                    LintKind::NoArbitraryColors,
+                    property.to_lean_str(),
+                    usage.value.clone(),
+                ))
+            {
+                findings.push(LintFinding::new(
+                    LintDiagnostic::ArbitraryColor {
+                        property: property.to_lean_str(),
+                        value: usage.value.clone(),
+                    },
+                    span,
+                ));
+            }
+            if spacing
+                && settings.enabled_for_detection(LintKind::NoArbitrarySpacing)
+                && let Some(LintConfig::NoArbitrarySpacing(config)) =
+                    settings.get(LintKind::NoArbitrarySpacing)
+                && let Some((domain, _)) = property_value_domains(property, &usage.value)
+                    .into_iter()
+                    .find(|(domain, _)| spacing_property(domain, &config.properties))
+                && reported.insert((
+                    LintKind::NoArbitrarySpacing,
+                    (domain.clone()).into(),
+                    usage.value.clone(),
+                ))
+            {
+                findings.push(LintFinding::new(
+                    LintDiagnostic::ArbitrarySpacing {
+                        property: (domain).into(),
+                        value: usage.value.clone(),
+                    },
+                    span,
+                ));
+            }
         }
     }
     check_tokens(

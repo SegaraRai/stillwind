@@ -155,8 +155,13 @@ impl DesignSystemQuery {
         let mut lint_findings = Vec::new();
         let css = match context {
             CandidateContext::KeyframesFrame => {
-                let (declaration, _) =
-                    resolve_frame(&input, theme, &mut diagnostics, &mut lint_findings);
+                let (declaration, _) = resolve_frame(
+                    &input,
+                    theme,
+                    &LintSettings::default(),
+                    &mut diagnostics,
+                    &mut lint_findings,
+                );
                 if declaration.is_empty() {
                     LeanString::new()
                 } else {

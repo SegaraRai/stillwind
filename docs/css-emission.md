@@ -213,6 +213,30 @@ classification. Each definition retains its own classification when several defi
 contribute to the same utility. The descriptor also accepts other header descriptors,
 as in `(implementation, tw-sort: width)`, and is available on `@stillwind-utility`.
 
+A custom property can supply values for ordinary properties through the `value-for`
+descriptor of `@stillwind-property`:
+
+```css
+@stillwind-property --box-size {
+  syntax: "*";
+  inherits: false;
+  value-for: width, height;
+}
+
+@utility box-* {
+  --box-size: --value([length]);
+}
+```
+
+`no-arbitrary-colors`, `no-arbitrary-spacing`, and `no-restricted-length-units` check
+the value under each listed property. Each property uses its own rule configuration.
+Names must identify recognized ordinary properties; duplicates are removed. Invalid
+lists are ignored, and the last valid descriptor replaces earlier lists in the block.
+The last registration of a custom property supplies its list, including when it omits
+`value-for`. Project registrations override package registrations. The compiler removes
+the descriptor from emitted `@property` blocks. Declaration restrictions, logical
+property checks, value grammar validation, and CSS effects keep the declared property.
+
 Variants select the utility element, and the nested selector of the body applies
 inside them. `hover:child` with `@utility child { & > span { color: red; } }` selects
 `.x:hover > span`.

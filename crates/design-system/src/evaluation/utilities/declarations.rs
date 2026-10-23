@@ -23,7 +23,9 @@ use stillwind_syntax::Value;
 use super::super::context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 use super::super::values::{PreparedValues, color_fallback, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
-use super::resolve::{UtilityArbitraryUse, UtilityDeclaration, UtilityTokenUse};
+use super::resolve::{
+    UtilityArbitraryUse, UtilityDeclaration, UtilityTokenUse, diagnostic_property,
+};
 use crate::ThemeIndex;
 
 /// CSS and diagnostic records retained after evaluating one definition body.
@@ -540,11 +542,7 @@ fn policy_declarations(css: &str, implementation: bool) -> Vec<UtilityDeclaratio
         .into_iter()
         .flatten()
         .map(|declaration| UtilityDeclaration {
-            property: if declaration.name.starts_with("--") {
-                declaration.name
-            } else {
-                declaration.name.to_ascii_lowercase()
-            },
+            property: diagnostic_property(&declaration.name),
             value: declaration.value,
             implementation,
             base: true,
@@ -576,7 +574,7 @@ fn record_tokens(
         {
             diagnostic_data.out_of_range_alpha = Some(UtilityArbitraryUse {
                 base: true,
-                property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
+                property: diagnostic_property(property),
                 value,
                 color: true,
             });
@@ -589,7 +587,7 @@ fn record_tokens(
                     .into_iter()
                     .map(|selection| UtilityArbitraryUse {
                         base: true,
-                        property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
+                        property: diagnostic_property(property),
                         value: selection.value,
                         color: selection.color,
                     }),
@@ -606,7 +604,7 @@ fn record_tokens(
         diagnostic_data.token_uses.push(UtilityTokenUse {
             implementation,
             base: true,
-            property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
+            property: diagnostic_property(property),
             tokens: tokens.into_iter().collect(),
         });
     }

@@ -207,7 +207,7 @@ export const icons = style("icon-[red] icon-[demo--missing] icon-[2rem] icon-[de
   }
 });
 
-test("lint checks icon implementation only when requested and keeps size inputs checked", async () => {
+test("lint checks icon implementation only when requested and applies height policies to size inputs", async () => {
   for (const checkImplementation of [false, true]) {
     const project = new BrowserProject({
       root: "/workspace",
@@ -247,10 +247,14 @@ test("lint checks icon implementation only when requested and keeps size inputs 
               checkImplementation,
               rules: [
                 {
-                  properties: ["*"],
+                  properties: ["height"],
                   disallow: ["px", "em"],
                 },
               ],
+            },
+            "no-arbitrary-spacing": {
+              severity: "warn",
+              properties: ["height"],
             },
           },
         },
@@ -270,8 +274,9 @@ test("lint checks icon implementation only when requested and keeps size inputs 
               "prefer-logical-properties",
               "no-restricted-length-units",
               "no-restricted-length-units",
+              "no-arbitrary-spacing",
             ]
-          : ["no-restricted-length-units"]
+          : ["no-restricted-length-units", "no-arbitrary-spacing"]
         ).sort(),
       );
     } finally {

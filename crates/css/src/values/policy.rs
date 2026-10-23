@@ -96,7 +96,9 @@ pub fn arbitrary_value_flags(property: &str, value: &str, color_domain: bool) ->
         || property.contains("color")
         || matches!(
             property.as_str(),
-            "background"
+            "backdrop-filter"
+                | "-webkit-backdrop-filter"
+                | "background"
                 | "background-image"
                 | "border"
                 | "border-top"
@@ -105,13 +107,16 @@ pub fn arbitrary_value_flags(property: &str, value: &str, color_domain: bool) ->
                 | "border-left"
                 | "border-block"
                 | "border-inline"
+                | "border-image"
+                | "border-image-source"
                 | "outline"
                 | "box-shadow"
                 | "text-shadow"
+                | "filter"
+                | "mask"
+                | "mask-image"
                 | "fill"
                 | "stroke"
-                | "border-image"
-                | "border-image-source"
         );
     let mut flags = (false, false);
     inspect_arbitrary(&mut Parser::new(value), color, &mut flags);
@@ -429,6 +434,34 @@ mod tests {
             ),
             (true, false)
         );
+    }
+
+    #[test]
+    fn arbitrary_colors_follow_mask_and_filter_values() {
+        for (property, value, expected) in [
+            (
+                "mask",
+                "linear-gradient(red, transparent) no-repeat",
+                (true, false),
+            ),
+            ("mask-image", "var(--paint, red)", (true, false)),
+            ("filter", "drop-shadow(0 0 2px #abc)", (true, true)),
+            ("backdrop-filter", "drop-shadow(0 0 2px red)", (true, true)),
+            (
+                "-webkit-backdrop-filter",
+                "drop-shadow(0 0 2px red)",
+                (true, true),
+            ),
+            ("filter", "blur(2px)", (false, true)),
+            ("mask-image", "url('red.svg#fff')", (false, false)),
+            ("mask-image", "var(--paint, currentColor)", (false, false)),
+        ] {
+            assert_eq!(
+                arbitrary_value_flags(property, value, false),
+                expected,
+                "{property}: {value}"
+            );
+        }
     }
 
     #[test]

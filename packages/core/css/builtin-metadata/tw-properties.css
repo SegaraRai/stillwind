@@ -2,7 +2,8 @@
 Tailwind v4-compatible custom property registrations.
 
 The compiler lowers only used `@stillwind-property` definitions to standard
-`@property` rules.
+`@property` rules. `value-for` applies the receiving property's value policies to
+stored lengths, colors, and their enclosing images or shadows.
 */
 
 @stillwind-property --tw-pan-x {
@@ -28,12 +29,14 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-position {
+  value-for: background-image;
   group: gradient;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-gradient-from {
+  value-for: background-image;
   group: gradient;
   syntax: "<color>";
   inherits: false;
@@ -41,6 +44,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-via {
+  value-for: background-image;
   group: gradient;
   syntax: "<color>";
   inherits: false;
@@ -48,6 +52,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-to {
+  value-for: background-image;
   group: gradient;
   syntax: "<color>";
   inherits: false;
@@ -55,6 +60,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-stops {
+  value-for: background-image;
   group: gradient;
   syntax: "*";
   inherits: false;
@@ -65,12 +71,14 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-via-stops {
+  value-for: background-image;
   group: gradient;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-gradient-from-position {
+  value-for: background-image;
   group: gradient;
   activation: declared;
   syntax: "<length-percentage>";
@@ -79,6 +87,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-via-position {
+  value-for: background-image;
   group: gradient;
   activation: declared;
   syntax: "<length-percentage>";
@@ -87,6 +96,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-gradient-to-position {
+  value-for: background-image;
   group: gradient;
   activation: declared;
   syntax: "<length-percentage>";
@@ -95,24 +105,28 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-linear {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-radial {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-conic {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-linear-position {
+  value-for: mask-image;
   group: mask-linear;
   depends-on: --tw-mask-linear --tw-mask-radial --tw-mask-conic;
   syntax: "*";
@@ -121,6 +135,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-linear-from-position {
+  value-for: mask-image;
   group: mask-linear;
   syntax: "*";
   inherits: false;
@@ -128,6 +143,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-linear-to-position {
+  value-for: mask-image;
   group: mask-linear;
   syntax: "*";
   inherits: false;
@@ -135,6 +151,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-linear-from-color {
+  value-for: mask-image;
   group: mask-linear;
   syntax: "*";
   inherits: false;
@@ -142,6 +159,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-linear-to-color {
+  value-for: mask-image;
   group: mask-linear;
   syntax: "*";
   inherits: false;
@@ -169,6 +187,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-shadow {
+  value-for: box-shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
@@ -180,6 +199,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-shadow-color {
+  value-for: box-shadow;
   activation: declared;
   syntax: "*";
   inherits: false;
@@ -196,6 +216,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-inset-shadow {
+  value-for: box-shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
@@ -207,6 +228,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-inset-shadow-color {
+  value-for: box-shadow;
   activation: declared;
   syntax: "*";
   inherits: false;
@@ -223,11 +245,13 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-ring-color {
+  value-for: box-shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-ring-shadow {
+  value-for: box-shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
@@ -239,11 +263,13 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-inset-ring-color {
+  value-for: box-shadow;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-inset-ring-shadow {
+  value-for: box-shadow;
   syntax: "*";
   inherits: false;
   initial-value: 0 0 #0000;
@@ -265,6 +291,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-ring-offset-width {
+  value-for: box-shadow;
   activation: dependency;
   syntax: "<length>";
   inherits: false;
@@ -272,6 +299,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-ring-offset-color {
+  value-for: box-shadow;
   activation: dependency;
   syntax: "*";
   inherits: false;
@@ -279,6 +307,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-ring-offset-shadow {
+  value-for: box-shadow;
   activation: dependency;
   syntax: "*";
   inherits: false;
@@ -292,6 +321,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-translate-x {
+  value-for: translate;
   group: translate;
   syntax: "*";
   inherits: false;
@@ -300,6 +330,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-translate-y {
+  value-for: translate;
   group: translate;
   syntax: "*";
   inherits: false;
@@ -308,6 +339,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-translate-z {
+  value-for: translate;
   group: translate;
   syntax: "*";
   inherits: false;
@@ -376,6 +408,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-blur {
+  value-for: filter;
   group: filter;
   activation: either;
   syntax: "*";
@@ -439,6 +472,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-drop-shadow {
+  value-for: filter;
   group: filter;
   activation: either;
   syntax: "*";
@@ -446,6 +480,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-drop-shadow-color {
+  value-for: filter;
   group: filter;
   activation: either;
   syntax: "*";
@@ -461,6 +496,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-drop-shadow-size {
+  value-for: filter;
   group: filter;
   activation: either;
   syntax: "*";
@@ -494,6 +530,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-text-shadow-color {
+  value-for: text-shadow;
   group: text-shadow;
   activation: declared;
   activate-on: text-shadow;
@@ -545,6 +582,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-from-position {
+  value-for: mask-image;
   group: mask-radial;
   syntax: "*";
   inherits: false;
@@ -552,6 +590,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-to-position {
+  value-for: mask-image;
   group: mask-radial;
   syntax: "*";
   inherits: false;
@@ -559,6 +598,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-from-color {
+  value-for: mask-image;
   group: mask-radial;
   syntax: "*";
   inherits: false;
@@ -566,6 +606,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-to-color {
+  value-for: mask-image;
   group: mask-radial;
   syntax: "*";
   inherits: false;
@@ -573,6 +614,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-shape {
+  value-for: mask-image;
   group: mask-radial;
   syntax: "*";
   inherits: false;
@@ -580,6 +622,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-size {
+  value-for: mask-image;
   group: mask-radial;
   syntax: "*";
   inherits: false;
@@ -587,6 +630,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-radial-position {
+  value-for: mask-image;
   group: mask-radial;
   depends-on: --tw-mask-linear --tw-mask-radial --tw-mask-conic;
   syntax: "*";
@@ -595,6 +639,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-conic-position {
+  value-for: mask-image;
   group: mask-conic;
   depends-on: --tw-mask-linear --tw-mask-radial --tw-mask-conic;
   syntax: "*";
@@ -603,6 +648,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-conic-from-position {
+  value-for: mask-image;
   group: mask-conic;
   syntax: "*";
   inherits: false;
@@ -610,6 +656,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-conic-to-position {
+  value-for: mask-image;
   group: mask-conic;
   syntax: "*";
   inherits: false;
@@ -617,6 +664,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-conic-from-color {
+  value-for: mask-image;
   group: mask-conic;
   syntax: "*";
   inherits: false;
@@ -624,6 +672,7 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-mask-conic-to-color {
+  value-for: mask-image;
   group: mask-conic;
   syntax: "*";
   inherits: false;
@@ -631,12 +680,14 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-tracking {
+  value-for: letter-spacing;
   activation: declared;
   syntax: "*";
   inherits: false;
 }
 
 @stillwind-property --tw-backdrop-blur {
+  value-for: backdrop-filter;
   group: backdrop-filter;
   activation: either;
   syntax: "*";
@@ -712,150 +763,175 @@ The compiler lowers only used `@stillwind-property` definitions to standard
 }
 
 @stillwind-property --tw-border-spacing-x {
+  value-for: border-spacing;
   syntax: "<length>";
   inherits: false;
   initial-value: 0;
 }
 
 @stillwind-property --tw-border-spacing-y {
+  value-for: border-spacing;
   syntax: "<length>";
   inherits: false;
   initial-value: 0;
 }
 
 @stillwind-property --tw-scrollbar-thumb {
+  value-for: scrollbar-color;
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
 @stillwind-property --tw-scrollbar-track {
+  value-for: scrollbar-color;
   syntax: "<color>";
   inherits: false;
   initial-value: #0000;
 }
 
 @stillwind-property --tw-mask-left {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-right {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-bottom {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-top {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: linear-gradient(#fff, #fff);
 }
 
 @stillwind-property --tw-mask-top-from-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-top-to-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-top-from-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-top-to-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
 @stillwind-property --tw-mask-bottom-from-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-bottom-to-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-bottom-from-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-bottom-to-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
 @stillwind-property --tw-mask-right-from-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-right-to-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-right-from-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-right-to-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
 @stillwind-property --tw-mask-left-from-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 0%;
 }
 
 @stillwind-property --tw-mask-left-to-position {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: 100%;
 }
 
 @stillwind-property --tw-mask-left-from-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: black;
 }
 
 @stillwind-property --tw-mask-left-to-color {
+  value-for: mask-image;
   syntax: "*";
   inherits: false;
   initial-value: transparent;
 }
 
 @stillwind-property --tw-leading {
+  value-for: line-height;
   syntax: "*";
   inherits: false;
   activation: declared;

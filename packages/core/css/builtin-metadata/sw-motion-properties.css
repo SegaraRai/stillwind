@@ -9,21 +9,25 @@ definitions in `sw-motion-contexts.css` write these properties instead.
 Each initial value is the identity of its transform or filter function, so a frame
 that sets one axis or one filter function keeps the others at their identity.
 Elements never set these properties; only keyframes do.
+`value-for` applies translation and filter length policies to their stored values.
 */
 
 @stillwind-property --sw-motion-translate-x {
+  value-for: translate;
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 0px;
 }
 
 @stillwind-property --sw-motion-translate-y {
+  value-for: translate;
   syntax: "<length-percentage>";
   inherits: false;
   initial-value: 0px;
 }
 
 @stillwind-property --sw-motion-translate-z {
+  value-for: translate;
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
@@ -78,6 +82,7 @@ Elements never set these properties; only keyframes do.
 }
 
 @stillwind-property --sw-motion-blur {
+  value-for: filter;
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
@@ -126,6 +131,7 @@ Elements never set these properties; only keyframes do.
 }
 
 @stillwind-property --sw-motion-backdrop-blur {
+  value-for: backdrop-filter;
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;

@@ -63,6 +63,11 @@ size with the same variant as the icon, such as `before:icon-mdi--close before:i
 `--icon-size-*` is a theme namespace that accepts lengths and percentages, so lint reports
 other token values. The prefix option renames the utilities but not the namespace.
 
+Size values follow lint policies configured for `height`. For example,
+`no-restricted-length-units` with `properties: ["height"]` checks their units, and
+`no-arbitrary-spacing` with `properties: ["height"]` reports arbitrary sizes. Named
+sizes such as `icon-lg` remain theme-token selections.
+
 The SVG of each used icon becomes the `--icon-svg-<set>--<icon>` theme token.
 
 ## Icon sets

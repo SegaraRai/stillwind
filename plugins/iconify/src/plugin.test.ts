@@ -64,6 +64,7 @@ describe("iconify", () => {
     const css = await iconify().css(context({ prefix: "i" }));
 
     expect(css).toContain("@stillwind-theme-namespace --icon-size-* [length] [percentage];");
+    expect(css).toContain("value-for: height;");
     expect(css).toContain("@utility i-full {\n  --sw-icon-size: 100%;\n}");
     expect(css).toContain(
       "@utility i-* {\n  --sw-icon-size: --value(--icon-size-*, [length], [percentage]);\n}",

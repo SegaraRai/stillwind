@@ -6,7 +6,8 @@
 //! source value, utility, declaration, and token restrictions. [`overlap`] checks
 //! competing contributions, duplicates, and suppression usage. [`units`] checks length
 //! units and logical css property policies. [`support`] supplies the builders shared by
-//! these cases.
+//! these cases. [`value_properties`] checks custom properties that supply values for
+//! ordinary properties.
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_diagnostics::{
@@ -26,6 +27,7 @@ mod overlap;
 mod restrictions;
 mod support;
 mod units;
+mod value_properties;
 mod variants;
 
 use support::{CSS, VALUE_CSS, kinds, kinds_in, policy_options};

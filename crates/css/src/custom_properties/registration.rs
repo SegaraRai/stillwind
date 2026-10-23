@@ -1,10 +1,10 @@
 //! Compiler-owned custom-property registrations and authored `@property` names.
 //!
 //! `@stillwind-property --name { ... }` declares a registration the compiler may emit.
-//! Its descriptors are split in two: activation metadata (`activation`, `depends-on`,
-//! `group`, `activate-on`) is consumed here, and everything else is kept verbatim as
-//! the standard `@property` body that will be emitted. The two must not be mixed,
-//! because the emitted block has to be valid `@property` CSS.
+//! Compiler metadata (`activation`, `depends-on`, `group`, `activate-on`, `value-for`)
+//! is consumed here, and everything else is kept verbatim as the standard `@property`
+//! body that will be emitted. The two must not be mixed, because the emitted block has
+//! to be valid `@property` CSS.
 //!
 //! Authored `@property` rules are a separate, read-only concern:
 //! `extract_authored_property_names` reports their names so that compiler-owned
@@ -18,14 +18,14 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_source::JoinText;
 
-use crate::{extract_named_blocks, parse_declaration_list};
+use crate::{csswg_formal_syntax, extract_named_blocks, parse_declaration_list};
 
 /// One parsed `@stillwind-property` registration.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomPropertyDefinition {
     /// Property name including the leading `--`.
     pub name: LeanStr,
-    /// Standard `@property` descriptors, one per line, with the activation metadata
+    /// Standard `@property` descriptors, one per line, with the compiler metadata
     /// removed. Emitted verbatim inside the generated block.
     pub body: LeanStr,
     /// When the compiler should emit this registration.
@@ -38,6 +38,10 @@ pub struct CustomPropertyDefinition {
     /// Ordinary property names that activate this registration when the output declares
     /// a value for them.
     pub activation_properties: Vec<LeanStr>,
+    /// Ordinary properties whose value policies apply to this custom property's values.
+    /// Names are decoded, lowercase, unique, and ordered as authored. An empty list
+    /// leaves value policies associated with the custom property itself.
+    pub value_for: Vec<LeanStr>,
 }
 
 /// One compiler-owned custom-property registration declared with
@@ -92,7 +96,9 @@ impl CustomPropertyActivation {
 ///
 /// A registration inside a comment is not parsed. Blocks without a `--` name are
 /// skipped rather than reported, and so are body statements that are not `name: value`
-/// declarations.
+/// declarations. `value-for` accepts a comma-separated list of ordinary properties from
+/// the CSSWG registry. An invalid list is ignored; the last valid list replaces earlier
+/// ones.
 #[must_use]
 pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
     extract_named_blocks(css, "@stillwind-property")
@@ -103,6 +109,7 @@ pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
             let mut dependencies = Vec::new();
             let mut groups = Vec::new();
             let mut activation_properties = Vec::new();
+            let mut value_for = Vec::new();
             let mut standard_descriptors = Vec::new();
             for descriptor in parse_declaration_list(&body).into_iter().flatten() {
                 let value = descriptor.value.as_str();
@@ -121,6 +128,11 @@ pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
                     "activate-on" => {
                         activation_properties.extend(value.split(' ').map(LeanStr::from));
                     }
+                    "value-for" => {
+                        if let Some(properties) = parse_value_properties(value) {
+                            value_for = properties;
+                        }
+                    }
                     name => {
                         standard_descriptors.push(format_args!("{name}: {value};").to_lean_str());
                     }
@@ -133,9 +145,27 @@ pub fn parse_property_definitions(css: &str) -> Vec<CustomPropertyDefinition> {
                 dependencies,
                 groups,
                 activation_properties,
+                value_for,
             })
         })
         .collect()
+}
+
+/// Returns unique ordinary property names from the comma-separated descriptor value.
+/// Rejects the entire list if an item is empty, unknown, or contains extra tokens.
+fn parse_value_properties(value: &str) -> Option<Vec<LeanStr>> {
+    let mut properties = Vec::new();
+    for item in value.split(',') {
+        let mut parser = Parser::new(item);
+        let name = parser.expect_ident().ok()?.to_ascii_lowercase();
+        parser.is_exhausted().then_some(())?;
+        csswg_formal_syntax(&name)?;
+        let property = name.to_lean_str();
+        if !properties.contains(&property) {
+            properties.push(property);
+        }
+    }
+    Some(properties)
 }
 
 /// Collects the names of authored `@property` rules.
@@ -194,6 +224,36 @@ fn property_name(prelude: &str) -> Option<LeanStr> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn value_properties_accept_lists_and_keep_metadata_out_of_emitted_descriptors() {
+        let definitions = parse_property_definitions(
+            r#"@stillwind-property --size {
+                syntax: "*";
+                value-for: padding;
+                value-for: Width, h\65 ight, width;
+                value-for: height, unknown-property;
+                inherits: false;
+            }"#,
+        );
+        assert_eq!(definitions[0].value_for, ["width", "height"]);
+        assert_eq!(definitions[0].body, "syntax: \"*\";\ninherits: false;");
+        assert_eq!(
+            parse_value_properties("scrollbar-color"),
+            Some(vec!["scrollbar-color".into()])
+        );
+        for value in [
+            "",
+            "width height",
+            "width,",
+            ",height",
+            "--size",
+            "\"height\"",
+            "height !important",
+        ] {
+            assert!(parse_value_properties(value).is_none(), "{value}");
+        }
+    }
 
     #[test]
     fn authored_property_syntaxes_are_read_from_quoted_descriptors() {

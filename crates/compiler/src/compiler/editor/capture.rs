@@ -12,6 +12,7 @@ use std::sync::Arc;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::DesignSystemSnapshot;
+use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
     CssCall, KeyframesBody, KeyframesDefinition, ModuleAnalysis, StyleCall, StyleVariant,
     ViewTransitionDefinition,
@@ -536,6 +537,7 @@ impl ModuleEditor {
                     &context,
                     definition,
                     self.snapshot.theme(),
+                    &LintSettings::default(),
                     &mut diagnostics,
                     &mut lint_findings,
                 );

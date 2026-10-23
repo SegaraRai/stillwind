@@ -150,6 +150,7 @@ pub struct UtilityTokenUse {
     /// or additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the selected tokens.
+    /// Custom property names retain case; ordinary names are lowercase.
     pub property: LeanStr,
     /// Complete custom-property names, including unresolved runtime references.
     /// Consumers must resolve names against the theme before treating them as tokens.
@@ -163,6 +164,7 @@ pub struct UtilityArbitraryUse {
     /// True for the base declaration list. False for nested and additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the capture.
+    /// Custom property names retain case; ordinary names are lowercase.
     pub property: LeanStr,
     /// Decoded CSS text before token expansion and declaration formatting.
     pub value: LeanStr,
@@ -232,7 +234,7 @@ fn resolve_candidate(
                 .arbitrary_uses
                 .push(UtilityArbitraryUse {
                     base: true,
-                    property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
+                    property: diagnostic_property(property),
                     value: value.to_lean_str(),
                     color: false,
                 });
@@ -241,7 +243,7 @@ fn resolve_candidate(
                 resolution.diagnostic_data.token_uses.push(UtilityTokenUse {
                     implementation: false,
                     base: true,
-                    property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
+                    property: diagnostic_property(property),
                     tokens: tokens.into_iter().collect(),
                 });
             }
@@ -367,6 +369,17 @@ fn resolve_candidate(
         nested,
         additional,
     }))
+}
+
+/// Trims `property` and lowercases ordinary property names. Custom property names
+/// retain case because they identify distinct declarations.
+pub(super) fn diagnostic_property(property: &str) -> LeanStr {
+    let property = property.trim();
+    if property.starts_with("--") {
+        property.to_lean_str()
+    } else {
+        property.to_lean_string().to_ascii_lowercase().into()
+    }
 }
 
 /// Whether the grammar of `property` rejects the arbitrary property value `value`.

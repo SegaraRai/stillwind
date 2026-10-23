@@ -3,29 +3,36 @@
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::{RegistryContext, ThemeIndex};
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSettings,
+};
 use stillwind_ir::{KeyframesBody, KeyframesDefinition, KeyframesFrame, StyleVariant};
 use stillwind_source::{ModuleId, Span, Spanned};
 
 use super::super::CssContribution;
+use super::super::emission::collect_declarations;
 use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
+    check, combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
     unresolved_utility_finding,
 };
 use super::super::variants::{OptionCondition, application_condition_paths, wrap_conditions};
 use crate::identifiers::IdentifierContext;
 
 /// Emits default keyframes first and complete replacements in canonical variant order.
-/// Nested branches conjoin their conditions; missing frames never inherit ancestor frames.
+/// Nested branches conjoin their conditions; missing frames never inherit ancestor
+/// frames. `settings` selects source policies for each frame utility. Findings use the
+/// utility's range within the frame's source string.
+#[allow(clippy::too_many_arguments)]
 pub(in crate::compiler) fn emit_keyframes_definition(
     contribution: &mut CssContribution,
     module_id: &ModuleId,
     identifiers: &IdentifierContext,
     keyframes: &KeyframesDefinition,
     theme: &ThemeIndex,
+    settings: &LintSettings,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
@@ -59,6 +66,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
             &mut frame_contribution,
             frames,
             theme,
+            settings,
             diagnostics,
             lint_findings,
         );
@@ -151,13 +159,19 @@ fn emit_frames(
     contribution: &mut CssContribution,
     frames: &[KeyframesFrame],
     theme: &ThemeIndex,
+    settings: &LintSettings,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
     let mut output: LeanString = std::mem::take(&mut contribution.css).into();
     for frame in frames {
-        let (declaration, properties) =
-            resolve_frame(&frame.utilities, theme, diagnostics, lint_findings);
+        let (declaration, properties) = resolve_frame(
+            &frame.utilities,
+            theme,
+            settings,
+            diagnostics,
+            lint_findings,
+        );
         if declaration.is_empty() {
             continue;
         }
@@ -176,10 +190,13 @@ fn emit_frames(
 /// `input.span` locates token diagnostics in the original source or a synthetic query.
 /// Invalid tokens append diagnostics and contribute no declarations; valid tokens still
 /// contribute. Returns the combined declaration body without braces and the required
-/// property names in utility order, including repeated names.
+/// property names in utility order, including repeated names. `settings` selects source
+/// policies for successfully resolved utilities. These findings retain each utility's
+/// source range.
 pub(crate) fn resolve_frame(
     input: &Spanned<LeanStr>,
     theme: &ThemeIndex,
+    settings: &LintSettings,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> (LeanString, Vec<LeanStr>) {
@@ -197,6 +214,9 @@ pub(crate) fn resolve_frame(
                         utility.span,
                     ));
                 }
+                let mut supplies = Vec::new();
+                collect_declarations(&resolved.declaration, "&", &[], false, None, &mut supplies);
+                lint_findings.extend(check(&resolved, &supplies, theme, settings, utility.span));
                 utilities.push(resolved);
             }
             Ok(Ok(_)) => {

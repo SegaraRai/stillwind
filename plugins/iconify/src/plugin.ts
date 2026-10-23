@@ -57,6 +57,7 @@ const SIZE_CSS = [
   "@stillwind-theme-namespace --icon-size-* [length] [percentage];",
   `@stillwind-property ${ICON_SIZE} {`,
   "  activation: declared;",
+  "  value-for: height;",
   '  syntax: "*";',
   "  inherits: false;",
   "}",

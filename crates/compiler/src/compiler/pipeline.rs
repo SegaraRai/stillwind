@@ -347,6 +347,7 @@ impl Compiler {
                 identifiers,
                 animation,
                 theme,
+                &result.lint_settings,
                 &mut diagnostics,
                 &mut result.lint_findings,
             );

@@ -820,6 +820,22 @@ fixed implementation declarations from that rule. Source important modifiers,
 declarations that consume candidate values, and unmarked extensions remain checked.
 The token rule also checks tokens selected through variant arguments.
 
+For custom properties that carry values for ordinary properties, `@stillwind-property`
+accepts `value-for: width, height;`. The arbitrary color, arbitrary spacing, and length
+unit policies check each listed property. For example, Iconify declares
+`value-for: height;` for its size property, so restrictions configured for `height`
+also check `icon-[20px]`. Sizing properties such as `height` must still be included in
+`no-arbitrary-spacing.properties` to extend that rule's default spacing properties.
+See [Utility bodies](css-emission.md#utility-bodies) for the descriptor's contract.
+
+Built-in value properties use their receiving properties for these policies, including
+`translate`, `border-spacing`, `filter`, `backdrop-filter`, `background-image`,
+`mask-image`, `box-shadow`, `text-shadow`, `scrollbar-color`, `letter-spacing`, and
+`line-height`. Alpha and reverse flags keep their own classifications. Arbitrary color
+inspection includes colors inside mask gradients and filter functions.
+Utilities in `style.keyframes()` definitions use these value policies in the
+`keyframe` registry context.
+
 ```ts
 lint: {
   rules: {
