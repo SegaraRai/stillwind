@@ -74,8 +74,7 @@ export function mergeFragmentsChecked(
   options: FragmentRuntimeOptions,
   values: readonly unknown[],
 ): Record<string, unknown> {
-  const [classProperty, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] =
-    options;
+  const [, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] = options;
   const keys = [stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey];
 
   function check(value: unknown): void {
@@ -90,7 +89,10 @@ export function mergeFragmentsChecked(
     if (symbols.some((key) => !keys.includes(key))) {
       throw new TypeError("Stillwind received a fragment from a different runtime instance.");
     }
-    if (!symbols.some((key) => keys.includes(key)) && Object.hasOwn(value, classProperty)) {
+    if (
+      !symbols.some((key) => keys.includes(key)) &&
+      (Object.hasOwn(value, "class") || Object.hasOwn(value, "className"))
+    ) {
       throw new TypeError(
         "Stillwind received a materialized props object; convert it with stillwindToFragment() first.",
       );

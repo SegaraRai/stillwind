@@ -190,11 +190,10 @@ impl ModuleAnalysis {
     /// `inputs` must contain the complete producer graph with each module identity
     /// once. Returns cloned analyses in input order, or an empty vector for empty
     /// input. The clones keep their source coordinates. A composition operand that can
-    /// supply an incompatible base adds a lint finding. Bases from another framework
-    /// leave the operand's candidates because they contribute no class. Missing
-    /// producers add fatal errors at each module's full source span. Referenced
-    /// keyframes and view transitions supply support CSS. Style calls from support
-    /// modules do not become producers.
+    /// supply a base with inline style adds a lint finding. Missing producers add fatal
+    /// errors at each module's full source span. Referenced keyframes and view
+    /// transitions supply support CSS. Style calls from support modules do not become
+    /// producers.
     ///
     /// This method checks the graph once for the whole batch instead of once per
     /// module. It leaves `inputs` unchanged.
@@ -204,7 +203,6 @@ impl ModuleAnalysis {
         for analysis in &mut lowered {
             let findings = incompatible.findings(analysis);
             analysis.lint_findings.extend(findings);
-            incompatible.remove_foreign_bases(analysis);
         }
         let modules: Vec<_> = lowered.iter().collect();
         let diagnostics = inputs.first().map_or_else(Vec::new, |input| {

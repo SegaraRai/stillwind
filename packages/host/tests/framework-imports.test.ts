@@ -15,7 +15,8 @@ import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const rule = "mismatched-framework-import";
-const utilities = "@utility flex {display:flex;} @stillwind-slot utilities;";
+const utilities =
+  "@utility flex {display:flex;} @utility red {color:red;} @utility padded {padding:4px;} @stillwind-slot utilities;";
 
 /** Returns native output after projecting source using the filename's input format. */
 async function compileFixture(
@@ -237,16 +238,64 @@ reserved: stillwindMerge,
   }
 });
 
-test("mixed formats diagnose composition at the operand using its class and inline style", async () => {
+test("mixed formats compose classes in both modes and keep the receiving output format", async () => {
+  const source = `import { style as react } from "stillwind/react";
+import { style as svelte } from "stillwind/svelte";
+import { style as vanilla } from "stillwind/vanilla";
+export function values(active, tone) {
+  const reactBase = react("flex");
+  const svelteBase = svelte("red");
+  const vanillaBase = vanilla("padded");
+  return {
+    bases: { react: reactBase, svelte: svelteBase, vanilla: vanillaBase },
+    react: react([active && vanillaBase, active ? svelteBase : reactBase], { "--tone": tone }),
+    svelte: svelte([active && reactBase, active ? vanillaBase : svelteBase], { "--tone": tone }),
+    vanilla: vanilla([active && svelteBase, active ? reactBase : vanillaBase], { "--tone": tone }),
+  };
+}`;
+  type Props = { class?: string; className?: string; style?: unknown };
+  type Results = Record<"react" | "svelte" | "vanilla", Props>;
+  const classes = (props: Props) => props.class ?? props.className;
+  for (const mode of ["release", "development"]) {
+    const output = await compileFixture(source, "MixedComposition.ts", undefined, mode);
+    expect(output.diagnostics).toEqual([]);
+    expect(output.lintFindings).toEqual([]);
+    const code = output.code!.replaceAll(/"stillwind\/[^"\n]+"/g, (specifier) =>
+      JSON.stringify(import.meta.resolve(JSON.parse(specifier))),
+    );
+    const compiled = (await import(
+      `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+    )) as { values: (active: boolean, tone: string) => Results & { bases: Results } };
+    for (const active of [false, true]) {
+      const result = compiled.values(active, "red");
+      for (const [name, key, first, second] of [
+        ["react", "className", "vanilla", "svelte"],
+        ["svelte", "class", "react", "vanilla"],
+        ["vanilla", "class", "svelte", "react"],
+      ] as const) {
+        const props = result[name];
+        expect(props[key]).toBe(
+          active
+            ? `${classes(result.bases[first])} ${classes(result.bases[second])}`
+            : classes(result.bases[name]),
+        );
+        expect(props[key === "class" ? "className" : "class"]).toBeUndefined();
+        expect(props.style).toEqual(name === "svelte" ? "--tone:red" : { "--tone": "red" });
+      }
+    }
+  }
+});
+
+test("mixed formats diagnose inline styles at the composition operand", async () => {
   const source = `import { style as react } from "stillwind/react";
 import { style as vanilla } from "stillwind/vanilla";
 import { style as svelte } from "stillwind/svelte";
 const base = vanilla("flex");
 const inline = vanilla("flex", { "--tone": tone });
 export const valid = svelte(base);
-export const wrongKey = react(base);
-export const sameKeyInline = svelte(inline);
-export const wrongKeyInline = react(inline);`;
+export const reactBase = react(base);
+export const svelteInline = svelte(inline);
+export const reactInline = react(inline);`;
   const output = await compileFixture(source, "MixedComposition.ts");
   expect(output.diagnostics).toEqual([]);
   expect(output.code).toBeTruthy();
@@ -259,17 +308,12 @@ export const wrongKeyInline = react(inline);`;
   ).toEqual([
     [
       "invalid-style-composition",
-      "a style base with a different class property contributes no class",
-      "base",
-    ],
-    [
-      "invalid-style-composition",
       "a style base contributes only its class; its inline style is ignored",
       "inline",
     ],
     [
       "invalid-style-composition",
-      "a style base with a different class property contributes no class",
+      "a style base contributes only its class; its inline style is ignored",
       "inline",
     ],
   ]);

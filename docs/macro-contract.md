@@ -191,11 +191,11 @@ When a `?:` receiver has an unsupported branch, or the receiver is a `&&` expres
 the use lowers into one use per branch. When every branch is supported, one use selects
 its declaration from the receiver value.
 
-A composition operand passes its value to the runtime, which merges only the base's class
-in the receiving framework's class prop. A base with inline style keeps its
-class and loses the rest. A base with a different class property contributes no class and
-has no CSS ordering dependency. Both cases report `invalid-style-composition` at the
-operand, including when only one candidate base is incompatible.
+A composition operand passes its value to the runtime, which reads either `class` or
+`className` and emits the receiving call's class prop. Each identified base keeps its
+CSS ordering dependency regardless of its output format. A base with inline style keeps
+its class and loses its inline style. The compiler reports `invalid-style-composition`
+at the operand if any candidate base carries inline style.
 Style dependency cycles produce `SW11001`; cycles in CSS module placement produce
 `SW11002`. Neither cycle can be suppressed because it prevents a valid output order.
 

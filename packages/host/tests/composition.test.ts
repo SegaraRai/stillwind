@@ -351,7 +351,9 @@ test("omits unsupported bases and custom properties that contain nested macro ca
   ).resolves.toMatchObject({
     diagnostics: [],
     lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-input" }),
+      expect.objectContaining({
+        rule: "invalid-style-input",
+      }),
     ]),
   });
   await expect(
@@ -363,9 +365,14 @@ test("omits unsupported bases and custom properties that contain nested macro ca
     diagnostics: [],
     code: expect.not.stringContaining("style"),
     lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-input" }),
+      expect.objectContaining({
+        rule: "invalid-style-input",
+      }),
     ]),
   });
+});
+
+test("imported bases retain overlap diagnostics across output formats", async () => {
   await expect(
     compile({
       "entry.ts":
@@ -374,9 +381,11 @@ test("omits unsupported bases and custom properties that contain nested macro ca
     }),
   ).resolves.toMatchObject({
     diagnostics: [],
-    lintFindings: expect.arrayContaining([
-      expect.objectContaining({ rule: "invalid-style-composition" }),
-    ]),
+    lintFindings: [
+      expect.objectContaining({
+        rule: "interfering-imported-style-base",
+      }),
+    ],
   });
 });
 
@@ -432,7 +441,9 @@ test("composition follows imported and re-exported style producers", async () =>
     await expect(compile()).resolves.toMatchObject({
       diagnostics: [],
       lintFindings: expect.arrayContaining([
-        expect.objectContaining({ rule: "invalid-style-composition" }),
+        expect.objectContaining({
+          rule: "invalid-style-composition",
+        }),
       ]),
     });
   } finally {

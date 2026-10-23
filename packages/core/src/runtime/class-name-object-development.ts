@@ -13,7 +13,7 @@ export function stillwindMergeChecked(...values: readonly unknown[]): Record<str
   return mergeFragmentsChecked(options, values);
 }
 
-/** Rejects nonobjects before extracting the composition base's `className` into a fragment. */
+/** Rejects nonobjects before converting either class prop to a class-only fragment. */
 export function stillwindToFragmentChecked(value: unknown): Record<PropertyKey, unknown> {
   return toFragmentChecked(options, value);
 }

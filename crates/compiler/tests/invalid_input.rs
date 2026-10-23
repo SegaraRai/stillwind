@@ -339,35 +339,22 @@ fn compose_external(module: &mut ModuleAnalysis, base: IdentityId) {
 }
 
 #[test]
-fn graph_cycles_remain_fatal_and_foreign_bases_leave_the_graph() {
-    for framework in ["react", "vue"] {
+fn graph_cycles_remain_fatal_across_output_formats() {
+    for framework in ["react", "svelte", "vue"] {
         let mut first = analyzed("first.ts", "react");
         let mut second = analyzed("second.ts", framework);
         compose_external(&mut first, base_identity(&second));
         compose_external(&mut second, base_identity(&first));
         let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
         for module in &lowered {
-            if framework == "react" {
-                assert!(
-                    module
-                        .diagnostics
-                        .iter()
-                        .any(|error| error.diagnostic == CompileDiagnostic::CompositionModuleCycle),
-                    "{module:#?}"
-                );
-                assert_eq!(composition_dependencies(module).len(), 2);
-            } else {
-                assert!(module.diagnostics.is_empty(), "{module:#?}");
-                assert_eq!(composition_dependencies(module).len(), 1);
-                assert!(
-                    module
-                        .lint_findings
-                        .iter()
-                        .any(|finding| finding.diagnostic
-                            == LintDiagnostic::StyleBaseFrameworkMismatch),
-                    "{module:#?}"
-                );
-            }
+            assert!(
+                module
+                    .diagnostics
+                    .iter()
+                    .any(|error| error.diagnostic == CompileDiagnostic::CompositionModuleCycle),
+                "{module:#?}"
+            );
+            assert_eq!(composition_dependencies(module).len(), 2);
             assert_eq!(module.ir.style_calls.len(), 3);
         }
     }
@@ -406,7 +393,7 @@ fn known_unsupported_identities_are_omitted_but_missing_facts_remain_fatal() {
 }
 
 #[test]
-fn foreign_bases_report_a_lint_and_leave_css_ordering() {
+fn composition_retains_candidates_with_different_class_properties() {
     let mut first = analyzed("first.ts", "react");
     let second = analyzed("second.ts", "vue");
     let candidates = vec![base_identity(&first), base_identity(&second)];
@@ -415,24 +402,22 @@ fn foreign_bases_report_a_lint_and_leave_css_ordering() {
         0,
         StyleInput::Composition {
             value: call.span,
-            candidates,
+            candidates: candidates.clone(),
         },
     );
     let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
     assert_eq!(lowered[0].diagnostics, [] as [CompileError; 0]);
-    assert!(
-        lowered[0]
-            .lint_findings
-            .iter()
-            .any(|finding| finding.diagnostic == LintDiagnostic::StyleBaseFrameworkMismatch),
-        "{:#?}",
-        lowered[0]
-    );
-    let StyleInput::Composition { candidates, .. } = &lowered[0].ir.style_calls[1].inputs[0] else {
+    assert!(lowered[0].lint_findings.is_empty(), "{:#?}", lowered[0]);
+    let StyleInput::Composition {
+        candidates: retained,
+        ..
+    } = &lowered[0].ir.style_calls[1].inputs[0]
+    else {
         panic!("the operand remains");
     };
-    assert_eq!(candidates, &[base_identity(&lowered[0])]);
+    assert_eq!(retained, &candidates);
 }
+
 #[test]
 fn receivers_with_unsupported_branches_lower_one_use_per_branch() {
     for (input, lint) in [

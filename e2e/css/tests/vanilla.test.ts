@@ -8,19 +8,28 @@ afterEach(() => {
   container = undefined;
 });
 
-test("compiled vanilla props update computed CSS and restore existing inline values", async () => {
+test("compiled vanilla props compose React and Svelte bases and update computed CSS", async () => {
   const output = compileSource({
-    source: `import { style } from "stillwind/vanilla";
+    source: `import { style as react } from "stillwind/react";
+import { style as svelte } from "stillwind/svelte";
+import { style } from "stillwind/vanilla";
+const border = react("bordered");
+const spacing = svelte("spaced");
 export function props(active, tone) {
-  return style(active ? "expanded" : "compact", {"--tone": tone}, active && {"--size": 4});
+  return style(border, spacing, active ? "expanded" : "compact", {"--tone": tone}, active && {"--size": 4});
 }`,
     moduleId: "vanilla.js",
     uri: "untitled:vanilla.js",
     language: "js",
     moduleKind: "module",
     css: {
-      content:
-        "@utility expanded {padding:20px;color:var(--tone);}@utility compact {padding:8px;color:var(--tone);}@stillwind-slot utilities;",
+      content: [
+        "@utility bordered {border:2px solid;}",
+        "@utility spaced {margin:4px;}",
+        "@utility expanded {padding:20px;color:var(--tone);}",
+        "@utility compact {padding:8px;color:var(--tone);}",
+        "@stillwind-slot utilities;",
+      ].join(""),
       name: "root.css",
       uri: "untitled:root.css",
     },
@@ -50,6 +59,8 @@ export function props(active, tone) {
   applyStyle(button, props(true, "red"));
   await expect.poll(() => getComputedStyle(button).color).toBe("rgb(255, 0, 0)");
   expect(getComputedStyle(button).paddingTop).toBe("20px");
+  expect(getComputedStyle(button).borderTopWidth).toBe("2px");
+  expect(getComputedStyle(button).marginTop).toBe("4px");
   expect(button.style.getPropertyValue("--size")).toBe("4");
   const expanded = button.className;
 

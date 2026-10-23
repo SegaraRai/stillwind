@@ -1,18 +1,18 @@
 //! Lowering and ordering of dependencies between composed style calls.
 //!
 //! A style call may derive from another call's payload (`style(base)`). The derived
-//! call receives the base unit first, and the base must exist, must not carry
-//! non-class props, and must use the same framework class property, because merging
-//! happens at runtime on one payload.
+//! call receives the base unit first. The base must exist and must not carry non-class
+//! props. The runtime accepts either `class` or `className` from a base.
 //!
 //! Identity is the declaration site: a call is keyed by ([`AssetKind::Style`], module
 //! path, call span), so a re-export or a copy of a call does not inherit another call's
 //! identity.
 //!
-//! `composition_dependencies` collects declaration edges for host planning.
-//! `IncompatibleComposition` finds incompatible edges and lowers the operands that use
-//! them. `validate_composition` checks cycles and producer availability.
-//! `ordered_style_calls` puts local bases before their consumers during lowering.
+//! [`composition_dependencies`] collects declaration edges for host planning.
+//! [`IncompatibleComposition`] reports bases whose inline styles do not compose.
+//! [`validate_composition`] checks cycles and producer availability.
+//! [`ordered_style_calls`] puts local bases before their consumers during lowering.
+//!
 //! The compiler resolves declaration supplies for lint checks, while the project layer
 //! chooses CSS ownership and requires selected base producers to be available.
 
@@ -111,56 +111,41 @@ pub fn validate_composition(
     Vec::new()
 }
 
-/// Composition edges whose base supplies only part of its value to the derived call.
+/// Composition edges whose base carries inline style that the derived call ignores.
 ///
-/// The runtime merges only the class of a base in the receiving framework's class prop.
-/// A base that carries inline style keeps its class and loses the rest. A base from a
-/// different class property contributes no class. Lowering keeps these operands,
-/// [`Self::findings`] reports them, and [`Self::remove_foreign_bases`] removes the
-/// bases that contribute no class from CSS ordering.
+/// The runtime merges the base's class from either `class` or `className`. Bases with
+/// inline style retain their classes and CSS ordering dependencies. [`Self::findings`]
+/// reports the ignored inline styles at the operands that supply them.
 #[derive(Clone, Debug, Default)]
 pub struct IncompatibleComposition {
-    /// Each incompatible edge and the lint that reports it.
-    edges: BTreeMap<StyleDependency, LintDiagnostic>,
+    /// Edges whose bases carry inline style.
+    edges: BTreeSet<StyleDependency>,
 }
 
 impl IncompatibleComposition {
-    /// Finds edges whose base carries props or uses a different framework class property.
-    /// Bases outside `modules` are not checked; [`validate_composition`] reports missing
-    /// producers.
+    /// Finds edges whose base carries inline style.
+    ///
+    /// Bases outside `modules` are not checked; [`validate_composition`] reports
+    /// missing producers.
     pub fn find(modules: &[&ModuleAnalysis]) -> Self {
         let graph = CompositionGraph::new(modules);
-        let mut edges = BTreeMap::new();
+        let mut edges = BTreeSet::new();
         for (derived, bases) in &graph.edges {
             for base in bases {
-                let reason = if graph
-                    .class_properties
-                    .get(base)
-                    .is_some_and(|property| *property != graph.class_properties[derived])
-                {
-                    Some(LintDiagnostic::StyleBaseFrameworkMismatch)
-                } else if graph.inline_styles.contains(base) {
-                    Some(LintDiagnostic::StyleBaseWithInlineStyle)
-                } else {
-                    None
-                };
-                if let Some(reason) = reason {
-                    edges.insert(
-                        StyleDependency {
-                            derived: derived.clone(),
-                            base: base.clone(),
-                        },
-                        reason,
-                    );
+                if graph.inline_styles.contains(base) {
+                    edges.insert(StyleDependency {
+                        derived: derived.clone(),
+                        base: base.clone(),
+                    });
                 }
             }
         }
         Self { edges }
     }
 
-    /// Returns one lint for each composition operand of `module` that can supply an
-    /// incompatible base, at the operand's source expression. An operand with several
-    /// incompatible candidates reports the first reason in identity order.
+    /// Returns one lint for each composition operand of `module` that can supply a
+    /// base with inline style, at the operand's source expression. Several candidates
+    /// with inline style produce one finding for the operand.
     pub fn findings(&self, module: &ModuleAnalysis) -> Vec<LintFinding> {
         let mut findings = Vec::new();
         if self.edges.is_empty() {
@@ -171,31 +156,6 @@ impl IncompatibleComposition {
             self.collect(&call.inputs, &derived, &mut findings);
         }
         findings
-    }
-
-    /// Removes candidate bases from a different class property from the composition
-    /// operands of `module`. Such a base contributes no class, so it has no CSS
-    /// ordering dependency. The operands remain, because the runtime still receives
-    /// their values.
-    pub fn remove_foreign_bases(&self, module: &mut ModuleAnalysis) {
-        let foreign = self
-            .edges
-            .iter()
-            .filter(|(_, reason)| **reason == LintDiagnostic::StyleBaseFrameworkMismatch)
-            .map(|(edge, _)| edge.clone())
-            .collect::<BTreeSet<_>>();
-        if foreign.is_empty() {
-            return;
-        }
-        let derived = module
-            .ir
-            .style_calls
-            .iter()
-            .map(|call| identity(module, call))
-            .collect::<Vec<_>>();
-        for (call, derived) in module.ir.style_calls.iter_mut().zip(derived) {
-            remove_bases(&mut call.inputs, &derived, &foreign);
-        }
     }
 
     /// Appends findings for composition operands in `values`, including operands inside
@@ -216,48 +176,21 @@ impl IncompatibleComposition {
                         self.collect(values, derived, findings);
                     }
                 }
-                StyleInput::Composition { candidates, value } => {
-                    if let Some(reason) = candidates.iter().find_map(|base| {
-                        self.edges.get(&StyleDependency {
+                StyleInput::Composition { candidates, value }
+                    if candidates.iter().any(|base| {
+                        self.edges.contains(&StyleDependency {
                             derived: derived.clone(),
                             base: base.clone(),
                         })
-                    }) {
-                        findings.push(LintFinding::new(reason.clone(), *value));
-                    }
+                    }) =>
+                {
+                    findings.push(LintFinding::new(
+                        LintDiagnostic::StyleBaseWithInlineStyle,
+                        *value,
+                    ));
                 }
                 _ => {}
             }
-        }
-    }
-}
-
-/// Removes candidates of `derived` whose edge is in `removed`, including operands
-/// inside arrays and conditional branches.
-fn remove_bases(
-    values: &mut [StyleInput],
-    derived: &IdentityId,
-    removed: &BTreeSet<StyleDependency>,
-) {
-    for input in values {
-        match input {
-            StyleInput::Array(values) => {
-                remove_bases(values, derived, removed);
-            }
-            StyleInput::Conditional { branches, .. } => {
-                for values in branches.values_mut() {
-                    remove_bases(values, derived, removed);
-                }
-            }
-            StyleInput::Composition { candidates, .. } => {
-                candidates.retain(|base| {
-                    !removed.contains(&StyleDependency {
-                        derived: derived.clone(),
-                        base: base.clone(),
-                    })
-                });
-            }
-            _ => {}
         }
     }
 }
@@ -268,20 +201,17 @@ struct CompositionGraph {
     edges: BTreeMap<IdentityId, BTreeSet<IdentityId>>,
     /// Calls whose payload carries inline style.
     inline_styles: BTreeSet<IdentityId>,
-    /// Class property, such as `className`, of each call.
-    class_properties: BTreeMap<IdentityId, &'static str>,
     /// Modules that each module depends on through cross-module composition edges.
     modules: BTreeMap<ModuleId, BTreeSet<ModuleId>>,
 }
 
 impl CompositionGraph {
     /// Collects every style call in `modules`. Bases outside `modules` remain edges
-    /// without props or framework entries.
+    /// without inline style entries.
     fn new(modules: &[&ModuleAnalysis]) -> Self {
         let mut graph = Self {
             edges: BTreeMap::new(),
             inline_styles: BTreeSet::new(),
-            class_properties: BTreeMap::new(),
             modules: BTreeMap::new(),
         };
         for module in modules {
@@ -291,9 +221,6 @@ impl CompositionGraph {
                 if inputs(&call.inputs, &mut dependencies) {
                     graph.inline_styles.insert(derived.clone());
                 }
-                graph
-                    .class_properties
-                    .insert(derived.clone(), call.output.spec().class_property);
                 for base in &dependencies {
                     if base.module_id() != derived.module_id() {
                         graph

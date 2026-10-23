@@ -202,9 +202,6 @@ pub enum LintDiagnostic {
     /// A composition base carries inline style. The base contributes only its class.
     #[error("a style base contributes only its class; its inline style is ignored")]
     StyleBaseWithInlineStyle,
-    /// A composition base uses a different class property and contributes no class.
-    #[error("a style base with a different class property contributes no class")]
-    StyleBaseFrameworkMismatch,
     /// A keyframe utility contains a variant forbidden in animation frames.
     #[error("animation keyframes cannot contain variants")]
     KeyframesFrameVariants,
@@ -859,9 +856,7 @@ impl LintDiagnostic {
             Self::UnknownAnimationOption { .. } => LintKind::InvalidAnimationOption,
             Self::RuntimeConditionRequiresCssIf { .. } => LintKind::RuntimeConditionRequiresCssIf,
             Self::UnverifiedStyleBase => LintKind::UnverifiedStyleBase,
-            Self::StyleBaseWithInlineStyle | Self::StyleBaseFrameworkMismatch => {
-                LintKind::InvalidStyleComposition
-            }
+            Self::StyleBaseWithInlineStyle => LintKind::InvalidStyleComposition,
             Self::InvalidRuleGroupInput { .. } => LintKind::InvalidRuleGroupInput,
             Self::ArbitraryColor { .. } => LintKind::NoArbitraryColors,
             Self::ArbitrarySpacing { .. } => LintKind::NoArbitrarySpacing,

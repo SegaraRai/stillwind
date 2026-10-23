@@ -127,7 +127,9 @@ test("toFragment keeps only the class of a composition base", () => {
         class: "_vue",
       }),
     ),
-  ).toStrictEqual({});
+  ).toStrictEqual({
+    className: "_vue",
+  });
 });
 
 test("development checks reject foreign fragments and unconverted props objects", () => {
@@ -136,16 +138,15 @@ test("development checks reject foreign fragments and unconverted props objects"
       [svelte.stillwindClassKey]: "_x",
     }),
   ).toThrow(/different runtime instance/);
-  expect(() =>
-    reactDevelopment.stillwindMergeChecked({
-      className: "_x",
-    }),
-  ).toThrow(/stillwindToFragment/);
-  expect(() =>
-    svelteDevelopment.stillwindMergeChecked({
-      class: "_x",
-    }),
-  ).toThrow(/stillwindToFragment/);
+  for (const runtime of [reactDevelopment, svelteDevelopment]) {
+    for (const key of ["class", "className"]) {
+      expect(() =>
+        runtime.stillwindMergeChecked({
+          [key]: "_x",
+        }),
+      ).toThrow(/stillwindToFragment/);
+    }
+  }
 });
 
 test("class concatenation keeps falsy and non-string fragments empty", () => {

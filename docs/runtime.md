@@ -138,9 +138,9 @@ Fragments carry three channels owned by the output runtime:
 `stillwindMerge` recursively visits arrays and
 fragments, joins class text without deduplication, and materializes framework props.
 Custom properties overlay the whole style payload. `stillwindToFragment` converts a
-materialized composition base to a fragment that holds only the base's class. A base
-contributes the receiving framework's class prop; its style, custom
-properties, and a different class prop are ignored. The development variant
+materialized composition base to a fragment that holds only the base's class. It reads
+`class` or `className`, preferring the receiving output's prop unless it is null or
+undefined. It ignores the base's style and custom properties. The development variant
 rejects nonobjects.
 An existing string style payload is passed through without parsing.
 

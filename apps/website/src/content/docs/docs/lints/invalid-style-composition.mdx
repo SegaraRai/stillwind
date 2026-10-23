@@ -8,9 +8,8 @@ This rule reports a base style that contains inline styles or custom properties.
 When you pass a stored `style()` result to another call, only its classes carry
 over. The custom property in the base is lost.
 
-The base must use the receiving call's class property. A React base uses `className`,
-so a call that reads `class` receives none of its classes. Frameworks that share a
-class property can compose their classes even when their style representations differ.
+Base styles can come from any framework entrypoint. The receiving call returns its
+own framework's class and style props.
 
 ## Reported
 

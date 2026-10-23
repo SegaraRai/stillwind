@@ -91,8 +91,9 @@ export const props = style(base, "p-4 bg-blue-600 text-white");
 
 </CompiledExample>
 
-A base passes on its classes only. Its inline style and custom properties do
-not carry over, and [invalid-style-composition](/docs/lints/invalid-style-composition/)
+A base can come from any framework entrypoint and passes on its classes only.
+The receiving call returns its own framework's props. The base's inline style and
+custom properties do not carry over, and [invalid-style-composition](/docs/lints/invalid-style-composition/)
 reports them. Set them in the call that receives the base.
 
 When two independent bases in one call set the same property, their argument

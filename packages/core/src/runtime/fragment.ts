@@ -131,9 +131,9 @@ export function mergeFragments(
 /**
  * Converts a composition base to a fragment that contributes only its class.
  *
- * A base contributes the receiving framework's class prop, or the class channel of a
- * fragment from this runtime. Style payloads, custom properties, and the class prop of
- * another framework are ignored, so a base never changes props other than the class.
+ * A base contributes either `class` or `className`, or the class channel of a fragment
+ * from this runtime. The receiving output's prop takes precedence unless it is null or
+ * undefined. Style payloads and custom properties are ignored.
  *
  * @param options - The receiving framework's prop conventions and fragment keys.
  * @param value - A non-null object containing materialized props or this runtime's
@@ -148,6 +148,6 @@ export function toFragment(
   return {
     [stillwindClassKey]: Object.hasOwn(value, stillwindClassKey)
       ? value[stillwindClassKey]
-      : value[classProperty],
+      : (value[classProperty] ?? value[classProperty === "class" ? "className" : "class"]),
   };
 }

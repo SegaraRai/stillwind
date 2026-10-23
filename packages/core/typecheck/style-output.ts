@@ -99,6 +99,28 @@ function composedOutputs(active: boolean) {
 }
 void composedOutputs;
 
+function composedFrameworkOutputs(active: boolean) {
+  const reactBase = react("block");
+  const svelteBase = svelte("block");
+  const vanillaBase = vanilla("block");
+  const reactResult = react(active ? svelteBase : vanillaBase);
+  const svelteResult = svelte([active && reactBase, vanillaBase], { "--tone": "red" });
+  const vanillaResult = vanilla(reactBase, svelteBase, { "--tone": "red" });
+  const stringInline = svelte({ "--tone": "red" });
+  const objectInline = vanilla({ "--tone": "red" });
+  // @ts-expect-error A string style cannot be carried over through composition.
+  react(stringInline);
+  // @ts-expect-error An object style cannot be carried over through composition.
+  svelte(objectInline);
+  type Contracts = [
+    Assert<Same<Props<typeof reactResult>, { className?: string }>>,
+    Assert<Same<Props<typeof svelteResult>, { class?: string; style?: string }>>,
+    Assert<Same<Props<typeof vanillaResult>, { class?: string; style?: Record<string, string> }>>,
+  ];
+  return null as unknown as Contracts;
+}
+void composedFrameworkOutputs;
+
 function frameworkOutputs() {
   const astroPlain = astro("block");
   const preactPlain = preact("block");

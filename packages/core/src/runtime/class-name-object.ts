@@ -24,7 +24,7 @@ export function stillwindMerge(...values: readonly unknown[]): Record<string, un
   return mergeFragments(options, values);
 }
 
-/** Converts a composition base to a fragment containing only its `className`. */
+/** Converts either class prop of a composition base to a class-only fragment. */
 export function stillwindToFragment(
   value: Record<PropertyKey, unknown>,
 ): Record<PropertyKey, unknown> {
