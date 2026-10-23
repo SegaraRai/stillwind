@@ -101,8 +101,8 @@ pub use snapshot::{
 pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{
     DynamicFamily, DynamicFamilyKind, ThemeIndex, ThemeNamespace, ThemeNamespaces,
-    ThemeReferenceError, ThemeScale, ThemeToken, ThemeTokenMode, ThemeTokenPrecedence,
-    UtilityImportance, parse_theme,
+    ThemeReferenceError, ThemeScale, ThemeValue, ThemeValueMode, ThemeValuePrecedence,
+    ThemeValueRole, UtilityImportance, parse_theme,
 };
 
 #[cfg(test)]

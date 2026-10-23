@@ -17,7 +17,7 @@ use stillwind_syntax::decode_arbitrary_value;
 
 use super::super::context::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::parse_css_variable;
-use crate::{ThemeIndex, ThemeNamespace, ThemeToken, ThemeTokenMode};
+use crate::{ThemeIndex, ThemeNamespace, ThemeValue, ThemeValueMode};
 
 /// The namespace that a theme namespace pattern such as `--color-*` reads.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -74,7 +74,7 @@ impl<'a> PatternNamespace<'a> {
         key: &str,
         suffix: &str,
         theme: &'t ThemeIndex,
-    ) -> Option<&'t ThemeToken> {
+    ) -> Option<&'t ThemeValue> {
         match self {
             Self::Declared(namespace) => theme.token_in(
                 &namespace.name,
@@ -85,7 +85,7 @@ impl<'a> PatternNamespace<'a> {
                 if suffix.is_empty() {
                     return Some(token);
                 }
-                theme.custom_property(&format_args!("{}{suffix}", token.name.value).to_lean_str())
+                theme.token_property(&format_args!("{}{suffix}", token.name.value).to_lean_str())
             }
         }
     }
@@ -134,9 +134,9 @@ impl<'a> PatternNamespace<'a> {
 
 /// Returns the text that refers to `token` in a declaration: the authored value of an
 /// inline token, and a `var()` reference otherwise. Records the token as used.
-fn token_reference(token: &ThemeToken, theme: &EvaluationContext<'_>) -> LeanStr {
+fn token_reference(token: &ThemeValue, theme: &EvaluationContext<'_>) -> LeanStr {
     theme.record_token(&token.name.value);
-    if matches!(token.mode, ThemeTokenMode::Inline) {
+    if matches!(token.mode, ThemeValueMode::Inline) {
         token.value.value.clone()
     } else {
         format_args!("var({})", token.name.value).to_lean_str()

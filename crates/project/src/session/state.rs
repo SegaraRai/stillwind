@@ -151,7 +151,7 @@ impl ProjectSession {
         reserved.custom_properties.extend(
             snapshot
                 .theme()
-                .tokens()
+                .values()
                 .iter()
                 .map(|token| token.name.value.clone()),
         );

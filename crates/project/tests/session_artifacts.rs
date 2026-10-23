@@ -271,11 +271,11 @@ fn unchanged_artifacts_are_reused_and_dependencies_are_removed() {
     );
     assert!(session.dependencies().candidates["bg-brand"].contains(&ModuleId::from("a.tsx")));
     assert!(
-        session.dependencies().theme_tokens["--color-brand"].contains(&ModuleId::from("a.tsx"))
+        session.dependencies().theme_values["--color-brand"].contains(&ModuleId::from("a.tsx"))
     );
     session.remove_module(&ModuleId::from("a.tsx"));
     assert!(session.dependencies().candidates.is_empty());
-    assert!(session.dependencies().theme_tokens.is_empty());
+    assert!(session.dependencies().theme_values.is_empty());
 }
 
 /// Replacing a producer retracts exactly its own memberships, and rebuilding the same
@@ -313,7 +313,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     assert!(!session.dependencies().variants.is_empty());
     assert!(!session.dependencies().properties.is_empty());
     assert_eq!(
-        session.dependencies().theme_tokens["--color-brand"].len(),
+        session.dependencies().theme_values["--color-brand"].len(),
         2
     );
 
@@ -323,7 +323,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
     );
     assert_eq!(session.dependencies().assets.len(), 3);
     assert_eq!(
-        session.dependencies().theme_tokens["--color-brand"],
+        session.dependencies().theme_values["--color-brand"],
         BTreeSet::from([ModuleId::from("b.tsx")])
     );
     assert_eq!(
@@ -348,7 +348,7 @@ fn dependency_replacement_retains_other_producers_and_clears_last_memberships() 
 
     assert!(session.remove_module(&ModuleId::from("b.tsx")));
     assert_eq!(session.dependencies().assets.len(), 1);
-    assert!(session.dependencies().theme_tokens.is_empty());
+    assert!(session.dependencies().theme_values.is_empty());
     assert!(
         !session
             .dependencies()
@@ -378,7 +378,7 @@ fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
         [] as [CompileError; 0]
     );
     assert_ne!(edited.css().unwrap().stylesheet.css, css);
-    assert!(edited.dependencies().theme_tokens.is_empty());
+    assert!(edited.dependencies().theme_values.is_empty());
     assert_eq!(original.css().unwrap().stylesheet.css, css);
     assert_eq!(original.dependencies(), &dependencies);
     assert!(original.current_artifact(&id).is_some());

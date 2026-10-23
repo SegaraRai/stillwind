@@ -24,8 +24,8 @@ use super::{
 };
 use crate::{
     CssFileRequest, CssSourceGraph, DesignSystemLoadError, DesignSystemLoadStep,
-    DesignSystemLoader, DesignSystemOptions, StillwindDefinitions, ThemeIndex, ThemeToken,
-    stillwind_theme_order,
+    DesignSystemLoader, DesignSystemOptions, StillwindDefinitions, ThemeIndex, ThemeValue,
+    ThemeValueRole, stillwind_theme_order,
 };
 
 /// Reports why a snapshot could not be created from supplied CSS.
@@ -122,9 +122,9 @@ pub struct DefinitionFingerprints {
     /// Output template, theme order, registration positions, and the utility ordering
     /// mode, which decide emitted ordering.
     pub ordering: Fingerprint,
-    /// Fingerprint of each effective token after namespace resets and overrides. Its
-    /// keys match the active token registry.
-    pub theme_tokens: BTreeMap<LeanStr, Fingerprint>,
+    /// Fingerprint of each effective token or asset after resets and overrides. Keys
+    /// match the active value registry; fingerprints include the value's role.
+    pub theme_values: BTreeMap<LeanStr, Fingerprint>,
     /// One fingerprint per utility name group.
     pub utilities: BTreeMap<LeanStr, Fingerprint>,
     /// One fingerprint per variant name group.
@@ -171,6 +171,8 @@ struct DesignSystemData {
     properties: PropertyRegistry,
     /// Effective theme tokens grouped by custom-property name.
     tokens: ThemeRegistry,
+    /// Effective tokens and shared assets, grouped by custom-property name.
+    values: ThemeRegistry,
     /// Maps property names to templates for serializing authored declarations.
     declaration_formats: BTreeMap<LeanStr, LeanStr>,
     /// Registered relationship names used to validate relationship-aware candidates.
@@ -285,16 +287,22 @@ impl DesignSystemSnapshot {
                 .active_token_definitions()
                 .map(|token| (token.name.value.as_str().into(), Arc::clone(token))),
         );
-        let theme_tokens = theme
-            .active_tokens()
+        let value_registry = ThemeRegistry::new(
+            theme
+                .active_value_definitions()
+                .map(|value| (value.name.value.clone(), Arc::clone(value))),
+        );
+        let theme_values = theme
+            .active_values()
             .iter()
             .map(|token| {
                 (
                     token.name.value.clone(),
                     Fingerprint::of(
                         format_args!(
-                            "{:?}\0{:?}\0{:?}\0{}\0",
+                            "{:?}\0{:?}\0{:?}\0{:?}\0{}\0",
                             token_class(&theme, token),
+                            token.role,
                             token.mode,
                             token.precedence,
                             token.value.value
@@ -306,13 +314,14 @@ impl DesignSystemSnapshot {
             .collect();
         // Include ordered definitions, including duplicate/reset tokens, but never source IDs or spans.
         let tokens: Vec<_> = theme
-            .tokens()
+            .values()
             .iter()
             .map(|t| {
                 (
                     &t.name.value,
                     &t.value.value,
                     token_class(&theme, t),
+                    t.role,
                     t.mode,
                     t.precedence,
                 )
@@ -361,6 +370,7 @@ impl DesignSystemSnapshot {
                 variants: variant_registry,
                 properties: property_registry,
                 tokens: token_registry,
+                values: value_registry,
                 declaration_formats,
                 relationships,
                 config,
@@ -371,7 +381,7 @@ impl DesignSystemSnapshot {
                     content,
                     config: config_hash,
                     ordering,
-                    theme_tokens,
+                    theme_values,
                     utilities,
                     variants,
                     properties,
@@ -471,6 +481,11 @@ impl DesignSystemSnapshot {
         &self.inner.tokens
     }
 
+    /// Returns active tokens and shared assets keyed by complete custom-property name.
+    pub fn values(&self) -> &ThemeRegistry {
+        &self.inner.values
+    }
+
     /// The Stillwind definitions of the loaded CSS; empty when it has none.
     pub fn stillwind_definitions(&self) -> &Arc<StillwindDefinitions> {
         self.inner.theme.registry()
@@ -500,8 +515,11 @@ impl DesignSystemSnapshot {
 /// classification changes. A bare scale token has no key.
 fn token_class<'a>(
     theme: &'a ThemeIndex,
-    token: &'a ThemeToken,
+    token: &'a ThemeValue,
 ) -> Option<(&'a str, Option<&'a str>)> {
+    if token.role == ThemeValueRole::Asset {
+        return None;
+    }
     theme
         .namespaces()
         .classify(&token.name.value)
@@ -513,6 +531,33 @@ mod tests {
     use stillwind_source::FileId;
 
     use super::*;
+
+    #[test]
+    fn value_roles_change_fingerprints_and_keep_assets_out_of_token_registries() {
+        let make = |modifier| {
+            DesignSystemSnapshot::from_source(
+                &SourceFile::new(
+                    FileId(1),
+                    None,
+                    None,
+                    format!("@theme {modifier} {{ --image:url(a.svg); }}"),
+                )
+                .unwrap(),
+                "theme.css".into(),
+                DesignSystemOptions::default(),
+            )
+            .unwrap()
+        };
+        let token = make("");
+        let asset = make("asset");
+        assert_ne!(token.fingerprints().content, asset.fingerprints().content);
+        assert_ne!(
+            token.fingerprints().theme_values["--image"],
+            asset.fingerprints().theme_values["--image"]
+        );
+        assert!(asset.tokens().get("--image").is_none());
+        assert!(asset.values().get("--image").is_some());
+    }
 
     #[test]
     fn name_groups_share_authored_definitions_and_effective_tokens() {
@@ -532,6 +577,6 @@ mod tests {
         let utility = &snapshot.utilities().get("brand").unwrap()[0];
         assert!(Arc::ptr_eq(utility, &snapshot.theme().utilities()[0]));
         let token = &snapshot.tokens().get("--color-brand").unwrap()[0];
-        assert!(Arc::ptr_eq(token, &snapshot.theme().tokens()[0]));
+        assert!(Arc::ptr_eq(token, &snapshot.theme().values()[0]));
     }
 }

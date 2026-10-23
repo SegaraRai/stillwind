@@ -4,7 +4,8 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_design_system::UtilityResolutionError;
+use stillwind_design_system::{ThemeValueRole, UtilityResolutionError};
+use stillwind_diagnostics::SourceRange;
 
 use super::context::{Kind, context};
 use super::directives::{DECLARATION_SLOTS, DIRECTIVES, RULE_SLOTS, directive_name};
@@ -24,6 +25,33 @@ pub struct StylesheetHover {
 }
 
 impl DesignSystemQuery {
+    /// Returns the active definition of the variable or theme reference at `offset`.
+    /// `css` and the UTF-8 cursor follow the same rules as [`Self::hover_stylesheet`].
+    /// Asset names resolve only in runtime `var()` references. Unresolved references
+    /// and definitions without a reportable original source return `None`.
+    pub fn stylesheet_definition(&self, css: &str, offset: usize) -> Option<SourceRange> {
+        let input = context(css, offset)?;
+        let Kind::Theme { runtime } = input.kind else {
+            return None;
+        };
+        let value = self
+            .context
+            .design_system
+            .theme()
+            .custom_property(&css[input.range])?;
+        if !runtime && value.role == ThemeValueRole::Asset {
+            return None;
+        }
+        let source = self
+            .context
+            .design_system
+            .sources()
+            .sources
+            .iter()
+            .find(|source| source.source.id() == value.name.span.file)?;
+        SourceRange::from_source(source.source.clone(), value.name.span).ok()
+    }
+
     /// Describes the input at the UTF-8 byte `offset` in the original `css`, using
     /// the same cursor rules as [`Self::complete_stylesheet`]. Unresolved candidates
     /// have no preview. Variant previews use `&` for the enclosing element and omit
@@ -105,8 +133,15 @@ impl DesignSystemQuery {
                 else {
                     return Ok(None);
                 };
+                if !runtime && token.role == ThemeValueRole::Asset {
+                    return Ok(None);
+                }
                 let description = if runtime {
-                    "Active theme definition. The browser's cascade can override this value."
+                    if token.role == ThemeValueRole::Asset {
+                        "Active shared asset. The browser's cascade can override this value."
+                    } else {
+                        "Active theme definition. The browser's cascade can override this value."
+                    }
                 } else {
                     "Active theme definition used by this build-time reference."
                 };

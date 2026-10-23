@@ -50,6 +50,7 @@ pub(super) fn render_authored(
     required_properties.extend(requirements);
     let css = expand_authored_directives(&css, theme, required_properties, identifiers)?;
     let css = theme.resolve_css_functions(&css).unwrap_or(css);
+    let css = theme.inline_asset_references(&css).unwrap_or(css);
     lower(
         &resolve_theme_references(&css, theme)?,
         options.use_css_if,

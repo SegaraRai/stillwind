@@ -8,7 +8,7 @@ use lean_string::LeanStr;
 use stillwind_css::{
     CssNode, color_rgba, find_css_functions, parse_structure, split_once_top_level,
 };
-use stillwind_design_system::UtilityResolutionError;
+use stillwind_design_system::{ThemeValueRole, UtilityResolutionError};
 
 use crate::{compiler::apply_candidates, query::DesignSystemQuery};
 
@@ -71,6 +71,9 @@ impl DesignSystemQuery {
             let Some(token) = self.context.design_system.theme().custom_property(name) else {
                 continue;
             };
+            if call.name_index != 2 && token.role == ThemeValueRole::Asset {
+                continue;
+            }
             let Some(value) = self.context.resolve_theme_values(&token.value.value) else {
                 continue;
             };

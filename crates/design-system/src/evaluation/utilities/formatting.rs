@@ -11,8 +11,11 @@ use crate::{ThemeIndex, declaration_format};
 pub(in crate::evaluation) fn finalize_declaration(
     declaration: LeanStr,
     is_important: bool,
-    _theme: &ThemeIndex,
+    theme: &ThemeIndex,
 ) -> LeanStr {
+    let declaration = theme
+        .inline_asset_references(&declaration)
+        .map_or(declaration, Into::into);
     if is_important {
         important_declarations(&declaration).into()
     } else {

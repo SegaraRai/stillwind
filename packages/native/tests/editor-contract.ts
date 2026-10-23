@@ -24,6 +24,72 @@ function completionLabels(
  * @param specifier - Module specifier of the binding that the tests import.
  */
 export function registerEditorContract(specifier: string): void {
+  test("shared assets stay outside token queries and remain available to CSS references", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    const definitions = `@stillwind-theme-namespace --image-* [image];
+@theme default asset {/* 🦀 */--image-data:linear-gradient(red,blue);}
+@theme {--*:initial; --image-token:linear-gradient(green,blue);}
+@theme asset static {--retained:url(data:image/svg+xml,retained);}
+@theme asset inline {--inline:url(data:image/svg+xml,inline);}
+@utility paint-* {background-image:--value(--image-*, [image]);}
+@utility icon {mask-image:var(--image-data);}`;
+    loader.provide(0, "theme.css", definitions, "file:///workspace/theme.css");
+    const query = loader.editorQuery();
+    expect(query.sharedAssets()).toEqual([
+      {
+        name: "--image-data",
+        value: "linear-gradient(red,blue)",
+        fallback: true,
+        mode: "default",
+      },
+      {
+        name: "--inline",
+        value: "url(data:image/svg+xml,inline)",
+        fallback: false,
+        mode: "inline",
+      },
+      {
+        name: "--retained",
+        value: "url(data:image/svg+xml,retained)",
+        fallback: false,
+        mode: "static",
+      },
+    ]);
+    expect(query.themeTokens().map((token: { name: string }) => token.name)).toEqual([
+      "--image-token",
+    ]);
+    expect(query.themeValues()).toEqual({ "--image-token": "linear-gradient(green,blue)" });
+    expect(completionLabels(query, "paint-")).toEqual(["paint-token"]);
+    expect(query.previewCandidate("paint-data")).toBeNull();
+    expect(query.canonicalCandidate("paint-[linear-gradient(red,blue)]")).toBeNull();
+    expect(query.canonicalCandidate("paint-[linear-gradient(green,blue)]")).toBe("paint-token");
+    for (const [fn, expected] of [
+      ["var", ["--image-data", "--image-token"]],
+      ["--theme", ["--image-token"]],
+    ] as const) {
+      const css = `.a {mask-image:${fn}(--image-`;
+      expect(
+        query.completeStylesheet(css, css.length).map((item: { label: string }) => item.label),
+      ).toEqual(expected);
+    }
+    const css = ".a {mask-image:var(--image-data";
+    expect(query.hoverStylesheet(css, css.length)).toMatchObject({
+      css: "--image-data: linear-gradient(red,blue);",
+      documentation: expect.stringContaining("shared asset"),
+    });
+    expect(query.sharedAssets()).toHaveLength(3);
+    expect(query.stylesheetDefinition(css, css.length)).toEqual({
+      uri: "file:///workspace/theme.css",
+      startLine: 1,
+      endLine: 1,
+      startColumn: definitions.split("\n")[1].indexOf("--image-data"),
+      endColumn: definitions.split("\n")[1].indexOf("--image-data") + "--image-data".length,
+    });
+    const themeReference = ".a {mask-image:--theme(--image-data";
+    expect(query.stylesheetDefinition(themeReference, themeReference.length)).toBeNull();
+  });
+
   test("canonical dynamic suggestions require resolved names", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const css = `@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*];

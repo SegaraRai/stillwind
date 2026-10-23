@@ -8,7 +8,7 @@ use lean_string::LeanStr;
 use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
 use stillwind_source::Span;
 
-use super::declarations::ThemeToken;
+use super::declarations::ThemeValue;
 use super::index::ThemeIndex;
 use super::parser::{DynamicFamily, UtilityImportance};
 use crate::registry::{ArbitraryPropertyRule, RegistryStatements};
@@ -40,8 +40,8 @@ pub(crate) struct ThemeBuilder {
     pub(crate) important: Option<UtilityImportance>,
     /// Stillwind definitions of this CSS; empty when it has none.
     pub(crate) registry: Arc<StillwindDefinitions>,
-    /// Every token in authored order, including resets and superseded values.
-    pub(crate) tokens: Vec<ThemeToken>,
+    /// Every token and asset in authored order, including resets and superseded values.
+    pub(crate) tokens: Vec<ThemeValue>,
     /// Authored CSS outside definition blocks, retained verbatim.
     pub(crate) custom_css: LeanStr,
     /// User `@utility` definitions of the `default` registry context in registration

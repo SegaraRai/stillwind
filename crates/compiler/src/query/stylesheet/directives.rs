@@ -158,8 +158,8 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         purpose: Purpose::Authoring,
         family: Family::TailwindDerived,
         positions: Positions::RULES,
-        syntax: "@theme [inline | static] { --token: value; }",
-        description: "Defines theme tokens. Inline tokens substitute their values into generated declarations. Static tokens are retained without a utility reference.",
+        syntax: "@theme [default] [asset] [inline | static] { --name: value; }",
+        description: "Defines design tokens or shared assets. Assets stay outside theme-token selection and resets. Inline values substitute their contents into declarations. Static values are retained without a reference.",
     },
     Directive {
         name: "utility",

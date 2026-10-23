@@ -9,7 +9,7 @@ use std::sync::Arc;
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate, PropertyInheritance};
-use stillwind_design_system::{CssSourceGraph, CustomUtility, ThemeIndex, ThemeToken, parse_theme};
+use stillwind_design_system::{CssSourceGraph, CustomUtility, ThemeIndex, ThemeValue, parse_theme};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{CssSourceName, FileId, SourceFile};
 
@@ -401,7 +401,7 @@ fn missing_slots_are_reported_and_no_import_has_no_reset_or_defaults() {
         Err(CompileDiagnostic::MissingUtilitiesSlot)
     ));
     assert_eq!(theme.registry().utilities(), [] as [Arc<CustomUtility>; 0]);
-    assert_eq!(theme.tokens(), [] as [Arc<ThemeToken>; 0]);
+    assert_eq!(theme.values(), [] as [Arc<ThemeValue>; 0]);
 }
 
 #[test]

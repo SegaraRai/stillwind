@@ -10,6 +10,7 @@ import type {
   DocumentLink,
   Hover,
   InitializeResult,
+  Location,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
@@ -19,6 +20,75 @@ import {
 } from "vscode-languageserver/node";
 
 import { createLanguageServer } from "./server.ts";
+
+test("LSP definition requests navigate CSS asset references using original UTF-16 ranges", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/theme.css";
+  const text =
+    "@theme asset {/* 🦀 */--image:url(data:image/svg+xml,asset);}\n.a{mask-image:var(--image);}";
+  const document = TextDocument.create(uri, "css", 1, text);
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "config",
+          new BrowserAnalysisWorkspace({
+            config: "config",
+            projects: [
+              {
+                root: "/workspace",
+                css: "theme.css",
+                files: ["*.tsx"],
+                typeFacts: false,
+              },
+            ],
+            files: new Map([["/workspace/theme.css", text]]),
+          }),
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  try {
+    const initialized = await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    expect(initialized.capabilities.definitionProvider).toBe(true);
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "css",
+        version: 1,
+        text,
+      },
+    });
+    const definitions = await client.sendRequest<Location[]>("textDocument/definition", {
+      textDocument: {
+        uri,
+      },
+      position: document.positionAt(text.lastIndexOf("--image") + 4),
+    });
+    const start = text.indexOf("--image");
+    expect(definitions).toEqual([
+      {
+        uri,
+        range: {
+          start: document.positionAt(start),
+          end: document.positionAt(start + "--image".length),
+        },
+      },
+    ]);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+  }
+});
 
 test.each([false, true])(
   "LSP variant snippets respect client support (%s) and continue completion",

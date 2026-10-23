@@ -124,7 +124,7 @@ export class StylesheetEditor {
   }
 
   /**
-   * Answers completion, hover, colors, sorting, and lint-fix requests.
+   * Answers completion, hover, definitions, colors, sorting, and lint-fix requests.
    *
    * @param id - Resolver identity of the requested source.
    * @param request - Operation in the stylesheet's original UTF-16 coordinates. Cursor offsets must
@@ -149,6 +149,16 @@ export class StylesheetEditor {
     const result: EditorResult = {
       revision: this.#revision,
     };
+    if (request.kind === "definition") {
+      const definition = this.#query.stylesheetDefinition(
+        this.#text,
+        this.#byteOffset(request.offset),
+      );
+      return {
+        ...result,
+        definitions: definition ? [definition] : [],
+      };
+    }
     if (request.kind === "links") {
       return {
         ...result,

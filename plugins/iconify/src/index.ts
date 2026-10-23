@@ -1,8 +1,8 @@
 /**
  * Iconify icons as Stillwind utilities.
  *
- * `@plugin "@stillwind/plugin-iconify";` in a stylesheet enables the utilities. {@link iconify}
- * creates an instance with other defaults or configured icon sets for the `plugins` configuration entry.
+ * Enable icons with `@plugin "@stillwind/plugin-iconify";` in your stylesheet.
+ * Use {@link iconify} in your project's `plugins` list to set options or custom icon sets.
  */
 
 export type { CollectionSource } from "./collections.ts";

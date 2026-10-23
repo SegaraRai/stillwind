@@ -26,9 +26,9 @@ fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
 
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
 
-    assert_eq!(theme.tokens().len(), 2);
-    assert_eq!(theme.tokens()[0].name.value, "--color-accent");
-    assert_eq!(source.slice(theme.tokens()[1].value.span).unwrap(), "1rem");
+    assert_eq!(theme.values().len(), 2);
+    assert_eq!(theme.values()[0].name.value, "--color-accent");
+    assert_eq!(source.slice(theme.values()[1].value.span).unwrap(), "1rem");
     assert_eq!(theme.value("color", "accent"), Some("oklch(.6 .2 250)"));
     assert!(theme.token("spacing", "missing").is_none());
 }
@@ -40,7 +40,7 @@ fn matches_tailwind_theme_token_emission_modes() {
         "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); }",
     ).unwrap();
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-    let required = theme.tokens_required_by("color:var(--color-used);", false, &[]);
+    let required = theme.values_required_by("color:var(--color-used);", false, &[]);
     assert!(
         required
             .iter()
@@ -74,14 +74,14 @@ fn breakpoint_lookup_values_do_not_retain_theme_custom_properties() {
     )
     .unwrap();
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-    let required = theme.tokens_required_by(
+    let required = theme.values_required_by(
         "@media (width >= 60rem) {} @media (width >= 70rem) {}",
         false,
         &[],
     );
 
-    assert_eq!(required, [] as [&ThemeToken; 0]);
-    let referenced = theme.tokens_required_by("width:var(--breakpoint-foo);", false, &[]);
+    assert_eq!(required, [] as [&ThemeValue; 0]);
+    let referenced = theme.values_required_by("width:var(--breakpoint-foo);", false, &[]);
     assert_eq!(referenced.len(), 1);
     assert_eq!(referenced[0].name.value, "--breakpoint-foo");
 }
@@ -151,7 +151,7 @@ fn individual_imports_require_package_definitions_and_gate_default_theme_tokens(
         aggregate.registry().utilities(),
         [] as [Arc<CustomUtility>; 0]
     );
-    assert_ne!(aggregate.tokens(), [] as [Arc<ThemeToken>; 0]);
+    assert_ne!(aggregate.values(), [] as [Arc<ThemeValue>; 0]);
     assert!(aggregate.custom_css().contains("box-sizing"));
     assert_ne!(aggregate.output_template().nodes, [] as [CssOutputNode; 0]);
 
@@ -388,19 +388,19 @@ fn reset_tokens_are_absent_from_definition_fingerprints() {
     assert!(
         !snapshot
             .fingerprints()
-            .theme_tokens
+            .theme_values
             .contains_key("--color-red")
     );
     assert!(
         !snapshot
             .fingerprints()
-            .theme_tokens
+            .theme_values
             .contains_key("--color-*")
     );
     assert!(
         snapshot
             .fingerprints()
-            .theme_tokens
+            .theme_values
             .contains_key("--color-blue")
     );
 }

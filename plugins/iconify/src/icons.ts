@@ -23,25 +23,21 @@ export interface IconStyle {
   readonly scale: number;
   /** Paint method of the icons. */
   readonly mode: IconMode;
+  /** Fixed base36 hash length, from 1 to 7 characters. */
+  readonly hashLength: number;
 }
 
 /**
  * Generates the Stillwind CSS of one icon utility.
  *
- * The SVG becomes a `@theme` token, so the compiled CSS contains the SVG once, and only when a
- * module uses the utility.
- *
  * @param utility - Utility name, such as `icon-mdi--close` or `icon-[mdi--close]`.
- * @param token - Custom property name of the SVG token, such as `--icon-svg-mdi--close`. It must be
- * a valid CSS identifier.
  * @param collection - Icon set that contains the icon.
  * @param name - Icon name or alias in the set.
  * @param style - Size and paint method.
- * @returns The `@theme` block and the `@utility` rule, or undefined when the set has no such icon.
+ * @returns CSS for the icon and its resources, or undefined when the set has no such icon.
  */
 export function iconCss(
   utility: string,
-  token: string,
   collection: IconifyJSON,
   name: string,
   style: IconStyle,
@@ -55,6 +51,8 @@ export function iconCss(
     height: "auto",
   });
   const [, , width, height] = svg.viewBox;
+  const url = svgToURL(iconToHTML(svg.body, svg.attributes));
+  const asset = assetName(url, style.hashLength);
   const mask =
     style.mode === "mask" || (style.mode === "auto" && svg.body.includes("currentColor"));
   // Each mode resets the other mode's image, so a later icon utility on the same element
@@ -63,20 +61,20 @@ export function iconCss(
     ? [
         "background-color: currentColor;",
         "background-image: none;",
-        `mask-image: var(${token});`,
+        `mask-image: var(${asset});`,
         "mask-size: 100% 100%;",
         "mask-repeat: no-repeat;",
       ]
     : [
         "background-color: transparent;",
-        `background-image: var(${token});`,
+        `background-image: var(${asset});`,
         "background-size: 100% 100%;",
         "background-repeat: no-repeat;",
         "mask-image: none;",
       ];
   return [
-    `@theme {`,
-    `  ${token}: ${svgToURL(iconToHTML(svg.body, svg.attributes))};`,
+    `@theme default asset {`,
+    `  ${asset}: ${url};`,
     `}`,
     `@utility ${utility} (implementation) {`,
     `  display: inline-block;`,
@@ -89,6 +87,14 @@ export function iconCss(
     `}`,
     ``,
   ].join("\n");
+}
+
+function assetName(url: string, length: number): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < url.length; index++) {
+    hash = Math.imul(hash ^ url.charCodeAt(index), 0x01000193);
+  }
+  return `--sw-icon-svg-${(hash >>> 0).toString(36).padStart(length, "0").slice(-length)}`;
 }
 
 /**

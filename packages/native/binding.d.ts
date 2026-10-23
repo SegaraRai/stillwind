@@ -95,6 +95,14 @@ export declare class NativeDesignSystemLoader {
  */
 export declare class NativeEditorQuery {
   /**
+   * Returns the original definition at a CSS reference's UTF-8 cursor offset.
+   * Unresolved references and sources without a document URI return null.
+   *
+   * # Errors
+   * Returns invalid coordinates from a definition in the captured source graph.
+   */
+  stylesheetDefinition(source: string, offset: number): NativeStylesheetDefinition | null
+  /**
    * Returns concrete colors with original byte ranges, including incomplete CSS
    * blocks. Runtime references use the active theme definition.
    *
@@ -218,10 +226,12 @@ export declare class NativeEditorQuery {
    * Returns malformed matching utility requirements or a rank that exceeds `u32`.
    */
   candidateRanks(candidates: Array<string>): Array<number | undefined | null>
-  /** Returns active theme values, keyed by their full custom-property names. */
+  /** Returns active design token values, keyed by their full custom-property names. */
   themeValues(): Record<string, string>
-  /** Returns active theme values with the policies used by plugin configuration. */
+  /** Returns active design tokens with the policies used by plugin configuration. */
   themeTokens(): Array<NativeThemeToken>
+  /** Returns active shared assets in custom-property name order. */
+  sharedAssets(): Array<NativeSharedAsset>
   /** Reports dynamic utility keys and `@variant ` requests in CSS or source text. */
   dynamicCandidates(text: string): Array<string>
   /**
@@ -1714,6 +1724,18 @@ export interface NativeScriptSyntax {
   moduleKind: NativeScriptModuleKind
 }
 
+/** An active shared asset and the policies that control its output. */
+export interface NativeSharedAsset {
+  /** Complete, case-sensitive CSS custom-property name. */
+  name: string
+  /** Authored CSS value, including variable references. */
+  value: string
+  /** Whether an ordinary definition takes precedence over this definition. */
+  fallback: boolean
+  /** Whether the asset is referenced, inlined, or retained without a reference. */
+  mode: 'default' | 'inline' | 'static'
+}
+
 /** One statement that loading skipped, located in its authored source. */
 export interface NativeSkippedCss {
   /** Opaque name of the source that contains the statement. */
@@ -1849,6 +1871,20 @@ export interface NativeStylesheetCompletionOptions {
   snippets?: boolean
   /** Finite host plugin candidate labels. Variant labels end in `:`. */
   catalog?: Array<string>
+}
+
+/** A reportable CSS definition with zero-based line and UTF-16 column coordinates. */
+export interface NativeStylesheetDefinition {
+  /** Absolute document URI of the original definition. */
+  uri: string
+  /** Zero-based line of the inclusive start. */
+  startLine: number
+  /** Inclusive UTF-16 column on `startLine`. */
+  startColumn: number
+  /** Zero-based line of the exclusive end. */
+  endLine: number
+  /** Exclusive UTF-16 column on `endLine`. */
+  endColumn: number
 }
 
 /** CSS or Markdown documentation at an original UTF-8 range. */

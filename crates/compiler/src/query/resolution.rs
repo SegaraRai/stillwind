@@ -228,7 +228,7 @@ impl QueryContext {
         let css: LeanString = contributions.iter().map(|part| part.css.as_str()).collect();
         let referenced_tokens = if include_referenced_tokens {
             theme
-                .tokens_required_by(&css, false, &[])
+                .values_required_by(&css, false, &[])
                 .iter()
                 .map(|token| token.name.value.clone())
                 .collect()

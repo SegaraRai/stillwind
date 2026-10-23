@@ -85,6 +85,12 @@ export interface EditorColor {
 /** Requests address original document UTF-16 offsets, including incomplete candidate text. */
 export type EditorRequest =
   | {
+      /** Requests the original definition of a CSS variable or theme reference. */
+      kind: "definition";
+      /** Original UTF-16 cursor offset within the reference. */
+      offset: number;
+    }
+  | {
       /** Requests plugin module links in the original stylesheet. */
       kind: "links";
     }
@@ -150,6 +156,14 @@ export type EditorRequest =
 
 /** Editor data belongs to the exact source fingerprint in revision. Absent fields mean no answer. */
 export interface EditorResult {
+  /** Original CSS definitions with zero-based line and UTF-16 column coordinates. */
+  definitions?: {
+    uri: string;
+    startLine: number;
+    startColumn: number;
+    endLine: number;
+    endColumn: number;
+  }[];
   /** Plugin paths at half-open original UTF-16 ranges. An absent target means unresolved or configured-only. */
   links?: {
     start: number;
@@ -336,6 +350,12 @@ export class EditorSnapshot {
     }
 
     const result: EditorResult = { revision: fingerprint(source.document.code) };
+    if (request.kind === "definition") {
+      return {
+        ...result,
+        definitions: [],
+      };
+    }
     if (request.kind === "links") {
       return {
         ...result,

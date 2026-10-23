@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_design_system::UtilityResolutionError;
+use stillwind_design_system::{ThemeValueRole, UtilityResolutionError};
 use stillwind_syntax::{CandidatePrefix, parse_candidate};
 
 use super::context::{AppliedVariants, Context, Kind, context};
@@ -133,12 +133,13 @@ impl DesignSystemQuery {
                     .map(|(name, _)| (*name).into())
                     .collect()
             }
-            Kind::Theme { .. } => self
+            Kind::Theme { runtime } => self
                 .context
                 .design_system
                 .theme()
-                .active_tokens()
+                .active_values()
                 .iter()
+                .filter(|value| runtime || value.role == ThemeValueRole::Token)
                 .filter(|token| token.name.value.starts_with(prefix))
                 .map(|token| token.name.value.clone())
                 .collect(),

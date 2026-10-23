@@ -27,7 +27,7 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
 use super::builder::ThemeBuilder;
-use super::declarations::{ThemeTokenMode, extract_theme_declarations};
+use super::declarations::{ThemeValueMode, ThemeValueRole, extract_theme_declarations};
 use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
@@ -384,11 +384,12 @@ pub(crate) fn offset(value: usize) -> Result<u32, CompileDiagnostic> {
 fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, CompileDiagnostic> {
     let mut tokens = Vec::new();
     for (range, modifier, precedence) in theme_blocks(css)? {
-        let mode = ThemeTokenMode::parse(&modifier);
+        let mode = ThemeValueMode::parse(&modifier);
         let mut declarations =
             extract_theme_declarations(file, &css[range.clone()], range.start, mode)?;
         for token in &mut declarations {
             token.precedence = precedence;
+            token.role = ThemeValueRole::parse(&modifier);
         }
         tokens.extend(declarations);
     }
@@ -425,13 +426,14 @@ mod tests {
     use stillwind_test_support::PACKAGE_CSS;
 
     use super::*;
+    use crate::ThemeValuePrecedence;
 
     #[test]
     fn resolved_css_uses_only_supplied_definitions_and_ignores_directive_text() {
         let source = SourceFile::new(FileId(1), None, None, std::format!("{PACKAGE_CSS}\n/* @theme {{ --fake: red; }} */ .x{{content:'@theme';}} @theme {{ --color-local: blue; }} @stillwind-slot utilities;")).unwrap();
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-        assert_eq!(theme.tokens().len(), 1);
-        assert_eq!(theme.tokens()[0].name.value, "--color-local");
+        assert_eq!(theme.values().len(), 1);
+        assert_eq!(theme.values()[0].name.value, "--color-local");
         assert!(
             theme
                 .registry()
@@ -526,8 +528,8 @@ mod tests {
         let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
         let token = theme.token("color", "brand").unwrap();
         assert_eq!(token.value.value, "var(--color-brand)");
-        assert_eq!(token.mode, ThemeTokenMode::Inline);
-        assert_eq!(token.precedence, crate::ThemeTokenPrecedence::Plugin);
+        assert_eq!(token.mode, ThemeValueMode::Inline);
+        assert_eq!(token.precedence, ThemeValuePrecedence::Plugin);
         // A reset removes definitions of its own and lower precedence only.
         assert_eq!(
             value("@theme { --color-brand: red; } @theme default { --color-*: initial; }"),

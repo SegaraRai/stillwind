@@ -1,11 +1,9 @@
 # @stillwind/plugin-iconify
 
 Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
 
-`@stillwind/plugin-iconify` adds Iconify icons as Stillwind utilities. It generates
-CSS for the icons used by your modules and includes each icon's SVG once.
+`@stillwind/plugin-iconify` adds Iconify icons as Stillwind utilities. Only the icons
+you use are included in your CSS.
 
 ## Usage
 
@@ -25,9 +23,8 @@ Load the plugin in the project stylesheet:
 Set up the stylesheet and build integration with the
 [Stillwind package guide](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md).
 
-A utility names an icon as `icon-<set>--<icon>` or as `icon-[<set>--<icon>]`. Both spellings
-select the same utility, and variants apply as usual. The `prefer-canonical-utilities` lint
-suggests the named spelling:
+Use `icon-<set>--<icon>` or `icon-[<set>--<icon>]` to select an icon. Variants apply as
+usual. The `prefer-canonical-utilities` lint suggests the named spelling:
 
 ```tsx
 <span {...style("icon-mdi--close", "hover:icon-[mdi--close-circle]")} />
@@ -60,15 +57,13 @@ aspect ratio and stays centered in the box.
 
 The size does not reach descendants or the element's `::before` and `::after` boxes. Apply the
 size with the same variant as the icon, such as `before:icon-mdi--close before:icon-lg`.
-`--icon-size-*` is a theme namespace that accepts lengths and percentages, so lint reports
-other token values. The prefix option renames the utilities but not the namespace.
+Use lengths or percentages for `--icon-size-*` values. These property names stay the
+same when you customize the utility `prefix`.
 
 Size values follow lint policies configured for `height`. For example,
 `no-restricted-length-units` with `properties: ["height"]` checks their units, and
 `no-arbitrary-spacing` with `properties: ["height"]` reports arbitrary sizes. Named
 sizes such as `icon-lg` remain theme-token selections.
-
-The SVG of each used icon becomes the `--icon-svg-<set>--<icon>` theme token.
 
 ## Icon sets
 
@@ -78,9 +73,9 @@ The plugin finds a set in this order:
 2. The `@iconify-json/<set>` package.
 3. The `@iconify/json` package, which contains every Iconify set.
 
-The host resolves packages from the stylesheet that contains the `@plugin` statement. A change
-to a set's JSON file reloads the design system. Editors complete the icons of configured sets
-and of the `@iconify-json/*` packages in the dependencies of the project's `package.json`.
+Install icon set packages in the project that contains your stylesheet. Changes to a
+set's JSON file update its icons automatically. Editors complete the icons of configured sets
+and of the `@iconify-json/*` packages listed in the project's `package.json` dependencies.
 When `@iconify/json` is installed, editors also complete its set names, such as `icon-mdi--`,
 and list the icons of a set after the input names it.
 
@@ -94,19 +89,23 @@ The options block of the statement sets these options:
   syntax: bracket;
   scale: 1.2;
   mode: mask;
+  hash-length: 4;
 }
 ```
 
-- `prefix`: utility prefix without the trailing hyphen. Defaults to `icon`.
+- `prefix`: utility prefix without the trailing hyphen, such as `icon` or `i`. Defaults to `icon`.
 - `syntax`: spellings that select an icon. `named` accepts `icon-mdi--close`, `bracket` accepts
-  `icon-[mdi--close]` as Tailwind's Iconify plugin does, and `both`, the default, accepts both.
+  `icon-[mdi--close]`, and `both`, the default, accepts both.
 - `scale`: icon height in `em` when no size utility applies. Defaults to `1`.
 - `mode`: `mask` paints the text color through the icon's shape, and `background` paints the
   icon's own colors. `auto`, the default, selects `mask` for icons whose SVG uses
   `currentColor`.
+- `hash-length`: base36 hash length in generated CSS variable names. Accepts integers
+  from `1` to `7` and defaults to `4`. Increase it when using many icons to reduce collisions.
 
-A configured instance can also supply icon sets, as data, as an absolute JSON file path, or as
-a function that returns data. It replaces the default instance in the `@plugin` statement:
+For custom icon sets or TypeScript options, add `iconify(...)` to your project's
+`plugins` list. Icon sets can be data, absolute JSON file paths, or functions that
+return data. Keep `@plugin "@stillwind/plugin-iconify";` in your stylesheet:
 
 ```ts
 import { iconify } from "@stillwind/plugin-iconify";
@@ -129,4 +128,5 @@ export default defineConfig({
 });
 ```
 
-Options in the statement's block replace the options of the configured instance.
+Options in the stylesheet's `@plugin` block override the TypeScript options. Use
+`hashLength` for the `hash-length` option in TypeScript, such as `iconify({ hashLength: 6 })`.

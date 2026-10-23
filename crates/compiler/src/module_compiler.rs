@@ -340,8 +340,8 @@ impl ModuleCompiler {
         let dependencies = CompilationDependencies {
             candidates: compilation_candidates(module),
             // Conservative definition dependencies are safe for full invalidation.
-            theme_tokens: theme
-                .tokens_required_by(&result.module_css, false, &[])
+            theme_values: theme
+                .values_required_by(&result.module_css, false, &[])
                 .iter()
                 .map(|token| token.name.value.clone())
                 .collect(),

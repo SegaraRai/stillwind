@@ -629,7 +629,7 @@ fn check_tokens<'a>(
             settings.get(LintKind::NoRestrictedThemeTokens)
     {
         for token in tokens {
-            if theme.custom_property(token).is_some()
+            if theme.token_property(token).is_some()
                 && config
                     .tokens
                     .iter()

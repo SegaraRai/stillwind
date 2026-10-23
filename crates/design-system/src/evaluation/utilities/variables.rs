@@ -127,7 +127,7 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
         });
     }
     let namespace = theme.namespaces().of_token(name)?;
-    theme.custom_property(name)?;
+    theme.token_property(name)?;
     let types = &namespace.types;
     let mut samples = Vec::new();
     for &value_type in types {

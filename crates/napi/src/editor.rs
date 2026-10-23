@@ -13,13 +13,13 @@ use stillwind_compiler::{
 };
 use stillwind_css::{color_rgba, format_css};
 use stillwind_design_system::{
-    DesignSystemSnapshot, MarkerOrigin, ThemeTokenMode, ThemeTokenPrecedence,
+    DesignSystemSnapshot, MarkerOrigin, ThemeValueMode, ThemeValuePrecedence,
 };
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintDirective, LintFinding, LintKind, LocatedDiagnostic, Reporter,
     SourceEdit, SourceRange, filter_lint_findings, lint_directives_in_comments,
 };
-use stillwind_source::{FileId, SourceFile, SourceRegistry, SourceUri, Span};
+use stillwind_source::{BytePos, FileId, SourceFile, SourceRegistry, SourceUri, Span};
 
 use crate::options::NativeCanonicalUtilitiesOptions;
 use crate::output::{BindingReport, NativeText};
@@ -37,6 +37,35 @@ pub struct NativeThemeToken {
     pub fallback: bool,
     /// Whether utility declarations inline the value instead of referencing the token.
     pub inline: bool,
+}
+
+/// An active shared asset and the policies that control its output.
+#[napi(object)]
+pub struct NativeSharedAsset {
+    /// Complete, case-sensitive CSS custom-property name.
+    pub name: String,
+    /// Authored CSS value, including variable references.
+    pub value: String,
+    /// Whether an ordinary definition takes precedence over this definition.
+    pub fallback: bool,
+    /// Whether the asset is referenced, inlined, or retained without a reference.
+    #[napi(ts_type = "'default' | 'inline' | 'static'")]
+    pub mode: String,
+}
+
+/// A reportable CSS definition with zero-based line and UTF-16 column coordinates.
+#[napi(object)]
+pub struct NativeStylesheetDefinition {
+    /// Absolute document URI of the original definition.
+    pub uri: String,
+    /// Zero-based line of the inclusive start.
+    pub start_line: u32,
+    /// Inclusive UTF-16 column on `startLine`.
+    pub start_column: u32,
+    /// Zero-based line of the exclusive end.
+    pub end_line: u32,
+    /// Exclusive UTF-16 column on `endLine`.
+    pub end_column: u32,
 }
 
 /// Decodes the text inside an arbitrary value or modifier as Tailwind does: `_` becomes
@@ -386,6 +415,40 @@ pub struct NativeEditorQuery {
 #[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 impl NativeEditorQuery {
+    /// Returns the original definition at a CSS reference's UTF-8 cursor offset.
+    /// Unresolved references and sources without a document URI return null.
+    ///
+    /// # Errors
+    /// Returns invalid coordinates from a definition in the captured source graph.
+    #[napi]
+    pub fn stylesheet_definition(
+        &self,
+        source: String,
+        offset: u32,
+    ) -> napi::Result<Option<NativeStylesheetDefinition>> {
+        let Some(range) = self.query.stylesheet_definition(&source, offset as usize) else {
+            return Ok(None);
+        };
+        let Some(uri) = range.source().uri() else {
+            return Ok(None);
+        };
+        let start = range
+            .source()
+            .position(BytePos(range.start()))
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let end = range
+            .source()
+            .position(BytePos(range.end()))
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        Ok(Some(NativeStylesheetDefinition {
+            uri: uri.as_str().into(),
+            start_line: start.line,
+            start_column: start.utf16_column,
+            end_line: end.line,
+            end_column: end.utf16_column,
+        }))
+    }
+
     /// Returns concrete colors with original byte ranges, including incomplete CSS
     /// blocks. Runtime references use the active theme definition.
     ///
@@ -807,7 +870,7 @@ impl NativeEditorQuery {
             .map_err(|_| Error::from_reason("Too many candidates in one sorting batch"))
     }
 
-    /// Returns active theme values, keyed by their full custom-property names.
+    /// Returns active design token values, keyed by their full custom-property names.
     #[napi(ts_return_type = "Record<string, string>")]
     pub fn theme_values(&self) -> BTreeMap<LeanStr, NativeText> {
         self.query
@@ -817,7 +880,7 @@ impl NativeEditorQuery {
             .collect()
     }
 
-    /// Returns active theme values with the policies used by plugin configuration.
+    /// Returns active design tokens with the policies used by plugin configuration.
     #[napi]
     pub fn theme_tokens(&self) -> Vec<NativeThemeToken> {
         self.query
@@ -826,8 +889,28 @@ impl NativeEditorQuery {
             .map(|token| NativeThemeToken {
                 name: token.name.value.to_string(),
                 value: token.value.value.to_string(),
-                fallback: token.precedence != ThemeTokenPrecedence::Ordinary,
-                inline: token.mode == ThemeTokenMode::Inline,
+                fallback: token.precedence != ThemeValuePrecedence::Ordinary,
+                inline: token.mode == ThemeValueMode::Inline,
+            })
+            .collect()
+    }
+
+    /// Returns active shared assets in custom-property name order.
+    #[napi]
+    pub fn shared_assets(&self) -> Vec<NativeSharedAsset> {
+        self.query
+            .shared_assets()
+            .into_iter()
+            .map(|asset| NativeSharedAsset {
+                name: asset.name.value.to_string(),
+                value: asset.value.value.to_string(),
+                fallback: asset.precedence != ThemeValuePrecedence::Ordinary,
+                mode: match asset.mode {
+                    ThemeValueMode::Default => "default",
+                    ThemeValueMode::Inline => "inline",
+                    ThemeValueMode::Static => "static",
+                }
+                .into(),
             })
             .collect()
     }

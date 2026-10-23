@@ -14,7 +14,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate, ValueType, custom_property_usage};
 use stillwind_design_system::{
-    CssSourceGraph, ThemeIndex, stillwind_omit_token_prefixes, stillwind_property_definitions,
+    CssSourceGraph, ThemeIndex, ThemeValueRole, stillwind_omit_token_prefixes,
+    stillwind_property_definitions,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::Span;
@@ -38,7 +39,7 @@ pub(super) struct SupportSelection<'a> {
     options: &'a CompilerOptions,
     /// Name allocation shared with the rest of this compilation.
     identifiers: &'a IdentifierContext,
-    /// Selected indices in `theme.tokens()`, deduplicated and sorted numerically.
+    /// Selected indices in `theme.values()`, deduplicated and sorted numerically.
     /// Theme definitions determine the order in which these indices are emitted.
     tokens: BTreeSet<usize>,
     /// First whitespace-delimited words of selected animation-token values, in
@@ -103,9 +104,9 @@ impl<'a> SupportSelection<'a> {
         }) {
             return Err(CompileDiagnostic::UnknownRequiredProperty { name: name.clone() });
         }
-        let required = theme.tokens_required_by(&used, false, stillwind_omit_token_prefixes(theme));
+        let required = theme.values_required_by(&used, false, stillwind_omit_token_prefixes(theme));
         let tokens = theme
-            .tokens()
+            .values()
             .iter()
             .enumerate()
             .filter_map(|(index, token)| {
@@ -120,7 +121,7 @@ impl<'a> SupportSelection<'a> {
         let animations: Vec<LeanStr> = required
             .iter()
             .filter(|token| {
-                matches!(
+                token.role == ThemeValueRole::Token && matches!(
                     theme.namespaces().classify(&token.name.value),
                     Some((namespace, Some(_))) if namespace.types.contains(&ValueType::Animation)
                 )
@@ -223,7 +224,7 @@ impl<'a> SupportSelection<'a> {
 
     /// Selects one theme block's live declarations and requested animation definitions.
     ///
-    /// `tokens` contains indices into `self.theme.tokens()`, in definition order. The
+    /// `tokens` contains indices into `self.theme.values()`, in definition order. The
     /// two flags select declaration and `@keyframes` output independently. Declarations
     /// retain their token origins; selected frames use the block's `origin`. The result
     /// has no selector or layer wrapper. Runtime conditionals use `self.options`;
@@ -248,7 +249,7 @@ impl<'a> SupportSelection<'a> {
         let mut output = MappedStylesheet::default();
         let mut declarations = MappedStylesheet::default();
         for index in tokens.iter().filter(|index| self.tokens.contains(index)) {
-            if let Some(token) = self.theme.tokens().get(*index) {
+            if let Some(token) = self.theme.values().get(*index) {
                 let Some(value) = resolve_theme_value(self.theme, &token.value.value)? else {
                     continue;
                 };
@@ -308,12 +309,13 @@ fn resolve_theme_value(
     theme: &ThemeIndex,
     value: &str,
 ) -> Result<Option<LeanString>, CompileDiagnostic> {
-    theme.resolve_theme_references(value).map_err(|error| {
-        CompileDiagnostic::InvalidThemeReference {
+    theme
+        .resolve_theme_references(value)
+        .map(|value| value.map(|value| theme.inline_asset_references(&value).unwrap_or(value)))
+        .map_err(|error| CompileDiagnostic::InvalidThemeReference {
             offset: error.offset(),
             detail: error.to_lean_str(),
-        }
-    })
+        })
 }
 
 /// Ready-to-insert support fragments; selectors and conditions belong to the template.

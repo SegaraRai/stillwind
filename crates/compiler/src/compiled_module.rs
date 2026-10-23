@@ -104,8 +104,8 @@ impl ModuleArtifactKey {
 pub struct CompilationDependencies {
     /// Candidate spellings the module mentions, including their variant prefixes.
     pub candidates: BTreeSet<LeanStr>,
-    /// Theme token names whose values appear in the module's generated CSS.
-    pub theme_tokens: BTreeSet<LeanStr>,
+    /// Names of theme tokens and shared assets required by the module's generated CSS.
+    pub theme_values: BTreeSet<LeanStr>,
     /// All registered utility definition names, including unused definitions.
     pub utilities: Arc<BTreeSet<LeanStr>>,
     /// All registered variant definition names, including unused definitions.

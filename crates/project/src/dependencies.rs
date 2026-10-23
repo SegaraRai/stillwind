@@ -29,8 +29,8 @@ use stillwind_source::ModuleId;
 pub struct DependencyIndex {
     /// Maps candidate text to modules that mention it.
     pub candidates: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
-    /// Maps theme token names to modules that reference them.
-    pub theme_tokens: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
+    /// Maps names of theme tokens and shared assets to modules that reference them.
+    pub theme_values: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps utility names to modules, including modules that do not use the utility.
     pub utilities: BTreeMap<LeanStr, BTreeSet<ModuleId>>,
     /// Maps variant names to modules, including modules that do not use the variant.
@@ -59,7 +59,7 @@ impl DependencyIndex {
         }
         for (entries, index) in [
             (&next.candidates, &mut self.candidates),
-            (&next.theme_tokens, &mut self.theme_tokens),
+            (&next.theme_values, &mut self.theme_values),
             (next.utilities.as_ref(), &mut self.utilities),
             (next.variants.as_ref(), &mut self.variants),
             (next.properties.as_ref(), &mut self.properties),
@@ -72,7 +72,7 @@ impl DependencyIndex {
     pub(crate) fn remove(&mut self, module: &ModuleId, previous: &CompilationDependencies) {
         for (entries, index) in [
             (&previous.candidates, &mut self.candidates),
-            (&previous.theme_tokens, &mut self.theme_tokens),
+            (&previous.theme_values, &mut self.theme_values),
             (previous.utilities.as_ref(), &mut self.utilities),
             (previous.variants.as_ref(), &mut self.variants),
             (previous.properties.as_ref(), &mut self.properties),

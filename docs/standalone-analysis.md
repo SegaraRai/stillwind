@@ -867,6 +867,19 @@ A semantic token may refer to a restricted token internally. Its own name is che
 when used directly. Unresolved runtime variables are excluded. The compiler does not
 infer token roles from values or alias relationships.
 
+Values declared with `@theme asset` are shared assets and are excluded from this
+token rule, including when `checkImplementation` is true. Other declaration policies
+still apply to the utilities that consume them. See
+[Shared assets](css-emission.md#shared-assets) for declaration and output behavior.
+
+Editor queries return design tokens from `themeTokens()` and `themeValues()`.
+`sharedAssets()` returns active assets in custom-property name order, with `name`,
+`value`, `fallback`, and `mode` (`default`, `inline`, or `static`). Theme-token
+completion and canonical suggestions exclude assets. Explicit CSS `var()` references
+can complete and hover asset definitions. `stylesheetDefinition()` returns the
+original definition's URI and UTF-16 line/column range. The language server exposes
+this through `textDocument/definition` for CSS variable and theme references.
+
 `no-arbitrary-breakpoints` reports viewport width and height comparisons supplied
 directly in variants, such as `max-[900px]`, `min-[48rem]`, and
 `[@media(width>=900px)]`. Range expressions, legacy min/max features, and compound

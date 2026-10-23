@@ -160,7 +160,7 @@ fn build_load_failure_clears_artifacts_and_dependency_indexes() {
             && deps.utilities.is_empty()
             && deps.variants.is_empty()
             && deps.properties.is_empty()
-            && deps.theme_tokens.is_empty()
+            && deps.theme_values.is_empty()
             && deps.assets.is_empty()
     );
     assert!(matches!(

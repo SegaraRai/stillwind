@@ -363,6 +363,7 @@ export function createLanguageServer(
           codeActionKinds: [CodeActionKind.QuickFix, ...(editor ? editorCodeActionKinds : [])],
         },
         hoverProvider: editor,
+        definitionProvider: editor,
         completionProvider: editor
           ? {
               resolveProvider: true,

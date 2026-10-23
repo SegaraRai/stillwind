@@ -2,8 +2,8 @@ import type { IconifyJSON } from "@iconify/types";
 import type { PluginContext } from "@stillwind/config";
 
 /**
- * Icon set given in plugin options: icon set data, an absolute path of an icon set JSON file, or a
- * function that returns icon set data.
+ * A custom icon set: Iconify data, an absolute JSON file path, or a function that
+ * returns Iconify data synchronously or asynchronously.
  */
 export type CollectionSource = IconifyJSON | string | (() => IconifyJSON | Promise<IconifyJSON>);
 

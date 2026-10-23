@@ -8,7 +8,7 @@
 use lean_string::ToLeanStr;
 
 use stillwind_css::{CssNode, CssNodeKind};
-use stillwind_design_system::theme_value_mismatch;
+use stillwind_design_system::{ThemeValueRole, theme_value_mismatch};
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 
 use super::analysis::Checker;
@@ -22,6 +22,7 @@ pub(super) fn check_theme_values(checker: &mut Checker<'_>, nodes: &[CssNode]) {
     for node in nodes {
         let CssNodeKind::AtRule {
             name,
+            prelude,
             block: Some(block),
             ..
         } = &node.kind
@@ -29,6 +30,11 @@ pub(super) fn check_theme_values(checker: &mut Checker<'_>, nodes: &[CssNode]) {
             continue;
         };
         if name == "theme" {
+            if ThemeValueRole::parse(&checker.source.text()[prelude.clone()])
+                == ThemeValueRole::Asset
+            {
+                continue;
+            }
             for declaration in &block.children {
                 check_token(checker, declaration);
             }
@@ -64,6 +70,17 @@ mod tests {
     use stillwind_diagnostics::LintKind;
 
     use super::super::tests::{default_findings, finding};
+
+    #[test]
+    fn asset_values_do_not_acquire_types_from_theme_namespaces() {
+        assert_eq!(
+            default_findings(
+                "@theme asset {--color-picture:url(data:image/svg+xml,a); --breakpoint-data:blue;}
+            @theme {--color-brand:12px;}"
+            ),
+            [finding(LintKind::IncompatibleThemeValue, "12px")]
+        );
+    }
 
     #[test]
     fn token_values_must_match_their_namespace() {

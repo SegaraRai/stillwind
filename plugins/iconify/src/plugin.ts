@@ -4,28 +4,36 @@ import { Collections, type CollectionSource } from "./collections.ts";
 import { ICON_SIZE, iconCss, type IconMode, type IconStyle } from "./icons.ts";
 
 /**
- * Spellings that select an icon. `named` accepts `icon-mdi--close`, and `bracket` accepts
- * `icon-[mdi--close]`. `both` accepts both spellings, which then select one utility, and
- * canonical lint suggests the named spelling.
+ * Icon name formats. `named` accepts `icon-mdi--close`, `bracket` accepts
+ * `icon-[mdi--close]`, and `both` accepts either format.
  */
 export type IconSyntax = "both" | "named" | "bracket";
 
 /**
- * Options of {@link iconify}. The options block of a `@plugin` statement can set `prefix`,
- * `syntax`, `scale`, and `mode`, and those values replace the options given here.
+ * Options of {@link iconify}. The stylesheet's `@plugin` block overrides `prefix`,
+ * `syntax`, `scale`, `mode`, and `hashLength` from these options.
  */
 export interface IconifyOptions {
-  /** Utility prefix without the trailing hyphen. Defaults to `icon`. */
+  /**
+   * Utility prefix made of lowercase letters, digits, and single hyphens, starting
+   * with a letter. Defaults to `icon`.
+   */
   readonly prefix?: string;
   /** Spellings that select an icon. Defaults to `both`. */
   readonly syntax?: IconSyntax;
-  /** Icon height in `em` when no size utility applies. Defaults to `1`. */
+  /** Positive, finite icon height in `em` when no size utility applies. Defaults to `1`. */
   readonly scale?: number;
   /** Paint method of the icons. Defaults to `auto`. */
   readonly mode?: IconMode;
   /**
-   * Icon sets keyed by set prefix. They take precedence over installed `@iconify-json/*` and
-   * `@iconify/json` packages.
+   * Base36 hash length in generated CSS variable names. Accepts integers from 1 to 7.
+   * Defaults to `4`.
+   * Set `hash-length` in the stylesheet's `@plugin` block.
+   */
+  readonly hashLength?: number;
+  /**
+   * Custom icon sets keyed by set prefix, such as `brand`. Accepts data, absolute JSON
+   * file paths, or functions that return data. These sets override installed packages.
    */
   readonly collections?: Readonly<Record<string, CollectionSource>>;
 }
@@ -64,18 +72,13 @@ const SIZE_CSS = [
 ].join("\n");
 
 /**
- * Creates the Iconify plugin, which defines a utility for each icon that modules use.
+ * Creates an Iconify plugin with custom defaults or icon sets.
  *
- * A stylesheet enables it with `@plugin "@stillwind/plugin-iconify";`. A utility names
- * an icon as `<prefix>-<set>--<icon>`, such as `icon-mdi--close`, or as
- * `<prefix>-[<set>--<icon>]`, as the `syntax` option selects. Every instance is named
- * `@stillwind/plugin-iconify`, so an instance in the `plugins` configuration entry
- * replaces the package's default instance in that statement.
+ * Enable it in your stylesheet with `@plugin "@stillwind/plugin-iconify";`.
  *
  * @param options - Default settings and configured icon sets.
- * @returns A plugin instance. Each loaded statement reads its icon sets again.
- * @throws If an option value is invalid. An invalid value in a statement's options
- * block fails the design-system load instead.
+ * @returns The plugin to add to your project's `plugins` list.
+ * @throws If `prefix`, `syntax`, `scale`, `mode`, or `hashLength` is invalid.
  */
 export function iconify(options: IconifyOptions = {}): StillwindPlugin {
   const defaults = settings(options);
@@ -118,15 +121,7 @@ export function iconify(options: IconifyOptions = {}): StillwindPlugin {
         candidates.map(async (candidate) => {
           const icon = parseCandidate(candidate, current);
           const collection = icon && (await collections(context).get(icon.set));
-          return collection
-            ? iconCss(
-                candidate,
-                `--icon-svg-${icon.set}--${icon.name}`,
-                collection,
-                icon.name,
-                current,
-              )
-            : undefined;
+          return collection ? iconCss(candidate, collection, icon.name, current) : undefined;
         }),
       );
       return rules.filter((rule) => rule !== undefined).join("");
@@ -231,11 +226,13 @@ function parseCandidate(
  */
 function statementSettings(defaults: Settings, context: PluginContext): Settings {
   const { prefix, syntax, scale, mode } = context.options;
+  const hashLength = context.options["hash-length"];
   return settings({
     prefix: prefix ?? defaults.prefix,
     syntax: (syntax ?? defaults.syntax) as IconSyntax,
     scale: scale === undefined ? defaults.scale : Number(scale),
     mode: (mode ?? defaults.mode) as IconMode,
+    hashLength: hashLength === undefined ? defaults.hashLength : Number(hashLength),
   });
 }
 
@@ -245,10 +242,10 @@ function statementSettings(defaults: Settings, context: PluginContext): Settings
  * @param options - Options that may omit settings.
  * @returns Complete settings.
  * @throws If the prefix is not a lowercase identifier, the syntax or mode is unknown, or the
- * scale is not a positive finite number.
+ * scale is not a positive finite number, or the hash length is not an integer from 1 to 7.
  */
 function settings(options: IconifyOptions): Settings {
-  const { prefix = "icon", syntax = "both", scale = 1, mode = "auto" } = options;
+  const { prefix = "icon", syntax = "both", scale = 1, mode = "auto", hashLength = 4 } = options;
   if (!PREFIX.test(prefix)) {
     throw new Error(`Invalid Iconify utility prefix: ${prefix}`);
   }
@@ -261,11 +258,15 @@ function settings(options: IconifyOptions): Settings {
   if (!MODES.includes(mode)) {
     throw new Error(`Iconify mode must be one of ${MODES.join(", ")}: ${mode}`);
   }
+  if (!Number.isInteger(hashLength) || hashLength < 1 || hashLength > 7) {
+    throw new Error(`Iconify hash length must be an integer from 1 to 7: ${hashLength}`);
+  }
   return {
     prefix,
     syntax,
     scale,
     mode,
+    hashLength,
   };
 }
 

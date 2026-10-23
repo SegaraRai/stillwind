@@ -8,10 +8,13 @@ use std::sync::{Arc, OnceLock};
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition, custom_property_references};
+use stillwind_css::{
+    CssOutputTemplate, CustomPropertyDefinition, custom_property_references, find_css_functions,
+    split_once_top_level,
+};
 
 use super::builder::ThemeBuilder;
-use super::declarations::ThemeToken;
+use super::declarations::{ThemeValue, ThemeValueRole};
 use super::namespace::namespace_key_names;
 use super::parser::{DynamicFamily, UtilityImportance};
 use super::references::{inline_theme_functions, resolve_css_functions, resolve_theme_references};
@@ -23,7 +26,7 @@ use crate::registry::{
 };
 use crate::{
     BrowserTargets, BypassedUndefinition, CustomUtility, CustomVariant, DynamicFamilyKind,
-    MarkerClasses, StillwindDefinitions, ThemeNamespaces, ThemeReferenceError, ThemeTokenMode,
+    MarkerClasses, StillwindDefinitions, ThemeNamespaces, ThemeReferenceError, ThemeValueMode,
     UtilityOrderMode,
 };
 
@@ -39,7 +42,7 @@ struct ThemeDeclarations {
     dynamic_utilities: Vec<DynamicFamily>,
     important: Option<UtilityImportance>,
     registry: Arc<StillwindDefinitions>,
-    tokens: Vec<Arc<ThemeToken>>,
+    tokens: Vec<Arc<ThemeValue>>,
     custom_css: LeanStr,
     utilities: Vec<Arc<CustomUtility>>,
     registry_statements: Arc<RegistryStatements>,
@@ -262,12 +265,18 @@ impl ThemeIndex {
 
     /// Returns the definitions that are active after resets, replacements, and
     /// precedence, ordered by custom-property name.
-    pub(crate) fn active_token_definitions(&self) -> impl Iterator<Item = &Arc<ThemeToken>> {
+    pub(crate) fn active_value_definitions(&self) -> impl Iterator<Item = &Arc<ThemeValue>> {
         self.inner
             .tokens
             .active
             .values()
             .map(|index| &self.inner.declarations.tokens[*index])
+    }
+
+    /// Returns active design tokens in custom-property name order.
+    pub(crate) fn active_token_definitions(&self) -> impl Iterator<Item = &Arc<ThemeValue>> {
+        self.active_value_definitions()
+            .filter(|value| value.role == ThemeValueRole::Token)
     }
 
     /// First declaration offsets after imports are expanded, shared by Tailwind-style
@@ -354,8 +363,8 @@ impl ThemeIndex {
         &self.inner.declarations.registry
     }
 
-    /// Every token in authored order, including resets and superseded values.
-    pub fn tokens(&self) -> &[Arc<ThemeToken>] {
+    /// Every token and asset in authored order, including resets and superseded values.
+    pub fn values(&self) -> &[Arc<ThemeValue>] {
         &self.inner.declarations.tokens
     }
 
@@ -441,7 +450,7 @@ impl ThemeIndex {
     /// The named token with the key `name` in the declared namespace `namespace`, or
     /// `None` when it is not active.
     #[must_use]
-    pub fn token_in(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
+    pub fn token_in(&self, namespace: &str, name: &str) -> Option<&ThemeValue> {
         let index = self.inner.tokens.named.get(namespace)?.get(name)?;
         Some(&self.inner.declarations.tokens[*index])
     }
@@ -449,7 +458,7 @@ impl ThemeIndex {
     /// Every active named token in the declared namespace `namespace` with its key,
     /// ordered by key.
     #[must_use]
-    pub fn tokens_in(&self, namespace: &str) -> Vec<(&str, &ThemeToken)> {
+    pub fn tokens_in(&self, namespace: &str) -> Vec<(&str, &ThemeValue)> {
         self.inner
             .tokens
             .named
@@ -468,7 +477,7 @@ impl ThemeIndex {
     /// The scale token of the declared namespace `namespace`, such as `--spacing`,
     /// when one is active.
     #[must_use]
-    pub fn scale(&self, namespace: &str) -> Option<&ThemeToken> {
+    pub fn scale(&self, namespace: &str) -> Option<&ThemeValue> {
         self.inner
             .tokens
             .scales
@@ -482,12 +491,12 @@ impl ThemeIndex {
     /// arguments as a custom-property name, so callers may query an arbitrary property
     /// without knowing whether it participates in a namespace.
     #[must_use]
-    pub fn token(&self, namespace: &str, name: &str) -> Option<&ThemeToken> {
+    pub fn token(&self, namespace: &str, name: &str) -> Option<&ThemeValue> {
         if self.namespaces().get(namespace).is_some() {
             return self.token_in(namespace, name);
         }
         let expected = format_args!("--{namespace}-{name}").to_lean_string();
-        self.custom_property(&expected)
+        self.token_property(&expected)
     }
 
     /// Returns the active token that the candidate key `key` selects in the namespace
@@ -499,10 +508,10 @@ impl ThemeIndex {
     /// it skips a token of a narrower namespace that [`ThemeNamespaces::excludes`]
     /// excludes, such as `--font-weight-bold` for `font`.
     #[must_use]
-    pub fn namespace_token(&self, namespace: &str, key: &str) -> Option<&ThemeToken> {
+    pub fn namespace_token(&self, namespace: &str, key: &str) -> Option<&ThemeValue> {
         let token = namespace_key_names(namespace, key)
             .iter()
-            .find_map(|name| self.custom_property(name))?;
+            .find_map(|name| self.token_property(name))?;
         (!self.namespaces().excludes(namespace, &token.name.value)).then_some(token)
     }
 
@@ -513,7 +522,7 @@ impl ThemeIndex {
     /// namespaces are skipped. A key is the token name after `--{namespace}-`, as
     /// authored, so it keeps CSS escapes.
     #[must_use]
-    pub fn namespace_tokens(&self, namespace: &str) -> Vec<(&str, &ThemeToken)> {
+    pub fn namespace_tokens(&self, namespace: &str) -> Vec<(&str, &ThemeValue)> {
         let prefix = format_args!("--{namespace}-").to_lean_string();
         self.active_token_definitions()
             .filter(|token| !self.namespaces().excludes(namespace, &token.name.value))
@@ -531,14 +540,74 @@ impl ThemeIndex {
             .map(|token| token.value.value.as_str())
     }
 
-    /// The active token with exactly this custom-property name, if any.
+    /// Returns the active token or asset with this complete, case-sensitive name.
     #[must_use]
-    pub fn custom_property(&self, name: &str) -> Option<&ThemeToken> {
+    pub fn custom_property(&self, name: &str) -> Option<&ThemeValue> {
         self.inner
             .tokens
             .active
             .get(name)
             .map(|index| self.inner.declarations.tokens[*index].as_ref())
+    }
+
+    /// Returns the active design token named `name`, excluding shared assets.
+    ///
+    /// `name` is a complete, case-sensitive custom-property name.
+    #[must_use]
+    pub fn token_property(&self, name: &str) -> Option<&ThemeValue> {
+        self.custom_property(name)
+            .filter(|value| value.role == ThemeValueRole::Token)
+    }
+
+    /// Substitutes active inline assets in `var()` calls in `input`.
+    ///
+    /// A defined inline asset replaces the whole call, including its fallback. Strings
+    /// and URLs are opaque. Returns `None` when no substitution applies or expansion
+    /// exceeds one MiB. Expansion stops after 32 passes, retaining unresolved calls.
+    #[must_use]
+    pub fn inline_asset_references(&self, input: &str) -> Option<LeanString> {
+        if !self.inner.tokens.inline_assets {
+            return None;
+        }
+        let mut output = input.to_lean_string();
+        let mut changed = false;
+        for _ in 0..32 {
+            let mut edits = Vec::new();
+            let mut covered = 0;
+            for call in find_css_functions(&output, &["var"], 0) {
+                if call.start < covered {
+                    continue;
+                }
+                let Some(end) = call.end else {
+                    continue;
+                };
+                let (name, _) = split_once_top_level(&output[call.arguments], |token| {
+                    matches!(token, cssparser::Token::Comma)
+                });
+                if let Some(asset) = self.custom_property(name.trim())
+                    && asset.role == ThemeValueRole::Asset
+                    && asset.mode == ThemeValueMode::Inline
+                {
+                    edits.push((call.start..end, asset.value.value.clone()));
+                    covered = end;
+                }
+            }
+            if edits.is_empty() {
+                return changed.then_some(output);
+            }
+            let previous = output.clone();
+            for (range, value) in edits.into_iter().rev() {
+                output.replace_range(range, &value);
+                if output.len() > 1_048_576 {
+                    return None;
+                }
+            }
+            changed = true;
+            if previous == output {
+                break;
+            }
+        }
+        Some(output)
     }
 
     /// Lowers build-time `--theme()` references in a theme-token value.
@@ -556,7 +625,7 @@ impl ThemeIndex {
         &self,
         value: &str,
     ) -> Result<Option<LeanString>, ThemeReferenceError> {
-        resolve_theme_references(value, |name| self.custom_property(name).is_some())
+        resolve_theme_references(value, |name| self.token_property(name).is_some())
     }
 
     /// Replaces build-time `theme()` calls in an arbitrary value with the authored
@@ -567,7 +636,7 @@ impl ThemeIndex {
     #[must_use]
     pub fn inline_theme_functions(&self, value: &str) -> Option<LeanString> {
         inline_theme_functions(value, |name| {
-            self.custom_property(name)
+            self.token_property(name)
                 .map(|token| token.value.value.as_str())
         })
     }
@@ -584,7 +653,7 @@ impl ThemeIndex {
             .scales()
             .map(|namespace| {
                 let scale = self.scale(&namespace.name).map(|token| {
-                    if matches!(token.mode, ThemeTokenMode::Inline) {
+                    if matches!(token.mode, ThemeValueMode::Inline) {
                         token.value.value.to_lean_string()
                     } else {
                         format_args!("var({})", token.name.value).to_lean_string()
@@ -596,37 +665,53 @@ impl ThemeIndex {
         resolve_css_functions(value, &scales)
     }
 
-    /// Returns the effective CSS custom properties after v4 namespace resets.
+    /// Returns effective design tokens after namespace resets, excluding shared assets.
     ///
     /// Resets and replacements are applied in authored order, and a definition never
-    /// replaces or resets one of higher [`crate::ThemeTokenPrecedence`]. The result is
+    /// replaces or resets one of higher [`crate::ThemeValuePrecedence`]. The result is
     /// sorted by custom-property name because the effective values are stored in a
     /// `BTreeMap`.
     #[must_use]
-    pub fn active_tokens(&self) -> Vec<&ThemeToken> {
+    pub fn active_tokens(&self) -> Vec<&ThemeValue> {
         self.active_token_definitions().map(Arc::as_ref).collect()
     }
 
-    /// Selects tokens referenced by CSS and their transitive dependencies, then applies
-    /// registry-authored pruning rules. Static tokens seed the selection, while inline
-    /// tokens are never emitted.
+    /// Returns active tokens and assets in custom-property name order.
+    #[must_use]
+    pub fn active_values(&self) -> Vec<&ThemeValue> {
+        self.active_value_definitions().map(Arc::as_ref).collect()
+    }
+
+    /// Returns active shared assets in custom-property name order.
+    #[must_use]
+    pub fn shared_assets(&self) -> Vec<&ThemeValue> {
+        self.active_value_definitions()
+            .filter(|value| value.role == ThemeValueRole::Asset)
+            .map(Arc::as_ref)
+            .collect()
+    }
+
+    /// Selects tokens and assets referenced by `css` and their transitive dependencies.
+    /// Static values seed selection, and inline values are not emitted. Authored CSS
+    /// also contributes references when `include_preflight` is true. `omit_rules`
+    /// contains prefix/condition pairs that prune names when `css` contains a condition.
     ///
     /// Pruning runs after dependency closure, so a rule may drop an intermediate alias
     /// without changing which declarations were considered.
     #[must_use]
-    pub fn tokens_required_by(
+    pub fn values_required_by(
         &self,
         css: &str,
         include_preflight: bool,
         omit_rules: &[(LeanStr, LeanStr)],
-    ) -> Vec<&ThemeToken> {
-        let tokens = self.active_tokens();
+    ) -> Vec<&ThemeValue> {
+        let tokens = self.active_values();
         let mut required = custom_property_references(css);
         if include_preflight {
             required.extend(custom_property_references(self.custom_css()));
         }
         for token in &tokens {
-            if matches!(token.mode, ThemeTokenMode::Static) {
+            if matches!(token.mode, ThemeValueMode::Static) {
                 required.insert(token.name.value.clone());
             }
         }
@@ -653,7 +738,7 @@ impl ThemeIndex {
             .into_iter()
             .filter(|token| {
                 required.contains(&token.name.value)
-                    && !matches!(token.mode, ThemeTokenMode::Inline)
+                    && !matches!(token.mode, ThemeValueMode::Inline)
             })
             .collect()
     }
@@ -704,6 +789,108 @@ mod tests {
     use crate::parse_theme;
     use crate::theme::declarations::extract_theme_declarations;
 
+    fn asset_theme(css: &str) -> ThemeIndex {
+        parse_theme(
+            &SourceFile::new(FileId(1), None, None, css).unwrap(),
+            &"theme.css".into(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn asset_resets_and_overrides_keep_the_winning_role() {
+        let theme = asset_theme(
+            "@theme default asset { --image-a:url(a.svg); --same:asset; }
+            @theme { --*:initial; --image-token:red; --same:token; }
+            @theme asset { --image-old:url(old.svg); --image-*:initial; --image-a:url(b.svg); }",
+        );
+        assert_eq!(
+            theme
+                .active_tokens()
+                .iter()
+                .map(|value| value.name.value.as_str())
+                .collect::<Vec<_>>(),
+            ["--image-token", "--same"]
+        );
+        assert_eq!(
+            theme
+                .shared_assets()
+                .iter()
+                .map(|value| value.name.value.as_str())
+                .collect::<Vec<_>>(),
+            ["--image-a"]
+        );
+        assert_eq!(
+            theme.custom_property("--same").unwrap().role,
+            ThemeValueRole::Token
+        );
+        assert_eq!(
+            theme.custom_property("--image-a").unwrap().value.value,
+            "url(b.svg)"
+        );
+        assert_eq!(theme.namespace_token("image", "a"), None);
+        assert_eq!(
+            theme
+                .inline_theme_functions("theme(--image-a, none)")
+                .as_deref(),
+            Some("none")
+        );
+        let reset =
+            asset_theme("@theme {--color:red;} @theme asset {--image:url(a.svg); --*:initial;}");
+        assert_eq!(reset.active_values().len(), 1);
+        assert_eq!(
+            reset.custom_property("--color").unwrap().role,
+            ThemeValueRole::Token
+        );
+    }
+
+    #[test]
+    fn assets_share_dependency_selection_with_tokens_and_terminate_cycles() {
+        let theme = asset_theme("@theme {--color:red;} @theme asset {--image:var(--paint); --paint:linear-gradient(var(--color),transparent); --unused:url(unused.svg); --a:var(--b); --b:var(--a);}
+            @theme asset static {--static:url(static.svg);}");
+        for (css, names) in [
+            (
+                "mask-image:var(--image)",
+                vec!["--color", "--image", "--paint", "--static"],
+            ),
+            ("mask-image:var(--a)", vec!["--a", "--b", "--static"]),
+        ] {
+            assert_eq!(
+                theme
+                    .values_required_by(css, false, &[])
+                    .iter()
+                    .map(|value| value.name.value.as_str())
+                    .collect::<Vec<_>>(),
+                names
+            );
+        }
+    }
+
+    #[test]
+    fn inline_assets_expand_references_without_touching_strings_or_urls() {
+        let theme = asset_theme(
+            "@theme asset inline {--size:2rem; --alias:var(--size); --cycle:var(--cycle);}",
+        );
+        assert_eq!(
+            theme
+                .inline_asset_references(
+                    "width:var(--alias, 1px);content:'var(--size)';background:url('var(--size)');"
+                )
+                .as_deref(),
+            Some("width:2rem;content:'var(--size)';background:url('var(--size)');")
+        );
+        assert_eq!(
+            theme
+                .inline_asset_references("width:var(--cycle)")
+                .as_deref(),
+            Some("width:var(--cycle)")
+        );
+        assert_eq!(
+            theme.values_required_by("width:var(--size)", false, &[]),
+            [] as [&ThemeValue; 0]
+        );
+    }
+
     #[test]
     fn clones_share_declarations_and_preparation_without_affecting_new_themes() {
         let source = SourceFile::new(
@@ -731,7 +918,7 @@ mod tests {
                 FileId(1),
                 "--color-old:red;--color-*:initial;--color-new:blue;--color-new:green;",
                 0,
-                ThemeTokenMode::Default,
+                ThemeValueMode::Default,
             )
             .unwrap(),
             ..ThemeBuilder::default()
@@ -753,7 +940,7 @@ mod tests {
                 FileId(1),
                 "--color-z:red;--color-a:blue;--color-*:initial;--color-z:green;--color-a:black;",
                 0,
-                ThemeTokenMode::Default,
+                ThemeValueMode::Default,
             )
             .unwrap(),
             ..ThemeBuilder::default()
@@ -787,7 +974,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             theme
-                .tokens_required_by("", false, &[])
+                .values_required_by("", false, &[])
                 .iter()
                 .map(|token| token.name.value.as_str())
                 .collect::<Vec<_>>(),
@@ -802,14 +989,14 @@ mod tests {
                 FileId(1),
                 "--color-a:var(--color-b);--color-b:var(--color-a);--color-unused:red;",
                 0,
-                ThemeTokenMode::Default,
+                ThemeValueMode::Default,
             )
             .unwrap(),
             ..ThemeBuilder::default()
         }
         .finish();
         let names = theme
-            .tokens_required_by("color:var(--color-a)", false, &[])
+            .values_required_by("color:var(--color-a)", false, &[])
             .iter()
             .map(|t| t.name.value.as_str())
             .collect::<Vec<_>>();

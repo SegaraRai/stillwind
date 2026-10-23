@@ -6,7 +6,7 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 use stillwind_css::{
     CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure, split_once_top_level,
 };
-use stillwind_design_system::{ThemeToken, UtilityResolutionError};
+use stillwind_design_system::{ThemeValue, UtilityResolutionError};
 
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{dynamic_candidates, stylesheet_dynamic_candidates};
@@ -24,8 +24,9 @@ impl DesignSystemQuery {
         stylesheet_dynamic_candidates(css, self.context.design_system.theme())
     }
 
-    /// Returns active token definitions, including their output and fallback policies.
-    pub fn theme_tokens(&self) -> Vec<ThemeToken> {
+    /// Returns active design tokens in name order, including output and fallback
+    /// policies.
+    pub fn theme_tokens(&self) -> Vec<ThemeValue> {
         self.context
             .design_system
             .theme()
@@ -35,8 +36,19 @@ impl DesignSystemQuery {
             .collect()
     }
 
-    /// Returns active theme values by their full custom-property names.
-    /// Values keep their authored CSS spelling, including references to other tokens.
+    /// Returns active shared assets with their source spans and output policies.
+    pub fn shared_assets(&self) -> Vec<ThemeValue> {
+        self.context
+            .design_system
+            .theme()
+            .shared_assets()
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+
+    /// Returns active design token values by their full custom-property names. Values
+    /// keep their authored CSS spelling, including references to tokens and assets.
     pub fn theme_values(&self) -> Vec<(LeanStr, LeanStr)> {
         self.context
             .design_system
@@ -197,7 +209,7 @@ impl QueryContext {
                 });
                 if let Some(token) = self
                     .design_system
-                    .tokens()
+                    .values()
                     .get(name)
                     .and_then(|tokens| tokens.first())
                     && let Some(end) = function.end

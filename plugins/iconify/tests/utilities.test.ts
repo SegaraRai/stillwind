@@ -120,15 +120,15 @@ async function compile(
   }
 }
 
-test("both spellings share one icon utility and emit its SVG token once", async () => {
+test("both spellings share one icon utility and emit its SVG asset once", async () => {
   const { css, diagnostics } = await compile(`import { style } from "stillwind/react";
 export const named = style("icon-demo--close");
 export const bracket = style("hover:icon-[demo--close]");
 `);
 
   expect(diagnostics).toStrictEqual([]);
-  expect(css.match(/--icon-svg-demo--close:/g)).toHaveLength(1);
-  expect(css).toContain("mask-image: var(--icon-svg-demo--close)");
+  expect(css.match(/--sw-icon-svg-[0-9a-z]+:/g)).toHaveLength(1);
+  expect(css).toMatch(/mask-image: var\(--sw-icon-svg-[0-9a-z]+\)/);
   expect(css).toMatch(/:hover/);
 });
 
@@ -146,9 +146,19 @@ export const named = style("icon-demo--close");
     "syntax: bracket;",
   );
 
-  expect(bracket.css).toContain("mask-image: var(--icon-svg-demo--close)");
-  expect(named.css).not.toContain("--icon-svg-demo--close");
+  expect(bracket.css).toMatch(/mask-image: var\(--sw-icon-svg-[0-9a-z]+\)/);
+  expect(named.css).not.toContain("--sw-icon-svg-");
 }, 30_000);
+
+test("stylesheet hash length controls the emitted SVG names", async () => {
+  const { css, diagnostics } = await compile(
+    `import { style } from "stillwind/react"; export const icon = style("icon-demo--close");`,
+    "hash-length: 2;",
+  );
+  expect(diagnostics).toEqual([]);
+  expect(css).toMatch(/--sw-icon-svg-[0-9a-z]{2}:/);
+  expect(css).toMatch(/mask-image: var\(--sw-icon-svg-[0-9a-z]{2}\)/);
+});
 
 test("canonical fixes keep unresolved icons and size values unchanged", async () => {
   const code = `import { style } from "stillwind/react";
@@ -255,6 +265,11 @@ test("lint checks icon implementation only when requested and applies height pol
             "no-arbitrary-spacing": {
               severity: "warn",
               properties: ["height"],
+            },
+            "no-restricted-theme-tokens": {
+              severity: "warn",
+              checkImplementation: true,
+              tokens: ["--sw-icon-svg-*"],
             },
           },
         },
@@ -446,6 +461,6 @@ export const before = style("before:icon-demo--close before:icon-[2rem] icon-(--
     expect(css).toContain(`--sw-icon-size: ${value};`);
   }
   expect(css).toContain("--icon-size-lg:1.5rem");
-  expect(css).toContain("background-image: var(--icon-svg-demo--flag);");
+  expect(css).toMatch(/background-image: var\(--sw-icon-svg-[0-9a-z]+\);/);
   expect(css).toMatch(/@property --sw-icon-size \{\s*syntax: "\*";\s*inherits: false;\s*\}/);
 }, 30_000);

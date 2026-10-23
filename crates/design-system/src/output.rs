@@ -28,7 +28,7 @@ use stillwind_source::{CssSourceName, FileId, Span};
 
 use crate::skipped::SkippedRange;
 use crate::theme::extract_keyframes_blocks;
-use crate::{SkipReason, ThemeToken, ThemeTokenPrecedence};
+use crate::{SkipReason, ThemeValue, ThemeValuePrecedence};
 
 /// Deepest group nesting accepted in one authored buffer.
 ///
@@ -53,7 +53,7 @@ const MAX_BLOCK_NESTING: usize = 64;
 /// groups nested past [`MAX_BLOCK_NESTING`].
 pub(crate) fn parse_output_template(
     css: &str,
-    tokens: &[ThemeToken],
+    tokens: &[ThemeValue],
     skipped: &mut Vec<SkippedRange>,
 ) -> Result<CssOutputTemplate, CompileDiagnostic> {
     let nodes = parse_nodes(css, 0, tokens, &mut Vec::new(), Context::TOP, skipped)?;
@@ -173,7 +173,7 @@ fn contains_utilities(nodes: &[CssOutputNode]) -> bool {
 }
 
 /// Inner byte range, modifier header, and token precedence of one theme block.
-pub(crate) type ThemeBlock = (Range<usize>, LeanString, ThemeTokenPrecedence);
+pub(crate) type ThemeBlock = (Range<usize>, LeanString, ThemeValuePrecedence);
 
 /// Collects the inner byte range, the modifier header, and the token precedence of
 /// every `@theme` and `@stillwind-plugin-theme` block, in source order.
@@ -282,7 +282,7 @@ fn consume_block(
 fn parse_nodes(
     css: &str,
     base: usize,
-    tokens: &[ThemeToken],
+    tokens: &[ThemeValue],
     theme_blocks: &mut Vec<ThemeBlock>,
     context: Context,
     skipped: &mut Vec<SkippedRange>,
@@ -391,9 +391,9 @@ fn parse_nodes(
             (Some(directive @ ("theme" | "stillwind-plugin-theme")), Some((open, close))) => {
                 let modifier = css[header_end..open].trim();
                 let precedence = if directive == "stillwind-plugin-theme" {
-                    ThemeTokenPrecedence::Plugin
+                    ThemeValuePrecedence::Plugin
                 } else {
-                    ThemeTokenPrecedence::parse(modifier)
+                    ThemeValuePrecedence::parse(modifier)
                 };
                 let modifier = LeanString::from(modifier);
                 theme_blocks.push((base + open + 1..base + close, modifier, precedence));

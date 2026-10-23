@@ -1,4 +1,4 @@
-//! Theme token extraction: which custom properties a `@theme` block declares, what each
+//! Theme value extraction: which custom properties a `@theme` block declares, what each
 //! one means, and where it was written.
 //!
 //! A declaration is read textually so its span can point at the authored name and value
@@ -17,19 +17,41 @@ use stillwind_source::{FileId, Span, Spanned};
 
 use super::parser::offset;
 
+/// The purpose of a custom property declared by `@theme`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ThemeValueRole {
+    /// A design token available to theme namespaces, functions, and token policies.
+    #[default]
+    Token,
+    /// A shared value referenced by CSS without joining theme-token selection.
+    Asset,
+}
+
+impl ThemeValueRole {
+    /// Returns `Asset` when `modifier` contains the `asset` word, and `Token`
+    /// otherwise.
+    pub fn parse(modifier: &str) -> Self {
+        if modifier.split_whitespace().any(|word| word == "asset") {
+            Self::Asset
+        } else {
+            Self::Token
+        }
+    }
+}
+
 /// How a `@theme` block's declarations are emitted.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ThemeTokenMode {
-    /// Ordinary token: emitted when required and referenced by `var()`.
+pub enum ThemeValueMode {
+    /// Emitted when required and referenced by `var()`.
     Default,
-    /// Token inlined into the generated declaration instead of being emitted.
+    /// Inlined into the generated declaration instead of being emitted.
     Inline,
-    /// Token included in the required set without a reference; later resets and
+    /// Included in the required set without a reference; later resets and
     /// registry pruning can still remove it.
     Static,
 }
 
-impl ThemeTokenMode {
+impl ThemeValueMode {
     /// Reads a `@theme` block modifier; an unrecognized modifier is treated as the
     /// default mode rather than rejected.
     pub fn parse(modifier: &str) -> Self {
@@ -44,11 +66,11 @@ impl ThemeTokenMode {
     }
 }
 
-/// Which definition of a token wins, independent of source order. A definition replaces
-/// an earlier one of the same or lower precedence, and a reset such as `--color-*:
-/// initial` removes the definitions of the same or lower precedence.
+/// Which definition of a value wins, independent of source order. A definition replaces
+/// an earlier one of the same or lower precedence. Resets remove values of their own
+/// role when those values have the same or lower precedence.
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
-pub enum ThemeTokenPrecedence {
+pub enum ThemeValuePrecedence {
     /// `@theme default`, which yields to every other definition, as in Tailwind.
     Default,
     /// Theme configuration of a Tailwind plugin, which the plugin adapter writes as
@@ -60,7 +82,7 @@ pub enum ThemeTokenPrecedence {
     Ordinary,
 }
 
-impl ThemeTokenPrecedence {
+impl ThemeValuePrecedence {
     /// Reads the precedence of a `@theme` block modifier, such as `default inline`.
     #[must_use]
     pub fn parse(modifier: &str) -> Self {
@@ -74,15 +96,17 @@ impl ThemeTokenPrecedence {
 
 /// One custom-property declaration from a `@theme` block.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ThemeToken {
+pub struct ThemeValue {
     /// Authored custom-property name with its span in the parsed buffer.
     pub name: Spanned<LeanStr>,
     /// Authored value with its span in the parsed buffer.
     pub value: Spanned<LeanStr>,
-    /// Emission policy: ordinary referenced token, inline value, or static retention.
-    pub mode: ThemeTokenMode,
-    /// Which definition of the token wins, independent of source order.
-    pub precedence: ThemeTokenPrecedence,
+    /// Whether the definition participates in theme-token selection or stores an asset.
+    pub role: ThemeValueRole,
+    /// Emission policy: referenced value, inline substitution, or static retention.
+    pub mode: ThemeValueMode,
+    /// Which definition wins, independent of source order.
+    pub precedence: ThemeValuePrecedence,
 }
 
 /// Reads the declarations of one `@theme` body.
@@ -90,7 +114,8 @@ pub struct ThemeToken {
 /// `body_start` is the body's byte offset in its file, so returned spans refer to the
 /// file rather than to the slice. Comments, at-rules, and statements that are not
 /// custom-property declarations are skipped; a declaration with an empty value or a
-/// non-`--` name is not a token.
+/// non-`--` name is skipped. Definitions start with the token role and ordinary
+/// precedence; the containing block's parser applies its role and precedence.
 ///
 /// # Errors
 ///
@@ -99,8 +124,8 @@ pub(crate) fn extract_theme_declarations(
     file: FileId,
     body: &str,
     body_start: usize,
-    mode: ThemeTokenMode,
-) -> Result<Vec<ThemeToken>, CompileDiagnostic> {
+    mode: ThemeValueMode,
+) -> Result<Vec<ThemeValue>, CompileDiagnostic> {
     let end = body_start
         .checked_add(body.len())
         .ok_or(CompileDiagnostic::CssOffsetTooLarge { offset: body_start })?;
@@ -121,7 +146,7 @@ pub(crate) fn extract_theme_declarations(
         }
         let name_start = body_start + property.start;
         let value_start = body_start + value_range.start;
-        tokens.push(ThemeToken {
+        tokens.push(ThemeValue {
             name: Spanned::new(
                 name.to_lean_str(),
                 Span::new(file, offset(name_start)?, offset(name_start + name.len())?),
@@ -135,7 +160,8 @@ pub(crate) fn extract_theme_declarations(
                 ),
             ),
             mode,
-            precedence: ThemeTokenPrecedence::Ordinary,
+            role: ThemeValueRole::Token,
+            precedence: ThemeValuePrecedence::Ordinary,
         });
     }
     Ok(tokens)
@@ -148,7 +174,7 @@ mod tests {
     #[test]
     fn rejects_overflowing_base_offsets_before_token_arithmetic() {
         assert!(matches!(
-            extract_theme_declarations(FileId(1), "--x:red;", usize::MAX, ThemeTokenMode::Default),
+            extract_theme_declarations(FileId(1), "--x:red;", usize::MAX, ThemeValueMode::Default),
             Err(CompileDiagnostic::CssOffsetTooLarge { .. })
         ));
         assert!(matches!(
@@ -156,7 +182,7 @@ mod tests {
                 FileId(1),
                 "--x:red;",
                 u32::MAX as usize,
-                ThemeTokenMode::Default
+                ThemeValueMode::Default
             ),
             Err(CompileDiagnostic::CssOffsetTooLarge { .. })
         ));
@@ -168,15 +194,15 @@ mod tests {
             FileId(1),
             "--color-a: red; --spacing: .25rem;",
             10,
-            ThemeTokenMode::Inline,
+            ThemeValueMode::Inline,
         )
         .unwrap();
         assert_eq!(tokens.len(), 2);
         assert_eq!(tokens[0].name.value, "--color-a");
         assert_eq!(tokens[0].name.span.start.0, 10);
         assert_eq!(tokens[0].value.value, "red");
-        assert_eq!(tokens[0].mode, ThemeTokenMode::Inline);
-        assert_eq!(ThemeTokenMode::parse("static"), ThemeTokenMode::Static);
-        assert_eq!(ThemeTokenMode::parse("unknown"), ThemeTokenMode::Default);
+        assert_eq!(tokens[0].mode, ThemeValueMode::Inline);
+        assert_eq!(ThemeValueMode::parse("static"), ThemeValueMode::Static);
+        assert_eq!(ThemeValueMode::parse("unknown"), ThemeValueMode::Default);
     }
 }

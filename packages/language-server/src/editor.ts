@@ -32,7 +32,7 @@ export type EditorQuery = (
 ) => Promise<WorkspaceEditorResult[]>;
 
 /**
- * Registers hover, completion, colors, plugin links, and source actions on the connection.
+ * Registers hover, definitions, completion, colors, plugin links, and source actions.
  *
  * @param connection - Caller-owned connection on which handlers are installed.
  * @param documents - Open original buffers used to convert UTF-16 offsets to LSP positions.
@@ -43,6 +43,40 @@ export function registerEditorFeatures(
   documents: TextDocuments<TextDocument>,
   query: EditorQuery,
 ): void {
+  connection.onDefinition(async (params, token) => {
+    const document = documents.get(params.textDocument.uri);
+    if (!document) {
+      return [];
+    }
+    const entries = await query(
+      document.uri,
+      {
+        kind: "definition",
+        offset: document.offsetAt(params.position),
+      },
+      token,
+    );
+    const definitions = entries.flatMap((entry) => entry.result.definitions ?? []);
+    return definitions
+      .filter(
+        (definition, index) =>
+          definitions.findIndex((other) => JSON.stringify(other) === JSON.stringify(definition)) ===
+          index,
+      )
+      .map((definition) => ({
+        uri: definition.uri,
+        range: {
+          start: {
+            line: definition.startLine,
+            character: definition.startColumn,
+          },
+          end: {
+            line: definition.endLine,
+            character: definition.endColumn,
+          },
+        },
+      }));
+  });
   connection.onDocumentLinks(async (params, token) => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {

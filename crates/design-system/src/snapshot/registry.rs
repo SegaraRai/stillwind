@@ -18,7 +18,7 @@ use lean_string::{LeanStr, ToLeanString};
 use stillwind_css::CustomPropertyDefinition;
 use stillwind_source::Fingerprint;
 
-use crate::{CustomUtility, CustomVariant, ThemeToken};
+use crate::{CustomUtility, CustomVariant, ThemeValue};
 
 /// Immutable name-to-definitions lookup produced by one snapshot.
 ///
@@ -75,8 +75,9 @@ impl<T> DefinitionRegistry<T> {
     }
 }
 
-/// Active theme tokens, keyed by custom-property name.
-pub type ThemeRegistry = DefinitionRegistry<ThemeToken>;
+/// Active theme values, keyed by custom-property name. The owning snapshot accessor
+/// determines whether the registry includes shared assets.
+pub type ThemeRegistry = DefinitionRegistry<ThemeValue>;
 
 /// Stillwind and Tailwind-style utility definitions, keyed by authored name.
 pub type UtilityRegistry = DefinitionRegistry<CustomUtility>;

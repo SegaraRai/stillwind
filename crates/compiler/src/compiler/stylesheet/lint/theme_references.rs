@@ -65,7 +65,7 @@ fn check_text(checker: &mut Checker<'_>, range: Range<usize>) {
         let reference = reference.trim();
         if !reference.starts_with("--")
             || fallback.is_some_and(|fallback| !fallback.trim().is_empty())
-            || checker.theme.custom_property(reference).is_some()
+            || checker.theme.token_property(reference).is_some()
         {
             continue;
         }

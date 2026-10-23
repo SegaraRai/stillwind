@@ -10,7 +10,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
-    NestedUtilityRule, ResolvedUtility, ThemeToken, ThemeTokenMode, UtilityResolutionError,
+    NestedUtilityRule, ResolvedUtility, ThemeValue, ThemeValueMode, UtilityResolutionError,
     resolve_utility, stillwind_property_definitions,
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
@@ -158,7 +158,7 @@ impl<'a> ValuePreparation<'a> {
             .iter()
             .filter_map(|(name, group)| {
                 let token = group.first()?;
-                let value = if token.mode == ThemeTokenMode::Inline {
+                let value = if token.mode == ThemeValueMode::Inline {
                     token.value.value.clone()
                 } else {
                     format_args!("var({name})").to_lean_str()
@@ -263,7 +263,7 @@ impl<'a> ValuePreparation<'a> {
                 continue;
             };
             if template.is_none()
-                && token.mode != ThemeTokenMode::Inline
+                && token.mode != ThemeValueMode::Inline
                 && let Ok(Some(preview)) = query.canonical_preview(&label)
                 && preview
                     .css
@@ -280,7 +280,7 @@ impl<'a> ValuePreparation<'a> {
             let Some(template) = &template else {
                 continue;
             };
-            let value = if token.mode == ThemeTokenMode::Inline {
+            let value = if token.mode == ThemeValueMode::Inline {
                 token.value.value.clone()
             } else {
                 format_args!("var({token_name})").to_lean_str()
@@ -324,7 +324,7 @@ fn token_labels<'q>(
     query: &'q QueryContext,
     root: &'q str,
     namespace: &'q str,
-) -> impl Iterator<Item = (&'q str, &'q ThemeToken, LeanStr)> {
+) -> impl Iterator<Item = (&'q str, &'q ThemeValue, LeanStr)> {
     let tokens = query.design_system.tokens();
     tokens
         .names_with_prefix(namespace)

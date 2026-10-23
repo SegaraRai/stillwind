@@ -138,6 +138,40 @@ slot in the wrong syntactic position is skipped, as
 contribution is an error. Repeated slots repeat their selected contributions at every
 position; the application owns the resulting cascade across conditions and layers.
 
+### Shared assets
+
+`@theme asset` declares shared CSS values separately from design tokens:
+
+```css
+@theme default asset {
+  --image-logo: url("data:image/svg+xml,...");
+}
+
+@utility logo {
+  mask-image: var(--image-logo);
+}
+```
+
+The `asset` role is independent of `default`, `inline`, and `static`. Existing
+precedence selects both the value and the role of the winning definition. To override
+an asset while keeping its role, declare the replacement in another `@theme asset`
+block. Namespace resets affect only their block's role: `@theme { --*: initial; }`
+keeps assets, and `@theme asset { --*: initial; }` keeps design tokens.
+
+Ordinary assets are selected through `var()` references and transitive dependencies.
+They use the same output positions as theme variables, including the `theme` slot.
+Each independently rendered stylesheet selects its own dependencies. Variants and
+importance apply to consuming rules. Editor previews do not select build output.
+Static assets are retained without a reference. Inline assets replace their `var()`
+calls with the declared value, including when the call supplies a fallback; strings
+and URLs are not searched for references.
+
+Assets are excluded from theme namespaces, `--value()` token selection, `theme()`,
+`--theme()`, token restrictions, and checks of theme namespace value types. They remain
+available to ordinary CSS variable references. Declaration policies, including length
+unit checks through known variables, retain their existing behavior. An asset does
+not declare an `@property` registration.
+
 ## Skipped statements
 
 Loading leaves out an invalid statement instead of failing, so the rest of the
