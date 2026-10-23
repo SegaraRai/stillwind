@@ -14,11 +14,14 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.11",
     "@emnapi/runtime": "^1.11.3",
+    "@iconify-json/lucide": "^1.2.147",
+    "@iconify-json/simple-icons": "^1.2.100",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@stillwind/cli": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@stillwind/native": "workspace:*",
+    "@stillwind/plugin-iconify": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

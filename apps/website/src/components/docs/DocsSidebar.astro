@@ -1,5 +1,6 @@
 ---
 import type { SidebarItem } from "@cloudflare/nimbus-docs/types";
+import { style } from "stillwind/astro";
 
 import DocsSidebar from "./DocsSidebar.astro";
 
@@ -8,7 +9,9 @@ interface Props {
   /** Key of the enclosing group; nested group keys join the labels with "/". */
   parent?: string;
 }
+
 const { items, parent } = Astro.props;
+
 const groupKey = (label: string) => (parent ? `${parent}/${label}` : label);
 const current = (item: SidebarItem): boolean =>
   item.type === "group"
@@ -25,7 +28,10 @@ const current = (item: SidebarItem): boolean =>
           data-sidebar-group={groupKey(item.label)}
           open={current(item) || item.collapsed === false}
         >
-          <summary>{item.label}</summary>
+          <summary>
+            <span aria-hidden="true" {...style("icon-lucide--chevron-right shrink-0")}></span>
+            {item.label}
+          </summary>
           {item.indexHref && (
             <a
               href={item.indexHref}

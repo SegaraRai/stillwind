@@ -18,6 +18,10 @@
   --color-warning: light-dark(#805a19, #e4c276);
   --color-success: light-dark(#3d6844, #a4c991);
 
+  --icon-size-control: 1.125rem;
+  --icon-size-aside: 1.25rem;
+  --icon-size-framework: 2rem;
+
   --spacing: 0.25rem;
   --spacing-gutter: clamp(1.5rem, 5.4vw, 5rem);
   --spacing-docs-gutter: clamp(1rem, 2.5vw, 2.5rem);

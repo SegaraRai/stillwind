@@ -493,6 +493,12 @@ importers:
       '@emnapi/runtime':
         specifier: ^1.11.3
         version: 1.11.3
+      '@iconify-json/lucide':
+        specifier: ^1.2.147
+        version: 1.2.147
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.100
+        version: 1.2.100
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:../../tools/workspace
@@ -508,6 +514,9 @@ importers:
       '@stillwind/native':
         specifier: workspace:*
         version: link:../../packages/native
+      '@stillwind/plugin-iconify':
+        specifier: workspace:*
+        version: link:../../plugins/iconify
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
@@ -3954,6 +3963,9 @@ packages:
 
   '@iconify-json/mdi@1.2.3':
     resolution: {integrity: sha512-O3cLwbDOK7NNDf2ihaQOH5F9JglnulNDFV7WprU2dSoZu3h3cWH//h74uQAB87brHmvFVxIOkuBX2sZSzYhScg==}
+
+  '@iconify-json/simple-icons@1.2.100':
+    resolution: {integrity: sha512-536pN2RCEQyy5bYwzayrs4e9egr8cmtVcbdSHLaQl/ULUsihzn1eZ0+Hhn50zgz9cbEotiynKsKQSEjFJ7qKmw==}
 
   '@iconify/tailwind4@1.2.3':
     resolution: {integrity: sha512-z8SKiMHRASJKF/IY//87MF88lcB7ulxh8vlhQXXLWsBkNtOh6ese9R41MyGpQeqXdRvQVt+/fX2glQtHFjQ+MA==}
@@ -14147,6 +14159,10 @@ snapshots:
       '@iconify/types': 2.0.0
 
   '@iconify-json/mdi@1.2.3':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/simple-icons@1.2.100':
     dependencies:
       '@iconify/types': 2.0.0
 

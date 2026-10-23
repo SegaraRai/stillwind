@@ -13,27 +13,27 @@ const { topic, frame } = Astro.props;
 const emphasized = true;
 const accent = "var(--color-action-hover)";
 const syntaxProps = [
-  style("rounded-control px-4 py-2"),
-  style("rounded-control px-4 py-2", emphasized && "shadow-sm"),
-  style(["rounded-control px-4 py-2", emphasized && "shadow-sm"]),
-  style(["rounded-control px-4 py-2", emphasized && "shadow-sm"], {
-    "aria-pressed:": "bg-action text-action-foreground",
+  style("px-4 py-2 rounded-control"),
+  style("px-4 py-2 rounded-control", emphasized && "shadow-sm"),
+  style(["px-4 py-2 rounded-control", emphasized && "shadow-sm"]),
+  style(["px-4 py-2 rounded-control", emphasized && "shadow-sm"], {
+    "aria-pressed:": "text-action-foreground bg-action",
   }),
-  style(["rounded-control px-4 py-2", emphasized && "shadow-sm"], {
-    "aria-pressed:": ["bg-action text-action-foreground", "font-medium"],
+  style(["px-4 py-2 rounded-control", emphasized && "shadow-sm"], {
+    "aria-pressed:": ["text-action-foreground bg-action", "font-medium"],
   }),
-  style(["rounded-control px-4 py-2", emphasized && "shadow-sm"], {
+  style(["px-4 py-2 rounded-control", emphasized && "shadow-sm"], {
     "aria-pressed:": [
-      "bg-action text-action-foreground font-medium",
+      "text-action-foreground font-medium bg-action",
       { "hover:": "bg-action-hover" },
     ],
   }),
-  style(["rounded-control px-4 py-2", emphasized && "shadow-sm"], {
-    "--accent": accent,
+  style(["px-4 py-2 rounded-control", emphasized && "shadow-sm"], {
     "aria-pressed:": [
-      "bg-(--accent) text-action-foreground font-medium",
+      "text-action-foreground font-medium bg-(--accent)",
       { "hover:": "brightness-110" },
     ],
+    "--accent": accent,
   }),
 ];
 const box = style.ref();
@@ -99,7 +99,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
             <div data-responsive-surface>
               <div
                 data-responsive-card
-                {...style("grid gap-4 justify-items-center text-center", {
+                {...style("grid justify-items-center gap-4 text-center", {
                   [box.at("width >= 13rem")]: [
                     "grid-cols-[3rem_1fr]",
                     "justify-items-start text-left",
@@ -136,7 +136,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   aria-label={"Save " + title}
                   aria-pressed={cardIndex === 0 ? "true" : "false"}
                   {...style(button, "feature-button", {
-                    "aria-pressed:": "bg-action text-action-foreground",
+                    "aria-pressed:": "text-action-foreground bg-action",
                   })}
                 >
                   Save
@@ -147,7 +147,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                     [button("aria-pressed").in(card)]: "opacity-100",
                   })}
                 >
-                  ✓ Saved
+                  <span {...style("icon-lucide--check align-middle")}></span> Saved
                 </span>
               </div>
             ))}
@@ -199,7 +199,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 {...style(enter("duration-420 ease-out both"), "entrance-preview")}
               >
                 <span data-saved-icon aria-hidden="true">
-                  ✓
+                  <span {...style("icon-lucide--check")}></span>
                 </span>
                 <span>Saved to your list</span>
               </div>
@@ -255,8 +255,16 @@ const articleExcerpt = "Labels that make forms easier to complete.";
             </span>
             <span>Article · 300ms</span>
           </div>
-          <button type="button" data-replay-transition hidden {...style("demo-action")}>
-            Replay card → article
+          <button
+            type="button"
+            data-replay-transition
+            aria-label="Replay card to article"
+            hidden
+            {...style("demo-action")}
+          >
+            Replay card{" "}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>{" "}
+            article
           </button>
         </div>
       )}

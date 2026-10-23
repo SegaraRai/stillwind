@@ -2,7 +2,10 @@
    contains rules for every page, and landing.css and docs.css contain rules for each part. */
 
 @import "stillwind";
+
 @import "./styles/theme.css";
 @import "./styles/site.css";
 @import "./styles/landing.css";
 @import "./styles/docs.css";
+
+@plugin "@stillwind/plugin-iconify";

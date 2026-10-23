@@ -1,5 +1,6 @@
 ---
 import { getEntry } from "astro:content";
+import { style } from "stillwind/astro";
 
 import type { UtilityCatalog } from "../../lib/docs/utilities/search";
 
@@ -18,8 +19,8 @@ const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
     <div class="utility-search-field">
       <label for="utility-mode">Search direction</label>
       <select id="utility-mode" name="mode">
-        <option value="utility">Utility → CSS</option>
-        <option value="css">CSS → utilities</option>
+        <option value="utility">Utility to CSS</option>
+        <option value="css">CSS to utilities</option>
       </select>
     </div>
     <div class="utility-search-field">
@@ -50,7 +51,10 @@ const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
   </div>
   <p class="utility-catalog-meta">
     Catalog revision <code>{catalog.revision.slice(0, 12)}</code>.{" "}
-    <a href="/docs/utilities/index.md">Full catalog as Markdown ↗</a>
+    <a href="/docs/utilities/index.md">
+      Full catalog as Markdown{" "}
+      <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+    </a>
   </p>
 </div>
 

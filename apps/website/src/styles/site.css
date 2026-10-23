@@ -17,17 +17,10 @@ h2 {
 }
 
 [data-theme-toggle] {
-  @apply inline-flex items-center justify-center shrink-0 size-9 rounded-control text-muted cursor-pointer hover:bg-surface-muted hover:text-foreground;
+  @apply inline-flex size-9 shrink-0 items-center justify-center text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted;
 
   &[hidden] {
     display: none;
-  }
-
-  svg {
-    @apply size-4.5 fill-none stroke-current;
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
 }
 

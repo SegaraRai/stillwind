@@ -14,7 +14,14 @@ import ThemeHead from "../components/site/ThemeHead.astro";
 const repository = "https://github.com/SegaraRai/stillwind";
 const docs = "/docs/";
 const integrations = "/docs/integrations/";
-const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
+const frameworks = [
+  { name: "React", icon: style("icon-framework icon-simple-icons--react") },
+  { name: "Vue", icon: style("icon-framework icon-simple-icons--vuedotjs") },
+  { name: "Svelte", icon: style("icon-framework icon-simple-icons--svelte") },
+  { name: "Astro", icon: style("icon-framework icon-simple-icons--astro") },
+  { name: "Solid", icon: style("icon-framework icon-simple-icons--solid") },
+  { name: "Preact", icon: style("icon-framework icon-simple-icons--preact") },
+];
 ---
 
 <!doctype html>
@@ -64,13 +71,15 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                   href={docs}
                   {...style("text-action-foreground bg-action action-link hover:bg-action-hover")}
                 >
-                  Get started <span aria-hidden="true">↗</span>
+                  Get started{" "}
+                  <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
                 </a>
                 <a href="#examples" {...style("text-small nav-link")}>
                   See it in practice{" "}
-                  <span aria-hidden="true" {...style("ms-3")}>
-                    ↓
-                  </span>
+                  <span
+                    aria-hidden="true"
+                    {...style("icon-lucide--arrow-down ms-3 align-middle")}
+                  ></span>
                 </a>
               </div>
             </div>
@@ -78,7 +87,6 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
               For people who write code.
               <br />
               And agents that write a lot of it.
-              <!-- このキャッチコピーは良い -->
             </p>
           </div>
         </section>
@@ -103,7 +111,8 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
                 "shrink-0 text-action-foreground bg-action action-link hover:bg-action-hover",
               )}
             >
-              Read the setup guide <span aria-hidden="true">↗</span>
+              Read the setup guide{" "}
+              <span aria-hidden="true" {...style("icon-lucide--arrow-up-right")}></span>
             </a>
           </div>
           <nav
@@ -114,17 +123,19 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
           >
             {frameworks.map((framework) => (
               <a
-                href={`${integrations}#${framework === "Astro" ? "astro" : "vite"}`}
-                {...style("block pbs-4 border-border border-bs nav-link")}
+                href={`${integrations}#${framework.name === "Astro" ? "astro" : "vite"}`}
+                {...style("framework-link")}
               >
-                <span {...style("flex items-center justify-between text-small")}>
-                  {framework}
-                  <span aria-hidden="true" {...style("text-muted")}>
-                    ↗
-                  </span>
+                <span data-framework-icon aria-hidden="true" {...framework.icon}></span>
+                <span {...style("flex mbs-5 items-center justify-between text-small")}>
+                  {framework.name}
+                  <span
+                    aria-hidden="true"
+                    {...style("icon-lucide--arrow-up-right text-muted")}
+                  ></span>
                 </span>
-                <span {...style("block mbs-2 font-mono text-muted text-label")}>
-                  stillwind/{framework.toLowerCase()}
+                <span {...style("block mbs-2 font-mono text-label text-muted")}>
+                  stillwind/{framework.name.toLowerCase()}
                 </span>
               </a>
             ))}
@@ -132,30 +143,42 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
           <div {...style("grid gap-7 sidebar:grid-cols-3 sidebar:gap-12")}>
             <div>
               <h3 {...style("mbe-2 text-small")}>Tailwind CSS compatibility</h3>
-              <p {...style("text-muted text-caption/relaxed")}>
+              <p {...style("text-caption/relaxed text-muted")}>
                 Use Tailwind CSS v4 utilities, theme variables, and CSS directives. See the{" "}
                 <a href="/docs/guides/migrating-from-tailwind/" {...style("nav-link")}>
-                  migration guide ↗
+                  migration guide{" "}
+                  <span
+                    aria-hidden="true"
+                    {...style("icon-lucide--arrow-up-right align-middle")}
+                  ></span>
                 </a>{" "}
                 for configuration and plugin compatibility.
               </p>
             </div>
             <div>
               <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
-              <p {...style("text-muted text-caption/relaxed")}>
+              <p {...style("text-caption/relaxed text-muted")}>
                 Utility strings, arrays, and conditions fit existing components.{" "}
                 <a href="/docs/macros/cva/" {...style("nav-link")}>
-                  CVA-compatible factories ↗
+                  CVA-compatible factories{" "}
+                  <span
+                    aria-hidden="true"
+                    {...style("icon-lucide--arrow-up-right align-middle")}
+                  ></span>
                 </a>{" "}
                 are available when you need them.
               </p>
             </div>
             <div>
               <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
-              <p {...style("text-muted text-caption/relaxed")}>
+              <p {...style("text-caption/relaxed text-muted")}>
                 Use{" "}
                 <a href="/docs/guides/shadow-dom/" {...style("nav-link")}>
-                  explicit CSS exports ↗
+                  explicit CSS exports{" "}
+                  <span
+                    aria-hidden="true"
+                    {...style("icon-lucide--arrow-up-right align-middle")}
+                  ></span>
                 </a>{" "}
                 to place compiled styles in a Shadow DOM or another scope you control.
               </p>
@@ -170,8 +193,9 @@ const frameworks = ["React", "Vue", "Svelte", "Astro", "Solid", "Preact"];
         )}
       >
         <span>Stillwind · Open source · MIT</span>
-        <a href={repository} {...style("nav-link")}>
-          Explore the source ↗
+        <a href={repository} {...style("inline-flex items-center gap-2 nav-link")}>
+          <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
+          Explore the source
         </a>
       </footer>
     </div>

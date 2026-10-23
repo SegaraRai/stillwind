@@ -62,10 +62,10 @@ const stops = featureTopics.flatMap((topic) =>
     <div data-feature-footer>
       <div data-feature-paging aria-label="Examples">
         <button type="button" data-feature-direction="-1" aria-label="Previous example" disabled>
-          ←
+          <span aria-hidden="true" {...style("icon-lucide--arrow-left")}></span>
         </button>
         <button type="button" data-feature-direction="1" aria-label="Next example">
-          →
+          <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
         </button>
       </div>
       <div data-feature-cues aria-label="Examples">
@@ -81,8 +81,9 @@ const stops = featureTopics.flatMap((topic) =>
           </button>
         ))}
       </div>
-      <a href="/docs/macros/" {...style("nav-link text-caption text-muted")}>
-        Explore the API ↗
+      <a href="/docs/macros/" {...style("text-caption text-muted nav-link")}>
+        Explore the API{" "}
+        <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
       </a>
     </div>
     <div data-feature-progress-area>
@@ -90,7 +91,8 @@ const stops = featureTopics.flatMap((topic) =>
         <span></span>
       </div>
       <p data-feature-scroll-hint {...style("mbs-4 text-end font-mono text-label text-muted")}>
-        Scroll to explore ↓
+        Scroll to explore{" "}
+        <span aria-hidden="true" {...style("icon-lucide--arrow-down align-middle")}></span>
       </p>
     </div>
   </div>

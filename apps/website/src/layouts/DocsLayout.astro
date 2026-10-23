@@ -25,7 +25,10 @@ interface Props {
 
 const { title, description, entryId, markdownUrl, sidebar, headings, editUrl, prevNext } =
   Astro.props;
-const navigationTransition = style.viewTransition({ group: "duration-300 ease-out" });
+
+const navigationTransition = style.viewTransition({
+  group: "duration-300 ease-out",
+});
 ---
 
 <!doctype html>
@@ -56,8 +59,20 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
           <DocsSidebar items={sidebar} />
           <div class="docs-agent-links">
             <p class="docs-label">For agents</p>
-            <a href="/docs/llms.txt">Documentation index ↗</a>
-            <a href="/llms-full.txt">Full documentation ↗</a>
+            <a href="/docs/llms.txt">
+              Documentation index{" "}
+              <span
+                aria-hidden="true"
+                {...style("icon-lucide--arrow-up-right align-middle")}
+              ></span>
+            </a>
+            <a href="/llms-full.txt">
+              Full documentation{" "}
+              <span
+                aria-hidden="true"
+                {...style("icon-lucide--arrow-up-right align-middle")}
+              ></span>
+            </a>
           </div>
           <script is:inline>
             // Restores the open groups and the scroll position from the previous documentation page
@@ -97,7 +112,13 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
             <h1>{title}</h1>
             {description && <p class="docs-description">{description}</p>}
             <div class="docs-page-actions">
-              <a href={markdownUrl}>View as Markdown ↗</a>
+              <a href={markdownUrl}>
+                View as Markdown{" "}
+                <span
+                  aria-hidden="true"
+                  {...style("icon-lucide--arrow-up-right align-middle")}
+                ></span>
+              </a>
               <button type="button" data-copy-markdown={markdownUrl} hidden>
                 Copy page
               </button>
@@ -117,7 +138,10 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
                     rel="prev"
                     aria-label={`Previous page: ${prevNext.prev.label}`}
                   >
-                    <span aria-hidden="true">←</span>
+                    <span
+                      aria-hidden="true"
+                      {...style("icon-lucide--arrow-left mbs-1 shrink-0")}
+                    ></span>
                     <span>{prevNext.prev.label}</span>
                   </a>
                 )}
@@ -129,12 +153,23 @@ const navigationTransition = style.viewTransition({ group: "duration-300 ease-ou
                     aria-label={`Next page: ${prevNext.next.label}`}
                   >
                     <span>{prevNext.next.label}</span>
-                    <span aria-hidden="true">→</span>
+                    <span
+                      aria-hidden="true"
+                      {...style("icon-lucide--arrow-right mbs-1 shrink-0")}
+                    ></span>
                   </a>
                 )}
               </nav>
             )}
-            {editUrl && <a href={editUrl}>Edit this page ↗</a>}
+            {editUrl && (
+              <a href={editUrl}>
+                Edit this page{" "}
+                <span
+                  aria-hidden="true"
+                  {...style("icon-simple-icons--github align-middle")}
+                ></span>
+              </a>
+            )}
           </footer>
         </main>
         <nav class="docs-toc" aria-label="On this page">

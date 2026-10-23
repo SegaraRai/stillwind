@@ -128,6 +128,23 @@ html[data-header-mounted] {
   }
 }
 
+@utility framework-link {
+  @apply block pbs-5 border-bs border-border nav-link;
+
+  [data-framework-icon] {
+    color: var(--color-muted);
+    opacity: 0.7;
+    transition:
+      color 140ms ease,
+      opacity 140ms ease;
+  }
+
+  &:is(:hover, :focus-visible) [data-framework-icon] {
+    color: var(--color-foreground);
+    opacity: 1;
+  }
+}
+
 @utility morph-source {
   position: relative;
   block-size: var(--code-height, 1.8em);

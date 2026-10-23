@@ -17,7 +17,7 @@ export default defineConfig({
       dev: {
         command: "astro dev",
         cache: false,
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],
       },
       build: {
         command: "astro build",
@@ -43,7 +43,7 @@ export default defineConfig({
       },
       "generate:types": {
         command: "astro sync",
-        dependsOn: ["@stillwind/integration#build"],
+        dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],
         cache: {
           env: ["SITE_URL"],
           input: [{ auto: true }, "!.astro/**", "!.nimbus/**"],
