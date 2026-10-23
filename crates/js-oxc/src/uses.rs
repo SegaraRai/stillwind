@@ -6,7 +6,7 @@ use oxc::ast::ast::{CallExpression, Expression};
 use oxc::span::{GetSpan, Span};
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
-use stillwind_semantic::AssetKind;
+use stillwind_semantic::{AssetKind, CheckedValue};
 
 use crate::local_span::LocalSpan;
 use crate::state::MacroExtractor;
@@ -106,7 +106,7 @@ impl<'a> MacroExtractor<'a> {
     fn use_receiver_is(&self, expression: &Expression<'a>, kind: AssetKind) -> bool {
         let expression = expression.get_inner_expression();
         if let Some(fact) = self.type_fact(expression.span()) {
-            return matches!(fact, stillwind_semantic::CheckedValue::Asset(value) if value.kind() == kind);
+            return matches!(fact, CheckedValue::Asset(value) if value.kind() == kind);
         }
         self.probing_use.set(true);
         let resolved = match kind {

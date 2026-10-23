@@ -198,7 +198,7 @@ impl ThemeNamespaces {
     /// names.
     ///
     /// For example, `--font-weight-bold` is excluded from `font` when `font` excludes
-    /// `--font-weight-*`. `namespace` is written as in [`namespace_key_names`].
+    /// `--font-weight-*`. `namespace` is written as in `namespace_key_names`.
     #[must_use]
     pub fn excludes(&self, namespace: &str, name: &str) -> bool {
         let Some(narrower) = self.exclusions.get(namespace) else {

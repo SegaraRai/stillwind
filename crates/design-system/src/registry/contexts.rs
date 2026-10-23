@@ -69,7 +69,7 @@ pub enum RegistryContext {
 }
 
 impl RegistryContext {
-    /// Every context, in the order of [`Self::index`].
+    /// Every context, in the order of `Self::index`.
     pub const ALL: [Self; 4] = [
         Self::Default,
         Self::Animation,

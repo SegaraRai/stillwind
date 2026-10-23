@@ -22,7 +22,7 @@ use stillwind_ir::{
     CheckerProjection, ModuleAnalysis, ModuleIr, ModuleScan, SourceAnalyzer, SourceInput, TypeProbe,
 };
 use stillwind_semantic::{
-    ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts,
+    CheckedValue, ExportedValue, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts,
 };
 use stillwind_source::{Fingerprint, JoinText};
 
@@ -55,7 +55,7 @@ impl OxcSourceAnalyzer {
         };
         let mut assets = BTreeSet::new();
         for fact in &facts.facts {
-            let stillwind_semantic::CheckedValue::Asset(value) = &fact.value else {
+            let CheckedValue::Asset(value) = &fact.value else {
                 continue;
             };
             match value {

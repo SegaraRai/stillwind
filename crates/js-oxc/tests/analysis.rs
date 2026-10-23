@@ -14,8 +14,8 @@ use stillwind_diagnostics::{
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
-    AssetKind, CheckedValue, ExportedValue, IntegrationDiagnostic, SymbolicValue, TypeFact,
-    TypeFacts,
+    AssetKind, CheckedValue, ExportedValue, IdentityId, IntegrationDiagnostic, SymbolicValue,
+    TypeFact, TypeFacts,
 };
 use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile};
 
@@ -137,7 +137,7 @@ fn ref_variant_receivers_lower_each_conditional_branch() {
             ScriptModuleKind::Module,
         );
         let definition = &local.module.ref_definitions[0];
-        let identity = stillwind_semantic::IdentityId::new(
+        let identity = IdentityId::new(
             AssetKind::Ref,
             definition.module_id.clone(),
             definition.binding.span.start.0,
@@ -211,7 +211,7 @@ fn raw_ref_factories_work_as_scopes_when_the_checker_proves_their_identities() {
             "{local:#?}"
         );
         let definition = &local.module.ref_definitions[0];
-        let identity = stillwind_semantic::IdentityId::new(
+        let identity = IdentityId::new(
             AssetKind::Ref,
             definition.module_id.clone(),
             definition.binding.span.start.0,

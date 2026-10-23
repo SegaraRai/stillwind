@@ -22,7 +22,7 @@ use crate::compiler::{
 
 /// The syntax and emission contract of an editor input.
 /// Keyframe frames, keyframes uses, and view transitions resolve utilities through the
-/// registry context that [`Self::registry_context`] returns.
+/// registry context that `Self::registry_context` returns.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub enum CandidateContext {
     /// Element utilities, with ordinary variant prefixes.

@@ -18,7 +18,7 @@ use stillwind_design_system::{
 };
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_ir::MediaCall;
-use stillwind_source::Spanned;
+use stillwind_source::{FileId, Span, Spanned};
 
 use self::query::MediaQueryList;
 use super::style_variants::parse_prefix;
@@ -57,11 +57,7 @@ pub(crate) fn media_query(
 pub(crate) fn media_argument_query(text: &str, theme: &ThemeIndex) -> Option<LeanString> {
     let argument = Spanned::new(
         LeanStr::from(text),
-        stillwind_source::Span::new(
-            stillwind_source::FileId(0),
-            0,
-            u32::try_from(text.len()).unwrap_or(u32::MAX),
-        ),
+        Span::new(FileId(0), 0, u32::try_from(text.len()).unwrap_or(u32::MAX)),
     );
     let mut findings = Vec::new();
     let queries = argument_queries(&argument, theme, &mut findings);

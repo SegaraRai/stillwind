@@ -268,6 +268,7 @@ mod tests {
 
     use lean_string::LeanString;
 
+    use stillwind_css::CssRule;
     use stillwind_design_system::{DesignSystemLoadStep, DesignSystemLoader, DesignSystemOptions};
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
     use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -276,9 +277,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        ClassContext, CompilerOptions, GeneratedName, IdentifierGenerator, IdentifierHash,
-        IdentifierMode, Identifiers, LayerContext, LayerName, ModuleCompiler, StylesheetRenderer,
-        UtilityClass,
+        ClassContext, CompilerOptions, GeneratedName, GeneratedRule, IdentifierGenerator,
+        IdentifierHash, IdentifierMode, Identifiers, LayerContext, LayerName, ModuleCompiler,
+        ModuleCssArtifact, StylesheetRenderer, UtilityClass,
     };
 
     #[derive(Debug, Default)]
@@ -350,11 +351,9 @@ mod tests {
     #[test]
     fn caller_constructed_rules_validate_registration_dependencies_during_rendering() {
         let design = snapshot("@stillwind-slot utilities;");
-        let syntax = stillwind_css::CssRule::parse(".x{display:flex}")
-            .unwrap()
-            .remove(0);
-        let artifact = crate::ModuleCssArtifact {
-            rules: vec![crate::GeneratedRule::new(
+        let syntax = CssRule::parse(".x{display:flex}").unwrap().remove(0);
+        let artifact = ModuleCssArtifact {
+            rules: vec![GeneratedRule::new(
                 syntax,
                 false,
                 vec!["--unknown-registration".into()],
