@@ -173,6 +173,12 @@ pub enum CompileDiagnostic {
         /// Syntax error reported by the theme resolver.
         detail: LeanStr,
     },
+    /// An application depends on itself through one or more utility definitions.
+    #[error("circular @apply dependency for utility `{utility}`")]
+    CircularUtilityApplication {
+        /// Candidate repeated in the active application dependency path.
+        utility: LeanStr,
+    },
     /// A value cannot be resolved locally without host checker facts.
     #[error("{subject} require TypeScript checker facts")]
     CheckerFactsRequired {

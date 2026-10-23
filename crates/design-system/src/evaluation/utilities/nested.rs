@@ -1,19 +1,16 @@
 //! Structural splitting of a utility body.
 //!
-//! A definition body can be a plain declaration list, a selector block, or a mix:
-//! declarations before the selector apply to the utility itself and declarations inside
-//! the block apply to the selected element. Conditional declarations (`@media`,
-//! `@supports`) may appear at either level.
-//!
-//! Placement is taken from the authored CSS rather than inferred from property names,
-//! which is why a conditional keeps the level it was written at. A body that cannot be
-//! split cleanly is rejected, so a malformed definition cannot silently emit
-//! declarations at the wrong nesting level.
+//! A single final selector block can be evaluated separately from the utility's direct
+//! declarations. Bodies with several selectors keep their CSS structure and source
+//! order. Conditional rules stay in those bodies so that splitting them cannot move
+//! declarations across selectors.
 
 use cssparser::Parser;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssNodeKind, parse_structure, selector_uses_subject, validate_css_syntax};
+use stillwind_css::{
+    CssNode, CssNodeKind, absolutize_nested_selector, parse_structure, validate_css_syntax,
+};
 
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -63,15 +60,20 @@ pub(in crate::evaluation) struct ParsedNestedUtilityRule {
 ///
 /// Conditions are returned in authored order and their inner bodies are trimmed. A
 /// conditional whose block is unterminated fails the split instead of leaving its text
-/// in the direct declarations.
+/// in the direct declarations. A body containing selectors keeps its conditions in
+/// place, so declarations after a nested rule retain their cascade order.
 pub(in crate::evaluation) fn split_nested_conditions(
     body: &str,
 ) -> Option<(LeanString, Vec<ParsedNestedUtilityRule>)> {
     validate_css_syntax(body).ok()?;
+    let nodes = parse_structure(body);
+    if nodes.iter().any(contains_selector) {
+        return Some((body.trim().to_lean_string(), Vec::new()));
+    }
     let mut direct = LeanString::with_capacity(body.len());
     let mut nested = Vec::new();
     let mut cursor = 0;
-    for node in parse_structure(body) {
+    for node in nodes {
         let CssNodeKind::AtRule {
             name,
             prelude,
@@ -103,13 +105,26 @@ pub(in crate::evaluation) fn split_nested_conditions(
     Some((direct.trim().to_lean_string(), nested))
 }
 
-/// Splits a body into an optional selector, its inner declarations, and the
-/// declarations authored before the selector.
+/// Returns whether `node` is or contains a style rule outside a keyframe definition.
+/// Descendants of keyframe definitions are excluded from the search.
+pub(super) fn contains_selector(node: &CssNode) -> bool {
+    match &node.kind {
+        CssNodeKind::StyleRule { .. } => true,
+        CssNodeKind::AtRule { name, .. } if name.ends_with("keyframes") => false,
+        _ => node.children().iter().any(contains_selector),
+    }
+}
+
+/// Splits `body` into a normalized selector, the selected rule's contents, and the
+/// optional CSS preceding that rule.
 ///
-/// A body without a style rule has no selector, and the whole body is returned as
-/// direct declarations. A body whose selector block is not a complete selector -
-/// anything after the closing brace, or a prelude without `&` - is rejected, because
-/// accepting it would change which element the declarations apply to.
+/// A single final style rule receives an explicit nesting selector; its contents and
+/// preceding CSS are trimmed slices of `body`. When there is no direct style rule,
+/// there are several, or another CSS node follows one, the result is
+/// `(None, body, None)` so evaluation retains the whole body.
+///
+/// Returns `None` when CSS syntax validation fails or a selected rule has an unclosed
+/// block. Trailing text outside CSS nodes also fails when a direct style rule exists.
 pub(in crate::evaluation) fn split_utility_selector(
     body: &str,
 ) -> Option<(Option<LeanString>, &str, Option<&str>)> {
@@ -121,23 +136,21 @@ pub(in crate::evaluation) fn split_utility_selector(
     let Some(node) = rules.next() else {
         return Some((None, body, None));
     };
-    if rules.next().is_some()
-        || nodes.last() != Some(node)
-        || !Parser::new(&body[node.range.end..]).is_exhausted()
-    {
+    let last = nodes.last()?;
+    if !Parser::new(&body[last.range.end..]).is_exhausted() {
         return None;
+    }
+    if rules.next().is_some() || nodes.last() != Some(node) {
+        return Some((None, body, None));
     }
     let CssNodeKind::StyleRule { selector, block } = &node.kind else {
         return None;
     };
     block.close?;
-    let selector_text = &body[selector.clone()];
-    if !selector_uses_subject(selector_text) {
-        return None;
-    }
+    let selector_text = absolutize_nested_selector(&body[selector.clone()]);
     let before = body[..node.range.start].trim();
     Some((
-        Some(selector_text.to_lean_string()),
+        Some(selector_text),
         body[block.contents.clone()].trim(),
         (!before.is_empty()).then_some(before),
     ))
@@ -148,7 +161,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn splits_conditions_and_rejects_trailing_selector_rules() {
+    fn splits_conditions_and_rejects_incomplete_selector_bodies() {
         let (base, nested) =
             split_nested_conditions("color:red;@media (width > 1px) { color:blue; }").unwrap();
         assert_eq!(base, "color:red;");
@@ -165,6 +178,10 @@ mod tests {
             Some((Some("&:hover".into()), "color:red;", Some("x:1;")))
         );
         assert_eq!(split_utility_selector("& {x:1;} trailing"), None);
+        assert_eq!(
+            split_utility_selector("[data-icon] {opacity:.7;}"),
+            Some((Some("& [data-icon]".into()), "opacity:.7;", None))
+        );
         assert!(split_nested_conditions("@media x {").is_none());
     }
 }

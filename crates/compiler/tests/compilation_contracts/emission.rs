@@ -344,6 +344,145 @@ fn utility_bodies_apply_other_utilities_under_their_variants() {
 }
 
 #[test]
+fn custom_utilities_keep_sibling_selectors_and_expand_applications() {
+    let (_, result) = compile(
+        "const x = style('hover:framework-link');",
+        r"@variant hover { &:hover { @slot; } }
+@utility block { display:block; }
+@utility underline { text-decoration-line:underline; }
+@utility nav-link { text-underline-offset:5px; @apply hover:underline; &:focus-visible { outline:2px solid blue; } }
+@utility framework-link {
+  @apply block nav-link;
+  [data-framework-icon] { color:gray; opacity:0.7; transition:color 140ms ease, opacity 140ms ease; }
+  &:is(:hover, :focus-visible) [data-framework-icon] { color:black; opacity:1; }
+}",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+    let compact: String = result
+        .css
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    for fragment in [
+        ":hover{",
+        "display:block",
+        "text-underline-offset:5px",
+        "&[data-framework-icon]{color:gray;opacity:0.7;transition:color140msease,opacity140msease;}",
+        "&:is(:hover,:focus-visible)[data-framework-icon]{color:black;opacity:1;}",
+        "&:focus-visible{outline:2pxsolidblue;}",
+        "&:hover{text-decoration-line:underline;}",
+    ] {
+        assert!(compact.contains(fragment), "{}", result.css);
+    }
+    assert!(!result.css.contains("@apply"), "{}", result.css);
+}
+
+#[test]
+fn custom_utility_rules_keep_declarations_and_conditions_in_source_order() {
+    let (_, result) = compile(
+        "const x = style('ordered');",
+        r"@stillwind-format transform compose-space;
+@utility ordered {
+  transform:translateX(1px);
+  color:red;
+  & { color:blue; transform:none; }
+  @media print { color:green; }
+  color:black;
+  transform:translateY(2px);
+  [data-icon] { opacity:0.7; }
+  color:purple;
+}",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let positions: Vec<_> = [
+        "transform:translateX(1px)",
+        "color:red",
+        "color:blue",
+        "transform:none",
+        "@media print{color:green",
+        "color:black",
+        "transform:translateY(2px)",
+        "& [data-icon]{opacity:0.7",
+        "color:purple",
+    ]
+    .map(|fragment| {
+        result
+            .css
+            .find(fragment)
+            .unwrap_or_else(|| panic!("{}", result.css))
+    })
+    .into();
+    assert!(positions.is_sorted(), "{}", result.css);
+}
+
+#[test]
+fn custom_utility_definitions_keep_each_nested_selector_in_registration_order() {
+    let (_, result) = compile(
+        "const x = style('nested');",
+        r"@utility nested { &[data-a] { color:red; } &[data-b] { color:green; } }
+@utility nested { &[data-a] { color:blue; } &[data-c] { color:purple; } }",
+    );
+    let positions = ["color:red", "color:green", "color:blue", "color:purple"].map(|fragment| {
+        result
+            .css
+            .find(fragment)
+            .unwrap_or_else(|| panic!("{}", result.css))
+    });
+    assert!(positions.is_sorted(), "{}", result.css);
+}
+
+#[test]
+fn nested_utility_declarations_resolve_typed_branches_independently() {
+    let css = r"@utility nested-* {
+  display:block;
+  [data-length] { width:--value([length]); }
+  [data-color] { color:--value([color]); }
+}";
+    let (_, length) = compile("const x = style('nested-[2px]');", css);
+    assert!(length.diagnostics.is_empty(), "{:?}", length.diagnostics);
+    assert!(length.css.contains("display:block"), "{}", length.css);
+    assert!(
+        length.css.contains("& [data-length]{width:2px;"),
+        "{}",
+        length.css
+    );
+    assert!(!length.css.contains("[data-color]"), "{}", length.css);
+    let (_, color) = compile("const x = style('nested-[red]');", css);
+    assert!(
+        color.css.contains("& [data-color]{color:red;"),
+        "{}",
+        color.css
+    );
+    assert!(!color.css.contains("[data-length]"), "{}", color.css);
+    let (_, missing) = compile("const x = style('nested-missing');", css);
+    assert!(!missing.css.contains("display:block"), "{}", missing.css);
+}
+
+#[test]
+fn important_custom_utilities_prioritize_every_nested_declaration() {
+    let (_, result) = compile(
+        "const x = style('!nested');",
+        "@utility nested { color:red; [data-icon] { opacity:0.7; } &:hover { color:blue; } }",
+    );
+    assert!(result.css.contains("color:red!important"), "{}", result.css);
+    assert!(
+        result.css.contains("opacity:0.7!important"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("color:blue!important"),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
 fn utility_keyframes_and_properties_move_to_the_root_only_for_used_utilities() {
     let css = "@stillwind-slot keyframes; @variant hover { &:hover { @slot; } } \
                @utility spin { animation:turn 1s; --angle:0deg; \

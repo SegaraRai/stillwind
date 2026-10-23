@@ -9,9 +9,9 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
 use cssparser::Parser;
-use lean_string::{LeanString, ToLeanString};
+use lean_string::LeanString;
 
-use stillwind_css::declaration_ranges;
+use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 
 use super::tailwind_property_order::PROPERTIES;
 
@@ -58,9 +58,10 @@ impl UtilityPropertySort {
     ///
     /// `groups` holds the utility's own declaration lists (base, conditional, and
     /// additional targets) with the compatibility fallback branches left out by the
-    /// caller. Every declaration counts, including duplicates and empty values, and a
-    /// `tw_sort` property counts once and replaces the collected indices when the
-    /// property table knows it.
+    /// caller. Declarations in nested rules and conditions also count; keyframe and
+    /// property definitions are excluded. Every declaration counts, including duplicates
+    /// and empty values. A `tw_sort` property counts once and replaces the collected
+    /// indices when the property table knows it.
     pub(in crate::evaluation) fn from_groups<'a>(
         groups: impl IntoIterator<Item = &'a str>,
         tw_sort: Option<&str>,
@@ -70,25 +71,7 @@ impl UtilityPropertySort {
         let override_index =
             tw_sort.and_then(|value| PROPERTIES.iter().position(|name| *name == value));
         for group in groups {
-            for range in declaration_ranges(group) {
-                let mut parser = Parser::new(&group[range]);
-                parser.skip_whitespace();
-                let start = parser.position();
-                if parser.expect_ident().is_err() {
-                    continue;
-                }
-                let property = parser.slice_from(start).to_lean_string();
-                if parser.expect_colon().is_err() {
-                    continue;
-                }
-                count += 1;
-                if let Some(index) = PROPERTIES
-                    .iter()
-                    .position(|name| *name == property.as_str())
-                {
-                    properties.insert(index);
-                }
-            }
+            collect_properties(group, &parse_structure(group), &mut properties, &mut count);
         }
         if let Some(index) = override_index {
             properties = BTreeSet::from([index]);
@@ -111,6 +94,40 @@ impl UtilityPropertySort {
             }
         }
         other.count.cmp(&self.count)
+    }
+}
+
+/// Counts declarations of utility rules and conditions, excluding definitions that
+/// emission moves outside those rules.
+///
+/// All ranges in `nodes` and their descendants must address `css`. The function adds
+/// known property indices to `properties` and increments `count` for each declaration
+/// with a property identifier, including duplicates, unknown properties, and empty
+/// values. It retains existing accumulator contents and skips keyframe and `@property`
+/// definitions with their descendants.
+fn collect_properties(
+    css: &str,
+    nodes: &[CssNode],
+    properties: &mut BTreeSet<usize>,
+    count: &mut usize,
+) {
+    for node in nodes {
+        match &node.kind {
+            CssNodeKind::Declaration { property, .. } => {
+                let property = &css[property.clone()];
+                let mut parser = Parser::new(property);
+                if parser.expect_ident().is_err() {
+                    continue;
+                }
+                *count += 1;
+                if let Some(index) = PROPERTIES.iter().position(|name| *name == property) {
+                    properties.insert(index);
+                }
+            }
+            CssNodeKind::AtRule { name, .. }
+                if name.ends_with("keyframes") || name == "property" => {}
+            _ => collect_properties(css, node.children(), properties, count),
+        }
     }
 }
 
@@ -190,6 +207,17 @@ mod tests {
         let unknown = UtilityPropertySort::from_groups(["color:red"], Some("unknown"));
         assert_eq!(unknown.properties, key("color:red").properties);
         assert_eq!(unknown.count, 2);
+    }
+
+    #[test]
+    fn nested_rules_contribute_to_property_order() {
+        assert_eq!(
+            UtilityPropertySort::from_groups(
+                ["[data-icon]{opacity:.7;}@media print{color:red;}"],
+                None
+            ),
+            UtilityPropertySort::from_groups(["opacity:.7;color:red;"], None)
+        );
     }
 
     #[test]

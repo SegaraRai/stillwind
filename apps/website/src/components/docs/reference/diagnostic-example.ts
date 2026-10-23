@@ -305,6 +305,7 @@ const exceptionMessages: Record<string, string> = {
   SW14003: "invalid Stillwind property requirement at byte",
   SW14005: "required custom property",
   SW14007: "invalid --theme() reference at value byte",
+  SW14008: "circular @apply dependency for utility",
   SW32002: "initial provide must contain exactly one file",
   SW32003: "unknown or duplicate request ID",
   SW32005: "provide called after completion",

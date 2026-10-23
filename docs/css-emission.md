@@ -180,6 +180,9 @@ reads the same tree.
 comments separate candidates. A candidate that does not resolve contributes nothing:
 `.btn { @apply unknown-x; }` becomes `.btn {}`.
 
+Applications keep every selector target and condition of each candidate. Applied
+utilities can apply other utilities; a circular application is a compilation error.
+
 A candidate with variants becomes nested rules for those variants, and the selector of
 the authored rule is the anchor, as [Variant targets](macro-contract.md#variant-targets)
 describes. `.btn { @apply hover:flex; }` becomes
@@ -199,7 +202,8 @@ statement without a block stays in the output unchanged.
 ## Utility bodies
 
 A `@utility` body can contain nested rules, `@apply`, `@keyframes`, and `@property`, as in
-Tailwind.
+Tailwind. Nested selectors can omit `&`: `[data-icon]` means `& [data-icon]`. Bodies
+with several selectors keep their declarations and rules in source order.
 
 Variants select the utility element, and the nested selector of the body applies
 inside them. `hover:child` with `@utility child { & > span { color: red; } }` selects

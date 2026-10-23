@@ -299,9 +299,17 @@ fn emit_base_utility_group<const FLAGS: u8>(
     }
 }
 
-/// Arranges conditional rules at declaration boundaries before emitting the body.
-/// Each conditional is emitted once, in source order, including unmatched properties.
-fn assemble_nested_declarations<const FLAGS: u8>(
+/// Returns `base` with the rules in `nested` inserted at declaration boundaries.
+///
+/// Each rule follows the first base declaration whose property matches the start of
+/// its declaration text. Rules without a matching property follow the base body.
+/// Rules at the same boundary retain their input order.
+///
+/// `FLAGS` uses the emission flags of [`emit_utility_rules`]. Zero retains conditional
+/// wrappers; [`FLATTEN_COLOR_COMPATIBILITY`] flattens generated color support queries
+/// for comparison. It also merges compatibility branches with adjacent authored
+/// parents when they share a condition and declaration boundary.
+pub(in crate::compiler) fn assemble_nested_declarations<const FLAGS: u8>(
     base: &str,
     nested: &[&NestedUtilityRule],
 ) -> LeanString {

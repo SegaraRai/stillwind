@@ -20,15 +20,17 @@ use stillwind_css::{
     CssNode, CssNodeKind, parse_structure, split_top_level, whitespace_separated_ranges,
 };
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, compare_variant_sequences, resolve_variant,
+    ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences, resolve_variant,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
-use super::super::utilities::resolve_first_target;
-use super::super::utilities::{order_utilities, prepend_missing_declarations};
+use super::super::utilities::{
+    assemble_nested_declarations, order_utilities, prepend_missing_declarations,
+    resolve_utility_targets,
+};
 use super::super::variants::{VariantStep, variant_paths};
 use crate::identifiers::IdentifierContext;
 
@@ -37,22 +39,63 @@ use crate::identifiers::IdentifierContext;
 /// Returns a new string; `css` and `theme` are not modified. Resolved applications
 /// append registration names to `required_properties` in utility emission order,
 /// retaining existing entries and duplicates. Applications are expanded before
-/// variants. Within an application, each candidate with variants becomes nested rules
-/// whose anchor is the enclosing rule, and its declarations follow those of candidates
-/// without variants. Candidates are ordered by variants and then by utility order.
+/// variants, including applications introduced by utility definitions. Every resolved
+/// target retains its selector and conditions. Within an application, each candidate
+/// with variants becomes nested rules whose anchor is the enclosing rule, and its
+/// declarations follow those of candidates without variants. Candidates are ordered
+/// by variants and then by utility order.
 /// Runtime guards remain unresolved `--if` expressions for the later options-aware
 /// lowering pass. A `@variant` statement without a block remains in the returned text,
 /// so this function is not a CSS validator.
 ///
 /// # Errors
 ///
-/// Returns a malformed requirement of a matching utility definition, or the host
-/// generator's failure for a conditional helper's name.
+/// Returns a malformed requirement, a circular application, or the host generator's
+/// failure for a conditional helper's name. Registrations already appended to
+/// `required_properties` remain when expansion fails.
 pub(in crate::compiler) fn expand_authored_directives(
     css: &str,
     theme: &ThemeIndex,
     required_properties: &mut Vec<LeanStr>,
     identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    let mut output = expand_applications(
+        css,
+        theme,
+        required_properties,
+        identifiers,
+        &mut Vec::new(),
+    )?;
+    // Each pass replaces the first remaining block, and an expansion adds no variant
+    // block of its own, so the loop ends. Inner blocks are expanded after the outer
+    // ones, inside the rules that the outer variants produce.
+    while let Some((range, prelude, body)) = first_variant_block(&parse_structure(&output)) {
+        let replacement =
+            expand_authored_variant(&output[prelude], &output[body], theme, identifiers)?;
+        output.replace_range(range, &replacement);
+    }
+    Ok(output)
+}
+
+/// Returns `css` with every `@apply` statement recursively replaced using `theme`.
+/// Variant blocks remain for the enclosing authored-directive pass.
+///
+/// `stack` contains the candidates whose definitions are currently being expanded.
+/// Its contents are restored on success and failure. Resolved applications append
+/// registration names to `required_properties`, retaining existing entries and
+/// duplicates. `identifiers` generates names required by conditional helpers.
+///
+/// # Errors
+///
+/// Returns a malformed utility requirement, a candidate repeated in `stack`, or a
+/// failure to generate a conditional helper's name. Registrations already appended
+/// to `required_properties` remain on failure.
+fn expand_applications(
+    css: &str,
+    theme: &ThemeIndex,
+    required_properties: &mut Vec<LeanStr>,
+    identifiers: &IdentifierContext,
+    stack: &mut Vec<LeanStr>,
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut applications = Vec::new();
     collect_applications(css, &parse_structure(css), &mut applications);
@@ -65,18 +108,11 @@ pub(in crate::compiler) fn expand_authored_directives(
             theme,
             required_properties,
             identifiers,
+            stack,
         )?);
         cursor = range.end;
     }
     output.push_str(&css[cursor..]);
-    // Each pass replaces the first remaining block, and an expansion adds no variant
-    // block of its own, so the loop ends. Inner blocks are expanded after the outer
-    // ones, inside the rules that the outer variants produce.
-    while let Some((range, prelude, body)) = first_variant_block(&parse_structure(&output)) {
-        let replacement =
-            expand_authored_variant(&output[prelude], &output[body], theme, identifiers)?;
-        output.replace_range(range, &replacement);
-    }
     Ok(output)
 }
 
@@ -131,24 +167,37 @@ fn first_variant_block(nodes: &[CssNode]) -> Option<(Range<usize>, Range<usize>,
     })
 }
 
-/// Returns the declarations and nested variant rules of one `@apply` statement with
-/// `candidates`.
+/// Resolves the spellings in `candidates` through `theme` and returns the CSS for one
+/// `@apply` statement. Unknown candidates contribute nothing. Every resolved target
+/// retains its selector and conditions, and applications within targets expand
+/// recursively. Candidates are ordered by variants and then by utility order.
+///
+/// `stack` contains the enclosing candidates and is restored on success and failure.
+/// Required registration names are appended to `required_properties` with duplicates
+/// retained. `identifiers` generates names required by conditional helpers.
 ///
 /// # Errors
 ///
-/// Returns a malformed requirement of a matching utility definition, or the host
-/// generator's failure for a conditional helper's name.
+/// Returns a malformed requirement, a circular application, or the host generator's
+/// failure for a conditional helper's name. Registrations already appended to
+/// `required_properties` remain on failure.
 fn expand_application<'a>(
     candidates: impl Iterator<Item = &'a str>,
     theme: &ThemeIndex,
     required_properties: &mut Vec<LeanStr>,
     identifiers: &IdentifierContext,
+    stack: &mut Vec<LeanStr>,
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut utilities = Vec::new();
     for candidate in candidates {
-        match resolve_first_target(candidate, theme) {
-            Ok(Ok(utility)) => {
-                utilities.push(utility);
+        if stack.iter().any(|parent| parent == candidate) {
+            return Err(CompileDiagnostic::CircularUtilityApplication {
+                utility: candidate.into(),
+            });
+        }
+        match resolve_utility_targets(candidate, theme, VariantContext::Element) {
+            Ok(Ok(targets)) => {
+                utilities.extend(targets);
             }
             Ok(Err(_)) => {}
             Err(error) => {
@@ -159,16 +208,29 @@ fn expand_application<'a>(
             }
         }
     }
-    // Tailwind orders applied candidates by their variant stacks before their properties,
-    // so candidates without variants come first.
+    // Tailwind orders applied candidates by their variant stacks before their
+    // properties, so candidates without variants come first.
     let mut ordered = order_utilities(utilities.iter().collect());
     ordered
         .sort_by(|left, right| compare_variant_sequences(&left.variants, &right.variants, theme));
     let mut declarations = LeanString::new();
     for utility in ordered {
         required_properties.extend(utility.required_properties.iter().cloned());
+        let body = assemble_nested_declarations::<0>(
+            &utility.declaration,
+            &utility.nested.iter().collect::<Vec<_>>(),
+        );
+        stack.push(utility.candidate.clone());
+        let expanded = expand_applications(&body, theme, required_properties, identifiers, stack);
+        stack.pop();
+        let body = expanded?;
+        let body = if let Some(selector) = &utility.selector {
+            format_args!("{selector}{{{body}}}").to_lean_string()
+        } else {
+            body
+        };
         if utility.variants.is_empty() {
-            declarations.push_str(&utility.declaration);
+            declarations.push_str(&body);
             continue;
         }
         let applications = utility
@@ -177,7 +239,7 @@ fn expand_application<'a>(
             .filter_map(|variant| resolve_variant(variant, theme).ok())
             .collect::<Vec<_>>();
         declarations.push_str(&render_authored_variant_path(
-            &utility.declaration,
+            &body,
             &applications,
             identifiers,
         )?);
@@ -395,6 +457,27 @@ mod tests {
                 DEFAULT_HASH_LENGTH,
             ),
         )
+    }
+
+    #[test]
+    fn circular_applications_report_the_repeated_candidate() {
+        let source = css_source(
+            FileId(1),
+            "@utility a { @apply b; } @utility b { @apply a; }",
+        )
+        .unwrap();
+        let theme = DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("test.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            expand(".x { @apply a; }", theme.theme(), &mut Vec::new()),
+            Err(CompileDiagnostic::CircularUtilityApplication {
+                utility: "a".into()
+            })
+        );
     }
 
     #[test]

@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, LeanString};
 
-use stillwind_css::declaration_ranges;
+use stillwind_css::{CssNodeKind, declaration_ranges, parse_structure};
 use stillwind_design_system::{
     ThemeIndex, VariantDeclaration, declaration_format, stillwind_declaration_formats,
 };
@@ -67,26 +67,46 @@ pub(in crate::compiler) fn combine_declarations_for_theme(
 
 /// The combination itself, with declaration formats supplied by the caller.
 ///
-/// `compose-space` appends a later value at the first occurrence of its property. Other
-/// declarations retain their resolved values without output optimization.
+/// `compose-space` appends a later value at the first occurrence of its property within
+/// one run of declarations. Nested rules end a run, so later declarations keep their
+/// cascade order. Other declarations retain their resolved values without optimization.
 fn combine_declarations_with_formats(
     utilities: &[&CompiledUtility],
     formats: &BTreeMap<LeanStr, LeanStr>,
 ) -> LeanString {
+    /// Text retained in emission order, with composition limited to declaration runs.
     enum Declaration<'a> {
-        Raw(&'a str),
+        /// A declaration, rule, or trailing fragment copied without composition.
+        Raw(
+            /// Authored text, including leading trivia.
+            &'a str,
+            /// Whether emission must append a semicolon to this fragment.
+            bool,
+        ),
+        /// Values combined at the first occurrence of a composable property.
         Composed {
+            /// Property spelling retained from its first declaration.
             property: &'a str,
+            /// Values in utility order, with their individual priorities removed.
             values: Vec<&'a str>,
+            /// At least one contributing declaration had `!important` priority.
             important: bool,
         },
     }
     let mut composed = HashMap::<&str, usize>::new();
     let mut ordered = Vec::<Declaration<'_>>::new();
     for utility in order_utilities(utilities.to_vec()) {
-        for range in declaration_ranges(&utility.declaration) {
-            let declaration = &utility.declaration[range];
-            if let Some((property, value)) = declaration.split_once(':')
+        let mut start = 0;
+        for node in parse_structure(&utility.declaration) {
+            let declaration = &utility.declaration[start..node.range.end];
+            start = node.range.end;
+            let declaration = declaration.strip_suffix(';').unwrap_or(declaration);
+            let is_declaration = matches!(node.kind, CssNodeKind::Declaration { .. });
+            if !is_declaration {
+                composed.clear();
+            }
+            if is_declaration
+                && let Some((property, value)) = declaration.split_once(':')
                 && declaration_format(formats, property.trim()).is_some_and(|format| {
                     format
                         .split_whitespace()
@@ -113,15 +133,26 @@ fn combine_declarations_with_formats(
                     });
                 }
             } else if !declaration.trim().is_empty() {
-                ordered.push(Declaration::Raw(declaration));
+                let block = matches!(
+                    node.kind,
+                    CssNodeKind::StyleRule { .. } | CssNodeKind::AtRule { block: Some(_), .. }
+                );
+                ordered.push(Declaration::Raw(declaration, !block));
             }
+        }
+        let trailing = &utility.declaration[start..];
+        if !trailing.trim().is_empty() {
+            ordered.push(Declaration::Raw(trailing, false));
         }
     }
     let mut output = LeanString::new();
     for declaration in ordered {
         match declaration {
-            Declaration::Raw(declaration) => {
+            Declaration::Raw(declaration, terminate) => {
                 output.push_str(declaration);
+                if terminate {
+                    output.push(';');
+                }
             }
             Declaration::Composed {
                 property,
@@ -134,9 +165,9 @@ fn combine_declarations_with_formats(
                 if important {
                     output.push_str("!important");
                 }
+                output.push(';');
             }
         }
-        output.push(';');
     }
     output
 }

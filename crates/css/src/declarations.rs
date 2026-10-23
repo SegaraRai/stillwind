@@ -151,29 +151,26 @@ pub fn declaration_ranges(css: &str) -> Vec<Range<usize>> {
     ranges
 }
 
-/// Adds priority to each nonempty declaration, preserving values and existing priority.
+/// Adds priority to declarations at every nesting depth, preserving rule headers,
+/// values, and existing priority. Custom-property brace values remain opaque.
 pub fn important_declarations(css: &str) -> LeanString {
     let mut output = LeanString::new();
-    for range in declaration_ranges(css) {
-        let declaration = &css[range];
+    let mut cursor = 0;
+    for (property, value) in declaration_values(css) {
+        output.push_str(&css[cursor..property.start]);
+        let declaration = &css[property.start..value.end];
         let mut parser = Parser::new(declaration);
         let mut previous_bang = false;
         let mut priority = false;
-        let mut has_colon = false;
         let mut last_end = 0;
         while let Ok(token) = parser.next() {
             priority = previous_bang
                 && matches!(token, Token::Ident(name) if name.eq_ignore_ascii_case("important"));
             previous_bang = matches!(token, Token::Delim('!'));
-            has_colon |= matches!(token, Token::Colon);
             if is_block(token) {
                 let _ = consume_css_block(&mut parser);
             }
             last_end = parser.position().byte_index();
-        }
-        if !has_colon {
-            output.push_str(declaration);
-            continue;
         }
         // Insert before trailing whitespace/comments, including a final line
         // comment-like spelling that CSS itself treats as ordinary tokens.
@@ -183,7 +180,9 @@ pub fn important_declarations(css: &str) -> LeanString {
         }
         output.push_str(&declaration[last_end..]);
         output.push(';');
+        cursor = value.end + usize::from(css.as_bytes().get(value.end) == Some(&b';'));
     }
+    output.push_str(&css[cursor..]);
     output
 }
 
@@ -366,5 +365,11 @@ mod tests {
             "content:'!important'!important;"
         );
         assert_eq!(important_declarations(""), "");
+        assert_eq!(
+            important_declarations(
+                "color:red;&:hover{color:blue;@media print{opacity:1}}--data:{a:b;};"
+            ),
+            "color:red!important;&:hover{color:blue!important;@media print{opacity:1!important;}}--data:{a:b;}!important;"
+        );
     }
 }

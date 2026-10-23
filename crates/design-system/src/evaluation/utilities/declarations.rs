@@ -1,19 +1,20 @@
-//! Per-declaration placeholder resolution.
+//! Placeholder resolution for declarations and nested CSS blocks.
 //!
-//! A utility body is a list of declarations, and each one is a branch: the declarations
-//! that match the candidate survive and the others are dropped. Resolving the body as a
-//! whole instead would make a broad definition with one unmatched typed value emit
-//! nothing at all, or would emit a static supporting declaration for a candidate that
-//! never matched.
+//! Each declaration is a branch: declarations that match the candidate survive and the
+//! others are dropped. Nested blocks resolve recursively and retain their rule headers.
+//! Resolving a body as a whole instead would make a broad definition with one unmatched
+//! typed value emit nothing at all, or would emit a static supporting declaration for a
+//! candidate that never matched.
 //!
-//! Two gates guard a body. A declaration list containing placeholders must resolve at
-//! least one of them, and a list containing `--value(...)` or `--modifier(...)` must
-//! resolve the value and modifier it depends on; a modifier-only sibling cannot make an
-//! unrelated branch valid.
+//! Each declaration group containing placeholders must resolve at least one of them.
+//! A group containing `--value(...)` or `--modifier(...)` must resolve the value and
+//! modifier it depends on; a modifier-only sibling cannot make an unrelated branch
+//! valid. Every declaration using the private shadow-color placeholder must resolve,
+//! including declarations in descendant blocks.
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{inspect_css_value, parse_structure};
+use stillwind_css::{CssNodeKind, absolutize_nested_selector, inspect_css_value, parse_structure};
 use stillwind_syntax::Value;
 
 use super::super::context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
@@ -25,13 +26,29 @@ use crate::ThemeIndex;
 /// The declarations one candidate produced from one definition body.
 #[derive(Clone, Debug, Default)]
 pub(in crate::evaluation) struct ResolvedCssDeclarations {
-    /// Source selections and checks retained before color compatibility fallbacks are added.
+    /// Source selections and checks retained before color compatibility fallbacks are
+    /// added.
     pub(in crate::evaluation) diagnostic_data: DeclarationDiagnosticData,
-    /// Declarations for the base branch, joined in authored order.
+    /// Declarations and nested blocks for the base branch, joined in authored order.
     pub(in crate::evaluation) base: LeanString,
     /// Modern-color variants of the base declarations that differ from the legacy text,
     /// to be emitted inside the capability query.
     pub(in crate::evaluation) compat_modern: Vec<LeanStr>,
+    /// Requirements satisfied by retained declarations, including descendant blocks.
+    matches: DeclarationMatches,
+}
+
+/// Placeholder requirements matched by a declaration group and its nested blocks.
+#[derive(Clone, Copy, Debug, Default)]
+struct DeclarationMatches {
+    /// At least one declaration with a recognized placeholder resolved.
+    placeholder: bool,
+    /// At least one declaration containing `--value()` resolved.
+    value: bool,
+    /// At least one declaration containing `--modifier()` resolved.
+    modifier: bool,
+    /// Number of resolved declarations containing `--stillwind-builtin-shadow-color()`.
+    required: usize,
 }
 
 /// Direct source selections and alpha checks retained for one declaration group.
@@ -46,31 +63,88 @@ pub(in crate::evaluation) struct DeclarationDiagnosticData {
     pub(in crate::evaluation) out_of_range_alpha: Option<UtilityArbitraryUse>,
 }
 
-/// Parsed declaration boundaries and branch requirements shared by snapshot evaluation.
+/// Parsed declarations, nested blocks, and branch requirements shared by snapshot
+/// evaluation.
 #[derive(Debug)]
 pub(in crate::evaluation) struct PreparedDeclarations {
+    /// Direct declarations and nested blocks in authored order.
     declarations: Vec<PreparedDeclaration>,
+    /// This group or a descendant contains a recognized placeholder.
     uses_placeholder: bool,
+    /// This group or a descendant contains `--value()`.
     uses_value: bool,
+    /// This group or a descendant contains `--modifier()`.
     requires_modifier: bool,
+    /// Number of declarations containing `--stillwind-builtin-shadow-color()` that
+    /// must resolve across this group and its descendants.
     required_declarations: usize,
 }
 
 impl PreparedDeclarations {
-    /// Splits a declaration group into declarations and records which placeholder
-    /// families they use. A declaration without placeholders also gets its value
-    /// resolved for Stillwind and for Tailwind-style definitions.
+    /// Prepares `body` for repeated evaluation, retaining declarations and nested
+    /// blocks in authored order. `theme` resolves declarations without placeholders
+    /// in advance for Stillwind and Tailwind-style definitions.
     pub(in crate::evaluation) fn parse(body: &str, theme: &ThemeIndex) -> Self {
+        Self::parse_inner(body, theme, false)
+    }
+
+    /// Prepares one block and its descendants using `theme` for static values.
+    ///
+    /// `keyframes` identifies a keyframe definition's contents. Its direct style-rule
+    /// headers retain their frame selectors; other style rules receive explicit
+    /// nesting selectors. The returned group records requirements at every depth.
+    fn parse_inner(body: &str, theme: &ThemeIndex, keyframes: bool) -> Self {
         let mut start = 0;
         let declarations: Vec<_> = parse_structure(body)
             .into_iter()
             .map(|node| {
                 let declaration = LeanString::from(&body[start..node.range.end]);
+                let nested = match &node.kind {
+                    CssNodeKind::StyleRule { selector, block } => {
+                        let prelude = if keyframes {
+                            body[start..block.contents.start - 1].to_lean_str()
+                        } else {
+                            format_args!(
+                                "{}{}",
+                                &body[start..node.range.start],
+                                absolutize_nested_selector(&body[selector.clone()])
+                            )
+                            .to_lean_str()
+                        };
+                        Some(PreparedNestedDeclarations {
+                            prelude,
+                            declarations: Self::parse_inner(
+                                &body[block.contents.clone()],
+                                theme,
+                                false,
+                            ),
+                            supports_color_mix: false,
+                        })
+                    }
+                    CssNodeKind::AtRule {
+                        name,
+                        prelude,
+                        block: Some(block),
+                    } => Some(PreparedNestedDeclarations {
+                        prelude: body[start..block.contents.start - 1]
+                            .trim_end()
+                            .to_lean_str(),
+                        declarations: Self::parse_inner(
+                            &body[block.contents.clone()],
+                            theme,
+                            name.ends_with("keyframes"),
+                        ),
+                        supports_color_mix: name == "supports"
+                            && body[prelude.clone()].contains("color-mix("),
+                    }),
+                    _ => None,
+                };
                 start = node.range.end;
-                declaration
+                PreparedDeclaration::new(declaration, nested, theme)
             })
             .collect();
         let uses_placeholder = declarations.iter().any(|declaration| {
+            let declaration = &declaration.text;
             declaration.contains("--value(")
                 || declaration.contains("--value-map(")
                 || declaration.contains("--modifier(")
@@ -82,19 +156,27 @@ impl PreparedDeclarations {
         });
         let uses_value = declarations
             .iter()
-            .any(|declaration| declaration.contains("--value("));
+            .any(|declaration| declaration.text.contains("--value("));
         let requires_modifier = declarations
             .iter()
-            .any(|declaration| declaration.contains("--modifier("));
+            .any(|declaration| declaration.text.contains("--modifier("));
         let required_declarations = declarations
             .iter()
-            .filter(|declaration| declaration.contains("--stillwind-builtin-shadow-color("))
-            .count();
+            .map(|declaration| {
+                declaration.nested.as_ref().map_or_else(
+                    || {
+                        usize::from(
+                            declaration
+                                .text
+                                .contains("--stillwind-builtin-shadow-color("),
+                        )
+                    },
+                    |nested| nested.declarations.required_declarations,
+                )
+            })
+            .sum();
         Self {
-            declarations: declarations
-                .into_iter()
-                .map(|text| PreparedDeclaration::new(text, theme))
-                .collect(),
+            declarations,
             uses_placeholder,
             uses_value,
             requires_modifier,
@@ -103,12 +185,15 @@ impl PreparedDeclarations {
     }
 }
 
-/// One declaration of a prepared group.
+/// One declaration or nested block of a prepared group.
 #[derive(Debug)]
 struct PreparedDeclaration {
-    /// Authored declaration text.
+    /// Complete authored text of this declaration or block, including preceding trivia.
     text: LeanStr,
-    /// Placeholders of the value, or `None` when they cannot be prepared.
+    /// Prepared contents and header when this item is a CSS block.
+    nested: Option<PreparedNestedDeclarations>,
+    /// Prepared placeholders for a declaration, or `None` for a nested block or text
+    /// whose placeholders cannot be prepared.
     values: Option<PreparedValues>,
     /// Resolved text of a declaration without placeholders, for a Stillwind definition.
     static_stillwind: Option<LeanStr>,
@@ -118,9 +203,20 @@ struct PreparedDeclaration {
 }
 
 impl PreparedDeclaration {
-    /// Prepares one declaration and resolves it in advance when it has no placeholders.
-    fn new(text: LeanString, theme: &ThemeIndex) -> Self {
-        let values = PreparedValues::parse(&text);
+    /// Prepares `text`, whose block structure the caller supplies in `nested`.
+    ///
+    /// `nested` is `None` for a declaration. Such declarations cache their resolved
+    /// text for both definition formats when their values are static. `theme` supplies
+    /// the values used by those caches.
+    fn new(
+        text: LeanString,
+        nested: Option<PreparedNestedDeclarations>,
+        theme: &ThemeIndex,
+    ) -> Self {
+        let values = nested
+            .is_none()
+            .then(|| PreparedValues::parse(&text))
+            .flatten();
         let is_static = values.as_ref().is_some_and(PreparedValues::is_static);
         Self {
             static_stillwind: (is_static.then(|| resolve_declaration_value(&text, theme, true)))
@@ -129,11 +225,12 @@ impl PreparedDeclaration {
                 .map(Into::into),
             values,
             text: (text).into(),
+            nested,
         }
     }
 
-    /// Returns the declaration resolved in advance for a Stillwind or a Tailwind-style
-    /// definition, or `None` when it has placeholders.
+    /// Returns cached declaration text in the format selected by `stillwind`.
+    /// Nested blocks and declarations without a prepared static value return `None`.
     fn static_value(&self, stillwind: bool) -> Option<&LeanStr> {
         if stillwind {
             self.static_stillwind.as_ref()
@@ -143,15 +240,34 @@ impl PreparedDeclaration {
     }
 }
 
+/// A nested CSS block whose declarations resolve independently at each depth.
+#[derive(Debug)]
+struct PreparedNestedDeclarations {
+    /// Rule header without its braces, with explicit nesting for style selectors.
+    /// Keyframe selectors retain their authored spelling.
+    prelude: LeanStr,
+    /// Declarations and child blocks inside this rule, in authored order.
+    declarations: PreparedDeclarations,
+    /// The authored support query already checks `color-mix()`.
+    supports_color_mix: bool,
+}
+
 /// Resolves each declaration independently. `body` contains a registered declaration
 /// group or a group produced by expanding theme wildcards. `@utility` overloads are
 /// often intentionally broad: a single body can expose both color and length forms. A
 /// failed typed placeholder must remove only the incompatible declaration, never the
 /// compatible siblings.
 ///
-/// `arbitrary_check` selects how typed domains check arbitrary values without a type
-/// hint. Returns [`None`] when no declaration resolved or when a dependency of the body
-/// stayed unresolved, so the caller can try another overload.
+/// `utility_name` identifies the registered pattern, and `name` supplies the candidate
+/// name matched against it. `modifier` supplies its optional slash value. `theme`
+/// supplies theme values and prepared bodies. `stillwind` selects the definition's
+/// formatting rules, and `color_compatibility` enables fallback branches for modern
+/// colors. `arbitrary_check` selects how typed domains check values without a type
+/// hint.
+///
+/// Returns resolved CSS and diagnostic selections, or [`None`] when theme functions
+/// cannot resolve or a required placeholder remains unresolved. An empty static body
+/// can return an empty result. The inputs are not modified.
 #[allow(clippy::too_many_arguments)] // One flag per evaluation policy of the caller.
 pub(in crate::evaluation) fn resolve_css_declarations(
     body: &str,
@@ -182,6 +298,41 @@ pub(in crate::evaluation) fn resolve_css_declarations(
         expanded = PreparedDeclarations::parse(body, theme);
         &expanded
     };
+    resolve_prepared_declarations(
+        prepared,
+        utility_name,
+        name,
+        modifier,
+        theme,
+        stillwind,
+        color_compatibility,
+        arbitrary_check,
+    )
+}
+
+/// Evaluates `prepared` for the registered `utility_name`, candidate `name`, and
+/// optional slash `modifier`, preserving the order of retained declarations and blocks.
+///
+/// `theme` supplies placeholder values. `stillwind` selects the definition's formatting
+/// rules, and `arbitrary_check` selects how unhinted arbitrary values are checked.
+/// `color_compatibility` adds fallback branches except inside authored `color-mix()`
+/// support queries. The result contains CSS, diagnostic selections, and matched
+/// requirements from all retained blocks; the inputs are not modified.
+///
+/// Returns `None` when this group fails a required placeholder gate. A nested group
+/// that fails its gates is omitted, and its requirements remain unsatisfied in its
+/// parent. An empty static group can return an empty result.
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+fn resolve_prepared_declarations(
+    prepared: &PreparedDeclarations,
+    utility_name: &str,
+    name: &str,
+    modifier: Option<&Value>,
+    theme: &ThemeIndex,
+    stillwind: bool,
+    color_compatibility: bool,
+    arbitrary_check: ArbitraryValueCheck,
+) -> Option<ResolvedCssDeclarations> {
     let PreparedDeclarations {
         declarations,
         uses_placeholder,
@@ -196,6 +347,57 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     let mut output = ResolvedCssDeclarations::default();
 
     for authored in declarations {
+        if let Some(nested) = &authored.nested {
+            let Some(mut resolved) = resolve_prepared_declarations(
+                &nested.declarations,
+                utility_name,
+                name,
+                modifier,
+                theme,
+                stillwind,
+                color_compatibility && !nested.supports_color_mix,
+                arbitrary_check,
+            ) else {
+                continue;
+            };
+            resolved_placeholder |= resolved.matches.placeholder;
+            resolved_value |= resolved.matches.value;
+            resolved_modifier |= resolved.matches.modifier;
+            resolved_required_declarations += resolved.matches.required;
+            for usage in &mut resolved.diagnostic_data.token_uses {
+                usage.base = false;
+            }
+            for usage in &mut resolved.diagnostic_data.arbitrary_uses {
+                usage.base = false;
+            }
+            if let Some(usage) = &mut resolved.diagnostic_data.out_of_range_alpha {
+                usage.base = false;
+            }
+            output
+                .diagnostic_data
+                .token_uses
+                .extend(resolved.diagnostic_data.token_uses);
+            output
+                .diagnostic_data
+                .arbitrary_uses
+                .extend(resolved.diagnostic_data.arbitrary_uses);
+            output.diagnostic_data.out_of_range_alpha = output
+                .diagnostic_data
+                .out_of_range_alpha
+                .or(resolved.diagnostic_data.out_of_range_alpha);
+            if !resolved.base.is_empty() {
+                output.base.push_str(
+                    &format_args!("{}{{{}}}", nested.prelude, resolved.base).to_lean_string(),
+                );
+            }
+            output.compat_modern.extend(
+                resolved
+                    .compat_modern
+                    .into_iter()
+                    .map(|modern| format_args!("{}{{{modern}}}", nested.prelude).to_lean_str()),
+            );
+            continue;
+        }
         let tracked = EvaluationContext::tracked(theme, arbitrary_check);
         let theme = &tracked;
         let authored_declaration = &authored.text;
@@ -256,6 +458,13 @@ pub(in crate::evaluation) fn resolve_css_declarations(
             }
         }
     }
+
+    output.matches = DeclarationMatches {
+        placeholder: resolved_placeholder,
+        value: resolved_value,
+        modifier: resolved_modifier,
+        required: resolved_required_declarations,
+    };
 
     // Static declarations in a functional body are supporting declarations, not an
     // independent branch. For example the generic `translate-*` body must not emit

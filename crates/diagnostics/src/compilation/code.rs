@@ -136,6 +136,7 @@ define_compile_codes! {
         UnknownRequiredProperty { .. } => "SW14005",
         PropertyUsageParse { .. } => "SW14006",
         InvalidThemeReference { .. } => "SW14007",
+        CircularUtilityApplication { .. } => "SW14008",
         // 15: source size limits
         CssOffsetTooLarge { .. } => "SW15001",
         RenderedSourceTooLarge => "SW15002",

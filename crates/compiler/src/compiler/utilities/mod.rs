@@ -28,6 +28,7 @@ pub(super) use clamping::clamped_value;
 pub(super) use declaration_order::{
     combine_declarations_for_theme, order_utilities, prepend_missing_declarations,
 };
+pub(super) use emission::assemble_nested_declarations;
 pub(super) use policy::{check, check_variant, spacing_property};
 pub(super) use render::render_utility_rule;
 pub(super) use resolve::{CompiledUtilityDiagnosticData, resolve_first_target};

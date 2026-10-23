@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{ValueType, declaration_ranges, split_top_level};
+use stillwind_css::{ValueType, declaration_ranges, parse_structure, split_top_level};
 use stillwind_syntax::{Value, decode_arbitrary_value, utility_registration_key};
 
 use super::super::context::ArbitraryValueCheck;
@@ -27,7 +27,7 @@ use super::body::{
     UtilityResolution, UtilityResolutionDiagnosticData, UtilityResolutionError,
     resolve_css_utility_body,
 };
-use super::nested::NestedUtilityRule;
+use super::nested::{NestedUtilityRule, contains_selector};
 use super::resolve::ResolvedUtilityTarget;
 use super::variables::{single_variable, variable_mismatch};
 use crate::{CustomUtility, ThemeIndex};
@@ -269,9 +269,10 @@ fn resolve_registry_layers(
 
 /// Adds the CSS of a later definition to the resolution of earlier ones.
 ///
-/// Declarations for the same selector are appended, so a later definition wins in the
-/// cascade, as it does in Tailwind's output. A different selector becomes an additional
-/// target.
+/// Initializes an empty resolution. Otherwise, declarations for the same selector
+/// join the primary target only while it has no additional targets. Later targets
+/// remain separate to preserve their emission order. Requirements and diagnostic uses
+/// from `next` are appended to the retained resolution.
 fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityResolution) {
     let Some(base) = resolution else {
         *resolution = Some(next);
@@ -281,7 +282,7 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
     if base.tw_sort.is_none() {
         base.tw_sort = next.tw_sort;
     }
-    if base.selector == next.selector {
+    if base.selector == next.selector && base.additional.is_empty() {
         base.declaration = format_args!("{}{}", base.declaration, next.declaration).to_lean_str();
         base.nested.extend(next.nested);
     } else {
@@ -306,11 +307,12 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
 /// selects the color branch, without giving the root an implementation-specific special
 /// case.
 ///
-/// Branches are ordered by specificity, then merged: branches sharing a selector
-/// contribute one declaration list, and branches with distinct selectors become
-/// additional targets. A property already claimed by a more-specific branch is not
-/// overwritten by a broader one. The most specific branch that carries a `tw_sort`
-/// override supplies the retained one.
+/// Branches are ordered by specificity, then merged. Branches sharing a selector
+/// contribute one declaration list when the retained targets and incoming primary
+/// declaration contain no nested style rules. Other branches become additional
+/// targets. Within a merged list, a property already claimed by a more-specific
+/// branch is not overwritten by a broader one. The most specific branch that carries
+/// a `tw_sort` override supplies the retained one.
 ///
 /// Without an exact definition, an unhinted arbitrary value keeps only the branches
 /// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand
@@ -390,6 +392,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     // Registration of each target in `resolution.additional`, for ordering below.
     let mut registrations = vec![base_registration; resolution.additional.len()];
     for (_, _, _, branch, registration) in branches {
+        let shares_declarations = shares_declaration_list(&resolution, &branch);
         // Overloads with a shared selector form one declaration list. CSS fallbacks
         // authored within one overload intentionally retain their order, while
         // competing overloads cannot overwrite a more-specific property branch.
@@ -402,7 +405,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
         resolution
             .required_properties
             .extend(branch.required_properties);
-        if branch.selector == resolution.selector {
+        if shares_declarations {
             let existing = declaration_property_names(&resolution.declaration);
             diagnostic_data.arbitrary_uses.extend(
                 branch_data
@@ -433,6 +436,16 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     }
     order_targets_by_registration(&mut resolution, base_registration, registrations);
     Ok(Some(resolution))
+}
+
+/// Whether branches can merge by property name. A nested rule can set the same property
+/// on another element, so branches containing rules remain separate targets.
+fn shares_declaration_list(base: &UtilityResolution, next: &UtilityResolution) -> bool {
+    base.selector == next.selector
+        && ![&base.declaration, &next.declaration]
+            .into_iter()
+            .chain(base.additional.iter().map(|target| &target.declaration))
+            .any(|css| css.contains('{') && parse_structure(css).iter().any(contains_selector))
 }
 
 /// Reorders the targets of `resolution` so that targets with distinct selectors follow
