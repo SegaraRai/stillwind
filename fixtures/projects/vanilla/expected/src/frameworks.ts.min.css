@@ -1,0 +1,9 @@
+.sw_9ij3v {
+  --tw-font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-medium);
+}
+.sw_oxkd1,
+.sw_23sbd,
+.sw_y15vs {
+  padding: calc(var(--spacing) * 4);
+}

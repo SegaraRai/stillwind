@@ -8,7 +8,7 @@
 
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_ir::{ConditionalBranches, FrameworkSpec, StyleFormat};
+use stillwind_ir::{ConditionalBranches, OutputSpec, StyleFormat};
 use stillwind_source::{JoinText, Span};
 
 use super::super::expression_render::{collect_class_arguments, render_plain, render_select};
@@ -27,23 +27,23 @@ use crate::runtime::{RuntimeBindings, RuntimeHelper};
 /// mappings, while folded literal text is generated syntax.
 pub(in super::super) fn render_style_call(
     emission: &StyleEmission,
-    fw: &FrameworkSpec,
+    output: &OutputSpec,
     runtime: &mut RuntimeBindings<'_>,
 ) -> Code {
     let source = Fragment::from_emission(emission);
     let mut renderer = Renderer {
-        fw,
+        output,
         runtime,
         span: emission.call_span,
     };
     if let Some(atoms) = known_record(&source)
-        && let Some(fields) = record_fields(&atoms, Demand::Props, fw)
+        && let Some(fields) = record_fields(&atoms, Demand::Props, output)
     {
         return renderer.record(&atoms, &fields, Demand::Props);
     }
     let folded = fold(source);
     if let Some(atoms) = known_record(&folded)
-        && let Some(fields) = record_fields(&atoms, Demand::Props, fw)
+        && let Some(fields) = record_fields(&atoms, Demand::Props, output)
     {
         return renderer.record(&atoms, &fields, Demand::Props);
     }
@@ -67,12 +67,12 @@ pub(in super::super) fn render_style_call(
 /// Inputs must contain only classes and custom properties and satisfy the macro purity contract.
 pub(in super::super) fn render_cva_value(
     emission: &StyleEmission,
-    fw: &FrameworkSpec,
+    output: &OutputSpec,
     runtime: &mut RuntimeBindings<'_>,
 ) -> Code {
     let folded = fold(Fragment::from_emission(emission));
     let mut renderer = Renderer {
-        fw,
+        output,
         runtime,
         span: emission.call_span,
     };
@@ -108,7 +108,7 @@ pub(in super::super) fn render_cva_value(
 /// Per-call rendering context shared by selected fragment subtrees.
 struct Renderer<'a, 'b> {
     /// Final property names, style format, and runtime conventions.
-    fw: &'a FrameworkSpec,
+    output: &'a OutputSpec,
     /// Binding allocator mutated when rendered syntax uses a helper.
     runtime: &'a mut RuntimeBindings<'b>,
     /// Original call span used when a synthetic helper has no more specific origin.
@@ -131,7 +131,7 @@ impl Renderer<'_, '_> {
                 if atoms.is_empty() {
                     return "null".into();
                 }
-                match record_fields(atoms, Demand::Fragment, self.fw) {
+                match record_fields(atoms, Demand::Fragment, self.output) {
                     Some(fields) => self.record(atoms, &fields, Demand::Fragment),
                     None => code![
                         "[",
@@ -254,24 +254,25 @@ impl Renderer<'_, '_> {
                             Atom::Class(_) => None,
                         })
                         .collect::<Vec<_>>();
-                    let value =
-                        if demand == Demand::Props && self.fw.style_format == StyleFormat::String {
-                            self.custom_style_string(&properties)
-                        } else {
-                            code![
-                                "{",
-                                Code::join(
-                                    properties
-                                        .iter()
-                                        .map(|p| Self::property(p, self.custom_value(p)))
-                                        .collect::<Vec<_>>(),
-                                    ","
-                                ),
-                                "}"
-                            ]
-                        };
+                    let value = if demand == Demand::Props
+                        && self.output.style_format == StyleFormat::String
+                    {
+                        self.custom_style_string(&properties)
+                    } else {
+                        code![
+                            "{",
+                            Code::join(
+                                properties
+                                    .iter()
+                                    .map(|p| Self::property(p, self.custom_value(p)))
+                                    .collect::<Vec<_>>(),
+                                ","
+                            ),
+                            "}"
+                        ]
+                    };
                     let key = if demand == Demand::Props {
-                        self.fw.style_property.into()
+                        self.output.style_property.into()
                     } else {
                         format_args!(
                             "[{}]",
@@ -323,7 +324,7 @@ impl Renderer<'_, '_> {
             self.classes(values)
         };
         let key = if demand == Demand::Props {
-            self.fw.class_property.into()
+            self.output.class_property.into()
         } else {
             format_args!(
                 "[{}]",
@@ -368,11 +369,11 @@ impl Renderer<'_, '_> {
         if atoms.iter().any(|atom| matches!(atom, Atom::Custom(_))) {
             return None;
         }
-        let fields = record_fields(&atoms, Demand::Props, self.fw)?;
+        let fields = record_fields(&atoms, Demand::Props, self.output)?;
         let style = match payload {
             ValueExpr::Entry { property, value }
                 if property != "__proto__"
-                    && (self.fw.style_format == StyleFormat::Object
+                    && (self.output.style_format == StyleFormat::Object
                         || matches!(
                             value.as_ref(),
                             ValueExpr::Call {
@@ -383,7 +384,7 @@ impl Renderer<'_, '_> {
                             }
                         )) =>
             {
-                let value = if self.fw.style_format == StyleFormat::String {
+                let value = if self.output.style_format == StyleFormat::String {
                     code![
                         js_string(&format_args!("{property}:").to_lean_string()),
                         "+(",
@@ -393,12 +394,12 @@ impl Renderer<'_, '_> {
                 } else {
                     payload.render(self.runtime)
                 };
-                code![self.fw.style_property, ":", value]
+                code![self.output.style_property, ":", value]
             }
             _ => {
                 let helper = self.runtime.require(RuntimeHelper::StyleValue, self.span);
                 code![
-                    self.fw.style_property,
+                    self.output.style_property,
                     ":",
                     helper,
                     "(",
@@ -525,11 +526,11 @@ impl Renderer<'_, '_> {
 #[cfg(test)]
 pub(super) fn render_reference(
     emission: &StyleEmission,
-    fw: &FrameworkSpec,
+    output: &OutputSpec,
     runtime: &mut RuntimeBindings<'_>,
 ) -> Code {
     let mut renderer = Renderer {
-        fw,
+        output,
         runtime,
         span: emission.call_span,
     };

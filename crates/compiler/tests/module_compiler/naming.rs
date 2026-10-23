@@ -46,7 +46,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
     assert!(
         import.contains("stillwindClsxChecked")
             && import.contains("stillwindCvaChecked as stillwindCva")
-            && import.contains("stillwind/runtime/react-development"),
+            && import.contains("stillwind/runtime/class-name-object-development"),
         "{import}"
     );
     let release = compile(IdentifierMode::Release);
@@ -59,7 +59,7 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
     assert!(
         import.contains("stillwindClsx")
             && import.contains("stillwindCva")
-            && import.contains("stillwind/runtime/react"),
+            && import.contains("stillwind/runtime/class-name-object"),
         "{import}"
     );
 }

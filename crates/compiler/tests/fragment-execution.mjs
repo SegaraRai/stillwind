@@ -4,14 +4,14 @@ import { readFileSync } from "node:fs";
 
 const cases = JSON.parse(readFileSync(0, "utf8"));
 const runtimes = new Map();
-for (const framework of new Set(cases.map((item) => item.framework))) {
+for (const framework of new Set(cases.map((item) => item.format))) {
   runtimes.set(framework, await import(`../../../packages/core/src/runtime/${framework}.ts`));
 }
 let count = 0;
 for (const mode of ["development", "production"]) {
   process.env.NODE_ENV = mode;
   for (const item of cases) {
-    const runtime = runtimes.get(item.framework);
+    const runtime = runtimes.get(item.format);
     for (const truth of [false, true]) {
       for (const valueKind of ["number", "boolean", "text", "url", "coercion", "getter"]) {
         const execute = (code) => {
@@ -74,7 +74,7 @@ for (const mode of ["development", "production"]) {
               `return (${code});`,
             )(...Object.values(runtime), value, test, base, payload, state);
             // Direct props may retain empty class and undefined style fields.
-            const classProperty = item.framework === "react" ? "className" : "class";
+            const classProperty = item.format === "class-name-object" ? "className" : "class";
             if (result[classProperty] === "" || result[classProperty] === undefined) {
               delete result[classProperty];
             }

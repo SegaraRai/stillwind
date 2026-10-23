@@ -9,6 +9,7 @@ use stillwind_source::{Span, Spanned};
 use super::{
     AssetReference, ClassExpression, ConditionalBranches, RefDefinition, ViewTransitionName,
 };
+use crate::OutputFormat;
 
 /// One `style(...)` call with its evaluated inputs in source order.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -16,6 +17,8 @@ use super::{
 pub struct StyleCall {
     /// Span of the whole call, including the callee expression.
     pub span: Span,
+    /// Prop representation selected by the macro binding that produced this call.
+    pub output: OutputFormat,
     /// Arguments in source order. The base unit of a rule is built from the
     /// unconditional entries; conditional entries follow in this order.
     pub inputs: Vec<StyleInput>,

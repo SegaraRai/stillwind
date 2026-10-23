@@ -1,6 +1,6 @@
+import { options } from "./class-object.ts";
 import type { CompiledCvaConfig, CvaValue } from "./cva.ts";
 import { createCvaChecked, mergeFragmentsChecked, toFragmentChecked } from "./development.ts";
-import { options } from "./preact.ts";
 
 export {
   stillwindClsxChecked,
@@ -8,17 +8,17 @@ export {
   stillwindViewTransitionNameChecked,
 } from "./development.ts";
 
-/** Checks fragment ownership and class channels before materializing preact props. */
+/** Checks fragment ownership and class contributions before materializing `class` and object styles. */
 export function stillwindMergeChecked(...values: readonly unknown[]): Record<string, unknown> {
   return mergeFragmentsChecked(options, values);
 }
 
-/** Rejects nonobjects before converting a composition base to a preact class fragment. */
+/** Rejects nonobjects before extracting the composition base's `class` into a fragment. */
 export function stillwindToFragmentChecked(value: unknown): Record<PropertyKey, unknown> {
   return toFragmentChecked(options, value);
 }
 
-/** Checks external classes and selected fragments before materializing preact CVA props. */
+/** Checks external classes and selected fragments before materializing CVA props with `class` and object styles. */
 export function stillwindCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCvaChecked(options, base, config);
 }

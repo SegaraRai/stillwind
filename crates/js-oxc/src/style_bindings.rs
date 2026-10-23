@@ -11,12 +11,13 @@
 use std::collections::{HashMap, HashSet};
 
 use oxc::ast::ast::{
-    BindingPattern, Expression, IdentifierReference, ImportDeclarationSpecifier, ModuleExportName,
-    Program, Statement, VariableDeclarator,
+    BindingPattern, Expression, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier,
+    ModuleExportName, Program, VariableDeclarator,
 };
 use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 
+use stillwind_ir::{OutputFormat, from_macro_import};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
 use stillwind_source::{ModuleId, SourceFile, Span};
 
@@ -29,25 +30,11 @@ impl<'a> MacroExtractor<'a> {
     /// Type-only imports are skipped, so `import type { style }` never makes a value
     /// call look like the macro.
     pub(crate) fn seed_style_bindings(&mut self, program: &Program<'a>) {
-        let mut macros = HashSet::new();
-        for statement in &program.body {
-            let Statement::ImportDeclaration(import) = statement else {
-                continue;
-            };
-            if import.import_kind.is_type() || !Self::is_style_import(import) {
-                continue;
-            }
-            for specifier in import.specifiers.iter().flatten() {
-                if let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier
-                    && !specifier.import_kind.is_type()
-                    && let ModuleExportName::IdentifierName(name) = &specifier.imported
-                    && name.name == "style"
-                    && let Some(symbol) = specifier.local.symbol_id.get()
-                {
-                    macros.insert(symbol);
-                }
-            }
-        }
+        let mut collector = MacroBindings {
+            outputs: HashMap::new(),
+        };
+        collector.visit_program(program);
+        let macros = collector.outputs;
         let mut collector = Bindings {
             macros: &macros,
             scoping: self.scoping,
@@ -66,12 +53,38 @@ impl<'a> MacroExtractor<'a> {
     }
 }
 
+/// Macro bindings from all scopes, including projected client scripts.
+struct MacroBindings {
+    outputs: HashMap<SymbolId, OutputFormat>,
+}
+
+impl<'a> Visit<'a> for MacroBindings {
+    fn visit_import_declaration(&mut self, import: &ImportDeclaration<'a>) {
+        if import.import_kind.is_type() {
+            return;
+        }
+        let Some(spec) = from_macro_import(import.source.value.as_str()) else {
+            return;
+        };
+        for specifier in import.specifiers.iter().flatten() {
+            if let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier
+                && !specifier.import_kind.is_type()
+                && let ModuleExportName::IdentifierName(name) = &specifier.imported
+                && name.name == "style"
+                && let Some(symbol) = specifier.local.symbol_id.get()
+            {
+                self.outputs.insert(symbol, spec.output);
+            }
+        }
+    }
+}
+
 /// Visitor state for one seeding pass.
 struct Bindings<'s> {
     /// Module identity used for style declarations.
     module_id: &'s ModuleId,
     /// Symbols bound to the imported `style` macro.
-    macros: &'s HashSet<SymbolId>,
+    macros: &'s HashMap<SymbolId, OutputFormat>,
     /// Scoping table used to resolve callee references.
     scoping: &'s Scoping,
     /// Analysis source that owns Oxc byte spans.
@@ -94,7 +107,7 @@ impl<'a> Visit<'a> for Bindings<'_> {
             && let Expression::Identifier(callee) = &call.callee
             && let Some(reference) = callee.reference_id.get()
             && let Some(symbol) = self.scoping.get_reference(reference).symbol_id()
-            && self.macros.contains(&symbol)
+            && self.macros.contains_key(&symbol)
             && let Some(binding) = identifier.symbol_id.get()
             && let Some(span) =
                 (self.coordinates)(Span::new(self.source.id(), call.span.start, call.span.end))

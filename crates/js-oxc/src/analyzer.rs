@@ -110,7 +110,7 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                         return ModuleScan {
                             module_id: input.module_id.clone(),
                             source_revision: Fingerprint::of(source.text()),
-                            local_ir: ModuleIr::react(),
+                            local_ir: ModuleIr::empty(),
                             summary: ModuleSummary::new(input.module_id.clone()),
                             type_probes: Vec::new(),
                             lint_directives: Vec::new(),
@@ -217,11 +217,10 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
                     Err(error) => {
                         let mut parsed = ParsedJavaScript {
                             use_probes: Vec::new(),
-                            framework: None,
                             type_probes: Vec::new(),
                             diagnostics: vec![error],
                             lint_findings: Vec::new(),
-                            module: ModuleIr::react(),
+                            module: ModuleIr::empty(),
                             summary: ModuleSummary::new(scan.module_id.clone()),
                             lint_directives: Vec::new(),
                         };
@@ -279,16 +278,21 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
     }
 }
 
-/// Checks macro imports against the original format and selects the output adapter.
+/// Checks macro imports and the host's source constraint against the original format.
 ///
-/// Format mismatches append advisory findings at import literals. An explicit adapter
-/// that contradicts the macro import appends
-/// [`CompileDiagnostic::FrameworkConstraintConflict`]; otherwise it overrides the
-/// default adapter. Component formats supply the default when no macro is imported.
+/// Import mismatches append advisory findings at import literals. An explicit source
+/// framework that contradicts a component format appends
+/// [`CompileDiagnostic::FrameworkConstraintConflict`]. Macro bindings select their
+/// output formats independently.
 fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bool) {
     let allowed = input.document().format().adapters();
     for import in &parsed.module.imports.macros {
-        if lint && !allowed.is_empty() && !allowed.contains(&import.adapter) {
+        if lint
+            && !allowed.is_empty()
+            && !allowed
+                .iter()
+                .any(|adapter| adapter.spec().output == import.adapter.spec().output)
+        {
             parsed.lint_findings.push(LintFinding::new(
                 LintDiagnostic::MismatchedFrameworkImport {
                     import: import.adapter.spec().macro_import.into(),
@@ -306,22 +310,17 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
             ));
         }
     }
-    if let Some(framework) = input.framework {
-        if parsed
-            .framework
-            .is_some_and(|selected| selected != framework)
-        {
-            parsed.diagnostics.push(CompileError::new(
-                CompileDiagnostic::FrameworkConstraintConflict,
-                input.document().file().full_span(),
-            ));
-        } else {
-            parsed.module.adapter = framework;
-        }
-    } else if parsed.framework.is_none()
-        && let Some(framework) = input.document().format().projection_adapter()
+    if let Some(framework) = input.framework
+        && input
+            .document()
+            .format()
+            .projection_adapter()
+            .is_some_and(|source| source != framework)
     {
-        parsed.module.adapter = framework;
+        parsed.diagnostics.push(CompileError::new(
+            CompileDiagnostic::FrameworkConstraintConflict,
+            input.document().file().full_span(),
+        ));
     }
 }
 

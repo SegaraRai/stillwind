@@ -1,11 +1,11 @@
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { stillwind } from "@stillwind/integration/vite";
 import { compileSource } from "@stillwind/native";
-import * as runtime from "stillwind/runtime/react";
+import * as runtime from "stillwind/runtime/class-name-object";
 import { build } from "vite";
 import { expect, test } from "vite-plus/test";
 

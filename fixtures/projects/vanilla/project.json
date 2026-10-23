@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "vanilla",
+  "title": "Vanilla DOM styles",
+  "description": "DOM helpers, shared styles, CVA, and independent props for several frameworks.",
+  "tags": ["vanilla", "composition", "conditional", "cva", "output-formats"],
+  "theme": "stillwind.css",
+  "sources": ["src/styles.ts", "src/button.ts", "src/frameworks.ts"]
+}

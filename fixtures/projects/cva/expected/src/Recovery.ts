@@ -1,4 +1,4 @@
-import { stillwindCva } from "stillwind/runtime/react";
+import { stillwindCva } from "stillwind/runtime/class-name-object";
 
 export const recovered = stillwindCva("sw_ctxaq", {
   variants: {

@@ -640,7 +640,7 @@
           "path": "src/Button.tsx",
           "language": "tsx",
           "before": "import { style, type VariantProps } from \"stillwind/react\";\n\nexport const button = style.cva(\n  { \"\": \"inline-flex\", \":\": \"rounded\" },\n  {\n    variants: {\n      size: {\n        small: { \"\": \"p-4 px-2\" },\n        large: \"p-8 py-2\",\n      },\n      disabled: {\n        false: null,\n        true: \"opacity-50\",\n      },\n    },\n    defaultVariants: {\n      size: \"small\",\n      disabled: false,\n    },\n    compoundVariants: [\n      {\n        size: [\"small\", \"large\"],\n        disabled: false,\n        className: { \":\": { \"hover:\": \"shadow-md\" } },\n      },\n    ],\n  },\n);\n\nexport function Button(props: VariantProps<typeof button>) {\n  return <button {...button(props)}>Continue</button>;\n}\n",
-          "after": "import {  type VariantProps } from \"stillwind/react\";\nimport { stillwindCva } from \"stillwind/runtime/react\";\n\nexport const button = stillwindCva(\n  \"sw_1chda\",\n  {\n    variants: {\n      size: {\n        small: \"sw_jy94h\",\n        large: \"sw_riolb\",\n      },\n      disabled: {\n        false: \"\",\n        true: \"sw_1agbk\",\n      },\n    },\n    defaultVariants: {\n      size: \"small\",\n      disabled: false,\n    },\n    compoundVariants: [\n      {\n        size: [\"small\", \"large\"],\n        disabled: false,\n        className: \"sw_9fmy7\",\n      },\n    ],\n  },\n);\n\nexport function Button(props: VariantProps<typeof button>) {\n  return <button {...button(props)}>Continue</button>;\n}\n",
+          "after": "import {  type VariantProps } from \"stillwind/react\";\nimport { stillwindCva } from \"stillwind/runtime/class-name-object\";\n\nexport const button = stillwindCva(\n  \"sw_1chda\",\n  {\n    variants: {\n      size: {\n        small: \"sw_jy94h\",\n        large: \"sw_riolb\",\n      },\n      disabled: {\n        false: \"\",\n        true: \"sw_1agbk\",\n      },\n    },\n    defaultVariants: {\n      size: \"small\",\n      disabled: false,\n    },\n    compoundVariants: [\n      {\n        size: [\"small\", \"large\"],\n        disabled: false,\n        className: \"sw_9fmy7\",\n      },\n    ],\n  },\n);\n\nexport function Button(props: VariantProps<typeof button>) {\n  return <button {...button(props)}>Continue</button>;\n}\n",
           "css": ".sw_1chda {\n  display: inline-flex;\n}\n.sw_jy94h {\n  padding: calc(var(--spacing) * 4);\n  padding-inline: calc(var(--spacing) * 2);\n}\n.sw_riolb {\n  padding: calc(var(--spacing) * 8);\n  padding-block: calc(var(--spacing) * 2);\n}\n.sw_1agbk {\n  opacity: calc(50 * 1%);\n}\n@media (hover: hover) {\n  .sw_9fmy7:hover {\n    --tw-shadow:\n      0 4px 6px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1)),\n      0 2px 4px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.1));\n    box-shadow:\n      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),\n      var(--tw-ring-shadow), var(--tw-shadow);\n  }\n}\n",
           "minifiedCss": ".sw_1chda {\n  display: inline-flex;\n}\n.sw_jy94h {\n  padding: calc(var(--spacing) * 4);\n  padding-inline: calc(var(--spacing) * 2);\n}\n.sw_riolb {\n  padding: calc(var(--spacing) * 8);\n  padding-block: calc(var(--spacing) * 2);\n}\n.sw_1agbk {\n  opacity: 0.5;\n}\n@media (hover: hover) {\n  .sw_9fmy7:hover {\n    --tw-shadow:\n      0 4px 6px -1px var(--tw-shadow-color, #0000001a),\n      0 2px 4px -2px var(--tw-shadow-color, #0000001a);\n    box-shadow:\n      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),\n      var(--tw-ring-shadow), var(--tw-shadow);\n  }\n}\n",
           "diff": [
@@ -648,49 +648,49 @@
               "fromA": 0,
               "toA": 59,
               "fromB": 0,
-              "toB": 109
+              "toB": 121
             },
             {
               "fromA": 83,
               "toA": 92,
-              "fromB": 133,
-              "toB": 145
+              "fromB": 145,
+              "toB": 157
             },
             {
               "fromA": 96,
               "toA": 133,
-              "fromB": 149,
-              "toB": 159
+              "fromB": 161,
+              "toB": 171
             },
             {
               "fromA": 184,
               "toA": 202,
-              "fromB": 210,
-              "toB": 220
+              "fromB": 222,
+              "toB": 232
             },
             {
               "fromA": 219,
               "toA": 229,
-              "fromB": 237,
-              "toB": 247
+              "fromB": 249,
+              "toB": 259
             },
             {
               "fromA": 273,
               "toA": 277,
-              "fromB": 291,
-              "toB": 293
+              "fromB": 303,
+              "toB": 305
             },
             {
               "fromA": 293,
               "toA": 305,
-              "fromB": 309,
-              "toB": 319
+              "fromB": 321,
+              "toB": 331
             },
             {
               "fromA": 507,
               "toA": 541,
-              "fromB": 521,
-              "toB": 531
+              "fromB": 533,
+              "toB": 543
             }
           ]
         },
@@ -698,7 +698,7 @@
           "path": "src/Tone.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/svelte\";\n\nexport function createTone(tone: string) {\n  return style.cva(\n    [\n      \"text-[var(--tone)]\",\n      {\n        \"--tone\": tone,\n      },\n    ],\n    {\n      variants: {\n        kind: {\n          inherited: true,\n          fixed: {\n            \"--tone\": \"red\",\n          },\n          emphasized: [\"font-bold\", { \"hover:\": \"underline\" }],\n        },\n      },\n      defaultVariants: {\n        kind: \"inherited\",\n      },\n      compoundVariants: [\n        {\n          kind: \"fixed\",\n          class: { \"--tone\": \"blue\" },\n        },\n      ],\n    },\n  );\n}\n",
-          "after": "import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva } from \"stillwind/runtime/svelte\";\n\nexport function createTone(tone: string) {\n  return stillwindCva(\n    {[stillwindClassKey]:\"sw_nr42u\",[stillwindCustomPropertiesKey]:{\"--tone\":stillwindCssValue(tone)}},\n    {\n      variants: {\n        kind: {\n          inherited: \"\",\n          fixed: {[stillwindCustomPropertiesKey]:{\"--tone\":\"red\"}},\n          emphasized: \"sw_jtu0n\",\n        },\n      },\n      defaultVariants: {\n        kind: \"inherited\",\n      },\n      compoundVariants: [\n        {\n          kind: \"fixed\",\n          class: {[stillwindCustomPropertiesKey]:{\"--tone\":\"blue\"}},\n        },\n      ],\n    },\n  );\n}\n",
+          "after": "import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva } from \"stillwind/runtime/class-string\";\n\nexport function createTone(tone: string) {\n  return stillwindCva(\n    {[stillwindClassKey]:\"sw_nr42u\",[stillwindCustomPropertiesKey]:{\"--tone\":stillwindCssValue(tone)}},\n    {\n      variants: {\n        kind: {\n          inherited: \"\",\n          fixed: {[stillwindCustomPropertiesKey]:{\"--tone\":\"red\"}},\n          emphasized: \"sw_jtu0n\",\n        },\n      },\n      defaultVariants: {\n        kind: \"inherited\",\n      },\n      compoundVariants: [\n        {\n          kind: \"fixed\",\n          class: {[stillwindCustomPropertiesKey]:{\"--tone\":\"blue\"}},\n        },\n      ],\n    },\n  );\n}\n",
           "css": ".sw_nr42u {\n  color: var(--tone);\n}\n.sw_jtu0n {\n  --tw-font-weight: var(--font-weight-bold);\n  font-weight: var(--font-weight-bold);\n}\n@media (hover: hover) {\n  .sw_jtu0n:hover {\n    text-decoration-line: underline;\n  }\n}\n",
           "minifiedCss": ".sw_nr42u {\n  color: var(--tone);\n}\n.sw_jtu0n {\n  --tw-font-weight: var(--font-weight-bold);\n  font-weight: var(--font-weight-bold);\n}\n@media (hover: hover) {\n  .sw_jtu0n:hover {\n    text-decoration-line: underline;\n  }\n}\n",
           "diff": [
@@ -706,43 +706,43 @@
               "fromA": 0,
               "toA": 41,
               "fromB": 0,
-              "toB": 124
+              "toB": 130
             },
             {
               "fromA": 95,
               "toA": 104,
-              "fromB": 178,
-              "toB": 190
+              "fromB": 184,
+              "toB": 196
             },
             {
               "fromA": 110,
               "toA": 186,
-              "fromB": 196,
-              "toB": 294
+              "fromB": 202,
+              "toB": 300
             },
             {
               "fromA": 249,
               "toA": 253,
-              "fromB": 357,
-              "toB": 359
+              "fromB": 363,
+              "toB": 365
             },
             {
               "fromA": 272,
               "toA": 314,
-              "fromB": 378,
-              "toB": 427
+              "fromB": 384,
+              "toB": 433
             },
             {
               "fromA": 338,
               "toA": 378,
-              "fromB": 451,
-              "toB": 461
+              "fromB": 457,
+              "toB": 467
             },
             {
               "fromA": 539,
               "toA": 559,
-              "fromB": 622,
-              "toB": 672
+              "fromB": 628,
+              "toB": 678
             }
           ]
         },
@@ -750,7 +750,7 @@
           "path": "src/Recovery.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nexport const recovered = style.cva(\"block\", {\n  variants: {\n    size: { small: \"p-4\", unsupported: 42 },\n  },\n  defaultVariants: { size: \"small\", absent: \"value\" },\n  compoundVariants: [\n    { absent: \"value\", class: \"opacity-50\" },\n    { size: \"small\", class: { \"hover:\": \"shadow-md\" } },\n  ],\n});\n",
-          "after": "import { stillwindCva } from \"stillwind/runtime/react\";\n\nexport const recovered = stillwindCva(\"sw_ctxaq\", {\n  variants: {\n    size: { small: \"sw_n5qi8\", unsupported: \"\" },\n  },\n  defaultVariants: { size: \"small\", ...{} },\n  compoundVariants: [\n    ...[],\n    { size: \"small\", class: \"sw_4oh6j\" },\n  ],\n});\n",
+          "after": "import { stillwindCva } from \"stillwind/runtime/class-name-object\";\n\nexport const recovered = stillwindCva(\"sw_ctxaq\", {\n  variants: {\n    size: { small: \"sw_n5qi8\", unsupported: \"\" },\n  },\n  defaultVariants: { size: \"small\", ...{} },\n  compoundVariants: [\n    ...[],\n    { size: \"small\", class: \"sw_4oh6j\" },\n  ],\n});\n",
           "css": ".sw_ctxaq {\n  display: block;\n}\n.sw_n5qi8 {\n  padding: calc(var(--spacing) * 4);\n}\n@media (hover: hover) {\n  .sw_4oh6j:hover {\n    --tw-shadow:\n      0 4px 6px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1)),\n      0 2px 4px -2px var(--tw-shadow-color, rgb(0 0 0 / 0.1));\n    box-shadow:\n      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),\n      var(--tw-ring-shadow), var(--tw-shadow);\n  }\n}\n",
           "minifiedCss": ".sw_ctxaq {\n  display: block;\n}\n.sw_n5qi8 {\n  padding: calc(var(--spacing) * 4);\n}\n@media (hover: hover) {\n  .sw_4oh6j:hover {\n    --tw-shadow:\n      0 4px 6px -1px var(--tw-shadow-color, #0000001a),\n      0 2px 4px -2px var(--tw-shadow-color, #0000001a);\n    box-shadow:\n      var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),\n      var(--tw-ring-shadow), var(--tw-shadow);\n  }\n}\n",
           "diff": [
@@ -758,49 +758,49 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 55
+              "toB": 67
             },
             {
               "fromA": 67,
               "toA": 76,
-              "fromB": 82,
-              "toB": 94
+              "fromB": 94,
+              "toB": 106
             },
             {
               "fromA": 77,
               "toA": 84,
-              "fromB": 95,
-              "toB": 105
+              "fromB": 107,
+              "toB": 117
             },
             {
               "fromA": 121,
               "toA": 126,
-              "fromB": 142,
-              "toB": 152
+              "fromB": 154,
+              "toB": 164
             },
             {
               "fromA": 141,
               "toA": 143,
-              "fromB": 167,
-              "toB": 169
+              "fromB": 179,
+              "toB": 181
             },
             {
               "fromA": 188,
               "toA": 203,
-              "fromB": 214,
-              "toB": 219
+              "fromB": 226,
+              "toB": 231
             },
             {
               "fromA": 233,
               "toA": 273,
-              "fromB": 249,
-              "toB": 254
+              "fromB": 261,
+              "toB": 266
             },
             {
               "fromA": 303,
               "toA": 328,
-              "fromB": 284,
-              "toB": 294
+              "fromB": 296,
+              "toB": 306
             }
           ]
         }
@@ -858,7 +858,7 @@
           "path": "src/Dialog.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nimport { exit, selectedAnimation } from \"./keyframes\";\n\nexport const panelProps = style(\n  \"rounded-md\",\n  selectedAnimation(\"duration-normal ease-standard both\"),\n  { \"[&[data-state=closed]]:\": exit(\"duration-fast ease-standard both\") },\n);\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
-          "after": "import { stillwindClsx } from \"stillwind/runtime/react\";\n\nimport { exit, selectedAnimation } from \"./keyframes\";\n\nexport const panelProps = {className:stillwindClsx(\"sw_rdg4x\",({\"sw-kf-enter-cxv19\":\"sw_oyibx\",\"sw-kf-12rqq\":\"sw_0xhzs\"})[(selectedAnimation).k])};\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/runtime/class-name-object\";\n\nimport { exit, selectedAnimation } from \"./keyframes\";\n\nexport const panelProps = {className:stillwindClsx(\"sw_rdg4x\",({\"sw-kf-enter-cxv19\":\"sw_oyibx\",\"sw-kf-12rqq\":\"sw_0xhzs\"})[(selectedAnimation).k])};\n\nexport function DialogPanel() {\n  return <div {...panelProps} data-state=\"open\" />;\n}\n",
           "css": ".sw_rdg4x {\n  border-radius: var(--radius-md);\n}\n.sw_rdg4x[data-state=\"closed\"] {\n  animation-name: sw-kf-12rqq;\n  animation-duration: var(--duration-fast);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n.sw_oyibx {\n  animation-name: sw-kf-enter-cxv19;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n.sw_0xhzs {\n  animation-name: sw-kf-12rqq;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n",
           "minifiedCss": ".sw_rdg4x {\n  border-radius: var(--radius-md);\n}\n.sw_rdg4x[data-state=\"closed\"] {\n  animation-name: sw-kf-12rqq;\n  animation-duration: var(--duration-fast);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n.sw_oyibx {\n  animation-name: sw-kf-enter-cxv19;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n.sw_0xhzs {\n  animation-name: sw-kf-12rqq;\n  animation-duration: var(--duration-normal);\n  animation-timing-function: var(--ease-standard);\n  animation-fill-mode: both;\n}\n",
           "diff": [
@@ -866,13 +866,13 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 56
+              "toB": 68
             },
             {
               "fromA": 124,
               "toA": 282,
-              "fromB": 140,
-              "toB": 260
+              "fromB": 152,
+              "toB": 272
             }
           ]
         }
@@ -902,7 +902,7 @@
           "path": "src/Conditions.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...style(\n        \"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\",\n        { \"--enabled\": enabled, \"--second\": second },\n      )}\n    >\n      <div {...style(\"w-[--if(!--enabled,40px,80px)]\")} />\n    </section>\n  );\n}\n",
-          "after": "import { stillwindCssValue } from \"stillwind/runtime/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"sw_wmvay\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"sw_45dpc\"}} />\n    </section>\n  );\n}\n",
+          "after": "import { stillwindCssValue } from \"stillwind/runtime/class-name-object\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"sw_wmvay\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"sw_45dpc\"}} />\n    </section>\n  );\n}\n",
           "css": ".sw_wmvay {\n  display: grid;\n  --sw-if-o06ec: var(--second) 30px;\n  --sw-if-xy63z: var(--enabled) var(--sw-if-o06ec, 20px);\n  height: var(--sw-if-xy63z, 10px);\n  --sw-if-jg1gu: var(--enabled) 120px;\n  width: var(--sw-if-jg1gu, 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (x: revert-rule) and (--w78xn:) {\n  .sw_wmvay {\n    --sw-if-s6okf: var(--enabled) flex;\n    display: var(--sw-if-s6okf, revert-rule);\n  }\n}\n@supports (x: revert-rule) and (--w78xn:) {\n  .sw_wmvay {\n    --sw-ifg-qhl3x: var(--second) var(--enabled);\n    --sw-if-kbo56: var(--sw-ifg-qhl3x) calc(50 * 1%);\n    opacity: var(--sw-if-kbo56, revert-rule) !important;\n  }\n}\n.sw_45dpc {\n  --sw-if-n9v1g: var(--enabled) 80px;\n  width: var(--sw-if-n9v1g, 40px);\n}\n",
           "minifiedCss": ".sw_wmvay {\n  --sw-if-o06ec: var(--second) 30px;\n  --sw-if-xy63z: var(--enabled) var(--sw-if-o06ec, 20px);\n  height: var(--sw-if-xy63z, 10px);\n  --sw-if-jg1gu: var(--enabled) 120px;\n  width: var(--sw-if-jg1gu, 60px);\n  opacity: 1;\n  display: grid;\n}\n@supports (x: revert-rule) and (--w78xn:) {\n  .sw_wmvay {\n    --sw-if-s6okf: var(--enabled) flex;\n    display: var(--sw-if-s6okf, revert-rule);\n    --sw-ifg-qhl3x: var(--second) var(--enabled);\n    --sw-if-kbo56: var(--sw-ifg-qhl3x) calc(50 * 1%);\n    opacity: var(--sw-if-kbo56, revert-rule) !important;\n  }\n}\n.sw_45dpc {\n  --sw-if-n9v1g: var(--enabled) 80px;\n  width: var(--sw-if-n9v1g, 40px);\n}\n",
           "diff": [
@@ -910,19 +910,19 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 60
+              "toB": 72
             },
             {
               "fromA": 165,
               "toA": 400,
-              "fromB": 185,
-              "toB": 291
+              "fromB": 197,
+              "toB": 303
             },
             {
               "fromA": 423,
               "toA": 462,
-              "fromB": 314,
-              "toB": 336
+              "fromB": 326,
+              "toB": 348
             }
           ]
         }
@@ -952,7 +952,7 @@
           "path": "src/Conditions.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...style(\n        \"grid if(--enabled):flex w-[--if(--enabled,120px,60px)] h-[--if(--enabled,--if(--second,30px,20px),10px)] opacity-100 if(--enabled):if(--second):opacity-50!\",\n        { \"--enabled\": enabled, \"--second\": second },\n      )}\n    >\n      <div {...style(\"grid if(!--enabled):flex w-[--if(!--enabled,40px,80px)]\")} />\n      <div\n        {...style(\"grid if(--mode:compact):flex w-[--if(--mode:compact,40px,80px)]\", {\n          \"--mode\": \"compact\",\n        })}\n      />\n    </section>\n  );\n}\n",
-          "after": "import { stillwindCssValue } from \"stillwind/runtime/react\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"sw_wmvay\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"sw_b4p9x\"}} />\n      <div\n        {...{className:\"sw_93e4i\",style:{\"--mode\":\"compact\"}}}\n      />\n    </section>\n  );\n}\n",
+          "after": "import { stillwindCssValue } from \"stillwind/runtime/class-name-object\";\n\nexport function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {\n  return (\n    <section\n      {...{className:\"sw_wmvay\",style:{\"--enabled\":stillwindCssValue(enabled),\"--second\":stillwindCssValue(second)}}}\n    >\n      <div {...{className:\"sw_b4p9x\"}} />\n      <div\n        {...{className:\"sw_93e4i\",style:{\"--mode\":\"compact\"}}}\n      />\n    </section>\n  );\n}\n",
           "css": ".sw_wmvay {\n  display: grid;\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px);else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: calc(100 * 1%);\n}\n@supports (x: revert-rule) and (--w78xn:) {\n  .sw_wmvay {\n    display: if(style(--enabled): flex;else: revert-rule);\n  }\n}\n@supports (x: revert-rule) and (--w78xn:) {\n  .sw_wmvay {\n    --sw-ifg-qhl3x: var(--second) var(--enabled);\n    opacity: if(style(--sw-ifg-qhl3x): calc(50 * 1%);else: revert-rule) !important;\n  }\n}\n.sw_b4p9x {\n  display: grid;\n  width: if(style(--enabled): 80px;else: 40px);\n}\n@supports (x: revert-rule) and (--hxnpo:) {\n  .sw_b4p9x {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n.sw_93e4i {\n  display: grid;\n  width: if(style(--mode: compact): 40px;else: 80px);\n}\n@supports (x: revert-rule) and (--nenqb:) {\n  .sw_93e4i {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n",
           "minifiedCss": ".sw_wmvay {\n  height: if(style(--enabled): if(style(--second): 30px;else: 20px);else: 10px);\n  width: if(style(--enabled): 120px;else: 60px);\n  opacity: 1;\n  display: grid;\n}\n@supports (x: revert-rule) and (--w78xn:) {\n  .sw_wmvay {\n    display: if(style(--enabled): flex;else: revert-rule);\n    --sw-ifg-qhl3x: var(--second) var(--enabled);\n    opacity: if(style(--sw-ifg-qhl3x): calc(50 * 1%);else: revert-rule) !important;\n  }\n}\n.sw_b4p9x {\n  width: if(style(--enabled): 80px;else: 40px);\n  display: grid;\n}\n@supports (x: revert-rule) and (--hxnpo:) {\n  .sw_b4p9x {\n    display: if(style(--enabled): revert-rule;else: flex);\n  }\n}\n.sw_93e4i {\n  width: if(style(--mode: compact): 40px;else: 80px);\n  display: grid;\n}\n@supports (x: revert-rule) and (--nenqb:) {\n  .sw_93e4i {\n    display: if(style(--mode: compact): flex;else: revert-rule);\n  }\n}\n",
           "diff": [
@@ -960,25 +960,25 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 60
+              "toB": 72
             },
             {
               "fromA": 165,
               "toA": 400,
-              "fromB": 185,
-              "toB": 291
+              "fromB": 197,
+              "toB": 303
             },
             {
               "fromA": 423,
               "toA": 487,
-              "fromB": 314,
-              "toB": 336
+              "fromB": 326,
+              "toB": 348
             },
             {
               "fromA": 515,
               "toA": 631,
-              "fromB": 364,
-              "toB": 413
+              "fromB": 376,
+              "toB": 425
             }
           ]
         }
@@ -1124,7 +1124,7 @@
           "path": "src/consumer.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = style(selectedRef);\n\nexport const anchorProvider = style(selectedRef, selectedRef.asAnchor([selectedRef]));\n\nexport const attachedScope = style(selectedScope);\n\nexport const scopedSelector = style({\n  [selectedRef(\"hover\").in(selectedScope)]: \"flex\",\n});\n\nexport const anchorScope = style(style.anchorScope([selectedRef]));\n",
-          "after": "import { stillwindClsx } from \"stillwind/runtime/react\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = {className:((selectedRef).c)};\n\nexport const anchorProvider = {className:stillwindClsx((selectedRef).c,({\"sw_primary_z410i\":\"sw_r3fvt\",\"sw_secondary_63olu\":\"sw_6pcxl\"})[(selectedRef).c])};\n\nexport const attachedScope = {className:((selectedScope).c)};\n\nexport const scopedSelector = {className:\"sw_aadoi\"};\n\nexport const anchorScope = {className:\"sw_l02zv\"};\n",
+          "after": "import { stillwindClsx } from \"stillwind/runtime/class-name-object\";\n\nimport { selectedRef, selectedScope } from \"./barrel\";\n\nexport const attachedRef = {className:((selectedRef).c)};\n\nexport const anchorProvider = {className:stillwindClsx((selectedRef).c,({\"sw_primary_z410i\":\"sw_r3fvt\",\"sw_secondary_63olu\":\"sw_6pcxl\"})[(selectedRef).c])};\n\nexport const attachedScope = {className:((selectedScope).c)};\n\nexport const scopedSelector = {className:\"sw_aadoi\"};\n\nexport const anchorScope = {className:\"sw_l02zv\"};\n",
           "css": ".sw_r3fvt:where(.sw_primary_z410i) {\n  anchor-name: --sw-a-primary-z410i;\n  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;\n}\n.sw_6pcxl:where(.sw_secondary_63olu) {\n  anchor-name: --sw-a-secondary-63olu;\n  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;\n}\n@media (hover: hover) {\n  .sw_aadoi:is(:is(:where(.sw_compact_vl0wg)):has(:is(:where(.sw_primary_z410i):hover)) *) {\n    display: flex;\n  }\n}\n@media (hover: hover) {\n  .sw_aadoi:is(:is(:where(.sw_spacious_fwe7s)):has(:is(:where(.sw_primary_z410i):hover)) *) {\n    display: flex;\n  }\n}\n@media (hover: hover) {\n  .sw_aadoi:is(:is(:where(.sw_compact_vl0wg)):has(:is(:where(.sw_secondary_63olu):hover)) *) {\n    display: flex;\n  }\n}\n@media (hover: hover) {\n  .sw_aadoi:is(:is(:where(.sw_spacious_fwe7s)):has(:is(:where(.sw_secondary_63olu):hover)) *) {\n    display: flex;\n  }\n}\n.sw_l02zv {\n  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;\n}\n",
           "minifiedCss": ".sw_r3fvt:where(.sw_primary_z410i) {\n  anchor-name: --sw-a-primary-z410i;\n  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;\n}\n.sw_6pcxl:where(.sw_secondary_63olu) {\n  anchor-name: --sw-a-secondary-63olu;\n  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;\n}\n@media (hover: hover) {\n  .sw_aadoi:is(:where(.sw_compact_vl0wg):has(:where(.sw_primary_z410i):hover) *),\n  .sw_aadoi:is(:where(.sw_spacious_fwe7s):has(:where(.sw_primary_z410i):hover) *),\n  .sw_aadoi:is(:where(.sw_compact_vl0wg):has(:where(.sw_secondary_63olu):hover) *),\n  .sw_aadoi:is(:where(.sw_spacious_fwe7s):has(:where(.sw_secondary_63olu):hover) *) {\n    display: flex;\n  }\n}\n.sw_l02zv {\n  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;\n}\n",
           "diff": [
@@ -1132,37 +1132,37 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 56
+              "toB": 68
             },
             {
               "fromA": 125,
               "toA": 143,
-              "fromB": 141,
-              "toB": 170
+              "fromB": 153,
+              "toB": 182
             },
             {
               "fromA": 176,
               "toA": 231,
-              "fromB": 203,
-              "toB": 328
+              "fromB": 215,
+              "toB": 340
             },
             {
               "fromA": 263,
               "toA": 283,
-              "fromB": 360,
-              "toB": 391
+              "fromB": 372,
+              "toB": 403
             },
             {
               "fromA": 316,
               "toA": 378,
-              "fromB": 424,
-              "toB": 446
+              "fromB": 436,
+              "toB": 458
             },
             {
               "fromA": 408,
               "toA": 447,
-              "fromB": 476,
-              "toB": 498
+              "fromB": 488,
+              "toB": 510
             }
           ]
         }
@@ -1192,7 +1192,7 @@
           "path": "src/SaveButton.tsx",
           "language": "tsx",
           "before": "import { style } from \"stillwind/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = style({\n  \"\": [\n    \"inline-flex items-center rounded-md px-4 progress-[.5] authored-progress\",\n    loading && \"opacity-60\",\n  ],\n  \":\": emphasized ? \"bg-accent\" : \"bg-muted\",\n  class: [\"legacy-button\", loading && \"is-loading\"],\n  \"hover:\": \"bg-accent/90\",\n});\n\nexport function SaveButton() {\n  return (\n    <button {...buttonProps} aria-busy={loading} data-emphasis={emphasized ? \"high\" : \"normal\"}>\n      Save\n    </button>\n  );\n}\n",
-          "after": "import { stillwindClsx } from \"stillwind/runtime/react\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"sw_hpdco\",(loading) && (\"sw_hmw23\"),(emphasized) ? (\"sw_96vzq\") : (\"sw_ke6ey\"),\"legacy-button\",loading && \"is-loading\")};\n\nexport function SaveButton() {\n  return (\n    <button {...buttonProps} aria-busy={loading} data-emphasis={emphasized ? \"high\" : \"normal\"}>\n      Save\n    </button>\n  );\n}\n",
+          "after": "import { stillwindClsx } from \"stillwind/runtime/class-name-object\";\n\nconst loading = Date.now() % 2 === 0;\nconst emphasized = location.hash === \"#emphasized\";\n\nexport const buttonProps = {className:stillwindClsx(\"sw_hpdco\",(loading) && (\"sw_hmw23\"),(emphasized) ? (\"sw_96vzq\") : (\"sw_ke6ey\"),\"legacy-button\",loading && \"is-loading\")};\n\nexport function SaveButton() {\n  return (\n    <button {...buttonProps} aria-busy={loading} data-emphasis={emphasized ? \"high\" : \"normal\"}>\n      Save\n    </button>\n  );\n}\n",
           "css": ".sw_hpdco {\n  display: inline-flex;\n  padding-inline: var(--spacing-4);\n  align-items: center;\n  border-radius: var(--radius-md);\n  --button-progress: 0.5;\n  --authored-progress: 1;\n}\n@media (hover: hover) {\n  .sw_hpdco:hover {\n    background-color: color-mix(in srgb, oklch(0.62 0.18 252) 90%, transparent);\n    @supports (color: color-mix(in lab, red, red)) {\n      background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);\n    }\n  }\n}\n.sw_hmw23 {\n  opacity: calc(60 * 1%);\n}\n.sw_96vzq {\n  background-color: var(--color-accent);\n}\n.sw_ke6ey {\n  background-color: var(--color-muted);\n}\n",
           "minifiedCss": ".sw_hpdco {\n  padding-inline: var(--spacing-4);\n  border-radius: var(--radius-md);\n  --button-progress: 0.5;\n  --authored-progress: 1;\n  align-items: center;\n  display: inline-flex;\n}\n@media (hover: hover) {\n  .sw_hpdco:hover {\n    background-color: #1187eee6;\n    @supports (color: color-mix(in lab, red, red)) {\n      background-color: color-mix(in oklab, var(--color-accent) 90%, transparent);\n    }\n  }\n}\n.sw_hmw23 {\n  opacity: 0.6;\n}\n.sw_96vzq {\n  background-color: var(--color-accent);\n}\n.sw_ke6ey {\n  background-color: var(--color-muted);\n}\n",
           "diff": [
@@ -1200,13 +1200,174 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 56
+              "toB": 68
             },
             {
               "fromA": 160,
               "toA": 419,
-              "fromB": 176,
-              "toB": 322
+              "fromB": 188,
+              "toB": 334
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "vanilla",
+      "title": "Vanilla DOM styles",
+      "description": "DOM helpers, shared styles, CVA, and independent props for several frameworks.",
+      "tags": [
+        "vanilla",
+        "composition",
+        "conditional",
+        "cva",
+        "output-formats"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/styles.ts",
+        "src/button.ts",
+        "src/frameworks.ts"
+      ],
+      "css": "@layer properties, theme, base, components, utilities;\n@layer theme {\n  /*\nDefines Stillwind's default design tokens and the output locations for selected theme\ncustom properties and keyframes. The importing stylesheet chooses their cascade layer.\n*/\n\n  /*\nExpose selected theme custom properties to both document roots and shadow hosts.\nThe theme slot emits declarations, so it must remain inside this selector block.\nKeep both selectors so the same theme values are available in either scope.\n*/\n\n  :root,\n  :host {\n    --font-sans:\n      -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", \"Noto Sans\", Arial,\n      sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\";\n    --font-mono:\n      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\",\n      monospace;\n    --spacing: 0.25rem;\n    --font-weight-medium: 500;\n    --font-weight-bold: 700;\n    --radius-md: 0.375rem;\n    --default-font-family: var(--font-sans);\n    --default-mono-font-family: var(--font-mono);\n  }\n}\n@layer base {\n  /*\n  1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)\n  2. Remove default margins and padding\n  3. Reset all borders.\n*/\n\n  *,\n  ::after,\n  ::before,\n  ::backdrop,\n  ::file-selector-button {\n    box-sizing: border-box; /* 1 */\n    margin: 0; /* 2 */\n    padding: 0; /* 2 */\n    border: 0 solid; /* 3 */\n  }\n\n  /*\n  1. Use a consistent sensible line-height in all browsers.\n  2. Prevent adjustments of font size after orientation changes in iOS.\n  3. Use a more readable tab size.\n  4. Use the user's configured `sans` font-family by default.\n  5. Use the user's configured `sans` font-feature-settings by default.\n  6. Use the user's configured `sans` font-variation-settings by default.\n  7. Disable tap highlights on iOS.\n*/\n\n  html,\n  :host {\n    line-height: 1.5; /* 1 */\n    -webkit-text-size-adjust: 100%; /* 2 */\n    tab-size: 4; /* 3 */\n    font-family: var(\n      --default-font-family,\n      -apple-system,\n      BlinkMacSystemFont,\n      \"Segoe UI\",\n      Roboto,\n      \"Helvetica Neue\",\n      \"Noto Sans\",\n      Arial,\n      sans-serif,\n      \"Apple Color Emoji\",\n      \"Segoe UI Emoji\",\n      \"Segoe UI Symbol\",\n      \"Noto Color Emoji\"\n    ); /* 4 */\n    font-feature-settings: var(--default-font-feature-settings, normal); /* 5 */\n    font-variation-settings: var(--default-font-variation-settings, normal); /* 6 */\n    -webkit-tap-highlight-color: transparent; /* 7 */\n  }\n\n  /*\n  1. Add the correct height in Firefox.\n  2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)\n  3. Reset the default border style to a 1px solid border.\n*/\n\n  hr {\n    height: 0; /* 1 */\n    color: inherit; /* 2 */\n    border-top-width: 1px; /* 3 */\n  }\n\n  /*\n  Add the correct text decoration in Chrome, Edge, and Safari.\n*/\n\n  abbr:where([title]) {\n    -webkit-text-decoration: underline dotted;\n    text-decoration: underline dotted;\n  }\n\n  /*\n  Remove the default font size and weight for headings.\n*/\n\n  h1,\n  h2,\n  h3,\n  h4,\n  h5,\n  h6 {\n    font-size: inherit;\n    font-weight: inherit;\n  }\n\n  /*\n  Reset links to optimize for opt-in styling instead of opt-out.\n*/\n\n  a {\n    color: inherit;\n    -webkit-text-decoration: inherit;\n    text-decoration: inherit;\n  }\n\n  /*\n  Add the correct font weight in Edge and Safari.\n*/\n\n  b,\n  strong {\n    font-weight: bolder;\n  }\n\n  /*\n  1. Use the user's configured `mono` font-family by default.\n  2. Use the user's configured `mono` font-feature-settings by default.\n  3. Use the user's configured `mono` font-variation-settings by default.\n  4. Correct the odd `em` font sizing in all browsers.\n*/\n\n  code,\n  kbd,\n  samp,\n  pre {\n    font-family: var(\n      --default-mono-font-family,\n      ui-monospace,\n      SFMono-Regular,\n      Menlo,\n      Monaco,\n      Consolas,\n      \"Liberation Mono\",\n      \"Courier New\",\n      monospace\n    ); /* 1 */\n    font-feature-settings: var(--default-mono-font-feature-settings, normal); /* 2 */\n    font-variation-settings: var(--default-mono-font-variation-settings, normal); /* 3 */\n    font-size: 1em; /* 4 */\n  }\n\n  /*\n  Add the correct font size in all browsers.\n*/\n\n  small {\n    font-size: 80%;\n  }\n\n  /*\n  Prevent `sub` and `sup` elements from affecting the line height in all browsers.\n*/\n\n  sub,\n  sup {\n    font-size: 75%;\n    line-height: 0;\n    position: relative;\n    vertical-align: baseline;\n  }\n\n  sub {\n    bottom: -0.25em;\n  }\n\n  sup {\n    top: -0.5em;\n  }\n\n  /*\n  1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)\n  2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)\n  3. Remove gaps between table borders by default.\n*/\n\n  table {\n    text-indent: 0; /* 1 */\n    border-color: inherit; /* 2 */\n    border-collapse: collapse; /* 3 */\n  }\n\n  /*\n  Use the modern Firefox focus style for all focusable elements.\n*/\n\n  :-moz-focusring:where(:not(iframe)) {\n    outline: auto;\n  }\n\n  /*\n  Add the correct vertical alignment in Chrome and Firefox.\n*/\n\n  progress {\n    vertical-align: baseline;\n  }\n\n  /*\n  Add the correct display in Chrome and Safari.\n*/\n\n  summary {\n    display: list-item;\n  }\n\n  /*\n  Make lists unstyled by default.\n*/\n\n  ol,\n  ul,\n  menu {\n    list-style: none;\n  }\n\n  /*\n  1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)\n  2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)\n      This can trigger a poorly considered lint error in some tools but is included by design.\n*/\n\n  img,\n  svg,\n  video,\n  canvas,\n  audio,\n  iframe,\n  embed,\n  object {\n    display: block; /* 1 */\n    vertical-align: middle; /* 2 */\n  }\n\n  /*\n  Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)\n*/\n\n  img,\n  video {\n    max-width: 100%;\n    height: auto;\n  }\n\n  /*\n  1. Inherit font styles in all browsers.\n  2. Remove border radius in all browsers.\n  3. Remove background color in all browsers.\n  4. Ensure consistent opacity for disabled states in all browsers.\n*/\n\n  button,\n  input,\n  select,\n  optgroup,\n  textarea,\n  ::file-selector-button {\n    font: inherit; /* 1 */\n    font-feature-settings: inherit; /* 1 */\n    font-variation-settings: inherit; /* 1 */\n    letter-spacing: inherit; /* 1 */\n    color: inherit; /* 1 */\n    border-radius: 0; /* 2 */\n    background-color: transparent; /* 3 */\n    opacity: 1; /* 4 */\n  }\n\n  /*\n  Restore default font weight.\n*/\n\n  :where(select:is([multiple], [size])) optgroup {\n    font-weight: bolder;\n  }\n\n  /*\n  Restore indentation.\n*/\n\n  :where(select:is([multiple], [size])) optgroup option {\n    padding-inline-start: 20px;\n  }\n\n  /*\n  Restore space after button.\n*/\n\n  ::file-selector-button {\n    margin-inline-end: 4px;\n  }\n\n  /*\n  Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)\n*/\n\n  ::placeholder {\n    opacity: 1;\n  } /*\n  Set the default placeholder color to a semi-transparent version of the current text color in browsers that do not\n  crash when using `color-mix(…)` with `currentcolor`. (https://github.com/tailwindlabs/tailwindcss/issues/17194)\n*/\n\n  @supports (not (-webkit-appearance: -apple-pay-button)) /* Not Safari */ or\n    (contain-intrinsic-size: 1px) /* Safari 17+ */ {\n    ::placeholder {\n      color: currentcolor;\n      @supports (color: color-mix(in lab, red, red)) {\n        color: color-mix(in oklab, currentcolor 50%, transparent);\n      }\n    }\n  }\n\n  /*\n  Prevent resizing textareas horizontally by default.\n*/\n\n  textarea {\n    resize: vertical;\n  }\n\n  /*\n  Remove the inner padding in Chrome and Safari on macOS.\n*/\n\n  ::-webkit-search-decoration {\n    -webkit-appearance: none;\n  }\n\n  /*\n  1. Ensure date/time inputs have the same height when empty in iOS Safari.\n  2. Ensure text alignment can be changed on date/time inputs in iOS Safari.\n*/\n\n  ::-webkit-date-and-time-value {\n    min-height: 1lh; /* 1 */\n    text-align: inherit; /* 2 */\n  }\n\n  /*\n  Prevent height from changing on date/time inputs in macOS Safari when the input is set to `display: block`.\n*/\n\n  ::-webkit-datetime-edit {\n    display: inline-flex;\n  }\n\n  /*\n  Remove excess padding from pseudo-elements in date/time inputs to ensure consistent height across browsers.\n*/\n\n  ::-webkit-datetime-edit-fields-wrapper {\n    padding: 0;\n  }\n\n  ::-webkit-datetime-edit,\n  ::-webkit-datetime-edit-year-field,\n  ::-webkit-datetime-edit-month-field,\n  ::-webkit-datetime-edit-day-field,\n  ::-webkit-datetime-edit-hour-field,\n  ::-webkit-datetime-edit-minute-field,\n  ::-webkit-datetime-edit-second-field,\n  ::-webkit-datetime-edit-millisecond-field,\n  ::-webkit-datetime-edit-meridiem-field {\n    padding-block: 0;\n  }\n\n  /*\n  Center dropdown marker shown on inputs with paired `<datalist>`s in Chrome. (https://github.com/tailwindlabs/tailwindcss/issues/18499)\n*/\n\n  ::-webkit-calendar-picker-indicator {\n    line-height: 1;\n  }\n\n  /*\n  Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)\n*/\n\n  :-moz-ui-invalid {\n    box-shadow: none;\n  }\n\n  /*\n  Correct the inability to style the border radius in iOS Safari.\n*/\n\n  button,\n  input:where([type=\"button\"], [type=\"reset\"], [type=\"submit\"]),\n  ::file-selector-button {\n    appearance: button;\n  }\n\n  /*\n  Correct the cursor style of increment and decrement buttons in Safari.\n*/\n\n  ::-webkit-inner-spin-button,\n  ::-webkit-outer-spin-button {\n    height: auto;\n  }\n\n  /*\n  Make elements with the HTML hidden attribute stay hidden by default.\n*/\n\n  [hidden]:where(:not([hidden=\"until-found\"])) {\n    display: none !important;\n  }\n}\n@layer utilities {\n  .sw_kwp9a {\n    padding-inline: calc(var(--spacing) * 4);\n    padding-block: calc(var(--spacing) * 2);\n    border-radius: var(--radius-md);\n  }\n  .sw_ezul1 {\n    --tw-font-weight: var(--font-weight-medium);\n    font-weight: var(--font-weight-medium);\n  }\n  .sw_rzb4y {\n    text-decoration-line: underline;\n  }\n  .sw_0d02s {\n    color: var(--tone);\n  }\n  .sw_5lom8 {\n    --tw-font-weight: var(--font-weight-bold);\n    font-weight: var(--font-weight-bold);\n  }\n  .sw_9ij3v {\n    --tw-font-weight: var(--font-weight-medium);\n    font-weight: var(--font-weight-medium);\n  }\n  .sw_oxkd1 {\n    padding: calc(var(--spacing) * 4);\n  }\n  .sw_23sbd {\n    padding: calc(var(--spacing) * 4);\n  }\n  .sw_y15vs {\n    padding: calc(var(--spacing) * 4);\n  }\n} /*\nThe property-initials slot inserts declarations for selected builtin registrations.\nEach element and the listed pseudo-elements receive their own fallback values in the\nqueried compatibility environments; a root-only reset would allow inherited state to\nreach descendants. Keep this declaration slot inside the selector rule.\n*/\n\n@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n    *,\n    ::before,\n    ::after,\n    ::backdrop {\n      --tw-font-weight: initial;\n    }\n  }\n}\n@property --tw-font-weight {\n  syntax: \"*\";\n  inherits: false;\n}\n",
+      "minifiedCss": "@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n    *,\n    :before,\n    :after,\n    ::backdrop {\n      --tw-font-weight: initial;\n    }\n  }\n}\n@layer theme {\n  :root,\n  :host {\n    --font-sans:\n      -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", \"Noto Sans\", Arial,\n      sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\";\n    --font-mono:\n      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\",\n      monospace;\n    --spacing: 0.25rem;\n    --font-weight-medium: 500;\n    --font-weight-bold: 700;\n    --radius-md: 0.375rem;\n    --default-font-family: var(--font-sans);\n    --default-mono-font-family: var(--font-mono);\n  }\n}\n@layer base {\n  *,\n  :after,\n  :before,\n  ::backdrop,\n  ::file-selector-button {\n    box-sizing: border-box;\n    border: 0 solid;\n    margin: 0;\n    padding: 0;\n  }\n  html,\n  :host {\n    -webkit-text-size-adjust: 100%;\n    tab-size: 4;\n    line-height: 1.5;\n    font-family: var(\n      --default-font-family,\n      -apple-system,\n      BlinkMacSystemFont,\n      \"Segoe UI\",\n      Roboto,\n      \"Helvetica Neue\",\n      \"Noto Sans\",\n      Arial,\n      sans-serif,\n      \"Apple Color Emoji\",\n      \"Segoe UI Emoji\",\n      \"Segoe UI Symbol\",\n      \"Noto Color Emoji\"\n    );\n    font-feature-settings: var(--default-font-feature-settings, normal);\n    font-variation-settings: var(--default-font-variation-settings, normal);\n    -webkit-tap-highlight-color: transparent;\n  }\n  hr {\n    height: 0;\n    color: inherit;\n    border-top-width: 1px;\n  }\n  abbr:where([title]) {\n    text-decoration: underline dotted;\n  }\n  h1,\n  h2,\n  h3,\n  h4,\n  h5,\n  h6 {\n    font-size: inherit;\n    font-weight: inherit;\n  }\n  a {\n    color: inherit;\n    -webkit-text-decoration: inherit;\n    text-decoration: inherit;\n  }\n  b,\n  strong {\n    font-weight: bolder;\n  }\n  code,\n  kbd,\n  samp,\n  pre {\n    font-family: var(\n      --default-mono-font-family,\n      ui-monospace,\n      SFMono-Regular,\n      Menlo,\n      Monaco,\n      Consolas,\n      \"Liberation Mono\",\n      \"Courier New\",\n      monospace\n    );\n    font-feature-settings: var(--default-mono-font-feature-settings, normal);\n    font-variation-settings: var(--default-mono-font-variation-settings, normal);\n    font-size: 1em;\n  }\n  small {\n    font-size: 80%;\n  }\n  sub,\n  sup {\n    vertical-align: baseline;\n    font-size: 75%;\n    line-height: 0;\n    position: relative;\n  }\n  sub {\n    bottom: -0.25em;\n  }\n  sup {\n    top: -0.5em;\n  }\n  table {\n    text-indent: 0;\n    border-color: inherit;\n    border-collapse: collapse;\n  }\n  :-moz-focusring:where(:not(iframe)) {\n    outline: auto;\n  }\n  progress {\n    vertical-align: baseline;\n  }\n  summary {\n    display: list-item;\n  }\n  ol,\n  ul,\n  menu {\n    list-style: none;\n  }\n  img,\n  svg,\n  video,\n  canvas,\n  audio,\n  iframe,\n  embed,\n  object {\n    vertical-align: middle;\n    display: block;\n  }\n  img,\n  video {\n    max-width: 100%;\n    height: auto;\n  }\n  button,\n  input,\n  select,\n  optgroup,\n  textarea,\n  ::file-selector-button {\n    font: inherit;\n    font-feature-settings: inherit;\n    font-variation-settings: inherit;\n    letter-spacing: inherit;\n    color: inherit;\n    opacity: 1;\n    background-color: #0000;\n    border-radius: 0;\n  }\n  :where(select:is([multiple], [size])) optgroup {\n    font-weight: bolder;\n  }\n  :where(select:is([multiple], [size])) optgroup option {\n    padding-inline-start: 20px;\n  }\n  ::file-selector-button {\n    margin-inline-end: 4px;\n  }\n  ::placeholder {\n    opacity: 1;\n  }\n  @supports (not ((-webkit-appearance: -apple-pay-button))) or (contain-intrinsic-size: 1px) {\n    ::placeholder {\n      color: currentColor;\n      @supports (color: color-mix(in lab, red, red)) {\n        color: color-mix(in oklab, currentcolor 50%, transparent);\n      }\n    }\n  }\n  textarea {\n    resize: vertical;\n  }\n  ::-webkit-search-decoration {\n    -webkit-appearance: none;\n  }\n  ::-webkit-date-and-time-value {\n    min-height: 1lh;\n    text-align: inherit;\n  }\n  ::-webkit-datetime-edit {\n    display: inline-flex;\n  }\n  ::-webkit-datetime-edit-fields-wrapper {\n    padding: 0;\n  }\n  ::-webkit-datetime-edit,\n  ::-webkit-datetime-edit-year-field,\n  ::-webkit-datetime-edit-month-field,\n  ::-webkit-datetime-edit-day-field,\n  ::-webkit-datetime-edit-hour-field,\n  ::-webkit-datetime-edit-minute-field,\n  ::-webkit-datetime-edit-second-field,\n  ::-webkit-datetime-edit-millisecond-field,\n  ::-webkit-datetime-edit-meridiem-field {\n    padding-block: 0;\n  }\n  ::-webkit-calendar-picker-indicator {\n    line-height: 1;\n  }\n  :-moz-ui-invalid {\n    box-shadow: none;\n  }\n  button,\n  input:where([type=\"button\"], [type=\"reset\"], [type=\"submit\"]),\n  ::file-selector-button {\n    appearance: button;\n  }\n  ::-webkit-inner-spin-button,\n  ::-webkit-outer-spin-button {\n    height: auto;\n  }\n  [hidden]:where(:not([hidden=\"until-found\"])) {\n    display: none !important;\n  }\n}\n@layer components;\n@layer utilities {\n  .sw_kwp9a {\n    padding-inline: calc(var(--spacing) * 4);\n    padding-block: calc(var(--spacing) * 2);\n    border-radius: var(--radius-md);\n  }\n  .sw_ezul1 {\n    --tw-font-weight: var(--font-weight-medium);\n    font-weight: var(--font-weight-medium);\n  }\n  .sw_rzb4y {\n    text-decoration-line: underline;\n  }\n  .sw_0d02s {\n    color: var(--tone);\n  }\n  .sw_5lom8 {\n    --tw-font-weight: var(--font-weight-bold);\n    font-weight: var(--font-weight-bold);\n  }\n  .sw_9ij3v {\n    --tw-font-weight: var(--font-weight-medium);\n    font-weight: var(--font-weight-medium);\n  }\n  .sw_oxkd1,\n  .sw_23sbd,\n  .sw_y15vs {\n    padding: calc(var(--spacing) * 4);\n  }\n}\n@property --tw-font-weight {\n  syntax: \"*\";\n  inherits: false;\n}\n",
+      "files": [
+        {
+          "path": "src/styles.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/vanilla\";\n\nexport const base = style(\"rounded-md px-4 py-2\");\nexport const choose = style.cva(\"font-medium\", {\n  variants: {\n    active: {\n      true: \"underline\",\n      false: null,\n    },\n  },\n});\n",
+          "after": "import { stillwindCva } from \"stillwind/runtime/class-object\";\n\nexport const base = {class:\"sw_kwp9a\"};\nexport const choose = stillwindCva(\"sw_ezul1\", {\n  variants: {\n    active: {\n      true: \"sw_rzb4y\",\n      false: \"\",\n    },\n  },\n});\n",
+          "css": ".sw_kwp9a {\n  padding-inline: calc(var(--spacing) * 4);\n  padding-block: calc(var(--spacing) * 2);\n  border-radius: var(--radius-md);\n}\n.sw_ezul1 {\n  --tw-font-weight: var(--font-weight-medium);\n  font-weight: var(--font-weight-medium);\n}\n.sw_rzb4y {\n  text-decoration-line: underline;\n}\n",
+          "minifiedCss": ".sw_kwp9a {\n  padding-inline: calc(var(--spacing) * 4);\n  padding-block: calc(var(--spacing) * 2);\n  border-radius: var(--radius-md);\n}\n.sw_ezul1 {\n  --tw-font-weight: var(--font-weight-medium);\n  font-weight: var(--font-weight-medium);\n}\n.sw_rzb4y {\n  text-decoration-line: underline;\n}\n",
+          "diff": [
+            {
+              "fromA": 0,
+              "toA": 42,
+              "fromB": 0,
+              "toB": 62
+            },
+            {
+              "fromA": 64,
+              "toA": 93,
+              "fromB": 84,
+              "toB": 102
+            },
+            {
+              "fromA": 117,
+              "toA": 126,
+              "fromB": 126,
+              "toB": 138
+            },
+            {
+              "fromA": 127,
+              "toA": 140,
+              "fromB": 139,
+              "toB": 149
+            },
+            {
+              "fromA": 184,
+              "toA": 195,
+              "fromB": 193,
+              "toB": 203
+            },
+            {
+              "fromA": 210,
+              "toA": 214,
+              "fromB": 218,
+              "toB": 220
+            }
+          ]
+        },
+        {
+          "path": "src/button.ts",
+          "language": "typescript",
+          "before": "import { applyStyle, clearStyle, style } from \"stillwind/vanilla\";\n\nimport { base } from \"./styles\";\n\nexport function update(button: HTMLButtonElement, active: boolean, tone: string) {\n  applyStyle(button, style(base, \"text-(--tone)\", active && \"font-bold\", { \"--tone\": tone }));\n}\n\nexport function dispose(button: HTMLButtonElement) {\n  clearStyle(button);\n}\n",
+          "after": "import { applyStyle, clearStyle  } from \"stillwind/vanilla\";\nimport { stillwindClassKey, stillwindClsx, stillwindCssValue, stillwindCustomPropertiesKey, stillwindMerge, stillwindToFragment } from \"stillwind/runtime/class-object\";\n\nimport { base } from \"./styles\";\n\nexport function update(button: HTMLButtonElement, active: boolean, tone: string) {\n  applyStyle(button, stillwindMerge({[stillwindClassKey]:\"sw_0d02s\"},stillwindToFragment((base)),{[stillwindClassKey]:stillwindClsx((active) && (\"sw_5lom8\")),[stillwindCustomPropertiesKey]:{\"--tone\":stillwindCssValue(tone)}}));\n}\n\nexport function dispose(button: HTMLButtonElement) {\n  clearStyle(button);\n}\n",
+          "css": ".sw_0d02s {\n  color: var(--tone);\n}\n.sw_5lom8 {\n  --tw-font-weight: var(--font-weight-bold);\n  font-weight: var(--font-weight-bold);\n}\n",
+          "minifiedCss": ".sw_0d02s {\n  color: var(--tone);\n}\n.sw_5lom8 {\n  --tw-font-weight: var(--font-weight-bold);\n  font-weight: var(--font-weight-bold);\n}\n",
+          "diff": [
+            {
+              "fromA": 0,
+              "toA": 66,
+              "fromB": 0,
+              "toB": 229
+            },
+            {
+              "fromA": 206,
+              "toA": 277,
+              "fromB": 369,
+              "toB": 573
+            }
+          ]
+        },
+        {
+          "path": "src/frameworks.ts",
+          "language": "typescript",
+          "before": "import { style as react } from \"stillwind/react\";\nimport { style as svelte } from \"stillwind/svelte\";\nimport { style as vanilla } from \"stillwind/vanilla\";\n\nexport function frameworkProps(active: boolean, tone: string) {\n  const choose = react.cva(\"font-medium\", {\n    variants: { active: { true: { \"--tone\": tone }, false: null } },\n  });\n  return {\n    react: react(\"p-4\", { \"--tone\": tone }, active && { \"--active\": true }),\n    vanilla: vanilla(\"p-4\", { \"--tone\": tone }, active && { \"--active\": true }),\n    svelte: svelte(\"p-4\", { \"--tone\": tone }, active && { \"--active\": true }),\n    choice: choose({ active }),\n  };\n}\n",
+          "after": "import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva, stillwindMerge } from \"stillwind/runtime/class-name-object\";\nimport { stillwindClassKey as stillwindClassKey_2, stillwindCssValue as stillwindCssValue_2, stillwindCustomPropertiesKey as stillwindCustomPropertiesKey_2, stillwindMerge as stillwindMerge_2 } from \"stillwind/runtime/class-string\";\nimport { stillwindClassKey as stillwindClassKey_1, stillwindCssValue as stillwindCssValue_1, stillwindCustomPropertiesKey as stillwindCustomPropertiesKey_1, stillwindMerge as stillwindMerge_1 } from \"stillwind/runtime/class-object\";\n\nexport function frameworkProps(active: boolean, tone: string) {\n  const choose = stillwindCva(\"sw_9ij3v\", {\n    variants: { active: { true: {[stillwindCustomPropertiesKey]:{\"--tone\":stillwindCssValue(tone)}}, false: \"\" } },\n  });\n  return {\n    react: stillwindMerge({[stillwindClassKey]:\"sw_oxkd1\",[stillwindCustomPropertiesKey]:{\"--tone\":stillwindCssValue(tone)}},(active) && ({[stillwindCustomPropertiesKey]:{\"--active\":\" \"}})),\n    vanilla: stillwindMerge_1({[stillwindClassKey_1]:\"sw_23sbd\",[stillwindCustomPropertiesKey_1]:{\"--tone\":stillwindCssValue_1(tone)}},(active) && ({[stillwindCustomPropertiesKey_1]:{\"--active\":\" \"}})),\n    svelte: stillwindMerge_2({[stillwindClassKey_2]:\"sw_y15vs\",[stillwindCustomPropertiesKey_2]:{\"--tone\":stillwindCssValue_2(tone)}},(active) && ({[stillwindCustomPropertiesKey_2]:{\"--active\":\" \"}})),\n    choice: choose({ active }),\n  };\n}\n",
+          "css": ".sw_9ij3v {\n  --tw-font-weight: var(--font-weight-medium);\n  font-weight: var(--font-weight-medium);\n}\n.sw_oxkd1 {\n  padding: calc(var(--spacing) * 4);\n}\n.sw_23sbd {\n  padding: calc(var(--spacing) * 4);\n}\n.sw_y15vs {\n  padding: calc(var(--spacing) * 4);\n}\n",
+          "minifiedCss": ".sw_9ij3v {\n  --tw-font-weight: var(--font-weight-medium);\n  font-weight: var(--font-weight-medium);\n}\n.sw_oxkd1,\n.sw_23sbd,\n.sw_y15vs {\n  padding: calc(var(--spacing) * 4);\n}\n",
+          "diff": [
+            {
+              "fromA": 0,
+              "toA": 49,
+              "fromB": 0,
+              "toB": 151
+            },
+            {
+              "fromA": 50,
+              "toA": 101,
+              "fromB": 152,
+              "toB": 384
+            },
+            {
+              "fromA": 102,
+              "toA": 155,
+              "fromB": 385,
+              "toB": 617
+            },
+            {
+              "fromA": 238,
+              "toA": 247,
+              "fromB": 700,
+              "toB": 712
+            },
+            {
+              "fromA": 248,
+              "toA": 261,
+              "fromB": 713,
+              "toB": 723
+            },
+            {
+              "fromA": 297,
+              "toA": 315,
+              "fromB": 759,
+              "toB": 826
+            },
+            {
+              "fromA": 324,
+              "toA": 328,
+              "fromB": 835,
+              "toB": 837
+            },
+            {
+              "fromA": 362,
+              "toA": 426,
+              "fromB": 871,
+              "toB": 1049
+            },
+            {
+              "fromA": 441,
+              "toA": 507,
+              "fromB": 1064,
+              "toB": 1252
+            },
+            {
+              "fromA": 521,
+              "toA": 586,
+              "fromB": 1266,
+              "toB": 1454
             }
           ]
         }
@@ -1237,7 +1398,7 @@
           "path": "src/transitions.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nexport const pageTitle = style.viewTransition({\n  label: \"page-title\",\n  old: \"opacity-0\",\n  new: \"opacity-100\",\n});\nexport const pageCard = style.viewTransition({\n  old: \"opacity-100 motion-reduce:opacity-75\",\n  new: \"opacity-0\",\n  imagePair: \"isolation-auto\",\n});\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\n// Static and conditional identities, each used with and without a key.\nexport const staticTransition = style(pageTitle);\nexport const staticKeyedTransition = style(pageTitle.for(transitionKey));\nexport const staticLiteralKey = style(\"block\", pageTitle.for(\"hero\"));\nexport const conditionalTransition = style(selectedTransition);\nexport const conditionalKeyedTransition = style(selectedTransition.for(transitionKey));\nexport const conditionalLiteralKey = style(\"block\", selectedTransition.for(\"hero\"));\n\n// Completed props can be reused; ordinary data retains a transition and its key.\nexport const keyedProps = style(pageTitle.for(\"outside\"));\nexport const transitionData = { transition: pageCard, key: transitionKey };\nexport const usesTransitionData = style(\"block\", transitionData.transition.for(transitionData.key));\nexport const usesKeyedProps = style(\"block\", keyedProps);\n\n// A name another declaration states, and several transitions in one call.\nexport const namedExplicitly = style(\"block\", pageTitle, \"[view-transition-name:hero]\");\nexport const unioned = style(\"block\", pageTitle.for(\"one\"), pageCard.for(\"two\"));\n\n// A guarded use fills a slot its own class carries, beside the unconditional classes.\nexport const guarded = style(\"block\", compact && pageCard.for(\"guarded\"), pageTitle.for(\"base\"));\n",
-          "after": "import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindToFragment, stillwindViewTransitionName } from \"stillwind/runtime/react\";\n\nexport const pageTitle = {v:\"sw-vt-page-title-56mrr\"};\nexport const pageCard = {v:\"sw-vt-9jm9s\"};\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\n// Static and conditional identities, each used with and without a key.\nexport const staticTransition = {className:\"sw_ib2y3\"};\nexport const staticKeyedTransition = {className:\"sw_dsj5u\",style:{\"view-transition-name\":stillwindViewTransitionName(\"sw-vt-page-title-56mrr\",transitionKey)}};\nexport const staticLiteralKey = {className:\"sw_49cip\"};\nexport const conditionalTransition = {className:stillwindClsx(\"sw_07l45\",({\"sw-vt-page-title-56mrr\":\"sw_b9mfe\",\"sw-vt-9jm9s\":\"sw_xivv8\"})[(selectedTransition).v])};\nexport const conditionalKeyedTransition = {className:stillwindClsx(\"sw_eg4yn\",({\"sw-vt-page-title-56mrr\":\"sw_4qjib\",\"sw-vt-9jm9s\":\"sw_yq1jw\"})[(selectedTransition).v]),style:{\"view-transition-name\":stillwindViewTransitionName(selectedTransition,transitionKey)}};\nexport const conditionalLiteralKey = {className:stillwindClsx(\"sw_wg0m9\",({\"sw-vt-page-title-56mrr\":\"sw_w8eru\",\"sw-vt-9jm9s\":\"sw_54tbn\"})[(selectedTransition).v])};\n\n// Completed props can be reused; ordinary data retains a transition and its key.\nexport const keyedProps = {className:\"sw_zu69b\"};\nexport const transitionData = { transition: pageCard, key: transitionKey };\nexport const usesTransitionData = {className:\"sw_y96tt\",style:{\"view-transition-name\":stillwindViewTransitionName(\"sw-vt-9jm9s\",transitionData.key)}};\nexport const usesKeyedProps = stillwindMerge({[stillwindClassKey]:\"sw_2ce4i\"},stillwindToFragment((keyedProps)));\n\n// A name another declaration states, and several transitions in one call.\nexport const namedExplicitly = {className:\"sw_a2388\"};\nexport const unioned = {className:\"sw_gpk2a\"};\n\n// A guarded use fills a slot its own class carries, beside the unconditional classes.\nexport const guarded = {className:stillwindClsx(\"sw_dud2z\",(compact) && (\"sw_jpu0d\"))};\n",
+          "after": "import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindToFragment, stillwindViewTransitionName } from \"stillwind/runtime/class-name-object\";\n\nexport const pageTitle = {v:\"sw-vt-page-title-56mrr\"};\nexport const pageCard = {v:\"sw-vt-9jm9s\"};\n\nexport const compact = Date.now() % 2 === 0;\nexport const transitionKey = \"fixture-product\";\nexport const selectedTransition = compact ? pageTitle : pageCard;\n\n// Static and conditional identities, each used with and without a key.\nexport const staticTransition = {className:\"sw_ib2y3\"};\nexport const staticKeyedTransition = {className:\"sw_dsj5u\",style:{\"view-transition-name\":stillwindViewTransitionName(\"sw-vt-page-title-56mrr\",transitionKey)}};\nexport const staticLiteralKey = {className:\"sw_49cip\"};\nexport const conditionalTransition = {className:stillwindClsx(\"sw_07l45\",({\"sw-vt-page-title-56mrr\":\"sw_b9mfe\",\"sw-vt-9jm9s\":\"sw_xivv8\"})[(selectedTransition).v])};\nexport const conditionalKeyedTransition = {className:stillwindClsx(\"sw_eg4yn\",({\"sw-vt-page-title-56mrr\":\"sw_4qjib\",\"sw-vt-9jm9s\":\"sw_yq1jw\"})[(selectedTransition).v]),style:{\"view-transition-name\":stillwindViewTransitionName(selectedTransition,transitionKey)}};\nexport const conditionalLiteralKey = {className:stillwindClsx(\"sw_wg0m9\",({\"sw-vt-page-title-56mrr\":\"sw_w8eru\",\"sw-vt-9jm9s\":\"sw_54tbn\"})[(selectedTransition).v])};\n\n// Completed props can be reused; ordinary data retains a transition and its key.\nexport const keyedProps = {className:\"sw_zu69b\"};\nexport const transitionData = { transition: pageCard, key: transitionKey };\nexport const usesTransitionData = {className:\"sw_y96tt\",style:{\"view-transition-name\":stillwindViewTransitionName(\"sw-vt-9jm9s\",transitionData.key)}};\nexport const usesKeyedProps = stillwindMerge({[stillwindClassKey]:\"sw_2ce4i\"},stillwindToFragment((keyedProps)));\n\n// A name another declaration states, and several transitions in one call.\nexport const namedExplicitly = {className:\"sw_a2388\"};\nexport const unioned = {className:\"sw_gpk2a\"};\n\n// A guarded use fills a slot its own class carries, beside the unconditional classes.\nexport const guarded = {className:stillwindClsx(\"sw_dud2z\",(compact) && (\"sw_jpu0d\"))};\n",
           "css": "::view-transition-old(.sw-vt-page-title-56mrr) {\n  opacity: calc(0 * 1%);\n}\n::view-transition-new(.sw-vt-page-title-56mrr) {\n  opacity: calc(100 * 1%);\n}\n::view-transition-old(.sw-vt-9jm9s) {\n  opacity: calc(100 * 1%);\n}\n@media (prefers-reduced-motion: reduce) {\n  ::view-transition-old(.sw-vt-9jm9s) {\n    opacity: calc(75 * 1%);\n  }\n}\n::view-transition-new(.sw-vt-9jm9s) {\n  opacity: calc(0 * 1%);\n}\n::view-transition-image-pair(.sw-vt-9jm9s) {\n  isolation: auto;\n}\n.sw_ib2y3 {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_dsj5u {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_49cip {\n  display: block;\n}\n.sw_49cip {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_49cip {\n  view-transition-name: sw-vt-page-title-56mrr-hero;\n}\n.sw_07l45 {\n  view-transition-class: var(--sw-vtc-bat1w,) var(--sw-vtc-0es8n,);\n}\n.sw_b9mfe {\n  --sw-vtc-bat1w: sw-vt-page-title-56mrr;\n}\n.sw_xivv8 {\n  --sw-vtc-0es8n: sw-vt-9jm9s;\n}\n.sw_eg4yn {\n  view-transition-class: var(--sw-vtc-v7plm,) var(--sw-vtc-jr7gd,);\n}\n.sw_4qjib {\n  --sw-vtc-v7plm: sw-vt-page-title-56mrr;\n}\n.sw_yq1jw {\n  --sw-vtc-jr7gd: sw-vt-9jm9s;\n}\n.sw_wg0m9 {\n  display: block;\n}\n.sw_wg0m9 {\n  view-transition-class: var(--sw-vtc-9os4x,) var(--sw-vtc-fmi0t,);\n}\n.sw_w8eru {\n  --sw-vtc-9os4x: sw-vt-page-title-56mrr;\n  view-transition-name: sw-vt-page-title-56mrr-hero;\n}\n.sw_54tbn {\n  --sw-vtc-fmi0t: sw-vt-9jm9s;\n  view-transition-name: sw-vt-9jm9s-hero;\n}\n.sw_zu69b {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_zu69b {\n  view-transition-name: sw-vt-page-title-56mrr-outside;\n}\n.sw_y96tt {\n  display: block;\n}\n.sw_y96tt {\n  view-transition-class: sw-vt-9jm9s;\n}\n.sw_2ce4i {\n  display: block;\n}\n.sw_a2388 {\n  display: block;\n  view-transition-name: hero;\n}\n.sw_a2388 {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_gpk2a {\n  display: block;\n}\n.sw_gpk2a {\n  view-transition-class: sw-vt-page-title-56mrr sw-vt-9jm9s;\n}\n.sw_gpk2a {\n  view-transition-name: sw-vt-page-title-56mrr-one;\n}\n.sw_gpk2a {\n  view-transition-name: sw-vt-9jm9s-two;\n}\n.sw_dud2z {\n  display: block;\n}\n.sw_dud2z {\n  view-transition-class: sw-vt-page-title-56mrr var(--sw-vtc-htsqo,);\n}\n.sw_dud2z {\n  view-transition-name: sw-vt-page-title-56mrr-base;\n}\n.sw_jpu0d {\n  --sw-vtc-htsqo: sw-vt-9jm9s;\n  view-transition-name: sw-vt-9jm9s-guarded;\n}\n",
           "minifiedCss": "::view-transition-old(.sw-vt-page-title-56mrr) {\n  opacity: 0;\n}\n::view-transition-new(.sw-vt-page-title-56mrr),\n::view-transition-old(.sw-vt-9jm9s) {\n  opacity: 1;\n}\n@media (prefers-reduced-motion: reduce) {\n  ::view-transition-old(.sw-vt-9jm9s) {\n    opacity: 0.75;\n  }\n}\n::view-transition-new(.sw-vt-9jm9s) {\n  opacity: 0;\n}\n::view-transition-image-pair(.sw-vt-9jm9s) {\n  isolation: auto;\n}\n.sw_ib2y3,\n.sw_dsj5u {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_49cip {\n  view-transition-class: sw-vt-page-title-56mrr;\n  view-transition-name: sw-vt-page-title-56mrr-hero;\n  display: block;\n}\n.sw_07l45 {\n  view-transition-class: var(--sw-vtc-bat1w,) var(--sw-vtc-0es8n,);\n}\n.sw_b9mfe {\n  --sw-vtc-bat1w: sw-vt-page-title-56mrr;\n}\n.sw_xivv8 {\n  --sw-vtc-0es8n: sw-vt-9jm9s;\n}\n.sw_eg4yn {\n  view-transition-class: var(--sw-vtc-v7plm,) var(--sw-vtc-jr7gd,);\n}\n.sw_4qjib {\n  --sw-vtc-v7plm: sw-vt-page-title-56mrr;\n}\n.sw_yq1jw {\n  --sw-vtc-jr7gd: sw-vt-9jm9s;\n}\n.sw_wg0m9 {\n  view-transition-class: var(--sw-vtc-9os4x,) var(--sw-vtc-fmi0t,);\n  display: block;\n}\n.sw_w8eru {\n  --sw-vtc-9os4x: sw-vt-page-title-56mrr;\n  view-transition-name: sw-vt-page-title-56mrr-hero;\n}\n.sw_54tbn {\n  --sw-vtc-fmi0t: sw-vt-9jm9s;\n  view-transition-name: sw-vt-9jm9s-hero;\n}\n.sw_zu69b {\n  view-transition-class: sw-vt-page-title-56mrr;\n  view-transition-name: sw-vt-page-title-56mrr-outside;\n}\n.sw_y96tt {\n  view-transition-class: sw-vt-9jm9s;\n  display: block;\n}\n.sw_2ce4i {\n  display: block;\n}\n.sw_a2388 {\n  view-transition-name: hero;\n  view-transition-class: sw-vt-page-title-56mrr;\n  display: block;\n}\n.sw_gpk2a {\n  view-transition-class: sw-vt-page-title-56mrr sw-vt-9jm9s;\n  view-transition-name: sw-vt-page-title-56mrr-one;\n  view-transition-name: sw-vt-9jm9s-two;\n  display: block;\n}\n.sw_dud2z {\n  view-transition-class: sw-vt-page-title-56mrr var(--sw-vtc-htsqo,);\n  view-transition-name: sw-vt-page-title-56mrr-base;\n  display: block;\n}\n.sw_jpu0d {\n  --sw-vtc-htsqo: sw-vt-9jm9s;\n  view-transition-name: sw-vt-9jm9s-guarded;\n}\n",
           "diff": [
@@ -1245,91 +1406,91 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 141
+              "toB": 153
             },
             {
               "fromA": 67,
               "toA": 157,
-              "fromB": 168,
-              "toB": 196
+              "fromB": 180,
+              "toB": 208
             },
             {
               "fromA": 183,
               "toA": 306,
-              "fromB": 222,
-              "toB": 239
+              "fromB": 234,
+              "toB": 251
             },
             {
               "fromA": 573,
               "toA": 589,
-              "fromB": 506,
-              "toB": 528
+              "fromB": 518,
+              "toB": 540
             },
             {
               "fromA": 628,
               "toA": 663,
-              "fromB": 567,
-              "toB": 688
+              "fromB": 579,
+              "toB": 700
             },
             {
               "fromA": 697,
               "toA": 734,
-              "fromB": 722,
-              "toB": 744
+              "fromB": 734,
+              "toB": 756
             },
             {
               "fromA": 773,
               "toA": 798,
-              "fromB": 783,
-              "toB": 909
+              "fromB": 795,
+              "toB": 921
             },
             {
               "fromA": 842,
               "toA": 886,
-              "fromB": 953,
-              "toB": 1172
+              "fromB": 965,
+              "toB": 1184
             },
             {
               "fromA": 925,
               "toA": 971,
-              "fromB": 1211,
-              "toB": 1337
+              "fromB": 1223,
+              "toB": 1349
             },
             {
               "fromA": 1082,
               "toA": 1113,
-              "fromB": 1448,
-              "toB": 1470
+              "fromB": 1460,
+              "toB": 1482
             },
             {
               "fromA": 1225,
               "toA": 1290,
-              "fromB": 1582,
-              "toB": 1697
+              "fromB": 1594,
+              "toB": 1709
             },
             {
               "fromA": 1322,
               "toA": 1348,
-              "fromB": 1729,
-              "toB": 1811
+              "fromB": 1741,
+              "toB": 1823
             },
             {
               "fromA": 1457,
               "toA": 1513,
-              "fromB": 1920,
-              "toB": 1942
+              "fromB": 1932,
+              "toB": 1954
             },
             {
               "fromA": 1538,
               "toA": 1595,
-              "fromB": 1967,
-              "toB": 1989
+              "fromB": 1979,
+              "toB": 2001
             },
             {
               "fromA": 1708,
               "toA": 1781,
-              "fromB": 2102,
-              "toB": 2165
+              "fromB": 2114,
+              "toB": 2177
             }
           ]
         },
@@ -1337,7 +1498,7 @@
           "path": "src/Card.ts",
           "language": "typescript",
           "before": "import { style } from \"stillwind/react\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = style(pageTitle);\nexport const selectedCardTransition = style(selectedTransition);\n",
-          "after": "import { stillwindClsx } from \"stillwind/runtime/react\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = {className:\"sw_yieb3\"};\nexport const selectedCardTransition = {className:stillwindClsx(\"sw_m1ewp\",({\"sw-vt-page-title-56mrr\":\"sw_x2sz9\",\"sw-vt-9jm9s\":\"sw_pyfzj\"})[(selectedTransition).v])};\n",
+          "after": "import { stillwindClsx } from \"stillwind/runtime/class-name-object\";\n\nimport { pageTitle, selectedTransition } from \"./transitions\";\n\n// Imported identities exercise the same TypeScript fact propagation used by\n// the Vite project compiler.\nexport const cardTransition = {className:\"sw_yieb3\"};\nexport const selectedCardTransition = {className:stillwindClsx(\"sw_m1ewp\",({\"sw-vt-page-title-56mrr\":\"sw_x2sz9\",\"sw-vt-9jm9s\":\"sw_pyfzj\"})[(selectedTransition).v])};\n",
           "css": ".sw_yieb3 {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_m1ewp {\n  view-transition-class: var(--sw-vtc-4wcp5,) var(--sw-vtc-ssrq9,);\n}\n.sw_x2sz9 {\n  --sw-vtc-4wcp5: sw-vt-page-title-56mrr;\n}\n.sw_pyfzj {\n  --sw-vtc-ssrq9: sw-vt-9jm9s;\n}\n",
           "minifiedCss": ".sw_yieb3 {\n  view-transition-class: sw-vt-page-title-56mrr;\n}\n.sw_m1ewp {\n  view-transition-class: var(--sw-vtc-4wcp5,) var(--sw-vtc-ssrq9,);\n}\n.sw_x2sz9 {\n  --sw-vtc-4wcp5: sw-vt-page-title-56mrr;\n}\n.sw_pyfzj {\n  --sw-vtc-ssrq9: sw-vt-9jm9s;\n}\n",
           "diff": [
@@ -1345,19 +1506,19 @@
               "fromA": 0,
               "toA": 40,
               "fromB": 0,
-              "toB": 56
+              "toB": 68
             },
             {
               "fromA": 243,
               "toA": 259,
-              "fromB": 259,
-              "toB": 281
+              "fromB": 271,
+              "toB": 293
             },
             {
               "fromA": 299,
               "toA": 324,
-              "fromB": 321,
-              "toB": 447
+              "fromB": 333,
+              "toB": 459
             }
           ]
         }

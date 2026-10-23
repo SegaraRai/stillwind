@@ -3,7 +3,7 @@ import { runInNewContext } from "node:vm";
 
 import { expect, test } from "vite-plus/test";
 
-import { stillwindCva } from "../../core/src/runtime/react.ts";
+import { stillwindCva } from "../../core/src/runtime/class-name-object.ts";
 
 /**
  * Registers the output and validation contracts for a public binding entry.

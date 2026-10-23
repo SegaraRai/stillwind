@@ -41,7 +41,10 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
         scan.local_ir.ref_definitions[0].binding.span.start.0
     );
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
-    assert_eq!(analysis.ir.adapter, AdapterKind::Svelte);
+    assert_eq!(
+        analysis.ir.style_calls[0].output,
+        AdapterKind::Svelte.spec().output
+    );
     assert!(analysis.source.text().starts_with("<script>"));
     assert_eq!(analysis.ir.style_calls.len(), 1);
     assert!(

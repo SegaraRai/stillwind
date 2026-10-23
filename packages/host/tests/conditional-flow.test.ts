@@ -4,8 +4,8 @@ import { runInNewContext } from "node:vm";
 
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import * as runtime from "stillwind/runtime/react";
-import * as svelteRuntime from "stillwind/runtime/svelte";
+import * as runtime from "stillwind/runtime/class-name-object";
+import * as svelteRuntime from "stillwind/runtime/class-string";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor, moduleSourceMap } from "../src/compilation/index.ts";

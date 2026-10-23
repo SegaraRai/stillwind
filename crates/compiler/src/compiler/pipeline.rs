@@ -275,10 +275,11 @@ impl Compiler {
             result.style_effects.push(emission.style_effects.clone());
             result.classes.extend(emission.classes.iter().cloned());
             symbols.extend(emission.written_name_symbols.iter().cloned());
+            runtime.select_output(call.output);
             let replacement = if cva {
-                render_cva_value(&emission, module.adapter.spec(), &mut runtime)
+                render_cva_value(&emission, call.output.spec(), &mut runtime)
             } else {
-                render_style_call(&emission, module.adapter.spec(), &mut runtime)
+                render_style_call(&emission, call.output.spec(), &mut runtime)
             };
             result.transforms.push(SourceTransform {
                 call_span: call.span,
@@ -287,6 +288,7 @@ impl Compiler {
             });
         }
         for cva in &module.cva_calls {
+            runtime.select_output(cva.output);
             let helper = runtime.require(RuntimeHelper::Cva, cva.callee_span);
             result.transforms.push(SourceTransform {
                 call_span: if cva.empty { cva.span } else { cva.callee_span },

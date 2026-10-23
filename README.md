@@ -17,7 +17,7 @@ import { style } from "stillwind/react";
 </button>;
 ```
 
-Stillwind supports React, Preact, Solid, Vue, Svelte, and Astro. Themes and utility
+Stillwind supports React, Preact, Solid, Vue, Svelte, Astro, and vanilla JavaScript. Themes and utility
 definitions live in a CSS entrypoint. Conditions and dynamic values use generated
 runtime helpers when needed.
 

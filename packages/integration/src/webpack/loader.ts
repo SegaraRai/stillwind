@@ -81,7 +81,7 @@ export default function webpackLoader(
   if (
     !projection &&
     !cssValue &&
-    !/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(text)
+    !/stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue|module-css)/.test(text)
   ) {
     return callback(null, source, inputMap);
   }

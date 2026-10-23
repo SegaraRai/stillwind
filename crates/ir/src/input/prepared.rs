@@ -101,7 +101,8 @@ pub struct SourceInput {
     prepared: PreparedSource,
     /// Compiler identity of the module represented by the input.
     pub module_id: ModuleId,
-    /// Explicit output adapter constraint. Macro imports select it when absent.
+    /// Explicit source framework. A component projection must use the same framework.
+    /// Macro imports select output formats independently.
     pub framework: Option<AdapterKind>,
     /// Host-allocated stylesheet modules inserted at a verified macro import.
     pub stylesheet_imports: Vec<LeanStr>,
@@ -110,7 +111,8 @@ pub struct SourceInput {
 }
 
 impl SourceInput {
-    /// Takes a module identity and validated source, with no explicit adapter or CSS imports.
+    /// Takes a module identity and validated source, with no explicit adapter or CSS
+    /// imports.
     pub fn new(module_id: ModuleId, prepared: PreparedSource) -> Self {
         Self {
             module_id,
@@ -121,8 +123,9 @@ impl SourceInput {
         }
     }
 
-    /// Creates a direct input whose document format is inferred from the parser dialect.
-    /// The module identity and grammar are supplied by the host, independent of filenames.
+    /// Creates a direct input whose document format is inferred from the parser
+    /// dialect. The module identity and grammar are supplied by the host, independent
+    /// of filenames.
     pub fn normal(
         code: Arc<SourceFile>,
         module_id: ModuleId,
@@ -181,9 +184,9 @@ impl SourceInput {
     }
 
     /// Includes every source, identity, grammar, format, map, converter field, realm,
-    /// region, adapter constraint, and CSS import in the cache revision.
-    /// Debug representations contain values only, so equal revisions identify inputs
-    /// that are interchangeable for analysis.
+    /// region, adapter constraint, and CSS import in the cache revision. Debug
+    /// representations contain values only, so equal revisions identify inputs that are
+    /// interchangeable for analysis.
     pub fn revision(&self) -> Fingerprint {
         Fingerprint::of(format_args!("{self:?}").to_lean_str())
     }

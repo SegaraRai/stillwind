@@ -9,7 +9,7 @@ use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
-    AdapterKind, ConditionalBranches, FRAMEWORKS, FrameworkSpec, ModuleAnalysis, ScriptLanguage,
+    AdapterKind, ConditionalBranches, FrameworkSpec, ModuleAnalysis, OutputSpec, ScriptLanguage,
     ScriptModuleKind, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -84,7 +84,14 @@ fn record_layout_combines_interleaved_calls_under_the_contract() {
         }),
         Atom::Custom(property("--y", 3)),
     ];
-    assert!(record_fields(&atoms, Demand::Props, AdapterKind::React.spec()).is_some());
+    assert!(
+        record_fields(
+            &atoms,
+            Demand::Props,
+            AdapterKind::React.spec().output.spec()
+        )
+        .is_some()
+    );
 }
 
 /// Checks that duplicate custom names share an object channel but block direct string serialization.
@@ -94,12 +101,30 @@ fn duplicate_custom_names_require_object_representation() {
         Atom::Custom(property("--x", 1)),
         Atom::Custom(property("--x", 2)),
     ];
-    assert!(record_fields(&atoms, Demand::Props, AdapterKind::React.spec()).is_some());
+    assert!(
+        record_fields(
+            &atoms,
+            Demand::Props,
+            AdapterKind::React.spec().output.spec()
+        )
+        .is_some()
+    );
     assert_eq!(
-        record_fields(&atoms, Demand::Props, AdapterKind::Svelte.spec()),
+        record_fields(
+            &atoms,
+            Demand::Props,
+            AdapterKind::Svelte.spec().output.spec()
+        ),
         None
     );
-    assert!(record_fields(&atoms, Demand::Fragment, AdapterKind::Svelte.spec()).is_some());
+    assert!(
+        record_fields(
+            &atoms,
+            Demand::Fragment,
+            AdapterKind::Svelte.spec().output.spec()
+        )
+        .is_some()
+    );
 }
 
 /// Keeps a base props conversion outside a neighboring folded custom-property record.
@@ -141,7 +166,7 @@ fn large_records_fold_without_candidate_growth() {
     assert_eq!(fold(folded.clone()), folded);
 }
 
-/// Enumerates channel, branch, and opaque-value combinations for every framework runtime.
+/// Enumerates channel, branch, and opaque-value combinations for every output runtime.
 #[test]
 #[allow(clippy::too_many_lines)] // The matrix lists independent channel and control-flow cases.
 fn folded_javascript_matches_runtime_materialization() {
@@ -165,7 +190,8 @@ fn folded_javascript_matches_runtime_materialization() {
     );
     let mut cases = Vec::new();
     // Exhaust all three-contribution channel combinations, including overwrites.
-    for fw in FRAMEWORKS {
+    for fw in [AdapterKind::React, AdapterKind::Preact, AdapterKind::Svelte].map(AdapterKind::spec)
+    {
         for mask in 0..8u32 {
             let parts = (0..3)
                 .map(|i| match (mask >> i) & 1 {
@@ -342,12 +368,12 @@ fn folded_javascript_matches_runtime_materialization() {
         );
         let optimized = render_style_call(
             &input,
-            AdapterKind::React.spec(),
+            AdapterKind::React.spec().output.spec(),
             &mut RuntimeBindings::new(&analysis),
         );
         let reference = render_plain(&value, &mut RuntimeBindings::new(&analysis)).unwrap();
         cases.push(serde_json::json!({
-            "framework": "react",
+            "format": "class-name-object",
             "optimized": optimized.text,
             "reference": format_args!("stillwindMerge({{[stillwindClassKey]:stillwindClsx({})}})", reference.text).to_lean_string(),
         }));
@@ -355,7 +381,7 @@ fn folded_javascript_matches_runtime_materialization() {
     execute_cases(&cases);
 }
 
-/// Runs optimized/reference pairs against framework runtimes in fresh JavaScript environments.
+/// Runs optimized/reference pairs against output runtimes in fresh JavaScript environments.
 ///
 /// # Panics
 ///
@@ -399,10 +425,10 @@ fn append_case(
     fw: &FrameworkSpec,
     analysis: &ModuleAnalysis,
 ) {
-    let optimized = render_style_call(input, fw, &mut RuntimeBindings::new(analysis));
-    let reference = render_reference(input, fw, &mut RuntimeBindings::new(analysis));
+    let optimized = render_style_call(input, fw.output.spec(), &mut RuntimeBindings::new(analysis));
+    let reference = render_reference(input, fw.output.spec(), &mut RuntimeBindings::new(analysis));
     cases.push(serde_json::json!({
-        "framework": fw.macro_import.trim_start_matches("stillwind/"),
+        "format": fw.output.spec().runtime_import.trim_start_matches("stillwind/runtime/"),
         "optimized": optimized.text,
         "reference": reference.text,
     }));
@@ -435,7 +461,8 @@ fn class_branches_and_single_style_payloads_match_runtime_materialization() {
         position: 1,
     };
     let mut cases = Vec::new();
-    for fw in FRAMEWORKS {
+    for fw in [AdapterKind::React, AdapterKind::Preact, AdapterKind::Svelte].map(AdapterKind::spec)
+    {
         for base in [false, true] {
             for ternary in [false, true] {
                 let parts = vec![StyleEmissionPart::Conditional {
@@ -479,7 +506,7 @@ fn class_branches_and_single_style_payloads_match_runtime_materialization() {
 }
 
 #[test]
-fn style_fields_follow_framework_specification() {
+fn style_fields_follow_output_specification() {
     let source = Arc::new(
         SourceFile::new(
             FileId(1),
@@ -498,17 +525,13 @@ fn style_fields_follow_framework_specification() {
         ),
         None,
     );
-    let original = AdapterKind::React.spec();
-    let framework = FrameworkSpec {
-        id: original.id,
-        macro_import: original.macro_import,
+    let original = AdapterKind::React.spec().output.spec();
+    let output_spec = OutputSpec {
         runtime_import: original.runtime_import,
         runtime_import_dev: original.runtime_import_dev,
         class_property: original.class_property,
         style_property: "inlineStyle",
         style_format: original.style_format,
-        projected_input: original.projected_input,
-        normalize: original.normalize,
     };
     for part in [
         custom("--x", 1),
@@ -519,7 +542,7 @@ fn style_fields_follow_framework_specification() {
     ] {
         let output = render_style_call(
             &emission(vec![part], false),
-            &framework,
+            &output_spec,
             &mut RuntimeBindings::new(&analysis),
         );
         assert!(output.text.contains("inlineStyle:"), "{}", output.text);

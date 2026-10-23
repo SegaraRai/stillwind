@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 
 use lean_string::LeanString;
 
-use stillwind_ir::{FrameworkSpec, StyleFormat};
+use stillwind_ir::{OutputSpec, StyleFormat};
 use stillwind_source::JoinText;
 
 use super::expression::{Atom, Emitted, Fragment, ValueExpr};
@@ -52,7 +52,7 @@ pub(super) enum Field {
 pub(super) fn record_fields(
     atoms: &[Atom],
     demand: Demand,
-    fw: &FrameworkSpec,
+    output: &OutputSpec,
 ) -> Option<Vec<Field>> {
     let classes = atoms
         .iter()
@@ -82,7 +82,7 @@ pub(super) fn record_fields(
     {
         return None;
     }
-    if demand == Demand::Props && fw.style_format == StyleFormat::String {
+    if demand == Demand::Props && output.style_format == StyleFormat::String {
         let mut names = BTreeSet::new();
         if custom
             .iter()

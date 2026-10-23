@@ -395,7 +395,9 @@ export class SourceIndex {
         ts.isImportDeclaration(owner) &&
         owner.importClause?.phaseModifier !== ts.SyntaxKind.TypeKeyword &&
         ts.isStringLiteral(owner.moduleSpecifier) &&
-        /^stillwind\/(?:react|vue|svelte|astro|solid|preact)$/.test(owner.moduleSpecifier.text)
+        /^stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue)$/.test(
+          owner.moduleSpecifier.text,
+        )
       );
     });
   }

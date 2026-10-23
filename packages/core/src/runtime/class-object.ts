@@ -3,12 +3,12 @@ import { mergeFragments, serializeStyle, toFragment } from "./fragment.ts";
 
 export * from "./shared.ts";
 
-export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.preact.class");
+export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.class-object.class");
 
-export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.preact.style");
+export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.class-object.style");
 
 export const stillwindCustomPropertiesKey = /* @__PURE__ */ Symbol(
-  "stillwind.preact.custom-properties",
+  "stillwind.class-object.custom-properties",
 );
 
 export const options = [
@@ -19,24 +19,24 @@ export const options = [
   stillwindCustomPropertiesKey,
 ] as const;
 
-/** Materializes ordered fragments with the preact class and style conventions. */
+/** Materializes ordered fragments with `class` and object styles. */
 export function stillwindMerge(...values: readonly unknown[]): Record<string, unknown> {
   return mergeFragments(options, values);
 }
 
-/** Converts a composition base to a fragment with only its preact class. */
+/** Converts a composition base to a fragment containing only its `class`. */
 export function stillwindToFragment(
   value: Record<PropertyKey, unknown>,
 ): Record<PropertyKey, unknown> {
   return toFragment(options, value);
 }
 
-/** Returns the style representation accepted by preact; null and undefined omit style. */
+/** Returns the supplied style payload, or undefined for null or undefined. */
 export function stillwindStyleValue(value: unknown): unknown {
   return value == null ? undefined : serializeStyle(value, "object");
 }
 
-/** Selects compiled CVA values and materializes fresh preact props. */
+/** Selects compiled CVA values and returns fresh props with `class` and object styles. */
 export function stillwindCva(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCva(options, base, config);
 }

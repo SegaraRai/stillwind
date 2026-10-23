@@ -109,7 +109,7 @@ export function transformHooks(
           await readableFile(source.id, settings.devServerRef);
           projections.set(specifier, source.id);
         }
-        if (!/stillwind\/(?:react|preact|solid|astro|svelte|vue|module-css)/.test(code)) {
+        if (!/stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue|module-css)/.test(code)) {
           const input = project.inputs(name).get(id);
           if (input) {
             await project.environment(name).removeSource(id);

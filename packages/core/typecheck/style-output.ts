@@ -4,6 +4,7 @@ import { style as preact } from "stillwind/preact";
 import { style as react } from "stillwind/react";
 import { style as solid } from "stillwind/solid";
 import { style as svelte } from "stillwind/svelte";
+import { style as vanilla } from "stillwind/vanilla";
 import { style as vue } from "stillwind/vue";
 
 type Assert<T extends true> = T;
@@ -104,23 +105,26 @@ function frameworkOutputs() {
   const solidPlain = solid("block");
   const sveltePlain = svelte("block");
   const vuePlain = vue("block");
+  const vanillaPlain = vanilla("block");
   const astroCustom = astro({ "--size": 4 });
   const preactCustom = preact({ "--size": 4 });
   const solidCustom = solid({ "--size": 4 });
   const svelteCustom = svelte({ "--size": 4 });
   const vueCustom = vue({ "--size": 4 });
+  const vanillaCustom = vanilla({ "--size": 4 });
   type Contracts = [
     Assert<Same<Props<typeof astroPlain>, { class?: string }>>,
     Assert<Same<Props<typeof preactPlain>, { class?: string }>>,
     Assert<Same<Props<typeof solidPlain>, { class?: string }>>,
     Assert<Same<Props<typeof sveltePlain>, { class?: string }>>,
     Assert<Same<Props<typeof vuePlain>, { class?: string }>>,
+    Assert<Same<Props<typeof vanillaPlain>, { class?: string }>>,
     Assert<
       Same<Props<typeof astroCustom | typeof svelteCustom>, { class?: string; style?: string }>
     >,
     Assert<
       Same<
-        Props<typeof preactCustom | typeof solidCustom | typeof vueCustom>,
+        Props<typeof preactCustom | typeof solidCustom | typeof vueCustom | typeof vanillaCustom>,
         { class?: string; style?: Record<string, string> }
       >
     >,

@@ -45,7 +45,10 @@ fn cva_compiles_values_and_preserves_selection_configuration() {
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = render_transforms(&source, &result.transforms).unwrap().code;
     assert!(output.contains("stillwindCva"), "{output}");
-    assert!(output.contains("stillwind/runtime/react"), "{output}");
+    assert!(
+        output.contains("stillwind/runtime/class-name-object"),
+        "{output}"
+    );
     assert!(
         output.contains("defaultVariants: { size: 'small', enabled: false, count: 0 }"),
         "{output}"

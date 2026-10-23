@@ -22,7 +22,7 @@ fn framework_registry_preserves_import_aliases_and_shadowing() {
             ScriptModuleKind::Unambiguous,
         );
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-        assert_eq!(parsed.module.adapter, spec.id);
+        assert_eq!(parsed.module.style_calls[0].output, spec.output);
         assert_eq!(parsed.module.style_calls.len(), 1);
     }
 }
@@ -50,7 +50,6 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
             ScriptModuleKind::Unambiguous,
         );
         assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
-        assert_eq!(parsed.framework, None);
         assert_eq!(parsed.module.style_calls, [] as [StyleCall; 0]);
 
         let mixed = SourceFile::new(
@@ -71,7 +70,10 @@ fn type_only_macro_imports_do_not_select_a_framework_or_expand_calls() {
             ScriptModuleKind::Unambiguous,
         );
         assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
-        assert_eq!(parsed.framework, Some(AdapterKind::Solid));
+        assert_eq!(
+            parsed.module.style_calls[0].output,
+            AdapterKind::Solid.spec().output
+        );
         assert_eq!(parsed.module.style_calls.len(), 1);
     }
 }
@@ -151,9 +153,9 @@ fn module_specifier_spans_preserve_quotes_and_utf8_offsets() {
     }
 }
 
-/// Only the imported macro selects the framework; two frontends are an error.
+/// Each resolved macro binding selects the format of its own calls.
 #[test]
-fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
+fn macro_bindings_keep_independent_output_formats() {
     let source = SourceFile::new(FileId(1), None, None, "import type { StyleArgument } from 'stillwind/react'; import { style } from 'stillwind/solid'; const props = style('flex');").unwrap();
     let parsed = parse(
         &source,
@@ -163,21 +165,32 @@ fn selects_solid_from_the_macro_binding_and_rejects_mixed_frontends() {
         ScriptLanguage::Tsx,
         ScriptModuleKind::Unambiguous,
     );
-    assert_eq!(parsed.module.adapter, AdapterKind::Solid);
+    assert_eq!(
+        parsed.module.style_calls[0].output,
+        AdapterKind::Solid.spec().output
+    );
     assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
-    let mixed = SourceFile::new(FileId(2), None, None, "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex');").unwrap();
-    assert!(
-        parse(
-            &mixed,
-            &ModuleId::from("test.tsx"),
-            &[],
-            &BTreeMap::default(),
-            ScriptLanguage::Tsx,
-            ScriptModuleKind::Unambiguous
-        )
-        .diagnostics
-        .iter()
-        .any(|error| error.diagnostic == CompileDiagnostic::MixedFrameworks)
+    let mixed = SourceFile::new(FileId(2), None, None, "import {style} from 'stillwind/solid'; import {style as reactStyle} from 'stillwind/react'; const props = style('flex'); const other = reactStyle('grid');").unwrap();
+    let parsed = parse(
+        &mixed,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    assert_eq!(parsed.diagnostics, []);
+    assert_eq!(
+        parsed
+            .module
+            .style_calls
+            .iter()
+            .map(|call| call.output)
+            .collect::<Vec<_>>(),
+        vec![
+            AdapterKind::Solid.spec().output,
+            AdapterKind::React.spec().output
+        ]
     );
 }
 

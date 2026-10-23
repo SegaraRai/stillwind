@@ -1139,7 +1139,7 @@ export interface NativeExpressionMapping {
 }
 
 /** Framework adapter requested by the host. */
-export type NativeFramework = 'react' | 'preact' | 'solid' | 'vue' | 'svelte' | 'astro'
+export type NativeFramework = 'astro' | 'preact' | 'react' | 'solid' | 'svelte' | 'vanilla' | 'vue'
 
 /** A class name generated for one utility literal. */
 export interface NativeGeneratedClass {
@@ -1573,7 +1573,10 @@ export type NativePreparedSource =
     document: NativeSourceDocument; /** Parser settings for the document's code. */
     syntax: NativeScriptSyntax; /** Host-chosen identity of this module. */
     moduleId: string; /** Facts the host produced for this module, empty when absent. */
-    typeFacts?: Array<NativeTypeFact>; /** Explicit output adapter constraint; macro imports select it when absent. */
+    typeFacts?: Array<NativeTypeFact>; /**
+     * Source framework constraint for component projections. Macro outputs remain
+     * independent.
+     */
     framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
     stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
   moduleCssImport?: string }
@@ -1581,7 +1584,10 @@ export type NativePreparedSource =
     document: NativeSourceDocument; /** Generated code and its correspondence to the document. */
     projection: NativeSourceProjection; /** Host-chosen identity of this module. */
     moduleId: string; /** Facts the host produced for this module, empty when absent. */
-    typeFacts?: Array<NativeTypeFact>; /** Explicit output adapter constraint; macro imports select it when absent. */
+    typeFacts?: Array<NativeTypeFact>; /**
+     * Source framework constraint for component projections. Macro outputs remain
+     * independent.
+     */
     framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
     stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
   moduleCssImport?: string }

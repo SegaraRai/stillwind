@@ -1,5 +1,5 @@
 /**
- * Shared types for the framework-specific `style` macros.
+ * Internal contracts and construction of the framework-specific `style` macros.
  *
  * Import `style` from a framework entrypoint such as `stillwind/react`.
  * Declaration values and completed style props can be stored and passed between
@@ -7,6 +7,7 @@
  * `style()` at the positions described by their methods.
  *
  * @packageDocumentation
+ * @internal
  */
 
 export type * from "./css.ts";

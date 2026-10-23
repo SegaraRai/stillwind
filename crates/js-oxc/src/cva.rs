@@ -2,7 +2,8 @@
 //!
 //! `collect_cva` keeps configuration syntax in the source and records only the callee
 //! and style expressions that need replacement. Selection values remain ordinary
-//! JavaScript literals. CVA values reuse the style-input parser after syntax validation.
+//! JavaScript literals. CVA values reuse the style-input parser after syntax
+//! validation.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -15,16 +16,17 @@ use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
-use stillwind_ir::{CvaCall, CvaReplacement, StyleCall};
+use stillwind_ir::{CvaCall, CvaReplacement, OutputFormat, StyleCall};
 use stillwind_source::Spanned;
 
 use crate::{local_span::LocalSpan, state::MacroExtractor};
 
 impl<'a> MacroExtractor<'a> {
-    /// Validates one factory and extracts values without creating a reusable style producer.
-    /// Unsupported values contribute nothing. Invalid configuration entries are
-    /// replaced with empty entries, and invalid conditions omit their whole compound.
-    pub(crate) fn collect_cva(&mut self, call: &CallExpression<'a>) {
+    /// Validates one factory and extracts values without creating a reusable style
+    /// producer. Unsupported values contribute nothing. Invalid configuration entries
+    /// are replaced with empty entries, and invalid conditions omit their whole
+    /// compound.
+    pub(crate) fn collect_cva(&mut self, call: &CallExpression<'a>, output: OutputFormat) {
         self.consumed_use_spans
             .insert(LocalSpan::from(call.callee.span()));
         self.consumed_use_spans
@@ -65,6 +67,7 @@ impl<'a> MacroExtractor<'a> {
             self.omit_input(call.span);
             self.cva_calls.push(CvaCall {
                 span,
+                output,
                 callee_span: self.source_span(call.callee.span()),
                 values: Vec::new(),
                 empty: true,
@@ -79,7 +82,7 @@ impl<'a> MacroExtractor<'a> {
             .first()
             .and_then(|argument| argument.as_expression())
         {
-            self.cva_value(base, &mut values);
+            self.cva_value(base, output, &mut values);
         }
         if let Some(config) = call
             .arguments
@@ -87,10 +90,11 @@ impl<'a> MacroExtractor<'a> {
             .and_then(|argument| argument.as_expression())
             && !is_undefined(config)
         {
-            self.cva_config(config, &mut values);
+            self.cva_config(config, output, &mut values);
         }
         self.cva_calls.push(CvaCall {
             span,
+            output,
             callee_span: self.source_span(call.callee.span()),
             values,
             empty: false,
@@ -98,7 +102,12 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
-    fn cva_config(&mut self, expression: &Expression<'a>, values: &mut Vec<StyleCall>) {
+    fn cva_config(
+        &mut self,
+        expression: &Expression<'a>,
+        output: OutputFormat,
+        values: &mut Vec<StyleCall>,
+    ) {
         let Some(properties) = self.cva_properties(expression) else {
             return;
         };
@@ -131,7 +140,7 @@ impl<'a> MacroExtractor<'a> {
                     let mut keys = BTreeSet::new();
                     for (key, option) in options {
                         keys.insert(key);
-                        self.cva_value(&option.value, values);
+                        self.cva_value(&option.value, output, values);
                     }
                     axes.insert(axis, keys);
                 }
@@ -152,7 +161,7 @@ impl<'a> MacroExtractor<'a> {
                     }
                 }
                 "compoundVariants" => {
-                    self.cva_compounds(&property.value, &axes, values);
+                    self.cva_compounds(&property.value, &axes, output, values);
                 }
                 _ => {}
             }
@@ -164,6 +173,7 @@ impl<'a> MacroExtractor<'a> {
         &mut self,
         expression: &Expression<'a>,
         axes: &BTreeMap<LeanStr, BTreeSet<LeanStr>>,
+        output: OutputFormat,
         values: &mut Vec<StyleCall>,
     ) {
         let Expression::ArrayExpression(compounds) = expression.get_inner_expression() else {
@@ -198,7 +208,7 @@ impl<'a> MacroExtractor<'a> {
             if let Some(conditions) = self.cva_properties(compound) {
                 for (axis, condition) in conditions {
                     if matches!(axis.as_str(), "class" | "className") {
-                        self.cva_value(&condition.value, values);
+                        self.cva_value(&condition.value, output, values);
                     } else {
                         valid &= self.cva_choice(&axis, &condition.value, axes, true);
                     }
@@ -322,7 +332,12 @@ impl<'a> MacroExtractor<'a> {
         true
     }
 
-    fn cva_value(&mut self, expression: &Expression<'a>, values: &mut Vec<StyleCall>) {
+    fn cva_value(
+        &mut self,
+        expression: &Expression<'a>,
+        output: OutputFormat,
+        values: &mut Vec<StyleCall>,
+    ) {
         if !self.valid_cva_value(expression) {
             self.omit_input(expression.span());
             self.lint_findings.push(LintFinding::new(
@@ -331,6 +346,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             values.push(StyleCall {
                 span: self.source_span(expression.span()),
+                output,
                 inputs: Vec::new(),
             });
             return;
@@ -341,6 +357,7 @@ impl<'a> MacroExtractor<'a> {
         self.in_cva = false;
         values.push(StyleCall {
             span: self.source_span(expression.span()),
+            output,
             inputs,
         });
     }

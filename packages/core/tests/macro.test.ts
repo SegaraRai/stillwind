@@ -8,6 +8,7 @@ const frameworks = [
   ["vue", () => import("stillwind/vue")],
   ["svelte", () => import("stillwind/svelte")],
   ["astro", () => import("stillwind/astro")],
+  ["vanilla", () => import("stillwind/vanilla")],
 ] as const;
 
 for (const [framework, load] of frameworks) {

@@ -1,4 +1,4 @@
-import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva } from "stillwind/runtime/svelte";
+import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva } from "stillwind/runtime/class-string";
 
 export function createTone(tone: string) {
   return stillwindCva(

@@ -10,7 +10,7 @@
 //! the declaration's own span in this module.
 
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::ModuleExportName;
@@ -19,7 +19,7 @@ use oxc::span::Span as OxcSpan;
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    AdapterKind, CssCall, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, RefDefinition,
+    CssCall, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, OutputFormat, RefDefinition,
     StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
@@ -37,9 +37,8 @@ use crate::local_span::LocalSpan;
 pub(crate) struct MacroExtractor<'a> {
     /// Identity used for declarations originating in this module.
     pub(crate) module_id: &'a ModuleId,
-    /// Adapter selected from a macro import, once one was seen.
-    pub(crate) adapter: Option<AdapterKind>,
-    /// Analysis buffer for Oxc spans; declaration identities use `original` coordinates.
+    /// Analysis buffer for Oxc spans; declaration identities use `original`
+    /// coordinates.
     pub(crate) source: &'a SourceFile,
     /// Editable original source, including the complete SFC for projected input.
     pub(crate) original: &'a SourceFile,
@@ -47,8 +46,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) coordinates: &'a dyn Fn(Span) -> Option<Span>,
     /// Oxc scoping table used to resolve references to symbols.
     pub(crate) scoping: &'a Scoping,
-    /// Symbols bound to the imported `style` macro.
-    pub(crate) style_symbols: HashSet<SymbolId>,
+    /// Output format selected by each imported macro binding.
+    pub(crate) style_symbols: HashMap<SymbolId, OutputFormat>,
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
     /// Marker and provider uses in source order, matched within each style call.
@@ -139,8 +138,7 @@ impl<'a> MacroExtractor<'a> {
             original,
             coordinates,
             scoping,
-            style_symbols: HashSet::new(),
-            adapter: None,
+            style_symbols: HashMap::new(),
             ref_symbols: HashMap::new(),
             ref_definitions: Vec::new(),
             keyframes_symbols: HashMap::new(),

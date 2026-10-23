@@ -1,14 +1,14 @@
 //! React adapter behavior.
 //!
 //! Pins the shape of the generated call site and of the runtime imports: helper names
-//! avoid the bindings a module already uses, imports come from the framework-specific
-//! runtime module, a residual macro reference fails the whole compilation, and
-//! diagnostics, lint directives, conditional branches, and explicit `class` entries
-//! behave as documented.
+//! avoid the bindings a module already uses, imports come from the output runtime
+//! module, a residual macro reference fails the whole compilation, and diagnostics,
+//! lint directives, conditional branches, and explicit `class` entries behave as
+//! documented.
 
 use stillwind_compiler::{CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
-use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind};
+use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind, from_macro_import};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
 use stillwind_test_support::{CssAssertions as _, css_source};
@@ -16,9 +16,16 @@ use stillwind_test_support::{CssAssertions as _, css_source};
 use super::*;
 
 #[test]
-fn native_runtime_imports_are_binding_safe_and_framework_specific() {
+fn native_runtime_imports_are_binding_safe_and_follow_output_formats() {
     let theme = css_source(FileId(2), "").unwrap();
-    for framework in ["react", "preact", "solid", "vue", "svelte", "astro"] {
+    for framework in [
+        "react", "preact", "solid", "vue", "svelte", "astro", "vanilla",
+    ] {
+        let runtime = from_macro_import(&format!("stillwind/{framework}"))
+            .unwrap()
+            .output
+            .spec()
+            .runtime_import;
         let component = SourceFile::new(FileId(1), None, None, format!(
             "import {{style as sw, type Theme}} from 'stillwind/{framework}';\n\
              const text = 'stillwindCssValue(';\n\
@@ -36,7 +43,12 @@ fn native_runtime_imports_are_binding_safe_and_framework_specific() {
         );
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         let code = result.apply_to_source(&component).unwrap();
-        assert!(code.contains(&format!("import {{ stillwindClsx as stillwindClsx_2 }} from \"stillwind/runtime/{framework}\";")), "{code}");
+        assert!(
+            code.contains(&format!(
+                "import {{ stillwindClsx as stillwindClsx_2 }} from \"{runtime}\";"
+            )),
+            "{code}"
+        );
         assert!(code.contains("stillwindClsx_2(\"sw_"), "{code}");
         assert!(code.contains(",stillwindClsx_1)"), "{code}");
         assert!(code.contains("type Theme"), "{code}");

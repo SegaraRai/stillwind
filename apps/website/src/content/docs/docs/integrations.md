@@ -15,14 +15,15 @@ Each integration finds `stillwind.config.ts` in the application root.
 
 Import `style` from the entrypoint of the framework that renders the element:
 
-| Framework | Import             | Class prop  |
-| --------- | ------------------ | ----------- |
-| React     | `stillwind/react`  | `className` |
-| Preact    | `stillwind/preact` | `class`     |
-| Solid     | `stillwind/solid`  | `class`     |
-| Vue       | `stillwind/vue`    | `class`     |
-| Svelte    | `stillwind/svelte` | `class`     |
-| Astro     | `stillwind/astro`  | `class`     |
+| Framework          | Import              | Class prop  |
+| ------------------ | ------------------- | ----------- |
+| React              | `stillwind/react`   | `className` |
+| Preact             | `stillwind/preact`  | `class`     |
+| Solid              | `stillwind/solid`   | `class`     |
+| Vue                | `stillwind/vue`     | `class`     |
+| Svelte             | `stillwind/svelte`  | `class`     |
+| Astro              | `stillwind/astro`   | `class`     |
+| Vanilla JavaScript | `stillwind/vanilla` | `class`     |
 
 Spread the result with your framework's syntax. In JSX, Svelte, and Astro, write
 `{...style("...")}`. In Vue templates, write `v-bind="style('...')"`:
@@ -40,9 +41,29 @@ import { style } from "stillwind/vue";
 A component uses the entrypoint of its own framework. For example, a React
 island inside an Astro page imports `stillwind/react`.
 
+## Vanilla JavaScript
+
+Import the DOM helpers with the macro:
+
+```ts
+import { applyStyle, clearStyle, style } from "stillwind/vanilla";
+
+const button = document.querySelector("button")!;
+applyStyle(button, style("rounded-md bg-accent px-4 py-2 text-white"));
+```
+
+Call `applyStyle` again to update the element. Call `clearStyle(button)` to remove
+its Stillwind contribution. The helpers preserve existing classes and unrelated
+inline styles, and restore overwritten inline values unless another writer has
+changed them. Use a build integration to compile the macros and deliver CSS.
+
+Import framework macros under different names when one module styles both framework
+elements and DOM elements. Each macro returns props for its own target.
+
 ## Vite
 
-Use the Vite plugin for React, Preact, Solid, Vue, and Svelte applications:
+Use the Vite plugin for React, Preact, Solid, Vue, Svelte, and vanilla JavaScript
+applications:
 
 ```ts
 import { stillwind } from "@stillwind/integration/vite";

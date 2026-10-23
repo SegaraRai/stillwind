@@ -7,11 +7,24 @@
 
 use oxc::ast::ast::{CallExpression, Expression, ImportDeclaration};
 
-use stillwind_ir::from_macro_import;
+use stillwind_ir::{OutputFormat, from_macro_import};
 
 use super::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
+    /// Returns the prop format of a resolved macro binding or its member receiver.
+    pub(crate) fn style_output(&self, expression: &Expression<'a>) -> Option<OutputFormat> {
+        match expression.get_inner_expression() {
+            Expression::Identifier(identifier) => identifier
+                .reference_id
+                .get()
+                .and_then(|reference| self.scoping.get_reference(reference).symbol_id())
+                .and_then(|symbol| self.style_symbols.get(&symbol).copied()),
+            Expression::StaticMemberExpression(member) => self.style_output(&member.object),
+            _ => None,
+        }
+    }
+
     /// True when the import declaration's source is a Stillwind macro entry.
     ///
     /// Type-only imports still answer `true` here; callers must check
@@ -37,7 +50,7 @@ impl<'a> MacroExtractor<'a> {
         self.scoping
             .get_reference(reference_id)
             .symbol_id()
-            .is_some_and(|symbol| self.style_symbols.contains(&symbol))
+            .is_some_and(|symbol| self.style_symbols.contains_key(&symbol))
             && member.property.name.as_str() == property
     }
 

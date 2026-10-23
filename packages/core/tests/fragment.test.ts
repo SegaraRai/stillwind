@@ -1,8 +1,8 @@
-import * as astro from "stillwind/runtime/astro";
-import * as react from "stillwind/runtime/react";
-import * as reactDevelopment from "stillwind/runtime/react-development";
-import * as svelte from "stillwind/runtime/svelte";
-import * as svelteDevelopment from "stillwind/runtime/svelte-development";
+import * as react from "stillwind/runtime/class-name-object";
+import * as reactDevelopment from "stillwind/runtime/class-name-object-development";
+import * as classObject from "stillwind/runtime/class-object";
+import * as svelte from "stillwind/runtime/class-string";
+import * as svelteDevelopment from "stillwind/runtime/class-string-development";
 import { expect, test } from "vite-plus/test";
 
 test("react merges fragments, arrays, and falsy values in argument order", () => {
@@ -85,9 +85,9 @@ test("string-style frameworks serialize the payload and pass strings through", (
     style: "--y:3",
   });
   expect(
-    astro.stillwindMerge({
-      [astro.stillwindClassKey]: "_z",
-      [astro.stillwindStyleKey]: { "--x": "1" },
+    svelte.stillwindMerge({
+      [svelte.stillwindClassKey]: "_z",
+      [svelte.stillwindStyleKey]: { "--x": "1" },
     }),
   ).toStrictEqual({
     class: "_z",
@@ -162,7 +162,7 @@ test("class concatenation keeps falsy and non-string fragments empty", () => {
 });
 
 test("custom properties merge independently and coexist with generated styles", () => {
-  for (const runtime of [react, svelte, astro]) {
+  for (const runtime of [react, classObject, svelte]) {
     const key = runtime.stillwindCustomPropertiesKey;
     const result = runtime.stillwindMerge(
       {
@@ -186,7 +186,7 @@ test("custom properties merge independently and coexist with generated styles", 
       },
     );
     expect(result.style).toStrictEqual(
-      runtime === react
+      runtime !== svelte
         ? {
             "view-transition-name": "card",
             "--progress": "0.5",
@@ -218,7 +218,7 @@ test("CSS values preserve strings and zero, encode boolean switches and quote UR
 });
 
 test("boolean switches retain whitespace and initial in framework style props", () => {
-  for (const runtime of [react, svelte, astro]) {
+  for (const runtime of [react, classObject, svelte]) {
     for (const enabled of [true, false]) {
       const value = runtime.stillwindCssValue(enabled);
       const props = runtime.stillwindMerge({
@@ -227,7 +227,7 @@ test("boolean switches retain whitespace and initial in framework style props", 
         },
       });
       expect(props.style).toStrictEqual(
-        runtime === react
+        runtime !== svelte
           ? {
               "--enabled": enabled ? " " : "initial",
             }

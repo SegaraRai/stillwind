@@ -5,7 +5,7 @@ It uses theme rules and compiler checks to keep styling code in order, even when
 AI agents write much of it.
 
 `stillwind` is the main Stillwind package. It provides CSS defaults, configuration
-helpers, and style APIs for React, Preact, Solid, Vue, Svelte, and Astro.
+helpers, and style APIs for React, Preact, Solid, Vue, Svelte, Astro, and vanilla JavaScript.
 
 ## Install
 
@@ -36,7 +36,7 @@ export default defineConfig({
   projects: [
     {
       css: "./src/stillwind.css",
-      files: ["src/**/*.{ts,tsx,vue,svelte,astro}"],
+      files: ["src/**/*.{js,jsx,ts,tsx,vue,svelte,astro}"],
     },
   ],
 });
@@ -64,6 +64,28 @@ Style arguments must be pure. The compiler does not guarantee their evaluation
 order or count, and it can omit unused evaluations. Perform effects outside style
 calls. Static styles emit CSS; dynamic values and conditions can require runtime helpers.
 Composed styles retain ordinary CSS specificity and importance.
+
+For vanilla JavaScript, import the macro and DOM helpers from `stillwind/vanilla`:
+
+```ts
+import { applyStyle, clearStyle, style } from "stillwind/vanilla";
+
+const button = document.querySelector("button")!;
+applyStyle(
+  button,
+  style("rounded-md px-4 py-2", {
+    "--accent": accent,
+  }),
+);
+clearStyle(button);
+```
+
+Call `applyStyle` again to replace the element's previous Stillwind contribution.
+The helper preserves existing classes and unrelated inline styles. `clearStyle`, or
+`applyStyle(element, {})`, removes the contribution and restores overwritten inline
+values and priorities. Inline values changed externally after the last application
+are preserved. HTML and SVG elements use the same helpers. The build integration
+delivers the generated CSS.
 
 ## Customize and extend
 

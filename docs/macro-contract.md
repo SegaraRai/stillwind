@@ -7,13 +7,25 @@ changes. This condition applies to **each argument expression inside a macro**.
 ## Framework entrypoints and shared types
 
 Import `style` from `stillwind/react`, `stillwind/preact`, `stillwind/solid`,
-`stillwind/vue`, `stillwind/svelte`, or `stillwind/astro`. These entrypoints live in
-`packages/core/src/frameworks/`. React returns `className`; the other frameworks
-return `class`. The `style` prop is a string in Svelte and Astro and an object in
-React, Preact, Solid, and Vue.
+`stillwind/vue`, `stillwind/svelte`, `stillwind/astro`, or `stillwind/vanilla`. These
+entrypoints live in `packages/core/src/frameworks/`. React returns `className`; the
+other frameworks return `class`. The `style` prop is a string in Svelte and Astro and an
+object in React, Preact, Solid, Vue, and vanilla JavaScript.
 
-`stillwind/macro` (`packages/core/src/macro/`) owns shared argument types and
-declaration identities. `packages/core/src/runtime/` combines compiled props.
+Each framework entrypoint exports the shared argument types and declaration identities.
+`stillwind/macro` exposes their internal definitions and macro construction for package
+implementation and tooling. Application code imports from its framework entrypoint.
+The internal output modules share three representations:
+`class` with object styles, `class` with string styles, and `className` with object
+styles. `packages/core/src/runtime/` combines compiled props using the selected
+representation. Each imported macro binding selects the representation of its own
+calls. A source module can use several representations, including React props and
+vanilla DOM props.
+
+`stillwind/vanilla` also exports `applyStyle(element, props)` and `clearStyle(element)`.
+These helpers manage class and inline-style contributions on DOM elements; the build
+integration delivers CSS. See the [package guide](../packages/core/README.md#write-styles)
+for their update and cleanup behavior.
 
 Utility literals contribute only candidates resolved by the CSS snapshot and the
 [marker classes](css-emission.md#marker-classes) that candidates add as written.
@@ -181,9 +193,9 @@ its declaration from the receiver value.
 
 A composition operand passes its value to the runtime, which merges only the base's class
 in the receiving framework's class prop. A base with inline style keeps its
-class and loses the rest. A base from another framework contributes no class and has no
-CSS ordering dependency. Both cases report `invalid-style-composition` at the operand,
-including when only one candidate base is incompatible.
+class and loses the rest. A base with a different class property contributes no class and
+has no CSS ordering dependency. Both cases report `invalid-style-composition` at the
+operand, including when only one candidate base is incompatible.
 Style dependency cycles produce `SW11001`; cycles in CSS module placement produce
 `SW11002`. Neither cycle can be suppressed because it prevents a valid output order.
 
@@ -800,7 +812,7 @@ and object spreads retain their existing restrictions. Custom properties cannot
 be nested inside CSS variant wrappers: put the variable on the element and let
 the variant's utility reference it.
 
-React, Preact, Solid, and Vue receive an object in the returned `style` prop.
+React, Preact, Solid, Vue, and vanilla JavaScript receive an object in the returned `style` prop.
 Svelte and Astro receive a serialized style string. Custom properties overlay
 the generated style payload, preserving an unrelated view transition name.
 A composition base containing inline custom properties contributes only its class.

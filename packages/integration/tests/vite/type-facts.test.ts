@@ -329,7 +329,7 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
 
   const runnable = finalizeModule(consumer!.code, false);
   expect(runnable).not.toMatch(/from "stillwind\/react"/);
-  expect(runnable).toMatch(/^import \{[^}]+\} from "stillwind\/runtime\/react";/);
+  expect(runnable).toMatch(/^import \{[^}]+\} from "stillwind\/runtime\/class-name-object";/);
   for (const helper of runnable.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)) {
     expect(runnable).toMatch(new RegExp(`import \\{[^}]*\\b${helper[1]}\\b[^}]*\\}`));
   }

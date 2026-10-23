@@ -10,14 +10,14 @@ use super::SourceFailureContext;
 /// Typed causes and display templates for fatal compilation errors.
 ///
 /// Each variant has a unique reporting code. The diagnostic owns cause data and its
-/// message template; [`super::CompileError`] supplies the
-/// reporting location, optional source name, and notes. Match variants to inspect causes.
-/// Variants are declared in the order of their reporting codes.
+/// message template; [`super::CompileError`] supplies the reporting location, optional
+/// source name, and notes. Match variants to inspect causes. Variants are declared in
+/// the order of their reporting codes.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "camelCase")]
 pub enum CompileDiagnostic {
-    /// The host-selected framework constraint disagrees with the imported macro entry point.
-    #[error("explicit framework conflicts with the imported style macro")]
+    /// The host-selected framework differs from the original component format.
+    #[error("explicit framework conflicts with the source component format")]
     FrameworkConstraintConflict,
     /// A configured custom-property prefix fails the required shape or minimum length.
     #[error("{option} must start with `--` and end with `-`")]
@@ -55,7 +55,8 @@ pub enum CompileDiagnostic {
         /// Invalid field or missing required policy.
         detail: LeanStr,
     },
-    /// The JavaScript parser rejected the input; external details belong in wrapper notes.
+    /// The JavaScript parser rejected the input; external details belong in wrapper
+    /// notes.
     #[error("JavaScript parse error")]
     JavaScriptParse,
     /// A component parser rejected the original source.
@@ -64,9 +65,6 @@ pub enum CompileDiagnostic {
         /// Explanation supplied by the component parser.
         detail: LeanStr,
     },
-    /// One module imports style macros for more than one framework.
-    #[error("a module cannot mix framework style macros")]
-    MixedFrameworks,
     /// A macro use was not consumed at a supported style input position.
     #[error(
         "{syntax} must be consumed at its supported input position within style(); it cannot be materialized independently"
@@ -212,7 +210,8 @@ pub enum CompileDiagnostic {
     /// Mapped generated text differs from its original source text.
     #[error("generated expression or declaration does not match the original source")]
     ProjectionContent {
-        /// Range involved in the failed generated-to-original text correspondence check.
+        /// Range involved in the failed generated-to-original text correspondence
+        /// check.
         span: Span,
     },
     /// A converter produced code that the configured parser cannot read.
@@ -256,7 +255,8 @@ pub enum CompileDiagnostic {
     /// No host-supplied editable region of a projected source contains a required edit.
     #[error("no editable projection region contains the edit at {span:?}")]
     EditOutsideEditableRegion {
-        /// Original range of the runtime use or replacement outside every editable region.
+        /// Original range of the runtime use or replacement outside every editable
+        /// region.
         span: Span,
     },
     /// A quoted editable region is not delimited by the quote that the host recorded.
@@ -360,8 +360,8 @@ pub enum CompileDiagnostic {
     /// Rendered source exceeds the supported coordinate range.
     #[error("rendered source exceeds the 32-bit coordinate limit")]
     RenderedSourceTooLarge,
-    /// A module needs a macro import to anchor runtime or stylesheet imports, but its import
-    /// realm has none.
+    /// A module needs a macro import to anchor runtime or stylesheet imports, but its
+    /// import realm has none.
     #[error("no verified macro import anchor for runtime use at {span:?}")]
     MissingRuntimeAnchor {
         /// Runtime-use range whose import realm lacks a verified macro anchor.
@@ -387,7 +387,8 @@ pub enum CompileDiagnostic {
     /// Generated CSS cannot be split into complete rule blocks.
     #[error("invalid generated CSS block at byte {offset}")]
     InvalidGeneratedCss {
-        /// Zero-based UTF-8 byte offset within the offending generated CSS contribution.
+        /// Zero-based UTF-8 byte offset within the offending generated CSS
+        /// contribution.
         offset: usize,
     },
     /// A stylesheet contribution refers to a rule absent from the retained artifact.
@@ -400,7 +401,8 @@ pub enum CompileDiagnostic {
     /// with the source.
     #[error("invalid macro import metadata at {span:?}")]
     InvalidMacroImportMetadata {
-        /// Import declaration or runtime-use range associated with inconsistent metadata.
+        /// Import declaration or runtime-use range associated with inconsistent
+        /// metadata.
         span: Span,
     },
     /// A selected macro import anchor has no removal edit to receive runtime imports.

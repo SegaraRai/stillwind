@@ -1,24 +1,22 @@
 ---
 title: "SW01001: Framework constraint conflict"
-description: The integration requires one framework, but the file imports style() for another framework.
+description: The prepared source selects a framework that differs from the component format.
 slug: docs/errors/SW01001
 ---
 
-This error occurs when the integration is set to one framework, but a file
-imports `style()` from the entrypoint of another framework. The compiler cannot
-produce props for both.
+This error occurs when a custom integration supplies a source `framework` that
+conflicts with the component's original format. For example, a Vue component
+cannot be projected with an explicit Svelte framework constraint.
 
 ## How to fix
 
-- Import from the entrypoint of the file's framework, such as `stillwind/vue`
-  for a Vue component.
-- If the import already matches the component, check the integration that
-  supplied the constraint. A custom integration sets it in the prepared
-  source's `framework` field. Change that field to match the component.
+Set the prepared source's `framework` field to the component's framework, or omit
+it when the integration does not need a source constraint. The converter must also
+match the component format.
+
+Macro imports select each call's output format independently. A file can import
+several framework macros, including React and vanilla DOM macros.
 
 `framework` is not a project option in `stillwind.config.ts`. If an official
 integration supplies the wrong constraint, report the error with the component
 and the Stillwind package versions.
-
-When no framework is set, an import from another framework is reported by
-[mismatched-framework-import](/docs/lints/mismatched-framework-import/) instead.

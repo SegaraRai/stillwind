@@ -114,8 +114,8 @@ pub fn validate_composition(
 /// Composition edges whose base supplies only part of its value to the derived call.
 ///
 /// The runtime merges only the class of a base in the receiving framework's class prop.
-/// A base that carries inline style keeps its class and loses the rest. A base from
-/// another framework contributes no class. Lowering keeps these operands,
+/// A base that carries inline style keeps its class and loses the rest. A base from a
+/// different class property contributes no class. Lowering keeps these operands,
 /// [`Self::findings`] reports them, and [`Self::remove_foreign_bases`] removes the
 /// bases that contribute no class from CSS ordering.
 #[derive(Clone, Debug, Default)]
@@ -133,14 +133,14 @@ impl IncompatibleComposition {
         let mut edges = BTreeMap::new();
         for (derived, bases) in &graph.edges {
             for base in bases {
-                let reason = if graph.inline_styles.contains(base) {
-                    Some(LintDiagnostic::StyleBaseWithInlineStyle)
-                } else if graph
-                    .frameworks
+                let reason = if graph
+                    .class_properties
                     .get(base)
-                    .is_some_and(|property| *property != graph.frameworks[derived])
+                    .is_some_and(|property| *property != graph.class_properties[derived])
                 {
                     Some(LintDiagnostic::StyleBaseFrameworkMismatch)
+                } else if graph.inline_styles.contains(base) {
+                    Some(LintDiagnostic::StyleBaseWithInlineStyle)
                 } else {
                     None
                 };
@@ -173,10 +173,10 @@ impl IncompatibleComposition {
         findings
     }
 
-    /// Removes candidate bases from another framework from the composition operands of
-    /// `module`. Such a base contributes no class, so it has no CSS ordering
-    /// dependency. The operands remain, because the runtime still receives their
-    /// values.
+    /// Removes candidate bases from a different class property from the composition
+    /// operands of `module`. Such a base contributes no class, so it has no CSS
+    /// ordering dependency. The operands remain, because the runtime still receives
+    /// their values.
     pub fn remove_foreign_bases(&self, module: &mut ModuleAnalysis) {
         let foreign = self
             .edges
@@ -268,8 +268,8 @@ struct CompositionGraph {
     edges: BTreeMap<IdentityId, BTreeSet<IdentityId>>,
     /// Calls whose payload carries inline style.
     inline_styles: BTreeSet<IdentityId>,
-    /// Framework class property, such as `className`, of each call.
-    frameworks: BTreeMap<IdentityId, &'static str>,
+    /// Class property, such as `className`, of each call.
+    class_properties: BTreeMap<IdentityId, &'static str>,
     /// Modules that each module depends on through cross-module composition edges.
     modules: BTreeMap<ModuleId, BTreeSet<ModuleId>>,
 }
@@ -281,7 +281,7 @@ impl CompositionGraph {
         let mut graph = Self {
             edges: BTreeMap::new(),
             inline_styles: BTreeSet::new(),
-            frameworks: BTreeMap::new(),
+            class_properties: BTreeMap::new(),
             modules: BTreeMap::new(),
         };
         for module in modules {
@@ -292,8 +292,8 @@ impl CompositionGraph {
                     graph.inline_styles.insert(derived.clone());
                 }
                 graph
-                    .frameworks
-                    .insert(derived.clone(), module.ir.adapter.spec().class_property);
+                    .class_properties
+                    .insert(derived.clone(), call.output.spec().class_property);
                 for base in &dependencies {
                     if base.module_id() != derived.module_id() {
                         graph

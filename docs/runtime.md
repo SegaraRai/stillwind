@@ -1,25 +1,35 @@
 # Generated runtime imports
 
-The compiler imports each framework's runtime from `stillwind/runtime/react`,
-`stillwind/runtime/preact`, `stillwind/runtime/solid`, `stillwind/runtime/vue`,
-`stillwind/runtime/svelte`, or `stillwind/runtime/astro`. Authored macro imports remain
-`stillwind/react`, `stillwind/vue`, and the corresponding framework entrypoints.
+The compiler selects a runtime by the output representation:
 
-Each runtime exports ordinary functions and independent symbol keys. Framework wrappers
+| Runtime                               | Class prop  | Style prop | Macro entrypoints                   |
+| ------------------------------------- | ----------- | ---------- | ----------------------------------- |
+| `stillwind/runtime/class-object`      | `class`     | object     | `preact`, `solid`, `vue`, `vanilla` |
+| `stillwind/runtime/class-string`      | `class`     | string     | `svelte`, `astro`                   |
+| `stillwind/runtime/class-name-object` | `className` | object     | `react`                             |
+
+Authored macro imports use `stillwind/react`, `stillwind/vanilla`, and the other
+framework entrypoints. Source projection and normalization remain framework policies.
+Each style call and CVA factory retains the output format of its imported macro
+binding. One module can import several output runtimes. Helpers share a local name
+only when their output format and import realm match; other groups receive distinct
+names from the same allocator.
+
+Each runtime exports ordinary functions and independent symbol keys. Output wrappers
 call shared functions for merging fragments, converting element props, and serializing styles.
-Framework conventions and symbol keys are passed as a readonly tuple. Its labels exist only in
+Output conventions and symbol keys are passed as a readonly tuple. Its labels exist only in
 TypeScript, so configuration field names do not remain in minified JavaScript.
 Bundlers can remove unused operations and symbol keys. JavaScript modules have no required
 import side effects; CSS files retain their side effects.
 
 Development compilations explicitly import checked helpers from
-`stillwind/runtime/<framework>-development`. These modules share symbol keys with the
+`stillwind/runtime/<output>-development`. These modules share symbol keys with the
 corresponding production runtime. They validate fragment ownership, class contributions,
 and materialized props before merging or converting them. Dynamic ref attachments and projections that read `.c` call
 `stillwindRefClassChecked(ref)` to validate `.c`; release compilations read `ref.c` directly.
 The generated code evaluates the ref expression once in either mode.
 
-The framework development modules import their complete `options` tuple from the production module.
+The development modules import their complete `options` tuple from the production module.
 They provide checked class concatenation, ref reads, keyed view transition names, and CVA selection.
 `stillwindCvaChecked` checks external class inputs and selected fragments each time the factory is called.
 Checked class concatenation accepts strings, numbers, bigints, nested arrays, and objects
@@ -30,13 +40,13 @@ string token or a record whose `.v` contains that token.
 The compiler mode selects these imports. Export conditions and `NODE_ENV` do not select runtime
 validation. Production fragment operations assume the compiler's contracts and omit development
 checks. Fragment merging keeps contribution order, later authored props and style payloads replace
-earlier values, and generated custom properties are applied last. Each framework owns its keys;
+earlier values, and generated custom properties are applied last. Each output runtime owns its keys;
 fragments must be materialized by the runtime that created them.
 
 ## CVA factories
 
 `style.cva(base?, config?)` compiles utility values and creates a selector using
-`stillwindCva` from the framework runtime. The configuration keeps its JavaScript
+`stillwindCva` from the output runtime. The configuration keeps its JavaScript
 structure. Each base, option, and compound style value becomes compiled class text
 or private fragments. Calls to the returned factory remain ordinary JavaScript.
 
@@ -117,7 +127,7 @@ condition starts a new region. Provider rules require their ref marker through
 generate every candidate's CSS and select its class through the receiver value.
 Singleton candidates can fold to static output.
 
-Fragments carry three framework-owned symbol channels:
+Fragments carry three channels owned by the output runtime:
 
 | Symbol                         | Value                                                   |
 | ------------------------------ | ------------------------------------------------------- |
@@ -130,13 +140,13 @@ fragments, joins class text without deduplication, and materializes framework pr
 Custom properties overlay the whole style payload. `stillwindToFragment` converts a
 materialized composition base to a fragment that holds only the base's class. A base
 contributes the receiving framework's class prop; its style, custom
-properties, and another framework's class prop are ignored. The development variant
+properties, and a different class prop are ignored. The development variant
 rejects nonobjects.
 An existing string style payload is passed through without parsing.
 
 The completed macro always returns framework props. Symbolic fragments remain
 inside that macro expression and belong to the runtime instance that created
-their keys. They cannot cross serialization or framework runtime boundaries.
+their keys. They cannot cross serialization or runtime-instance boundaries.
 
 The fragment compiler chooses direct props, class expressions, or a general merge
 under the [macro purity contract](macro-contract.md). It removes empty branches

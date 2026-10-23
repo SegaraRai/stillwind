@@ -1,17 +1,11 @@
 import { expect, test } from "vite-plus/test";
 
-import * as astroDevelopment from "./astro-development.ts";
-import * as astro from "./astro.ts";
-import * as preactDevelopment from "./preact-development.ts";
-import * as preact from "./preact.ts";
-import * as reactDevelopment from "./react-development.ts";
-import * as react from "./react.ts";
-import * as solidDevelopment from "./solid-development.ts";
-import * as solid from "./solid.ts";
-import * as svelteDevelopment from "./svelte-development.ts";
-import * as svelte from "./svelte.ts";
-import * as vueDevelopment from "./vue-development.ts";
-import * as vue from "./vue.ts";
+import * as reactDevelopment from "./class-name-object-development.ts";
+import * as react from "./class-name-object.ts";
+import * as preactDevelopment from "./class-object-development.ts";
+import * as preact from "./class-object.ts";
+import * as svelteDevelopment from "./class-string-development.ts";
+import * as svelte from "./class-string.ts";
 
 test("CVA selects defaults, boolean and numeric options, and every matching compound", () => {
   const choose = react.stillwindCva("base", {
@@ -99,10 +93,7 @@ test("checked CVA factories share production channels and validate selected inpu
   for (const [production, development] of [
     [react, reactDevelopment],
     [preact, preactDevelopment],
-    [solid, solidDevelopment],
-    [vue, vueDevelopment],
     [svelte, svelteDevelopment],
-    [astro, astroDevelopment],
   ] as const) {
     const base = {
       [production.stillwindClassKey]: "base",
@@ -175,10 +166,7 @@ test("CVA merges custom properties without mutating saved fragments or leaking c
   for (const [runtime, classProperty, stringStyle] of [
     [react, "className", false],
     [preact, "class", false],
-    [solid, "class", false],
-    [vue, "class", false],
     [svelte, "class", true],
-    [astro, "class", true],
   ] as const) {
     const baseStyle = { "--tone": "blue", "--size": "4" };
     const optionStyle = { "--tone": "red" };

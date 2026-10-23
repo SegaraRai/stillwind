@@ -18,7 +18,7 @@ const require = createRequire(import.meta.url);
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 for (const backend of ["webpack", "rspack"] as const) {
   const { StillwindPlugin } = backend === "webpack" ? webpackIntegration : rspackIntegration;
-  for (const framework of ["react", "preact", "solid", "vue", "svelte"] as const) {
+  for (const framework of ["react", "preact", "solid", "vue", "svelte", "vanilla"] as const) {
     test(`${backend} ${framework} preserves framework output and module CSS value ownership`, async () => {
       const root = mkdtempSync(path.join(packageRoot, ".test-framework-"));
       const sfc = framework === "vue" || framework === "svelte";

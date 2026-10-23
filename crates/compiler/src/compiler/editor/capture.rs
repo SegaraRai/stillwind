@@ -337,6 +337,7 @@ impl ModuleEditor {
                     context,
                     EditorPlan::Call(StyleCall {
                         span: call.span,
+                        output: call.output,
                         inputs: vec![input],
                     }),
                 );

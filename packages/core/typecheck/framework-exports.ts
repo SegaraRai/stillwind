@@ -12,6 +12,10 @@ export type FrameworkResultContracts = [
   >,
   Assert<Same<import("stillwind/svelte").StyleResult<"s">["style"], string | undefined>>,
   Assert<Same<import("stillwind/astro").StyleResult<"a">["style"], string | undefined>>,
+  Assert<Same<import("stillwind/vanilla").StyleResult<"v">["class"], string | undefined>>,
+  Assert<
+    Same<import("stillwind/vanilla").StyleResult<"v">["style"], Record<string, string> | undefined>
+  >,
 ];
 
 type SharedRefExports<Framework> = Same<Framework, import("stillwind/macro").RefVariant<"r">>;

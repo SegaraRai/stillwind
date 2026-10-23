@@ -5,7 +5,7 @@ use oxc::span::GetSpan;
 use oxc::syntax::operator::LogicalOperator;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
-use stillwind_ir::{ClassExpression, ConditionalBranches, StyleInput};
+use stillwind_ir::{ClassExpression, ConditionalBranches, OutputFormat, StyleInput};
 use stillwind_semantic::{AssetKind, CheckedValue, ExportedValue, IdentityId};
 
 use crate::local_span::LocalSpan;
@@ -13,16 +13,17 @@ use crate::resolution::{ResolutionFailure, cannot_carry_asset};
 use crate::state::MacroExtractor;
 
 impl<'a> MacroExtractor<'a> {
-    /// True when this call is a direct `style(...)` call on the imported macro.
-    pub(crate) fn is_style_call(&self, call: &CallExpression<'a>) -> bool {
+    /// Returns the output format when this call is a direct `style(...)` call on the
+    /// imported macro.
+    pub(crate) fn style_call_output(&self, call: &CallExpression<'a>) -> Option<OutputFormat> {
         let Expression::Identifier(identifier) = &call.callee else {
-            return false;
+            return None;
         };
         identifier
             .reference_id
             .get()
             .and_then(|reference| self.scoping.get_reference(reference).symbol_id())
-            .is_some_and(|symbol| self.style_symbols.contains(&symbol))
+            .and_then(|symbol| self.style_symbols.get(&symbol).copied())
     }
 
     /// Resolves an expression to the style identities it may denote.

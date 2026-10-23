@@ -161,8 +161,10 @@ compilation integration tests live in [sfc-types.test.ts](../packages/host/tests
 ## Projection and edits
 
 The host selects the converter from the original document format. Rust analyzes
-the prepared script buffer with Oxc and edits the original document. Macro imports
-select the output adapter independently of direct versus projected input.
+the prepared script buffer with Oxc and edits the original document. Each macro binding
+selects its calls' output format independently of direct versus projected input.
+An explicit source `framework` must match a component's original format; it does not
+override macro outputs.
 Framework-specific receiver normalization requires validated provenance from the
 converter map; matching a helper's spelling alone is insufficient.
 

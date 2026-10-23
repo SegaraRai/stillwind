@@ -6,7 +6,8 @@ slug: docs/lints/mismatched-framework-import
 
 This rule reports a file that imports `style()` from the entrypoint of another
 framework, such as `stillwind/astro` in a React component. Each entrypoint
-returns props in the form of its framework, such as `className` for React.
+selects a class key and style representation. Entrypoints with the same output
+format are compatible.
 
 ## Reported
 

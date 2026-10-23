@@ -2,8 +2,8 @@
 
 use super::*;
 
-#[test]
-fn projected_runtime_imports_stay_in_their_verified_script_realms() {
+fn projected_runtime_realms_input() -> (serde_json::Value, &'static str, &'static str, &'static str)
+{
     let first = "import {style as sm} from 'stillwind/svelte'; const a = sm('flex', {class: x});";
     let second = "import {style as si} from 'stillwind/svelte'; const b = si('flex', {class: y});";
     let prefix = "<!-- 🧭 -->\n<script context=\"module\">";
@@ -12,7 +12,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let original = format!("{prefix}{first}{middle}{second}{suffix}");
     let a = prefix.encode_utf16().count();
     let b = a + first.len() + middle.len();
-    let mut input = serde_json::json!({
+    let input = serde_json::json!({
         "moduleId": "Component.svelte",
         "kind": "projected",
         "document": {
@@ -29,8 +29,16 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
             "map": {
                 "kind": "volar",
                 "mappings": [
-                    { "sourceOffsets": [a], "generatedOffsets": [0], "lengths": [first.len()] },
-                    { "sourceOffsets": [b], "generatedOffsets": [first.len() + 1], "lengths": [second.len()] },
+                    {
+                        "sourceOffsets": [a],
+                        "generatedOffsets": [0],
+                        "lengths": [first.len()],
+                    },
+                    {
+                        "sourceOffsets": [b],
+                        "generatedOffsets": [first.len() + 1],
+                        "lengths": [second.len()],
+                    },
                 ],
             },
             "converter": {
@@ -39,15 +47,37 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
                 "optionsFingerprint": "realm-test"
             },
             "importRealms": [
-                { "id": 1, "start": a, "end": a + first.len() },
-                { "id": 2, "start": b, "end": b + second.len() },
+                {
+                    "id": 1,
+                    "start": a,
+                    "end": a + first.len(),
+                },
+                {
+                    "id": 2,
+                    "start": b,
+                    "end": b + second.len(),
+                },
             ],
             "editableRegions": [
-                { "importRealm": 1, "start": a,"end": a + first.len() },
-                { "importRealm": 2, "start": b,"end": b + second.len() },
+                {
+                    "importRealm": 1,
+                    "start": a,
+                    "end": a + first.len(),
+                },
+                {
+                    "importRealm": 2,
+                    "start": b,
+                    "end": b + second.len(),
+                },
             ],
         },
     });
+    (input, prefix, middle, suffix)
+}
+
+#[test]
+fn projected_runtime_imports_stay_in_their_verified_script_realms() {
+    let (mut input, prefix, middle, suffix) = projected_runtime_realms_input();
     let compile = |input: &serde_json::Value| -> serde_json::Value {
         serde_json::to_value(
             compile_project_input(
@@ -63,7 +93,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let module = &output["modules"][0];
     assert_eq!(module["diagnostics"], serde_json::json!([]));
     let code = module["code"].as_str().unwrap();
-    let runtime = "import { stillwindClsx } from \"stillwind/runtime/svelte\";";
+    let runtime = "import { stillwindClsx } from \"stillwind/runtime/class-string\";";
     assert!(code.starts_with(&format!("{prefix}{runtime}")), "{code}");
     assert!(
         code.contains(&format!(
@@ -72,7 +102,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
         "{code}"
     );
     assert!(code.ends_with(suffix));
-    assert_eq!(code.matches("stillwind/runtime/svelte").count(), 2);
+    assert_eq!(code.matches("stillwind/runtime/class-string").count(), 2);
     assert!(!code.contains("style as"));
     let duplicate = input["projection"]["editableRegions"][0].clone();
     input["projection"]["editableRegions"]
@@ -207,10 +237,18 @@ fn projected_prepared_value() -> serde_json::Value {
                 "optionsFingerprint": "test",
             },
             "importRealms": [
-                { "id": 0, "start": 10, "end": 26 },
+                {
+                    "id": 0,
+                    "start": 10,
+                    "end": 26,
+                },
             ],
             "editableRegions": [
-                { "importRealm": 0, "start": 10, "end": 26 },
+                {
+                    "importRealm": 0,
+                    "start": 10,
+                    "end": 26,
+                },
             ],
         }
     })

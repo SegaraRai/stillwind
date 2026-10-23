@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use stillwind_source::{Span, Spanned};
 
 use super::{KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition};
-use crate::AdapterKind;
+use crate::{AdapterKind, OutputFormat};
 
 /// Everything a frontend extracted from one module.
 ///
@@ -16,9 +16,6 @@ use crate::AdapterKind;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleIr {
-    /// Framework the module belongs to. It selects the class property, the runtime
-    /// import, and the materialized style format.
-    pub adapter: AdapterKind,
     /// Bindings and imports needed by code generation.
     #[serde(default)]
     pub imports: ModuleImports,
@@ -49,11 +46,9 @@ impl ModuleIr {
             .chain(self.cva_calls.iter().flat_map(|call| &call.values))
     }
 
-    /// Empty React IR. Frameworks without an explicit adapter start here and
-    /// overwrite `adapter` through their own conversion.
-    pub const fn react() -> Self {
+    /// Returns an empty module with no extracted declarations or calls.
+    pub const fn empty() -> Self {
         Self {
-            adapter: AdapterKind::React,
             imports: ModuleImports {
                 consumed_uses: Vec::new(),
                 reserved_names: Vec::new(),
@@ -77,7 +72,9 @@ impl ModuleIr {
 pub struct CvaCall {
     /// Whole factory call in the original source, used to validate nested macro uses.
     pub span: Span,
-    /// Callee expression replaced by the framework's CVA runtime helper.
+    /// Prop representation selected by the factory's macro binding.
+    pub output: OutputFormat,
+    /// Callee expression replaced by the selected output runtime's CVA helper.
     pub callee_span: Span,
     /// Base and option expressions compiled independently in source order.
     pub values: Vec<StyleCall>,

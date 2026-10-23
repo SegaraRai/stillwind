@@ -61,7 +61,7 @@ participate in document-level checks.
 
 ## Development and release
 
-Compiler mode chooses explicit `stillwind/runtime/<framework>-development` imports for
+Compiler mode chooses explicit `stillwind/runtime/<output>-development` imports for
 runtime validation. Export conditions and `NODE_ENV` do not choose those helpers.
 Checked helpers share their framework's production symbol keys.
 

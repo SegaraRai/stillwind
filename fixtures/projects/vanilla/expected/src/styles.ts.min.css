@@ -1,0 +1,12 @@
+.sw_kwp9a {
+  padding-inline: calc(var(--spacing) * 4);
+  padding-block: calc(var(--spacing) * 2);
+  border-radius: var(--radius-md);
+}
+.sw_ezul1 {
+  --tw-font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-medium);
+}
+.sw_rzb4y {
+  text-decoration-line: underline;
+}

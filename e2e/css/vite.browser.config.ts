@@ -7,7 +7,12 @@ export default mergeConfig(
     root: import.meta.dirname,
     test: {
       name: "css-browser",
-      include: ["tests/css-call.test.ts", "tests/cva.test.ts", "tests/ref-scopes.test.ts"],
+      include: [
+        "tests/css-call.test.ts",
+        "tests/cva.test.ts",
+        "tests/ref-scopes.test.ts",
+        "tests/vanilla.test.ts",
+      ],
     },
   }),
 );

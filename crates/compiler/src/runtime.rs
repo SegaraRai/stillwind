@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
-use stillwind_ir::{AttributeQuote, ModuleAnalysis, ProjectionRegion};
+use stillwind_ir::{AttributeQuote, ModuleAnalysis, OutputFormat, ProjectionRegion};
 use stillwind_source::{JoinText, ReplaceText, Span};
 
 use crate::{IdentifierMode, SourceTransform, plan_macro_import_removals};
@@ -102,6 +102,8 @@ impl RuntimeHelper {
 /// has no export condition; the generated call itself does not change between modes.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct ImportAnchor {
+    /// Prop representation whose runtime supplies these helpers.
+    output: OutputFormat,
     /// Index of the macro import whose replacement carries the import statement.
     index: usize,
     /// Whether this group's helpers come from the development module.
@@ -110,18 +112,20 @@ struct ImportAnchor {
 
 /// Allocates local helper names and plans their imports for one module.
 ///
-/// Uses are keyed by helper and import realm, so a module that renders in several
-/// realms (a Svelte markup region and its script, for example) gets one import per
-/// realm and never one import per use.
+/// Uses are keyed by output format, helper, and import realm, so a module that renders
+/// in several realms (a Svelte markup region and its script, for example) gets one
+/// import per realm and never one import per use.
 pub(crate) struct RuntimeBindings<'a> {
     /// Projection regions of the module, which decide the import realm of each use.
     regions: &'a [ProjectionRegion],
     /// Names already bound in the module; never handed out as a local helper name.
     reserved: BTreeSet<LeanStr>,
-    /// One local name per helper and realm, allocated on first use.
-    names: BTreeMap<(RuntimeHelper, Option<u32>), LeanStr>,
+    /// One local name per output format, helper, and realm, allocated on first use.
+    names: BTreeMap<(OutputFormat, RuntimeHelper, Option<u32>), LeanStr>,
     /// Every recorded use, in the order it was requested.
-    uses: Vec<(RuntimeHelper, Span, Option<u32>)>,
+    uses: Vec<(OutputFormat, RuntimeHelper, Span, Option<u32>)>,
+    /// Output format of the call currently being rendered.
+    output: OutputFormat,
     /// Whether the compilation runs in development mode.
     development: bool,
 }
@@ -140,6 +144,7 @@ impl<'a> RuntimeBindings<'a> {
             reserved: module.ir.imports.reserved_names.iter().cloned().collect(),
             names: BTreeMap::new(),
             uses: Vec::new(),
+            output: OutputFormat::ClassNameObject,
             development: false,
         }
     }
@@ -159,21 +164,27 @@ impl<'a> RuntimeBindings<'a> {
         self.development
     }
 
+    /// Selects the output format for helpers requested by the next call.
+    pub(crate) fn select_output(&mut self, output: OutputFormat) {
+        self.output = output;
+    }
+
     /// Records a use of `helper` at `at` and returns the local name to call it with.
     ///
-    /// Repeated uses of one helper in one realm share a single name and a single import.
-    /// The name is the export name unless it collides with a reserved name, in which case
-    /// a numeric suffix is appended until it is free. Allocation is deterministic
-    /// for a fixed use order; different realms compete for names in one reserved set.
+    /// Repeated uses of one helper for one output format and realm share a single name
+    /// and a single import. The name is the export name unless it collides with a
+    /// reserved name, in which case a numeric suffix is appended until it is free.
+    /// Allocation is deterministic for a fixed use order. All output formats and realms
+    /// share one reserved set.
     pub(crate) fn require(&mut self, helper: RuntimeHelper, at: Span) -> LeanStr {
         let realm = self
             .regions
             .iter()
             .find(|region| contains(region.source, at))
             .map(|region| region.import_realm);
-        self.uses.push((helper, at, realm));
+        self.uses.push((self.output, helper, at, realm));
         self.names
-            .entry((helper, realm))
+            .entry((self.output, helper, realm))
             .or_insert_with(|| {
                 let base = helper.exported();
                 let mut name = base.to_lean_string();
@@ -193,7 +204,6 @@ impl<'a> RuntimeBindings<'a> {
     /// and bound to the release name, so the generated call sites are mode independent.
     fn import_statement(
         &self,
-        module: &ModuleAnalysis,
         anchor: ImportAnchor,
         helpers: BTreeSet<(RuntimeHelper, Option<u32>)>,
     ) -> LeanStr {
@@ -201,7 +211,7 @@ impl<'a> RuntimeBindings<'a> {
             .into_iter()
             .map(|(helper, realm_id)| {
                 let local = self
-                    .local_name(helper, realm_id)
+                    .local_name(anchor.output, helper, realm_id)
                     .unwrap_or_else(|| helper.exported().to_lean_string());
                 let exported = match helper.development_variant() {
                     Some(development) if anchor.development => development.exported(),
@@ -215,7 +225,7 @@ impl<'a> RuntimeBindings<'a> {
             })
             .collect::<Vec<_>>()
             .join_text(", ");
-        let spec = module.ir.adapter.spec();
+        let spec = anchor.output.spec();
         let runtime_module = if anchor.development {
             spec.runtime_import_dev
         } else {
@@ -228,16 +238,21 @@ impl<'a> RuntimeBindings<'a> {
     /// A helper whose development variant has a different export name is bound under
     /// the release name in both modes, so the generated call sites do not depend on the
     /// mode.
-    fn local_name(&self, helper: RuntimeHelper, realm: Option<u32>) -> Option<LeanString> {
-        (self.names.get(&(helper, realm)).cloned()).map(Into::into)
+    fn local_name(
+        &self,
+        output: OutputFormat,
+        helper: RuntimeHelper,
+        realm: Option<u32>,
+    ) -> Option<LeanString> {
+        (self.names.get(&(output, helper, realm)).cloned()).map(Into::into)
     }
 
     /// Returns the import edits and macro-removal edits for the recorded uses.
     ///
     /// Each realm's helpers are appended to the replacement of the macro import that
     /// anchors it, so imports appear next to the code that used the macro. An anchor is
-    /// only selected when this compilation lowered a macro inside it; otherwise the plan
-    /// fails rather than dropping the import.
+    /// only selected when this compilation lowered a macro inside it; otherwise the
+    /// plan fails rather than dropping the import.
     ///
     /// # Errors
     ///
@@ -251,10 +266,11 @@ impl<'a> RuntimeBindings<'a> {
         let mut edits = plan_macro_import_removals(&module.source, &module.ir.imports, lowered)?;
         let mut anchors: BTreeMap<ImportAnchor, BTreeSet<(RuntimeHelper, Option<u32>)>> =
             BTreeMap::new();
-        for &(helper, at, realm_id) in &self.uses {
-            let anchor = runtime_anchor(module, at)?;
+        for &(output, helper, at, realm_id) in &self.uses {
+            let anchor = runtime_anchor(module, at, output)?;
             anchors
                 .entry(ImportAnchor {
+                    output,
                     index: anchor,
                     development: self.development && helper.development_variant().is_some(),
                 })
@@ -263,7 +279,7 @@ impl<'a> RuntimeBindings<'a> {
         }
         for (anchor, helpers) in anchors {
             let span = module.ir.imports.macros[anchor.index].span;
-            let import = self.import_statement(module, anchor, helpers);
+            let import = self.import_statement(anchor, helpers);
             if let Some(edit) = edits.iter_mut().find(|edit| edit.call_span == span) {
                 if !edit.replacement.is_empty() {
                     edit.replacement.push('\n');
@@ -347,16 +363,21 @@ fn contains(outer: Span, inner: Span) -> bool {
 /// [`CompileDiagnostic::EditOutsideEditableRegion`] when no editable region contains
 /// `at`, and [`CompileDiagnostic::MissingRuntimeAnchor`] when no realm in its chain
 /// contains a macro import.
-fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileError> {
+fn runtime_anchor(
+    module: &ModuleAnalysis,
+    at: Span,
+    output: OutputFormat,
+) -> Result<usize, CompileError> {
     let Some(projection) = module.input.projection() else {
-        return if module.ir.imports.macros.is_empty() {
-            Err(CompileError::new(
-                CompileDiagnostic::MissingRuntimeAnchor { span: at },
-                at,
-            ))
-        } else {
-            Ok(0)
-        };
+        return module
+            .ir
+            .imports
+            .macros
+            .iter()
+            .position(|import| import.adapter.spec().output == output)
+            .ok_or_else(|| {
+                CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
+            });
     };
     let region = projection_region(module, at)?.ok_or_else(|| {
         CompileError::new(
@@ -365,13 +386,9 @@ fn runtime_anchor(module: &ModuleAnalysis, at: Span) -> Result<usize, CompileErr
         )
     })?;
     for realm in projection.realm_chain(region.import_realm) {
-        if let Some(anchor) = module
-            .ir
-            .imports
-            .macros
-            .iter()
-            .position(|import| contains(realm.source, import.span))
-        {
+        if let Some(anchor) = module.ir.imports.macros.iter().position(|import| {
+            import.adapter.spec().output == output && contains(realm.source, import.span)
+        }) {
             return Ok(anchor);
         }
     }
@@ -504,10 +521,17 @@ mod runtime_anchor_tests {
     fn runtime_anchor_uses_the_first_macro_import_without_a_projection() {
         let module = analysis("import { style } from 'stillwind/react'; const x = style('flex');");
         let at = module.source.full_span();
-        assert!(matches!(runtime_anchor(&module, at), Ok(0)));
+        assert!(matches!(
+            runtime_anchor(&module, at, OutputFormat::ClassNameObject),
+            Ok(0)
+        ));
         let module = analysis("export const x = 1;");
         assert!(matches!(
-            runtime_anchor(&module, module.source.full_span()),
+            runtime_anchor(
+                &module,
+                module.source.full_span(),
+                OutputFormat::ClassNameObject
+            ),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
@@ -601,10 +625,13 @@ mod runtime_anchor_tests {
             vec![realm(1, 45, 60, Some(2)), realm(2, 0, 44, None)],
             vec![region(1, 45, 60)],
         );
-        assert_eq!(runtime_anchor(&nested, at).unwrap(), 0);
+        assert_eq!(
+            runtime_anchor(&nested, at, OutputFormat::ClassObject).unwrap(),
+            0
+        );
         let orphan = projected(vec![realm(1, 45, 60, None)], vec![region(1, 45, 60)]);
         assert!(matches!(
-            runtime_anchor(&orphan, at),
+            runtime_anchor(&orphan, at, OutputFormat::ClassObject),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
@@ -661,7 +688,11 @@ mod runtime_anchor_tests {
     fn runtime_anchor_reports_queries_outside_regions() {
         let single = projected(vec![realm(1, 45, 60, None)], vec![region(1, 45, 60)]);
         assert!(matches!(
-            runtime_anchor(&single, single.ir.style_calls[0].span),
+            runtime_anchor(
+                &single,
+                single.ir.style_calls[0].span,
+                OutputFormat::ClassObject
+            ),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::EditOutsideEditableRegion { .. },
                 ..

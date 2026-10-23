@@ -51,8 +51,8 @@ pub use composition::{
     validate_composition,
 };
 pub use framework::{
-    AdapterKind, FRAMEWORKS, FrameworkSpec, MODULE_CSS_IMPORT, ProjectionDecision,
-    ProjectionExpression, StyleFormat, from_macro_import,
+    AdapterKind, FRAMEWORKS, FrameworkSpec, MODULE_CSS_IMPORT, OutputFormat, OutputSpec,
+    ProjectionDecision, ProjectionExpression, StyleFormat, from_macro_import,
 };
 pub use input::{
     AttributeQuote, ConverterIdentity, DirectSource, ImportRealm, PreparedSource, ProjectedSource,

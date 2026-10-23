@@ -1,9 +1,9 @@
 import { expect, test, vi } from "vite-plus/test";
 
+import * as reactDevelopment from "./class-name-object-development.ts";
+import * as react from "./class-name-object.ts";
+import * as svelte from "./class-string.ts";
 import { stillwindClsxChecked, stillwindRefClassChecked } from "./development.ts";
-import * as reactDevelopment from "./react-development.ts";
-import * as react from "./react.ts";
-import * as svelte from "./svelte.ts";
 
 test("checked ref reads evaluate .c once and reject malformed ref records", () => {
   const read = vi.fn(() => "marker");

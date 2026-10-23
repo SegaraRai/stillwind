@@ -158,8 +158,8 @@ impl SourceFormat {
         }
     }
 
-    /// Returns the adapters accepted by the import lint, or an empty slice when
-    /// any adapter is accepted for a reusable script module.
+    /// Returns preferred adapters whose output formats the import lint accepts.
+    /// An empty slice accepts any output format for a reusable script module.
     pub const fn adapters(self) -> &'static [AdapterKind] {
         match self {
             Self::Script => &[],
@@ -168,6 +168,7 @@ impl SourceFormat {
                 AdapterKind::Preact,
                 AdapterKind::Solid,
                 AdapterKind::Vue,
+                AdapterKind::Vanilla,
             ],
             Self::Astro => &[AdapterKind::Astro],
             Self::Svelte => &[AdapterKind::Svelte],

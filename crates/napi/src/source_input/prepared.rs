@@ -34,7 +34,8 @@ pub enum NativePreparedSource {
         module_id: String,
         /// Facts the host produced for this module, empty when absent.
         type_facts: Option<Vec<NativeTypeFact>>,
-        /// Explicit output adapter constraint; macro imports select it when absent.
+        /// Source framework constraint for component projections. Macro outputs remain
+        /// independent.
         framework: Option<NativeFramework>,
         /// Host-allocated stylesheet modules to insert at the macro import.
         stylesheet_imports: Option<Vec<String>>,
@@ -51,7 +52,8 @@ pub enum NativePreparedSource {
         module_id: String,
         /// Facts the host produced for this module, empty when absent.
         type_facts: Option<Vec<NativeTypeFact>>,
-        /// Explicit output adapter constraint; macro imports select it when absent.
+        /// Source framework constraint for component projections. Macro outputs remain
+        /// independent.
         framework: Option<NativeFramework>,
         /// Host-allocated stylesheet modules to insert at the macro import.
         stylesheet_imports: Option<Vec<String>>,
@@ -79,7 +81,8 @@ pub enum HostPreparedSource {
         /// Facts the host produced for this module, empty when absent.
         #[serde(default)]
         type_facts: Vec<TypeFact>,
-        /// Explicit output adapter constraint; macro imports select it when absent.
+        /// Source framework constraint for component projections. Macro outputs remain
+        /// independent.
         framework: Option<AdapterKind>,
         /// Host-allocated stylesheet modules.
         #[serde(default)]
@@ -98,7 +101,8 @@ pub enum HostPreparedSource {
         /// Facts the host produced for this module, empty when absent.
         #[serde(default)]
         type_facts: Vec<TypeFact>,
-        /// Explicit output adapter constraint; macro imports select it when absent.
+        /// Source framework constraint for component projections. Macro outputs remain
+        /// independent.
         framework: Option<AdapterKind>,
         /// Host-allocated stylesheet modules.
         #[serde(default)]

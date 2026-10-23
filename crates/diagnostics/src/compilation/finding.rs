@@ -74,23 +74,20 @@ mod tests {
     #[test]
     fn distinct_causes_have_distinct_codes_and_messages() {
         let conflict = CompileDiagnostic::FrameworkConstraintConflict;
-        let mixed = CompileDiagnostic::MixedFrameworks;
+        let cycle = CompileDiagnostic::CompositionCycle;
         let parse = CompileDiagnostic::JavaScriptParse;
-        assert_ne!(conflict, mixed);
+        assert_ne!(conflict, cycle);
         assert_eq!(
             conflict.code(),
             CompileErrorCode::FrameworkConstraintConflict
         );
-        assert_ne!(mixed.code(), conflict.code());
+        assert_ne!(cycle.code(), conflict.code());
         assert_ne!(parse.code(), conflict.code());
         assert_eq!(
             conflict.to_lean_string(),
-            "explicit framework conflicts with the imported style macro"
+            "explicit framework conflicts with the source component format"
         );
-        assert_eq!(
-            mixed.to_lean_string(),
-            "a module cannot mix framework style macros"
-        );
+        assert_eq!(cycle.to_lean_string(), "style composition dependency cycle");
         assert_eq!(parse.to_lean_string(), "JavaScript parse error");
     }
 

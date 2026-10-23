@@ -18,8 +18,8 @@ use oxc::ast::ast::{
 use oxc::ast_visit::{Visit, walk};
 use oxc::span::GetSpan;
 
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
-use stillwind_ir::{StyleCall, from_macro_import};
+use stillwind_diagnostics::{LintDiagnostic, LintFinding};
+use stillwind_ir::StyleCall;
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, SymbolicValue,
 };
@@ -49,36 +49,6 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
-        if Self::is_style_import(declaration)
-            && !declaration.import_kind.is_type()
-            && let Some(specifiers) = &declaration.specifiers
-        {
-            for specifier in specifiers {
-                let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
-                    continue;
-                };
-                let ModuleExportName::IdentifierName(imported) = &specifier.imported else {
-                    continue;
-                };
-                if imported.name.as_str() == "style"
-                    && !specifier.import_kind.is_type()
-                    && let Some(symbol_id) = specifier.local.symbol_id.get()
-                {
-                    self.style_symbols.insert(symbol_id);
-                    let Some(spec) = from_macro_import(declaration.source.value.as_str()) else {
-                        continue;
-                    };
-                    let adapter = spec.id;
-                    if self.adapter.is_some_and(|previous| previous != adapter) {
-                        self.diagnostics.push(CompileError::new(
-                            CompileDiagnostic::MixedFrameworks,
-                            self.source_span(declaration.span),
-                        ));
-                    }
-                    self.adapter = Some(adapter);
-                }
-            }
-        }
         if !Self::is_style_import(declaration)
             && let Some(specifiers) = &declaration.specifiers
         {
@@ -194,8 +164,10 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// Every other call is checked for
     /// a macro use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
-        if self.is_style_member(call.callee.get_inner_expression(), "cva") {
-            self.collect_cva(call);
+        if self.is_style_member(call.callee.get_inner_expression(), "cva")
+            && let Some(output) = self.style_output(&call.callee)
+        {
+            self.collect_cva(call, output);
             walk::walk_call_expression(self, call);
             return;
         }
@@ -209,11 +181,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             walk::walk_call_expression(self, call);
             return;
         }
-        if !self.is_style_call(call) {
+        let Some(output) = self.style_call_output(call) else {
             self.report_unconsumed_call(call);
             walk::walk_call_expression(self, call);
             return;
-        }
+        };
 
         let span = self.source_span(call.span);
         if self
@@ -245,6 +217,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         }
         self.style_calls.push(StyleCall {
             span: self.source_span(call.span),
+            output,
             inputs,
         });
 

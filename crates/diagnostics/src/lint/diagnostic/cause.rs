@@ -202,9 +202,8 @@ pub enum LintDiagnostic {
     /// A composition base carries inline style. The base contributes only its class.
     #[error("a style base contributes only its class; its inline style is ignored")]
     StyleBaseWithInlineStyle,
-    /// A composition base uses another framework's class property and contributes no
-    /// class.
-    #[error("a style base from another framework contributes no class")]
+    /// A composition base uses a different class property and contributes no class.
+    #[error("a style base with a different class property contributes no class")]
     StyleBaseFrameworkMismatch,
     /// A keyframe utility contains a variant forbidden in animation frames.
     #[error("animation keyframes cannot contain variants")]

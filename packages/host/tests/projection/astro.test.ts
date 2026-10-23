@@ -117,6 +117,29 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
     expect(module.css).toMatch(/display:\s*grid/);
   });
 
+  test("client macro bindings keep three output formats beside the server scope", async () => {
+    const code = component(
+      "",
+      `<script>
+import { style as react } from "stillwind/react";
+import { style as vanilla } from "stillwind/vanilla";
+import { style as astro } from "stillwind/astro";
+const active = Boolean(globalThis.active);
+const tone = String(globalThis.tone);
+const reactProps = react(active && "flex", { "--tone": tone }, active && { "--enabled": tone });
+const domProps = vanilla(active && "flex", { "--tone": tone }, active && { "--enabled": tone });
+const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--enabled": tone });
+</script>`,
+    );
+    const prepared = await project(code);
+    const output = await compile(prepared);
+    for (const format of ["class-name-object", "class-object", "class-string"]) {
+      expect(output.code).toContain(`from "stillwind/runtime/${format}"`);
+    }
+    expect(output.code).toContain("<script>");
+    expect(output.code).not.toMatch(/style as|__stillwind_client/);
+  });
+
   test("template fragments retain generic callback types and runtime attributes", async () => {
     const code = component(
       "function identity<T>(value:T):T{return value;}const label='日本語 🧭';",

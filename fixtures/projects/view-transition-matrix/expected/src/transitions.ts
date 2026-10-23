@@ -1,4 +1,4 @@
-import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindToFragment, stillwindViewTransitionName } from "stillwind/runtime/react";
+import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindToFragment, stillwindViewTransitionName } from "stillwind/runtime/class-name-object";
 
 export const pageTitle = {v:"sw-vt-page-title-56mrr"};
 export const pageCard = {v:"sw-vt-9jm9s"};

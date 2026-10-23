@@ -11,7 +11,7 @@ use lean_string::LeanStr;
 use serde::Serialize;
 
 use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
-use stillwind_ir::{AdapterKind, StyleDependency};
+use stillwind_ir::StyleDependency;
 use stillwind_semantic::IdentityId;
 use stillwind_source::{Fingerprint, ModuleId, SourceFile};
 
@@ -53,8 +53,6 @@ pub struct ModuleArtifactKey {
     pub(crate) source_file_id: u32,
     /// Which frontend produced the analysis, for example `oxc`.
     pub(crate) frontend_kind: LeanStr,
-    /// Adapter mode the analysis was extracted under.
-    pub(crate) adapter_mode: AdapterKind,
     /// Fingerprint of the type facts and asset metadata that shaped the analysis, when any.
     pub(crate) semantic_revision: Option<Fingerprint>,
 }

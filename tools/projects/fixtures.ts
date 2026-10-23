@@ -312,10 +312,19 @@ function sourceMappedDiff(module: ModuleOutput, prefix: string, removed: Finaliz
 function runnableOutput(module: ModuleOutput, fixture: string) {
   const finalized = finalizeModuleWithMap(module.code!);
   const output = finalized.code;
-  const runtimeImport = output.match(
-    /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/runtime\/(?:astro|preact|react|solid|svelte|vue)["']/,
+  const runtimeImports = output.matchAll(
+    /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/runtime\/(?:class-object|class-string|class-name-object)(?:-development)?["']/g,
   );
-  const imported = new Set(runtimeImport?.[1].split(",").map((name) => name.trim()) ?? []);
+  const imported = new Set(
+    [...runtimeImports].flatMap((match) =>
+      match[1].split(",").map((name) =>
+        name
+          .trim()
+          .split(/\s+as\s+/)
+          .at(-1),
+      ),
+    ),
+  );
   const calledHelpers = [...output.matchAll(/\b(stillwind[A-Z]\w*)\s*\(/g)].map(
     (match) => match[1],
   );

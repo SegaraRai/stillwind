@@ -18,7 +18,10 @@ fn original_component_format_reports_import_mismatch_without_adapter_conflict() 
     );
     let scan = OxcSourceAnalyzer.scan_input(input);
     assert_eq!(scan.diagnostics, []);
-    assert_eq!(scan.local_ir.adapter, AdapterKind::React);
+    assert_eq!(
+        scan.local_ir.style_calls[0].output,
+        AdapterKind::React.spec().output
+    );
     assert_eq!(scan.lint_findings.len(), 1);
     assert_eq!(
         scan.lint_findings[0].diagnostic.code(),

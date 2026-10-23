@@ -93,7 +93,7 @@ impl<'a> Visit<'a> for MacroCallFinder<'_, 'a> {
         if self.found.is_some() {
             return;
         }
-        if self.extractor.is_style_call(call) {
+        if self.extractor.style_call_output(call).is_some() {
             self.found = Some((call.span, None));
             return;
         }

@@ -3,12 +3,12 @@ import { mergeFragments, serializeStyle, toFragment } from "./fragment.ts";
 
 export * from "./shared.ts";
 
-export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.astro.class");
+export const stillwindClassKey = /* @__PURE__ */ Symbol("stillwind.class-string.class");
 
-export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.astro.style");
+export const stillwindStyleKey = /* @__PURE__ */ Symbol("stillwind.class-string.style");
 
 export const stillwindCustomPropertiesKey = /* @__PURE__ */ Symbol(
-  "stillwind.astro.custom-properties",
+  "stillwind.class-string.custom-properties",
 );
 
 export const options = [
@@ -19,24 +19,24 @@ export const options = [
   stillwindCustomPropertiesKey,
 ] as const;
 
-/** Materializes ordered fragments with the astro class and style conventions. */
+/** Materializes ordered fragments with `class` and string styles. */
 export function stillwindMerge(...values: readonly unknown[]): Record<string, unknown> {
   return mergeFragments(options, values);
 }
 
-/** Converts a composition base to a fragment with only its astro class. */
+/** Converts a composition base to a fragment containing only its `class`. */
 export function stillwindToFragment(
   value: Record<PropertyKey, unknown>,
 ): Record<PropertyKey, unknown> {
   return toFragment(options, value);
 }
 
-/** Returns the style representation accepted by astro; null and undefined omit style. */
+/** Serializes object style declarations or preserves a string. Other inputs omit style. */
 export function stillwindStyleValue(value: unknown): unknown {
   return value == null ? undefined : serializeStyle(value, "string");
 }
 
-/** Selects compiled CVA values and materializes fresh astro props. */
+/** Selects compiled CVA values and returns fresh props with `class` and string styles. */
 export function stillwindCva(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCva(options, base, config);
 }

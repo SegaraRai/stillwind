@@ -34,8 +34,8 @@ async function bundle(source: string, minify = false): Promise<string> {
   }
 }
 
-test("each packaged framework keeps only the requested style conversion", async () => {
-  for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+test("each packaged output format keeps only the requested style conversion", async () => {
+  for (const framework of ["class-name-object", "class-object", "class-string"]) {
     const code = await bundle(
       `export { stillwindStyleValue as convert } from "stillwind/runtime/${framework}";`,
     );
@@ -43,7 +43,7 @@ test("each packaged framework keeps only the requested style conversion", async 
       `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
     );
     expect(runtime.convert({ color: "red" })).toEqual(
-      ["svelte", "astro"].includes(framework) ? "color:red" : { color: "red" },
+      framework === "class-string" ? "color:red" : { color: "red" },
     );
     expect(code).not.toMatch(
       /mergeFragments|toFragment|stillwindClassKey|stillwindCustomPropertiesKey/,
@@ -53,7 +53,7 @@ test("each packaged framework keeps only the requested style conversion", async 
 
 test("packaged production merges exclude validation and unused conversion", async () => {
   const code = await bundle(
-    'export { stillwindMerge as merge, stillwindClassKey as key } from "stillwind/runtime/react";',
+    'export { stillwindMerge as merge, stillwindClassKey as key } from "stillwind/runtime/class-name-object";',
   );
   const runtime = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
@@ -62,9 +62,9 @@ test("packaged production merges exclude validation and unused conversion", asyn
   expect(code).not.toMatch(/function toFragment\b|Checked|NODE_ENV|different runtime instance/);
 });
 
-test("framework development readers can be bundled without materialization", async () => {
+test("development readers can be bundled without materialization", async () => {
   const code = await bundle(
-    'export { stillwindRefClassChecked as read } from "stillwind/runtime/react-development";',
+    'export { stillwindRefClassChecked as read } from "stillwind/runtime/class-name-object-development";',
   );
   const runtime = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
@@ -74,8 +74,8 @@ test("framework development readers can be bundled without materialization", asy
   expect(code).not.toMatch(/mergeFragments|toFragment|stillwindClassKey/);
 });
 
-test("packaged CVA factories select validation through the framework entrypoint", async () => {
-  for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+test("packaged CVA factories select validation through the output format entrypoint", async () => {
+  for (const framework of ["class-name-object", "class-object", "class-string"]) {
     for (const development of [false, true]) {
       const suffix = development ? "-development" : "";
       const checked = development ? "Checked" : "";
@@ -103,7 +103,7 @@ test("packaged CVA factories select validation through the framework entrypoint"
         ],
       });
       expect(choose({ class: "extra" })).toEqual({
-        [framework === "react" ? "className" : "class"]: "base selected compound extra",
+        [framework === "class-name-object" ? "className" : "class"]: "base selected compound extra",
       });
       if (development) {
         expect(() => choose({ class: Symbol("class") })).toThrow(/unsupported class value/);
@@ -114,8 +114,8 @@ test("packaged CVA factories select validation through the framework entrypoint"
   }
 }, 30_000);
 
-test("minified framework runtimes materialize fragments without configuration property names", async () => {
-  for (const framework of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+test("minified output runtimes materialize fragments without configuration property names", async () => {
+  for (const framework of ["class-name-object", "class-object", "class-string"]) {
     for (const development of [false, true]) {
       const suffix = development ? "-development" : "";
       const checked = development ? "Checked" : "";
@@ -126,7 +126,7 @@ test("minified framework runtimes materialize fragments without configuration pr
       const runtime = await import(
         `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
       );
-      const classProperty = framework === "react" ? "className" : "class";
+      const classProperty = framework === "class-name-object" ? "className" : "class";
       const props = {
         [classProperty]: "card",
         style: {

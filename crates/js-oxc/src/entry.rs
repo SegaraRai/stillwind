@@ -23,7 +23,7 @@ use oxc::span::SourceType;
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDirective, LintFinding, lint_directives_in_comments,
 };
-use stillwind_ir::{AdapterKind, ModuleImports, ModuleIr, ScriptLanguage, ScriptModuleKind};
+use stillwind_ir::{ModuleImports, ModuleIr, ScriptLanguage, ScriptModuleKind};
 use stillwind_semantic::{AssetMetadata, IdentityId, ModuleSummary, TypeFact};
 use stillwind_source::{ModuleId, SourceFile, Span};
 
@@ -43,8 +43,6 @@ use {crate::OxcSourceAnalyzer, stillwind_ir::SourceAnalyzer};
 /// facts always use original UTF-8 coordinates. Projected scans return original spans.
 #[derive(Clone, Debug)]
 pub struct ParsedJavaScript {
-    /// Adapter selected from the macro import, when one was imported.
-    pub framework: Option<AdapterKind>,
     /// Expression spans the host checker should resolve, deduplicated.
     pub type_probes: Vec<Span>,
     /// Receiver ranges queried to check whether unconsumed syntax is a macro use.
@@ -184,7 +182,6 @@ pub(crate) fn parse_with_coordinates(
     let erased = reads_in_omitted_inputs(&imports, &extractor.omitted_inputs);
     imports.consumed_uses.extend(erased);
     let module = ModuleIr {
-        adapter: extractor.adapter.unwrap_or(AdapterKind::React),
         imports,
         style_calls: extractor.style_calls,
         cva_calls: extractor.cva_calls,
@@ -204,7 +201,6 @@ pub(crate) fn parse_with_coordinates(
         .map(|span| Span::new(source.id(), span.start, span.end))
         .collect();
     ParsedJavaScript {
-        framework: extractor.adapter,
         use_probes,
         type_probes: extractor
             .type_probes
@@ -285,7 +281,7 @@ pub(crate) fn source_type(language: ScriptLanguage, module_kind: ScriptModuleKin
 
 #[cfg(test)]
 mod tests {
-    use stillwind_ir::StyleCall;
+    use stillwind_ir::{OutputFormat, StyleCall};
     use stillwind_source::FileId;
 
     use super::*;
@@ -334,9 +330,11 @@ mod tests {
             ScriptModuleKind::Unambiguous,
         );
         assert_eq!(plain.diagnostics, [] as [CompileError; 0]);
-        assert_eq!(plain.module.adapter, AdapterKind::React);
+        assert_eq!(
+            plain.module.style_calls[0].output,
+            OutputFormat::ClassNameObject
+        );
         assert_eq!(plain.module.style_calls.len(), 1);
-        assert_eq!(plain.framework, Some(AdapterKind::React));
         let located = parse_with_coordinates(
             &source,
             &ModuleId::from("test.tsx"),
@@ -350,7 +348,10 @@ mod tests {
         );
         assert_eq!(located.diagnostics, [] as [CompileError; 0]);
         assert_eq!(located.module.style_calls.len(), 1);
-        assert_eq!(located.module.adapter, AdapterKind::React);
+        assert_eq!(
+            located.module.style_calls[0].output,
+            OutputFormat::ClassNameObject
+        );
         assert_eq!(plain.summary.module_id, located.summary.module_id);
         let empty = SourceFile::new(FileId(2), None, None, "").unwrap();
         let parsed = parse(
@@ -363,7 +364,6 @@ mod tests {
         );
         assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
         assert_eq!(parsed.module.style_calls, [] as [StyleCall; 0]);
-        assert_eq!(parsed.framework, None);
     }
 
     /// A syntax error becomes one parse diagnostic that keeps the parser's own detail

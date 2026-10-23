@@ -58,19 +58,24 @@ fn original_formats_check_value_macro_imports_even_without_calls_or_jsx() {
         SourceFormat::Vue,
     ] {
         for adapter in [
-            AdapterKind::React,
-            AdapterKind::Preact,
-            AdapterKind::Solid,
             AdapterKind::Astro,
+            AdapterKind::Preact,
+            AdapterKind::React,
+            AdapterKind::Solid,
             AdapterKind::Svelte,
+            AdapterKind::Vanilla,
             AdapterKind::Vue,
         ] {
             let import = adapter.spec().macro_import;
             let source = format!("import {{ style as css }} from '{import}'; export {{ css }};");
             let scan = OxcSourceAnalyzer.scan_input(input(&source, ScriptLanguage::Tsx, format));
             assert_eq!(scan.diagnostics, []);
-            assert_eq!(scan.local_ir.adapter, adapter);
-            let expected = !format.adapters().is_empty() && !format.adapters().contains(&adapter);
+            assert_eq!(scan.local_ir.imports.macros[0].adapter, adapter);
+            let expected = !format.adapters().is_empty()
+                && !format
+                    .adapters()
+                    .iter()
+                    .any(|allowed| allowed.spec().output == adapter.spec().output);
             assert_eq!(
                 scan.lint_findings.len(),
                 usize::from(expected),
@@ -125,30 +130,38 @@ fn plain_parser_dialects_supply_defaults_without_reading_module_names() {
 }
 
 #[test]
-fn explicit_adapter_conflicts_and_mixed_macros_remain_fatal() {
-    for adapter in [AdapterKind::React, AdapterKind::Solid] {
-        let mut source = input(
-            "import { style } from 'stillwind/vue';",
-            ScriptLanguage::Tsx,
-            SourceFormat::Jsx,
-        );
-        source.framework = Some(adapter);
-        let scan = OxcSourceAnalyzer.scan_input(source);
-        assert_eq!(
-            scan.diagnostics[0].diagnostic,
-            CompileDiagnostic::FrameworkConstraintConflict
-        );
-        assert_eq!(scan.lint_findings, []);
-    }
-
-    let scan = OxcSourceAnalyzer.scan_input(input(
-        "import { style as a } from 'stillwind/react'; import { style as b } from 'stillwind/vue';",
+fn source_constraints_and_macro_outputs_are_independent() {
+    let mut source = input(
+        "import { style as a } from 'stillwind/react'; import { style as b } from 'stillwind/vanilla'; const x = a('flex'); const y = b('grid');",
         ScriptLanguage::Tsx,
         SourceFormat::Jsx,
-    ));
+    );
+    source.framework = Some(AdapterKind::React);
+    let scan = OxcSourceAnalyzer.scan_input(source);
+    assert_eq!(scan.diagnostics, []);
+    assert_eq!(scan.lint_findings, []);
+    assert_eq!(
+        scan.local_ir
+            .style_calls
+            .iter()
+            .map(|call| call.output)
+            .collect::<Vec<_>>(),
+        vec![
+            AdapterKind::React.spec().output,
+            AdapterKind::Vanilla.spec().output
+        ]
+    );
+
+    let mut source = input(
+        "import { style } from 'stillwind/react';",
+        ScriptLanguage::Tsx,
+        SourceFormat::Vue,
+    );
+    source.framework = Some(AdapterKind::Svelte);
+    let scan = OxcSourceAnalyzer.scan_input(source);
     assert_eq!(
         scan.diagnostics[0].diagnostic,
-        CompileDiagnostic::MixedFrameworks
+        CompileDiagnostic::FrameworkConstraintConflict
     );
 }
 

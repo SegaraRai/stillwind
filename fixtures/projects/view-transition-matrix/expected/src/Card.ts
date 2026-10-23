@@ -1,4 +1,4 @@
-import { stillwindClsx } from "stillwind/runtime/react";
+import { stillwindClsx } from "stillwind/runtime/class-name-object";
 
 import { pageTitle, selectedTransition } from "./transitions";
 

@@ -33,8 +33,8 @@ export interface ProjectMetadata {
   projectionFileName: string;
   /** Stable identity used by the compiler and project session. Must identify one resolver source. */
   moduleId: string;
-  /** Explicit constraint on the output framework. Omission allows framework inference. */
-  framework?: "react" | "preact" | "solid" | "astro" | "svelte" | "vue";
+  /** Source framework constraint for component projections. Macro outputs remain independent. */
+  framework?: "react" | "preact" | "solid" | "astro" | "svelte" | "vue" | "vanilla";
   /** Stylesheet module specifiers injected into a verified macro import realm, in import order. */
   stylesheetImports?: string[];
   /** Module exporting CSS to replace an explicit `stillwind/module-css` import. */

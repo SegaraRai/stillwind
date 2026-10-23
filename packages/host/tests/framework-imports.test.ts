@@ -3,13 +3,12 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import {
-  compileProject,
   NativeDesignSystemLoader,
   NativeProjectSession,
   type ProjectBindingOutput,
 } from "@stillwind/native";
 import { prepareSource, type ProjectInput } from "@stillwind/projection";
-import * as vueRuntime from "stillwind/runtime/vue";
+import * as vueRuntime from "stillwind/runtime/class-object";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
@@ -23,6 +22,7 @@ async function compileFixture(
   source: string,
   filename: string,
   framework?: ProjectInput["framework"],
+  mode = "release",
 ) {
   const id = path.join(root, filename);
   const input = await prepareSource({
@@ -34,12 +34,10 @@ async function compileFixture(
       code: source,
     },
   });
-  const output = compileProject([input], {
-    content: utilities,
-    name: "framework-imports.css",
-    uri: "untitled:framework-imports.css",
-    sourceMapSource: "untitled:framework-imports.css",
-  }) as ProjectBindingOutput;
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "framework-imports.css", utilities);
+  const session = new NativeProjectSession(loader, false, mode);
+  const output = session.compile([input]) as ProjectBindingOutput;
   expect(output.modules.length).toBe(1);
   return output.modules[0]!;
 }
@@ -65,7 +63,7 @@ for (const adapter of ["svelte", "astro"]) {
 }
 
 test("plain TypeScript allows each macro adapter without a format warning", async () => {
-  for (const adapter of ["react", "preact", "solid", "vue", "svelte", "astro"]) {
+  for (const adapter of ["react", "preact", "solid", "vue", "svelte", "astro", "vanilla"]) {
     const output = await compileFixture(
       `import { style } from "stillwind/${adapter}"; export const props = style("flex");`,
       "Adapter.ts",
@@ -119,15 +117,189 @@ test("Vue SFC with a React macro warns in original coordinates without a framewo
   expect(finding.startLine).toBe(2);
 });
 
-test("explicit framework constraints remain fatal even for an otherwise allowed input", async () => {
+test("explicit source framework constraints reject a different component format", async () => {
   const output = await compileFixture(
-    'import { style } from "stillwind/vue"; export const props = style("flex");',
-    "Constraint.ts",
+    '<script setup>import { style } from "stillwind/vue"; const props = style("flex");</script><template><div v-bind="props" /></template>',
+    "Constraint.vue",
     "react",
   );
   expect(output.code).toBe(null);
   expect(output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001")).toBeTruthy();
   expect(output.lintFindings).toStrictEqual([]);
+});
+
+test("compatible macro entrypoints share output conventions and retain runtime helper imports", async () => {
+  const output = await compileFixture(
+    `import { style as vanilla, applyStyle } from "stillwind/vanilla";
+import { style as vue } from "stillwind/vue";
+export const first = vanilla("flex", {"--progress": amount});
+export const second = vue("flex");
+applyStyle(element, first);`,
+    "Compatible.ts",
+    "solid",
+  );
+  expect(output.diagnostics).toEqual([]);
+  expect(output.lintFindings).toEqual([]);
+  expect(output.code).toMatch(/import \{\s*applyStyle\s*\} from "stillwind\/vanilla"/);
+  expect(output.code).toContain("applyStyle(element, first)");
+  const sandbox = {
+    ...vueRuntime,
+    amount: 0.5,
+    element: {},
+    applyStyle: (element: unknown, props: unknown) => ({ element, props }),
+  };
+  const code = output
+    .code!.replace(/^import\s+[^;]+;\s*/gm, "")
+    .replaceAll("export const", "const");
+  const props = runInNewContext(`${code}; first;`, sandbox);
+  expect(props.style).toEqual({ "--progress": "0.5" });
+  expect(props.class).toBeTruthy();
+});
+
+test("mixed macro bindings keep three runtime formats and CVA helpers independent", async () => {
+  const formats = [
+    ["react", "className", "object"],
+    ["vanilla", "class", "object"],
+    ["svelte", "class", "string"],
+  ] as const;
+  const source = `
+import { style as react } from "stillwind/react";
+import { style as vanilla, applyStyle } from "stillwind/vanilla";
+import { style as svelte } from "stillwind/svelte";
+import { style as vue } from "stillwind/vue";
+export { applyStyle };
+const stillwindMerge = "reserved";
+export function values(active, tone) {
+${formats.map(([name]) => `const ${name}Factory = ${name}.cva("flex", { variants: { enabled: { false: null, true: { "--enabled": tone } } } });`).join("\n")}
+return {
+${formats
+  .map(
+    ([
+      name,
+    ]) => `${name}: ${name}(active && "flex", { "--tone": tone }, active && { "--enabled": tone }),
+${name}Choice: ${name}Factory({ enabled: active }),`,
+  )
+  .join("\n")}
+vue: vue(active && "flex", { "--tone": tone }, active && { "--enabled": tone }),
+reserved: stillwindMerge,
+};
+}`;
+  for (const mode of ["release", "development"]) {
+    const output = await compileFixture(source, "Mixed.ts", "react", mode);
+    expect(output.diagnostics).toEqual([]);
+    expect(output.lintFindings).toEqual([]);
+    expect(output.code).toBeTruthy();
+    const code = output.code!.replaceAll(/"stillwind\/[^"\n]+"/g, (specifier) =>
+      JSON.stringify(import.meta.resolve(JSON.parse(specifier))),
+    );
+    const compiled = (await import(
+      `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
+    )) as {
+      values: (
+        active: boolean,
+        tone: string,
+      ) => Record<string, { class?: string; className?: string; style?: unknown }>;
+    };
+    for (const active of [false, true]) {
+      const result = compiled.values(active, "red");
+      for (const [name, key, representation] of formats) {
+        const props = result[name]!;
+        expect(props[key]).toEqual(active ? expect.any(String) : undefined);
+        expect(props[key === "class" ? "className" : "class"]).toBeUndefined();
+        expect(props.style).toEqual(
+          representation === "string"
+            ? `--tone:red${active ? ";--enabled:red" : ""}`
+            : {
+                "--tone": "red",
+                ...(active
+                  ? {
+                      "--enabled": "red",
+                    }
+                  : {}),
+              },
+        );
+        const choice = result[`${name}Choice`]!;
+        expect(choice[key]).toEqual(expect.any(String));
+        expect(choice.style).toEqual(
+          active
+            ? representation === "string"
+              ? "--enabled:red"
+              : {
+                  "--enabled": "red",
+                }
+            : undefined,
+        );
+      }
+      expect(result.vue!.style).toEqual(result.vanilla!.style);
+      expect(typeof result.vue!.class).toBe(active ? "string" : "undefined");
+      expect(result.reserved).toBe("reserved");
+    }
+  }
+});
+
+test("mixed formats diagnose composition at the operand using its class and inline style", async () => {
+  const source = `import { style as react } from "stillwind/react";
+import { style as vanilla } from "stillwind/vanilla";
+import { style as svelte } from "stillwind/svelte";
+const base = vanilla("flex");
+const inline = vanilla("flex", { "--tone": tone });
+export const valid = svelte(base);
+export const wrongKey = react(base);
+export const sameKeyInline = svelte(inline);
+export const wrongKeyInline = react(inline);`;
+  const output = await compileFixture(source, "MixedComposition.ts");
+  expect(output.diagnostics).toEqual([]);
+  expect(output.code).toBeTruthy();
+  expect(
+    output.lintFindings.map((finding) => [
+      finding.rule,
+      finding.message,
+      source.slice(finding.start, finding.end),
+    ]),
+  ).toEqual([
+    [
+      "invalid-style-composition",
+      "a style base with a different class property contributes no class",
+      "base",
+    ],
+    [
+      "invalid-style-composition",
+      "a style base contributes only its class; its inline style is ignored",
+      "inline",
+    ],
+    [
+      "invalid-style-composition",
+      "a style base with a different class property contributes no class",
+      "inline",
+    ],
+  ]);
+});
+
+test("Vue projection preserves independent macro formats in the same script realm", async () => {
+  const source = `<script setup lang="ts">
+import { style as react } from "stillwind/react";
+import { style as vanilla } from "stillwind/vanilla";
+import { style as vue } from "stillwind/vue";
+import { style as svelte } from "stillwind/svelte";
+const props = defineProps<{ active: boolean; tone: string }>();
+const reactProps = react(props.active && "flex", { "--tone": props.tone }, props.active && { "--enabled": props.tone });
+const domProps = vanilla(props.active && "flex", { "--tone": props.tone }, props.active && { "--enabled": props.tone });
+const stringProps = svelte(props.active && "flex", { "--tone": props.tone }, props.active && { "--enabled": props.tone });
+const vueProps = vue(props.active && "flex", { "--tone": props.tone }, props.active && { "--enabled": props.tone });
+</script><template><div v-bind="vueProps" /></template>`;
+  const output = await compileFixture(source, "Mixed.vue", "vue");
+  expect(output.diagnostics).toEqual([]);
+  expect(
+    output.lintFindings.map((finding) => [finding.rule, source.slice(finding.start, finding.end)]),
+  ).toEqual([
+    [rule, '"stillwind/react"'],
+    [rule, '"stillwind/svelte"'],
+  ]);
+  for (const format of ["class-name-object", "class-object", "class-string"]) {
+    expect(output.code).toContain(`from "stillwind/runtime/${format}"`);
+  }
+  expect(output.code).toContain('<template><div v-bind="vueProps" /></template>');
+  expect(output.code).not.toMatch(/__VLS|style as|props\.value/);
 });
 
 test("host options configure framework import warn, off, and deny with next-line suppression", async () => {
