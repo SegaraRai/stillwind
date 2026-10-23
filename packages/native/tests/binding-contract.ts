@@ -868,6 +868,46 @@ export const valid=style('[display:block]');`,
     ]);
   });
 
+  test("important modifiers report once per occurrence and preserve suppression", async () => {
+    const { compileSource } = await import(bindingSpecifier);
+    const css = `@utility multi { display:inline-block; width:1em; height:1em; vertical-align:middle; color:red; background:blue; padding:0; margin:0; border:0; &:hover { color:blue; } }
+@utility multi { opacity:1; }
+@utility authored { color:red!important; display:block!important; &:hover { color:blue!important; } }
+@stillwind-slot utilities;`;
+    const source = `import {style} from "stillwind/react";
+const label = "😀";
+export const icons = style("!multi multi!");
+// swlint-disable-next-line no-important
+export const suppressed = style("!multi");
+export const authored = style("authored");`;
+    for (const severity of ["warn", "deny"] as const) {
+      const output = compileSource(oneShotInput(source, "important.tsx", css), {
+        lint: {
+          noImportant: severity,
+          unusedLintSuppression: "warn",
+        },
+      });
+      expect(output.diagnostics).toEqual([]);
+      expect(output.reports.map((report: { code: string }) => report.code)).toEqual([
+        "no-important",
+        "no-important",
+        "no-important",
+        "no-important",
+      ]);
+      expect(
+        output.reports.map((report: import("../binding.js").BindingReport) => ({
+          text: source.slice(report.primary.location.startUtf16, report.primary.location.endUtf16),
+          severity: report.severity,
+        })),
+      ).toEqual([
+        { text: "!multi", severity: severity === "warn" ? "warning" : "error" },
+        { text: "multi!", severity: severity === "warn" ? "warning" : "error" },
+        { text: "authored", severity: severity === "warn" ? "warning" : "error" },
+        { text: "authored", severity: severity === "warn" ? "warning" : "error" },
+      ]);
+    }
+  });
+
   test("source restrictions and suppression usage agree across bindings and project APIs", async () => {
     const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
       bindingSpecifier

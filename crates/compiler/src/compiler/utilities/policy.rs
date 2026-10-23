@@ -35,7 +35,7 @@ pub(in crate::compiler) fn check(
     settings: &LintSettings,
     span: Span,
 ) -> Vec<LintFinding> {
-    let mut findings = Vec::new();
+    let mut findings = check_importance(utility, supplies, settings, span);
     if settings.enabled_for_detection(LintKind::PreferDirectStyling)
         && let Some(selector) = variant_other_target(utility, theme)
     {
@@ -51,7 +51,6 @@ pub(in crate::compiler) fn check(
         let SupplyKind::Declaration {
             property,
             value: DeclarationValue::Css(value),
-            important,
             ..
         } = supply
         else {
@@ -60,7 +59,6 @@ pub(in crate::compiler) fn check(
         check_declaration_restrictions(
             property,
             value,
-            *important,
             settings,
             span,
             &mut reported,
@@ -171,30 +169,51 @@ fn check_length_units(
     }
 }
 
+fn check_importance(
+    utility: &CompiledUtility,
+    supplies: &[SupplyKind],
+    settings: &LintSettings,
+    span: Span,
+) -> Vec<LintFinding> {
+    if !settings.enabled_for_detection(LintKind::NoImportant) {
+        return Vec::new();
+    }
+    let modifier = parse_candidate(&utility.candidate).is_some_and(|candidate| candidate.important);
+    let mut findings = Vec::new();
+    let mut reported = BTreeSet::new();
+    for supply in supplies {
+        let SupplyKind::Declaration {
+            property,
+            value: DeclarationValue::Css(_),
+            important: true,
+            ..
+        } = supply
+        else {
+            continue;
+        };
+        if modifier {
+            return vec![LintFinding::new(LintDiagnostic::ImportantUtility, span)];
+        }
+        if reported.insert(property) {
+            findings.push(LintFinding::new(
+                LintDiagnostic::ImportantDeclaration {
+                    property: property.clone(),
+                },
+                span,
+            ));
+        }
+    }
+    findings
+}
+
 fn check_declaration_restrictions(
     property: &str,
     value: &str,
-    important: bool,
     settings: &LintSettings,
     span: Span,
     reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
     findings: &mut Vec<LintFinding>,
 ) {
-    if important
-        && settings.enabled_for_detection(LintKind::NoImportant)
-        && reported.insert((
-            LintKind::NoImportant,
-            property.to_lean_string(),
-            LeanString::new(),
-        ))
-    {
-        findings.push(LintFinding::new(
-            LintDiagnostic::ImportantDeclaration {
-                property: property.to_lean_str(),
-            },
-            span,
-        ));
-    }
     if settings.enabled_for_detection(LintKind::NoRestrictedDeclarations)
         && let Some(LintConfig::NoRestrictedDeclarations(config)) =
             settings.get(LintKind::NoRestrictedDeclarations)

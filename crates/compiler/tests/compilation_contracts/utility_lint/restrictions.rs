@@ -324,6 +324,43 @@ fn utility_restrictions_check_variant_modifier_and_unresolved_spellings() {
 }
 
 #[test]
+fn important_modifiers_report_each_candidate_once() {
+    let options = policy_options(LintOverrides {
+        no_important: Some(LintSeverity::Warn),
+        ..LintOverrides::default()
+    });
+    let theme = format!(
+        "{VALUE_CSS} @utility multi {{display:inline-block; width:1em; height:1em; &:hover {{color:red;}}}} @utility multi {{margin:0;}} @utility authored {{color:red!important; display:block!important; &:hover {{color:blue!important;}}}}"
+    );
+    let fixture = CompilationFixture::new(&theme, &options);
+    for utility in ["!multi", "multi!", "hover:!multi", "!authored"] {
+        let (source, result) = fixture.compile(&format!("const x=style('{utility}');"));
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let findings = result
+            .lint_findings
+            .iter()
+            .filter(|finding| finding.kind() == LintKind::NoImportant)
+            .collect::<Vec<_>>();
+        assert_eq!(findings.len(), 1, "{utility}: {findings:?}");
+        assert_eq!(source.slice(findings[0].labels[0].span).unwrap(), utility);
+    }
+    let (source, result) = fixture.compile("const x=style('!multi !multi hover:multi! authored');");
+    let findings = result
+        .lint_findings
+        .iter()
+        .filter(|finding| finding.kind() == LintKind::NoImportant)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        findings
+            .iter()
+            .map(|finding| source.slice(finding.labels[0].span).unwrap())
+            .collect::<Vec<_>>(),
+        ["!multi", "!multi", "hover:multi!", "authored", "authored"]
+    );
+    assert_ne!(findings[0].labels[0].span, findings[1].labels[0].span);
+}
+
+#[test]
 fn declaration_restrictions_and_importance_follow_resolved_utility_bodies() {
     let options = policy_options(LintOverrides {
         no_important: Some(LintSeverity::Warn),

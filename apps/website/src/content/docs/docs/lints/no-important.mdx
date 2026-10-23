@@ -4,9 +4,10 @@ description: Reports utilities with the important modifier, such as p-4!.
 slug: docs/lints/no-important
 ---
 
-This rule reports a utility with the `!` modifier, which makes its declarations
-`!important`. An important declaration wins over styles that would normally
-override it, which makes later changes harder. No preset enables this rule.
+This rule reports each use of a utility with the `!` modifier once, even when it
+emits several important declarations. It also reports `!important` declarations
+in utility definitions. An important declaration wins over styles that would
+normally override it, which makes later changes harder. No preset enables this rule.
 
 ## Reported
 

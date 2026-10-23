@@ -338,6 +338,9 @@ pub enum LintDiagnostic {
         /// Empty, or a colon followed by the configured explanation.
         explanation: LeanStr,
     },
+    /// A source utility uses the important modifier.
+    #[error("the `!` utility modifier is forbidden")]
+    ImportantUtility,
     /// A resolved declaration has important priority.
     #[error("important declaration for `{property}` is forbidden")]
     ImportantDeclaration {
@@ -866,7 +869,7 @@ impl LintDiagnostic {
             Self::ClassProperty => LintKind::NoClassProperty,
             Self::RestrictedUtility { .. } => LintKind::NoRestrictedUtilities,
             Self::RestrictedDeclaration { .. } => LintKind::NoRestrictedDeclarations,
-            Self::ImportantDeclaration { .. } => LintKind::NoImportant,
+            Self::ImportantUtility | Self::ImportantDeclaration { .. } => LintKind::NoImportant,
             Self::InvalidLintSuppression { .. } => LintKind::InvalidLintSuppression,
             Self::UnusedLintSuppression { .. } => LintKind::UnusedLintSuppression,
             Self::IndirectStyling { .. } => LintKind::PreferDirectStyling,
