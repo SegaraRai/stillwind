@@ -269,10 +269,10 @@ fn resolve_registry_layers(
 
 /// Adds the CSS of a later definition to the resolution of earlier ones.
 ///
-/// Initializes an empty resolution. Otherwise, declarations for the same selector
-/// join the primary target only while it has no additional targets. Later targets
-/// remain separate to preserve their emission order. Requirements and diagnostic uses
-/// from `next` are appended to the retained resolution.
+/// Initializes an empty resolution. Otherwise, declarations for the same selector join
+/// the primary target only while it has no additional targets. Later targets remain
+/// separate to preserve their emission order. Requirements and diagnostic uses from
+/// `next` are appended to the retained resolution.
 fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityResolution) {
     let Some(base) = resolution else {
         *resolution = Some(next);
@@ -311,14 +311,14 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
 /// contribute one declaration list when the retained targets and incoming primary
 /// declaration contain no nested style rules. Other branches become additional
 /// targets. Within a merged list, a property already claimed by a more-specific
-/// branch is not overwritten by a broader one. The most specific branch that carries
-/// a `tw_sort` override supplies the retained one.
+/// branch is not overwritten by a broader one. The most specific branch that carries a
+/// `tw_sort` override supplies the retained one.
 ///
 /// Without an exact definition, an unhinted arbitrary value keeps only the branches
-/// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand
-/// for any type, so only the earliest registered branch that accepts it is kept. The
-/// same rule applies when `arbitrary_check` accepts every well-formed value, because
-/// such a value has no type to infer.
+/// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand for
+/// any type, so only the earliest registered branch that accepts it is kept. The same
+/// rule applies when `arbitrary_check` accepts every well-formed value, because such a
+/// value has no type to infer.
 pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,

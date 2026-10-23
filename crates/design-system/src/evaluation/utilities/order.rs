@@ -1,7 +1,7 @@
 //! Tailwind 4.3.3 utility ordering before CSS optimization and variant application.
 //!
-//! [`UtilityOrder`] is the sort key of one resolved rule: authored registration position
-//! by default, or Tailwind property metadata when the theme selects it.
+//! [`UtilityOrder`] is the sort key of one resolved rule: authored registration
+//! position by default, or Tailwind property metadata when the theme selects it.
 //! Property metadata follows Tailwind's `src/property-order.ts`; comparison follows
 //! `compile.ts` and `utils/compare.ts`. The adjacent data file retains upstream order.
 
@@ -47,9 +47,11 @@ impl UtilityOrder {
 /// Tailwind's sorted unique property indices and total declaration count.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct UtilityPropertySort {
-    /// Ascending indices in Tailwind's global property table; unknown properties add no index.
+    /// Ascending indices in Tailwind's global property table; unknown properties add no
+    /// index.
     pub properties: Vec<usize>,
-    /// Tailwind AST-equivalent count, including duplicates, empty values, and the header sort marker.
+    /// Tailwind AST-equivalent count, including duplicates, empty values, and the
+    /// header sort marker.
     pub count: usize,
 }
 
@@ -59,9 +61,9 @@ impl UtilityPropertySort {
     /// `groups` holds the utility's own declaration lists (base, conditional, and
     /// additional targets) with the compatibility fallback branches left out by the
     /// caller. Declarations in nested rules and conditions also count; keyframe and
-    /// property definitions are excluded. Every declaration counts, including duplicates
-    /// and empty values. A `tw_sort` property counts once and replaces the collected
-    /// indices when the property table knows it.
+    /// property definitions are excluded. Every declaration counts, including
+    /// duplicates and empty values. A `tw_sort` property counts once and replaces the
+    /// collected indices when the property table knows it.
     pub(in crate::evaluation) fn from_groups<'a>(
         groups: impl IntoIterator<Item = &'a str>,
         tw_sort: Option<&str>,
