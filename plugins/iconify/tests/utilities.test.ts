@@ -150,6 +150,63 @@ export const named = style("icon-demo--close");
   expect(named.css).not.toContain("--icon-svg-demo--close");
 }, 30_000);
 
+test("canonical fixes keep unresolved icons and size values unchanged", async () => {
+  const code = `import { style } from "stillwind/react";
+export const icons = style("icon-[red] icon-[demo--missing] icon-[2rem] icon-[demo--close] hover:!icon-[demo--close]");`;
+  const project = new BrowserProject({
+    root: "/workspace",
+    files: new Map([
+      ["/workspace/entry.tsx", code],
+      [
+        "/workspace/design.css",
+        `@plugin "@stillwind/plugin-iconify";
+@variant hover { &:hover { @slot; } }
+:root { @stillwind-slot theme; }
+@stillwind-slot properties;
+*, ::before, ::after { @stillwind-slot property-initials; }
+@stillwind-slot utilities;`,
+      ],
+    ]),
+    config: {
+      css: "design.css",
+      files: ["*.tsx"],
+      typeFacts: false,
+      lint: {
+        rules: {
+          "prefer-canonical-utilities": "warn",
+        },
+      },
+      plugins: [
+        iconify({
+          collections: {
+            demo,
+          },
+        }),
+      ],
+    },
+  });
+  try {
+    const graph = await project.analyze("/workspace/entry.tsx");
+    const reports = graph.batches.flatMap((batch) => batch.reports);
+    expect(
+      reports
+        .filter((report) => report.code === "prefer-canonical-utilities")
+        .map((report) =>
+          code.slice(report.primary.location.startUtf16, report.primary.location.endUtf16),
+        ),
+    ).toEqual(["icon-[demo--close]", "hover:!icon-[demo--close]"]);
+    const fixes = await project.query("/workspace/entry.tsx", {
+      kind: "fixes",
+    });
+    expect(fixes?.edits?.map((edit) => edit.newText)).toEqual([
+      "icon-demo--close",
+      "hover:!icon-demo--close",
+    ]);
+  } finally {
+    await project.close();
+  }
+});
+
 test("editor colors omit icon utilities while keeping their hover previews", async () => {
   const code = `import { style } from "stillwind/react";
 export const icons = style("icon-demo--close hover:icon-[demo--flag] bg-brand");`;

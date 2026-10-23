@@ -66,7 +66,8 @@ impl DesignSystemQuery {
     /// Returns `raw` with its utility name replaced by the named spelling when the name
     /// is the bracket form of a dynamic family that accepts both forms. That family
     /// resolves both spellings to one definition. A bracket form whose value another
-    /// definition accepts keeps its spelling.
+    /// definition accepts keeps its spelling. The full replacement, including its
+    /// variants and modifier, must resolve in the current snapshot.
     ///
     /// # Errors
     ///
@@ -85,14 +86,16 @@ impl DesignSystemQuery {
         let split = CandidatePrefix::parse(raw)
             .and_then(|prefix| prefix.last_separator(':'))
             .map_or(0, |index| index + 1);
-        Ok(Some(
-            format_args!(
-                "{}{}",
-                &raw[..split],
-                raw[split..].replacen(name.as_str(), &named, 1)
-            )
-            .to_lean_str(),
-        ))
+        let replacement = format_args!(
+            "{}{}",
+            &raw[..split],
+            raw[split..].replacen(name.as_str(), &named, 1)
+        )
+        .to_lean_str();
+        Ok(self
+            .context
+            .canonical_preview(&replacement)?
+            .map(|_| replacement))
     }
 
     fn find_canonical(&self, raw: &str) -> Result<Option<LeanStr>, UtilityResolutionError> {
@@ -510,14 +513,29 @@ mod tests {
 
     #[test]
     fn dynamic_families_with_both_forms_prefer_the_named_spelling() {
+        let pending = make_query(
+            "@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*];",
+            CompilerOptions::default(),
+        );
+        assert!(
+            pending
+                .canonical_candidate("icon-[mdi--close]")
+                .unwrap()
+                .is_none()
+        );
         let query = make_query(
-            "@import 'stillwind'; @stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @stillwind-dynamic i-[*]; @utility icon-* { --size: --value([length]); }",
+            "@import 'stillwind'; @stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @stillwind-dynamic i-[*]; @utility icon-* { --size: --value([length]); } @utility icon-mdi--close { display: inline-block; }",
             CompilerOptions::default(),
         );
         for (raw, expected) in [
             ("icon-[mdi--close]", Some("icon-mdi--close")),
             ("icon-[2rem]", None),
+            ("icon-[red]", None),
+            ("icon-[mdi--missing]", None),
             ("hover:!icon-[mdi--close]", Some("hover:!icon-mdi--close")),
+            ("unknown:icon-[mdi--close]", None),
+            ("icon-[mdi--close]/50", None),
+            ("-icon-[mdi--close]", None),
             ("icon-mdi--close", None),
             ("i-[mdi--close]", None),
         ] {

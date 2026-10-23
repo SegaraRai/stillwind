@@ -24,6 +24,29 @@ function completionLabels(
  * @param specifier - Module specifier of the binding that the tests import.
  */
 export function registerEditorContract(specifier: string): void {
+  test("canonical dynamic suggestions require resolved names", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const css = `@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*];
+@utility icon-* { --size: --value([length]); }
+@variant hover { &:hover { @slot; } }`;
+    for (const defined of [false, true]) {
+      const loader = new NativeDesignSystemLoader();
+      loader.provide(
+        0,
+        "theme.css",
+        css + (defined ? "@utility icon-demo { display: inline-block; }" : ""),
+      );
+      const query = loader.editorQuery();
+      expect(query.canonicalCandidate("icon-[demo]")).toBe(defined ? "icon-demo" : null);
+      expect(query.canonicalCandidate("hover:!icon-[demo]")).toBe(
+        defined ? "hover:!icon-demo" : null,
+      );
+      for (const raw of ["icon-[red]", "icon-[missing]", "icon-[2rem]", "icon-[demo]/50"]) {
+        expect(query.canonicalCandidate(raw)).toBeNull();
+      }
+    }
+  });
+
   test("CSS declarations define scale functions, fixed keys, completions, and canonical values", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const loader = new NativeDesignSystemLoader();
