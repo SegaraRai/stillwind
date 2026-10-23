@@ -83,11 +83,13 @@ impl LocatedDiagnostic {
         }
     }
 
-    /// Resolves every label of an internal compilation error through its source registry.
+    /// Resolves a compilation error through its source registry, omitting related
+    /// locations in internal buffers.
     ///
     /// # Errors
     ///
-    /// Returns an error if a label names an unregistered or invalid source range.
+    /// Returns an error if a label names an unregistered or invalid source range, or if
+    /// the primary label refers to an internal buffer.
     pub fn from_compile(
         error: &CompileError,
         sources: &SourceRegistry,
@@ -99,11 +101,13 @@ impl LocatedDiagnostic {
         )
     }
 
-    /// Resolves every label of an internal lint finding through its source registry.
+    /// Resolves a lint finding through its source registry, omitting related locations
+    /// in internal buffers.
     ///
     /// # Errors
     ///
-    /// Returns an error if a label names an unregistered or invalid source range.
+    /// Returns an error if a label names an unregistered or invalid source range, or if
+    /// the primary label refers to an internal buffer.
     pub fn from_lint(
         finding: &LintFinding,
         sources: &SourceRegistry,
@@ -124,18 +128,88 @@ impl LocatedDiagnostic {
         let mut diagnostic = Self::new(cause, SourceRange::from_span(sources, primary.span)?);
         diagnostic.primary.message.clone_from(&primary.message);
         diagnostic.primary.scope = primary.scope;
-        diagnostic.related = info.labels[1..]
-            .iter()
-            .map(|label| {
-                Ok(LocatedLabel {
-                    scope: label.scope,
-                    range: SourceRange::from_span(sources, label.span)?,
-                    message: label.message.clone(),
-                })
-            })
-            .collect::<Result<Vec<_>, SourceRegistryError>>()?;
+        for label in &info.labels[1..] {
+            let range = match SourceRange::from_span(sources, label.span) {
+                Ok(range) => range,
+                Err(SourceRegistryError::UnreportableSource(_)) => continue,
+                Err(error) => return Err(error),
+            };
+            diagnostic.related.push(LocatedLabel {
+                scope: label.scope,
+                range,
+                message: label.message.clone(),
+            });
+        }
         diagnostic.notes.clone_from(&info.notes);
         diagnostic.actions.clone_from(&info.actions);
         Ok(diagnostic)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_source::{FileId, SourceError, SourceUri, Span};
+
+    use super::*;
+    use crate::Label;
+
+    #[test]
+    fn internal_related_labels_are_omitted_without_losing_authored_labels() {
+        let mut sources = SourceRegistry::default();
+        let authored = sources
+            .register(
+                Some(SourceUri::parse("untitled:main").unwrap()),
+                None,
+                "abc",
+            )
+            .unwrap();
+        let generated = sources.register(None, None, "generated").unwrap();
+        let mut error = CompileError::new(CompileDiagnostic::JavaScriptParse, authored.full_span());
+        for (source, message) in [(&generated, "internal"), (&authored, "authored")] {
+            error.labels.push(Label {
+                scope: LabelScope::Range,
+                span: source.full_span(),
+                message: Some(message.into()),
+            });
+        }
+        let located = LocatedDiagnostic::from_compile(&error, &sources).unwrap();
+        assert_eq!(located.related.len(), 1);
+        assert_eq!(located.related[0].message.as_deref(), Some("authored"));
+        assert_eq!(located.related[0].range.source().id(), authored.id());
+    }
+
+    #[test]
+    fn invalid_related_spans_remain_errors_for_internal_buffers() {
+        let mut sources = SourceRegistry::default();
+        let authored = sources
+            .register(
+                Some(SourceUri::parse("untitled:main").unwrap()),
+                None,
+                "abc",
+            )
+            .unwrap();
+        let generated = sources.register(None, None, "😀").unwrap();
+        for span in [
+            Span::new(FileId(u32::MAX), 0, 1),
+            Span::new(generated.id(), 0, 1),
+        ] {
+            let mut error =
+                CompileError::new(CompileDiagnostic::JavaScriptParse, authored.full_span());
+            error.labels.push(Label {
+                scope: LabelScope::Range,
+                span,
+                message: None,
+            });
+            let result = LocatedDiagnostic::from_compile(&error, &sources);
+            if span.file == generated.id() {
+                assert!(
+                    matches!(result, Err(SourceRegistryError::Source(SourceError::InvalidSpan(invalid))) if invalid == span)
+                );
+            } else {
+                assert!(
+                    matches!(result, Err(SourceRegistryError::UnknownFile(file)) if file == span.file)
+                );
+            }
+        }
     }
 }

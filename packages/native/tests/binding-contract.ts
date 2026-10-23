@@ -11,6 +11,72 @@ import { stillwindCva } from "../../core/src/runtime/react.ts";
  * Tests import that entry when they run, and import failures fail the tests.
  */
 export function registerBindingContract(bindingSpecifier: string) {
+  test("plugin token restrictions retain source reports through a dynamic reload", async () => {
+    const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
+    const source =
+      'import {style} from "stillwind/react"; const label = "😀"; export const icon = style("icon-demo");';
+    const input = {
+      kind: "direct",
+      moduleId: "icon.tsx",
+      document: {
+        uri: sourceUri("icon.tsx"),
+        code: source,
+        format: "jsx",
+      },
+      syntax: {
+        language: "tsx",
+        moduleKind: "unambiguous",
+      },
+    } as const;
+    const rootCss = '@plugin "demo"; :root { @stillwind-slot theme; } @stillwind-slot utilities;';
+    const family = "@stillwind-dynamic icon-*;";
+    const definition = `${family}
+@theme { --icon-svg-demo: url("data:image/svg+xml,<svg/>"); }
+@utility icon-demo { mask-image: var(--icon-svg-demo); }`;
+    for (const severity of ["warn", "deny"] as const) {
+      for (const definitionUri of [undefined, sourceUri("plugin.css")]) {
+        const options = {
+          lint: {
+            noRestrictedThemeTokens: {
+              severity,
+              tokens: ["--icon-svg-*"],
+            },
+          },
+        };
+        const loader = new NativeDesignSystemLoader(options);
+        expect(loader.provide(0, "root.css", rootCss, sourceUri("root.css")).kind).toBe("needFile");
+        expect(loader.provide(1, "plugin", family, definitionUri).kind).toBe("complete");
+        const session = new NativeProjectSession(loader, false);
+        expect(session.compile([input]).modules[0].dynamicCandidates).toEqual(["icon-demo"]);
+        const replacement = session.newLoader(options);
+        expect(replacement.provide(0, "root.css", rootCss, sourceUri("root.css")).kind).toBe(
+          "needFile",
+        );
+        expect(replacement.provide(1, "plugin", definition, definitionUri).kind).toBe("complete");
+        session.reload(replacement);
+        const output = session.compile([input]).modules[0];
+        expect(output.diagnostics).toEqual([]);
+        expect(output.reports).toHaveLength(1);
+        expect(output.reports[0]).toMatchObject({
+          code: "no-restricted-theme-tokens",
+          severity: severity === "warn" ? "warning" : "error",
+          primary: {
+            location: {
+              uri: sourceUri("icon.tsx"),
+              startUtf16: source.indexOf("icon-demo"),
+              endUtf16: source.indexOf("icon-demo") + "icon-demo".length,
+            },
+          },
+        });
+        expect(
+          output.reports[0].related.map(
+            (label: import("../binding.js").BindingLabel) => label.location.uri,
+          ),
+        ).toEqual(definitionUri ? [definitionUri] : []);
+      }
+    }
+  });
+
   test("browser targets retain color fallbacks unless every target supports the value", async () => {
     const { NativeDesignSystemLoader, compileSource } = await import(bindingSpecifier);
     const css =

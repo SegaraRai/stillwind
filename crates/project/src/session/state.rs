@@ -206,9 +206,7 @@ impl ProjectSession {
     ) -> Result<SourceRegistry, SourceRegistryError> {
         let mut view = self.sources.clone();
         for source in &snapshot.sources().sources {
-            if source.source.uri().is_some() {
-                view.retain(source.source.clone())?;
-            }
+            view.retain(source.source.clone())?;
         }
         Ok(view)
     }
