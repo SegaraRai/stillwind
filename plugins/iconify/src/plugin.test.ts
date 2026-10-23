@@ -79,7 +79,7 @@ describe("iconify", () => {
     });
     const css = await plugin.resolve!(["icon-[demo--close]", "icon-demo--flag"], context());
 
-    expect(css).toContain("@utility icon-[demo--close] {");
+    expect(css).toContain("@utility icon-[demo--close] (implementation) {");
     expect(css).toContain("mask-image: var(--icon-svg-demo--close);");
     expect(css).not.toContain("icon-demo--flag");
     expect(await plugin.catalog!(context(), "")).toContain("icon-[demo--close]");
@@ -93,10 +93,10 @@ describe("iconify", () => {
     });
     const css = await plugin.resolve!(["icon-demo--close", "icon-demo--flag"], context());
 
-    expect(css).toContain("@utility icon-demo--close {");
+    expect(css).toContain("@utility icon-demo--close (implementation) {");
     expect(css).toContain('--icon-svg-demo--close: url("data:image/svg+xml,');
     expect(css).toContain("mask-image: var(--icon-svg-demo--close);");
-    expect(css).toContain("@utility icon-demo--flag {");
+    expect(css).toContain("@utility icon-demo--flag (implementation) {");
     expect(css).toContain("background-image: var(--icon-svg-demo--flag);");
     expect(css).toContain("aspect-ratio: 48 / 24;");
   });
@@ -116,7 +116,7 @@ describe("iconify", () => {
       }),
     );
 
-    expect(css).toContain("@utility i-demo--cross {");
+    expect(css).toContain("@utility i-demo--cross (implementation) {");
     expect(css).toContain("height: var(--sw-icon-size, 1.5em);");
     expect(css).toContain("background-image: var(--icon-svg-demo--cross);");
   });

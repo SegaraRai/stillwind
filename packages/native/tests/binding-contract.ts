@@ -231,7 +231,9 @@ export function registerBindingContract(bindingSpecifier: string) {
     const { NativeDesignSystemLoader, NativeProjectSession } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader({
       lint: {
-        noImportant: "warn",
+        noImportant: {
+          severity: "warn",
+        },
         unusedLintSuppression: "warn",
       },
     });
@@ -883,7 +885,9 @@ export const authored = style("authored");`;
     for (const severity of ["warn", "deny"] as const) {
       const output = compileSource(oneShotInput(source, "important.tsx", css), {
         lint: {
-          noImportant: severity,
+          noImportant: {
+            severity,
+          },
           unusedLintSuppression: "warn",
         },
       });
@@ -933,7 +937,9 @@ export const invalidSuppression=style('paint-brand');`;
           severity: "warn",
         },
         noClassProperty: "warn",
-        noImportant: "warn",
+        noImportant: {
+          severity: "warn",
+        },
         noRestrictedUtilities: {
           utilities: [
             {
@@ -1005,9 +1011,171 @@ export const invalidSuppression=style('paint-brand');`;
       { noArbitrarySpacing: { properties: ["padding left"] } },
       { noRestrictedUtilities: { utilities: [{ pattern: "" }] } },
       { noRestrictedDeclarations: { rules: [{ properties: ["position"], values: [] }] } },
-      { noImportant: "error" },
+      { noImportant: { severity: "error" } },
     ]) {
       expect(() => new NativeDesignSystemLoader({ lint })).toThrow();
+    }
+  });
+
+  test("implementation checks preserve captured values across one-shot and session APIs", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `@utility fixed (implementation) { width:max-content; height:1em; }
+@utility input-* (implementation) { width:--value([length]); height:1em; }
+@utility extended (implementation) { width:20px; }
+@utility extended { width:20px; }
+@stillwind-slot utilities;`;
+    const source = `import {style} from 'stillwind/react';
+export const fixed=style('fixed!'); export const input=style('input-[20px]');
+export const extended=style('extended');`;
+    for (const checkImplementation of [undefined, false, true]) {
+      const options: import("../binding.js").NativeCompilerOptions = {
+        lint: {
+          preferCanonicalUtilities: {
+            severity: "off",
+          },
+          preferLogicalProperties: {
+            severity: "warn",
+            checkImplementation,
+          },
+          noRestrictedLengthUnits: {
+            severity: "warn",
+            checkImplementation,
+            rules: [
+              {
+                properties: ["*"],
+                disallow: ["px", "em"],
+              },
+            ],
+          },
+          noImportant: {
+            severity: "warn",
+          },
+        },
+      };
+      const expected = [
+        "no-important",
+        ...Array.from<string>({ length: checkImplementation ? 4 : 2 }).fill(
+          "no-restricted-length-units",
+        ),
+        ...Array.from<string>({ length: checkImplementation ? 5 : 2 }).fill(
+          "prefer-logical-properties",
+        ),
+      ].sort();
+      const output = compileSource(oneShotInput(source, "implementation.tsx", css), options);
+      expect(output.diagnostics).toEqual([]);
+      expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual(
+        expected,
+      );
+      const loader = new NativeDesignSystemLoader(options);
+      loader.provide(0, "root.css", css, sourceUri("root.css"));
+      const session = new NativeProjectSession(loader, false);
+      const prepared = {
+        kind: "direct",
+        moduleId: "implementation.tsx",
+        document: { code: source, uri: sourceUri("implementation.tsx"), format: "jsx" },
+        syntax: { language: "tsx", moduleKind: "unambiguous" },
+      };
+      expect(
+        session
+          .diagnose([prepared])[0]
+          .reports.map((report: { code: string }) => report.code)
+          .sort(),
+      ).toEqual(expected);
+      expect(
+        session
+          .compile([prepared])
+          .modules[0].reports.map((report: { code: string }) => report.code)
+          .sort(),
+      ).toEqual(expected);
+    }
+  });
+
+  test("implementation restrictions preserve source selections across bindings and session APIs", async () => {
+    const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
+      bindingSpecifier
+    );
+    const css = `@theme inline { --spacing-ref-small:20px; }
+@utility fixed (implementation) { width:var(--spacing-ref-small)!important; }
+@utility input-* (implementation) { width:--value(--spacing-*)!important; }
+@utility extended (implementation) { width:var(--spacing-ref-small)!important; }
+@utility extended { width:var(--spacing-ref-small)!important; }
+@stillwind-slot utilities;`;
+    const source = `import {style} from 'stillwind/react';
+export const fixed=style('fixed'); export const important=style('fixed!');
+export const input=style('input-ref-small'); export const extended=style('extended');`;
+    for (const checkImplementation of [undefined, false, true]) {
+      const options: import("../binding.js").NativeCompilerOptions = {
+        lint: {
+          preferCanonicalUtilities: {
+            severity: "off",
+          },
+          noImportant: {
+            severity: "warn",
+            checkImplementation,
+          },
+          noRestrictedDeclarations: {
+            severity: "warn",
+            checkImplementation,
+            rules: [
+              {
+                properties: ["width"],
+                values: ["*"],
+              },
+            ],
+          },
+          noRestrictedThemeTokens: {
+            severity: "warn",
+            checkImplementation,
+            tokens: ["--spacing-ref-*"],
+          },
+        },
+      };
+      const expected = [
+        ...Array.from<string>({ length: checkImplementation === false ? 3 : 4 }).fill(
+          "no-important",
+        ),
+        ...Array.from<string>({ length: checkImplementation === false ? 2 : 4 }).fill(
+          "no-restricted-declarations",
+        ),
+        ...Array.from<string>({ length: checkImplementation === false ? 2 : 4 }).fill(
+          "no-restricted-theme-tokens",
+        ),
+      ].sort();
+      const output = compileSource(
+        oneShotInput(source, "implementation-restrictions.tsx", css),
+        options,
+      );
+      expect(output.diagnostics).toEqual([]);
+      expect(output.reports.map((report: { code: string }) => report.code).sort()).toEqual(
+        expected,
+      );
+      const loader = new NativeDesignSystemLoader(options);
+      loader.provide(0, "root.css", css, sourceUri("root.css"));
+      const session = new NativeProjectSession(loader, false);
+      const prepared = {
+        kind: "direct",
+        moduleId: "implementation-restrictions.tsx",
+        document: {
+          code: source,
+          uri: sourceUri("implementation-restrictions.tsx"),
+          format: "jsx",
+        },
+        syntax: { language: "tsx", moduleKind: "unambiguous" },
+      };
+      expect(
+        session
+          .diagnose([prepared])[0]
+          .reports.map((report: { code: string }) => report.code)
+          .sort(),
+      ).toEqual(expected);
+      expect(
+        session
+          .compile([prepared])
+          .modules[0].reports.map((report: { code: string }) => report.code)
+          .sort(),
+      ).toEqual(expected);
     }
   });
 
@@ -1027,7 +1195,9 @@ export const policies=style('child:[padding-left:2px] text-red-500');`;
       lint: {
         preferDirectStyling: "warn",
         duplicateUtility: "deny",
-        preferLogicalProperties: "warn",
+        preferLogicalProperties: {
+          severity: "warn",
+        },
         noRestrictedLengthUnits: {
           rules: [
             {

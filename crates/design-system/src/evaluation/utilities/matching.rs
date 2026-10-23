@@ -272,7 +272,9 @@ fn resolve_registry_layers(
 /// Initializes an empty resolution. Otherwise, declarations for the same selector join
 /// the primary target only while it has no additional targets. Later targets remain
 /// separate to preserve their emission order. Requirements and diagnostic uses from
-/// `next` are appended to the retained resolution.
+/// `next` are appended to the retained resolution. Declaration classifications stay
+/// with the primary, nested, or additional target that receives their CSS. `next`
+/// must follow the definitions already represented by `resolution` in registry order.
 fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityResolution) {
     let Some(base) = resolution else {
         *resolution = Some(next);
@@ -283,10 +285,12 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
         base.tw_sort = next.tw_sort;
     }
     if base.selector == next.selector && base.additional.is_empty() {
+        base.policy_declarations.extend(next.policy_declarations);
         base.declaration = format_args!("{}{}", base.declaration, next.declaration).to_lean_str();
         base.nested.extend(next.nested);
     } else {
         base.additional.push(ResolvedUtilityTarget {
+            policy_declarations: next.policy_declarations,
             declaration: next.declaration,
             selector: next.selector,
             nested: next.nested,
@@ -313,6 +317,9 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
 /// targets. Within a merged list, a property already claimed by a more-specific
 /// branch is not overwritten by a broader one. The most specific branch that carries a
 /// `tw_sort` override supplies the retained one.
+///
+/// Declaration and selection records follow the retained declarations, including
+/// their implementation classifications.
 ///
 /// Without an exact definition, an unhinted arbitrary value keeps only the branches
 /// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand for
@@ -407,18 +414,17 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             .extend(branch.required_properties);
         if shares_declarations {
             let existing = declaration_property_names(&resolution.declaration);
-            diagnostic_data.arbitrary_uses.extend(
-                branch_data
-                    .arbitrary_uses
-                    .into_iter()
-                    .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
-            );
-            diagnostic_data.token_uses.extend(
-                branch_data
-                    .token_uses
-                    .into_iter()
-                    .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
-            );
+            resolution
+                .policy_declarations
+                .extend(
+                    branch
+                        .policy_declarations
+                        .into_iter()
+                        .filter(|declaration| {
+                            !declaration.base || !existing.contains(declaration.property.as_str())
+                        }),
+                );
+            diagnostic_data.extend_shared_uses(branch_data, &existing);
             resolution.declaration =
                 (merge_branch_declarations(&resolution.declaration, &branch.declaration)).into();
             merge_nested_rules(&mut resolution.nested, branch.nested);
@@ -426,6 +432,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             diagnostic_data.extend_non_base_uses(branch_data);
             registrations.push(registration);
             resolution.additional.push(ResolvedUtilityTarget {
+                policy_declarations: branch.policy_declarations,
                 declaration: branch.declaration,
                 selector: branch.selector,
                 nested: branch.nested,
@@ -457,10 +464,10 @@ fn shares_declaration_list(base: &UtilityResolution, next: &UtilityResolution) -
 /// newest first: with the typography plugin, `.prose > :first-child { margin-top: 0 }`
 /// would precede `.prose p { margin-top: 1.25em }` and lose to it.
 ///
-/// `base_registration` is the registration of the primary target, and `registrations`
-/// holds one registration for each target in `resolution.additional`. Smaller values
-/// were registered earlier. The sort is stable, so targets of one definition keep
-/// their order.
+/// `base_registration` identifies the primary target's registration. The caller must
+/// supply one entry in `registrations` for each target in `resolution.additional`.
+/// Smaller values were registered earlier. The sort moves each target's CSS and
+/// declaration classifications together. Targets of one definition keep their order.
 fn order_targets_by_registration(
     resolution: &mut UtilityResolution,
     base_registration: usize,
@@ -474,6 +481,7 @@ fn order_targets_by_registration(
         return;
     }
     let primary = ResolvedUtilityTarget {
+        policy_declarations: std::mem::take(&mut resolution.policy_declarations),
         declaration: std::mem::take(&mut resolution.declaration),
         selector: std::mem::take(&mut resolution.selector),
         nested: std::mem::take(&mut resolution.nested),
@@ -488,6 +496,7 @@ fn order_targets_by_registration(
     targets.sort_by_key(|(registration, _)| *registration);
     let mut targets = targets.into_iter().map(|(_, target)| target);
     if let Some(primary) = targets.next() {
+        resolution.policy_declarations = primary.policy_declarations;
         resolution.declaration = primary.declaration;
         resolution.selector = primary.selector;
         resolution.nested = primary.nested;
@@ -799,12 +808,14 @@ mod tests {
             tw_sort: None,
             role: UtilityRole::default(),
             plugin: false,
+            implementation: false,
         };
         let wildcard = CustomUtility {
             name: "w-*".into(),
             tw_sort: None,
             role: UtilityRole::default(),
             plugin: false,
+            implementation: false,
             ..exact.clone()
         };
         assert_eq!(utility_value_types(&exact), vec![ValueType::Length]);

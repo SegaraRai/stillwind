@@ -2,6 +2,151 @@
 
 use super::*;
 
+fn implementation_restrictions(check_implementation: Option<bool>) -> CompilerOptions {
+    let mut options = policy_options(LintOverrides {
+        no_important: Some(ImportantOverride {
+            check_implementation,
+            ..Default::default()
+        }),
+        no_restricted_declarations: Some(RestrictedDeclarationsOverride {
+            check_implementation,
+            rules: Some(vec![RestrictedDeclarationRule {
+                properties: vec!["width".into(), "height".into()],
+                values: vec!["*".into()],
+                message: None,
+            }]),
+            ..Default::default()
+        }),
+        no_restricted_theme_tokens: Some(RestrictedThemeTokensOverride {
+            check_implementation,
+            tokens: Some(vec!["--spacing-ref-*".into()]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    options.use_css_if = true;
+    options
+}
+
+const IMPLEMENTATION_CSS: &str = r"@theme inline { --spacing-ref-small:20px; }
+    @utility fixed (implementation) { width:var(--spacing-ref-small)!important; }
+    @utility nested (implementation) { &::before { width:var(--spacing-ref-small)!important; } @media (width > 40rem) { height:var(--spacing-ref-small)!important; } }
+    @utility input-* (implementation) { width:--value(--spacing-*,[length])!important; height:1em; }
+    @utility extended (implementation) { width:var(--spacing-ref-small)!important; }
+    @utility extended { width:var(--spacing-ref-small)!important; }
+    @custom-variant hover (&:hover);
+    @variant extra-* { & { width:--value(--spacing-*)!important; @slot; } }
+    @utility target (implementation) { display:block; &::before { width:var(--spacing-ref-small)!important; } }
+    @stillwind-variant if\(*\) (value: [if-condition]) { @stillwind-intrinsic builtin-if-variant; }";
+
+#[test]
+fn implementation_restrictions_default_on_and_allow_fixed_declarations_to_be_excluded() {
+    for check_implementation in [None, Some(false), Some(true)] {
+        let options = implementation_restrictions(check_implementation);
+        for candidate in ["fixed", "nested", "hover:fixed", "if(--active):fixed"] {
+            let found = kinds(
+                &format!("const x=style('{candidate}');"),
+                IMPLEMENTATION_CSS,
+                &options,
+            );
+            for kind in [
+                LintKind::NoImportant,
+                LintKind::NoRestrictedDeclarations,
+                LintKind::NoRestrictedThemeTokens,
+            ] {
+                assert_eq!(
+                    found.contains(&kind),
+                    check_implementation != Some(false),
+                    "{candidate}: {found:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn implementation_restrictions_keep_inputs_extensions_variants_and_source_priority() {
+    let options = implementation_restrictions(Some(false));
+    for candidate in [
+        "input-ref-small",
+        "extended",
+        "extra-ref-small:target",
+        "if(--active):extra-ref-small:target",
+        "[width:var(--spacing-ref-small)]!",
+    ] {
+        let found = kinds(
+            &format!("const x=style('{candidate}');"),
+            IMPLEMENTATION_CSS,
+            &options,
+        );
+        for kind in [
+            LintKind::NoImportant,
+            LintKind::NoRestrictedDeclarations,
+            LintKind::NoRestrictedThemeTokens,
+        ] {
+            assert!(found.contains(&kind), "{candidate}: {found:?}");
+        }
+    }
+    let found = kinds(
+        "const x=style('input-[20px]');",
+        IMPLEMENTATION_CSS,
+        &options,
+    );
+    assert!(found.contains(&LintKind::NoImportant));
+    assert!(found.contains(&LintKind::NoRestrictedDeclarations));
+    for candidate in ["!fixed", "fixed!", "hover:fixed!"] {
+        assert_eq!(
+            kinds(
+                &format!("const x=style('{candidate}');"),
+                IMPLEMENTATION_CSS,
+                &options
+            ),
+            [LintKind::NoImportant]
+        );
+    }
+}
+
+#[test]
+fn implementation_restrictions_can_be_configured_independently() {
+    for kind in [
+        LintKind::NoImportant,
+        LintKind::NoRestrictedDeclarations,
+        LintKind::NoRestrictedThemeTokens,
+    ] {
+        let mut options = implementation_restrictions(Some(true));
+        match kind {
+            LintKind::NoImportant => {
+                options
+                    .lint
+                    .no_important
+                    .as_mut()
+                    .unwrap()
+                    .check_implementation = Some(false);
+            }
+            LintKind::NoRestrictedDeclarations => {
+                options
+                    .lint
+                    .no_restricted_declarations
+                    .as_mut()
+                    .unwrap()
+                    .check_implementation = Some(false);
+            }
+            LintKind::NoRestrictedThemeTokens => {
+                options
+                    .lint
+                    .no_restricted_theme_tokens
+                    .as_mut()
+                    .unwrap()
+                    .check_implementation = Some(false);
+            }
+            _ => unreachable!(),
+        }
+        let found = kinds("const x=style('fixed');", IMPLEMENTATION_CSS, &options);
+        assert_eq!(found.len(), 2, "{found:?}");
+        assert!(!found.contains(&kind), "{found:?}");
+    }
+}
+
 #[test]
 fn restricted_theme_tokens_cover_non_color_values_and_variant_selections() {
     let theme = "@theme inline {--spacing-ref-small:1rem; --spacing-gutter:var(--spacing-ref-small); --duration-ref-fast:100ms; --duration-enter:var(--duration-ref-fast); --breakpoint-md:48rem; }
@@ -326,7 +471,10 @@ fn utility_restrictions_check_variant_modifier_and_unresolved_spellings() {
 #[test]
 fn important_modifiers_report_each_candidate_once() {
     let options = policy_options(LintOverrides {
-        no_important: Some(LintSeverity::Warn),
+        no_important: Some(ImportantOverride {
+            severity: Some(LintSeverity::Warn),
+            ..Default::default()
+        }),
         ..LintOverrides::default()
     });
     let theme = format!(
@@ -363,7 +511,10 @@ fn important_modifiers_report_each_candidate_once() {
 #[test]
 fn declaration_restrictions_and_importance_follow_resolved_utility_bodies() {
     let options = policy_options(LintOverrides {
-        no_important: Some(LintSeverity::Warn),
+        no_important: Some(ImportantOverride {
+            severity: Some(LintSeverity::Warn),
+            ..Default::default()
+        }),
         no_restricted_declarations: Some(RestrictedDeclarationsOverride {
             rules: Some(vec![
                 RestrictedDeclarationRule {

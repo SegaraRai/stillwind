@@ -55,8 +55,9 @@ pub use label::{DiagnosticInfo, FixAction, Label, LabelScope, Labels, SourceEdit
 pub use lint::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LintCategory, LintConfig, LintDiagnostic, LintDirective, LintDirectiveKind, LintDirectiveRules,
-    LintFinding, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity, LintSurface,
+    ImportantConfig, ImportantOverride, LintCategory, LintConfig, LintDiagnostic, LintDirective,
+    LintDirectiveKind, LintDirectiveRules, LintFinding, LintKind, LintOverrides, LintPreset,
+    LintSettings, LintSeverity, LintSurface, LogicalPropertiesConfig, LogicalPropertiesOverride,
     MarkerUseConfig, MarkerUseErrorKind, MarkerUseOverride, RestrictedDeclarationRule,
     RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedLengthUnitRule,
     RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig,

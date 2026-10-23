@@ -12,8 +12,8 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
     InvalidPropertyValue, InvalidValueReason, MarkerUse, NestedUtilityRule, ResolvedUtilityTarget,
-    ThemeIndex, UtilityArbitraryUse, UtilityFailure, UtilityFailureReason, UtilityOrder,
-    UtilityResolutionError, UtilityTokenUse, VariableTypeSource, VariantApplication,
+    ThemeIndex, UtilityArbitraryUse, UtilityDeclaration, UtilityFailure, UtilityFailureReason,
+    UtilityOrder, UtilityResolutionError, UtilityTokenUse, VariableTypeSource, VariantApplication,
     VariantContext, check_candidate_variants, marker_use, resolve_utility,
 };
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, MarkerUseErrorKind};
@@ -52,16 +52,21 @@ pub(crate) struct CompiledUtility {
     pub(in crate::compiler) candidate: LeanStr,
 }
 
-/// Source occurrences and value checks shared by the rules of one utility candidate.
+/// Source occurrences and policy records attached to one compiled utility target.
 #[derive(Clone, Debug, Default)]
 pub(in crate::compiler) struct CompiledUtilityDiagnosticData {
+    /// Declarations of this target before candidate priority and runtime guards. Each
+    /// record retains its implementation classification. Nested rules carry their own
+    /// records, and an empty list makes policy checks inspect the current CSS.
+    pub(in crate::compiler) declarations: Vec<UtilityDeclaration>,
     /// Candidate range, or `None` when no source occurrence is attached. Literal
     /// lowering initially uses decoded byte offsets, which the emitter maps to the
     /// original source.
     pub(in crate::compiler) span: Option<Span>,
-    /// Direct selections preserved before inline theme values expand.
+    /// Direct selections across the complete candidate before inline theme values
+    /// expand, including the implementation classification of each use.
     pub(in crate::compiler) token_uses: Vec<UtilityTokenUse>,
-    /// Accepted captures before source values expand into declaration text.
+    /// Accepted captures across the complete candidate before values expand into CSS.
     pub(in crate::compiler) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// Ranges of variants written in the utility literal, in candidate order after
     /// skipping `wrapper_variant_count`. They use the same offset basis as `span`.
@@ -98,8 +103,9 @@ pub(in crate::compiler) fn resolve_first_target(
 /// class name, or a diagnostic. A failing variant is reported before a failing utility
 /// name, because it comes first in the candidate text.
 ///
-/// Each target retains the complete candidate's diagnostic selections. Source ranges
-/// remain unset until source lowering attaches an occurrence.
+/// Each target retains the complete candidate's diagnostic selections and the
+/// declaration classifications of that target. Nested rules retain their own
+/// classifications. Source ranges remain unset until lowering attaches an occurrence.
 ///
 /// # Errors
 ///
@@ -122,6 +128,7 @@ pub(crate) fn resolve_utility_targets(
         return Ok(Err(failure));
     }
     let mut targets = vec![ResolvedUtilityTarget {
+        policy_declarations: resolved.policy_declarations,
         declaration: resolved.declaration,
         selector: resolved.selector,
         nested: resolved.nested,
@@ -131,6 +138,7 @@ pub(crate) fn resolve_utility_targets(
         .into_iter()
         .map(|target| CompiledUtility {
             diagnostic_data: CompiledUtilityDiagnosticData {
+                declarations: target.policy_declarations,
                 span: None,
                 token_uses: resolved.diagnostic_data.token_uses.clone(),
                 arbitrary_uses: resolved.diagnostic_data.arbitrary_uses.clone(),

@@ -28,9 +28,10 @@ pub use suggestions::suggested_theme_token;
 pub use utilities::{
     InvalidPropertyValue, InvalidValueReason, NestedUtilityAtRule, NestedUtilityRule,
     ResolvedUtility, ResolvedUtilityTarget, UntypedVariable, UtilityArbitraryUse,
-    UtilityDiagnosticData, UtilityFailure, UtilityFailureReason, UtilityOrder, UtilityPropertySort,
-    UtilityResolutionError, UtilityTokenUse, VariableMismatch, VariableTypeSource,
-    check_candidate_variants, dynamic_named_spelling, resolve_utility, utility_value_range,
+    UtilityDeclaration, UtilityDiagnosticData, UtilityFailure, UtilityFailureReason, UtilityOrder,
+    UtilityPropertySort, UtilityResolutionError, UtilityTokenUse, VariableMismatch,
+    VariableTypeSource, check_candidate_variants, dynamic_named_spelling, resolve_utility,
+    utility_value_range,
 };
 pub use values::{
     ThemeValueMismatch, named_domain_values, theme_value_mismatch, unresolvable_value_namespaces,

@@ -207,6 +207,79 @@ export const icons = style("icon-[red] icon-[demo--missing] icon-[2rem] icon-[de
   }
 });
 
+test("lint checks icon implementation only when requested and keeps size inputs checked", async () => {
+  for (const checkImplementation of [false, true]) {
+    const project = new BrowserProject({
+      root: "/workspace",
+      files: new Map([
+        [
+          "/workspace/entry.tsx",
+          `import {style} from "stillwind/react"; export const icon=style("icon-demo--close icon-[20px]");`,
+        ],
+        [
+          "/workspace/design.css",
+          `@plugin "@stillwind/plugin-iconify";
+:root { @stillwind-slot theme; }
+@stillwind-slot properties;
+*, ::before, ::after { @stillwind-slot property-initials; }
+@stillwind-slot utilities;`,
+        ],
+      ]),
+      config: {
+        css: "design.css",
+        files: ["*.tsx"],
+        typeFacts: false,
+        plugins: [
+          iconify({
+            collections: {
+              demo,
+            },
+          }),
+        ],
+        lint: {
+          rules: {
+            "prefer-logical-properties": {
+              severity: "warn",
+              checkImplementation,
+            },
+            "no-restricted-length-units": {
+              severity: "warn",
+              checkImplementation,
+              rules: [
+                {
+                  properties: ["*"],
+                  disallow: ["px", "em"],
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+    try {
+      const graph = await project.analyze("/workspace/entry.tsx");
+      expect(
+        graph.batches
+          .flatMap((batch) => batch.reports)
+          .map((report) => report.code)
+          .sort(),
+      ).toEqual(
+        (checkImplementation
+          ? [
+              "prefer-logical-properties",
+              "prefer-logical-properties",
+              "no-restricted-length-units",
+              "no-restricted-length-units",
+            ]
+          : ["no-restricted-length-units"]
+        ).sort(),
+      );
+    } finally {
+      await project.close();
+    }
+  }
+});
+
 test("editor colors omit icon utilities while keeping their hover previews", async () => {
   const code = `import { style } from "stillwind/react";
 export const icons = style("icon-demo--close hover:icon-[demo--flag] bg-brand");`;

@@ -7,7 +7,8 @@ use stillwind_diagnostics::LintOverrides;
 
 use super::{
     NativeArbitrarySpacingOptions, NativeCanonicalUtilitiesOptions,
-    NativeConflictingUtilitiesOptions, NativeMarkerUseOptions, NativeRestrictedDeclarationsOptions,
+    NativeConflictingUtilitiesOptions, NativeImportantOptions, NativeLogicalPropertiesOptions,
+    NativeMarkerUseOptions, NativeRestrictedDeclarationsOptions,
     NativeRestrictedLengthUnitsOptions, NativeRestrictedThemeTokensOptions,
     NativeRestrictedUtilitiesOptions, NativeVariantDirectiveOptions, lint_severity,
 };
@@ -126,7 +127,7 @@ pub struct NativeLintOptions {
     /// Settings for `no-restricted-declarations`.
     pub no_restricted_declarations: Option<NativeRestrictedDeclarationsOptions>,
     /// Settings for `no-important`.
-    pub no_important: Option<String>,
+    pub no_important: Option<NativeImportantOptions>,
     /// Settings for `no-restricted-length-units`.
     pub no_restricted_length_units: Option<NativeRestrictedLengthUnitsOptions>,
     /// Settings for `no-restricted-theme-tokens`.
@@ -136,7 +137,7 @@ pub struct NativeLintOptions {
     /// Settings for `prefer-direct-styling`.
     pub prefer_direct_styling: Option<String>,
     /// Settings for `prefer-logical-properties`.
-    pub prefer_logical_properties: Option<String>,
+    pub prefer_logical_properties: Option<NativeLogicalPropertiesOptions>,
     /// Settings for `prefer-typed-relationships`.
     pub prefer_typed_relationships: Option<String>,
     /// Settings for `prefer-canonical-utilities`.
@@ -383,10 +384,7 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .no_restricted_declarations
                 .map(TryInto::try_into)
                 .transpose()?,
-            no_important: input
-                .no_important
-                .map(|value| lint_severity(&value))
-                .transpose()?,
+            no_important: input.no_important.map(TryInto::try_into).transpose()?,
             no_restricted_length_units: input
                 .no_restricted_length_units
                 .map(TryInto::try_into)
@@ -405,7 +403,7 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             prefer_logical_properties: input
                 .prefer_logical_properties
-                .map(|value| lint_severity(&value))
+                .map(TryInto::try_into)
                 .transpose()?,
             prefer_typed_relationships: input
                 .prefer_typed_relationships

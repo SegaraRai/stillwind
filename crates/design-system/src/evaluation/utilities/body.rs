@@ -11,6 +11,8 @@
 //! emitted as authored, including support queries that the compatibility color path
 //! adds as a second branch of one declaration.
 
+use std::collections::HashSet;
+
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::ValueType;
@@ -24,7 +26,9 @@ use super::nested::{
     NestedUtilityAtRule, NestedUtilityRule, ParsedNestedUtilityRule, split_nested_conditions,
     split_utility_selector,
 };
-use super::resolve::{ResolvedUtilityTarget, UtilityArbitraryUse, UtilityTokenUse};
+use super::resolve::{
+    ResolvedUtilityTarget, UtilityArbitraryUse, UtilityDeclaration, UtilityTokenUse,
+};
 use super::variables::VariableMismatch;
 use crate::requirements::{PropertyRequirementError, take_property_requirements};
 use crate::{CustomUtility, ThemeIndex, UtilityOrderMode};
@@ -40,9 +44,12 @@ pub struct UtilityResolutionError {
     pub source: PropertyRequirementError,
 }
 
-/// The resolved outcome of one matched utility definition.
+/// CSS, ordering, and diagnostic records retained while resolving one candidate.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(in crate::evaluation) struct UtilityResolution {
+    /// Declaration records for the primary target before candidate priority. Nested and
+    /// additional targets keep their own records.
+    pub(in crate::evaluation) policy_declarations: Vec<UtilityDeclaration>,
     /// Source selections and value checks collected across the selected branches.
     pub(in crate::evaluation) diagnostic_data: UtilityResolutionDiagnosticData,
     /// Declarations for the matched selector, or for the utility itself.
@@ -66,10 +73,13 @@ pub(in crate::evaluation) struct UtilityResolution {
 }
 
 impl UtilityResolution {
-    /// Wraps `declaration`, a serialized declaration list without outer braces.
-    /// The result has no selector, conditional rules, source selections, or ordering.
+    /// Wraps `declaration`, a serialized declaration list without outer braces. The
+    /// result has no selector, conditional rules, diagnostic records, or ordering.
+    /// Policy checks recover ordinary declarations from this CSS when records are
+    /// absent.
     pub(in crate::evaluation) fn plain(declaration: LeanString) -> Self {
         Self {
+            policy_declarations: Vec::new(),
             diagnostic_data: UtilityResolutionDiagnosticData::default(),
             declaration: (declaration).into(),
             required_properties: Vec::new(),
@@ -85,9 +95,11 @@ impl UtilityResolution {
 /// Selections and value checks retained while utility branches are resolved and merged.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(in crate::evaluation) struct UtilityResolutionDiagnosticData {
-    /// Direct token names grouped by their receiving declaration across all targets.
+    /// Direct token names and implementation classifications grouped by their receiving
+    /// declaration across all targets.
     pub(in crate::evaluation) token_uses: Vec<UtilityTokenUse>,
-    /// Accepted arbitrary captures grouped by their receiving declaration across all targets.
+    /// Accepted arbitrary captures grouped by their receiving declaration across all
+    /// targets.
     pub(in crate::evaluation) arbitrary_uses: Vec<UtilityArbitraryUse>,
     /// An unhinted arbitrary value that no definition accepted by grammar, emitted as
     /// written.
@@ -110,6 +122,28 @@ pub(in crate::evaluation) struct UtilityResolutionDiagnosticData {
 }
 
 impl UtilityResolutionDiagnosticData {
+    /// Appends retained token uses and arbitrary captures from a less-specific branch.
+    ///
+    /// The caller must merge `branch` into the same declaration list and pass the
+    /// decoded property names already supplied by the more-specific branch in
+    /// `existing`. Base uses of those properties are discarded. Non-base uses are
+    /// retained with their implementation classifications. Other checks in `branch` are
+    /// not merged into `self`.
+    pub(super) fn extend_shared_uses(&mut self, branch: Self, existing: &HashSet<&str>) {
+        self.arbitrary_uses.extend(
+            branch
+                .arbitrary_uses
+                .into_iter()
+                .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
+        );
+        self.token_uses.extend(
+            branch
+                .token_uses
+                .into_iter()
+                .filter(|usage| !usage.base || !existing.contains(usage.property.as_str())),
+        );
+    }
+
     /// Appends token and arbitrary uses from a branch with a different selector and
     /// marks each use as outside the base declaration list. Other checks in `branch`
     /// must be merged separately when the caller needs to retain them.
@@ -205,6 +239,13 @@ impl PreparedUtilityBody {
     }
 }
 
+/// Evaluates a prepared body for `utility` and returns the retained targets.
+///
+/// `prepared` must represent `utility.body` in `theme`. `name` and `modifier` identify
+/// the candidate, and `arbitrary_check` controls value acceptance. The definition's
+/// implementation descriptor classifies fixed declarations in every retained target.
+/// Returns `None` when a required branch or modifier does not match, or no target
+/// remains. The inputs are unchanged.
 #[allow(clippy::too_many_lines)] // One definition body resolves base, nested, and parent branches.
 fn resolve_valid_utility_body(
     utility: &CustomUtility,
@@ -229,6 +270,7 @@ fn resolve_valid_utility_body(
             utility.position.is_some(),
             color_compatibility,
             arbitrary_check,
+            utility.implementation,
         )
     };
     // A slash modifier is meaningful only when a branch explicitly consumes it. This
@@ -241,6 +283,7 @@ fn resolve_valid_utility_body(
         return None;
     }
     let declarations = resolve(body, true)?;
+    let policy_declarations = declarations.policy_declarations;
     let mut out_of_range_alpha = declarations.diagnostic_data.out_of_range_alpha;
     let mut token_uses = declarations.diagnostic_data.token_uses;
     let mut arbitrary_uses = declarations.diagnostic_data.arbitrary_uses;
@@ -251,11 +294,12 @@ fn resolve_valid_utility_body(
     let mut resolved_nested = Vec::new();
     for modern in declarations.compat_modern {
         resolved_nested.push(NestedUtilityRule {
+            policy_declarations: modern.policy_declarations,
             compatibility: true,
             at_rule: NestedUtilityAtRule::Supports,
             condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
             parent: None,
-            declaration: modern,
+            declaration: modern.declaration,
             inside: true,
         });
     }
@@ -300,6 +344,7 @@ fn resolve_valid_utility_body(
             if !declaration.is_empty() {
                 modifier_resolved |= uses_modifier;
                 resolved_nested.push(NestedUtilityRule {
+                    policy_declarations: declarations.policy_declarations,
                     compatibility: false,
                     at_rule: *at_rule,
                     condition: condition.to_lean_str(),
@@ -309,11 +354,12 @@ fn resolve_valid_utility_body(
                 });
                 for modern in declarations.compat_modern {
                     resolved_nested.push(NestedUtilityRule {
+                        policy_declarations: modern.policy_declarations,
                         compatibility: true,
                         at_rule: NestedUtilityAtRule::Supports,
                         condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
                         parent: Some((*at_rule, condition.to_lean_str())),
-                        declaration: modern,
+                        declaration: modern.declaration,
                         inside: true,
                     });
                 }
@@ -345,22 +391,25 @@ fn resolve_valid_utility_body(
             .compat_modern
             .into_iter()
             .map(|modern| NestedUtilityRule {
+                policy_declarations: modern.policy_declarations,
                 compatibility: true,
                 at_rule: NestedUtilityAtRule::Supports,
                 condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
                 parent: None,
-                declaration: modern,
+                declaration: modern.declaration,
                 inside: true,
             })
             .collect();
         let additional = (!declaration.is_empty() || !resolved_nested.is_empty()).then(|| {
             vec![ResolvedUtilityTarget {
+                policy_declarations,
                 declaration: (declaration).into(),
                 selector,
                 nested: resolved_nested,
             }]
         })?;
         (!parent_declaration.is_empty() || !additional.is_empty()).then_some(UtilityResolution {
+            policy_declarations: parent.policy_declarations,
             diagnostic_data: UtilityResolutionDiagnosticData {
                 token_uses,
                 arbitrary_uses,
@@ -383,6 +432,7 @@ fn resolve_valid_utility_body(
         })
     } else {
         (!declaration.is_empty() || !resolved_nested.is_empty()).then_some(UtilityResolution {
+            policy_declarations,
             diagnostic_data: UtilityResolutionDiagnosticData {
                 token_uses,
                 arbitrary_uses,

@@ -141,6 +141,9 @@ pub struct RestrictedLengthUnitRule {
 pub struct RestrictedLengthUnitsConfig {
     /// Reporting level of forbidden units.
     pub severity: LintSeverity,
+    /// Include fixed declarations from `(implementation)` definitions. Defaults to
+    /// false.
+    pub check_implementation: bool,
     /// The last matching rule replaces earlier restrictions.
     pub rules: Vec<RestrictedLengthUnitRule>,
 }
@@ -149,27 +152,55 @@ pub struct RestrictedLengthUnitsConfig {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RestrictedLengthUnitsOverride {
-    /// Omission uses the rule default.
+    /// Omission preserves the existing severity, or uses warn without a prior policy.
     pub severity: Option<LintSeverity>,
+    /// Omission preserves the existing choice, or uses false without a prior policy.
+    pub check_implementation: Option<bool>,
     /// Omission preserves existing rules; a supplied list replaces them.
     pub rules: Option<Vec<RestrictedLengthUnitRule>>,
 }
 
-/// Theme custom properties forbidden at direct use sites.
+/// Logical-property checks for resolved declarations.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct LogicalPropertiesConfig {
+    /// Reporting level for physical properties and directional values.
+    pub severity: LintSeverity,
+    /// Include fixed declarations from `(implementation)` definitions. Defaults to
+    /// false.
+    pub check_implementation: bool,
+}
+
+/// Explicit fields overriding logical-property checks.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LogicalPropertiesOverride {
+    /// Omission preserves the reporting level.
+    pub severity: Option<LintSeverity>,
+    /// Omission preserves the existing choice, or uses false without a prior policy.
+    pub check_implementation: Option<bool>,
+}
+
+/// Effective restrictions on theme token names referenced by utilities and variants.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RestrictedThemeTokensConfig {
     /// Reporting level of forbidden token references.
     pub severity: LintSeverity,
+    /// Include token references from fixed `(implementation)` declarations. Defaults
+    /// to true. Tokens selected through placeholders or variant arguments stay checked
+    /// when this is false.
+    pub check_implementation: bool,
     /// Case-sensitive complete custom-property name globs supporting `*` and `?`.
     pub tokens: Vec<LeanStr>,
 }
 
-/// Explicit fields overriding the restricted theme token policy.
+/// Partial updates to the restricted theme token policy for `LintOverrides::resolve`.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RestrictedThemeTokensOverride {
-    /// Omission uses the rule default.
+    /// Omission preserves the existing severity, or uses warn without a prior policy.
     pub severity: Option<LintSeverity>,
+    /// Omission preserves the existing choice, or uses true without a prior policy.
+    pub check_implementation: Option<bool>,
     /// Omission preserves existing patterns; a supplied list replaces them.
     pub tokens: Option<Vec<LeanStr>>,
 }
@@ -179,7 +210,8 @@ pub struct RestrictedThemeTokensOverride {
 pub struct ArbitrarySpacingConfig {
     /// Reporting level for explicit nonzero lengths and percentages.
     pub severity: LintSeverity,
-    /// Additional case-insensitive property globs. Margin, padding, and gap are always checked.
+    /// Additional case-insensitive property globs. Margin, padding, and gap are always
+    /// checked.
     pub properties: Vec<LeanStr>,
 }
 
@@ -197,7 +229,8 @@ pub struct ArbitrarySpacingOverride {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RestrictedUtilityRule {
-    /// Case-sensitive full utility glob, excluding enclosing variants and important modifiers.
+    /// Case-sensitive full utility glob, excluding enclosing variants and important
+    /// modifiers.
     pub pattern: LeanStr,
     /// Optional project-specific explanation.
     pub message: Option<LeanStr>,
@@ -228,27 +261,54 @@ pub struct RestrictedUtilitiesOverride {
 pub struct RestrictedDeclarationRule {
     /// Case-insensitive complete CSS property globs.
     pub properties: Vec<LeanStr>,
-    /// Case-insensitive complete serialized value globs; strings and URLs remain CSS text.
+    /// Case-insensitive complete serialized value globs; strings and URLs remain CSS
+    /// text.
     pub values: Vec<LeanStr>,
     /// Optional project-specific explanation.
     pub message: Option<LeanStr>,
 }
 
-/// Forbidden combinations of resolved properties and values.
+/// Effective restrictions on resolved property and value combinations, including
+/// parsed shorthand components.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RestrictedDeclarationsConfig {
     /// Reporting level of forbidden declarations.
     pub severity: LintSeverity,
+    /// Include fixed `(implementation)` declarations. Defaults to true. Declarations
+    /// with executable placeholders and unmarked extensions stay checked when false.
+    pub check_implementation: bool,
     /// Every matching restriction applies; later rules do not override earlier rules.
     pub rules: Vec<RestrictedDeclarationRule>,
 }
 
-/// Explicit fields overriding forbidden declarations.
+/// Partial updates to declaration restrictions for `LintOverrides::resolve`.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RestrictedDeclarationsOverride {
-    /// Omission uses the rule default.
+    /// Omission preserves the existing severity, or uses warn without a prior policy.
     pub severity: Option<LintSeverity>,
+    /// Omission preserves the existing choice, or uses true without a prior policy.
+    pub check_implementation: Option<bool>,
     /// A supplied list replaces declaration restrictions.
     pub rules: Option<Vec<RestrictedDeclarationRule>>,
+}
+
+/// Effective restrictions on important utility declarations and source modifiers.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ImportantConfig {
+    /// Reporting level for important declarations and source modifiers.
+    pub severity: LintSeverity,
+    /// Include fixed `(implementation)` declarations. Defaults to true. Source `!`
+    /// modifiers and declarations with executable placeholders stay checked when false.
+    pub check_implementation: bool,
+}
+
+/// Partial updates to importance restrictions for `LintOverrides::resolve`.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ImportantOverride {
+    /// Omission preserves the existing severity, or uses warn without a prior policy.
+    pub severity: Option<LintSeverity>,
+    /// Omission preserves the existing choice, or uses true without a prior policy.
+    pub check_implementation: Option<bool>,
 }

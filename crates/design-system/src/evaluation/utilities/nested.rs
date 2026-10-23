@@ -12,9 +12,14 @@ use stillwind_css::{
     CssNode, CssNodeKind, absolutize_nested_selector, parse_structure, validate_css_syntax,
 };
 
+use super::resolve::UtilityDeclaration;
+
 /// A conditional declaration authored inside a CSS `@utility` body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NestedUtilityRule {
+    /// Declaration records for this rule before candidate priority. An empty list makes
+    /// lint consumers recover ordinary declarations from `declaration`.
+    pub policy_declarations: Vec<UtilityDeclaration>,
     /// True for the modern-color branch the compatibility path wraps in `@supports`;
     /// ordering metadata leaves these branches out.
     pub compatibility: bool,

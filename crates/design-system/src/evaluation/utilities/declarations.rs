@@ -14,18 +14,24 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssNodeKind, absolutize_nested_selector, inspect_css_value, parse_structure};
+use stillwind_css::{
+    CssNodeKind, absolutize_nested_selector, inspect_css_value, parse_declaration_list,
+    parse_structure,
+};
 use stillwind_syntax::Value;
 
 use super::super::context::{ArbitraryValueCheck, EvaluationContext, ValueSelections};
 use super::super::values::{PreparedValues, color_fallback, resolve_css_placeholders};
 use super::formatting::resolve_declaration_value;
-use super::resolve::{UtilityArbitraryUse, UtilityTokenUse};
+use super::resolve::{UtilityArbitraryUse, UtilityDeclaration, UtilityTokenUse};
 use crate::ThemeIndex;
 
-/// The declarations one candidate produced from one definition body.
+/// CSS and diagnostic records retained after evaluating one definition body.
 #[derive(Clone, Debug, Default)]
 pub(in crate::evaluation) struct ResolvedCssDeclarations {
+    /// Declaration records for `base`, including its nested blocks, before candidate
+    /// priority. Each record identifies whether its value is fixed implementation CSS.
+    pub(in crate::evaluation) policy_declarations: Vec<UtilityDeclaration>,
     /// Source selections and checks retained before color compatibility fallbacks are
     /// added.
     pub(in crate::evaluation) diagnostic_data: DeclarationDiagnosticData,
@@ -33,9 +39,19 @@ pub(in crate::evaluation) struct ResolvedCssDeclarations {
     pub(in crate::evaluation) base: LeanString,
     /// Modern-color variants of the base declarations that differ from the legacy text,
     /// to be emitted inside the capability query.
-    pub(in crate::evaluation) compat_modern: Vec<LeanStr>,
+    pub(in crate::evaluation) compat_modern: Vec<ResolvedCssBranch>,
     /// Requirements satisfied by retained declarations, including descendant blocks.
     matches: DeclarationMatches,
+}
+
+/// Modern CSS and declaration records for one color compatibility branch.
+#[derive(Clone, Debug)]
+pub(in crate::evaluation) struct ResolvedCssBranch {
+    /// Serialized CSS without the generated outer capability query. Authored nested
+    /// blocks remain present.
+    pub(in crate::evaluation) declaration: LeanStr,
+    /// Declaration records belonging to this branch, before candidate priority.
+    pub(in crate::evaluation) policy_declarations: Vec<UtilityDeclaration>,
 }
 
 /// Placeholder requirements matched by a declaration group and its nested blocks.
@@ -263,7 +279,9 @@ struct PreparedNestedDeclarations {
 /// supplies theme values and prepared bodies. `stillwind` selects the definition's
 /// formatting rules, and `color_compatibility` enables fallback branches for modern
 /// colors. `arbitrary_check` selects how typed domains check values without a type
-/// hint.
+/// hint. `implementation` must reflect the supplying definition's header. It marks only
+/// fixed declarations and their token uses. Declarations with executable placeholders
+/// retain ordinary classifications.
 ///
 /// Returns resolved CSS and diagnostic selections, or [`None`] when theme functions
 /// cannot resolve or a required placeholder remains unresolved. An empty static body
@@ -278,6 +296,7 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     stillwind: bool,
     color_compatibility: bool,
     arbitrary_check: ArbitraryValueCheck,
+    implementation: bool,
 ) -> Option<ResolvedCssDeclarations> {
     let lowered;
     let body = if body.contains("--alpha(")
@@ -307,17 +326,21 @@ pub(in crate::evaluation) fn resolve_css_declarations(
         stillwind,
         color_compatibility,
         arbitrary_check,
+        implementation,
     )
 }
 
 /// Evaluates `prepared` for the registered `utility_name`, candidate `name`, and
 /// optional slash `modifier`, preserving the order of retained declarations and blocks.
 ///
-/// `theme` supplies placeholder values. `stillwind` selects the definition's formatting
-/// rules, and `arbitrary_check` selects how unhinted arbitrary values are checked.
+/// `prepared` must have been parsed with `theme`, which supplies placeholder values.
+/// `stillwind` selects the definition's formatting rules, and `arbitrary_check`
+/// selects how unhinted arbitrary values are checked.
 /// `color_compatibility` adds fallback branches except inside authored `color-mix()`
-/// support queries. The result contains CSS, diagnostic selections, and matched
-/// requirements from all retained blocks; the inputs are not modified.
+/// support queries. `implementation` marks fixed declarations and their token uses;
+/// declarations with executable placeholders remain ordinary. The result contains CSS,
+/// declaration classifications, diagnostic selections, and matched requirements from
+/// retained blocks. The inputs are unchanged.
 ///
 /// Returns `None` when this group fails a required placeholder gate. A nested group
 /// that fails its gates is omitted, and its requirements remain unsatisfied in its
@@ -332,6 +355,7 @@ fn resolve_prepared_declarations(
     stillwind: bool,
     color_compatibility: bool,
     arbitrary_check: ArbitraryValueCheck,
+    implementation: bool,
 ) -> Option<ResolvedCssDeclarations> {
     let PreparedDeclarations {
         declarations,
@@ -357,6 +381,7 @@ fn resolve_prepared_declarations(
                 stillwind,
                 color_compatibility && !nested.supports_color_mix,
                 arbitrary_check,
+                implementation,
             ) else {
                 continue;
             };
@@ -364,6 +389,17 @@ fn resolve_prepared_declarations(
             resolved_value |= resolved.matches.value;
             resolved_modifier |= resolved.matches.modifier;
             resolved_required_declarations += resolved.matches.required;
+            output
+                .policy_declarations
+                .extend(
+                    resolved
+                        .policy_declarations
+                        .into_iter()
+                        .map(|mut declaration| {
+                            declaration.base = false;
+                            declaration
+                        }),
+                );
             for usage in &mut resolved.diagnostic_data.token_uses {
                 usage.base = false;
             }
@@ -390,12 +426,16 @@ fn resolve_prepared_declarations(
                     &format_args!("{}{{{}}}", nested.prelude, resolved.base).to_lean_string(),
                 );
             }
-            output.compat_modern.extend(
-                resolved
-                    .compat_modern
-                    .into_iter()
-                    .map(|modern| format_args!("{}{{{modern}}}", nested.prelude).to_lean_str()),
-            );
+            output
+                .compat_modern
+                .extend(resolved.compat_modern.into_iter().map(|mut modern| {
+                    modern.declaration =
+                        format_args!("{}{{{}}}", nested.prelude, modern.declaration).to_lean_str();
+                    for declaration in &mut modern.policy_declarations {
+                        declaration.base = false;
+                    }
+                    modern
+                }));
             continue;
         }
         let tracked = EvaluationContext::tracked(theme, arbitrary_check);
@@ -437,6 +477,7 @@ fn resolve_prepared_declarations(
                 theme.take_selections(),
                 authored_declaration,
                 &declaration,
+                implementation && static_value.is_some(),
             );
             resolved_value |= contains_value;
             resolved_modifier |= contains_modifier;
@@ -444,13 +485,21 @@ fn resolve_prepared_declarations(
             let declaration = if color_compatibility
                 && let Some(fallback) = color_fallback(&declaration, theme)
             {
-                output
-                    .compat_modern
-                    .push(declaration.trim_start().to_lean_str());
+                output.compat_modern.push(ResolvedCssBranch {
+                    policy_declarations: policy_declarations(
+                        &declaration,
+                        implementation && static_value.is_some(),
+                    ),
+                    declaration: declaration.trim_start().to_lean_str(),
+                });
                 fallback.into()
             } else {
                 declaration
             };
+            output.policy_declarations.extend(policy_declarations(
+                &declaration,
+                implementation && static_value.is_some(),
+            ));
             if output.base.is_empty() {
                 output.base.push_str(declaration.trim_start());
             } else {
@@ -480,16 +529,46 @@ fn resolve_prepared_declarations(
         .map(|()| output)
 }
 
+/// Parses the declaration list `css` into records with `base: true`.
+///
+/// The caller must classify the list before passing `implementation`; the flag is
+/// applied to every parsed declaration. Property names are decoded, ordinary property
+/// names are lowercased, and values retain authored priority. Invalid statements are
+/// omitted. Invalid CSS syntax can reject the entire list.
+fn policy_declarations(css: &str, implementation: bool) -> Vec<UtilityDeclaration> {
+    parse_declaration_list(css)
+        .into_iter()
+        .flatten()
+        .map(|declaration| UtilityDeclaration {
+            property: if declaration.name.starts_with("--") {
+                declaration.name
+            } else {
+                declaration.name.to_ascii_lowercase()
+            },
+            value: declaration.value,
+            implementation,
+            base: true,
+        })
+        .collect()
+}
+
 /// Adds the selections of one resolved declaration to `diagnostic_data`.
 ///
 /// `authored` contains the declaration before placeholder substitution, and
 /// `declaration` contains its resolved CSS before color compatibility fallbacks are
-/// added. Direct token names take precedence over references introduced by expansion.
+/// added. `selections` must come from evaluating that declaration. `implementation`
+/// classifies its token uses and must be false for executable placeholders.
+///
+/// Appends accepted captures and direct token names to `diagnostic_data`. An
+/// out-of-range alpha value is stored only if none was recorded. Token references
+/// introduced by expansion are used only when no selected or authored token names
+/// remain.
 fn record_tokens(
     diagnostic_data: &mut DeclarationDiagnosticData,
     selections: ValueSelections,
     authored: &str,
     declaration: &str,
+    implementation: bool,
 ) {
     if let Some((property, _)) = declaration.split_once(':') {
         if diagnostic_data.out_of_range_alpha.is_none()
@@ -525,6 +604,7 @@ fn record_tokens(
         && !tokens.is_empty()
     {
         diagnostic_data.token_uses.push(UtilityTokenUse {
+            implementation,
             base: true,
             property: (property.trim().to_lean_string().to_ascii_lowercase()).into(),
             tokens: tokens.into_iter().collect(),
@@ -554,6 +634,7 @@ mod tests {
                 false,
                 true,
                 ArbitraryValueCheck::Grammar,
+                false,
             )
             .is_none()
         );
@@ -566,9 +647,10 @@ mod tests {
             false,
             true,
             ArbitraryValueCheck::Grammar,
+            false,
         )
         .unwrap();
         assert_eq!(resolved.base, "color:red;");
-        assert_eq!(resolved.compat_modern, [] as [LeanString; 0]);
+        assert!(resolved.compat_modern.is_empty());
     }
 }

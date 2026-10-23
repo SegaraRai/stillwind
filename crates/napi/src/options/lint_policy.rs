@@ -5,9 +5,10 @@ use napi_derive::napi;
 
 use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
-    LintSeverity, MarkerUseOverride, RestrictedDeclarationRule, RestrictedDeclarationsOverride,
-    RestrictedLengthUnitRule, RestrictedLengthUnitsOverride, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesOverride, RestrictedUtilityRule, VariantDirectiveOverride,
+    ImportantOverride, LintSeverity, LogicalPropertiesOverride, MarkerUseOverride,
+    RestrictedDeclarationRule, RestrictedDeclarationsOverride, RestrictedLengthUnitRule,
+    RestrictedLengthUnitsOverride, RestrictedThemeTokensOverride, RestrictedUtilitiesOverride,
+    RestrictedUtilityRule, VariantDirectiveOverride,
 };
 
 /// Canonical utility options. All omitted fields preserve the previous setting.
@@ -114,11 +115,14 @@ pub struct NativeRestrictedLengthUnitRule {
     pub disallow: Vec<String>,
 }
 
-/// Length restrictions applied at utility use sites.
+/// Binding fields that override length restrictions at utility use sites.
 #[napi(object)]
 pub struct NativeRestrictedLengthUnitsOptions {
-    /// Reporting severity; omission uses the rule default.
+    /// Reporting severity. Omission preserves the existing severity, or uses warn.
     pub severity: Option<String>,
+    /// Include fixed `(implementation)` declarations. Omission preserves the existing
+    /// choice, or uses false. Captured candidate values remain checked.
+    pub check_implementation: Option<bool>,
     /// A supplied list replaces the existing restrictions.
     pub rules: Option<Vec<NativeRestrictedLengthUnitRule>>,
 }
@@ -126,8 +130,15 @@ pub struct NativeRestrictedLengthUnitsOptions {
 impl TryFrom<NativeRestrictedLengthUnitsOptions> for RestrictedLengthUnitsOverride {
     type Error = Error;
 
+    /// Converts `value` into a partial override, preserving omitted fields. Unit names
+    /// and property patterns are copied without validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the supplied severity is not `warn`, `deny`, or `off`.
     fn try_from(value: NativeRestrictedLengthUnitsOptions) -> napi::Result<Self> {
         Ok(Self {
+            check_implementation: value.check_implementation,
             severity: value
                 .severity
                 .map(|value| lint_severity(&value))
@@ -145,11 +156,44 @@ impl TryFrom<NativeRestrictedLengthUnitsOptions> for RestrictedLengthUnitsOverri
     }
 }
 
-/// Forbidden direct theme token names.
+/// Binding fields that override logical-property checks at utility use sites.
+#[napi(object)]
+pub struct NativeLogicalPropertiesOptions {
+    /// Reporting severity. Omission preserves the existing severity, or uses warn.
+    pub severity: Option<String>,
+    /// Include fixed `(implementation)` declarations. Omission preserves the existing
+    /// choice, or uses false. Captured candidate values remain checked.
+    pub check_implementation: Option<bool>,
+}
+
+impl TryFrom<NativeLogicalPropertiesOptions> for LogicalPropertiesOverride {
+    type Error = Error;
+
+    /// Converts `value` into a partial override, preserving omitted fields.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the supplied severity is not `warn`, `deny`, or `off`.
+    fn try_from(value: NativeLogicalPropertiesOptions) -> napi::Result<Self> {
+        Ok(Self {
+            severity: value
+                .severity
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            check_implementation: value.check_implementation,
+        })
+    }
+}
+
+/// Binding fields that override restrictions on direct theme token uses.
 #[napi(object)]
 pub struct NativeRestrictedThemeTokensOptions {
-    /// Reporting severity; omission uses the rule default.
+    /// Reporting severity. Omission preserves the existing severity, or uses warn.
     pub severity: Option<String>,
+    /// Include token uses from fixed `(implementation)` declarations. Omission
+    /// preserves the existing choice, or uses true. Tokens selected through
+    /// placeholders or variant arguments remain checked.
+    pub check_implementation: Option<bool>,
     /// Complete custom-property globs using `*` and `?`.
     pub tokens: Option<Vec<String>>,
 }
@@ -157,8 +201,15 @@ pub struct NativeRestrictedThemeTokensOptions {
 impl TryFrom<NativeRestrictedThemeTokensOptions> for RestrictedThemeTokensOverride {
     type Error = Error;
 
+    /// Converts `value` into a partial override, preserving omitted fields. Token
+    /// patterns are copied without validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the supplied severity is not `warn`, `deny`, or `off`.
     fn try_from(value: NativeRestrictedThemeTokensOptions) -> napi::Result<Self> {
         Ok(Self {
+            check_implementation: value.check_implementation,
             severity: value
                 .severity
                 .map(|value| lint_severity(&value))
@@ -243,11 +294,15 @@ pub struct NativeRestrictedDeclarationRule {
     pub message: Option<String>,
 }
 
-/// Restrictions on resolved CSS declarations.
+/// Binding fields that override restrictions on resolved CSS declarations.
 #[napi(object)]
 pub struct NativeRestrictedDeclarationsOptions {
-    /// Reporting severity; omission uses the rule default.
+    /// Reporting severity. Omission preserves the existing severity, or uses warn.
     pub severity: Option<String>,
+    /// Include fixed `(implementation)` declarations. Omission preserves the existing
+    /// choice, or uses true. Declarations with executable placeholders and unmarked
+    /// extensions remain checked.
+    pub check_implementation: Option<bool>,
     /// A supplied list replaces declaration restrictions.
     pub rules: Option<Vec<NativeRestrictedDeclarationRule>>,
 }
@@ -255,8 +310,15 @@ pub struct NativeRestrictedDeclarationsOptions {
 impl TryFrom<NativeRestrictedDeclarationsOptions> for RestrictedDeclarationsOverride {
     type Error = Error;
 
+    /// Converts `value` into a partial override, preserving omitted fields. Property
+    /// patterns, value patterns, and messages are copied without validation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the supplied severity is not `warn`, `deny`, or `off`.
     fn try_from(value: NativeRestrictedDeclarationsOptions) -> napi::Result<Self> {
         Ok(Self {
+            check_implementation: value.check_implementation,
             severity: value
                 .severity
                 .map(|value| lint_severity(&value))
@@ -271,6 +333,36 @@ impl TryFrom<NativeRestrictedDeclarationsOptions> for RestrictedDeclarationsOver
                     })
                     .collect()
             }),
+        })
+    }
+}
+
+/// Binding fields that override importance restrictions on utility uses.
+#[napi(object)]
+pub struct NativeImportantOptions {
+    /// Reporting severity. Omission preserves the existing severity, or uses warn.
+    pub severity: Option<String>,
+    /// Include fixed `(implementation)` declarations. Omission preserves the existing
+    /// choice, or uses true. Source `!` modifiers and declarations with executable
+    /// placeholders remain checked.
+    pub check_implementation: Option<bool>,
+}
+
+impl TryFrom<NativeImportantOptions> for ImportantOverride {
+    type Error = Error;
+
+    /// Converts `value` into a partial override, preserving omitted fields.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the supplied severity is not `warn`, `deny`, or `off`.
+    fn try_from(value: NativeImportantOptions) -> napi::Result<Self> {
+        Ok(Self {
+            severity: value
+                .severity
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            check_implementation: value.check_implementation,
         })
     }
 }

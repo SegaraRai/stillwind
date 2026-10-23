@@ -17,12 +17,16 @@ export type LintRules = Partial<Record<SimpleLintRule, LintSeverity>> & {
   "no-restricted-utilities"?: LintSeverity | RestrictedUtilitiesOptions;
   /** Severity or restrictions on resolved CSS properties and values. */
   "no-restricted-declarations"?: LintSeverity | RestrictedDeclarationsOptions;
+  /** Severity or checks of fixed implementation declarations for importance. */
+  "no-important"?: LintSeverity | ImportantOptions;
   /** Severity or exceptions for a narrower property overriding a shorthand. */
   "conflicting-utilities"?: LintSeverity | ConflictingUtilitiesOptions;
   /** Severity or marker class names whose misuse is not reported. */
   "invalid-marker-use"?: LintSeverity | MarkerUseOptions;
   /** Severity or ordered restrictions on nonzero CSS length units. */
   "no-restricted-length-units"?: LintSeverity | LengthUnitsOptions;
+  /** Severity or checks of fixed implementation declarations for physical properties. */
+  "prefer-logical-properties"?: LintSeverity | LogicalPropertiesOptions;
   /** Severity or patterns restricting direct references to theme custom properties. */
   "no-restricted-theme-tokens"?: LintSeverity | RestrictedThemeTokensOptions;
   /** Severity or spacing-conversion settings for canonical utility replacements. */
@@ -79,6 +83,11 @@ export type RestrictedUtilitiesOptions = {
 export type RestrictedDeclarationsOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves an inherited
+   * setting, or uses true. Captured candidate values and unmarked extensions remain checked.
+   */
+  checkImplementation?: boolean;
   /** Every matching declaration restriction applies. Later entries do not override earlier entries. */
   rules?: readonly {
     /** Nonempty list of complete property globs with no whitespace. Comparison ignores ASCII case. */
@@ -110,6 +119,11 @@ export type MarkerUseOptions = {
 export type LengthUnitsOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves an inherited
+   * setting, or uses false. Captured candidate values remain checked.
+   */
+  checkImplementation?: boolean;
   /** Restrictions in precedence order. The last matching entry determines the forbidden units. */
   rules?: readonly {
     /** Nonempty list of complete property globs supporting `*` and `?`, without whitespace. Comparison ignores ASCII case. */
@@ -119,12 +133,39 @@ export type LengthUnitsOptions = {
   }[];
 };
 
+/** Controls physical-property checks at utility use sites. */
+export type LogicalPropertiesOptions = {
+  /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
+  severity?: LintSeverity;
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves an inherited
+   * setting, or uses false. Captured candidate values remain checked.
+   */
+  checkImplementation?: boolean;
+};
+
 /** Selects theme token names without restricting semantic aliases of those tokens. */
 export type RestrictedThemeTokensOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
+  /**
+   * Include token uses from fixed `(implementation)` declarations. Omission preserves
+   * an inherited setting, or uses true. Tokens selected through placeholders or variant arguments remain checked.
+   */
+  checkImplementation?: boolean;
   /** Case-sensitive full custom-property name globs with `*` and `?`. */
   tokens?: readonly string[];
+};
+
+/** Controls importance restrictions on declarations and source modifiers. */
+export type ImportantOptions = {
+  /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
+  severity?: LintSeverity;
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves an inherited
+   * setting, or uses true. Source `!` modifiers and declarations with executable placeholders remain checked.
+   */
+  checkImplementation?: boolean;
 };
 
 /** Controls replacement of equivalent utility spellings. */
@@ -245,6 +286,10 @@ const tokenGlob = v.pipe(
 );
 
 const ruleOptions = {
+  "no-important": strictObject({
+    severity: v.optional(severitySchema),
+    checkImplementation: v.optional(v.boolean()),
+  }),
   "no-arbitrary-spacing": strictObject({
     severity: v.optional(severitySchema),
     properties: v.optional(v.array(glob)),
@@ -257,6 +302,7 @@ const ruleOptions = {
   }),
   "no-restricted-declarations": strictObject({
     severity: v.optional(severitySchema),
+    checkImplementation: v.optional(v.boolean()),
     rules: v.optional(
       v.array(
         strictObject({
@@ -277,6 +323,7 @@ const ruleOptions = {
   }),
   "no-restricted-length-units": strictObject({
     severity: v.optional(severitySchema),
+    checkImplementation: v.optional(v.boolean()),
     rules: v.optional(
       v.array(
         strictObject({
@@ -294,8 +341,13 @@ const ruleOptions = {
       ),
     ),
   }),
+  "prefer-logical-properties": strictObject({
+    severity: v.optional(severitySchema),
+    checkImplementation: v.optional(v.boolean()),
+  }),
   "no-restricted-theme-tokens": strictObject({
     severity: v.optional(severitySchema),
+    checkImplementation: v.optional(v.boolean()),
     tokens: v.optional(v.array(tokenGlob)),
   }),
   "prefer-canonical-utilities": strictObject({

@@ -62,7 +62,10 @@ test("utility policies retain their fields at the native boundary", () => {
         "conflicting-utilities": {
           allowShorthandOverrides: true,
         },
-        "prefer-logical-properties": "off",
+        "prefer-logical-properties": {
+          severity: "off",
+          checkImplementation: true,
+        },
         "no-restricted-length-units": {
           rules: [
             {
@@ -84,7 +87,10 @@ test("utility policies retain their fields at the native boundary", () => {
     conflictingUtilities: {
       allowShorthandOverrides: true,
     },
-    preferLogicalProperties: "off",
+    preferLogicalProperties: {
+      severity: "off",
+      checkImplementation: true,
+    },
     noRestrictedLengthUnits: {
       rules: [
         {
@@ -153,7 +159,10 @@ test("source restriction options retain native names and list replacements", () 
       severity: "warn",
     },
     noClassProperty: "off",
-    noImportant: "deny",
+    noImportant: {
+      severity: "deny",
+      checkImplementation: true,
+    },
     invalidLintSuppression: "warn",
     unusedLintSuppression: "warn",
     noRestrictedUtilities: {

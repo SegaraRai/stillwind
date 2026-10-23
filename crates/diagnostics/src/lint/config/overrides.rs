@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LintConfig, LintKind, LintSettings, LintSeverity, MarkerUseConfig, MarkerUseOverride,
+    ImportantConfig, ImportantOverride, LintConfig, LintKind, LintSettings, LintSeverity,
+    LogicalPropertiesConfig, LogicalPropertiesOverride, MarkerUseConfig, MarkerUseOverride,
     RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedLengthUnitsConfig,
     RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
     RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, VariantDirectiveConfig,
@@ -26,8 +27,8 @@ pub struct LintOverrides {
     pub no_restricted_utilities: Option<RestrictedUtilitiesOverride>,
     /// Forbidden resolved property and value combinations.
     pub no_restricted_declarations: Option<RestrictedDeclarationsOverride>,
-    /// Reporting level for important declarations.
-    pub no_important: Option<LintSeverity>,
+    /// Restrictions on important declarations and source modifiers.
+    pub no_important: Option<ImportantOverride>,
     /// Reporting level for unknown suppression names and malformed directives.
     pub invalid_lint_suppression: Option<LintSeverity>,
     /// Reporting level for disable directives that suppress no enabled findings.
@@ -38,8 +39,8 @@ pub struct LintOverrides {
     pub duplicate_utility: Option<LintSeverity>,
     /// Overlap policy for utilities supplied directly by one call.
     pub conflicting_utilities: Option<ConflictingUtilitiesOverride>,
-    /// Reporting level for direction-dependent physical declarations.
-    pub prefer_logical_properties: Option<LintSeverity>,
+    /// Checks of direction-dependent physical declarations.
+    pub prefer_logical_properties: Option<LogicalPropertiesOverride>,
     /// Property-specific unit restrictions.
     pub no_restricted_length_units: Option<RestrictedLengthUnitsOverride>,
     /// Theme token names forbidden at their direct use sites.
@@ -159,12 +160,31 @@ pub struct LintOverrides {
 }
 
 impl LintOverrides {
-    /// Resolves project fields against the supplied defaults without changing either
-    /// input.
+    /// Returns effective settings by applying this override to `defaults`.
+    ///
+    /// Omitted fields preserve the existing policy. A detailed rule without a prior
+    /// policy starts with its catalog defaults. Supplied lists replace existing lists.
+    /// Neither input is changed.
     pub fn resolve(&self, defaults: &LintSettings) -> LintSettings {
         let mut settings = defaults.clone();
         self.resolve_reporting_levels(&mut settings);
         self.resolve_source_restrictions(&mut settings);
+        if let Some(overrides) = &self.prefer_logical_properties {
+            let mut config = match settings.get(LintKind::PreferLogicalProperties) {
+                Some(LintConfig::PreferLogicalProperties(config)) => config.clone(),
+                _ => LogicalPropertiesConfig {
+                    severity: LintSeverity::Warn,
+                    check_implementation: false,
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = overrides.check_implementation {
+                config.check_implementation = value;
+            }
+            settings.insert(LintConfig::PreferLogicalProperties(config));
+        }
         if let Some(overrides) = &self.invalid_marker_use {
             let mut config = match settings.get(LintKind::InvalidMarkerUse) {
                 Some(LintConfig::InvalidMarkerUse(config)) => config.clone(),
@@ -199,6 +219,7 @@ impl LintOverrides {
                 Some(LintConfig::NoRestrictedLengthUnits(config)) => config.clone(),
                 _ => RestrictedLengthUnitsConfig {
                     severity: LintSeverity::Warn,
+                    check_implementation: false,
                     rules: Vec::new(),
                 },
             };
@@ -208,6 +229,9 @@ impl LintOverrides {
             if let Some(value) = &overrides.rules {
                 config.rules.clone_from(value);
             }
+            if let Some(value) = overrides.check_implementation {
+                config.check_implementation = value;
+            }
             settings.insert(LintConfig::NoRestrictedLengthUnits(config));
         }
         if let Some(overrides) = &self.no_restricted_theme_tokens {
@@ -215,6 +239,7 @@ impl LintOverrides {
                 Some(LintConfig::NoRestrictedThemeTokens(config)) => config.clone(),
                 _ => RestrictedThemeTokensConfig {
                     severity: LintSeverity::Warn,
+                    check_implementation: true,
                     tokens: Vec::new(),
                 },
             };
@@ -223,6 +248,9 @@ impl LintOverrides {
             }
             if let Some(value) = &overrides.tokens {
                 config.tokens.clone_from(value);
+            }
+            if let Some(value) = overrides.check_implementation {
+                config.check_implementation = value;
             }
             settings.insert(LintConfig::NoRestrictedThemeTokens(config));
         }
@@ -336,7 +364,6 @@ impl LintOverrides {
             (LintKind::PreferTypedVariables, self.prefer_typed_variables),
             (LintKind::NoArbitraryColors, self.no_arbitrary_colors),
             (LintKind::NoClassProperty, self.no_class_property),
-            (LintKind::NoImportant, self.no_important),
             (
                 LintKind::InvalidLintSuppression,
                 self.invalid_lint_suppression,
@@ -350,10 +377,6 @@ impl LintOverrides {
             (
                 LintKind::NoArbitraryBreakpoints,
                 self.no_arbitrary_breakpoints,
-            ),
-            (
-                LintKind::PreferLogicalProperties,
-                self.prefer_logical_properties,
             ),
         ] {
             if let Some(severity) = severity {
@@ -444,6 +467,22 @@ impl LintOverrides {
     }
 
     fn resolve_source_restrictions(&self, settings: &mut LintSettings) {
+        if let Some(overrides) = &self.no_important {
+            let mut config = match settings.get(LintKind::NoImportant) {
+                Some(LintConfig::NoImportant(config)) => config.clone(),
+                _ => ImportantConfig {
+                    severity: LintSeverity::Warn,
+                    check_implementation: true,
+                },
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = overrides.check_implementation {
+                config.check_implementation = value;
+            }
+            settings.insert(LintConfig::NoImportant(config));
+        }
         if let Some(overrides) = &self.no_arbitrary_spacing {
             let mut config = match settings.get(LintKind::NoArbitrarySpacing) {
                 Some(LintConfig::NoArbitrarySpacing(config)) => config.clone(),
@@ -481,6 +520,7 @@ impl LintOverrides {
                 Some(LintConfig::NoRestrictedDeclarations(config)) => config.clone(),
                 _ => RestrictedDeclarationsConfig {
                     severity: LintSeverity::Warn,
+                    check_implementation: true,
                     rules: Vec::new(),
                 },
             };
@@ -489,6 +529,9 @@ impl LintOverrides {
             }
             if let Some(value) = &overrides.rules {
                 config.rules.clone_from(value);
+            }
+            if let Some(value) = overrides.check_implementation {
+                config.check_implementation = value;
             }
             settings.insert(LintConfig::NoRestrictedDeclarations(config));
         }

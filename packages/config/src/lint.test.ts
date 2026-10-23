@@ -122,6 +122,7 @@ test("nested presets apply in order while severity changes preserve options and 
   });
   expect(resolved.rules["no-restricted-theme-tokens"]).toEqual({
     severity: "deny",
+    checkImplementation: true,
     tokens: ["--spacing-*"],
   });
   expect(config).toEqual(before);
@@ -304,6 +305,8 @@ test("utility policies accept typed options and reject malformed restrictions", 
   expect(() => validateLintConfig(config, "config.lint", false)).not.toThrow();
   for (const lint of [
     { "conflicting-utilities": { allowShorthandOverrides: "true" } },
+    { "prefer-logical-properties": { checkImplementation: "true" } },
+    { "no-restricted-length-units": { checkImplementation: 1 } },
     { "no-restricted-length-units": { rules: [{ properties: [], disallow: ["px"] }] } },
     { "no-restricted-length-units": { rules: [{ properties: ["padding"], disallow: [16] }] } },
     { "no-restricted-theme-tokens": { tokens: ["spacing-*"] } },
@@ -312,6 +315,104 @@ test("utility policies accept typed options and reject malformed restrictions", 
     { "no-restricted-theme-tokens": { regex: "red" } },
   ]) {
     expect(() => validateLintConfig({ rules: lint }, "config.lint", false)).toThrow();
+  }
+});
+
+test("logical property and length implementation checks default off and survive overrides", () => {
+  const base: LintPreset = {
+    rules: {
+      "prefer-logical-properties": {
+        severity: "warn",
+        checkImplementation: true,
+      },
+      "no-restricted-length-units": {
+        severity: "warn",
+        checkImplementation: true,
+        rules: [
+          {
+            properties: ["height"],
+            disallow: ["em"],
+          },
+        ],
+      },
+    },
+  };
+  const resolved = resolveLintConfig({
+    extends: [base],
+    rules: {
+      "prefer-logical-properties": "deny",
+      "no-restricted-length-units": "deny",
+    },
+  }).rules;
+  expect(resolved["prefer-logical-properties"]).toEqual({
+    severity: "deny",
+    checkImplementation: true,
+  });
+  expect(resolved["no-restricted-length-units"]).toEqual({
+    severity: "deny",
+    checkImplementation: true,
+    rules: [
+      {
+        properties: ["height"],
+        disallow: ["em"],
+      },
+    ],
+  });
+  expect(
+    resolveLintConfig({
+      rules: { "prefer-logical-properties": "warn" },
+    }).rules["prefer-logical-properties"],
+  ).toEqual({
+    severity: "warn",
+    checkImplementation: false,
+  });
+  expect(resolveLintConfig().rules["no-restricted-length-units"].checkImplementation).toBe(false);
+});
+
+test("explicit restrictions default to checking implementation and preserve preset options", () => {
+  for (const name of [
+    "no-important",
+    "no-restricted-declarations",
+    "no-restricted-theme-tokens",
+  ] as const) {
+    expect(resolveLintConfig().rules[name].checkImplementation).toBe(true);
+    const base: LintPreset = {
+      rules: {
+        [name]: {
+          severity: "warn",
+          checkImplementation: false,
+          ...(name === "no-restricted-theme-tokens"
+            ? {
+                tokens: ["--ref-*"],
+              }
+            : {}),
+        },
+      },
+    };
+    expect(
+      resolveLintConfig({
+        extends: [base],
+        rules: {
+          [name]: "deny",
+        },
+      }).rules[name],
+    ).toMatchObject({
+      severity: "deny",
+      checkImplementation: false,
+    });
+    expect(() =>
+      validateLintConfig(
+        {
+          rules: {
+            [name]: {
+              checkImplementation: "false",
+            },
+          },
+        },
+        "config.lint",
+        false,
+      ),
+    ).toThrow();
   }
 });
 

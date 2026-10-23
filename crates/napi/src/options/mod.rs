@@ -13,8 +13,8 @@ pub(super) use lint_policy::NativeCanonicalUtilitiesOptions;
 
 use lint::NativeLintOptions;
 use lint_policy::{
-    NativeArbitrarySpacingOptions, NativeConflictingUtilitiesOptions, NativeMarkerUseOptions,
-    NativeRestrictedDeclarationsOptions, NativeRestrictedLengthUnitsOptions,
-    NativeRestrictedThemeTokensOptions, NativeRestrictedUtilitiesOptions,
-    NativeVariantDirectiveOptions, lint_severity,
+    NativeArbitrarySpacingOptions, NativeConflictingUtilitiesOptions, NativeImportantOptions,
+    NativeLogicalPropertiesOptions, NativeMarkerUseOptions, NativeRestrictedDeclarationsOptions,
+    NativeRestrictedLengthUnitsOptions, NativeRestrictedThemeTokensOptions,
+    NativeRestrictedUtilitiesOptions, NativeVariantDirectiveOptions, lint_severity,
 };

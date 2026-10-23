@@ -807,6 +807,35 @@ including `text-align: left`, `float: right`, and asymmetric four-side shorthand
 Uniform four-side shorthands are allowed. The rule does not rewrite declarations
 because their meaning depends on writing mode.
 
+`prefer-logical-properties` and `no-restricted-length-units` accept
+`checkImplementation`, which defaults to `false`. Fixed declarations from an
+`@utility name (implementation) { ... }` definition are excluded by default.
+Set this option to `true` on either rule to include them. Declarations that consume
+candidate values through placeholders remain checked, as do unmarked definitions
+that extend the same utility.
+
+`no-important`, `no-restricted-declarations`, and `no-restricted-theme-tokens` also
+accept `checkImplementation`, with a default of `true`. Set it to `false` to exclude
+fixed implementation declarations from that rule. Source important modifiers,
+declarations that consume candidate values, and unmarked extensions remain checked.
+The token rule also checks tokens selected through variant arguments.
+
+```ts
+lint: {
+  rules: {
+    "no-important": { severity: "warn", checkImplementation: false },
+    "no-restricted-declarations": {
+      checkImplementation: false,
+      rules: [{ properties: ["position"], values: ["fixed"] }],
+    },
+    "no-restricted-theme-tokens": {
+      checkImplementation: false,
+      tokens: ["--color-ref-*"],
+    },
+  },
+}
+```
+
 `no-restricted-length-units` uses complete property-name globs with `*` and `?`, ignoring
 ASCII case. The last matching rule replaces earlier restrictions. Parsed shorthands use
 their component properties, which can override a restriction on the shorthand.

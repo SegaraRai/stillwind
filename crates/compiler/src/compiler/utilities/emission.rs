@@ -433,6 +433,7 @@ mod tests {
     fn nested_declarations_follow_the_property_they_override() {
         let declaration = "color:red;width:1px;";
         let rule = NestedUtilityRule {
+            policy_declarations: Vec::new(),
             compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
@@ -447,6 +448,7 @@ mod tests {
     #[test]
     fn canonical_compatibility_keeps_distinct_declaration_boundaries() {
         let parent = NestedUtilityRule {
+            policy_declarations: Vec::new(),
             compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),
@@ -455,6 +457,7 @@ mod tests {
             inside: true,
         };
         let modern = NestedUtilityRule {
+            policy_declarations: Vec::new(),
             compatibility: true,
             parent: Some((parent.at_rule, parent.condition.clone())),
             declaration: "color:blue;".into(),
@@ -472,6 +475,7 @@ mod tests {
     #[test]
     fn nested_rules_keep_boundaries_unmatched_rules_and_source_order() {
         let first = NestedUtilityRule {
+            policy_declarations: Vec::new(),
             compatibility: false,
             at_rule: NestedUtilityAtRule::Media,
             condition: "print".into(),

@@ -167,7 +167,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         family: Family::TailwindDerived,
         positions: Positions::RULES.union(Positions::REGISTRY),
         syntax: "@utility name-* { ... }",
-        description: "Defines a utility. A trailing * captures the candidate value for --value().",
+        description: "Defines a utility. A trailing * captures the candidate value for --value(). The (implementation) descriptor classifies fixed declarations for lint rules with checkImplementation.",
     },
     Directive {
         name: "custom-variant",

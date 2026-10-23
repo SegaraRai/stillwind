@@ -21,13 +21,14 @@ use stillwind_css::{
     decode_css_escapes, extract_named_blocks, strip_css_comments, whitespace_separated_ranges,
 };
 
-/// One utility definition: its name, its body, and the ordering metadata of its
-/// registration.
+/// One registered utility definition with its CSS body, matching role, ordering, and
+/// classification for lint policies.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomUtility {
-    /// Authored name; a trailing `*` marks a prefix pattern.
+    /// Decoded utility name. A trailing `*` marks a prefix pattern.
     pub name: LeanStr,
-    /// Declaration body, excluding the selector block or `@slot`.
+    /// CSS inside the definition's outer braces, including nested rules and placeholder
+    /// functions.
     pub body: LeanStr,
     /// Byte offset of a `@stillwind-utility` directive in the parsed CSS, which orders
     /// these definitions. `None` for `@utility`, whose order comes from
@@ -38,6 +39,10 @@ pub struct CustomUtility {
     pub tw_sort: Option<LeanStr>,
     /// How the definition takes part in resolving its name.
     pub role: UtilityRole,
+    /// True for an `(implementation)` header. Evaluators classify fixed declarations
+    /// and their token uses as implementation CSS. Declarations with executable
+    /// placeholders retain ordinary classifications.
+    pub implementation: bool,
     /// Whether the answer to a `@plugin` statement contains the definition. Plugin
     /// definitions of a name are evaluated after `@stillwind-utility` definitions and
     /// before the stylesheet's definitions, as Tailwind registers plugins before the
@@ -70,20 +75,24 @@ struct UtilityHeader {
     name: LeanStr,
     tw_sort: Option<LeanStr>,
     role: UtilityRole,
+    implementation: bool,
 }
 
 /// Splits a definition header into its decoded name and its optional descriptor list.
 ///
 /// The name is the first whitespace-delimited token. The descriptor list, when present,
 /// is one parenthesized, comma-separated list of `tw-sort: <identifier>`, `functional`,
-/// `fallback`, and `stop`. `fallback` and `stop` require `functional`. Any other header
-/// is rejected, which drops the definition from the registry.
+/// `fallback`, `stop`, and `implementation`. `tw-sort` can occur only once. `fallback`
+/// and `stop` require `functional`. Returns `None` when the header is empty, its name
+/// cannot be decoded, or its descriptor list is invalid or unsupported. Callers omit
+/// rejected definitions from the registry.
 fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
     let end = whitespace_separated_ranges(header).first()?.end;
     let mut parsed = UtilityHeader {
         name: decode_css_escapes(&header[..end])?,
         tw_sort: None,
         role: UtilityRole::default(),
+        implementation: false,
     };
     let descriptors = header[end..].trim();
     if descriptors.is_empty() {
@@ -107,6 +116,9 @@ fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
             None if descriptor.trim() == "stop" => {
                 parsed.role.stop = true;
             }
+            None if descriptor.trim() == "implementation" => {
+                parsed.implementation = true;
+            }
             _ => {
                 return None;
             }
@@ -119,7 +131,7 @@ fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
 ///
 /// `position` is the byte offset of each directive in `css`, which positions these
 /// definitions relative to one another and to arbitrary-property positions in authored
-/// utility mode. A definition whose header has no valid name is skipped.
+/// utility mode. Definitions whose headers cannot be parsed are skipped.
 #[must_use]
 pub fn parse_stillwind_utility_definitions(css: &str) -> Vec<CustomUtility> {
     extract_named_blocks(css, "@stillwind-utility")
@@ -129,6 +141,7 @@ pub fn parse_stillwind_utility_definitions(css: &str) -> Vec<CustomUtility> {
                 name,
                 tw_sort,
                 role,
+                implementation,
             } = parse_utility_header(&header)?;
             Some(CustomUtility {
                 name,
@@ -136,6 +149,7 @@ pub fn parse_stillwind_utility_definitions(css: &str) -> Vec<CustomUtility> {
                 position: Some(position),
                 tw_sort,
                 role,
+                implementation,
                 plugin: false,
             })
         })
@@ -158,6 +172,7 @@ pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)
                 name,
                 tw_sort,
                 role,
+                implementation,
             } = parse_utility_header(strip_css_comments(&header).trim())?;
             Some((
                 offset,
@@ -167,6 +182,7 @@ pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)
                     position: None,
                     tw_sort,
                     role,
+                    implementation,
                     plugin: false,
                 },
             ))
@@ -203,6 +219,21 @@ mod tests {
             "x (other: color)",
         ] {
             assert!(parse_utility_header(header).is_none());
+        }
+    }
+
+    #[test]
+    fn parses_implementation_with_other_header_descriptors() {
+        for directive in ["@utility", "@stillwind-utility"] {
+            let css = format!("{directive} icon (implementation, tw-sort: width) {{ width:1em; }}");
+            let utilities = if directive == "@utility" {
+                utility_definitions(&css)
+            } else {
+                parse_stillwind_utility_definitions(&css)
+            };
+            assert_eq!(utilities.len(), 1);
+            assert!(utilities[0].implementation);
+            assert_eq!(utilities[0].tw_sort.as_deref(), Some("width"));
         }
     }
 

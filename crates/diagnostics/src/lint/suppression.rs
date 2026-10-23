@@ -655,7 +655,7 @@ mod tests {
         )
         .unwrap();
         let mut settings = LintSettings::with_defaults();
-        settings.insert(LintConfig::NoImportant(LintSeverity::Warn));
+        settings.insert(LintConfig::new(LintKind::NoImportant, LintSeverity::Warn));
         settings.insert(LintConfig::NoClassProperty(LintSeverity::Warn));
         settings.insert(LintConfig::UnusedLintSuppression(LintSeverity::Warn));
         let offset = u32::try_from(source.text().find("\nx").unwrap() + 1).unwrap();

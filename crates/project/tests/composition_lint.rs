@@ -6,8 +6,8 @@ use support::{analysis, brand_snapshot};
 
 use stillwind_compiler::{CompilerOptions, Identifiers};
 use stillwind_diagnostics::{
-    CanonicalUtilitiesOverride, CheckerFactsSubject, CompileDiagnostic, LintDiagnostic,
-    LintOverrides, LintSeverity,
+    CanonicalUtilitiesOverride, CheckerFactsSubject, CompileDiagnostic, ImportantOverride,
+    LintDiagnostic, LintOverrides, LintSeverity,
 };
 use stillwind_project::{ProjectSession, SessionMode};
 use stillwind_source::{ModuleId, SourceRegistry};
@@ -114,7 +114,10 @@ fn suppression_usage_is_recomputed_with_source_and_composition_findings() {
                     severity: Some(LintSeverity::Off),
                     ..Default::default()
                 }),
-                no_important: Some(LintSeverity::Warn),
+                no_important: Some(ImportantOverride {
+                    severity: Some(LintSeverity::Warn),
+                    ..Default::default()
+                }),
                 unused_lint_suppression: Some(LintSeverity::Warn),
                 ..LintOverrides::default()
             },

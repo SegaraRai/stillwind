@@ -10,8 +10,8 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
-    ResolvedUtility, ThemeToken, ThemeTokenMode, UtilityResolutionError, resolve_utility,
-    stillwind_property_definitions,
+    NestedUtilityRule, ResolvedUtility, ThemeToken, ThemeTokenMode, UtilityResolutionError,
+    resolve_utility, stillwind_property_definitions,
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
@@ -408,10 +408,13 @@ impl CssTemplate {
         }
     }
 
-    /// Checks the emitted structure after substituting the captured value. Candidate
-    /// spelling and source-use records remain specific to each resolution.
+    /// Returns whether `actual` emits this template after substituting `value` for the
+    /// captured variable. Compares ordering, registration requirements, positions,
+    /// selectors, and every declaration target. Candidate spelling, diagnostic
+    /// selections, and implementation classifications do not affect the result.
     fn matches(&self, actual: &ResolvedUtility, value: &str) -> bool {
         let ResolvedUtility {
+            policy_declarations: _,
             diagnostic_data: _,
             candidate: _,
             order,
@@ -442,7 +445,7 @@ impl CssTemplate {
             rule.condition = (rule.condition.replace_text(&self.variable, value)).into();
             rule.declaration = (rule.declaration.replace_text(&self.variable, value)).into();
         }
-        if nested != &expected_nested {
+        if !same_nested_css(nested, &expected_nested) {
             return false;
         }
         let mut expected_additional = self.utility.additional.clone();
@@ -457,6 +460,28 @@ impl CssTemplate {
                     (nested.declaration.replace_text(&self.variable, value)).into();
             }
         }
-        additional == &expected_additional
+        additional.len() == expected_additional.len()
+            && additional
+                .iter()
+                .zip(&expected_additional)
+                .all(|(actual, expected)| {
+                    actual.declaration == expected.declaration
+                        && actual.selector == expected.selector
+                        && same_nested_css(&actual.nested, &expected.nested)
+                })
     }
+}
+
+/// Returns whether `actual` and `expected` contain the same conditional rules in order.
+/// Declaration classifications are ignored because they do not affect emitted CSS.
+fn same_nested_css(actual: &[NestedUtilityRule], expected: &[NestedUtilityRule]) -> bool {
+    actual.len() == expected.len()
+        && actual.iter().zip(expected).all(|(actual, expected)| {
+            actual.compatibility == expected.compatibility
+                && actual.at_rule == expected.at_rule
+                && actual.condition == expected.condition
+                && actual.parent == expected.parent
+                && actual.declaration == expected.declaration
+                && actual.inside == expected.inside
+        })
 }

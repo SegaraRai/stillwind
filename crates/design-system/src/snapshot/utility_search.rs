@@ -134,6 +134,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    implementation: false,
                 }),
             ),
             (
@@ -145,6 +146,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    implementation: false,
                 }),
             ),
             (
@@ -156,6 +158,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    implementation: false,
                 }),
             ),
         ]);

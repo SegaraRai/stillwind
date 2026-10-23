@@ -21,6 +21,7 @@ pub use overrides::LintOverrides;
 pub use policies::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
+    ImportantConfig, ImportantOverride, LogicalPropertiesConfig, LogicalPropertiesOverride,
     MarkerUseConfig, MarkerUseOverride, RestrictedDeclarationRule, RestrictedDeclarationsConfig,
     RestrictedDeclarationsOverride, RestrictedLengthUnitRule, RestrictedLengthUnitsConfig,
     RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,

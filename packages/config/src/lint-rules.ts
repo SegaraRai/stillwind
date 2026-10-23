@@ -349,33 +349,39 @@ export const lintRules = {
     nativeName: "noRestrictedDeclarations",
     defaults: {
       severity: "warn",
+      checkImplementation: true,
       rules: [],
     },
-    options: ["severity", "rules"],
+    options: ["severity", "checkImplementation", "rules"],
   },
   "no-important": {
     category: "restriction",
     nativeName: "noImportant",
-    defaults: null,
-    options: null,
+    defaults: {
+      severity: "warn",
+      checkImplementation: true,
+    },
+    options: ["severity", "checkImplementation"],
   },
   "no-restricted-length-units": {
     category: "restriction",
     nativeName: "noRestrictedLengthUnits",
     defaults: {
       severity: "warn",
+      checkImplementation: false,
       rules: [],
     },
-    options: ["severity", "rules"],
+    options: ["severity", "checkImplementation", "rules"],
   },
   "no-restricted-theme-tokens": {
     category: "restriction",
     nativeName: "noRestrictedThemeTokens",
     defaults: {
       severity: "warn",
+      checkImplementation: true,
       tokens: [],
     },
-    options: ["severity", "tokens"],
+    options: ["severity", "checkImplementation", "tokens"],
   },
   "no-arbitrary-breakpoints": {
     category: "restriction",
@@ -392,8 +398,11 @@ export const lintRules = {
   "prefer-logical-properties": {
     category: "style",
     nativeName: "preferLogicalProperties",
-    defaults: null,
-    options: null,
+    defaults: {
+      severity: "warn",
+      checkImplementation: false,
+    },
+    options: ["severity", "checkImplementation"],
   },
   "prefer-typed-relationships": {
     category: "style",

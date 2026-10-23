@@ -3,9 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig, MarkerUseConfig,
-    RestrictedDeclarationsConfig, RestrictedLengthUnitsConfig, RestrictedThemeTokensConfig,
-    RestrictedUtilitiesConfig, VariantDirectiveConfig,
+    ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig, ImportantConfig,
+    LogicalPropertiesConfig, MarkerUseConfig, RestrictedDeclarationsConfig,
+    RestrictedLengthUnitsConfig, RestrictedThemeTokensConfig, RestrictedUtilitiesConfig,
+    VariantDirectiveConfig,
 };
 
 /// Configured reporting level of a lint finding.
@@ -134,6 +135,12 @@ macro_rules! define_lint_rules {
 }
 
 macro_rules! lint_config_type {
+    (NoImportant) => {
+        ImportantConfig
+    };
+    (PreferLogicalProperties) => {
+        LogicalPropertiesConfig
+    };
     (NoArbitrarySpacing) => {
         ArbitrarySpacingConfig
     };
@@ -167,6 +174,18 @@ macro_rules! lint_config_type {
 }
 
 macro_rules! lint_config_value {
+    (NoImportant, $severity:expr) => {
+        ImportantConfig {
+            severity: $severity,
+            check_implementation: true,
+        }
+    };
+    (PreferLogicalProperties, $severity:expr) => {
+        LogicalPropertiesConfig {
+            severity: $severity,
+            check_implementation: false,
+        }
+    };
     (NoArbitrarySpacing, $severity:expr) => {
         ArbitrarySpacingConfig {
             severity: $severity,
@@ -182,6 +201,7 @@ macro_rules! lint_config_value {
     (NoRestrictedDeclarations, $severity:expr) => {
         RestrictedDeclarationsConfig {
             severity: $severity,
+            check_implementation: true,
             rules: Vec::new(),
         }
     };
@@ -194,12 +214,14 @@ macro_rules! lint_config_value {
     (NoRestrictedLengthUnits, $severity:expr) => {
         RestrictedLengthUnitsConfig {
             severity: $severity,
+            check_implementation: false,
             rules: Vec::new(),
         }
     };
     (NoRestrictedThemeTokens, $severity:expr) => {
         RestrictedThemeTokensConfig {
             severity: $severity,
+            check_implementation: true,
             tokens: Vec::new(),
         }
     };
@@ -227,6 +249,12 @@ macro_rules! lint_config_value {
 }
 
 macro_rules! lint_config_severity {
+    (NoImportant, $config:expr) => {
+        $config.severity
+    };
+    (PreferLogicalProperties, $config:expr) => {
+        $config.severity
+    };
     (NoArbitrarySpacing, $config:expr) => {
         $config.severity
     };

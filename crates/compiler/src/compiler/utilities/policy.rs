@@ -14,8 +14,8 @@ use stillwind_css::{
     property_covers, property_value_domains, selector_target,
 };
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, VariantContext, VariantValueSource, resolve_variant,
-    resolve_variant_with_usage,
+    ThemeIndex, UtilityDeclaration, VariantApplication, VariantContext, VariantValueSource,
+    resolve_variant, resolve_variant_with_usage,
 };
 use stillwind_diagnostics::{
     Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -25,9 +25,17 @@ use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::emission::collect_declarations;
 use super::super::variants::{VariantStep, variant_paths};
+use super::declaration_order::prepend_missing_declarations;
 use super::resolve::{CompiledUtility, resolve_utility_targets};
 use crate::style_analysis::{DeclarationValue, SupplyKind};
 
+/// Returns enabled policy findings for one use of `utility` at `span`.
+///
+/// `supplies` must describe the resolved CSS of `utility`, including candidate
+/// importance. `theme` must be the design system that resolved it. `settings` selects
+/// the rules and whether each rule includes fixed implementation declarations.
+/// Variant findings use the recorded variant ranges when available. The inputs are
+/// unchanged.
 pub(in crate::compiler) fn check(
     utility: &CompiledUtility,
     supplies: &[SupplyKind],
@@ -35,63 +43,213 @@ pub(in crate::compiler) fn check(
     settings: &LintSettings,
     span: Span,
 ) -> Vec<LintFinding> {
-    let mut findings = check_importance(utility, supplies, settings, span);
+    let mut ordinary_supplies = Vec::new();
+    let filter_importance = matches!(settings.get(LintKind::NoImportant), Some(LintConfig::NoImportant(config)) if !config.check_implementation);
+    let filter_restrictions = matches!(settings.get(LintKind::NoRestrictedDeclarations), Some(LintConfig::NoRestrictedDeclarations(config)) if !config.check_implementation);
+    let declarations = if filter_importance
+        || filter_restrictions
+        || settings.enabled_for_detection(LintKind::PreferLogicalProperties)
+        || settings.enabled_for_detection(LintKind::NoRestrictedLengthUnits)
+    {
+        declaration_policies(utility, theme)
+    } else {
+        Vec::new()
+    };
+    if filter_importance || filter_restrictions {
+        for declaration in declarations
+            .iter()
+            .filter(|declaration| !declaration.implementation)
+        {
+            collect_declarations(
+                &format_args!("{}:{};", declaration.property, declaration.value).to_lean_string(),
+                "&",
+                &[],
+                false,
+                None,
+                &mut ordinary_supplies,
+            );
+        }
+    }
+    let mut findings = check_importance(
+        utility,
+        supplies,
+        if filter_importance {
+            &ordinary_supplies
+        } else {
+            supplies
+        },
+        settings,
+        span,
+    );
     if settings.enabled_for_detection(LintKind::PreferDirectStyling)
         && let Some(selector) = variant_other_target(utility, theme)
     {
         findings.push(LintFinding::new(
             LintDiagnostic::IndirectStyling {
-                selector: (selector).into(),
+                selector: selector.into(),
             },
             span,
         ));
     }
     let mut reported = BTreeSet::new();
-    for supply in supplies {
-        let SupplyKind::Declaration {
+    for supply in if filter_restrictions {
+        &ordinary_supplies
+    } else {
+        supplies
+    } {
+        if let SupplyKind::Declaration {
             property,
             value: DeclarationValue::Css(value),
             ..
         } = supply
-        else {
-            continue;
-        };
-        check_declaration_restrictions(
-            property,
-            value,
-            settings,
-            span,
-            &mut reported,
-            &mut findings,
-        );
-        if settings.enabled_for_detection(LintKind::PreferLogicalProperties)
-            && declaration_is_physical(property, value)
-            && reported.insert((
-                LintKind::PreferLogicalProperties,
-                (property.clone()).into(),
-                LeanString::new(),
-            ))
         {
-            findings.push(LintFinding::new(
-                LintDiagnostic::PhysicalDeclaration {
-                    property: property.clone(),
-                    value: value.clone(),
-                },
+            check_declaration_restrictions(
+                property,
+                value,
+                settings,
                 span,
-            ));
+                &mut reported,
+                &mut findings,
+            );
         }
-        check_length_units(
-            property,
-            value,
-            theme,
-            settings,
-            span,
-            &mut reported,
-            &mut findings,
-        );
     }
+    check_value_policies(
+        &declarations,
+        theme,
+        settings,
+        span,
+        &mut reported,
+        &mut findings,
+    );
     check_source_policies(utility, theme, settings, span, &mut findings);
     findings
+}
+
+/// Appends logical-property and length-unit findings at `span` to `findings`.
+///
+/// `declarations` contains values and their implementation classifications. `theme`
+/// resolves referenced length tokens, and `settings` selects the checks and their
+/// implementation policy. `reported` records findings already emitted for this use
+/// and receives the keys of new findings.
+fn check_value_policies(
+    declarations: &[UtilityDeclaration],
+    theme: &ThemeIndex,
+    settings: &LintSettings,
+    span: Span,
+    reported: &mut BTreeSet<(LintKind, LeanString, LeanString)>,
+    findings: &mut Vec<LintFinding>,
+) {
+    if settings.enabled_for_detection(LintKind::PreferLogicalProperties)
+        || settings.enabled_for_detection(LintKind::NoRestrictedLengthUnits)
+    {
+        for declaration in declarations {
+            let property = &declaration.property;
+            let value = &declaration.value;
+            if settings.enabled_for_detection(LintKind::PreferLogicalProperties)
+                && (!declaration.implementation
+                    || matches!(settings.get(LintKind::PreferLogicalProperties), Some(LintConfig::PreferLogicalProperties(config)) if config.check_implementation))
+                && declaration_is_physical(property, value)
+                && reported.insert((
+                    LintKind::PreferLogicalProperties,
+                    property.to_lean_string(),
+                    LeanString::new(),
+                ))
+            {
+                findings.push(LintFinding::new(
+                    LintDiagnostic::PhysicalDeclaration {
+                        property: property.clone(),
+                        value: value.clone(),
+                    },
+                    span,
+                ));
+            }
+            if !declaration.implementation
+                || matches!(settings.get(LintKind::NoRestrictedLengthUnits), Some(LintConfig::NoRestrictedLengthUnits(config)) if config.check_implementation)
+            {
+                check_length_units(property, value, theme, settings, span, reported, findings);
+            }
+        }
+    }
+}
+
+/// Collects declaration values and their classifications for checks of `utility`.
+///
+/// `theme` must be the design system that resolved `utility`. Recorded values precede
+/// runtime guards. A group without records is parsed from its current CSS and receives
+/// ordinary classifications. Variant declarations are also ordinary and are included
+/// only when rendering would add them. The result can contain repeated declarations.
+fn declaration_policies(utility: &CompiledUtility, theme: &ThemeIndex) -> Vec<UtilityDeclaration> {
+    let resolved;
+    let applications: Vec<&[VariantApplication]> = if utility.variant_applications.is_empty() {
+        resolved = utility
+            .variants
+            .iter()
+            .filter_map(|variant| resolve_variant(variant, theme).ok())
+            .collect::<Vec<_>>();
+        vec![&resolved]
+    } else {
+        utility
+            .variant_applications
+            .iter()
+            .map(Vec::as_slice)
+            .collect()
+    };
+    let mut declarations = Vec::new();
+    for (css, classifications) in
+        std::iter::once((&utility.declaration, &utility.diagnostic_data.declarations)).chain(
+            utility
+                .nested
+                .iter()
+                .map(|rule| (&rule.declaration, &rule.policy_declarations)),
+        )
+    {
+        if classifications.is_empty() {
+            declarations.extend(ordinary_declarations(css));
+        } else {
+            declarations.extend(classifications.iter().cloned());
+        }
+        for applications in &applications {
+            for path in variant_paths(applications) {
+                let mut expanded = css.to_lean_string();
+                for step in path {
+                    if let VariantStep::SelectorRule { declarations, .. }
+                    | VariantStep::SelectorMediaRule { declarations, .. } = step
+                    {
+                        prepend_missing_declarations(&mut expanded, declarations);
+                    }
+                }
+                declarations.extend(ordinary_declarations(
+                    &expanded[..expanded.len() - css.len()],
+                ));
+            }
+        }
+    }
+    declarations
+}
+
+/// Parses declarations from `css`, including nested rules, for policy checks.
+///
+/// Every recovered declaration has `implementation: false` and `base: true` because
+/// the result does not retain selector groups. Non-declaration supplies are omitted.
+fn ordinary_declarations(css: &str) -> Vec<UtilityDeclaration> {
+    let mut supplies = Vec::new();
+    collect_declarations(css, "&", &[], false, None, &mut supplies);
+    supplies
+        .into_iter()
+        .filter_map(|supply| match supply {
+            SupplyKind::Declaration {
+                property,
+                value: DeclarationValue::Css(value),
+                ..
+            } => Some(UtilityDeclaration {
+                property,
+                value,
+                implementation: false,
+                base: true,
+            }),
+            _ => None,
+        })
+        .collect()
 }
 
 fn check_length_units(
@@ -169,9 +327,17 @@ fn check_length_units(
     }
 }
 
+/// Returns enabled importance findings at the utility use identified by `span`.
+///
+/// `utility` supplies the authored candidate. `supplies` must include its complete
+/// resolved CSS effects with candidate importance applied. `definition_supplies`
+/// contains the declarations retained by the rule's implementation policy. A source
+/// `!` modifier reports once when `supplies` contains an important CSS declaration.
+/// Otherwise, each important property in `definition_supplies` reports once.
 fn check_importance(
     utility: &CompiledUtility,
     supplies: &[SupplyKind],
+    definition_supplies: &[SupplyKind],
     settings: &LintSettings,
     span: Span,
 ) -> Vec<LintFinding> {
@@ -179,9 +345,23 @@ fn check_importance(
         return Vec::new();
     }
     let modifier = parse_candidate(&utility.candidate).is_some_and(|candidate| candidate.important);
+    if modifier
+        && supplies.iter().any(|supply| {
+            matches!(
+                supply,
+                SupplyKind::Declaration {
+                    value: DeclarationValue::Css(_),
+                    important: true,
+                    ..
+                }
+            )
+        })
+    {
+        return vec![LintFinding::new(LintDiagnostic::ImportantUtility, span)];
+    }
     let mut findings = Vec::new();
     let mut reported = BTreeSet::new();
-    for supply in supplies {
+    for supply in definition_supplies {
         let SupplyKind::Declaration {
             property,
             value: DeclarationValue::Css(_),
@@ -191,9 +371,6 @@ fn check_importance(
         else {
             continue;
         };
-        if modifier {
-            return vec![LintFinding::new(LintDiagnostic::ImportantUtility, span)];
-        }
         if reported.insert(property) {
             findings.push(LintFinding::new(
                 LintDiagnostic::ImportantDeclaration {
@@ -249,6 +426,13 @@ fn check_declaration_restrictions(
     }
 }
 
+/// Appends enabled findings for captures, token selections, and variants of `utility`.
+///
+/// `theme` must match the utility's resolution, and `settings` supplies the policies.
+/// Fixed implementation token uses follow their rule's option. Captured values and
+/// authored variant arguments retain their checks. `span` identifies the use when no
+/// variant range is recorded. New findings are appended without changing existing
+/// entries in `findings`.
 fn check_source_policies(
     utility: &CompiledUtility,
     theme: &ThemeIndex,
@@ -302,6 +486,7 @@ fn check_source_policies(
             .diagnostic_data
             .token_uses
             .iter()
+            .filter(|usage| !usage.implementation || matches!(settings.get(LintKind::NoRestrictedThemeTokens), Some(LintConfig::NoRestrictedThemeTokens(config)) if config.check_implementation))
             .flat_map(|usage| usage.tokens.iter().map(LeanStr::as_str)),
         theme,
         settings,

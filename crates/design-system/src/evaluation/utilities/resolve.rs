@@ -34,6 +34,9 @@ use crate::{ThemeIndex, UtilityOrderMode};
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtility {
+    /// Classifications of declarations retained in the primary target. An empty list
+    /// requires consumers to inspect `declaration` as ordinary CSS.
+    pub policy_declarations: Vec<UtilityDeclaration>,
     /// Source selections and value checks retained for diagnostics and fixes.
     pub diagnostic_data: UtilityDiagnosticData,
     /// Ordering key of this resolution in the snapshot's configured mode, computed
@@ -72,6 +75,22 @@ pub struct UtilityDiagnosticData {
     /// A `var()` value without a type hint for a utility that accepts values of several
     /// types. `None` when `invalid_value` records the variable's type as rejected.
     pub untyped_variable: Option<UntypedVariable>,
+}
+
+/// A resolved declaration with the classification used by lint policies.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UtilityDeclaration {
+    /// Decoded property name; ordinary properties use lowercase.
+    pub property: LeanStr,
+    /// Serialized CSS value without its semicolon. Definition records retain authored
+    /// `!important` before candidate priority and runtime guards are added.
+    pub value: LeanStr,
+    /// True for fixed CSS from an `(implementation)` definition. Declarations with
+    /// executable placeholders remain false, including those that select theme values.
+    pub implementation: bool,
+    /// True for a direct declaration of its recorded group. Collectors that flatten
+    /// CSS mark every recovered declaration as base.
+    pub base: bool,
 }
 
 /// A value that a utility emits although its property rejects it, such as `1/2` for
@@ -120,15 +139,21 @@ pub struct UntypedVariable {
     pub hint: LeanStr,
 }
 
-/// Theme tokens selected by one emitted declaration before their values expand.
+/// Direct token selections and custom-property references of one retained declaration
+/// before inline expansion.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UtilityTokenUse {
+    /// True when these uses come from fixed CSS in an `(implementation)` definition.
+    /// Uses from declarations with executable placeholders remain false.
+    pub implementation: bool,
     /// True when the declaration belongs to the utility's base list. False for nested
     /// or additional targets.
     pub base: bool,
     /// Decoded CSS property name receiving the selected tokens.
     pub property: LeanStr,
-    /// Complete custom-property names. Aliases retain the directly selected name.
+    /// Complete custom-property names, including unresolved runtime references.
+    /// Consumers must resolve names against the theme before treating them as tokens.
+    /// Aliases retain the directly selected name.
     pub tokens: Vec<LeanStr>,
 }
 
@@ -148,6 +173,9 @@ pub struct UtilityArbitraryUse {
 /// An extra selector target a resolved utility must also be emitted under.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolvedUtilityTarget {
+    /// Classifications of declarations retained in this target. An empty list requires
+    /// consumers to inspect `declaration` as ordinary CSS.
+    pub policy_declarations: Vec<UtilityDeclaration>,
     /// Finalized declarations for this target.
     pub declaration: LeanStr,
     /// Selector this target is nested under, when it has one.
@@ -189,6 +217,7 @@ fn resolve_candidate(
                 UtilityResolution::plain(format_args!("{property}:{value};").to_lean_string());
             if let Some(fallback) = color_fallback(&resolution.declaration, theme) {
                 resolution.nested.push(NestedUtilityRule {
+                    policy_declarations: Vec::new(),
                     compatibility: true,
                     at_rule: NestedUtilityAtRule::Supports,
                     condition: COMPAT_COLOR_SUPPORT.to_lean_str(),
@@ -210,6 +239,7 @@ fn resolve_candidate(
             let tokens = inspect_css_value(value).1;
             if !tokens.is_empty() {
                 resolution.diagnostic_data.token_uses.push(UtilityTokenUse {
+                    implementation: false,
                     base: true,
                     property: (property.as_str().to_lean_string().to_ascii_lowercase()).into(),
                     tokens: tokens.into_iter().collect(),
@@ -321,6 +351,7 @@ fn resolve_candidate(
             hint,
         });
     Ok(Some(ResolvedUtility {
+        policy_declarations: resolution.policy_declarations,
         diagnostic_data: UtilityDiagnosticData {
             token_uses: resolution.diagnostic_data.token_uses,
             arbitrary_uses: resolution.diagnostic_data.arbitrary_uses,

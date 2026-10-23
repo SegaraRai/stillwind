@@ -205,6 +205,14 @@ A `@utility` body can contain nested rules, `@apply`, `@keyframes`, and `@proper
 Tailwind. Nested selectors can omit `&`: `[data-icon]` means `& [data-icon]`. Bodies
 with several selectors keep their declarations and rules in source order.
 
+The `(implementation)` header descriptor classifies fixed declarations for lint rules
+that expose `checkImplementation`. For example, `@utility icon (implementation) {
+width: max-content; height: 1em; }` lets those rules omit its fixed dimensions.
+Declarations that consume candidate values through placeholders keep their ordinary
+classification. Each definition retains its own classification when several definitions
+contribute to the same utility. The descriptor also accepts other header descriptors,
+as in `(implementation, tw-sort: width)`, and is available on `@stillwind-utility`.
+
 Variants select the utility element, and the nested selector of the body applies
 inside them. `hover:child` with `@utility child { & > span { color: red; } }` selects
 `.x:hover > span`.

@@ -78,7 +78,7 @@ export function iconCss(
     `@theme {`,
     `  ${token}: ${svgToURL(iconToHTML(svg.body, svg.attributes))};`,
     `}`,
-    `@utility ${utility} {`,
+    `@utility ${utility} (implementation) {`,
     `  display: inline-block;`,
     // `max-content` derives the width from the height and the aspect ratio. Unlike `auto`,
     // it keeps a flex or grid container from stretching the box across its cross axis.

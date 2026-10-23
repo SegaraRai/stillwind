@@ -84,6 +84,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    implementation: false,
                 })
                 .map(Arc::new)
                 .collect(),

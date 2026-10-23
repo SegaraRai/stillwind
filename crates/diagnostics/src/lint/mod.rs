@@ -16,8 +16,9 @@ mod suppression;
 pub use config::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    LintCategory, LintConfig, LintKind, LintOverrides, LintPreset, LintSettings, LintSeverity,
-    LintSurface, MarkerUseConfig, MarkerUseOverride, RestrictedDeclarationRule,
+    ImportantConfig, ImportantOverride, LintCategory, LintConfig, LintKind, LintOverrides,
+    LintPreset, LintSettings, LintSeverity, LintSurface, LogicalPropertiesConfig,
+    LogicalPropertiesOverride, MarkerUseConfig, MarkerUseOverride, RestrictedDeclarationRule,
     RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedLengthUnitRule,
     RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig,
     RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,

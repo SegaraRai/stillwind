@@ -1220,6 +1220,18 @@ export interface NativeIdentity {
   bindingName: string
 }
 
+/** Binding fields that override importance restrictions on utility uses. */
+export interface NativeImportantOptions {
+  /** Reporting severity. Omission preserves the existing severity, or uses warn. */
+  severity?: string
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves the existing
+   * choice, or uses true. Source `!` modifiers and declarations with executable
+   * placeholders remain checked.
+   */
+  checkImplementation?: boolean
+}
+
 /** One import binding of a module. */
 export interface NativeImportBinding {
   /** Local name in the importing module. */
@@ -1359,7 +1371,7 @@ export interface NativeLintOptions {
   /** Settings for `no-restricted-declarations`. */
   noRestrictedDeclarations?: NativeRestrictedDeclarationsOptions
   /** Settings for `no-important`. */
-  noImportant?: string
+  noImportant?: NativeImportantOptions
   /** Settings for `no-restricted-length-units`. */
   noRestrictedLengthUnits?: NativeRestrictedLengthUnitsOptions
   /** Settings for `no-restricted-theme-tokens`. */
@@ -1369,7 +1381,7 @@ export interface NativeLintOptions {
   /** Settings for `prefer-direct-styling`. */
   preferDirectStyling?: string
   /** Settings for `prefer-logical-properties`. */
-  preferLogicalProperties?: string
+  preferLogicalProperties?: NativeLogicalPropertiesOptions
   /** Settings for `prefer-typed-relationships`. */
   preferTypedRelationships?: string
   /** Settings for `prefer-canonical-utilities`. */
@@ -1402,6 +1414,17 @@ export interface NativeLocatorContext {
   binding: string
   /** Projection the name is written for, when the writer has one. */
   projection?: 'anchor' | 'positionAnchor' | 'container'
+}
+
+/** Binding fields that override logical-property checks at utility use sites. */
+export interface NativeLogicalPropertiesOptions {
+  /** Reporting severity. Omission preserves the existing severity, or uses warn. */
+  severity?: string
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves the existing
+   * choice, or uses false. Captured candidate values remain checked.
+   */
+  checkImplementation?: boolean
 }
 
 /** One generated-to-original mapping in byte offsets. */
@@ -1605,10 +1628,16 @@ export interface NativeRestrictedDeclarationRule {
   message?: string
 }
 
-/** Restrictions on resolved CSS declarations. */
+/** Binding fields that override restrictions on resolved CSS declarations. */
 export interface NativeRestrictedDeclarationsOptions {
-  /** Reporting severity; omission uses the rule default. */
+  /** Reporting severity. Omission preserves the existing severity, or uses warn. */
   severity?: string
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves the existing
+   * choice, or uses true. Declarations with executable placeholders and unmarked
+   * extensions remain checked.
+   */
+  checkImplementation?: boolean
   /** A supplied list replaces declaration restrictions. */
   rules?: Array<NativeRestrictedDeclarationRule>
 }
@@ -1621,18 +1650,29 @@ export interface NativeRestrictedLengthUnitRule {
   disallow: Array<string>
 }
 
-/** Length restrictions applied at utility use sites. */
+/** Binding fields that override length restrictions at utility use sites. */
 export interface NativeRestrictedLengthUnitsOptions {
-  /** Reporting severity; omission uses the rule default. */
+  /** Reporting severity. Omission preserves the existing severity, or uses warn. */
   severity?: string
+  /**
+   * Include fixed `(implementation)` declarations. Omission preserves the existing
+   * choice, or uses false. Captured candidate values remain checked.
+   */
+  checkImplementation?: boolean
   /** A supplied list replaces the existing restrictions. */
   rules?: Array<NativeRestrictedLengthUnitRule>
 }
 
-/** Forbidden direct theme token names. */
+/** Binding fields that override restrictions on direct theme token uses. */
 export interface NativeRestrictedThemeTokensOptions {
-  /** Reporting severity; omission uses the rule default. */
+  /** Reporting severity. Omission preserves the existing severity, or uses warn. */
   severity?: string
+  /**
+   * Include token uses from fixed `(implementation)` declarations. Omission
+   * preserves the existing choice, or uses true. Tokens selected through
+   * placeholders or variant arguments remain checked.
+   */
+  checkImplementation?: boolean
   /** Complete custom-property globs using `*` and `?`. */
   tokens?: Array<string>
 }

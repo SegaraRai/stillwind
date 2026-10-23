@@ -474,6 +474,7 @@ mod render_step_tests {
             ".sw_x:hover{color:blue;padding:0;}"
         );
         let nested = NestedUtilityRule {
+            policy_declarations: Vec::new(),
             compatibility: false,
             at_rule: NestedUtilityAtRule::Supports,
             condition: "display:grid".to_lean_str(),
