@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const e2e = fileURLToPath(new URL("../../", import.meta.url));
 const fixtures = [
   join(e2e, "css"),
-  ...["frameworks", "bundlers"].flatMap((group) =>
+  ...["bundlers", "frameworks", "webcomponents"].flatMap((group) =>
     readdirSync(join(e2e, group), { withFileTypes: true })
       .filter(
         (entry) =>

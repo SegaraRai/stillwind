@@ -1,0 +1,17 @@
+{
+  "name": "@stillwind-internal/e2e-webcomponents-vanilla",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

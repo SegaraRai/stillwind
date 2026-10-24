@@ -63,6 +63,11 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 | vite8-vue3                             | unminified | primary       |
 | vite8-vue3-jsx                         | default    | primary       |
 | vite8-vue3-jsx                         | split      | primary       |
+| webcomponents-lit3                     | default    | primary       |
+| webcomponents-solid1                   | default    | primary       |
+| webcomponents-svelte5                  | default    | primary       |
+| webcomponents-vanilla                  | default    | primary       |
+| webcomponents-vue3                     | default    | primary       |
 | webpack5-preact11                      | default    | compatibility |
 | webpack5-react19                       | default    | compatibility |
 | webpack5-solid1                        | default    | compatibility |

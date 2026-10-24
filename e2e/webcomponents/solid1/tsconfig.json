@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.strict.json",
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "types": ["node", "vite-plus/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "fixture.ts", "tests/**/*.ts", "*.config.ts"]
+}

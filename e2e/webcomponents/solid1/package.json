@@ -1,0 +1,20 @@
+{
+  "name": "@stillwind-internal/e2e-webcomponents-solid1",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "solid-element": "1.9.2",
+    "solid-js": "1.9.17",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "2.11.14",
+    "vite-plus": "catalog:"
+  }
+}

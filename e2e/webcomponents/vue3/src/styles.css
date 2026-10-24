@@ -1,0 +1,13 @@
+@import "stillwind";
+
+@theme {
+  --color-probe: #123456;
+}
+
+@utility shared {
+  margin: 11px;
+}
+
+.authored {
+  border-top: 3px solid transparent;
+}

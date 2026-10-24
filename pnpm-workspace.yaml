@@ -7,6 +7,7 @@ packages:
   - e2e/bundlers/*
   - e2e/frameworks/*
   - e2e/plugins/*
+  - e2e/webcomponents/*
   - packages/*
   - packages/native/npm/*
   - plugins/*

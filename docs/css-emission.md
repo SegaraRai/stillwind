@@ -90,6 +90,12 @@ placement policy. Emission does not change the cascade rules of external CSS.
 
 ## Web Components and explicit values
 
+See the browser examples for [Lit](../e2e/webcomponents/lit3/src/Probe.ts),
+[Solid](../e2e/webcomponents/solid1/src/Probe.tsx),
+[Svelte](../e2e/webcomponents/svelte5/src/Probe.svelte),
+[Vanilla](../e2e/webcomponents/vanilla/src/Probe.ts) and
+[Vue](../e2e/webcomponents/vue3/src/Probe.ce.vue).
+
 ```ts
 import { styleSheets } from "stillwind/css";
 import { css, parts } from "stillwind/module-css";
@@ -109,6 +115,9 @@ For a Web Components library, set `automatic: false` on the Vite or bundler adap
 This also suppresses document loading from shared style modules that do not import
 `stillwind/module-css` themselves. Explicit CSS projections remain opt-in document
 dependencies. The default is automatic loading for ordinary application modules.
+
+Vue SFCs that import explicit CSS values reload their component instances during
+development template edits so the component's styles receive the updated values.
 
 For a stylesheet of a few utilities without preflight or the project's other rules,
 `style.css()` returns the string directly; see

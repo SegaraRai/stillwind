@@ -8,9 +8,9 @@ import {
   type IntegrationConfig,
   type ViteProject,
 } from "./project.ts";
-import { attachVueSourceMaps } from "./source-maps.ts";
 import { transformHooks, type TransformOptions } from "./transform.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
+import { attachVueHooks } from "./vue.ts";
 
 export type { IntegrationConfig } from "./project.ts";
 
@@ -51,7 +51,7 @@ export function createVitePlugins(
        */
       async configResolved(config) {
         await project.forConfig(config).configure(config);
-        attachVueSourceMaps(config.plugins, project);
+        attachVueHooks(config.plugins, project);
       },
       /**
        * Defers watch registration until the server's plugin setup succeeds.

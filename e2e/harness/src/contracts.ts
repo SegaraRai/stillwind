@@ -26,8 +26,22 @@ type Probe = NonNullable<Fixture["semantics"]>[number];
  */
 export function fixtureContracts(app: FixtureApplication) {
   const fixture = app.fixture;
+  async function targetCss(
+    page: Page,
+    css: Record<string, string>,
+    target?: string,
+  ): Promise<void> {
+    const shadow = fixture.shadowDom;
+    const targets =
+      shadow && !target
+        ? shadow.hosts.map((host) => `${host} ${shadow.target}`)
+        : [target ?? fixture.page.target];
+    for (const selector of targets) {
+      await expectCss(page, selector, css);
+    }
+  }
   async function initialCss(page: Page): Promise<void> {
-    await expectCss(page, fixture.page.target, fixture.page.css);
+    await targetCss(page, fixture.page.css);
     for (const probe of fixture.page.styles ?? []) {
       await expectCss(page, probe.selector, probe.css);
     }
@@ -208,7 +222,7 @@ export function fixtureContracts(app: FixtureApplication) {
       const restore = await editFile(app.directory, edit);
       try {
         await app.build("warm");
-        await expectCss(await app.open(), edit.target || fixture.page.target, edit.css);
+        await targetCss(await app.open(), edit.css, edit.target);
       } finally {
         await restore();
       }
@@ -220,7 +234,7 @@ export function fixtureContracts(app: FixtureApplication) {
       const marker = await markDocument(page);
       const restore = await editFile(app.directory, edit);
       try {
-        await expectCss(page, edit.target || fixture.page.target, edit.css);
+        await targetCss(page, edit.css, edit.target);
         await delay(400);
         await expectDocument(page, marker, edit.document);
         if (edit.state !== "not-applicable") {

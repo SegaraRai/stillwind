@@ -110,6 +110,11 @@ export interface Fixture extends FixtureManifest {
   };
   ssr: Capability;
   hydration: Capability;
+  shadowDom?: {
+    hosts: [string, string];
+    target: string;
+    outside: string;
+  };
   prerender?: Capability;
   edits: Record<string, Edit>;
   navigation?: {

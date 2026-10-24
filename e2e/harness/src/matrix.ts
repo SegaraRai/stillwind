@@ -26,7 +26,7 @@ const packages: { name: string; root: string; manifest?: FixtureManifest }[] = [
     root: join(repo, "e2e/plugins/tailwind"),
   },
 ];
-for (const group of ["frameworks", "bundlers"]) {
+for (const group of ["bundlers", "frameworks", "webcomponents"]) {
   for (const entry of await readdir(join(repo, "e2e", group), { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name === "node_modules") {
       continue;
@@ -72,7 +72,11 @@ if (options.docs) {
   }
   await writeFile(
     join(repo, "e2e/support.md"),
-    supportDocument(packages.flatMap((item) => (item.manifest ? [item.manifest] : []))),
+    supportDocument(
+      packages
+        .flatMap((item) => (item.manifest ? [item.manifest] : []))
+        .sort((left, right) => left.id.localeCompare(right.id)),
+    ),
   );
   process.stdout.write("Updated e2e/support.md\n");
 }

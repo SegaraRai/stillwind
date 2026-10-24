@@ -65,7 +65,12 @@ export function developmentHooks(
                 : []),
             ]);
           for (const module of modules) {
-            this.environment.moduleGraph.invalidateModule(module);
+            this.environment.moduleGraph.invalidateModule(
+              module,
+              new Set(),
+              context.timestamp,
+              true,
+            );
           }
           return modules;
         }
@@ -86,7 +91,14 @@ export function developmentHooks(
             }
             const plan = await state.modulePlan([input.moduleId], host, false);
             if (plan.producers.some((producer) => producer.module === previous.moduleId)) {
-              this.environment.moduleGraph.invalidateModule(value);
+              // Framework hooks can filter this module out of the update list. The HMR
+              // timestamp still makes its importers request the new CSS value.
+              this.environment.moduleGraph.invalidateModule(
+                value,
+                new Set(),
+                context.timestamp,
+                true,
+              );
               values.push(value);
             }
           }

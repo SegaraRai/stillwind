@@ -22,17 +22,18 @@ type Transform = Extract<NonNullable<Plugin["transform"]>, Function>;
 const hooks = new WeakMap<Plugin, Pick<Plugin, "load" | "transform">>();
 
 /**
- * Wraps Vue load and transform hooks to map generated blocks back through Stillwind transforms.
+ * Wraps Vue hooks to compose source maps and reload components with explicit CSS values.
  *
  * Only Vue query results with a source map and a recorded Stillwind map are composed. Repeated
- * calls reuse the saved original hooks.
+ * calls reuse the saved original hooks. Explicit CSS values require component reloads during
+ * template edits so Vue replaces the component's styles.
  *
  * @param plugins - Resolved plugin instances. Hooks on plugins named `vite:vue` are replaced in
  * place.
  * @param project - Project containing Stillwind transforms for the corresponding environment and
  * original Vue file.
  */
-export function attachVueSourceMaps(plugins: readonly Plugin[], project: ViteProject): void {
+export function attachVueHooks(plugins: readonly Plugin[], project: ViteProject): void {
   /**
    * Composes a Vue block's map through the recorded Stillwind transform for its source file.
    * @param result - Original load or transform result, left unchanged when a required map is absent.
@@ -100,15 +101,44 @@ export function attachVueSourceMaps(plugins: readonly Plugin[], project: VitePro
       const hook = original.transform;
       const handler = typeof hook === "function" ? hook : hook.handler;
       /**
-       * Runs the saved Vue transform hook with its original receiver, then composes its map.
+       * Composes Vue's map and reloads components with explicit CSS values on template edits.
        * @param code - Vue block source passed by Vite.
        * @param id - Resolver identity passed by Vite.
        * @param args - Remaining transform-hook arguments forwarded unchanged.
-       * @returns The delegated result with its map composed when the recorded input permits it.
+       * @returns Vue's result with a composed map and reloads for components with explicit CSS values.
        * @throws If the original hook or map composition fails.
        */
       const wrapped: Transform = async function (code, id, ...args) {
-        return compose(await handler.call(this, code, id, ...args), id, this.environment);
+        const result = compose(await handler.call(this, code, id, ...args), id, this.environment);
+        const file = cleanModuleId(id);
+        if (id !== file || !file.endsWith(".vue") || !result) {
+          return result;
+        }
+        const generation = this.environment
+          ? project.forConfig(this.environment.getTopLevelConfig())
+          : project;
+        if (!generation.inputs(this.environment?.name).get(file)?.hasModuleCssImport) {
+          return result;
+        }
+        const javascript = (typeof result === "string" ? result : result.code)?.toString();
+        if (!javascript) {
+          return result;
+        }
+        const marker = "export const _rerender_only =";
+        const declaration = javascript.indexOf(marker);
+        if (declaration < 0) {
+          return result;
+        }
+        // Keep the declaration width so Vue's source map remains valid.
+        const start = declaration + "export ".length;
+        const updated =
+          javascript.slice(0, start) +
+          "let  " +
+          javascript.slice(start + "const".length) +
+          "\n_rerender_only = false;\n";
+        return typeof result === "string"
+          ? { code: updated, map: null }
+          : { ...result, code: updated };
       };
       plugin.transform =
         typeof hook === "function"

@@ -61,6 +61,8 @@ export interface ProducerInput {
    * automatic emission is disabled.
    */
   manual: boolean;
+  /** Whether the source imports `stillwind/module-css`, independently of automatic emission. */
+  hasModuleCssImport: boolean;
   /**
    * Transformed source returned to Vite, used to detect CSS changes that require no JavaScript hot
    * update.
@@ -235,6 +237,7 @@ export async function compileProducer(
     id,
     moduleId: output.moduleId,
     manual: output.hasModuleCssImport || config.automatic === false,
+    hasModuleCssImport: output.hasModuleCssImport,
     javascript,
     dependencies: output.compositionModules,
   };

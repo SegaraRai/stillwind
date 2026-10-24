@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Stillwind Web Components</title>
+    <style>
+      body {
+        color: #010203;
+      }
+      [data-testid="styled"] {
+        color: magenta !important;
+        padding: 99px !important;
+      }
+    </style>
+  </head>
+  <body>
+    <probe-card data-testid="first"></probe-card>
+    <probe-card data-testid="second" tone="green"></probe-card>
+    <div data-testid="outside">Outside</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

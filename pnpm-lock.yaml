@@ -2383,6 +2383,158 @@ importers:
         specifier: 'catalog:'
         version: 1.2.0(@astrojs/compiler-rs@0.5.2)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.64.1)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
 
+  e2e/webcomponents/lit3:
+    dependencies:
+      lit:
+        specifier: 3.3.3
+        version: 3.3.3
+      stillwind:
+        specifier: workspace:*
+        version: link:../../../packages/core
+    devDependencies:
+      '@stillwind-internal/e2e-harness':
+        specifier: workspace:*
+        version: link:../../harness
+      '@stillwind/integration':
+        specifier: workspace:*
+        version: link:../../../packages/integration
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.2.0(@astrojs/compiler-rs@0.5.2)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.64.1)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+
+  e2e/webcomponents/solid1:
+    dependencies:
+      solid-element:
+        specifier: 1.9.2
+        version: 1.9.2(solid-js@1.9.17)
+      solid-js:
+        specifier: 1.9.17
+        version: 1.9.17
+      stillwind:
+        specifier: workspace:*
+        version: link:../../../packages/core
+    devDependencies:
+      '@stillwind-internal/e2e-harness':
+        specifier: workspace:*
+        version: link:../../harness
+      '@stillwind/integration':
+        specifier: workspace:*
+        version: link:../../../packages/integration
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
+      vite-plugin-solid:
+        specifier: 2.11.14
+        version: 2.11.14(@types/node@26.6.5)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(solid-js@1.9.17)(supports-color@10.2.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.2.0(@astrojs/compiler-rs@0.5.2)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.64.1)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+
+  e2e/webcomponents/svelte5:
+    dependencies:
+      stillwind:
+        specifier: workspace:*
+        version: link:../../../packages/core
+      svelte:
+        specifier: 5.57.2
+        version: 5.57.2
+    devDependencies:
+      '@stillwind-internal/e2e-harness':
+        specifier: workspace:*
+        version: link:../../harness
+      '@stillwind/integration':
+        specifier: workspace:*
+        version: link:../../../packages/integration
+      '@sveltejs/vite-plugin-svelte':
+        specifier: 7.3.1
+        version: 7.3.1(@types/node@26.6.5)(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1))(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      '@vue/language-core':
+        specifier: 3.3.12
+        version: 3.3.12
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.2.0(@astrojs/compiler-rs@0.5.2)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.64.1)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+
+  e2e/webcomponents/vanilla:
+    dependencies:
+      stillwind:
+        specifier: workspace:*
+        version: link:../../../packages/core
+    devDependencies:
+      '@stillwind-internal/e2e-harness':
+        specifier: workspace:*
+        version: link:../../harness
+      '@stillwind/integration':
+        specifier: workspace:*
+        version: link:../../../packages/integration
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.2.0(@astrojs/compiler-rs@0.5.2)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.64.1)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+
+  e2e/webcomponents/vue3:
+    dependencies:
+      stillwind:
+        specifier: workspace:*
+        version: link:../../../packages/core
+      vue:
+        specifier: 3.5.43
+        version: 3.5.43(typescript@6.0.3)
+    devDependencies:
+      '@stillwind-internal/e2e-harness':
+        specifier: workspace:*
+        version: link:../../harness
+      '@stillwind/integration':
+        specifier: workspace:*
+        version: link:../../../packages/integration
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      '@vitejs/plugin-vue':
+        specifier: 6.0.10
+        version: 6.0.10(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.2.0(@astrojs/compiler-rs@0.5.2)(@types/node@26.6.5)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.64.1)(svelte@5.57.2)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)
+
   packages/analysis:
     dependencies:
       '@stillwind/config':
@@ -2507,7 +2659,7 @@ importers:
         specifier: 'catalog:'
         version: 26.6.5
       lit:
-        specifier: 3.3.3
+        specifier: ^3.3.3
         version: 3.3.3
       typescript:
         specifier: 'catalog:'
@@ -10688,6 +10840,9 @@ packages:
   compatx@0.2.0:
     resolution: {integrity: sha512-6gLRNt4ygsi5NyMVhceOCFv14CIdDFN7fQjX1U4+47qVE/+kjPoXMK65KWK+dWxmFzMTuKazoQ9sch6pM0p5oA==}
 
+  component-register@0.8.8:
+    resolution: {integrity: sha512-djhwcxjY+X9dacaYUEOkOm7tda8uOEDiMDigWysu3xv54M8o6XDlsjR1qt5Y8QLGiKg51fqXFIR2HUTmt9ys0Q==}
+
   compress-commons@6.0.2:
     resolution: {integrity: sha512-6FqVXeETqWPoGcfzrXb37E50NP0LXT8kAMu5ooZayhWWdgEY4lBEEcbQNXtkuKQsGduxiIcI4gOTsxTmuq/bSg==}
     engines: {node: '>= 14'}
@@ -15463,6 +15618,11 @@ packages:
   socket.io@4.8.4:
     resolution: {integrity: sha512-9ZV9zg8vN8hO3Y25DhR7nUkJ1VDnBhq5O/JrXhFT9s6+F0gqytSASTHVfCFc2mJXaTfARroErplXlzFWwETZqQ==}
     engines: {node: '>=10.2.0'}
+
+  solid-element@1.9.2:
+    resolution: {integrity: sha512-+6bK9YGAf47lrwWyTFXUVKCkKTkof3bn6yxknHJPAE5MGSCvx4DJH1KE3ltUjIXeDWhS2gU5yjpynkH709+Xag==}
+    peerDependencies:
+      solid-js: ^1.9.14
 
   solid-js@1.9.17:
     resolution: {integrity: sha512-4GAmLOWPfNV8H9Jfn2LSFTpNEG6jiOKPiwd5lnLGQtehHaX6l3TOLzJqQ7mqwB/3k1Yy3zyumFVopmc/tm34ow==}
@@ -24898,6 +25058,12 @@ snapshots:
       vite: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
       vue: 3.5.44(typescript@6.0.3)
 
+  '@vitejs/plugin-vue@6.0.10(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: '@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
+      vue: 3.5.43(typescript@6.0.3)
+
   '@vitest/browser-playwright@5.0.4(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1))(playwright@1.64.1)(vitest@5.0.4)':
     dependencies:
       '@vitest/browser': 5.0.4(@voidzero-dev/vite-plus-core@1.2.0(@types/node@26.6.5)(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.12)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1))(vitest@5.0.4)
@@ -27077,6 +27243,8 @@ snapshots:
   commondir@1.0.1: {}
 
   compatx@0.2.0: {}
+
+  component-register@0.8.8: {}
 
   compress-commons@6.0.2:
     dependencies:
@@ -33711,6 +33879,11 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  solid-element@1.9.2(solid-js@1.9.17):
+    dependencies:
+      component-register: 0.8.8
+      solid-js: 1.9.17
 
   solid-js@1.9.17:
     dependencies:

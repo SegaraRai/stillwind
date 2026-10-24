@@ -1,0 +1,20 @@
+{
+  "name": "@stillwind-internal/e2e-webcomponents-svelte5",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "stillwind": "workspace:*",
+    "svelte": "5.57.2"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@types/node": "catalog:",
+    "@vue/language-core": "3.3.12",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

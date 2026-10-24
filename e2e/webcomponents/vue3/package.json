@@ -1,0 +1,19 @@
+{
+  "name": "@stillwind-internal/e2e-webcomponents-vue3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "stillwind": "workspace:*",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-vue": "6.0.10",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

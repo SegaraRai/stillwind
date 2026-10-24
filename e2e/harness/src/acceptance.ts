@@ -12,6 +12,7 @@ import {
   type ExpectedFailure,
 } from "./fixture.ts";
 import { type CasePolicy, type ContractId } from "./policy.ts";
+import { shadowDomContracts } from "./shadow-dom.ts";
 import { fullCaseName } from "./suite.ts";
 
 /**
@@ -54,6 +55,24 @@ export function registerFixture(input: Fixture, packageUrl: URL): void {
 
       const renderingCases = () => {
         declareCase("cssRendering", "applies initial CSS", contract.initialCss);
+        if (fixture.shadowDom) {
+          const shadow = shadowDomContracts(app, fixture.shadowDom);
+          declareCase(
+            "cssRendering",
+            "isolates generated CSS inside each shadow root",
+            shadow.isolation,
+          );
+          declareCase(
+            "interactions",
+            "updates custom-element attributes and properties independently",
+            shadow.properties,
+          );
+          declareCase(
+            "cssRendering",
+            "restores shadow CSS after reconnecting an element",
+            shadow.reconnect,
+          );
+        }
         if (fixture.ssr === true || fixture.prerender === true) {
           declareCase(
             "serverRendering",
