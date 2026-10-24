@@ -53,6 +53,17 @@ export function startNode(
   env: NodeJS.ProcessEnv = {},
   timeout = 180_000,
 ) {
+  return startProcess(process.execPath, args, cwd, env, timeout);
+}
+
+/** Runs an executable with bounded output and a deadline; callers must stop long-lived servers. */
+export function startProcess(
+  executable: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv = {},
+  timeout = 180_000,
+) {
   const childEnv = { ...process.env, ...env };
   // Frameworks use VITEST to disable server middleware and alter dependency resolution.
   for (const key of Object.keys(childEnv)) {
@@ -60,7 +71,7 @@ export function startNode(
       delete childEnv[key];
     }
   }
-  const child = spawn(process.execPath, args, {
+  const child = spawn(executable, args, {
     cwd,
     env: childEnv,
     windowsHide: true,
@@ -101,6 +112,7 @@ export async function waitForServer(
   url: string,
   processHandle: ReturnType<typeof startNode>,
   timeout = 90_000,
+  headers?: Record<string, string>,
 ): Promise<void> {
   const deadline = Date.now() + timeout;
   let lastResponse = "No response";
@@ -110,6 +122,7 @@ export async function waitForServer(
     }
     try {
       const response = await fetch(url, {
+        headers,
         signal: AbortSignal.timeout(2000),
       });
       if (response.ok) {

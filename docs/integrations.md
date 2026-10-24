@@ -58,6 +58,56 @@ Keep the application's other Astro integrations. Stillwind registers the Vite
 adapter and supplies automatic SSR styles for pages and islands. The optional
 Astro peer is required only when using this entrypoint.
 
+## Fresh 2
+
+Use Deno 2.9 or newer. Register the Fresh Vite plugin before Stillwind's Fresh adapter:
+
+```ts
+import { fresh } from "@fresh/plugin-vite";
+import { stillwind } from "@stillwind/integration/fresh";
+import { defineConfig } from "vite";
+
+export default defineConfig({ plugins: [fresh(), stillwind()] });
+```
+
+Import macros from `stillwind/preact`. The adapter compiles the original scripts
+between Fresh's Deno loader and Vite's JSX transform. Server rendering and islands
+use the same style identities. Fresh's legacy Builder is unsupported.
+
+For development HTML without JavaScript, include
+`/__stillwind/style.css?environment=ssr` in the document's stylesheet links.
+Production styles use Fresh's stylesheet manifest.
+
+## Gatsby
+
+Use `stillwind/react` and register the Webpack plugin in `gatsby-node.mjs`:
+
+```js
+import { StillwindPlugin } from "@stillwind/integration/webpack";
+
+export function onCreateWebpackConfig({ actions, stage }) {
+  actions.setWebpackConfig({ plugins: [new StillwindPlugin()] });
+  if (stage === "develop") {
+    actions.setWebpackConfig({
+      optimization: {
+        splitChunks: {
+          cacheGroups: {
+            framework: {
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+            },
+          },
+        },
+      },
+    });
+  }
+}
+```
+
+Register it for every Webpack stage. Import the CSS entrypoint from both
+`gatsby-browser.js` and `gatsby-ssr.js`.
+The development chunk matcher includes pnpm's nested package paths so Gatsby emits
+the `framework.js` file referenced by its HTML.
+
 ## Nuxt
 
 ```ts

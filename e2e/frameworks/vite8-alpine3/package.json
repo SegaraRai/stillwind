@@ -1,0 +1,19 @@
+{
+  "name": "@stillwind-internal/e2e-vite8-alpine3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "alpinejs": "3.17.5",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/alpinejs": "3.17.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

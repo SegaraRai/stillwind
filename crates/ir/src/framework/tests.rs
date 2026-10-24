@@ -4,7 +4,16 @@ use super::*;
 
 #[test]
 fn frameworks_declare_their_materialized_style_format() {
-    for spec in [&react::SPEC, &preact::SPEC, &solid::SPEC, &vanilla::SPEC] {
+    for spec in [
+        &alpine::SPEC,
+        &lit::SPEC,
+        &preact::SPEC,
+        &qwik::SPEC,
+        &react::SPEC,
+        &solid::SPEC,
+        &vanilla::SPEC,
+        &vue::SPEC,
+    ] {
         assert_eq!(
             spec.output.spec().style_format,
             StyleFormat::Object,
@@ -12,7 +21,6 @@ fn frameworks_declare_their_materialized_style_format() {
             spec.macro_import
         );
     }
-    assert_eq!(vue::SPEC.output.spec().style_format, StyleFormat::Object);
     assert_eq!(svelte::SPEC.output.spec().style_format, StyleFormat::String);
     assert_eq!(astro::SPEC.output.spec().style_format, StyleFormat::String);
     for spec in FRAMEWORKS {

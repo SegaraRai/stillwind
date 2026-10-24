@@ -9,7 +9,7 @@ import {
   type ViteProject,
 } from "./project.ts";
 import { attachVueSourceMaps } from "./source-maps.ts";
-import { transformHooks } from "./transform.ts";
+import { transformHooks, type TransformOptions } from "./transform.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
 
 export type { IntegrationConfig } from "./project.ts";
@@ -30,10 +30,14 @@ export function stillwind(config: IntegrationConfig = {}): Plugin[] {
  *
  * @param project - Project shared by all returned plugins. Its settings are initialized by the
  * compiler plugin.
+ * @param transform - Ordering and source selection required by a framework's transforms.
  * @returns Plugins in compiler, development, and build order. Development and build plugins apply
  * only to their matching Vite command.
  */
-export function createVitePlugins(project: ViteProject): Plugin[] {
+export function createVitePlugins(
+  project: ViteProject,
+  transform: TransformOptions = {},
+): Plugin[] {
   const servers = new Map<ViteProject, Set<EnvironmentOwner>>();
   return [
     {
@@ -70,7 +74,7 @@ export function createVitePlugins(project: ViteProject): Plugin[] {
        */
       applyToEnvironment(environment) {
         const generation = project.forConfig(environment.getTopLevelConfig());
-        return compilerPlugin(generation, (owner) => {
+        return compilerPlugin(generation, transform, (owner) => {
           servers.get(generation)?.delete(owner);
         });
       },
@@ -98,7 +102,13 @@ export function createVitePlugins(project: ViteProject): Plugin[] {
         const { hotUpdate } = developmentHooks(project.forConfig(environment.getTopLevelConfig()));
         return {
           name: "stillwind:development",
-          hotUpdate,
+          hotUpdate:
+            transform.originalSource && typeof hotUpdate === "function"
+              ? {
+                  order: "pre",
+                  handler: hotUpdate,
+                }
+              : hotUpdate,
         };
       },
     },
@@ -126,6 +136,7 @@ export function createVitePlugins(project: ViteProject): Plugin[] {
  */
 function compilerPlugin(
   project: ViteProject,
+  transform: TransformOptions,
   closed: (environment: EnvironmentOwner) => void,
 ): Plugin {
   const virtualModules = virtualModuleHooks(project);
@@ -158,7 +169,7 @@ function compilerPlugin(
         return virtualModules.load.call(this, id, options);
       }
     },
-    ...transformHooks(project, virtualModules),
+    ...transformHooks(project, virtualModules, transform),
     /**
      * Refreshes configuration, registers its watches, and starts the current compiler environment.
      * @returns Completion of configuration refresh and environment initialization.

@@ -73,6 +73,26 @@ export function developmentHooks(
         if (previous && context.type !== "delete") {
           const result = await compile(name, await context.read(), id, host);
           await publish(name, host);
+          const values = [];
+          for (const input of inputs(name).values()) {
+            if (!input.manual) {
+              continue;
+            }
+            const value = this.environment.moduleGraph.getModuleById(
+              valueSpecifier(input.id, name).replace("virtual:stillwind/", "\0stillwind:"),
+            );
+            if (!value) {
+              continue;
+            }
+            const plan = await state.modulePlan([input.moduleId], host, false);
+            if (plan.producers.some((producer) => producer.module === previous.moduleId)) {
+              this.environment.moduleGraph.invalidateModule(value);
+              values.push(value);
+            }
+          }
+          if (values.length) {
+            return [...new Set([...context.modules, ...values])];
+          }
           if (!previous.manual && result?.code === previous.javascript) {
             return [];
           }

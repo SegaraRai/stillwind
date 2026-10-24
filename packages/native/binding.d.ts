@@ -1139,7 +1139,7 @@ export interface NativeExpressionMapping {
 }
 
 /** Framework adapter requested by the host. */
-export type NativeFramework = 'astro' | 'preact' | 'react' | 'solid' | 'svelte' | 'vanilla' | 'vue'
+export type NativeFramework = 'alpine' | 'astro' | 'lit' | 'preact' | 'qwik' | 'react' | 'solid' | 'svelte' | 'vanilla' | 'vue'
 
 /** A class name generated for one utility literal. */
 export interface NativeGeneratedClass {

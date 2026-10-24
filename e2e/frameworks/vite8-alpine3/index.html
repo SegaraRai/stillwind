@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="data:," />
+    <title>Stillwind acceptance</title>
+  </head>
+  <body>
+    <main x-data="app">
+      <div data-testid="styled" x-sw="props">Styled</div>
+      <div data-testid="dynamic" x-sw="dynamic">Dynamic</div>
+      <button data-testid="dynamic-toggle" @click="tone = 'blue'">Tone</button>
+      <button data-testid="counter" @click="count++" x-text="count"></button>
+      <div data-testid="main-composed" x-sw="composed">Composition</div>
+      <div data-testid="main-diamond" x-sw="diamond">Diamond</div>
+      <div
+        data-testid="main-conditional"
+        :aria-busy="phase > 0 ? 'true' : 'false'"
+        x-sw="conditional"
+      >
+        Conditional
+      </div>
+      <div data-testid="main-conditional-active" x-sw="active">Active</div>
+      <button data-testid="main-toggle" @click="phase = (phase + 1) % 3">Condition</button>
+    </main>
+    <script type="module" src="/src/App.ts"></script>
+  </body>
+</html>

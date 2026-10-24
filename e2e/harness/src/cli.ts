@@ -1,10 +1,12 @@
+import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { fixturePath } from "./workspace.ts";
+import { runFresh } from "./fresh.ts";
+import { createWorkspace, fixturePath } from "./workspace.ts";
 
 const [driver, mode, rootArgument, portArgument] = process.argv.slice(2);
 const root = resolve(rootArgument || process.cwd());
@@ -17,6 +19,11 @@ process.env.NITRO_PORT = String(port);
 process.env.STILLWIND_E2E_PORT = String(port);
 process.env.NODE_ENV = mode === "dev" ? "development" : "production";
 process.env.NEXT_TELEMETRY_DISABLED = "1";
+process.env.GATSBY_TELEMETRY_DISABLED = "1";
+process.env.GATSBY_CPU_COUNT = "2";
+if (driver === "gatsby" && process.platform === "win32") {
+  process.env.PARCEL_WORKERS = "0";
+}
 process.env.STILLWIND_E2E_STANDALONE =
   process.env.STILLWIND_E2E_PROFILE === "standalone" ? "1" : "0";
 process.env.STILLWIND_E2E_BUNDLER =
@@ -39,7 +46,14 @@ async function packageDirectory(name: string) {
   throw new Error(`Cannot locate package metadata: ${name}`);
 }
 
-if (["webpack", "rspack", "rsbuild"].includes(driver)) {
+if (driver === "fresh") {
+  const workspace = mode === "check" ? await createWorkspace(root) : undefined;
+  try {
+    process.exitCode = await runFresh(workspace?.directory ?? root, mode, port);
+  } finally {
+    await workspace?.dispose();
+  }
+} else if (["webpack", "rspack", "rsbuild"].includes(driver)) {
   if (driver === "rsbuild") {
     const { createRsbuild } = await load("@rsbuild/core");
     const { default: config } = await import(pathToFileURL(join(root, "rsbuild.config.mjs")).href);
@@ -149,14 +163,16 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
     }
   }
 } else if (driver === "vite") {
+  const metadata = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const vitePackage = require("vite-plus/package.json");
   const vite = await import(
     pathToFileURL(
-      join(dirname(require.resolve("vite-plus/package.json")), vitePackage.exports["."].import),
+      metadata.devDependencies?.vite7
+        ? join(dirname(require.resolve("vite7/package.json")), "dist/node/index.js")
+        : join(dirname(require.resolve("vite-plus/package.json")), vitePackage.exports["."].import),
     ).href
   );
   if (mode === "build") {
-    const metadata = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
     const sveltekit3 =
       metadata.dependencies?.["@sveltejs/kit"] &&
       Number(require("@sveltejs/kit/package.json").version.split(".")[0]) >= 3;
@@ -169,12 +185,22 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
       await (await vite.createBuilder({ root })).buildApp();
     } else {
       await vite.build({ root });
+      if (metadata.dependencies?.["@builder.io/qwik"]) {
+        await vite.build({
+          root,
+          build: {
+            ssr: "src/entry.preview.tsx",
+            outDir: "server",
+          },
+        });
+      }
     }
   } else if (mode === "prepare") {
     await (await vite.createServer({ root })).close();
   } else if (mode === "dev") {
     const server = await vite.createServer({
       root,
+      mode: metadata.dependencies?.["@builder.io/qwik"] ? "ssr" : undefined,
       server: {
         port,
         strictPort: true,
@@ -217,7 +243,16 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
   const binName =
     typeof metadata.bin === "string" ? metadata.bin : (Object.values(metadata.bin)[0] as string);
   const bin = join(packageRoot, binName);
-  const command = mode === "serve" ? (driver === "next" ? "start" : "preview") : mode;
+  const command =
+    driver === "gatsby"
+      ? mode === "dev"
+        ? "develop"
+        : mode
+      : mode === "serve"
+        ? driver === "next"
+          ? "start"
+          : "preview"
+        : mode;
   const args =
     driver === "next"
       ? [command, `--${process.env.STILLWIND_E2E_BUNDLER || "turbopack"}`]
@@ -234,5 +269,18 @@ if (["webpack", "rspack", "rsbuild"].includes(driver)) {
     args.push("--host", "localhost", "--ignore-lock");
   }
   process.argv = [process.execPath, bin, ...args];
-  await import(pathToFileURL(bin).href);
+  if (driver === "gatsby") {
+    const child = spawn(process.execPath, [bin, ...args], {
+      cwd: root,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    process.exitCode =
+      (await new Promise<number | null>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("exit", resolve);
+      })) ?? 1;
+  } else {
+    await import(pathToFileURL(bin).href);
+  }
 }

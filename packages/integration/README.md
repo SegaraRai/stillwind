@@ -41,6 +41,7 @@ Stillwind.
 | Host      | Entrypoint                         | Registration                                                              |
 | --------- | ---------------------------------- | ------------------------------------------------------------------------- |
 | Astro     | `@stillwind/integration/astro`     | `integrations: [stillwind()]`                                             |
+| Fresh 2   | `@stillwind/integration/fresh`     | Add `stillwind()` after `fresh()` in the Vite config                      |
 | Nuxt      | `@stillwind/integration/nuxt`      | `modules: [stillwind()]`                                                  |
 | SvelteKit | `@stillwind/integration/vite`      | Add `stillwind()` before `sveltekit()`; add the SSR handle from the guide |
 | Next.js   | `@stillwind/integration/next`      | `withStillwind(nextConfig)`                                               |

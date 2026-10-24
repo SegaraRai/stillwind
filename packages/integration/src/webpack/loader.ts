@@ -81,7 +81,9 @@ export default function webpackLoader(
   if (
     !projection &&
     !cssValue &&
-    !/stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue|module-css)/.test(text)
+    !/stillwind\/(?:alpine|astro|lit|preact|qwik|react|solid|svelte|vanilla|vue|module-css)/.test(
+      text,
+    )
   ) {
     return callback(null, source, inputMap);
   }

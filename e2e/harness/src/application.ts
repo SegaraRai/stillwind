@@ -62,6 +62,7 @@ export class FixtureApplication {
   async initialize(): Promise<void> {
     await mkdir(this.#results, { recursive: true });
     this.#workspace = await createWorkspace(this.#root);
+    this.#versions.node = process.version;
     for (const name of this.fixture.versions) {
       this.#versions[name] = JSON.parse(
         await readFile(join(this.#root, "node_modules", name, "package.json"), "utf8"),
@@ -114,6 +115,9 @@ export class FixtureApplication {
       this.#url,
       this.#server,
       this.fixture.driver === "astro" ? 180_000 : undefined,
+      this.fixture.driver === "gatsby" && mode === "dev"
+        ? { "x-gatsby-wait-for-dev-ssr": "1" }
+        : undefined,
     );
   }
 
@@ -182,7 +186,8 @@ export class FixtureApplication {
     page.on("pageerror", (error) => this.#errors.push(error.message));
     page.on("console", (message) => {
       if (message.type() === "error") {
-        this.#errors.push(message.text());
+        const url = message.location().url;
+        this.#errors.push(message.text() + (url ? ` (${url})` : ""));
       }
     });
     await this.navigateHome(page);

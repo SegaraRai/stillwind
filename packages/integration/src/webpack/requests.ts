@@ -22,7 +22,8 @@ export interface ProducerRequest {
   /** Whether the resource is an Astro, Svelte, or Vue file, including its generated blocks. */
   sfc: boolean;
   /**
-   * Full script identity. SFC blocks, projections, and CSS values use the original resource path.
+   * Full script identity. SFC blocks, projections, CSS values, and export selections share the
+   * original producer identity.
    */
   id: string;
   /** Whether a `raw` or `url` query requires the loader to leave the input unchanged. */
@@ -35,19 +36,26 @@ export interface ProducerRequest {
  * @param resourcePath - Absolute resource path without its query.
  * @param resourceQuery - Query including its leading `?`, or an empty string.
  * @returns Request flags and a producer ID. SFC blocks, CSS values, and projections share the
- * original file identity.
+ * original file identity. Export-selection queries do not change the producer identity.
  */
 export function classifyRequest(resourcePath: string, resourceQuery = ""): ProducerRequest {
   const projection = /[?&]stillwind\.css(?:&|$)/.test(resourceQuery);
   const cssValue = /[?&]stillwind-module-css(?:&|$)/.test(resourceQuery);
   const sfc = /\.(?:astro|svelte|vue)$/.test(resourcePath);
+  const parameters = new URLSearchParams(resourceQuery);
+  let sourceQuery = resourceQuery;
+  if (parameters.has("export")) {
+    parameters.delete("export");
+    const query = parameters.toString();
+    sourceQuery = query ? `?${query}` : "";
+  }
 
   return {
     projection,
     cssValue,
     sfc,
     // SFC integrations re-enter the loader for blocks compiled from the original producer.
-    id: resourcePath + (projection || cssValue || sfc ? "" : resourceQuery),
+    id: resourcePath + (projection || cssValue || sfc ? "" : sourceQuery),
     passthrough: /[?&](?:raw|url)(?:[=&]|$)/.test(resourceQuery),
   };
 }
@@ -67,15 +75,15 @@ export function requestOptions(supplied: LoaderOptions): InlineConfig {
 }
 
 /**
- * Creates a relative module request with forward slashes and a leading dot.
+ * Creates a module request with forward slashes, relative to the importer when possible.
  *
  * @param from - Absolute directory containing the importing module.
  * @param to - Absolute path of the requested resource.
- * @returns A request relative to `from`, including `./` when needed.
+ * @returns A relative request with `./` when needed, or an absolute path across Windows volumes.
  */
 export function relativeRequest(from: string, to: string): string {
   const value = path.relative(from, to).replaceAll("\\", "/");
-  return value.startsWith(".") ? value : `./${value}`;
+  return path.isAbsolute(value) || value.startsWith(".") ? value : `./${value}`;
 }
 
 /**

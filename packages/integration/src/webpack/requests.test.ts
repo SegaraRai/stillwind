@@ -3,11 +3,18 @@ import path from "node:path";
 import type { BuildConfig } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
-import { classifyRequest, requestOptions, virtualRequest } from "./requests.ts";
+import { classifyRequest, relativeRequest, requestOptions, virtualRequest } from "./requests.ts";
 import { loaderOptionsId } from "./rules.ts";
+
+test.runIf(process.platform === "win32")("keeps module requests absolute across volumes", () => {
+  expect(relativeRequest("C:/app/src", "F:/packages/styles.css")).toBe("F:/packages/styles.css");
+  expect(relativeRequest("C:/app/src", "C:/app/styles.css")).toBe("../styles.css");
+});
 
 test.each([
   ["module.ts", "?variant=one", "?variant=one", false],
+  ["module.tsx", "?export=default", "", false],
+  ["module.tsx", "?variant=one&export=default", "?variant=one", false],
   ["module.ts", "?stillwind.css", "", false],
   ["module.ts", "?stillwind-module-css", "", false],
   ["component.vue", "?vue&type=script", "", false],

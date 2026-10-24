@@ -3,14 +3,17 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    OutputFormat, ProjectionDecision, ProjectionExpression, astro, preact, react, solid, svelte,
-    vanilla, vue,
+    OutputFormat, ProjectionDecision, ProjectionExpression, alpine, astro, lit, preact, qwik,
+    react, solid, svelte, vanilla, vue,
 };
 
 /// Every known framework, in the order hosts use to offer choices.
 pub const FRAMEWORKS: &[&FrameworkSpec] = &[
+    &alpine::SPEC,
     &astro::SPEC,
+    &lit::SPEC,
     &preact::SPEC,
+    &qwik::SPEC,
     &react::SPEC,
     &solid::SPEC,
     &svelte::SPEC,
@@ -22,10 +25,16 @@ pub const FRAMEWORKS: &[&FrameworkSpec] = &[
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AdapterKind {
+    /// Alpine.
+    Alpine,
     /// Astro.
     Astro,
+    /// Lit.
+    Lit,
     /// Preact.
     Preact,
+    /// Qwik.
+    Qwik,
     /// React.
     React,
     /// Solid.
@@ -42,8 +51,11 @@ impl AdapterKind {
     /// Static description of this adapter. Never fails and never allocates.
     pub const fn spec(self) -> &'static FrameworkSpec {
         match self {
+            Self::Alpine => &alpine::SPEC,
             Self::Astro => &astro::SPEC,
+            Self::Lit => &lit::SPEC,
             Self::Preact => &preact::SPEC,
+            Self::Qwik => &qwik::SPEC,
             Self::React => &react::SPEC,
             Self::Solid => &solid::SPEC,
             Self::Svelte => &svelte::SPEC,

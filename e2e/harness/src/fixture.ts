@@ -52,6 +52,8 @@ export type Driver =
   | "vite"
   | "nuxt"
   | "astro"
+  | "fresh"
+  | "gatsby"
   | "next"
   | "react-router"
   | "webpack"
@@ -99,6 +101,11 @@ export interface Fixture extends FixtureManifest {
       selector: string;
       initial: string;
       clicked: string;
+    }[];
+    updates?: {
+      trigger: string;
+      target: string;
+      css: Record<string, string>;
     }[];
   };
   ssr: Capability;

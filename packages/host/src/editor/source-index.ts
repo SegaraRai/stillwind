@@ -362,7 +362,7 @@ export class SourceIndex {
    * Checks direct named imports of `style` and namespace accesses to that export.
    *
    * @param node - Expression in this index's checker ASTs. Supported imports come from
-   * Stillwind's React, Vue, Svelte, Astro, Solid, or Preact entry points.
+   * Stillwind's framework and vanilla entrypoints.
    * @returns Whether a value import establishes that producer. Type-only imports and symbols
    * marked as mutated fail this check.
    */
@@ -395,7 +395,7 @@ export class SourceIndex {
         ts.isImportDeclaration(owner) &&
         owner.importClause?.phaseModifier !== ts.SyntaxKind.TypeKeyword &&
         ts.isStringLiteral(owner.moduleSpecifier) &&
-        /^stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue)$/.test(
+        /^stillwind\/(?:alpine|astro|lit|preact|qwik|react|solid|svelte|vanilla|vue)$/.test(
           owner.moduleSpecifier.text,
         )
       );

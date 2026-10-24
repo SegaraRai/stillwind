@@ -17,13 +17,16 @@ Import `style` from the entrypoint of the framework that renders the element:
 
 | Framework          | Import              | Class prop  |
 | ------------------ | ------------------- | ----------- |
-| React              | `stillwind/react`   | `className` |
-| Preact             | `stillwind/preact`  | `class`     |
-| Solid              | `stillwind/solid`   | `class`     |
-| Vue                | `stillwind/vue`     | `class`     |
-| Svelte             | `stillwind/svelte`  | `class`     |
+| Alpine             | `stillwind/alpine`  | `class`     |
 | Astro              | `stillwind/astro`   | `class`     |
+| Lit                | `stillwind/lit`     | `class`     |
+| Preact             | `stillwind/preact`  | `class`     |
+| Qwik               | `stillwind/qwik`    | `class`     |
+| React              | `stillwind/react`   | `className` |
+| Solid              | `stillwind/solid`   | `class`     |
+| Svelte             | `stillwind/svelte`  | `class`     |
 | Vanilla JavaScript | `stillwind/vanilla` | `class`     |
+| Vue                | `stillwind/vue`     | `class`     |
 
 Spread the result with your framework's syntax. In JSX, Svelte, and Astro, write
 `{...style("...")}`. In Vue templates, write `v-bind="style('...')"`:
@@ -40,6 +43,22 @@ import { style } from "stillwind/vue";
 
 A component uses the entrypoint of its own framework. For example, a React
 island inside an Astro page imports `stillwind/react`.
+
+Alpine uses the `stillwind` plugin from `stillwind/alpine`. Register it with
+`Alpine.plugin(stillwind)` before `Alpine.start()`, then bind compiled props with
+`x-sw="props"`. Write macro calls in JavaScript or TypeScript modules.
+
+Lit uses `html` element bindings such as
+`` html`<button ${applyStyle(style("px-4 py-2"))}>Save</button>` ``.
+Import both helpers from `stillwind/lit`. For shadow roots, import `css` from
+`stillwind/module-css` and use `static styles = unsafeCSS(css)`. Set
+`stillwind({ automatic: false })` when the CSS belongs only in shadow roots.
+The Lit directive supports browser rendering; Lit SSR is unsupported.
+
+Gatsby uses `stillwind/react`, and Fresh 2 with Vite uses `stillwind/preact`.
+For Fresh, use Deno 2.9 or newer and register `fresh()` before `stillwind()` from
+`@stillwind/integration/fresh` in the Vite configuration. The adapter keeps server
+and island classes consistent. Fresh's legacy Builder is unsupported.
 
 ## Vanilla JavaScript
 
@@ -62,8 +81,8 @@ elements and DOM elements. Each macro returns props for its own target.
 
 ## Vite
 
-Use the Vite plugin for React, Preact, Solid, Vue, Svelte, and vanilla JavaScript
-applications:
+Use the Vite plugin for Alpine, Lit, Preact, Qwik, React, Solid, Svelte, vanilla
+JavaScript, and Vue applications:
 
 ```ts
 import { stillwind } from "@stillwind/integration/vite";

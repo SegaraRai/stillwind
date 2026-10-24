@@ -1,4 +1,15 @@
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const excluded = new Set([
@@ -7,6 +18,10 @@ const excluded = new Set([
   "results",
   "dist",
   "build",
+  ".fresh-import-map.json",
+  ".fresh-native.d.ts",
+  "_fresh",
+  ".cache",
   ".output",
   ".nuxt",
   ".next",
@@ -36,15 +51,51 @@ export function fixturePath(root: string, file: string): string {
 }
 
 /**
- * Copies application files below their package so dependency resolution uses that package.
+ * Copies application sources while retaining access to the package's dependencies.
+ * Gatsby uses the system temporary directory so its LMDB cache can use NTFS on Windows.
  */
 export async function createWorkspace(packageRoot: string) {
   const root = resolve(packageRoot);
-  await mkdir(join(root, ".e2e"), { recursive: true });
-  const directory = await mkdtemp(join(root, ".e2e", "run-"));
+  const metadata = JSON.parse(
+    await readFile(join(root, "package.json"), "utf8").catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        return "{}";
+      }
+      throw error;
+    }),
+  );
+  const workspaceRoot = metadata.dependencies?.gatsby
+    ? join(tmpdir(), "stillwind-e2e-gatsby")
+    : join(root, ".e2e");
+  await mkdir(workspaceRoot, { recursive: true });
+  const directory = await mkdtemp(join(workspaceRoot, "run-"));
   try {
+    if (metadata.dependencies?.gatsby) {
+      const dependencies = join(root, "node_modules");
+      for (const entry of await readdir(dependencies)) {
+        if (entry.startsWith(".")) {
+          continue;
+        }
+        const names = entry.startsWith("@")
+          ? (await readdir(join(dependencies, entry))).map((name) => join(entry, name))
+          : [entry];
+        for (const name of names) {
+          const target = join(directory, "node_modules", name);
+          await mkdir(resolve(target, ".."), { recursive: true });
+          await symlink(
+            await realpath(join(dependencies, name)),
+            target,
+            process.platform === "win32" ? "junction" : "dir",
+          );
+        }
+      }
+    }
     for (const entry of await readdir(root)) {
-      if (excluded.has(entry)) {
+      if (
+        excluded.has(entry) ||
+        (entry === "public" && metadata.dependencies?.gatsby) ||
+        (entry === "server" && metadata.dependencies?.["@builder.io/qwik"])
+      ) {
         continue;
       }
       await cp(join(root, entry), join(directory, entry), {
@@ -78,6 +129,14 @@ export async function createWorkspace(packageRoot: string) {
         }
       }
     }
+    if (metadata.name === "@stillwind-internal/e2e-fresh2-vite7-preact10") {
+      const {
+        dependencies: _dependencies,
+        devDependencies: _devDependencies,
+        ...runtime
+      } = metadata;
+      await writeFile(join(directory, "package.json"), JSON.stringify(runtime, null, 2));
+    }
   } catch (error) {
     await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     throw error;
@@ -85,7 +144,7 @@ export async function createWorkspace(packageRoot: string) {
   return {
     directory,
     async dispose() {
-      const local = relative(join(root, ".e2e"), directory);
+      const local = relative(workspaceRoot, directory);
       if (local.startsWith("..") || isAbsolute(local)) {
         throw new Error("Invalid work directory");
       }

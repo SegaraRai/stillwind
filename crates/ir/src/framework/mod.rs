@@ -13,10 +13,13 @@
 //! Source parsing, projection bookkeeping, and host conversion belong to the frontend
 //! and host layers.
 
+mod alpine;
 mod astro;
+mod lit;
 mod output;
 mod preact;
 mod projection;
+mod qwik;
 mod react;
 mod solid;
 mod spec;

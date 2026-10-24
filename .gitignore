@@ -34,4 +34,9 @@ e2e/**/.astro/
 e2e/**/.svelte-kit/
 e2e/**/.react-router/
 e2e/**/build/
+e2e/frameworks/vite*-qwik*/server/
+e2e/frameworks/gatsby*/public/
+e2e/**/_fresh/
+e2e/**/.fresh-import-map.json
+e2e/**/.fresh-native.d.ts
 e2e/**/src/routeTree.gen.ts

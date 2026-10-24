@@ -1,0 +1,20 @@
+{
+  "name": "@stillwind-internal/e2e-vite7-qwik1",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@builder.io/qwik": "1.20.2",
+    "@builder.io/qwik-city": "1.20.2",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vite7": "npm:vite@7.3.1"
+  }
+}

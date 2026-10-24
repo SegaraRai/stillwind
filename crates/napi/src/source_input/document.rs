@@ -87,10 +87,16 @@ impl From<NativeScriptModuleKind> for ScriptModuleKind {
 /// Framework adapter requested by the host.
 #[napi(string_enum = "lowercase")]
 pub enum NativeFramework {
+    /// Alpine.
+    Alpine,
     /// Astro.
     Astro,
+    /// Lit.
+    Lit,
     /// Preact.
     Preact,
+    /// Qwik.
+    Qwik,
     /// React.
     React,
     /// Solid.
@@ -105,8 +111,11 @@ pub enum NativeFramework {
 impl From<NativeFramework> for AdapterKind {
     fn from(value: NativeFramework) -> Self {
         match value {
+            NativeFramework::Alpine => Self::Alpine,
             NativeFramework::Astro => Self::Astro,
+            NativeFramework::Lit => Self::Lit,
             NativeFramework::Preact => Self::Preact,
+            NativeFramework::Qwik => Self::Qwik,
             NativeFramework::React => Self::React,
             NativeFramework::Solid => Self::Solid,
             NativeFramework::Svelte => Self::Svelte,

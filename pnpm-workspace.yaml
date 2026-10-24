@@ -16,7 +16,14 @@ allowBuilds:
   "@parcel/watcher": true
   "@vscode/vsce-sign": false # VSIX creation does not require package signing.
   "@swc/core": false # Platform binaries are provided by optional dependencies.
+  core-js: false
+  core-js-pure: false
+  es5-ext: false
   esbuild: true
+  gatsby: false # Use the API definitions bundled with Gatsby.
+  gatsby-cli: false
+  lmdb: false # Platform binaries are provided by optional dependencies.
+  msgpackr-extract: false # Platform binaries are provided by optional dependencies.
   sharp: true
   svelte-preprocess: false
 

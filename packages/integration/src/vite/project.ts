@@ -76,7 +76,7 @@ export interface ViteProject {
    */
   forConfig: (config: ResolvedConfig) => ViteProject;
   /**
-   * Evaluated compiler settings shared by all environments. Empty before configure. reconfiguration
+   * Evaluated compiler settings shared by all environments. Empty before configure. Reconfiguration
    * replaces the fields of this same object so plugin hooks retain the current settings.
    */
   config: IntegrationConfig;

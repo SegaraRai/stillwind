@@ -164,11 +164,14 @@ impl SourceFormat {
         match self {
             Self::Script => &[],
             Self::Jsx => &[
-                AdapterKind::React,
+                AdapterKind::Alpine,
+                AdapterKind::Lit,
                 AdapterKind::Preact,
+                AdapterKind::Qwik,
+                AdapterKind::React,
                 AdapterKind::Solid,
-                AdapterKind::Vue,
                 AdapterKind::Vanilla,
+                AdapterKind::Vue,
             ],
             Self::Astro => &[AdapterKind::Astro],
             Self::Svelte => &[AdapterKind::Svelte],

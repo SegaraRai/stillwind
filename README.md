@@ -17,7 +17,7 @@ import { style } from "stillwind/react";
 </button>;
 ```
 
-Stillwind supports React, Preact, Solid, Vue, Svelte, Astro, and vanilla JavaScript. Themes and utility
+Stillwind supports Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte, vanilla JavaScript, and Vue. Themes and utility
 definitions live in a CSS entrypoint. Conditions and dynamic values use generated
 runtime helpers when needed.
 
@@ -27,14 +27,14 @@ Follow the [Stillwind package guide](packages/core/README.md) to add a styleshee
 configure a project, and write styles. Register a [build integration](packages/integration/README.md)
 for your application.
 
-| Package                                                         | Use                                                                            |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [stillwind](packages/core/README.md)                            | Styles, themes, configuration helpers, and framework APIs                      |
-| [@stillwind/integration](packages/integration/README.md)        | Vite, Astro, Nuxt, SvelteKit, Next.js, webpack, Rspack, Rsbuild, and Turbopack |
-| [@stillwind/cli](packages/cli/README.md)                        | Sorting, linting, automatic fixes, and CI checks                               |
-| [prettier-plugin-stillwind](packages/prettier-plugin/README.md) | Utility sorting during Prettier formatting                                     |
-| [VS Code extension](packages/vscode-extension/README.md)        | Diagnostics, completion, CSS previews, colors, and sorting                     |
-| [@stillwind/plugin-iconify](plugins/iconify/README.md)          | Iconify icons as utilities                                                     |
+| Package                                                         | Use                                                                                   |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [stillwind](packages/core/README.md)                            | Styles, themes, configuration helpers, and framework APIs                             |
+| [@stillwind/integration](packages/integration/README.md)        | Vite, Astro, Fresh, Nuxt, SvelteKit, Next.js, webpack, Rspack, Rsbuild, and Turbopack |
+| [@stillwind/cli](packages/cli/README.md)                        | Sorting, linting, automatic fixes, and CI checks                                      |
+| [prettier-plugin-stillwind](packages/prettier-plugin/README.md) | Utility sorting during Prettier formatting                                            |
+| [VS Code extension](packages/vscode-extension/README.md)        | Diagnostics, completion, CSS previews, colors, and sorting                            |
+| [@stillwind/plugin-iconify](plugins/iconify/README.md)          | Iconify icons as utilities                                                            |
 
 ## Learn more
 

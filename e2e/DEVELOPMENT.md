@@ -2,6 +2,10 @@
 
 Each application under frameworks/ and bundlers/ is a private package in the root pnpm workspace. Its package.json declares its own framework versions and plugins. Application files stay in the framework's normal layout. The runner edits a disposable copy under that package's .e2e/ directory, where dependency resolution still uses the package's node_modules.
 
+Gatsby uses the system temporary directory because its Parcel cache requires NTFS on Windows. The runner links the fixture's dependencies into that copy. Its `.node-version` selects Node 22 for Gatsby's development SSR. Readiness requests wait for Gatsby's SSR worker before browser checks start. Fresh 2 requires Deno 2.9 or newer. The harness maps unpublished Stillwind packages to their built workspace files; the application uses Fresh's Vite integration and Deno import map.
+
+The Fresh fixture uses polling on Windows because Deno's native watcher can miss a rapid edit followed by a restore. Polling retains both SSR source-update checks without delaying source restoration.
+
 Install from the repository root with `vp i --frozen-lockfile`. Installed Google Chrome is required for browser acceptance. Run `vp run test:e2e` for the complete matrix. Ordinary `vp run check` checks the harness and fixture TypeScript, and `vp run test` tests harness helpers without opening a browser.
 
 To run one application, enter its directory and run `vp run test:e2e`. Its `vp run dev`, `vp run build`, and `vp run serve` tasks use its own framework CLI or bundler API. Set `STILLWIND_E2E_PROFILE` to one of its declared profiles to select a configuration. Set `STILLWIND_E2E_DEV_ONLY=1` to omit production checks in the common runner. Specialized suites still run their own production contracts.
@@ -18,7 +22,7 @@ boundaries. Fixture versions are declared in each package and resolved by the ro
 
 ## Manifests and contracts
 
-A common fixture.ts declares its driver, profiles, package versions, page selectors, expected CSS, counters, SSR or prerendering capability, and hydration capability. Each edit names a file and one literal replacement. The runner requires that literal to occur exactly once before writing. It restores the original bytes after the assertion and removes its work directory after the run. A capability that does not apply records a reason.
+A common fixture.ts declares its driver, profiles, package versions, page selectors, expected CSS, counters, SSR or prerendering capability, and hydration capability. CommonJS applications use fixture.mts. Each edit names a file and one literal replacement. The runner requires that literal to occur exactly once before writing. It restores the original bytes after the assertion and removes its work directory after the run. A capability that does not apply records a reason.
 
 The same runner checks initial computed CSS, HTML with JavaScript disabled, hydration through interactive counters, and each declared edit. It checks document identity separately from component state. An edit that declares document preservation fails if a full reload occurs. State may remain unchanged or reset when the framework remounts components. Astro page edits declare document reloads because its static page contains server-rendered markup. Cold production builds use a fresh copy; warm builds reuse that copy and its build caches.
 

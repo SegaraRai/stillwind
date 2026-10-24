@@ -12,6 +12,10 @@
       "types": "./dist/astro/index.d.ts",
       "default": "./dist/astro/index.js"
     },
+    "./fresh": {
+      "types": "./dist/fresh/index.d.ts",
+      "default": "./dist/fresh/index.js"
+    },
     "./next": {
       "types": "./dist/next/index.d.ts",
       "default": "./dist/next/index.js"

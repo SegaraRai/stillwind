@@ -1,0 +1,18 @@
+{
+  "name": "@stillwind-internal/e2e-fresh2-vite7-preact10",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "preact": "10.29.8",
+    "stillwind": "workspace:*"
+  },
+  "devDependencies": {
+    "@stillwind-internal/e2e-harness": "workspace:*",
+    "@stillwind/integration": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

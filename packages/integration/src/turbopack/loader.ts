@@ -26,7 +26,11 @@ export default function turbopackLoader(
   inputMap: UpstreamSourceMap,
 ) {
   const callback = loaderCompletion(this);
-  if (!/stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue|module-css)/.test(source)) {
+  if (
+    !/stillwind\/(?:alpine|astro|lit|preact|qwik|react|solid|svelte|vanilla|vue|module-css)/.test(
+      source,
+    )
+  ) {
     return callback(null, source, inputMap);
   }
   void (async () => {

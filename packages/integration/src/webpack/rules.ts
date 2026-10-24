@@ -77,6 +77,16 @@ export function stillwindRules(config: InlineConfig): StillwindRule[] {
     },
     {
       test: /stillwind-webpack\.css$/,
+      enforce: "post",
+      use: [
+        fileURLToPath(
+          new URL("./document-loader.js", import.meta.resolve("@stillwind/integration/webpack")),
+        ),
+      ],
+    },
+    {
+      test: /stillwind-webpack\.css$/,
+      enforce: "pre",
       use: [
         fileURLToPath(
           new URL("./css-loader.js", import.meta.resolve("@stillwind/integration/webpack")),

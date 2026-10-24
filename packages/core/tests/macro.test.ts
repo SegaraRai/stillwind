@@ -2,13 +2,16 @@ import type { StyleMacro } from "stillwind/macro";
 import { expect, test } from "vite-plus/test";
 
 const frameworks = [
-  ["react", () => import("stillwind/react")],
-  ["preact", () => import("stillwind/preact")],
-  ["solid", () => import("stillwind/solid")],
-  ["vue", () => import("stillwind/vue")],
-  ["svelte", () => import("stillwind/svelte")],
+  ["alpine", () => import("stillwind/alpine")],
   ["astro", () => import("stillwind/astro")],
+  ["lit", () => import("stillwind/lit")],
+  ["preact", () => import("stillwind/preact")],
+  ["qwik", () => import("stillwind/qwik")],
+  ["react", () => import("stillwind/react")],
+  ["solid", () => import("stillwind/solid")],
+  ["svelte", () => import("stillwind/svelte")],
   ["vanilla", () => import("stillwind/vanilla")],
+  ["vue", () => import("stillwind/vue")],
 ] as const;
 
 for (const [framework, load] of frameworks) {

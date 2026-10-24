@@ -147,3 +147,10 @@ check runtime conditions for each candidate. When their declarations cannot be l
 
 Sources: [skipped statements](../crates/design-system/src/skipped.rs),
 [stylesheet lint](../crates/compiler/src/compiler/stylesheet/lint/skipped.rs).
+
+## Lit server rendering
+
+The element directive applies props in the browser. Add an SSR path that emits the
+same classes and inline values before adding Lit server acceptance.
+
+Source: [Lit directive](../packages/core/src/frameworks/lit.ts).

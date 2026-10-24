@@ -126,6 +126,10 @@ export function fixtureContracts(app: FixtureApplication) {
       const page = await interactivePage();
       await clickCounters(page);
       await initialCss(page);
+      for (const update of fixture.page.updates ?? []) {
+        await page.locator(update.trigger).click();
+        await expectCss(page, update.target, update.css);
+      }
     },
     composition: async (probe: Probe) => verifyComposition(await app.open(), [probe]),
     initialConditions: async (probe: Probe) => verifyInitialConditions(await app.open(), [probe]),

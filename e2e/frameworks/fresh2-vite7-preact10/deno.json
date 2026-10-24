@@ -1,0 +1,18 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "fresh": "jsr:@fresh/core@2.3.3",
+    "@fresh/plugin-vite": "jsr:@fresh/plugin-vite@1.1.2",
+    "preact": "npm:preact@10.29.8",
+    "preact/hooks": "npm:preact@10.29.8/hooks",
+    "preact/debug": "npm:preact@10.29.8/debug",
+    "preact/jsx-runtime": "npm:preact@10.29.8/jsx-runtime",
+    "preact/jsx-dev-runtime": "npm:preact@10.29.8/jsx-dev-runtime",
+    "vite": "npm:vite@7.3.1"
+  },
+  "compilerOptions": {
+    "jsx": "precompile",
+    "jsxImportSource": "preact",
+    "types": ["npm:vite@7.3.1/client"]
+  }
+}

@@ -1,9 +1,19 @@
+import { readFile } from "node:fs/promises";
+
 import { cleanModuleId } from "@stillwind/host";
 import type { Plugin } from "vite";
 
 import { readableFile } from "./file-access.ts";
 import type { ViteProject } from "./project.ts";
 import { projectionImports } from "./projection-imports.ts";
+
+/** Selects the compiler's position and source after a framework regenerates scripts. */
+export interface TransformOptions {
+  /** Runs before other pre transforms by default, or in plugin order with `normal`. */
+  order?: "pre" | "normal";
+  /** Compiles the original file when an earlier framework transform regenerated its script. */
+  originalSource?: boolean;
+}
 
 /**
  * Creates source transform and watch hooks for the project compiler plugin.
@@ -14,12 +24,14 @@ import { projectionImports } from "./projection-imports.ts";
  * @param project - Project configured and initialized by the compiler plugin.
  * @param virtualModules - Virtual module hooks for the same project, used to reload cached
  * generated modules.
+ * @param options - Source selection and ordering required by the framework integration.
  * @returns Hooks that recompile cached producers, register stylesheet projections, reserve authored
  * CSS identifiers, and remove deleted inputs.
  */
 export function transformHooks(
   project: ViteProject,
   virtualModules: Pick<Plugin, "load">,
+  options: TransformOptions = {},
 ): Pick<Plugin, "shouldTransformCachedModule" | "watchChange" | "transform"> {
   const { settings, publish, compile } = project;
   const cachedVirtualModules = new Map<string, Set<string>>();
@@ -67,10 +79,10 @@ export function transformHooks(
       }
     },
     transform: {
-      order: "pre",
+      order: options.order === "normal" ? undefined : "pre",
       /**
        * Reserves authored CSS names, registers source projections, and compiles supported producers.
-       * @param code - Source before ordinary framework lowering.
+       * @param code - Source after earlier transforms in the configured order.
        * @param id - Full Vite identity, including queries that select distinct source.
        * @returns Compiler output, a reloaded virtual module, or undefined when no transformed source is needed.
        * @throws If a projection cannot resolve or pass access checks, or compilation or publication fails.
@@ -95,6 +107,10 @@ export function transformHooks(
         ) {
           return;
         }
+        if (options.originalSource) {
+          id = cleanModuleId(id);
+          code = await readFile(await readableFile(id, settings.devServerRef), "utf8");
+        }
         const projections = new Map<string, string>();
         for (const specifier of await projectionImports(code, id)) {
           const source = await this.resolve(specifier.slice(0, -"?stillwind.css".length), id, {
@@ -109,7 +125,11 @@ export function transformHooks(
           await readableFile(source.id, settings.devServerRef);
           projections.set(specifier, source.id);
         }
-        if (!/stillwind\/(?:astro|preact|react|solid|svelte|vanilla|vue|module-css)/.test(code)) {
+        if (
+          !/stillwind\/(?:alpine|astro|lit|preact|qwik|react|solid|svelte|vanilla|vue|module-css)/.test(
+            code,
+          )
+        ) {
           const input = project.inputs(name).get(id);
           if (input) {
             await project.environment(name).removeSource(id);
@@ -119,7 +139,14 @@ export function transformHooks(
           return;
         }
         await project.environment(name).projections(id, projections);
-        const result = await compile(name, code, id, this);
+        const context = options.originalSource
+          ? {
+              resolve: this.resolve.bind(this),
+              addWatchFile: this.addWatchFile.bind(this),
+              warn: this.warn.bind(this),
+            }
+          : this;
+        const result = await compile(name, code, id, context);
         await publish(name, this);
         return result;
       },

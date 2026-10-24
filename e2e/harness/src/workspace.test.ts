@@ -85,3 +85,31 @@ test("rejects paths outside the fixture before reading or writing them", () => {
   expect(() => fixturePath(root, join(tmpdir(), "outside.ts"))).toThrow("escapes fixture");
   expect(fixturePath(root, "src/App.tsx")).toBe(join(root, "src", "App.tsx"));
 });
+
+test("disposes a Gatsby workspace without deleting its linked dependencies", async () => {
+  const root = await mkdtemp(join(tmpdir(), "stillwind-e2e-links-"));
+  try {
+    await writeFile(
+      join(root, "package.json"),
+      JSON.stringify({
+        dependencies: {
+          gatsby: "5",
+        },
+      }),
+    );
+    await mkdir(join(root, "node_modules", "probe"), { recursive: true });
+    const marker = join(root, "node_modules", "probe", "marker");
+    await writeFile(marker, "retained");
+    const workspace = await createWorkspace(root);
+    try {
+      expect(
+        await readFile(join(workspace.directory, "node_modules", "probe", "marker"), "utf8"),
+      ).toBe("retained");
+    } finally {
+      await workspace.dispose();
+    }
+    expect(await readFile(marker, "utf8")).toBe("retained");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

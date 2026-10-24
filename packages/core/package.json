@@ -35,13 +35,25 @@
       "types": "./dist/macro/index.d.ts",
       "default": "./dist/macro/index.js"
     },
+    "./alpine": {
+      "types": "./dist/frameworks/alpine.d.ts",
+      "default": "./dist/frameworks/alpine.js"
+    },
     "./astro": {
       "types": "./dist/frameworks/astro.d.ts",
       "default": "./dist/frameworks/astro.js"
     },
+    "./lit": {
+      "types": "./dist/frameworks/lit.d.ts",
+      "default": "./dist/frameworks/lit.js"
+    },
     "./preact": {
       "types": "./dist/frameworks/preact.d.ts",
       "default": "./dist/frameworks/preact.js"
+    },
+    "./qwik": {
+      "types": "./dist/frameworks/qwik.d.ts",
+      "default": "./dist/frameworks/qwik.js"
     },
     "./react": {
       "types": "./dist/frameworks/react.d.ts",
@@ -97,8 +109,17 @@
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
+    "lit": "^3.3.3",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.0"
+  },
+  "peerDependenciesMeta": {
+    "lit": {
+      "optional": true
+    }
   }
 }

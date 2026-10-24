@@ -76,6 +76,10 @@ export interface EmissionModule {
 
 /** Compilation operations required to collect producers and rebuild document CSS carriers. */
 export interface EmissionCompilation<Module extends EmissionModule = EmissionModule> {
+  /** Parent compilation used by CSS extraction loaders that run a child compiler. */
+  compiler?: {
+    parentCompilation?: EmissionCompilation<Module>;
+  };
   /** Settings evaluated by StillwindPlugin before the build run, reused by producer loaders. */
   __stillwindConfiguration?: ResolvedIntegrationConfig;
   /** Missing configuration candidates whose creation must trigger a watch rebuild. */
@@ -223,15 +227,19 @@ function requireCompilation<Module extends EmissionModule>(
  * Rejects automatic CSS requests when the compilation has no registered emission hook.
  *
  * @param context - Loader context associated with a compilation registered by `StillwindPlugin`.
- * @returns The compilation holding reconstructed document CSS.
+ * @returns The nearest registered compilation holding reconstructed document CSS.
  * @throws If the compilation is missing or its emission hook has not been registered.
  */
 export function requireEmission<Module extends EmissionModule>(
   context: EmissionContext<Module>,
 ): EmissionCompilation<Module> {
-  const compilation = requireCompilation(context);
-  if (!installed.has(compilation)) {
-    throw new Error(incompleteGraphMessage);
+  let compilation = requireCompilation(context);
+  while (!installed.has(compilation)) {
+    const parent = compilation.compiler?.parentCompilation;
+    if (!parent) {
+      throw new Error(incompleteGraphMessage);
+    }
+    compilation = parent;
   }
   return compilation;
 }

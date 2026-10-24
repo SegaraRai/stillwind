@@ -1,0 +1,21 @@
+{
+  "extends": "../../../tsconfig.strict.json",
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node", "vite-plus/client"],
+    "jsx": "react"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "fixture.mts",
+    "tests/**/*.ts",
+    "*.config.ts",
+    "gatsby-config.ts"
+  ]
+}

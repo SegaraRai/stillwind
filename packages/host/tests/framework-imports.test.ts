@@ -64,7 +64,18 @@ for (const adapter of ["svelte", "astro"]) {
 }
 
 test("plain TypeScript allows each macro adapter without a format warning", async () => {
-  for (const adapter of ["react", "preact", "solid", "vue", "svelte", "astro", "vanilla"]) {
+  for (const adapter of [
+    "alpine",
+    "astro",
+    "lit",
+    "preact",
+    "qwik",
+    "react",
+    "solid",
+    "svelte",
+    "vanilla",
+    "vue",
+  ]) {
     const output = await compileFixture(
       `import { style } from "stillwind/${adapter}"; export const props = style("flex");`,
       "Adapter.ts",

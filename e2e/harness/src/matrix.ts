@@ -1,16 +1,15 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { fixtureSupport, type FixtureManifest } from "./fixture.ts";
 import { matrixOptions, selectedProfiles, supportDocument } from "./matrix-selection.ts";
 import { contractPolicy } from "./policy.ts";
-import { startNode } from "./process.ts";
+import { startProcess } from "./process.ts";
 
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
-const require = createRequire(import.meta.url);
-const vp = join(dirname(require.resolve("vite-plus/package.json")), "bin/vp");
+const vp = process.platform === "win32" ? "vp.exe" : "vp";
 const options = matrixOptions(process.argv.slice(2));
 const { typecheck, selected } = options;
 const packages: { name: string; root: string; manifest?: FixtureManifest }[] = [
@@ -41,7 +40,8 @@ for (const group of ["frameworks", "bundlers"]) {
       }
       continue;
     }
-    const manifest: FixtureManifest = (await import(pathToFileURL(join(root, "fixture.ts")).href))
+    const manifestFile = existsSync(join(root, "fixture.ts")) ? "fixture.ts" : "fixture.mts";
+    const manifest: FixtureManifest = (await import(pathToFileURL(join(root, manifestFile)).href))
       .default;
     for (const profile of manifest.profiles) {
       fixtureSupport(manifest, profile);
@@ -118,10 +118,9 @@ await Promise.all(
   Array.from({ length: concurrency }, async () => {
     for (let fixture = queue.shift(); fixture; fixture = queue.shift()) {
       process.stdout.write(`Starting ${fixture.name}\n`);
-      const runner = startNode(
-        typecheck
-          ? [vp, "run", "typecheck"]
-          : [vp, "test", "--run", "--config", "acceptance.config.ts"],
+      const runner = startProcess(
+        vp,
+        typecheck ? ["run", "typecheck"] : ["test", "--run", "--config", "acceptance.config.ts"],
         fixture.root,
         support ? { STILLWIND_E2E_SUPPORT: support } : {},
         1_800_000,

@@ -118,9 +118,18 @@ export function fixtureTasks(driver: string, root: string) {
       dependsOn: ["build"],
       cache: false,
     },
+    ...(driver === "fresh"
+      ? {
+          "typecheck:app": {
+            command: command("check"),
+            dependsOn: dependencies,
+            cache: false,
+          },
+        }
+      : {}),
     typecheck: {
       command: `node "${typecheck}"`,
-      dependsOn: dependencies,
+      dependsOn: [...dependencies, ...(driver === "fresh" ? ["typecheck:app"] : [])],
     },
     "test:e2e": {
       command: "vp test --run --config acceptance.config.ts",

@@ -10,6 +10,7 @@ export default mergeConfig(
       include: [
         "tests/css-call.test.ts",
         "tests/cva.test.ts",
+        "tests/framework-helpers.test.ts",
         "tests/ref-scopes.test.ts",
         "tests/vanilla.test.ts",
       ],

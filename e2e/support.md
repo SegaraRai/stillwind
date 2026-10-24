@@ -12,6 +12,8 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 | astro7-preact10-solid1                 | split      | primary       |
 | astro7-react19-svelte5-vue3            | default    | primary       |
 | astro7-react19-svelte5-vue3            | split      | primary       |
+| fresh2-vite7-preact10                  | default    | primary       |
+| gatsby5-react19                        | default    | primary       |
 | next16-react19                         | turbopack  | primary       |
 | next16-react19                         | webpack    | primary       |
 | next16-react19                         | standalone | compatibility |
@@ -42,6 +44,9 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 | tanstackstart1-react19-server-function | rsbuild    | compatibility |
 | tanstackstart1-solid1                  | default    | primary       |
 | tanstackstart1-solid1                  | split      | primary       |
+| vite7-qwik1                            | default    | primary       |
+| vite8-alpine3                          | default    | primary       |
+| vite8-lit3                             | default    | primary       |
 | vite8-preact11                         | default    | primary       |
 | vite8-preact11                         | split      | primary       |
 | vite8-react19                          | default    | primary       |

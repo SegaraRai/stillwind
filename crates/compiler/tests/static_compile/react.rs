@@ -19,7 +19,7 @@ use super::*;
 fn native_runtime_imports_are_binding_safe_and_follow_output_formats() {
     let theme = css_source(FileId(2), "").unwrap();
     for framework in [
-        "react", "preact", "solid", "vue", "svelte", "astro", "vanilla",
+        "alpine", "astro", "lit", "preact", "qwik", "react", "solid", "svelte", "vanilla", "vue",
     ] {
         let runtime = from_macro_import(&format!("stillwind/{framework}"))
             .unwrap()

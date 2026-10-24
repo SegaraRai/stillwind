@@ -58,8 +58,11 @@ fn original_formats_check_value_macro_imports_even_without_calls_or_jsx() {
         SourceFormat::Vue,
     ] {
         for adapter in [
+            AdapterKind::Alpine,
             AdapterKind::Astro,
+            AdapterKind::Lit,
             AdapterKind::Preact,
+            AdapterKind::Qwik,
             AdapterKind::React,
             AdapterKind::Solid,
             AdapterKind::Svelte,

@@ -253,12 +253,15 @@ if (import.meta.hot) {
         if (!input) {
           this.error(`No Stillwind producer for ${sourceId}`);
         }
-        this.addWatchFile(cleanModuleId(sourceId));
+        const watchSource = settings.watching
+          ? (file: string) => settings.devServerRef?.watcher.add(cleanModuleId(file))
+          : this.addWatchFile.bind(this);
+        watchSource(sourceId);
         const plan = await project
           .environment(name)
           .modulePlan([input.moduleId], this, !settings.watching);
         for (const producer of plan.producers) {
-          this.addWatchFile(resolve(settings.projectRoot, cleanModuleId(producer.module)));
+          watchSource(resolve(settings.projectRoot, cleanModuleId(producer.module)));
         }
         for (const file of project.environment(name).designSystem.cssFiles) {
           this.addWatchFile(file);

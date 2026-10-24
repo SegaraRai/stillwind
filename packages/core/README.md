@@ -5,7 +5,8 @@ It uses theme rules and compiler checks to keep styling code in order, even when
 AI agents write much of it.
 
 `stillwind` is the main Stillwind package. It provides CSS defaults, configuration
-helpers, and style APIs for React, Preact, Solid, Vue, Svelte, Astro, and vanilla JavaScript.
+helpers, and style APIs for Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte,
+vanilla JavaScript, and Vue.
 
 ## Install
 
@@ -49,8 +50,21 @@ JSX transform. The integration reads the project configuration and delivers its 
 ## Write styles
 
 Import `style` from the entrypoint for your framework:
-`stillwind/react`, `stillwind/preact`, `stillwind/solid`, `stillwind/vue`,
-`stillwind/svelte`, or `stillwind/astro`.
+
+| Framework | Import              | Applying props               |
+| --------- | ------------------- | ---------------------------- |
+| Alpine    | `stillwind/alpine`  | `x-sw="props"`               |
+| Astro     | `stillwind/astro`   | `{...props}`                 |
+| Lit       | `stillwind/lit`     | `${applyStyle(props)}`       |
+| Preact    | `stillwind/preact`  | `{...props}`                 |
+| Qwik      | `stillwind/qwik`    | `{...props}`                 |
+| React     | `stillwind/react`   | `{...props}`                 |
+| Solid     | `stillwind/solid`   | `{...props}`                 |
+| Svelte    | `stillwind/svelte`  | `{...props}`                 |
+| Vanilla   | `stillwind/vanilla` | `applyStyle(element, props)` |
+| Vue       | `stillwind/vue`     | `v-bind="props"`             |
+
+Gatsby uses `stillwind/react`. Fresh 2 with Vite uses `stillwind/preact`.
 
 ```tsx
 import { style } from "stillwind/react";
@@ -86,6 +100,53 @@ The helper preserves existing classes and unrelated inline styles. `clearStyle`,
 values and priorities. Inline values changed externally after the last application
 are preserved. HTML and SVG elements use the same helpers. The build integration
 delivers the generated CSS.
+
+For Alpine, register the plugin before starting Alpine. Write macro calls in JavaScript
+or TypeScript modules and pass their results to `x-sw`:
+
+```ts
+import Alpine from "alpinejs";
+import { stillwind, style } from "stillwind/alpine";
+
+Alpine.plugin(stillwind);
+Alpine.data("button", () => ({
+  active: false,
+  get props() {
+    return style("px-4 py-2", this.active && "bg-blue-500");
+  },
+}));
+Alpine.start();
+```
+
+```html
+<button x-data="button" x-sw="props" @click="active = !active">Toggle</button>
+```
+
+For Lit, pass the props to an element directive. Include the module's CSS in the
+component's shadow root:
+
+```ts
+import { html, LitElement, unsafeCSS } from "lit";
+import { applyStyle, style } from "stillwind/lit";
+import { css } from "stillwind/module-css";
+
+class SaveButton extends LitElement {
+  static styles = unsafeCSS(css);
+
+  render() {
+    return html`<button ${applyStyle(style("px-4 py-2"))}>Save</button>`;
+  }
+}
+```
+
+Lit's directive supports browser rendering. Lit SSR is unsupported. Use
+`stillwind({ automatic: false })` when styles belong only in shadow roots.
+Alpine and Lit updates replace the helper's previous contribution and preserve
+unrelated classes and inline styles. Removing the directive clears its contribution.
+Lit reapplies its latest props when the directive reconnects.
+
+Qwik uses ordinary JSX spreads. Keep Stillwind before the Qwik optimizer in the Vite
+plugin list. Compiled props contain plain class and style values that Qwik can serialize.
 
 ## Customize and extend
 

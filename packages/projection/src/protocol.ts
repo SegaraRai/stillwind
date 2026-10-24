@@ -34,7 +34,17 @@ export interface ProjectMetadata {
   /** Stable identity used by the compiler and project session. Must identify one resolver source. */
   moduleId: string;
   /** Source framework constraint for component projections. Macro outputs remain independent. */
-  framework?: "react" | "preact" | "solid" | "astro" | "svelte" | "vue" | "vanilla";
+  framework?:
+    | "alpine"
+    | "astro"
+    | "lit"
+    | "preact"
+    | "qwik"
+    | "react"
+    | "solid"
+    | "svelte"
+    | "vanilla"
+    | "vue";
   /** Stylesheet module specifiers injected into a verified macro import realm, in import order. */
   stylesheetImports?: string[];
   /** Module exporting CSS to replace an explicit `stillwind/module-css` import. */

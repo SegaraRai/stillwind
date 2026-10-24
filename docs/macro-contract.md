@@ -6,11 +6,10 @@ changes. This condition applies to **each argument expression inside a macro**.
 
 ## Framework entrypoints and shared types
 
-Import `style` from `stillwind/react`, `stillwind/preact`, `stillwind/solid`,
-`stillwind/vue`, `stillwind/svelte`, `stillwind/astro`, or `stillwind/vanilla`. These
-entrypoints live in `packages/core/src/frameworks/`. React returns `className`; the
-other frameworks return `class`. The `style` prop is a string in Svelte and Astro and an
-object in React, Preact, Solid, Vue, and vanilla JavaScript.
+Import `style` from the [entrypoint for your framework](../packages/core/README.md#write-styles).
+These entrypoints live in `packages/core/src/frameworks/`. React returns `className`;
+the other frameworks return `class`. Astro and Svelte return a string in the `style`
+prop. The other entrypoints return an object.
 
 Each framework entrypoint exports the shared argument types and declaration identities.
 `stillwind/macro` exposes their internal definitions and macro construction for package
@@ -26,6 +25,10 @@ vanilla DOM props.
 These helpers manage class and inline-style contributions on DOM elements; the build
 integration delivers CSS. See the [package guide](../packages/core/README.md#write-styles)
 for their update and cleanup behavior.
+
+`stillwind/alpine` exports a plugin that binds compiled props through `x-sw`.
+`stillwind/lit` exports an `applyStyle(props)` element directive for browser templates.
+The package guide describes their registration, CSS placement, and lifecycle behavior.
 
 Utility literals contribute only candidates resolved by the CSS snapshot and the
 [marker classes](css-emission.md#marker-classes) that candidates add as written.
@@ -812,8 +815,8 @@ and object spreads retain their existing restrictions. Custom properties cannot
 be nested inside CSS variant wrappers: put the variable on the element and let
 the variant's utility reference it.
 
-React, Preact, Solid, Vue, and vanilla JavaScript receive an object in the returned `style` prop.
-Svelte and Astro receive a serialized style string. Custom properties overlay
+Astro and Svelte receive a serialized style string. The other framework entrypoints
+receive an object in the returned `style` prop. Custom properties overlay
 the generated style payload, preserving an unrelated view transition name.
 A composition base containing inline custom properties contributes only its class.
 

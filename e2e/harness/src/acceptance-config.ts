@@ -1,7 +1,10 @@
+import { join } from "node:path";
+
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   test: {
+    fsModuleCachePath: join(process.cwd(), "node_modules/.vitest-acceptance"),
     include: ["tests/**/*.test.ts"],
     environment: "node",
     reporters: ["verbose"],
