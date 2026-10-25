@@ -42,17 +42,28 @@ impl<'a> MacroExtractor<'a> {
         variant: Option<StyleVariant>,
         value: &Expression<'a>,
     ) -> Option<GroupEntry> {
+        let inputs = self.rule_inputs(value)?;
+        let rule = match variant {
+            Some(variant) => RuleExpression::Variant { variant, inputs },
+            None => RuleExpression::Array(inputs),
+        };
+        Some(GroupEntry::Class(Box::new(rule.into())))
+    }
+
+    /// Returns rule inputs from `value`, or `None` for empty or incompatible inputs.
+    /// Records checker probes and reports the first incompatible descendant.
+    pub(super) fn rule_inputs(&mut self, value: &Expression<'a>) -> Option<Vec<RuleExpression>> {
         let mut inputs = Vec::new();
         self.collect_style_expression(value, &mut inputs);
         if inputs.is_empty() {
             return None;
         }
-        let inputs = match inputs
+        match inputs
             .iter()
             .map(rule_class_input)
             .collect::<Result<Vec<_>, _>>()
         {
-            Ok(inputs) => inputs,
+            Ok(inputs) => Some(inputs),
             Err(failure) => {
                 self.omit_input(value.span());
                 self.lint_findings.push(LintFinding::new(
@@ -61,14 +72,9 @@ impl<'a> MacroExtractor<'a> {
                     },
                     failure.span,
                 ));
-                return None;
+                None
             }
-        };
-        let rule = match variant {
-            Some(variant) => RuleExpression::Variant { variant, inputs },
-            None => RuleExpression::Array(inputs),
-        };
-        Some(GroupEntry::Class(Box::new(rule.into())))
+        }
     }
 }
 

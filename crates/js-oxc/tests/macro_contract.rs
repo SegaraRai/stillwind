@@ -207,6 +207,29 @@ fn scope_analysis_probes_receiver_and_every_unresolved_list_entry() {
 }
 
 #[test]
+fn nested_ref_variants_probe_receivers_before_outer_facts_are_known() {
+    let text = "import {style} from 'stillwind/react'; import {outer, inner} from './refs'; const props = style({[outer('hover')]: {'focus:': [{[inner('active')]: 'block'}]}});";
+    let source = SourceFile::new(FileId(1), None, None, text).unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    for name in ["outer", "inner"] {
+        let start = u32::try_from(text.find(&format!("{name}(")).unwrap()).unwrap();
+        assert!(
+            parsed.type_probes.iter().any(|span| span.start.0 == start
+                && span.end.0 == start + u32::try_from(name.len()).unwrap()),
+            "missing {name}: {:?}",
+            parsed.type_probes
+        );
+    }
+}
+
+#[test]
 fn projections_and_ref_variants_require_exact_consumption_positions() {
     let declarations = "const r=style.ref(); const s=style.ref(); const k=style.keyframes({from:'opacity-0'}); const v=style.viewTransition({old:'opacity-0'});";
     for expression in [

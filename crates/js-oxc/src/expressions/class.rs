@@ -306,6 +306,8 @@ impl<'a> MacroExtractor<'a> {
 
     /// Resolves a computed variant key and omits its property when the key is unusable.
     fn computed_variant_entry(&mut self, property: &ObjectProperty<'a>) -> Option<GroupEntry> {
+        // Nested receivers need checker queries even when this key cannot resolve yet.
+        let inputs = self.rule_inputs(&property.value);
         let previous_lints = self.lint_findings.len();
         let previous_errors = self.diagnostics.len();
         let Some(variant) = property
@@ -330,7 +332,13 @@ impl<'a> MacroExtractor<'a> {
             }
             return None;
         };
-        self.rule_entry(Some(variant), &property.value)
+        Some(GroupEntry::Class(Box::new(
+            RuleExpression::Variant {
+                variant,
+                inputs: inputs?,
+            }
+            .into(),
+        )))
     }
 
     /// Keeps the first key position and last value when literal objects overwrite keys.
