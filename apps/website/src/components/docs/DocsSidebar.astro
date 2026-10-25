@@ -19,23 +19,30 @@ const current = (item: SidebarItem): boolean =>
     : item.type === "link" && Boolean(item.isCurrent);
 ---
 
-<ul>
+<ul {...style("docs-navigation-list", parent && "ms-2 ps-2 border-border border-s")}>
   {items.map((item) => (
     <li>
       {item.type === "group" ? (
         <details
-          class="docs-sidebar-group"
           data-sidebar-group={groupKey(item.label)}
           open={current(item) || item.collapsed === false}
         >
-          <summary>
-            <span aria-hidden="true" {...style("icon-lucide--chevron-right shrink-0")}></span>
+          <summary
+            {...style(
+              "flex px-3 py-2 items-center gap-1.5 list-none text-foreground font-medium cursor-pointer [&::-webkit-details-marker]:hidden",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              {...style("icon-lucide--chevron-right shrink-0 [details[open]>summary>&]:rotate-90")}
+            ></span>
             {item.label}
           </summary>
           {item.indexHref && (
             <a
               href={item.indexHref}
               aria-current={item.indexHref === Astro.url.pathname ? "page" : undefined}
+              {...style("docs-navigation-link")}
             >
               Overview
             </a>
@@ -46,6 +53,7 @@ const current = (item: SidebarItem): boolean =>
         <a
           href={item.href}
           aria-current={item.type === "link" && item.isCurrent ? "page" : undefined}
+          {...style("docs-navigation-link")}
         >
           {item.label}
         </a>

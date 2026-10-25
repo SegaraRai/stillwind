@@ -1,4 +1,4 @@
-import { style } from "stillwind/astro";
+import { applyStyle, style } from "stillwind/vanilla";
 
 interface CodePart {
   key: string;
@@ -190,7 +190,7 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
         const start = from ?? to!;
         const end = to ?? from!;
         const token = host.ownerDocument.createElement("span");
-        token.dataset.codeToken = "";
+        applyStyle(token, style("code-token"));
         token.textContent = text;
         token.style.setProperty("--from-x", pixels(start.x));
         token.style.setProperty("--from-y", pixels(start.y + (entering ? 4 : 0)));
@@ -228,7 +228,7 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
         const start = from ?? to!;
         const end = to ?? from!;
         const line = host.ownerDocument.createElement("span");
-        line.dataset.codeUnderline = key;
+        applyStyle(line, style("code-underline"));
         line.style.setProperty("--from-x", pixels(start.x));
         line.style.setProperty("--from-y", pixels(start.y + start.height + 4));
         line.style.setProperty("--to-x", pixels(end.x));

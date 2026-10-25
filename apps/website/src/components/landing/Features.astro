@@ -3,7 +3,12 @@ import { style } from "stillwind/astro";
 
 import { featureTopics } from "../../lib/landing/features/examples";
 import { featureScrollLength } from "../../lib/landing/features/scenes";
+import { documentRoot } from "../site/document";
 import FeatureSource from "./FeatureSource.astro";
+import { featurePanel, featureSource, features, previewFrame } from "./presentation";
+
+const featureCue = style.ref();
+const featureStep = style.ref();
 
 const stops = featureTopics.flatMap((topic) =>
   topic.frames.map((frame) => ({
@@ -15,17 +20,81 @@ const stops = featureTopics.flatMap((topic) =>
 
 <section
   id="features"
-  data-features
-  style={"--feature-length: " + featureScrollLength}
   aria-labelledby="features-title"
+  data-features
+  {...style(
+    { "--feature-length": featureScrollLength },
+    features,
+    "relative pbs-16 border-border border-bs",
+    {
+      "data-enhanced:": [
+        "pbs-0 block-[calc((1_+_var(--feature-length))_*_100svh)]",
+        {
+          "max-outline:": "pbs-24 block-[calc((1_+_var(--feature-length))_*_100svh_+_96px)]",
+        },
+      ],
+    },
+  )}
 >
-  <div data-feature-stage>
-    <nav data-feature-nav aria-label="More ways to use Stillwind">
-      <ol>
+  <div
+    {...style("grid grid-cols-[148px_minmax(0,1fr)] gap-x-[clamp(32px,4vw,56px)] gap-y-6.5", {
+      [documentRoot("data-header-mounted")]: {
+        [features("data-enhanced")]: "pbs-16 pbe-3",
+      },
+      [features("data-enhanced")]: [
+        "sticky inset-bs-0 py-7 block-svh content-center gap-y-6.5",
+        {
+          "short-features:": {
+            "outline:": "gap-y-5",
+          },
+          "max-outline:": "py-4 gap-y-4",
+          "max-inline:": "py-3 gap-y-2.5",
+        },
+      ],
+      "max-outline:": "grid-cols-1",
+    })}
+  >
+    <nav
+      {...style("col-start-1 row-[1/span_4] self-start", {
+        "max-outline:": "row-auto",
+      })}
+
+      aria-label="More ways to use Stillwind"
+    >
+      <ol
+        {...style("relative", {
+          "before:": [
+            'absolute inset-y-5 inset-s-1 content-[""] inline-px bg-border',
+            {
+              "max-outline:": "hidden",
+            },
+          ],
+          "max-outline:": "flex justify-between gap-3",
+        })}
+      >
         {featureTopics.map((topic, index) => (
           <li>
-            <a href={"#" + topic.id} data-feature-step={index} {...style("feature-step")}>
-              <span aria-hidden="true" data-feature-dot></span>
+            <a
+              href={"#" + topic.id}
+              data-feature-step={index}
+              {...style(featureStep, "feature-step", {
+                "hover:": "text-foreground",
+                "aria-[current=step]:": "text-foreground",
+                "focus-visible:": "outline-2 outline-accent outline-offset-5",
+                "max-outline:": "py-2 min-block-11 gap-2",
+                "max-inline:": "text-(length:--text-caption)",
+              })}
+            >
+              <span
+                {...style(
+                  "relative block-2.25 [flex:0_0_9px] bg-background rounded-full border border-muted",
+                  {
+                    [featureStep("aria-[current=step]")]: "bg-foreground border-foreground",
+                    "max-inline:": "block-1.75 basis-1.75",
+                  },
+                )}
+                aria-hidden="true"
+              ></span>
               <span>{topic.name}</span>
             </a>
           </li>
@@ -33,25 +102,149 @@ const stops = featureTopics.flatMap((topic) =>
       </ol>
     </nav>
 
-    <h2 id="features-title" {...style("section-title")}>
+    <h2
+      id="features-title"
+      {...style("col-start-2 text-balance section-title", {
+        "max-outline:": "col-start-1",
+        [features("data-enhanced")]: {
+          "max-outline:": "absolute inset-x-0 inset-bs--20 max-inline-130",
+        },
+      })}
+    >
       Express more with familiar CSS.
     </h2>
 
-    <div data-feature-panels>
+    <div
+      {...style("col-start-2", {
+        [features("data-enhanced")]: [
+          "grid",
+          {
+            "max-outline:": "relative block",
+          },
+        ],
+        "max-outline:": "col-start-1",
+      })}
+    >
       {featureTopics.map((topic, index) => (
-        <article id={topic.id} data-feature-panel={index} aria-label={topic.name}>
-          <p data-feature-description>{topic.frames[0].description}</p>
-          <div data-feature-source-heading>
+        <article
+          {...style(featurePanel, "pbe-12 scroll-mbs-8", {
+            "not-first:": "pbs-10 border-border border-bs",
+            [features("not-data-enhanced")]: {
+              "before:": "block content-[attr(aria-label)] mbe-4 text-(length:--text-lead)",
+            },
+            [features("data-enhanced")]: [
+              "p-0 col-start-1 row-start-1 border-0 opacity-[var(--feature-opacity,0)] pointer-events-none",
+              {
+                "data-active:": [
+                  "pointer-events-auto",
+                  {
+                    "max-outline:": "relative",
+                  },
+                ],
+                "max-outline:": "absolute inset-0",
+              },
+            ],
+          })}
+          id={topic.id}
+          data-feature-panel={index}
+          aria-label={topic.name}
+        >
+          <p
+            {...style("mbe-8 max-inline-165 min-block-[2lh] text-muted text-small/[1.6]", {
+              [features("data-enhanced")]: {
+                "short-features:": {
+                  "outline:": "mbe-6",
+                },
+                "max-outline:": "mbe-4.5 min-block-[2lh]",
+                "max-inline:": "mbe-3 min-block-[3lh] text-caption/[1.5]",
+              },
+              [features("not-data-enhanced")]: "hidden",
+            })}
+            data-feature-description
+          >
+            {topic.frames[0].description}
+          </p>
+          <div
+            {...style(
+              "flex mbe-4.5 items-center justify-between font-mono text-(length:--text-label) text-muted",
+              {
+                [features("not-data-enhanced")]: "hidden",
+                [features("data-enhanced")]: {
+                  "max-outline:": "mbe-3.5",
+                },
+              },
+            )}
+          >
             <p data-feature-caption>{topic.frames[0].label}</p>
-            <span data-feature-counter>
+            <span {...style("tracking-[0.06em]")} data-feature-counter>
               {"01 / " + String(topic.frames.length).padStart(2, "0")}
             </span>
           </div>
-          <div data-feature-canvas data-code-canvas>
-            <svg data-feature-lines aria-hidden="true">
-              <path data-feature-line />
+          <div
+            {...style("relative min-block-91.5", {
+              [features("data-enhanced")]: {
+                "short-features:": {
+                  "outline:": "min-block-83",
+                },
+                [featurePanel("data-[feature-panel=2]")]: {
+                  "outline:": "min-block-100",
+                },
+                [previewFrame("data-[feature-preview-frame=2]:data-current").in(
+                  featurePanel("data-[feature-panel=1]"),
+                )]: {
+                  "outline:": "min-block-100",
+                },
+                "max-outline:": "min-block-85",
+                "max-sidebar:": "min-block-0",
+              },
+              [features("not-data-enhanced")]: "min-block-0",
+            })}
+
+            data-code-canvas
+          >
+            <svg
+              {...style(
+                "absolute inset-0 hidden block-full inline-full opacity-35 pointer-events-none fill-none stroke-1 stroke-muted",
+                {
+                  [features("data-enhanced")]: "block",
+                },
+              )}
+
+              aria-hidden="true"
+            >
+              <path {...style("opacity-[var(--focus-opacity,1)]")} data-feature-line />
             </svg>
-            <div data-feature-source data-feature-morph={index === 0 || undefined}>
+            <div
+              {...style(
+                featureSource,
+                'relative font-mono [font-feature-settings:"liga"_0,"calt"_0,"zero"_1] text-code-feature/[1.6] tracking-[-0.045em] [font-variant-ligatures:none]',
+                {
+                  [features("data-enhanced")]: [
+                    "block-[var(--code-height,340px)]",
+                    {
+                      "short-features:": {
+                        "outline:": "text-(length:--text-code-feature)",
+                      },
+                      "max-outline:": "block-[max(var(--code-height,300px),340px)]",
+                      "max-sidebar:":
+                        "block-[calc(var(--code-height,220px)_+_var(--preview-height,200px)_+_32px)]",
+                    },
+                  ],
+                  "max-outline:": "text-code-feature/[1.6] tracking-[-0.035em]",
+                  "max-inline:": "text-code-feature/[1.6]",
+                  [features("not-data-enhanced")]: {
+                    "max-inline:": "text-(length:--text-ui)",
+                  },
+                  "pin-features-inline:": {
+                    "inline:": {
+                      "max-sidebar:": "text-(length:--text-body)",
+                    },
+                  },
+                },
+              )}
+              data-feature-source
+              data-feature-morph={index === 0 || undefined}
+            >
               <FeatureSource topic={index} frames={topic.frames} />
             </div>
           </div>
@@ -59,38 +252,153 @@ const stops = featureTopics.flatMap((topic) =>
       ))}
     </div>
 
-    <div data-feature-footer>
-      <div data-feature-paging aria-label="Examples">
-        <button type="button" data-feature-direction="-1" aria-label="Previous example" disabled>
+    <div
+      {...style("hidden col-start-2", {
+        [features("data-enhanced")]: [
+          "flex items-center justify-between gap-6",
+          {
+            "max-inline:": "gap-3",
+          },
+        ],
+        "max-outline:": "col-start-1",
+      })}
+    >
+      <div
+        {...style("hidden", {
+          [features("data-enhanced")]: {
+            "max-inline:": "flex gap-2",
+          },
+        })}
+
+        aria-label="Examples"
+      >
+        <button
+          {...style({
+            [features("data-enhanced")]: {
+              "max-inline:": [
+                "grid block-11 inline-11 place-items-center text-(length:--text-heading-small)",
+                {
+                  "disabled:": "text-border",
+                  "focus-visible:": "outline-1 outline-accent outline-offset-3",
+                },
+              ],
+            },
+          })}
+          type="button"
+          data-feature-direction="-1"
+          aria-label="Previous example"
+          disabled
+        >
           <span aria-hidden="true" {...style("icon-lucide--arrow-left")}></span>
         </button>
-        <button type="button" data-feature-direction="1" aria-label="Next example">
+        <button
+          {...style({
+            [features("data-enhanced")]: {
+              "max-inline:": [
+                "grid block-11 inline-11 place-items-center text-(length:--text-heading-small)",
+                {
+                  "disabled:": "text-border",
+                  "focus-visible:": "outline-1 outline-accent outline-offset-3",
+                },
+              ],
+            },
+          })}
+          type="button"
+          data-feature-direction="1"
+          aria-label="Next example"
+        >
           <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
         </button>
       </div>
-      <div data-feature-cues aria-label="Examples">
+      <div
+        {...style({
+          [features("data-enhanced")]: [
+            "flex items-center gap-2",
+            {
+              "max-outline:": "gap-1.5",
+              "max-inline:": "hidden gap-1",
+            },
+          ],
+        })}
+
+        aria-label="Examples"
+      >
         {stops.map((stop, index) => (
           <button
+            {...style(featureCue, {
+              [features("data-enhanced")]: [
+                "grid block-6 inline-6 place-items-center cursor-pointer",
+                {
+                  "focus-visible:": "outline-1 outline-accent outline-offset-3",
+                  "max-outline:": "block-11",
+                  "max-inline:": "inline-5",
+                },
+              ],
+            })}
             type="button"
             data-feature-cue={index}
             aria-label={stop.topic + ": " + stop.label}
             title={stop.label}
             aria-pressed={index === 0 ? "true" : "false"}
           >
-            <span></span>
+            <span
+              {...style({
+                [features("data-enhanced")]: [
+                  "block-px inline-6 bg-border",
+                  {
+                    [featureCue("data-current")]: "block-0.5 bg-foreground",
+                    "max-inline:": "inline-5",
+                  },
+                ],
+              })}
+            ></span>
           </button>
         ))}
       </div>
-      <a href="/docs/macros/" {...style("text-caption text-muted nav-link")}>
+      <a
+        href="/docs/macros/"
+        {...style("text-caption text-muted nav-link", {
+          [features("data-enhanced")]: {
+            "max-inline:": "flex min-block-11 items-center",
+          },
+        })}
+      >
         Explore the API{" "}
         <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
       </a>
     </div>
-    <div data-feature-progress-area>
-      <div data-feature-progress aria-hidden="true">
-        <span></span>
+    <div
+      {...style("hidden col-start-2", {
+        [features("data-enhanced")]: [
+          "block -mbs-3",
+          {
+            "max-outline:": "-mbs-2",
+          },
+        ],
+        "max-outline:": "col-start-1",
+      })}
+    >
+      <div
+        {...style({
+          [features("data-enhanced")]: "block-px bg-border",
+        })}
+
+        aria-hidden="true"
+      >
+        <span
+          {...style({
+            [features("data-enhanced")]:
+              "block block-full bg-foreground origin-left [transform:scaleX(var(--scroll-progress,0))]",
+          })}
+        ></span>
       </div>
-      <p data-feature-scroll-hint {...style("mbs-4 text-end font-mono text-label text-muted")}>
+      <p
+        {...style("mbs-4 text-end font-mono text-label text-muted", {
+          [features("data-enhanced")]: {
+            "max-inline:": "mbs-2.5",
+          },
+        })}
+      >
         Scroll to explore{" "}
         <span aria-hidden="true" {...style("icon-lucide--arrow-down align-middle")}></span>
       </p>

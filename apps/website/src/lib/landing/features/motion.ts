@@ -103,12 +103,16 @@ export function createMotionDemos(
       progress > 0.82 ? detail.y + detail.height + bottomInset - surface.y : 0,
     );
     for (const part of participants) {
-      part.element.style.transform = "translate(" + part.x + "px," + part.y + "px)";
-      part.element.style.width = part.width + "px";
-      part.element.style.height = part.height + "px";
-      part.element.style.fontSize = part.fontSize + "px";
+      part.element.style.setProperty("--transition-x", part.x + "px");
+      part.element.style.setProperty("--transition-y", part.y + "px");
+      part.element.style.setProperty("--transition-width", part.width + "px");
+      part.element.style.setProperty("--transition-height", part.height + "px");
+      part.element.style.setProperty("--transition-font-size", part.fontSize + "px");
       if (part.key === "detail") {
-        part.element.style.opacity = String(clamp((progress - 0.82) / 0.18));
+        part.element.style.setProperty(
+          "--transition-opacity",
+          String(clamp((progress - 0.82) / 0.18)),
+        );
       }
     }
     transitionStage.style.setProperty("--transition-progress", String(progress));

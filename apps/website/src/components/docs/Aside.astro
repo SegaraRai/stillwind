@@ -25,13 +25,21 @@ const displayTitle = title ?? variant.label;
   role="note"
   aria-label={displayTitle}
   data-aside-type={type}
-  class:list={["docs-aside", className]}
   {...attributes}
+  {...style(
+    "flex p-4 items-start gap-control text-accent bg-accent/5 rounded-panel border border-accent/30",
+    {
+      "data-[aside-type=tip]:": "text-success bg-success/5 border-success/30",
+      "data-[aside-type=caution]:": "text-warning bg-warning/5 border-warning/30",
+      "data-[aside-type=danger]:": "text-danger bg-danger/5 border-danger/30",
+      class: className,
+    },
+  )}
 >
-  <span class:list={["docs-aside-icon", variant.icon.class]} aria-hidden="true"></span>
-  <div class="docs-aside-content">
-    <p class="docs-aside-title">{displayTitle}</p>
-    <div class="docs-aside-body">
+  <span {...style(variant.icon, "mbs-1 shrink-0")} aria-hidden="true"></span>
+  <div {...style("min-inline-0 flex-1")}>
+    <p {...style("mbe-2 text-body font-semibold")}>{displayTitle}</p>
+    <div {...style("text-foreground text-small aside-body")}>
       <slot />
     </div>
   </div>

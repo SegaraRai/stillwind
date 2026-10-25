@@ -9,6 +9,7 @@ import { style } from "stillwind/astro";
 
 import "../assets/fonts/jetbrains-mono.css";
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
+import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
 
@@ -29,10 +30,13 @@ const { title, description, entryId, markdownUrl, sidebar, headings, editUrl, pr
 const navigationTransition = style.viewTransition({
   group: "duration-300 ease-out",
 });
+const paginationLink = style(
+  "flex py-3 min-inline-0 items-start gap-3 wrap-anywhere hover:text-accent",
+);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" {...style(documentRoot, "site-document")}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -49,24 +53,48 @@ const navigationTransition = style.viewTransition({
     <a href="#main-content" {...style("skip-link")}>
       Skip to content
     </a>
-    <div {...style("docs-shell")}>
+    <div {...style("mx-auto px-docs-gutter inline-full max-inline-docs")}>
       <SiteHeader docs="/docs/" repository="https://github.com/SegaraRai/stillwind" />
-      <div class="docs-grid">
+      <div
+        {...style(
+          "grid pbs-12 pbe-20 grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-docs-gutter",
+          {
+            "max-docs-outline:": "grid-cols-[var(--container-navigation)_minmax(0,1fr)] gap-stack",
+            "max-sidebar:": "pbs-6 grid-cols-[minmax(0,1fr)]",
+          },
+        )}
+      >
         <nav
           aria-label="Documentation"
-          {...style({ class: "docs-navigation" }, navigationTransition.for("docs-navigation"))}
+          {...style(
+            "docs-navigation",
+            navigationTransition.for("docs-navigation"),
+            "max-sidebar:static max-sidebar:pbe-6 max-sidebar:max-block-64 max-sidebar:border-border max-sidebar:border-be",
+          )}
         >
           <DocsSidebar items={sidebar} />
-          <div class="docs-agent-links">
-            <p class="docs-label">For agents</p>
-            <a href="/docs/llms.txt">
+          <div
+            {...style(
+              "grid mbs-9 pbs-6 gap-2.5 text-caption border-border border-bs max-sidebar:hidden",
+            )}
+          >
+            <p {...style("font-mono text-label text-muted tracking-[0.08em] uppercase")}>
+              For agents
+            </p>
+            <a
+              href="/docs/llms.txt"
+              {...style("hover:text-foreground hover:underline hover:underline-offset-4")}
+            >
               Documentation index{" "}
               <span
                 aria-hidden="true"
                 {...style("icon-lucide--arrow-up-right align-middle")}
               ></span>
             </a>
-            <a href="/llms-full.txt">
+            <a
+              href="/llms-full.txt"
+              {...style("hover:text-foreground hover:underline hover:underline-offset-4")}
+            >
               Full documentation{" "}
               <span
                 aria-hidden="true"
@@ -107,33 +135,43 @@ const navigationTransition = style.viewTransition({
             })();
           </script>
         </nav>
-        <main id="main-content" class="docs-main">
-          <header class="docs-page-header">
-            <h1>{title}</h1>
-            {description && <p class="docs-description">{description}</p>}
-            <div class="docs-page-actions">
-              <a href={markdownUrl}>
+        <main id="main-content" {...style("min-inline-0")}>
+          <header {...style("mbe-10")}>
+            <h1 {...style("font-display text-title tracking-[-0.045em]")}>{title}</h1>
+            {description && <p {...style("mbs-5 text-lead text-muted")}>{description}</p>}
+            <div {...style("flex mbs-6 flex-wrap items-center gap-x-5 gap-y-3 text-caption")}>
+              <a href={markdownUrl} {...style("underline underline-offset-4")}>
                 View as Markdown{" "}
                 <span
                   aria-hidden="true"
                   {...style("icon-lucide--arrow-up-right align-middle")}
                 ></span>
               </a>
-              <button type="button" data-copy-markdown={markdownUrl} hidden>
+              <button
+                type="button"
+                data-copy-markdown={markdownUrl}
+                hidden
+                {...style("underline underline-offset-4 cursor-pointer")}
+              >
                 Copy page
               </button>
-              <span role="status" data-copy-status></span>
+              <span role="status" data-copy-status {...style("text-muted")}></span>
             </div>
           </header>
-          <article class="docs-prose" data-pagefind-body>
+          <article {...style("docs-prose")} data-pagefind-body>
             <slot />
           </article>
-          <footer class="docs-footer">
+          <footer
+            {...style("grid mbs-16 pbs-6 gap-6 text-caption text-muted border-border border-bs")}
+          >
             {(prevNext.prev || prevNext.next) && (
-              <nav class="docs-pagination" aria-label="Documentation pages">
+              <nav
+                aria-label="Documentation pages"
+                {...style("grid grid-cols-2 gap-6 text-foreground text-ui font-medium")}
+              >
                 {prevNext.prev && (
                   <a
-                    class="docs-pagination-prev"
+                    {...style(paginationLink, "col-start-1")}
                     href={prevNext.prev.href}
                     rel="prev"
                     aria-label={`Previous page: ${prevNext.prev.label}`}
@@ -147,7 +185,7 @@ const navigationTransition = style.viewTransition({
                 )}
                 {prevNext.next && (
                   <a
-                    class="docs-pagination-next"
+                    {...style(paginationLink, "col-start-2 justify-end text-end")}
                     href={prevNext.next.href}
                     rel="next"
                     aria-label={`Next page: ${prevNext.next.label}`}
@@ -162,7 +200,7 @@ const navigationTransition = style.viewTransition({
               </nav>
             )}
             {editUrl && (
-              <a href={editUrl}>
+              <a href={editUrl} {...style("justify-self-start")}>
                 Edit this page{" "}
                 <span
                   aria-hidden="true"
@@ -172,11 +210,22 @@ const navigationTransition = style.viewTransition({
             )}
           </footer>
         </main>
-        <nav class="docs-toc" aria-label="On this page">
-          <ul>
+        <nav {...style("docs-navigation", "max-docs-outline:hidden")} aria-label="On this page">
+          <ul {...style("grid p-0 gap-1.5 list-none")}>
             {headings.map((heading) => (
-              <li {...style({ "--heading-depth": heading.depth })}>
-                <a href={`#${heading.slug}`}>{heading.text}</a>
+              <li
+                {...style("ps-[calc((var(--heading-depth)_-_2)*10px)]", {
+                  "--heading-depth": heading.depth,
+                })}
+              >
+                <a
+                  href={`#${heading.slug}`}
+                  {...style(
+                    "block py-1 text-muted hover:text-foreground hover:underline hover:underline-offset-4",
+                  )}
+                >
+                  {heading.text}
+                </a>
               </li>
             ))}
           </ul>

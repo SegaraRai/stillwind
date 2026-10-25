@@ -1,4 +1,4 @@
-import { style } from "stillwind/astro";
+import { applyStyle, style } from "stillwind/vanilla";
 
 import { createCodeMorph } from "../code-morph";
 import { featureTopics } from "./examples";
@@ -174,14 +174,20 @@ export function createFeaturePresentation(root: HTMLElement, signal: AbortSignal
       }
       const last = rects.at(-1) ?? origins[0]!.getBoundingClientRect();
       const highlights = source.querySelector<HTMLElement>("[data-feature-highlights]")!;
-      highlights.style.opacity = String(focusOpacity);
+      highlights.style.setProperty("--focus-opacity", String(focusOpacity));
       highlights.replaceChildren(
         ...rects.map((rect) => {
           const highlight = root.ownerDocument.createElement("span");
-          highlight.style.left = rect.left - sourceBounds.left + "px";
-          highlight.style.top = rect.top - sourceBounds.top + "px";
-          highlight.style.width = rect.width + "px";
-          highlight.style.height = rect.height + 2 + "px";
+          applyStyle(
+            highlight,
+            style(
+              "inset-s-(--highlight-x) inset-bs-(--highlight-y) block-(--highlight-height) inline-(--highlight-width) source-highlight",
+            ),
+          );
+          highlight.style.setProperty("--highlight-x", rect.left - sourceBounds.left + "px");
+          highlight.style.setProperty("--highlight-y", rect.top - sourceBounds.top + "px");
+          highlight.style.setProperty("--highlight-width", rect.width + "px");
+          highlight.style.setProperty("--highlight-height", rect.height + 2 + "px");
           return highlight;
         }),
       );
@@ -198,7 +204,7 @@ export function createFeaturePresentation(root: HTMLElement, signal: AbortSignal
       const x2 = target.left - bounds.left - 18;
       const y2 = target.top - bounds.top + target.height / 2;
       const line = panel.querySelector<SVGPathElement>("[data-feature-line]")!;
-      line.style.opacity = String(focusOpacity);
+      line.style.setProperty("--focus-opacity", String(focusOpacity));
       if (stacked.matches) {
         const endX = target.left - bounds.left + target.width / 2;
         const endY = target.top - bounds.top - 12;

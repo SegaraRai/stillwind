@@ -1,6 +1,7 @@
 ---
 import type { ComponentProps } from "astro/types";
 import { Code } from "astro:components";
+import { style } from "stillwind/astro";
 
 import type { DiagnosticExample } from "./diagnostic-example";
 import DiagnosticMessage from "./DiagnosticMessage.astro";
@@ -89,7 +90,7 @@ function annotations(sourceIndex: number): Transformer[] {
 }
 ---
 
-<div class="diagnostic-example">
+<div data-diagnostic-example {...style("diagnostic-example")}>
   {example.sources.map((source, index) => (
     <figure class:list={["nb-code-figure", { "nb-code-figure-titled": source.title }]}>
       {source.title && (

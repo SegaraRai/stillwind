@@ -8,22 +8,33 @@ const catalog: UtilityCatalog = (await getEntry("utilities", "default"))!.data;
 const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
   catalog.records.find((record) => record.name === name)!,
 );
+const metadata = style("text-caption text-muted");
+const field = style("grid min-inline-0 gap-2 text-ui font-medium");
+const control = style(
+  "px-3 block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border",
+);
 ---
 
-<div class="utility-explorer" data-utility-explorer data-catalog="/docs/utilities/catalog.json">
-  <p class="utility-catalog-meta">
+<div {...style("grid gap-5")} data-utility-explorer data-catalog="/docs/utilities/catalog.json">
+  <p {...metadata}>
     Stillwind {catalog.version} · {catalog.records.length.toLocaleString("en")} built-in spellings ·
     Default theme
   </p>
-  <form class="utility-search" role="search" aria-label="Built-in utility search">
-    <div class="utility-search-field">
+  <form
+    role="search"
+    aria-label="Built-in utility search"
+    {...style(
+      "grid p-panel grid-cols-[minmax(0,1fr)] items-end gap-control bg-surface rounded-panel border border-border sidebar:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]",
+    )}
+  >
+    <div {...field}>
       <label for="utility-mode">Search direction</label>
-      <select id="utility-mode" name="mode">
+      <select id="utility-mode" name="mode" {...control}>
         <option value="utility">Utility to CSS</option>
         <option value="css">CSS to utilities</option>
       </select>
     </div>
-    <div class="utility-search-field">
+    <div {...field}>
       <label for="utility-query">Utility or CSS terms</label>
       <input
         id="utility-query"
@@ -32,24 +43,32 @@ const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
         value="p-4"
         placeholder="p-4 or display: flex"
         autocomplete="off"
+        {...control}
       />
     </div>
-    <button type="submit">Search</button>
+    <button
+      type="submit"
+      {...style(
+        "px-4 block-11 text-action-foreground text-ui font-medium bg-action rounded-control cursor-pointer hover:bg-action-hover",
+      )}
+    >
+      Search
+    </button>
   </form>
-  <p role="status" aria-live="polite">
+  <p role="status" aria-live="polite" {...metadata}>
     Enable JavaScript to search. Representative examples follow.
   </p>
-  <div data-utility-results>
+  <div data-utility-results {...style("grid gap-5")}>
     {examples.map((record) => (
-      <section class="utility-result">
-        <h3>
+      <section {...style("utility-result")}>
+        <h3 {...style("utility-result-title")}>
           <code>{record.name}</code>
         </h3>
-        <pre><code>{record.css}</code></pre>
+        <pre {...style("utility-result-code")}><code>{record.css}</code></pre>
       </section>
     ))}
   </div>
-  <p class="utility-catalog-meta">
+  <p {...metadata}>
     Catalog revision <code>{catalog.revision.slice(0, 12)}</code>.{" "}
     <a href="/docs/utilities/index.md">
       Full catalog as Markdown{" "}

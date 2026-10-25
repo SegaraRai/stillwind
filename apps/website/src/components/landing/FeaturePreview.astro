@@ -1,7 +1,9 @@
 ---
 import { style } from "stillwind/astro";
 
+import { documentRoot } from "../site/document";
 import ArticleThumbnail from "./ArticleThumbnail.astro";
+import { featureExample, featurePanel, features, previewFrame } from "./presentation";
 
 interface Props {
   topic: number;
@@ -9,6 +11,8 @@ interface Props {
 }
 
 const { topic, frame } = Astro.props;
+const responsiveContainer = style.ref();
+const transitionLayout = style.ref();
 
 const emphasized = true;
 const accent = "var(--color-action-hover)";
@@ -30,10 +34,9 @@ const syntaxProps = [
   }),
   style(["px-4 py-2 rounded-control", emphasized && "shadow-sm"], {
     "aria-pressed:": [
-      "text-action-foreground font-medium bg-(--accent)",
+      "text-action-foreground font-medium bg-(color:--accent)",
       { "hover:": "brightness-110" },
     ],
-    "--accent": accent,
   }),
 ];
 const box = style.ref();
@@ -57,28 +60,95 @@ const articleMeta = "ARTICLE · 5 MIN READ";
 const articleExcerpt = "Labels that make forms easier to complete.";
 ---
 
-<div data-feature-preview>
+<div
+  {...style(
+    "absolute inset-e-0 inset-bs-[var(--feature-preview-top,164px)] inline-72 font-sans text-body/[1.5] tracking-normal",
+    {
+      [responsiveContainer().in(featureExample("data-current"))]: "[inline-size:min(100%,300px)]",
+      [features("data-enhanced")]: {
+        "short-features:": {
+          "outline:": "[--feature-preview-top:148px]",
+        },
+        [featurePanel("data-[feature-panel=2]")]: {
+          "outline:": "inset-bs-20",
+        },
+        [previewFrame("data-[feature-preview-frame=0]:data-current").in(
+          featurePanel("data-[feature-panel=1]"),
+        )]: {
+          "outline:": "inset-bs-[calc(var(--feature-preview-top,164px)_+_16px)]",
+        },
+        [previewFrame("data-[feature-preview-frame=2]:data-current").in(
+          featurePanel("data-[feature-panel=1]"),
+        )]: {
+          "outline:": "inset-bs-12",
+        },
+        "max-outline:": "absolute inset-e-0 inset-bs-12 m-0",
+        "max-sidebar:":
+          "inset-s-1/2 inset-e-auto inset-bs-[calc(var(--code-height,220px)_+_32px)] [translate:-50%_0]",
+      },
+      "max-outline:": "relative inset-auto mbs-6 [inline-size:min(100%,288px)]",
+      [features("not-data-enhanced")]:
+        "relative inset-auto mx-auto mbs-7 [inline-size:min(100%,300px)]",
+      "max-inline:": "[inline-size:min(100%,288px)]",
+      "pin-features-inline:": {
+        "inline:": {
+          "max-sidebar:": "inline-80",
+        },
+      },
+    },
+  )}
+>
   {topic === 0 &&
     syntaxProps.slice(frame, frame + 1).map((props) => (
-      <div data-feature-preview-frame={frame} data-current>
+      <div
+        {...style(previewFrame, "block text-center")}
+        data-feature-preview-frame={frame}
+        data-current
+      >
         <button
+          {...style(
+            props,
+            frame === 6 && { "--accent": accent },
+            "inline-flex min-inline-26 items-center justify-center border border-border",
+            {
+              "disabled:": "cursor-default",
+            },
+          )}
           type="button"
           data-syntax-button
           data-feature-target
           disabled
           aria-pressed={frame >= 3 ? "true" : undefined}
-          {...props}
         >
           Save
         </button>
-        <div data-feature-preview-values>
+        <div
+          {...style("mbs-5 text-center font-mono text-label/[1.9] text-muted", {
+            "max-inline:": "flex mbs-3 flex-wrap justify-center gap-x-3 gap-y-0.5 leading-[1.5]",
+          })}
+        >
           {frame > 0 && <p>emphasized = true</p>}
           {frame >= 3 && <p data-syntax-state>aria-pressed="true"</p>}
           {frame === 6 && <p>accent = var(--color-action-hover)</p>}
         </div>
         {frame >= 3 && (
-          <p data-feature-preview-hint>
-            Toggle the button state.{frame >= 5 && <span data-hover-hint> Hover to preview.</span>}
+          <p
+            {...style("mbs-4 text-center text-caption/[1.6] text-muted", {
+              "max-inline:": "mbs-2.5",
+            })}
+          >
+            Toggle the button state.
+            {frame >= 5 && (
+              <span
+                {...style({
+                  "no-hover:": "hidden",
+                  "max-inline:": "hidden",
+                })}
+              >
+                {" "}
+                Hover to preview.
+              </span>
+            )}
           </p>
         )}
       </div>
@@ -87,48 +157,116 @@ const articleExcerpt = "Labels that make forms easier to complete.";
   {topic === 1 && (
     <>
       {frame === 0 && (
-        <div data-feature-preview-frame="0" data-current>
-          <div data-container-measure aria-label="Container width">
-            <span data-container-size>300px</span>
+        <div
+          {...style(previewFrame, "block text-center")}
+          data-feature-preview-frame="0"
+          data-current
+        >
+          <div
+            {...style(
+              "relative mx-auto mbs-0 mbe-3.5 block-2.25 inline-[var(--measure-width,auto)] font-mono text-(length:--text-label) text-muted border-border border-x",
+              {
+                "before:": 'absolute inset-x-0 inset-bs-1 content-[""] border-border border-bs',
+              },
+            )}
+            data-container-measure
+            aria-label="Container width"
+          >
+            <span
+              {...style(
+                "absolute inset-s-1/2 inset-bs--1 px-2 bg-background [transform:translateX(-50%)]",
+              )}
+              data-container-size
+            >
+              300px
+            </span>
           </div>
           <div
             data-responsive-container
             data-feature-target
-            {...style(box, box.asContainer("inline-size"))}
+            {...style(
+              box,
+              box.asContainer("inline-size"),
+              responsiveContainer,
+              "relative mx-auto [inline-size:min(100%,var(--container-width,300px))] [transition:inline-size_180ms_ease]",
+              {
+                [features("data-enhanced")]: "transition-none",
+                "motion-reduce:": "transition-none",
+              },
+            )}
           >
-            <div data-responsive-surface>
+            <div {...style("p-5 bg-background border border-border")}>
               <div
-                data-responsive-card
-                {...style("grid justify-items-center gap-4 text-center", {
+                {...style("grid items-center justify-items-center gap-4 text-center", {
                   [box.at("width >= 13rem")]: [
                     "grid-cols-[3rem_1fr]",
                     "justify-items-start text-left",
                   ],
                 })}
               >
-                <span data-article-thumbnail-slot>
+                <span
+                  {...style(
+                    "block block-14 inline-12 bg-surface-muted rounded-control border border-border",
+                  )}
+                >
                   <ArticleThumbnail />
                 </span>
                 <div>
-                  <p data-article-title>{articles[0]}</p>
-                  <p data-article-meta>{articleMeta}</p>
+                  <p {...style("text-body/[1.4] tracking-tight")}>{articles[0]}</p>
+                  <p {...style("mbs-1.75 font-mono text-label/[1.5] text-muted")}>{articleMeta}</p>
                 </div>
               </div>
             </div>
           </div>
-          <button type="button" data-resize-demo hidden {...style("demo-action")}>
+          <button
+            type="button"
+            data-resize-demo
+            hidden
+            {...style("mbs-3.5 demo-action", {
+              "hover:": "text-foreground underline",
+              "focus-visible:": "outline-2 outline-accent outline-offset-4",
+              "max-inline:": "mbs-1.5 py-2.5 min-block-11",
+            })}
+          >
             Resize container
           </button>
         </div>
       )}
 
       {frame === 1 && (
-        <div data-feature-preview-frame="1" data-current>
-          <div data-scoped-cards data-feature-target>
+        <div
+          {...style(previewFrame, "block text-center")}
+          data-feature-preview-frame="1"
+          data-current
+        >
+          <div
+            {...style("flex mx-auto inline-max gap-4", {
+              "max-inline:": "inline-full gap-3",
+            })}
+
+            data-feature-target
+          >
             {articles.map((title, cardIndex) => (
-              <div {...style(card, "scoped-example")}>
-                <p data-scoped-article-kind>ARTICLE</p>
-                <p data-scoped-article-title>{title}</p>
+              <div
+                {...style(card, "scoped-example", {
+                  "aria-[pressed=true]:": "border-foreground",
+                  "max-inline:": "p-2.5 [inline-size:calc((100%_-_12px)_/_2)]",
+                })}
+              >
+                <p
+                  {...style("font-mono text-[9px]/[1.5] text-muted", {
+                    "aria-[pressed=true]:": "border-foreground",
+                  })}
+                >
+                  ARTICLE
+                </p>
+                <p
+                  {...style("min-block-[2lh] text-ui/[1.45]", {
+                    "aria-[pressed=true]:": "border-foreground",
+                  })}
+                >
+                  {title}
+                </p>
                 <button
                   type="button"
                   data-scope-button
@@ -137,6 +275,8 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   aria-pressed={cardIndex === 0 ? "true" : "false"}
                   {...style(button, "feature-button", {
                     "aria-pressed:": "text-action-foreground bg-action",
+                    "aria-[pressed=true]:": "border-foreground",
+                    "max-outline:": "min-block-11",
                   })}
                 >
                   Save
@@ -145,41 +285,77 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   aria-hidden="true"
                   {...style("opacity-0 transition-opacity", {
                     [button("aria-pressed").in(card)]: "opacity-100",
+                    "aria-[pressed=true]:": "border-foreground",
                   })}
                 >
-                  <span {...style("icon-lucide--check align-middle")}></span> Saved
+                  <span
+                    {...style("icon-lucide--check align-middle", {
+                      "aria-[pressed=true]:": "border-foreground",
+                    })}
+                  ></span>{" "}
+                  Saved
                 </span>
               </div>
             ))}
           </div>
-          <p data-feature-preview-hint>Click Save on either article.</p>
+          <p
+            {...style("mbs-4 text-center text-caption/[1.6] text-muted", {
+              "max-inline:": "mbs-2.5",
+            })}
+          >
+            Click Save on either article.
+          </p>
         </div>
       )}
 
       {frame === 2 && (
-        <div data-feature-preview-frame="2" data-current>
-          <div data-anchor-demo data-feature-target {...style(style.anchorScope([saveButton]))}>
+        <div
+          {...style(previewFrame, "block text-center")}
+          data-feature-preview-frame="2"
+          data-current
+        >
+          <div
+            data-anchor-demo
+            data-feature-target
+            {...style(
+              style.anchorScope([saveButton]),
+              "relative block-44 [border:1px_dashed_var(--color-border)]",
+            )}
+          >
             <button
               type="button"
               data-anchor-button
               disabled
-              {...style(saveButton, saveButton.asAnchor(), "feature-button")}
+              {...style(
+                saveButton,
+                saveButton.asAnchor(),
+                "absolute [inset-inline-start:var(--anchor-x,50%)] inset-bs-[var(--anchor-y,58px)] bg-background [translate:-50%_-50%] feature-button",
+                {
+                  "max-outline:": "min-block-11",
+                },
+              )}
             >
               Save
             </button>
             <span
-              data-attached-label
               {...style(
                 saveButton.positionAnchor(),
-                "absolute [position-area:bottom]",
-                "[position-try-fallbacks:flip-block]",
-                "attached-label",
+                "[position-area:bottom] [position-try-fallbacks:flip-block] attached-label",
               )}
             >
               Save to reading list
             </span>
           </div>
-          <button type="button" data-move-anchor hidden {...style("demo-action")}>
+          <button
+            type="button"
+            data-move-anchor
+            hidden
+            {...style("demo-action", {
+              "hover:": "text-foreground underline",
+              "focus-visible:": "outline-2 outline-accent outline-offset-4",
+              "max-inline:": "mbs-1.5 py-2.5 min-block-11",
+            })}
+          >
             Move button
           </button>
         </div>
@@ -190,68 +366,240 @@ const articleExcerpt = "Labels that make forms easier to complete.";
   {topic === 2 && (
     <>
       {frame === 0 && (
-        <div data-feature-preview-frame="0" data-current>
-          <div data-motion-demo>
-            <div data-motion-stage>
+        <div
+          {...style(previewFrame, "block text-center")}
+          data-feature-preview-frame="0"
+          data-current
+        >
+          <div {...style("relative")}>
+            <div
+              {...style("grid block-56 items-center", {
+                "max-inline:": "block-41",
+              })}
+              data-motion-stage
+            >
               <div
                 data-enter-preview
                 data-feature-target
-                {...style(enter("duration-420 ease-out both"), "entrance-preview")}
+                {...style(
+                  enter("duration-420 ease-out both"),
+                  "relative flex px-4 py-4.5 inline-full items-center gap-3 text-(length:--text-ui) leading-[1.5] bg-background rounded-control border border-border",
+                  {
+                    [features("data-enhanced")]: "[animation-play-state:paused]",
+                    [features("data-motion-enabled")]: "[animation-play-state:paused]",
+                    "motion-reduce:": "opacity-100 translate-none animate-none",
+                  },
+                )}
               >
-                <span data-saved-icon aria-hidden="true">
+                <span
+                  {...style(
+                    "grid block-6 inline-6 place-items-center rounded-full border border-border",
+                  )}
+
+                  aria-hidden="true"
+                >
                   <span {...style("icon-lucide--check")}></span>
                 </span>
                 <span>Saved to your list</span>
               </div>
             </div>
-            <div data-animation-time aria-hidden="true">
+            <div
+              {...style(
+                "flex mbs-7 mbe-4 items-center gap-3 font-mono text-[10px] text-muted [line-height:normal]",
+                {
+                  "max-inline:": "mbs-3.5 mbe-2.5",
+                },
+              )}
+
+              aria-hidden="true"
+            >
               <span>0ms</span>
-              <span data-animation-track>
-                <span></span>
+              <span {...style("block-px flex-1 bg-border")}>
+                <span
+                  {...style(
+                    "block block-full bg-foreground origin-left [transform:scaleX(var(--demo-progress,1))]",
+                  )}
+                ></span>
               </span>
               <span>420ms</span>
             </div>
-            <button type="button" data-replay hidden {...style("demo-action")}>
+            <button
+              type="button"
+              data-replay
+              hidden
+              {...style("demo-action", {
+                "hover:": "text-foreground underline",
+                "focus-visible:": "outline-2 outline-accent outline-offset-4",
+                "motion-reduce:": "hidden",
+                "max-inline:": "mbs-1.5 py-2.5 min-block-11",
+              })}
+            >
               Replay entrance
             </button>
           </div>
         </div>
       )}
       {frame === 1 && (
-        <div data-feature-preview-frame="1" data-current>
-          <div data-transition-stage>
+        <div
+          {...style(previewFrame, "block text-center")}
+          data-feature-preview-frame="1"
+          data-current
+        >
+          <div
+            {...style("relative overflow-clip block-56 text-start", {
+              "max-inline:": "block-41",
+            })}
+            data-transition-stage
+          >
             {["list", "article"].map((layout) => (
-              <div data-transition-layout={layout} aria-hidden="true">
-                <div data-transition-slot="thumbnail">
+              <div
+                {...style(
+                  transitionLayout,
+                  "absolute inset-x-0 inset-bs-0 grid p-4 gap-2 bg-background rounded-control border border-border",
+                  {
+                    "data-[transition-layout=list]:": [
+                      "inset-bs-8 hidden grid-cols-[60px_1fr] gap-x-4 gap-y-1.5",
+                      {
+                        "max-inline:": "inset-bs-6 grid-cols-[48px_1fr] gap-x-3",
+                      },
+                    ],
+                    [features("data-motion-enabled")]: "invisible grid",
+                    "max-inline:": "p-3 gap-1.5",
+                  },
+                )}
+                data-transition-layout={layout}
+                aria-hidden="true"
+              >
+                <div
+                  {...style("block-22 bg-surface-muted rounded-inline", {
+                    [transitionLayout("data-[transition-layout=list]")]: [
+                      "block-18 row-[1/span_2]",
+                      {
+                        "max-inline:": "block-13.5",
+                      },
+                    ],
+                    "max-inline:": "block-12",
+                  })}
+                  data-transition-slot="thumbnail"
+                >
                   <ArticleThumbnail />
                 </div>
-                <h3 data-transition-slot="title">{articles[0]}</h3>
-                <p data-transition-slot="meta">{articleMeta}</p>
-                <p data-transition-slot="detail">{articleExcerpt}</p>
+                <h3
+                  {...style("text-lead/[1.4] tracking-[-0.035em]", {
+                    [transitionLayout("data-[transition-layout=list]")]: [
+                      "text-(length:--text-body)",
+                      {
+                        "max-inline:": "text-(length:--text-small)",
+                      },
+                    ],
+                    "max-inline:": "text-(length:--text-body)",
+                  })}
+                  data-transition-slot="title"
+                >
+                  {articles[0]}
+                </h3>
+                <p
+                  {...style("font-mono text-[9px]/[1.5] text-muted tracking-[0.01em]")}
+                  data-transition-slot="meta"
+                >
+                  {articleMeta}
+                </p>
+                <p
+                  {...style("text-caption/[1.6] text-muted", {
+                    [transitionLayout("data-[transition-layout=list]")]: "hidden",
+                  })}
+                  data-transition-slot="detail"
+                >
+                  {articleExcerpt}
+                </p>
               </div>
             ))}
-            <div data-transition-elements>
-              <div data-transition-element="surface" data-feature-target aria-hidden="true"></div>
+            <div
+              {...style("absolute inset-0 hidden", {
+                [features("data-motion-enabled")]: "block",
+              })}
+            >
+              <div
+                {...style(
+                  "absolute inset-s-0 inset-bs-0 bg-background rounded-control border border-border",
+                  {
+                    [features("data-motion-enabled")]:
+                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                  },
+                )}
+                data-transition-element="surface"
+                data-feature-target
+                aria-hidden="true"
+              ></div>
               <div
                 data-transition-element="thumbnail"
-                {...style(article.for("thumbnail"))}
+                {...style(
+                  "absolute inset-s-0 inset-bs-0 overflow-clip bg-surface-muted rounded-inline",
+                  {
+                    [documentRoot("[&:not(:active-view-transition-type(page))]")]:
+                      article.for("thumbnail"),
+                    [features("data-motion-enabled")]:
+                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                  },
+                )}
                 aria-hidden="true"
               >
                 <ArticleThumbnail />
               </div>
-              <h3 data-transition-element="title" {...style(article.for("title"))}>
+              <h3
+                data-transition-element="title"
+                {...style("absolute inset-s-0 inset-bs-0 text-lead/[1.4] tracking-[-0.035em]", {
+                  "max-inline:": "text-(length:--text-body)",
+                  [documentRoot("[&:not(:active-view-transition-type(page))]")]:
+                    article.for("title"),
+                  [features("data-motion-enabled")]:
+                    "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                })}
+              >
                 {articles[0]}
               </h3>
-              <p data-transition-element="meta" {...style(article.for("meta"))}>
+              <p
+                data-transition-element="meta"
+                {...style(
+                  "absolute inset-s-0 inset-bs-0 font-mono text-[9px]/[1.5] text-muted tracking-[0.01em]",
+                  {
+                    [documentRoot("[&:not(:active-view-transition-type(page))]")]:
+                      article.for("meta"),
+                    [features("data-motion-enabled")]:
+                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                  },
+                )}
+              >
                 {articleMeta}
               </p>
-              <p data-transition-element="detail">{articleExcerpt}</p>
+              <p
+                {...style("absolute inset-s-0 inset-bs-0 text-caption/[1.6] text-muted", {
+                  [features("data-motion-enabled")]:
+                    "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                })}
+                data-transition-element="detail"
+              >
+                {articleExcerpt}
+              </p>
             </div>
           </div>
-          <div data-animation-time aria-hidden="true">
+          <div
+            {...style(
+              "flex mbs-7 mbe-4 items-center gap-3 font-mono text-[10px] text-muted [line-height:normal]",
+              {
+                "max-inline:": "mbs-3.5 mbe-2.5",
+              },
+            )}
+
+            aria-hidden="true"
+          >
             <span>Card · 0ms</span>
-            <span data-animation-track>
-              <span></span>
+            <span {...style("block-px flex-1 bg-border")}>
+              <span
+                {...style(
+                  "block block-full bg-foreground origin-left [transform:scaleX(var(--demo-progress,1))]",
+                )}
+              ></span>
             </span>
             <span>Article · 300ms</span>
           </div>
@@ -260,7 +608,12 @@ const articleExcerpt = "Labels that make forms easier to complete.";
             data-replay-transition
             aria-label="Replay card to article"
             hidden
-            {...style("demo-action")}
+            {...style("demo-action", {
+              "hover:": "text-foreground underline",
+              "focus-visible:": "outline-2 outline-accent outline-offset-4",
+              "motion-reduce:": "hidden",
+              "max-inline:": "mbs-1.5 py-2.5 min-block-11",
+            })}
           >
             Replay card{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>{" "}

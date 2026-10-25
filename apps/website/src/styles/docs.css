@@ -1,449 +1,182 @@
-/* Layout and presentation of the documentation pages. The website's CSS entry expands these
-   utilities before Astro renders the documentation. */
-
-/* Documentation pages use a wider shell so that tables and code fit beside the navigation. */
-@utility docs-shell {
-  inline-size: min(100%, var(--container-docs));
-  margin-inline: auto;
-  @apply px-docs-gutter;
+/* Typography and spacing for Markdown, slots, and Nimbus output. */
+@utility compiled-example {
+  @variant [&_>_*_+_*] {
+    @apply mbs-5;
+  }
 }
 
-.docs-grid {
-  @apply grid pbs-12 pbe-20 grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-docs-gutter;
+@utility diagnostic-example {
+  @variant [&_>_*_+_*] {
+    @apply mbs-3;
+  }
+
+  @variant [&_.astro-code_>_code] {
+    @apply grid;
+  }
+
+  @variant [&_.astro-code_.line] {
+    @apply min-block-lh;
+  }
 }
 
-.docs-navigation,
-.docs-toc {
+@utility aside-body {
+  @variant [&_>_*_+_*] {
+    @apply mbs-3;
+  }
+}
+
+@utility docs-prose {
+  @apply text-body wrap-anywhere;
+
+  @variant [&_.astro-code_.diagnostic-annotation] {
+    @apply relative block my-3 px-3 py-2 font-sans text-danger text-body whitespace-pre-wrap bg-danger/10 rounded-control border border-danger/30;
+  }
+
+  @variant [&_.astro-code_.line:last-child_>_.diagnostic-annotation:last-child] {
+    @apply mbe-1;
+  }
+
+  @variant [&_>_:is(p,_ul,_ol,_blockquote,_h2,_h3,_h4)] {
+    @apply max-inline-prose;
+  }
+
+  @variant [&_>_*_+_*] {
+    @apply mbs-5;
+  }
+
+  @variant [&_h2] {
+    @apply mbs-12 text-heading tracking-[-0.025em];
+  }
+
+  @variant [&_h3] {
+    @apply mbs-8 text-heading-small font-medium;
+  }
+
+  @variant [&_:is(h2,_h3)] {
+    @apply scroll-mbs-8;
+  }
+
+  @variant [&_a] {
+    @apply underline underline-offset-4;
+  }
+
+  @variant [&_:is(ul,_ol)] {
+    @apply ps-6;
+  }
+
+  @variant [&_ul] {
+    @apply list-disc;
+  }
+
+  @variant [&_ol] {
+    @apply list-decimal;
+  }
+
+  @variant [&_li_+_li] {
+    @apply mbs-2;
+  }
+
+  @variant [&_code] {
+    @apply font-mono text-code-inline;
+  }
+
+  @variant [&_:not(pre)_>_code] {
+    @apply px-1 py-0.5 bg-surface-muted rounded-inline border border-border;
+  }
+
+  @variant [&_pre] {
+    @apply overflow-x-auto p-panel max-inline-full leading-[1.7] wrap-normal rounded-panel border border-border max-sidebar:p-4;
+  }
+
+  @variant [&_.nb-code-title] {
+    @apply px-panel py-3 font-mono text-muted text-small bg-surface-muted rounded-t-panel border border-border border-be-0 max-sidebar:px-4;
+  }
+
+  @variant [&_.nb-code-title-lang] {
+    @apply hidden;
+  }
+
+  @variant [&_.nb-code-figure-titled_>_pre] {
+    @apply mbs-0 rounded-t-none;
+  }
+
+  @variant [&_pre_code] {
+    @apply p-0 text-code;
+  }
+
+  @variant [&_.astro-code,_&_.astro-code_span] {
+    @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
+  }
+
+  @variant [&_.astro-code] {
+    @apply bg-surface;
+  }
+
+  @variant [&_table] {
+    @apply block border-collapse overflow-x-auto max-inline-full text-ui;
+  }
+
+  @variant [&_:is(th,_td)] {
+    @apply p-3 text-start border-border border-be;
+  }
+
+  @variant [&_th] {
+    @apply font-medium;
+  }
+
+  @variant [&_blockquote] {
+    @apply px-5 py-3 text-muted border-muted border-s-2;
+  }
+
+  @variant [&_strong] {
+    @apply font-semibold;
+  }
+
+  @variant [&_.diagnostic-range] {
+    @apply text-inherit underline decoration-danger decoration-wavy underline-offset-[0.2em] bg-transparent;
+  }
+
+  @variant [&_.diagnostic-annotation::before] {
+    @apply absolute inset-bs-0 size-2 font-mono text-code border-danger/30 border-s border-bs;
+    @apply content-[""];
+    @apply inset-s-[max(0.75rem,_calc(var(--diagnostic-column)_*_1ch))];
+    @apply [background-color:color-mix(in_srgb,_var(--color-danger)_10%,_var(--color-surface))];
+    @apply [transform:translate(-50%,_-50%)_rotate(45deg)];
+  }
+
+  @variant [&_:is(pre,_code)] {
+    @apply code-font;
+  }
+
+  @variant [&_h2] {
+    @apply font-display;
+  }
+}
+
+@utility docs-navigation {
   @apply sticky inset-bs-8 overflow-y-auto max-block-[calc(100dvh-64px)] text-ui;
 }
 
-.docs-label {
-  @apply mbe-4 font-mono text-label text-muted tracking-[0.08em] uppercase;
+@utility docs-navigation-list {
+  @apply grid gap-1.5 list-none max-sidebar:grid-cols-[minmax(0,1fr)] max-sidebar:gap-1;
 }
 
-.docs-navigation ul,
-.docs-toc ul {
-  @apply grid p-0 gap-1.5 list-none;
-}
-
-.docs-sidebar-group > summary {
-  @apply flex px-3 py-2 items-center gap-1.5 list-none text-foreground font-medium cursor-pointer;
-
-  &::-webkit-details-marker {
-    display: none;
-  }
-}
-
-.docs-sidebar-group[open] > summary > span {
-  rotate: 90deg;
-}
-
-.docs-sidebar-group > ul {
-  @apply ms-2 ps-2 border-border border-s;
-}
-
-.docs-navigation li a {
-  @apply wrap-anywhere;
-}
-
-.utility-explorer {
-  @apply grid gap-5;
-}
-
-.utility-catalog-meta,
-.utility-explorer [role="status"] {
-  @apply text-caption text-muted;
-}
-
-.utility-search {
-  @apply grid p-panel grid-cols-[minmax(0,1fr)] items-end gap-control bg-surface rounded-panel border border-border;
-
-  @variant sidebar {
-    @apply grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto];
-  }
-}
-
-.utility-search-field {
-  @apply grid min-inline-0 gap-2 text-ui font-medium;
-}
-
-.utility-search :is(input, select) {
-  @apply px-3 block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border;
-}
-
-.utility-search button {
-  @apply px-4 block-11 text-action-foreground text-ui font-medium bg-action rounded-control cursor-pointer;
-
-  @variant hover {
-    @apply bg-action-hover;
-  }
-}
-
-.utility-explorer [data-utility-results] {
-  @apply grid gap-5;
-}
-
-.utility-result {
-  @apply min-inline-0;
-}
-
-.utility-result h3 {
-  @apply mbs-0 mbe-3 text-body;
-}
-
-.utility-result pre {
-  @apply bg-surface;
-}
-
-.docs-navigation li a {
-  @apply block px-3 py-2 text-muted border-transparent border-s-2;
-}
-
-.docs-navigation a[aria-current="page"] {
-  @apply text-foreground bg-surface-muted border-foreground;
-}
-
-.docs-navigation a:hover,
-.docs-toc a:hover {
-  @apply text-foreground underline underline-offset-4;
-}
-
-.docs-agent-links {
-  @apply grid mbs-9 pbs-6 gap-2.5 text-caption border-border border-bs;
-}
-
-.docs-agent-links .docs-label {
-  @apply mbe-0;
-}
-
-.docs-main {
-  @apply min-inline-0;
-}
-
-.reference-summary {
-  @apply grid p-panel gap-4 bg-surface rounded-panel border border-border;
-}
-
-.compiled-example > * + * {
-  @apply mbs-5;
-}
-
-.diagnostic-example > * + * {
-  @apply mbs-3;
-}
-
-.diagnostic-example .astro-code > code {
-  @apply grid;
-}
-
-.diagnostic-example .astro-code .line {
-  min-block-size: 1lh;
-}
-
-.diagnostic-range {
-  color: inherit;
-  background: transparent;
-  text-decoration: underline wavy var(--color-danger);
-  text-underline-offset: 0.2em;
-}
-
-.docs-prose .astro-code .diagnostic-annotation {
-  @apply relative block my-3 px-3 py-2 font-sans text-body whitespace-pre-wrap bg-danger/10 rounded-control border border-danger/30;
-  color: var(--color-danger);
-}
-
-.docs-prose .astro-code .line:last-child > .diagnostic-annotation:last-child {
-  @apply mbe-1;
-}
-
-.diagnostic-annotation::before {
-  @apply absolute size-2 font-mono text-code border-danger/30 border-s border-bs;
-  content: "";
-  inset-block-start: 0;
-  inset-inline-start: max(0.75rem, calc(var(--diagnostic-column) * 1ch));
-  background-color: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.diagnostic-message {
-  @apply p-4 text-danger text-small bg-danger/5 rounded-control border-danger border-s-2;
-}
-
-.diagnostic-message > * + * {
-  @apply mbs-2;
-}
-
-.docs-page-header {
-  @apply mbe-10;
-}
-
-.docs-page-header h1 {
-  @apply text-title tracking-[-0.045em];
-}
-
-.docs-description {
-  @apply mbs-5 text-lead text-muted;
-}
-
-.docs-page-actions {
-  @apply flex mbs-6 flex-wrap items-center gap-x-5 gap-y-3 text-caption;
-}
-
-.docs-page-actions a,
-.docs-page-actions button {
-  @apply underline underline-offset-4;
-}
-
-.docs-page-actions button {
-  @apply cursor-pointer;
-}
-
-.docs-page-actions [role="status"] {
-  @apply text-muted;
-}
-
-.docs-prose {
-  @apply text-body wrap-anywhere;
-}
-
-.docs-prose > :is(p, ul, ol, blockquote, h2, h3, h4) {
-  @apply max-inline-prose;
-}
-
-.docs-prose > * + * {
-  @apply mbs-5;
-}
-
-.docs-prose h2 {
-  @apply mbs-12 text-heading tracking-[-0.025em];
-}
-
-.docs-prose h3 {
-  @apply mbs-8 text-heading-small font-medium;
-}
-
-.docs-prose :is(h2, h3) {
-  @apply scroll-mbs-8;
-}
-
-.docs-prose a {
-  @apply underline underline-offset-4;
-}
-
-.docs-prose :is(ul, ol) {
-  @apply ps-6;
-}
-
-.docs-prose ul {
-  @apply list-disc;
-}
-
-.docs-prose ol {
-  @apply list-decimal;
-}
-
-.docs-prose li + li {
-  @apply mbs-2;
-}
-
-.docs-prose code {
-  @apply font-mono text-code-inline;
-}
-
-.docs-prose :not(pre) > code {
-  @apply px-1 py-0.5 bg-surface-muted rounded-inline border border-border;
-}
-
-.docs-prose pre {
-  @apply overflow-x-auto p-panel max-inline-full leading-[1.7] wrap-normal rounded-panel border border-border;
-}
-
-.docs-prose .nb-code-title {
-  @apply px-panel py-3 font-mono text-muted text-small bg-surface-muted rounded-t-panel border border-border border-be-0;
-}
-
-.docs-prose .nb-code-title-lang {
-  @apply hidden;
-}
-
-.docs-prose .nb-code-figure-titled > pre {
-  @apply mbs-0 rounded-t-none;
-}
-
-.docs-prose pre code {
-  @apply p-0 text-code;
-}
-
-.docs-prose .astro-code,
-.docs-prose .astro-code span {
-  @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
-}
-
-.docs-prose .astro-code {
-  @apply bg-surface;
-}
-
-.docs-prose table {
-  @apply block border-collapse overflow-x-auto max-inline-full text-ui;
-}
-
-.docs-prose :is(th, td) {
-  @apply p-3 text-start border-border border-be;
-}
-
-.docs-prose th {
-  @apply font-medium;
-}
-
-.docs-prose blockquote {
-  @apply px-5 py-3 text-muted border-muted border-s-2;
-}
-
-.docs-prose strong {
-  @apply font-semibold;
-}
-
-.docs-aside {
-  @apply flex p-4 items-start gap-control bg-accent/5 rounded-panel border border-accent/30;
-}
-
-.docs-aside-icon {
-  @apply mbs-1 shrink-0;
-}
-
-.docs-aside-content {
-  @apply min-inline-0 flex-1;
-}
-
-.docs-aside-title {
-  @apply mbe-2 text-body font-semibold;
-}
-
-.docs-aside-title,
-.docs-aside-icon {
-  @apply text-accent;
-}
-
-.docs-aside-body {
-  @apply text-foreground text-small;
-}
-
-.docs-aside-body > * + * {
-  @apply mbs-3;
-}
-
-.docs-aside[data-aside-type="tip"] {
-  @apply bg-success/5 border-success/30;
-}
-
-.docs-aside[data-aside-type="tip"] :is(.docs-aside-title, .docs-aside-icon) {
-  @apply text-success;
-}
-
-.docs-aside[data-aside-type="caution"] {
-  @apply bg-warning/5 border-warning/30;
-}
-
-.docs-aside[data-aside-type="caution"] :is(.docs-aside-title, .docs-aside-icon) {
-  @apply text-warning;
-}
-
-.docs-aside[data-aside-type="danger"] {
-  @apply bg-danger/5 border-danger/30;
-}
-
-.docs-aside[data-aside-type="danger"] :is(.docs-aside-title, .docs-aside-icon) {
-  @apply text-danger;
-}
-
-.docs-toc li {
-  @apply ps-[calc((var(--heading-depth)_-_2)*10px)];
-}
-
-.docs-toc a {
-  @apply block py-1 text-muted;
-}
-
-.docs-footer {
-  @apply grid mbs-16 pbs-6 gap-6 text-caption text-muted border-border border-bs;
-}
-
-.docs-footer > a {
-  @apply justify-self-start;
-}
-
-.docs-pagination {
-  @apply grid grid-cols-2 gap-6 text-foreground text-ui font-medium;
-}
-
-.docs-pagination a {
-  @apply flex py-3 min-inline-0 items-start gap-3 wrap-anywhere hover:text-accent;
-}
-
-.docs-pagination-prev {
-  @apply col-start-1;
-}
-
-.docs-pagination-next {
-  @apply col-start-2 justify-end text-end;
-}
-
-.docs-grid {
-  @variant max-docs-outline {
-    @apply grid-cols-[var(--container-navigation)_minmax(0,1fr)] gap-stack;
-  }
-}
-
-.docs-toc {
-  @variant max-docs-outline {
-    @apply hidden;
-  }
-}
-
-.docs-grid {
-  @variant max-sidebar {
-    @apply pbs-6 grid-cols-[minmax(0,1fr)];
-  }
-}
-
-.docs-navigation {
-  @variant max-sidebar {
-    @apply static pbe-6 max-block-64 border-border border-be;
-  }
-}
-
-.docs-navigation ul {
-  @variant max-sidebar {
-    @apply grid grid-cols-[minmax(0,1fr)] gap-1;
-  }
-}
-
-.docs-navigation li a {
+@utility docs-navigation-link {
+  @apply block px-3 py-2 text-muted wrap-anywhere border-transparent border-s-2;
+  @apply aria-[current=page]:text-foreground aria-[current=page]:bg-surface-muted aria-[current=page]:border-foreground;
+  @apply hover:text-foreground hover:underline hover:underline-offset-4;
   @variant max-sidebar {
     @apply px-0 py-2 border-transparent border-s-0 border-be-2;
+    @apply aria-[current=page]:bg-transparent aria-[current=page]:border-be-foreground;
   }
 }
 
-.docs-navigation a[aria-current="page"] {
-  @variant max-sidebar {
-    @apply bg-transparent border-be-foreground;
-  }
+@utility utility-result {
+  @apply min-inline-0;
 }
-
-.docs-agent-links {
-  @variant max-sidebar {
-    @apply hidden;
-  }
+@utility utility-result-title {
+  @apply mbs-0 mbe-3 text-body;
 }
-
-.docs-prose pre {
-  @variant max-sidebar {
-    @apply p-4;
-  }
-}
-
-.docs-prose .nb-code-title {
-  @variant max-sidebar {
-    @apply px-4;
-  }
+@utility utility-result-code {
+  @apply bg-surface;
 }

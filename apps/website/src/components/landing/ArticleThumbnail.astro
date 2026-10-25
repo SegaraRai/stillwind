@@ -1,23 +1,30 @@
-<svg data-article-thumbnail viewBox="0 0 160 120" fill="none" aria-hidden="true">
+---
+import { style } from "stillwind/astro";
+---
+
+<svg
+  {...style("block block-full inline-full text-action-hover fill-none")}
+  viewBox="0 0 160 120"
+  aria-hidden="true"
+>
   <rect
     x="39"
     y="9"
     width="82"
     height="102"
     rx="3"
-    fill="var(--color-background)"
-    stroke="currentColor"
+    {...style("fill-background stroke-current")}
   ></rect>
-  <text x="52" y="27" fill="currentColor" font-family="var(--font-sans)" font-size="8">
+  <text x="52" y="27" {...style("font-sans text-[8px] fill-current")}>
     Contact form
   </text>
-  <text x="52" y="42" fill="currentColor" font-family="var(--font-sans)" font-size="6">
+  <text x="52" y="42" {...style("font-sans text-[6px] fill-current")}>
     Name
   </text>
-  <rect x="52" y="46" width="56" height="12" rx="2" stroke="currentColor" opacity="0.4"></rect>
-  <text x="52" y="70" fill="currentColor" font-family="var(--font-sans)" font-size="6">
+  <rect x="52" y="46" width="56" height="12" rx="2" {...style("opacity-40 stroke-current")}></rect>
+  <text x="52" y="70" {...style("font-sans text-[6px] fill-current")}>
     Email
   </text>
-  <rect x="52" y="74" width="56" height="12" rx="2" stroke="currentColor" opacity="0.4"></rect>
-  <rect x="52" y="94" width="25" height="8" rx="2" fill="currentColor"></rect>
+  <rect x="52" y="74" width="56" height="12" rx="2" {...style("opacity-40 stroke-current")}></rect>
+  <rect x="52" y="94" width="25" height="8" rx="2" {...style("fill-current")}></rect>
 </svg>

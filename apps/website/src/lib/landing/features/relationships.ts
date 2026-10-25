@@ -126,7 +126,7 @@ export function createRelationshipDemos(
       const width = container.getBoundingClientRect().width;
       if (container.clientWidth) {
         size.textContent = Math.round(width) + "px";
-        measure.style.width = width + "px";
+        measure.style.setProperty("--measure-width", width + "px");
       }
     },
     measure(frame?: number) {

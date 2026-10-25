@@ -1,4 +1,4 @@
-import { style } from "stillwind/astro";
+import { style } from "stillwind/vanilla";
 
 import { createCodeMorph, morphPosition } from "./code-morph";
 import { trackScroll } from "./scroll";

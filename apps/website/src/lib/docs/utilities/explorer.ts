@@ -1,3 +1,5 @@
+import { applyStyle, style } from "stillwind/vanilla";
+
 import { searchUtilities, type UtilityCatalog } from "./search";
 
 export async function mountUtilityExplorer(root: HTMLElement) {
@@ -22,12 +24,14 @@ export async function mountUtilityExplorer(root: HTMLElement) {
       const fragment = root.ownerDocument.createDocumentFragment();
       for (const record of answer.records) {
         const card = root.ownerDocument.createElement("section");
-        card.className = "utility-result";
+        applyStyle(card, style("utility-result"));
         const heading = root.ownerDocument.createElement("h3");
+        applyStyle(heading, style("utility-result-title"));
         const name = root.ownerDocument.createElement("code");
         name.textContent = record.name;
         heading.append(name);
         const pre = root.ownerDocument.createElement("pre");
+        applyStyle(pre, style("utility-result-code"));
         const code = root.ownerDocument.createElement("code");
         code.textContent = record.css || "Marker class; no utility declarations.";
         pre.append(code);

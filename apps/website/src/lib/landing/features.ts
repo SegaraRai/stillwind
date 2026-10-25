@@ -1,4 +1,4 @@
-import { style } from "stillwind/astro";
+import { style } from "stillwind/vanilla";
 
 import { featureTopics } from "./features/examples";
 import { createMotionDemos } from "./features/motion";

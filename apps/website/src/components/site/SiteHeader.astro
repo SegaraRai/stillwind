@@ -1,6 +1,8 @@
 ---
 import { style } from "stillwind/astro";
 
+import { documentRoot } from "./document";
+
 interface Props {
   docs: string;
   repository: string;
@@ -11,39 +13,83 @@ const { docs, repository } = Astro.props;
 const headerTransition = style.viewTransition({
   group: "duration-300 ease-out",
 });
+const link = style("inline-flex min-block-11 items-center whitespace-nowrap nav-link");
+const header = style.ref();
 ---
 
-<div data-header-slot>
-  <header data-site-header {...style(headerTransition.for("site-header"))}>
-    <a href="/" aria-label="Stillwind home" data-site-brand {...style("nav-link")}>
+<div data-header-slot {...style("block-16")}>
+  <header
+    data-site-header
+    {...style(
+      headerTransition.for("site-header"),
+      header,
+      "flex block-16 items-center justify-between gap-4 border-border border-be max-inline:gap-3",
+      {
+        "data-floating:": [
+          "invisible fixed inset-s-1/2 inset-bs-0 z-40 px-gutter block-14 inline-[min(100%,var(--container-page))] bg-background opacity-0",
+          "[transform:translate(-50%,-100%)] [transition:transform_180ms_ease,opacity_180ms_ease,visibility_180ms]",
+          {
+            "data-visible:": "visible opacity-100 [transform:translate(-50%,0)]",
+            "motion-reduce:": "transition-none",
+          },
+        ],
+      },
+    )}
+  >
+    <a
+      href="/"
+      aria-label="Stillwind home"
+      {...style(
+        link,
+        "text-heading/[inherit] tracking-[-0.045em] max-inline:text-heading-small/[inherit]",
+        { [header("data-floating")]: "text-(length:--text-heading-small)" },
+      )}
+    >
       Stillwind
     </a>
-    <nav aria-label="Main navigation">
-      <a href={docs} {...style("nav-link")}>
+    <nav
+      aria-label="Main navigation"
+      {...style(
+        "flex items-center gap-7 text-ui/[inherit] max-inline:gap-2 max-inline:text-caption/[inherit]",
+      )}
+    >
+      <a href={docs} {...link}>
         Docs
       </a>
-      <a href="/#examples" {...style("nav-link")}>
+      <a href="/#examples" {...link}>
         Examples
       </a>
-      <a href={repository} {...style("gap-2 nav-link")}>
+      <a href={repository} {...style(link, "gap-2")}>
         <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
         GitHub
       </a>
-      <button type="button" data-theme-toggle aria-label="Color theme" hidden>
+      <button
+        type="button"
+        data-theme-toggle
+        aria-label="Color theme"
+        hidden
+        {...style(
+          "inline-flex block-9 inline-9 shrink-0 items-center justify-center text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted [&[hidden]]:hidden",
+        )}
+      >
         <span
-          data-theme-icon="system"
           aria-hidden="true"
-          {...style("icon-control icon-lucide--monitor")}
+          {...style("icon-control icon-lucide--monitor", {
+            [documentRoot("data-[theme=light]")]: "hidden",
+            [documentRoot("data-[theme=dark]")]: "hidden",
+          })}
         ></span>
         <span
-          data-theme-icon="light"
           aria-hidden="true"
-          {...style("icon-control icon-lucide--sun")}
+          {...style("icon-control icon-lucide--sun", {
+            [documentRoot("not-data-[theme=light]")]: "hidden",
+          })}
         ></span>
         <span
-          data-theme-icon="dark"
           aria-hidden="true"
-          {...style("icon-control icon-lucide--moon")}
+          {...style("icon-control icon-lucide--moon", {
+            [documentRoot("not-data-[theme=dark]")]: "hidden",
+          })}
         ></span>
         <span data-theme-status {...style("sr-only")} aria-live="polite"></span>
       </button>

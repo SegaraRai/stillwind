@@ -4,6 +4,12 @@ import { style } from "stillwind/astro";
 import { styleParts } from "../../lib/landing/code-morph";
 import { createExamples } from "../../lib/landing/examples";
 import { showcaseScenes, showcaseScrollLength } from "../../lib/landing/showcase";
+import { documentRoot } from "../site/document";
+
+const story = style.ref();
+const detail = style.ref();
+const diagnostics = style.ref();
+const finding = style.ref();
 
 const examples = await createExamples();
 const keys = ["block", "text", "inline", "color", "shape"];
@@ -93,70 +99,196 @@ const results = [
 <section
   id="examples"
   data-story
+
   aria-labelledby="style-title"
-  {...style("scroll-story", {
-    "--stop-count": showcaseScenes.length,
-    "--showcase-length": showcaseScrollLength,
-  })}
+  {...style(
+    { "--stop-count": showcaseScenes.length },
+    { "--showcase-length": showcaseScrollLength },
+    story,
+    "relative",
+    {
+      [documentRoot("data-header-mounted")]: "scroll-mbs-0",
+      "data-enhanced:": "block-[calc((1_+_var(--showcase-length))_*_100svh)]",
+    },
+  )}
 >
-  <div data-stage>
+  <div
+    {...style({
+      [documentRoot("data-header-mounted")]: {
+        [story("data-enhanced")]: "pbs-16 pbe-4",
+      },
+      [story("data-enhanced")]: "sticky inset-bs-0 flex py-4 block-svh flex-col justify-center",
+    })}
+  >
     <nav
       aria-label="Examples"
-      {...style("grid grid-cols-2 gap-x-6 inline:grid-cols-4 inline:gap-3 sidebar:gap-6")}
+      {...style("grid grid-cols-2 gap-x-6", {
+        "inline:": "grid-cols-4 gap-3",
+        "sidebar:": "gap-6",
+      })}
     >
       {frames.map((frame, index) => (
         <a
           href={"#" + frame.id}
           data-step={index}
-          {...style(
-            "flex items-center justify-between text-caption text-muted scene-tab sidebar:text-small",
-          )}
+          {...style("flex items-center justify-between text-caption text-muted scene-tab", {
+            "sidebar:": "text-small",
+            [story("data-enhanced")]: [
+              "py-4",
+              {
+                "max-inline:": "py-2.5 min-block-11",
+              },
+            ],
+          })}
         >
           <span>
-            <span {...style("me-2 font-mono text-label sidebar:me-3 sidebar:text-caption")}>
+            <span
+              {...style("me-2 font-mono text-label", {
+                "sidebar:": "me-3 text-caption",
+              })}
+            >
               0{index + 1}
             </span>
             {frame.name}
           </span>
-          <span aria-hidden="true" {...style("hidden font-mono sidebar:inline")}>
+          <span
+            aria-hidden="true"
+            {...style("hidden font-mono", {
+              "sidebar:": "inline",
+            })}
+          >
             ↘
           </span>
         </a>
       ))}
     </nav>
 
-    <div data-showcase-intro>
+    <div
+      {...style("mbs-8 mbe-4", {
+        [story("data-enhanced")]: [
+          "flex mbs-6 mbe-0 items-start justify-between gap-9",
+          {
+            "max-outline:": "gap-6",
+            "max-sidebar:": "mbs-5 flex-col gap-3",
+            "max-inline:": "mbs-4",
+          },
+        ],
+      })}
+    >
       <h2 id="style-title" {...style("section-title")}>
         Write with confidence.
       </h2>
-      <div data-live-description hidden>
-        <div data-headings>
+      <div
+        {...style("[inline-size:min(420px,45%)]", {
+          [story("data-enhanced")]: {
+            "max-outline:": "inline-1/2",
+            "max-sidebar:": "inline-full",
+          },
+        })}
+        data-live-description
+        hidden
+      >
+        <div
+          {...style({
+            [story("data-enhanced")]: [
+              "grid min-block-17",
+              {
+                "max-sidebar:": "min-block-[3lh] text-(length:--text-ui)",
+                "max-inline:": "min-block-[4.5em]",
+              },
+            ],
+          })}
+        >
           {frames.map((frame, index) => (
-            <div data-heading={index}>
-              <p {...style("max-inline-105 text-muted text-small/relaxed")}>{frame.description}</p>
+            <div
+              {...style({
+                [story("data-enhanced")]: [
+                  "col-start-1 row-start-1 opacity-[var(--detail-opacity,0)] pointer-events-none",
+                  {
+                    "data-active:": "pointer-events-auto",
+                  },
+                ],
+              })}
+              data-heading={index}
+            >
+              <p
+                {...style("max-inline-105 text-muted text-small/relaxed", {
+                  [story("data-enhanced")]: {
+                    "max-sidebar:": "max-inline-full text-ui/[1.5]",
+                  },
+                })}
+              >
+                {frame.description}
+              </p>
             </div>
           ))}
         </div>
       </div>
     </div>
 
-    <div data-live-demo hidden>
-      <div data-code-canvas {...style("font-mono")}>
-        <div data-primary-code>
-          <div data-code-host {...style("morph-source")}>
-            <code data-readable-source {...style("readable-source")}>
+    <div
+      {...style({
+        [story("data-enhanced")]: [
+          "mbs-4 [--compile-progress:0] [--input-y:28px] [--output-x:52px] [--output-y:calc(var(--input-y)_+_var(--source-height,36px)_+_60px)] [--refine-progress:0] [--sort-progress:0]",
+          {
+            "max-inline:":
+              "mbs-0 [--output-x:24px] [--output-y:calc(var(--input-y)_+_var(--source-height,72px)_+_56px)]",
+          },
+        ],
+      })}
+      data-live-demo
+      hidden
+    >
+      <div
+        data-code-canvas
+        {...style("font-mono", {
+          [story("data-enhanced")]: [
+            "relative mbs-6 block-95",
+            {
+              "max-inline:": "mbs-5 block-97.5",
+            },
+          ],
+        })}
+      >
+        <div
+          {...style({
+            [story("data-enhanced")]:
+              "absolute inset-0 origin-top-left [transform:translateY(calc(var(--refine-progress)_*_var(--input-y)))]",
+          })}
+        >
+          <div
+            data-code-host
+            {...style(
+              '[font-feature-settings:"liga"_0,"calt"_0,"zero"_1] [font-variant-ligatures:none] morph-source',
+              {
+                [story("data-enhanced")]: {
+                  "max-outline:": "text-(length:--text-code-output)",
+                  "max-inline:": "text-(length:--text-code-display)",
+                },
+              },
+            )}
+          >
+            <code data-readable-source {...style("code-font readable-source")}>
               {'style("' + frames[0]!.utilities + '")'}
             </code>
-            <div data-code-actors aria-hidden="true"></div>
+            <div
+              {...style("absolute inset-0 pointer-events-none select-none")}
+              data-code-actors
+              aria-hidden="true"
+            ></div>
             <div aria-hidden="true" inert>
               {sources.map((source, index) => (
                 <div
+                  {...style(
+                    "invisible absolute inset-s-0 inset-bs-0 flex inline-full flex-wrap gap-y-[0.5em] select-none",
+                  )}
                   data-measure
                   data-source={'style("' + source.utilities + '")'}
                   data-sort-source={index === 3 || undefined}
                 >
                   {groupParts(source).map((parts) => (
                     <span
+                      {...style("inline-flex whitespace-pre")}
                       data-utility={parts[0]!.utility}
                       data-finding={parts[0]!.finding || undefined}
                     >
@@ -171,90 +303,281 @@ const results = [
           </div>
         </div>
 
-        <div data-source-labels aria-hidden="true">
+        <div
+          {...style({
+            [story("data-enhanced")]:
+              "absolute inset-0 grid content-start justify-items-start text-(length:--text-caption) text-muted pointer-events-none",
+          })}
+
+          aria-hidden="true"
+        >
           {sourceLabels.map((label, index) => (
-            <span data-source-label={index}>{label}</span>
+            <span
+              {...style({
+                [story("data-enhanced")]:
+                  "col-start-1 row-start-1 opacity-[var(--label-opacity,0)]",
+              })}
+              data-source-label={index}
+            >
+              {label}
+            </span>
           ))}
         </div>
 
-        <div data-details>
+        <div
+          {...style({
+            [story("data-enhanced")]: "absolute inset-0 pointer-events-none",
+          })}
+        >
           {frames.map((frame, index) => (
-            <div data-detail={index}>
+            <div
+              {...style(detail, {
+                [story("data-enhanced")]: [
+                  "absolute inset-0 col-start-1 row-start-1 opacity-[var(--detail-opacity,0)] pointer-events-none",
+                  {
+                    "data-active:": "pointer-events-none",
+                  },
+                ],
+              })}
+              data-detail={index}
+            >
               {index < 3 ? (
                 <div>
                   <div
                     data-diagnostics={frame.id}
                     data-format-diagnostics={frame.id === "format" || undefined}
                     data-multiple={frame.reports.length > 1 || undefined}
-                    {...style("text-danger")}
+                    {...style(diagnostics, "text-danger", {
+                      [story("data-enhanced")]: "opacity-[var(--diagnostic-opacity,0)]",
+                    })}
                   >
-                    <svg data-diagnostic-lines aria-hidden="true">
+                    <svg
+                      {...style({
+                        [story("data-enhanced")]:
+                          "absolute inset-0 overflow-visible block-full inline-full fill-none stroke-1 stroke-current",
+                      })}
+
+                      aria-hidden="true"
+                    >
                       {frame.reports.map((report) => (
                         <path data-diagnostic-line={keys[report.utilityIndex]} />
                       ))}
                     </svg>
                     {frame.reports.map((report) => (
-                      <div data-diagnostic={keys[report.utilityIndex]}>
-                        <p {...style("mbe-2 font-sans text-small")}>{report.code}</p>
-                        <p {...style("text-caption leading-[1.7]")}>{report.message}</p>
+                      <div
+                        {...style({
+                          [story("data-enhanced")]: [
+                            "absolute inset-s-[var(--diagnostic-x,0px)] inset-bs-[var(--diagnostic-y,100px)] [inline-size:min(360px,100%)]",
+                            {
+                              [diagnostics("data-multiple")]: [
+                                "[inline-size:min(320px,calc((100%_-_48px)_/_2))]",
+                                {
+                                  "max-inline:": "inline-full",
+                                },
+                              ],
+                              "max-inline:": "inline-full",
+                            },
+                          ],
+                        })}
+                        data-diagnostic={keys[report.utilityIndex]}
+                      >
+                        <p
+                          {...style("mbe-2 font-sans text-small", {
+                            [story("data-enhanced")]: {
+                              "first:": {
+                                "max-inline:": "mbe-1.5 text-(length:--text-caption)",
+                              },
+                              "last:": {
+                                "max-inline:": "text-label/[1.6]",
+                              },
+                            },
+                          })}
+                        >
+                          {report.code}
+                        </p>
+                        <p
+                          {...style("text-caption/[1.7]", {
+                            [story("data-enhanced")]: {
+                              "first:": {
+                                "max-inline:": "mbe-1.5 text-(length:--text-caption)",
+                              },
+                              "last:": {
+                                "max-inline:": "text-label/[1.6]",
+                              },
+                            },
+                          })}
+                        >
+                          {report.message}
+                        </p>
                       </div>
                     ))}
                   </div>
                   {frame.id === "constrain" && (
-                    <div data-lint-config>
-                      <p {...style("mbe-3 text-caption text-muted")}>
+                    <div
+                      {...style({
+                        [story("data-enhanced")]: [
+                          "absolute inset-s-0 inset-be-2 text-muted",
+                          {
+                            [detail("data-active")]: "pointer-events-auto",
+                          },
+                        ],
+                      })}
+                    >
+                      <p
+                        {...style("mbe-3 text-caption text-muted", {
+                          [story("data-enhanced")]: {
+                            "max-inline:": "mbe-1.5 text-(length:--text-label)",
+                          },
+                        })}
+                      >
                         stillwind.config.ts · lint.rules
                       </p>
-                      <pre {...style("text-caption/[1.8] code-scroll")}><code>{policy}</code></pre>
+                      <pre
+                        {...style("text-caption/[1.8] code-font code-scroll", {
+                          [story("data-enhanced")]: {
+                            "max-inline:": "text-label/[1.6]",
+                          },
+                        })}
+                      ><code {...style("code-font")} >{policy}</code></pre>
                     </div>
                   )}
                   {frame.id === "format" && (
-                    <p data-format-command {...style("text-caption text-muted")}>
-                      <span data-normalize-command>$ stillwind lint --fix</span>
-                      <span data-sort-command>$ stillwind fmt</span>
+                    <p
+                      data-format-command
+                      {...style("text-caption text-muted", {
+                        [story("data-enhanced")]: "absolute inset-s-0 inset-be-2 grid",
+                      })}
+                    >
+                      <span
+                        {...style({
+                          [story("data-enhanced")]:
+                            "col-start-1 row-start-1 opacity-[max(0,1_-_var(--sort-progress)_*_2)]",
+                        })}
+                      >
+                        $ stillwind lint --fix
+                      </span>
+                      <span
+                        {...style({
+                          [story("data-enhanced")]:
+                            "col-start-1 row-start-1 opacity-[max(0,var(--sort-progress)_*_2_-_1)]",
+                        })}
+                      >
+                        $ stillwind fmt
+                      </span>
                     </p>
                   )}
                 </div>
               ) : (
-                <div data-compile-output>
-                  <div data-compiled-props>
+                <div
+                  {...style({
+                    [story("data-enhanced")]: [
+                      "absolute inset-s-[var(--output-x)] inset-e-0 inset-bs-[calc(var(--output-y)_-_24px)] grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-[clamp(40px,5vw,72px)]",
+                      {
+                        "max-sidebar:": "grid-cols-1 gap-6",
+                        "max-inline:": "gap-y-5.5",
+                      },
+                    ],
+                  })}
+                >
+                  <div
+                    {...style({
+                      [story("data-enhanced")]: {
+                        [detail("data-active")]: "pointer-events-auto",
+                      },
+                    })}
+                  >
                     <p {...style("mbe-3 text-caption/[1] text-muted")}>Output (React)</p>
-                    <code>{props}</code>
+                    <code
+                      {...style("code-font", {
+                        [story("data-enhanced")]: [
+                          "block text-code-display/[1] tracking-[-0.035em] whitespace-pre",
+                          {
+                            "max-outline:": "text-(length:--text-code-output)",
+                            "max-inline:": "text-(length:--text-code-output)",
+                          },
+                        ],
+                      })}
+                    >
+                      {props}
+                    </code>
                   </div>
-                  <div data-compiled-css>
+                  <div
+                    {...style({
+                      [story("data-enhanced")]: [
+                        "[inline-size:min(100%,390px)] min-inline-0",
+                        {
+                          [detail("data-active")]: "pointer-events-auto",
+                          "max-sidebar:": "inline-full",
+                        },
+                      ],
+                    })}
+                  >
                     <p {...style("mbe-3 text-caption/[1] text-muted")}>Compiled CSS</p>
                     <pre
-                      {...style("text-caption/[1.7] code-scroll")}
-                    ><code>{examples.css}</code></pre>
+                      {...style("text-caption/[1.7] code-font code-scroll", {
+                        [story("data-enhanced")]: [
+                          "max-block-50",
+                          {
+                            "max-outline:": "wrap-anywhere whitespace-pre-wrap",
+                            "max-inline:":
+                              "max-block-none text-(length:--text-label) wrap-anywhere whitespace-pre-wrap",
+                          },
+                        ],
+                      })}
+                    ><code {...style("code-font")} >{examples.css}</code></pre>
                   </div>
                 </div>
               )}
             </div>
           ))}
         </div>
-        <div data-compile-arrows aria-hidden="true">
-          <span {...style("icon-lucide--corner-down-right")}></span>
+        <div
+          {...style("absolute inset-0 z-2 pointer-events-none", {
+            [story("data-enhanced")]: [
+              "opacity-[max(0,var(--compile-progress)_*_2_-_1)] [--arrow-size:32px] [--arrow-x:calc(var(--output-x)_-_36px)] [--arrow-y:calc(var(--output-y)_-_3px)]",
+              {
+                "max-inline:": "[--arrow-size:22px] [--arrow-x:0px]",
+              },
+            ],
+          })}
+
+          aria-hidden="true"
+        >
+          <span
+            {...style(
+              "icon-lucide--corner-down-right absolute inset-s-[var(--arrow-x,0px)] inset-bs-[var(--arrow-y,26px)] text-muted [font-size:var(--arrow-size,20px)] leading-none",
+            )}
+          ></span>
         </div>
       </div>
 
-      <div data-story-progress aria-hidden="true" {...style("block-px bg-border")}>
-        <div data-progress {...style("block-full bg-action")}></div>
+      <div aria-hidden="true" {...style("block-px bg-border")}>
+        <div
+          {...style("block-full bg-action", {
+            [story("data-enhanced")]: "origin-left [transform:scaleX(var(--scroll-progress,0))]",
+          })}
+        ></div>
       </div>
-      <p data-scroll-hint {...style("mbs-4 text-end font-mono text-label text-muted")}>
+      <p {...style("mbs-4 text-end font-mono text-label text-muted")}>
         Scroll to explore{" "}
         <span aria-hidden="true" {...style("icon-lucide--arrow-down align-middle")}></span>
       </p>
     </div>
   </div>
 
-  <div data-fallback>
+  <div>
     {frames.map((frame, index) => (
       <article
         id={frame.id}
         data-stop
-        {...style("scene", {
-          "--stop-index": showcaseScenes.findIndex((scene) => scene === index),
-        })}
+        {...style(
+          "scene",
+          { "--stop-index": showcaseScenes.findIndex((scene) => scene === index) },
+          {
+            [story("data-enhanced")]:
+              "absolute [inset-block-start:calc(var(--stop-index)_*_(100%_-_100svh)_/_(var(--stop-count)_-_1))] overflow-clip p-0 block-px inline-px border-0 scroll-m-0",
+          },
+        )}
       >
         <h3 {...style("mbe-4 text-lead tracking-tight")}>{frame.name}</h3>
         <p {...style("mbs-5 max-inline-105 text-muted text-small/relaxed")}>{frame.description}</p>
@@ -265,51 +588,101 @@ const results = [
           <p {...style("mbs-7 font-mono text-caption text-muted")}>Input</p>
         )}
         <div
-          data-static-source
           data-compile-input={frame.id === "compile" || undefined}
-          {...style("font-mono text-lead")}
+          {...style("flex py-8 flex-wrap items-start gap-y-2 font-mono text-lead", {
+            "data-compile-input:": "pbs-4 pbe-2",
+          })}
         >
           {partGroups[index]!.map((parts) => (
-            <div data-static-part data-static-finding={parts[0]!.finding || undefined}>
-              <code>{parts.map((part) => part.text).join("")}</code>
+            <div
+              {...style(finding, "whitespace-pre", {
+                "data-static-finding:": "py-2 basis-full",
+              })}
+
+              data-static-finding={parts[0]!.finding || undefined}
+            >
+              <code
+                {...style("code-font", {
+                  [finding("data-static-finding")]: [
+                    "relative inline-block pbe-1 text-danger border-danger border-be",
+                    {
+                      "after:":
+                        'absolute [inset-block-start:calc(100%_+_4px)] inset-s-1/2 content-[""] block-6 inline-px bg-danger',
+                    },
+                  ],
+                })}
+              >
+                {parts.map((part) => part.text).join("")}
+              </code>
               {frame.reports
                 .filter((report) => keys[report.utilityIndex] === parts[0]!.utility)
                 .map((report) => (
-                  <div data-static-diagnostic {...style("text-danger")}>
+                  <div {...style("mbs-9 text-danger whitespace-normal")}>
                     <p {...style("mbe-2 font-sans text-small")}>{report.code}</p>
-                    <p {...style("max-inline-90 text-caption leading-[1.7]")}>{report.message}</p>
+                    <p {...style("max-inline-90 text-caption/[1.7]")}>{report.message}</p>
                   </div>
                 ))}
             </div>
           ))}
         </div>
         {frame.id === "constrain" && <pre
-          {...style("mbs-7 font-mono text-caption/[1.9] code-scroll")}
-        ><code>{policy}</code></pre>}
+          {...style("mbs-7 font-mono text-caption/[1.9] code-font code-scroll")}
+        ><code {...style("code-font")} >{policy}</code></pre>}
         {frame.id === "format" &&
           results.map((result) => (
             <div {...style("mbs-7")}>
               <p {...style("mbe-3 font-mono text-caption text-muted")}>{result.label}</p>
               <div {...style("code-scroll")}>
-                <code {...style("font-mono text-lead")}>{result.source}</code>
+                <code {...style("font-mono text-lead code-font")}>{result.source}</code>
               </div>
               <p {...style("mbs-5 font-mono text-caption text-muted")}>{result.command}</p>
             </div>
           ))}
         {frame.id === "compile" && (
-          <div data-static-compile>
-            <div>
+          <div
+            {...style("relative grid mbs-7 gap-8", {
+              "sidebar:": "ms-4 grid-cols-[max-content_minmax(0,1fr)] gap-x-12",
+            })}
+          >
+            <div
+              {...style("min-inline-0", {
+                "first:": "ps-7",
+                "nth-2:": "[inline-size:min(100%,390px)]",
+              })}
+            >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Output (React)</p>
-              <code {...style("block font-mono text-small")}>{props}</code>
+              <code {...style("block font-mono text-small code-font")}>{props}</code>
             </div>
-            <div>
+            <div
+              {...style("min-inline-0", {
+                "first:": "ps-7",
+                "nth-2:": "[inline-size:min(100%,390px)]",
+              })}
+            >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Compiled CSS</p>
               <pre
-                {...style("font-mono text-caption/[1.9] code-scroll")}
-              ><code>{examples.css}</code></pre>
+                {...style("font-mono text-caption/[1.9] code-font code-scroll")}
+              ><code {...style("code-font")} >{examples.css}</code></pre>
             </div>
-            <div data-compile-arrows aria-hidden="true">
-              <span {...style("icon-lucide--corner-down-right")}></span>
+            <div
+              {...style("absolute inset-0 z-2 min-inline-0 pointer-events-none", {
+                [story("data-enhanced")]: [
+                  "opacity-[max(0,var(--compile-progress)_*_2_-_1)] [--arrow-size:32px] [--arrow-x:calc(var(--output-x)_-_36px)] [--arrow-y:calc(var(--output-y)_-_3px)]",
+                  {
+                    "max-inline:": "[--arrow-size:22px] [--arrow-x:0px]",
+                  },
+                ],
+                "first:": "ps-7",
+                "nth-2:": "[inline-size:min(100%,390px)]",
+              })}
+
+              aria-hidden="true"
+            >
+              <span
+                {...style(
+                  "icon-lucide--corner-down-right absolute inset-s-[var(--arrow-x,0px)] inset-bs-[var(--arrow-y,26px)] text-muted [font-size:var(--arrow-size,20px)] leading-none",
+                )}
+              ></span>
             </div>
           </div>
         )}

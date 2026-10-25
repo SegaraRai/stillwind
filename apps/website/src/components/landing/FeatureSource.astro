@@ -1,5 +1,8 @@
 ---
+import { style } from "stillwind/astro";
+
 import FeaturePreview from "./FeaturePreview.astro";
+import { featureExample, featureSource, features } from "./presentation";
 
 interface Props {
   topic: number;
@@ -58,32 +61,93 @@ const specimens = frames.map((frame, index) => {
 });
 ---
 
-<div data-code-actors aria-hidden="true"></div>
-<div data-feature-highlights aria-hidden="true"></div>
+<div
+  {...style("absolute inset-0 hidden pointer-events-none select-none", {
+    [features("data-enhanced:not-data-compact")]: {
+      [featureSource("data-feature-morph")]: "z-1 block",
+    },
+  })}
+  data-code-actors
+  aria-hidden="true"
+></div>
+<div
+  {...style(
+    "absolute inset-0 hidden overflow-clip opacity-[var(--focus-opacity,1)] pointer-events-none",
+    {
+      [features("data-enhanced")]: "block",
+    },
+  )}
+  data-feature-highlights
+  aria-hidden="true"
+></div>
 {specimens.map((runs, index) => (
-  <div data-feature-example={index} data-current={index === 0 || undefined}>
-    <div data-feature-example-heading>
-      <p data-example-label>{frames[index].label}</p>
-      <p data-example-description>{frames[index].description}</p>
+  <div
+    {...style(featureExample, {
+      [features("not-data-enhanced")]: "relative mbe-14",
+      [features("data-enhanced")]: [
+        "invisible absolute inset-0",
+        {
+          "data-current:": "visible",
+        },
+      ],
+    })}
+    data-feature-example={index}
+    data-current={index === 0 || undefined}
+  >
+    <div
+      {...style("mbe-5 font-sans tracking-normal", {
+        [features("data-enhanced")]: "hidden",
+      })}
+    >
+      <p {...style("mbe-2.5 font-mono text-[11px]/[1.5] text-muted")}>{frames[index].label}</p>
+      <p {...style("max-inline-165 text-muted text-small/[1.6]")}>{frames[index].description}</p>
     </div>
     <pre
+      {...style(
+        "visible relative inset-s-0 inset-bs-0 block mbe-8 inline-full flex-wrap gap-y-[0.5em] whitespace-pre select-text [font:inherit] code-font",
+        {
+          [features("data-enhanced")]: [
+            "invisible absolute m-0 select-none",
+            {
+              "data-current:": "visible select-text",
+              "max-outline:": "[inline-size:calc(100%_-_324px)]",
+              "max-sidebar:": "inline-full",
+            },
+          ],
+          [features("data-enhanced:not-data-compact")]: {
+            [featureSource("data-feature-morph")]: "text-transparent",
+          },
+          "max-outline:": "wrap-anywhere whitespace-pre-wrap",
+          [features("not-data-enhanced")]: "mbe-0 wrap-anywhere whitespace-pre-wrap",
+        },
+      )}
       data-measure
       data-feature-frame={index}
       data-current={index === 0 || undefined}
-    ><code>{runs.map((run) =>
+    ><code {...style("[font:inherit] code-font")}>{runs.map((run) =>
         run.focused ? (
-          <mark data-feature-origin>{run.parts.map((part) => (
-            <span
-              data-part={part.key}
-              data-code-punctuation={part.punctuation || undefined}
-            >{part.text}</span>
-          ))}</mark>
+          <mark
+            {...style(
+              "box-decoration-clone text-inherit bg-surface-muted shadow-[inset_0_-1px_var(--color-foreground)]",
+              {
+                [features("data-enhanced")]: "bg-transparent shadow-none",
+              },
+            )}
+            data-feature-origin
+            >{run.parts.map((part) => (
+              <span
+                data-part={part.key}
+                data-code-punctuation={part.punctuation || undefined}
+                set:text={part.text}
+              />
+              ))}</mark>
         ) : (
           run.parts.map((part) => (
             <span
               data-part={part.key}
               data-code-punctuation={part.punctuation || undefined}
-            >{part.text}</span>
+              set:text={part.text}
+            />
           ))
         ),
       )}</code></pre>

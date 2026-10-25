@@ -8,12 +8,14 @@ import "../assets/fonts/jetbrains-mono.css";
 import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
 import Features from "../components/landing/Features.astro";
 import Showcase from "../components/landing/Showcase.astro";
+import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
 
 const repository = "https://github.com/SegaraRai/stillwind";
 const docs = "/docs/";
 const integrations = "/docs/integrations/";
+const frameworkLink = style.ref();
 const frameworks = [
   { name: "React", icon: style("icon-framework icon-simple-icons--react") },
   { name: "Vue", icon: style("icon-framework icon-simple-icons--vuedotjs") },
@@ -25,7 +27,7 @@ const frameworks = [
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" {...style(documentRoot, "site-document")}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -43,7 +45,7 @@ const frameworks = [
     <a href="#main" {...style("skip-link")}>
       Skip to content
     </a>
-    <div {...style("landing-shell")}>
+    <div {...style("mx-auto px-gutter inline-full max-inline-page")}>
       <SiteHeader docs={docs} repository={repository} />
 
       <main id="main">
@@ -83,7 +85,7 @@ const frameworks = [
                 </a>
               </div>
             </div>
-            <p {...style("max-inline-64 font-mono text-caption text-muted leading-[1.7]")}>
+            <p {...style("max-inline-64 font-mono text-caption/[1.7] text-muted")}>
               For people who write code.
               <br />
               And agents that write a lot of it.
@@ -124,9 +126,19 @@ const frameworks = [
             {frameworks.map((framework) => (
               <a
                 href={`${integrations}#${framework.name === "Astro" ? "astro" : "vite"}`}
-                {...style("framework-link")}
+                {...style(frameworkLink, "framework-link")}
               >
-                <span data-framework-icon aria-hidden="true" {...framework.icon}></span>
+                <span
+                  aria-hidden="true"
+                  {...style(
+                    framework.icon,
+                    "text-muted opacity-70 [transition:color_140ms_ease,opacity_140ms_ease]",
+                    {
+                      [frameworkLink("hover")]: "text-foreground opacity-100",
+                      [frameworkLink("focus-visible")]: "text-foreground opacity-100",
+                    },
+                  )}
+                ></span>
                 <span {...style("flex mbs-5 items-center justify-between text-small")}>
                   {framework.name}
                   <span

@@ -1,116 +1,52 @@
-/* Rules shared by the landing page and the documentation: page transitions, typography,
-   the site header, and the theme control. */
+/* Cross-document navigation uses the browser's page transition type. */
 
-/* Navigation between pages animates with cross-document view transitions. Browsers without
-   support, and visitors who prefer reduced motion, navigate without animation. The type lets
-   page-specific rules change names only during page navigation. */
-@media (prefers-reduced-motion: no-preference) {
+@variant motion-safe {
   @view-transition {
     navigation: auto;
     types: page;
   }
 }
 
-h1,
-h2 {
-  font-family: var(--font-display);
-}
+@utility site-document {
+  @apply scheme-light-dark;
 
-[data-theme-toggle] {
-  @apply inline-flex size-9 shrink-0 items-center justify-center text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted;
-
-  &[hidden] {
-    display: none;
-  }
-}
-
-[data-theme-icon] {
-  display: none;
-}
-
-:root:not([data-theme]) [data-theme-icon="system"],
-:root[data-theme="system"] [data-theme-icon="system"],
-:root[data-theme="light"] [data-theme-icon="light"],
-:root[data-theme="dark"] [data-theme-icon="dark"] {
-  display: block;
-}
-
-pre,
-code {
-  font-variant-ligatures: none;
-  font-feature-settings:
-    "liga" 0,
-    "calt" 0,
-    "zero" 1;
-}
-
-[data-header-slot] {
-  block-size: 64px;
-}
-
-[data-site-header] {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--spacing) * 4);
-  block-size: 64px;
-  border-block-end: 1px solid var(--color-border);
-
-  a {
-    display: inline-flex;
-    align-items: center;
-    min-block-size: 44px;
-    white-space: nowrap;
+  @variant data-[theme=light] {
+    @apply scheme-light;
   }
 
-  nav {
-    display: flex;
-    align-items: center;
-    gap: calc(var(--spacing) * 7);
-    font-size: var(--text-ui);
-  }
-
-  [data-site-brand] {
-    font-size: var(--text-heading);
-    letter-spacing: -0.045em;
+  @variant data-[theme=dark] {
+    @apply scheme-dark;
   }
 
   @variant max-inline {
-    gap: calc(var(--spacing) * 3);
+    @apply [--text-display:clamp(2.125rem,10.5vw,2.75rem)] [--text-code-display:clamp(1rem,4.7vw,1.5rem)] [--text-code-output:clamp(1.0625rem,4.7vw,1.375rem)] [--text-code-feature:clamp(0.71875rem,3.3vw,0.8125rem)];
+  }
 
-    nav {
-      gap: calc(var(--spacing) * 2);
-      font-size: var(--text-caption);
-    }
+  @variant selection {
+    @apply text-action-foreground bg-action;
+  }
 
-    [data-site-brand] {
-      font-size: var(--text-heading-small);
-    }
+  @variant [:where(&)_:focus-visible] {
+    @apply outline-2 outline-accent outline-offset-4;
+  }
+
+  @variant [:where(&)[data-header-mounted]_[id]] {
+    @apply scroll-mbs-18;
   }
 }
 
-@utility skip-link {
-  position: absolute;
-  inset-block-start: 1rem;
-  inset-inline-start: 1.5rem;
-  z-index: 50;
-  padding-block: calc(var(--spacing) * 4);
-  padding-inline: calc(var(--spacing) * 4);
-  color: var(--color-background);
-  background-color: var(--color-foreground);
-  transform: translateY(calc(-100% - 2rem));
+@utility code-font {
+  @apply [font-variant-ligatures:none] [font-feature-settings:"liga"_0,"calt"_0,"zero"_1];
+}
 
-  &:focus {
-    transform: none;
+@utility skip-link {
+  @apply absolute inset-bs-4 inset-s-6 z-50 p-4 text-background bg-foreground [transform:translateY(calc(-100%_-_2rem))];
+
+  @variant focus {
+    @apply [transform:none];
   }
 }
 
 @utility nav-link {
-  text-underline-offset: 5px;
-  @apply hover:underline;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 6px;
-  }
+  @apply underline-offset-5 hover:underline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-6;
 }

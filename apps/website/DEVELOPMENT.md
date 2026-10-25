@@ -16,7 +16,13 @@ Code is grouped by the part of the site that uses it:
 `src/styles/theme.css` defines the tokens for every part. `src/styles.css` is the
 Stillwind stylesheet entry and imports the other stylesheets. Import styles with
 Stillwind directives through that entry so the compiler expands them before Astro
-bundles the generated CSS. Shared code must not import landing or docs code.
+bundles the generated CSS. Apply utilities with `style()` and share custom
+utilities where server markup and browser code render the same elements. Attach
+refs to connect presentation states across components. Keep `data-*` attributes
+for browser hooks and states. Use `@apply` and `@variant` inside custom utilities
+for reusable styles and generated content. Set inline values directly when no
+utilities are involved. Presentation controllers pass measured values through
+custom properties. Shared code must not import landing or docs code.
 
 ## Local tasks
 
@@ -220,9 +226,9 @@ semantic colors such as `bg-background`, `bg-surface`, `text-foreground`,
 for focus indicators and `danger`, `warning`, and `success` for status. Each color
 uses `light-dark()` so its public name stays the same in both schemes.
 
-The landing page uses `landing-shell`, and documentation pages use the wider
-`docs-shell`. Navigation between pages uses cross-document view transitions of
-type `page`, which `src/styles/site.css` enables only without a reduced-motion
+The landing page uses the `page` container width, and documentation pages use the
+wider `docs` container width. Navigation between pages uses cross-document view
+transitions of type `page`, which `src/styles/site.css` enables only without a reduced-motion
 preference. `SiteHeader` and the documentation navigation name themselves with
 `style.viewTransition()`, so the header resizes between the two widths and the
 navigation stays in place between documentation pages. The root element keeps
@@ -256,7 +262,9 @@ choices persist in local storage and apply in the head before page content.
 | `code`, `code-inline`, `code-display`, `code-output`, `code-feature` text | Reading and demonstration code roles                            |
 
 The `demo` breakpoint is 20rem, the minimum width for interactive demonstrations.
-Use named text sizes and nested `@variant` blocks in authored CSS rules.
+Use named text sizes and `@variant` blocks in authored CSS rules.
+Use `text-(length:--text-ui)` when a font size must preserve the line height
+from another rule.
 Use named variants such as `sidebar:flex-row` in macro inputs. Presentation
 controllers pass queries from `style.media()` to `matchMedia()`.
 The `pin-story*` and `pin-features*` variants define each demonstration's minimum height.

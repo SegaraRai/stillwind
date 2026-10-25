@@ -1,4 +1,6 @@
 ---
+import { style } from "stillwind/astro";
+
 import type { ExampleDiagnostic } from "./diagnostic-example";
 
 interface Props {
@@ -8,11 +10,11 @@ interface Props {
 const { diagnostic } = Astro.props;
 ---
 
-<div class="diagnostic-message">
+<div {...style("p-4 text-danger text-small bg-danger/5 rounded-control border-danger border-s-2")}>
   <p>
     <strong>{diagnostic.code}</strong>: {diagnostic.message}
   </p>
   {diagnostic.notes.map((note) => (
-    <p>{note}</p>
+    <p {...style("mbs-2")}>{note}</p>
   ))}
 </div>
