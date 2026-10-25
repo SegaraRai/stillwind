@@ -5,6 +5,7 @@ import { moduleSourceMap } from "@stillwind/host";
 import type { AstroIntegration } from "astro";
 import type { ResolvedConfig } from "vite";
 
+import { renderChunkStyles } from "../vite/chunk-styles.ts";
 import { createVitePlugins } from "../vite/plugin.ts";
 import {
   createViteProject,
@@ -203,17 +204,25 @@ export async function getStyles() {
 `;
                 },
                 /**
-                 * Replaces the production SSR marker with links from the rendered stylesheet manifest.
-                 * @param code - Rendered JavaScript containing zero or one stylesheet marker.
+                 * Delivers client CSS and replaces the SSR marker with stylesheet links.
+                 * @param code - Rendered server or client JavaScript.
                  * @param chunk - Chunk whose filename identifies the generated source map.
-                 * @returns Replaced code and a source map, or undefined when no marker is present.
+                 * @returns Changed JavaScript and its map, or nothing when no styles need delivery.
                  */
                 renderChunk(code, chunk) {
+                  const generation = project.forConfig(this.environment.getTopLevelConfig());
+
+                  if (
+                    this.environment.name === "client" &&
+                    generation.config.emission !== "split"
+                  ) {
+                    return renderChunkStyles(generation, "client", this, code, chunk, true);
+                  }
+
                   if (!code.includes(MARKER)) {
                     return;
                   }
 
-                  const generation = project.forConfig(this.environment.getTopLevelConfig());
                   const build = generation.buildOutput(this.environment.name);
                   const styles = (build?.manifest?.parts ?? [])
                     .map(

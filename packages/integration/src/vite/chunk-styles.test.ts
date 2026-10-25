@@ -73,17 +73,67 @@ test("the generated loader inserts missing links in manifest order and keeps exi
   expect(() => runInNewContext(runnable, { URL })).not.toThrow();
 });
 
-test("single emission attaches its CSS asset without adding a loader", () => {
-  const { project, context, chunk } = fixture("/app/", { buildCss: "single-reference" });
+test.each(["/app/", "./", ""])("single emission loads client CSS once with base %j", (base) => {
+  const { project, context, chunk } = fixture(base, {
+    buildCss: "single-reference",
+  });
   project.config.emission = "single";
+  const result = renderChunkStyles(project, "client", context, "", chunk, true)!;
+  const links: {
+    href: string;
+  }[] = [];
+  const document = {
+    baseURI: "https://example.test/app/",
+    querySelectorAll: () => links,
+    createElement: () => ({
+      href: "",
+    }),
+    head: {
+      append: (link: { href: string }) => {
+        links.push(link);
+      },
+    },
+  };
+  const runnable = result.code.replace(
+    "import.meta.url",
+    JSON.stringify("https://example.test/app/assets/chunks/entry.js"),
+  );
 
+  runInNewContext(runnable, {
+    document,
+    URL,
+  });
+  runInNewContext(runnable, {
+    document,
+    URL,
+  });
+  expect(links).toEqual([
+    {
+      rel: "stylesheet",
+      href: "https://example.test/app/assets/single.css",
+    },
+  ]);
+  expect(() => runInNewContext(runnable, { URL })).not.toThrow();
+  expect(chunk.viteMetadata?.importedCss).toEqual(new Set(["assets/single.css"]));
+});
+
+test("single emission associates CSS with hosts that deliver chunk metadata", () => {
+  const { project, context, chunk } = fixture("/app/", {
+    buildCss: "single-reference",
+  });
+  project.config.emission = "single";
   expect(renderChunkStyles(project, "client", context, "entry();", chunk)).toBeNull();
   expect(chunk.viteMetadata?.importedCss).toEqual(new Set(["assets/single.css"]));
 });
 
 test("a chunk without selected split styles keeps its code and metadata", () => {
   const { project, context, chunk } = fixture("/app/", {
-    manifest: { version: 1, revision: "revision", parts: [], modules: {} },
+    manifest: {
+      version: 1,
+      revision: "revision",
+      parts: [],
+      modules: {},
+    },
   });
 
   expect(renderChunkStyles(project, "client", context, "entry();", chunk)).toBeNull();
@@ -131,7 +181,11 @@ function fixture(base: string, output?: BuildOutput) {
     },
     buildOutput: (name: string) => {
       expect(name).toBe("client");
-      return output ?? { manifest };
+      return (
+        output ?? {
+          manifest,
+        }
+      );
     },
     inputs: () =>
       new Map([
@@ -189,7 +243,10 @@ function fixture(base: string, output?: BuildOutput) {
     modules: { [registryId]: {} },
     facadeModuleId: "/facade.ts",
     fileName: "assets/chunks/entry.js",
-    viteMetadata: { importedCss: new Set<string>(), importedAssets: new Set(["image.svg"]) },
+    viteMetadata: {
+      importedCss: new Set<string>(),
+      importedAssets: new Set(["image.svg"]),
+    },
   } as unknown as Rollup.RenderedChunk;
   return { project, context, chunk };
 }

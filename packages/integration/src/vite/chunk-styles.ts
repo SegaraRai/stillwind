@@ -6,18 +6,18 @@ import { producerPrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 
 /**
- * Associates emitted CSS with a chunk and adds ordered stylesheet links for split emission.
+ * Associates emitted CSS with a chunk and loads its stylesheets in the browser.
  *
- * Split parts retain manifest order and relative-base URLs resolve against the chunk. Single
- * emission adds its asset to Vite CSS metadata without changing the JavaScript.
+ * Split parts retain manifest order and relative-base URLs resolve against the chunk. Hosts can
+ * request a loader for single emission when they do not deliver CSS from chunk metadata.
  *
  * @param project - Project with build output produced by `renderStart`.
  * @param name - Vite environment name, or `undefined` for `client`.
  * @param context - Build context that reads module dependencies and resolves emitted filenames.
  * @param code - Rendered JavaScript for the chunk.
  * @param chunk - Chunk whose modules select CSS parts and whose Vite metadata is updated.
- * @returns JavaScript with a split stylesheet loader and a null map when parts are selected,
- * otherwise `null`.
+ * @param loadSingleStylesheet - Loads single emission through a browser link. Defaults to false.
+ * @returns JavaScript with a null map when a loader is needed, otherwise `null`.
  */
 export function renderChunkStyles(
   project: ViteProject,
@@ -25,6 +25,7 @@ export function renderChunkStyles(
   context: Pick<Rollup.PluginContext, "getModuleInfo" | "getFileName">,
   code: string,
   chunk: Rollup.RenderedChunk,
+  loadSingleStylesheet = false,
 ) {
   const { config, settings, inputs, moduleRegistry } = project;
   const { manifest, buildCss } = project.buildOutput(name);
@@ -108,7 +109,31 @@ if (typeof document !== "undefined") {
     }
   }
   if (buildCss) {
-    attachCss(context.getFileName(buildCss));
+    const file = context.getFileName(buildCss);
+    attachCss(file);
+    if (!loadSingleStylesheet) {
+      return null;
+    }
+    const relative = settings.publicBase === "./" || settings.publicBase === "";
+    const href = relative
+      ? posix.relative(posix.dirname(chunk.fileName), file)
+      : settings.publicBase + file;
+    return {
+      code: `${code}
+
+/* Stillwind CSS Loader */
+if (typeof document !== "undefined") {
+  const href = new URL(${JSON.stringify(href)}, ${relative ? "import.meta.url" : "document.baseURI"}).href;
+  if (![...document.querySelectorAll('link[rel="stylesheet"]')].some((link) => link.href === href)) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    document.head.append(link);
+  }
+}
+`,
+      map: null,
+    };
   }
 
   return null;
