@@ -6,6 +6,39 @@ import { expect, test } from "vite-plus/test";
 
 import { AnalysisWorkspace } from "./workspace.ts";
 
+test("saved open buffers retain the workspace while configuration and closed files request reopening", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-refresh-"));
+  const config = path.join(root, "stillwind.config.json");
+  const entry = path.join(root, "entry.ts");
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [
+          {
+            css: "root.css",
+            files: ["*.ts"],
+          },
+        ],
+      }),
+    );
+    workspace = await AnalysisWorkspace.open(config);
+    workspace.update(entry, "export const value=1;", 1);
+    expect(workspace.refresh([entry])).toBe(true);
+    workspace.update(config, "{}", 1);
+    expect(workspace.refresh([config])).toBe(false);
+    const tsconfig = path.join(root, "tsconfig.json");
+    workspace.update(tsconfig, "{}", 1);
+    expect(workspace.refresh([tsconfig])).toBe(false);
+    workspace.closeDocument(entry);
+    expect(workspace.refresh([entry])).toBe(false);
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("plugin navigation uses unsaved files when the CSS graph cannot load", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-plugin-navigation-"));
   let workspace: AnalysisWorkspace | undefined;

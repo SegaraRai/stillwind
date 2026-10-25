@@ -3,7 +3,7 @@ import path from "node:path";
 import { scanSource, type NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import type { TypeScriptFactsService } from "../semantics/type-facts.ts";
+import type { TypeScriptFactsService } from "../semantics/node/service.ts";
 import { compileModule } from "./compiler.ts";
 import { fileModuleDescriptor } from "./filesystem.ts";
 

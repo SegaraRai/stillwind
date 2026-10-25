@@ -50,6 +50,19 @@ export async function openNodeWorkspaces(
        */
       const accepts = (uri: string) => uri.startsWith("file:");
       workspaces.set(file, {
+        refresh: (uris) =>
+          worker.request<boolean>({
+            method: "refresh",
+            files: uris.filter(accepts).map((uri) => fileURLToPath(uri)),
+          }),
+        prepare: async (uris, signal) => {
+          if (!signal?.aborted) {
+            await worker.request({
+              method: "prepare",
+              files: uris.filter(accepts).map((uri) => fileURLToPath(uri)),
+            });
+          }
+        },
         query: async (uri, request, signal) => {
           if (!accepts(uri) || signal?.aborted) {
             return [];

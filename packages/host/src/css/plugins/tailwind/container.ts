@@ -27,13 +27,14 @@ function compareBreakpoints(left: string, right: string): number {
 
 /**
  * Converts a length to pixels.
+ *
  * @param value - CSS length.
  * @returns The size in pixels, or null for other values.
  */
-const pixels = (value: string) => {
+function pixels(value: string): number | null {
   const match = /^(-?\d*\.?\d+)(px|r?em)$/.exec(value.trim());
   return match ? Number(match[1]) * (match[2] === "px" ? 1 : 16) : null;
-};
+}
 
 /**
  * Builds the body of the `container` utility for a `theme.container` configuration, as

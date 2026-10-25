@@ -50,6 +50,21 @@ changed, and removed definitions before using narrower reload selections.
 Sources: [module compiler](../crates/compiler/src/module_compiler.rs),
 [project session](../crates/project/src/session/state.rs).
 
+## Analysis work after source preparation
+
+- Load dependencies found by the checker in batches before collecting type facts.
+  Each entry must still resolve its own required imports and report missing inputs in its project.
+- Reuse completed native analyses when entries share dependencies. Generate code, CSS,
+  and full editor indexes only when a caller requests them. Lint and formatting must
+  still validate assignments and declaration identities.
+- Check cancellation between dependency batches and merge pending requests for the
+  same revision. Later edits must not change editor answers that have already been returned.
+- Keep `SourceFormatter` project state when its inputs have not changed. Reload it when
+  configuration dependencies change. Changes outside open buffers currently reopen the workspace.
+
+Use the existing project queues and prepared sources. These improvements should not
+require a new graph system, persistent caches, extra workers, or a daemon.
+
 ## Assets from compiled packages
 
 Assets whose declaration source is absent from the graph have no supported
@@ -99,7 +114,7 @@ process, snapshot, and filesystem counters. Expose round trips, transferred byte
 and server time in host debug telemetry so checker work can be distinguished
 from transport and host work.
 
-Source: [checker service](../packages/host/src/semantics/type-facts.ts).
+Source: [checker service](../packages/host/src/semantics/node/service.ts).
 
 Synthetic build/watch benchmarks and reused checker workloads do not establish
 latency for a typed application through filesystem events, subsequent module

@@ -55,11 +55,13 @@ export type StyleMacro<Props = object> = {
    * Internal use only. The checker supplies the final identity argument to track the
    * completed props value. Application code must use the overload without it.
    *
+   * @param inputs - Style inputs followed by the declaration identity inserted by the compiler.
+   * The public overload validates authored inputs. This overload adds identity tracking for the checker.
+   * @returns The composed style props with the supplied declaration identity.
    * @internal
    */
   <Inputs extends readonly StyleArgument[], Id extends string>(
-    ...inputs: [...Inputs, StillwindDeclarationIdentity<Id>] &
-      [...CheckedStyleInputs<Inputs>, StillwindDeclarationIdentity<Id>]
+    ...inputs: [...Inputs, StillwindDeclarationIdentity<Id>]
   ): StyleResult<Id, StyleOutput<Props, Inputs>>;
 
   /**

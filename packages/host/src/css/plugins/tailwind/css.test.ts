@@ -2,7 +2,12 @@ import { expect, test } from "vite-plus/test";
 
 import { selectorRules, utilityRules, withAlpha } from "./css.ts";
 
-/** Collects the utility bodies that `utilityRules` registers. */
+/**
+ * Collects the utility bodies that utilityRules registers.
+ *
+ * @param input - Plugin rules passed to the registration helper.
+ * @returns Utility names and bodies in registration order.
+ */
 function rules(input: unknown): [string, string][] {
   const registered: [string, string][] = [];
   utilityRules(

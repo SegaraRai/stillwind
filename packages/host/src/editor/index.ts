@@ -6,11 +6,11 @@
  * capture fingerprint returned with the completion.
  */
 
-export {
-  EditorSnapshot,
-  type EditorColor,
-  type EditorCompletion,
-  type EditorEdit,
-  type EditorRequest,
-  type EditorResult,
-} from "./snapshot.ts";
+export type {
+  EditorColor,
+  EditorCompletion,
+  EditorEdit,
+  EditorRequest,
+  EditorResult,
+} from "./request.ts";
+export { EditorSnapshot } from "./snapshot.ts";

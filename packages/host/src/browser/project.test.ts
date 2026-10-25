@@ -5,6 +5,44 @@ import { expect, test } from "vite-plus/test";
 import { fileModuleDescriptor } from "../compilation/index.ts";
 import { BrowserProject } from "./project.ts";
 
+test("changing package style exports reloads retained CSS", async () => {
+  const entry = "/workspace/entry.ts";
+  const manifest = "/workspace/node_modules/palette/package.json";
+  const files = new Map([
+    [entry, 'import {style} from "stillwind/react"; export const value=style("tone");'],
+    ["/workspace/theme.css", '@import "palette"; @stillwind-slot utilities;'],
+    [manifest, JSON.stringify({ exports: { style: "./first.css" } })],
+    ["/workspace/node_modules/palette/first.css", "@utility tone{color:red}"],
+    ["/workspace/node_modules/palette/second.css", "@utility tone{color:blue}"],
+  ]);
+  const project = new BrowserProject({
+    root: "/workspace",
+    config: {
+      css: "theme.css",
+      files: ["*.ts"],
+      typeFacts: false,
+    },
+    files,
+  });
+  try {
+    await project.analyze(entry);
+    expect(project.css().css).toContain("color:red");
+    files.set(
+      manifest,
+      JSON.stringify({
+        exports: {
+          style: "./second.css",
+        },
+      }),
+    );
+    await project.replaceFiles(files);
+    await project.analyze(entry);
+    expect(project.css().css).toContain("color:blue");
+  } finally {
+    await project.close();
+  }
+});
+
 test("browser projects capture custom source and projection operations and their results", async () => {
   const root = "/workspace";
   const entry = `${root}/entry.tsx`;
@@ -21,7 +59,10 @@ test("browser projects capture custom source and projection operations and their
         return {
           resolverId: id,
           ...descriptor,
-          document: { ...descriptor.document, code: context.documents.get(id)! },
+          document: {
+            ...descriptor.document,
+            code: context.documents.get(id)!,
+          },
         };
       },
     },

@@ -5,7 +5,9 @@ import { serializeCss, splitTopLevel, withAlpha } from "./css.ts";
 
 type Dictionary = Record<string, unknown>;
 
-/** The `theme()` function that Tailwind passes to plugins and to functions in theme config. */
+/**
+ * The `theme()` function that Tailwind passes to plugins and to functions in theme config.
+ */
 type ThemeFunction = ((path?: string, fallback?: unknown) => unknown) & {
   /** The function itself, for config functions written as `({ theme }) => ...`. */
   theme: ThemeFunction;
@@ -18,7 +20,9 @@ type ThemeFunction = ((path?: string, fallback?: unknown) => unknown) & {
 // compat/plugin-functions.ts). Keep them aligned with upstream instead of adding names here:
 // they define which v3 config key reads and writes which CSS theme variable.
 
-/** Config keys whose `DEFAULT` value is a shared default in the `--default-*` namespace. */
+/**
+ * Config keys whose `DEFAULT` value is a shared default in the `--default-*` namespace.
+ */
 const SPECIAL_DEFAULT_KEYS: Record<string, string> = {
   borderWidth: "border-width",
   outlineWidth: "outline-width",
@@ -28,7 +32,9 @@ const SPECIAL_DEFAULT_KEYS: Record<string, string> = {
   transitionTimingFunction: "transition-timing-function",
 };
 
-/** v3 config keys whose v4 theme namespace has another name. */
+/**
+ * v3 config keys whose v4 theme namespace has another name.
+ */
 const OLD_TO_NEW_NAMESPACE: Record<string, string> = {
   animation: "animate",
   aspectRatio: "aspect",
@@ -131,6 +137,7 @@ function themeableValues(theme: Dictionary): [string[], unknown][] {
 
 /**
  * Parses a `theme()` path, as Tailwind's `toKeyPath()` does.
+ *
  * @param path - Dotted path with optional brackets, such as `colors.red[500]`.
  * @returns The keys, such as `["colors", "red", "500"]`. A bracket keeps dots, so `spacing[1.5]`
  * has the key `1.5`.
@@ -184,6 +191,7 @@ function read(value: unknown, path: readonly string[]): unknown {
 
 /**
  * Whether a theme value is a `var()` reference to the variable that it would define.
+ *
  * @param name - Variable name without the leading `--`, such as `color-primary`.
  * @param value - Configured value.
  * @returns Whether `value` contains `var(--name)` or `var(--name, ...)`, which makes a declaration
@@ -198,6 +206,7 @@ function selfReference(name: string, value: unknown): boolean {
 
 /**
  * Whether a value is a plain object rather than null or an array.
+ *
  * @param value - Any value.
  * @returns Whether `value` can hold config keys.
  */
@@ -207,6 +216,7 @@ function object(value: unknown): value is Dictionary {
 
 /**
  * Merges configuration objects deeply. Arrays and scalar values replace earlier values.
+ *
  * @param target - Object that receives the entries; nested objects are copied before merging.
  * @param source - Entries to merge into `target`.
  * @returns `target`.
@@ -228,6 +238,7 @@ export function merge(target: Dictionary, source: Dictionary): Dictionary {
 
 /**
  * Reads one `fontFamily` config entry, as Tailwind's `fontFamily.sans` handling does.
+ *
  * @param value - Config entry: a family string, an array of families, or a `[family, settings]`
  * tuple.
  * @param setting - Settings key of a tuple, such as `fontFeatureSettings`, or undefined for the
@@ -249,7 +260,9 @@ function fontValue(value: unknown, setting?: string): string | null {
   return typeof value === "string" ? value : null;
 }
 
-/** The `theme` and `theme.extend` objects of one config. */
+/**
+ * The `theme` and `theme.extend` objects of one config.
+ */
 interface ConfigLayer {
   theme: Dictionary;
   extend: Dictionary;
@@ -266,13 +279,18 @@ interface ConfigLayer {
 export class PluginTheme {
   /** The function passed to plugin handlers and config functions. */
   readonly get: ThemeFunction;
+
   /** Active tokens by full name. */
   readonly #tokens: ReadonlyMap<string, NativeThemeToken>;
+
   /** Tailwind's compatibility defaults followed by the plugin configs, in plugin order. */
   readonly #layers: ConfigLayer[];
+
   /** Number of leading layers that are compatibility defaults rather than plugin config. */
   readonly #defaults: number;
+
   readonly #sections = new Map<string, unknown>();
+
   readonly #resolving = new Set<string>();
 
   /**
@@ -343,6 +361,7 @@ export class PluginTheme {
 
   /**
    * Emits the plugins' own theme configuration, which native utility resolution also needs.
+   *
    * @returns A `@stillwind-plugin-theme` block with the configured variables and keyframes, and a
    * `@stillwind-plugin-theme inline` block with the values that refer to their own variable, or an
    * empty string when the plugins configure nothing.
@@ -429,6 +448,7 @@ export class PluginTheme {
 
   /**
    * Resolves every section, for `config("theme")` and `theme()` without a path.
+   *
    * @returns Resolved sections keyed by config key.
    */
   #all(): Dictionary {
@@ -440,6 +460,7 @@ export class PluginTheme {
 
   /**
    * Resolves one config section across all layers, once.
+   *
    * @param key - Config key, such as `colors`.
    * @returns The resolved section, or undefined when no layer configures it.
    * @throws If resolving the section reads the section itself.
@@ -501,6 +522,7 @@ export class PluginTheme {
 
   /**
    * Tailwind's `theme(path, defaultValue)` for plugins.
+   *
    * @param path - Config path, or a CSS variable name such as `--color-red-500`, with an optional
    * trailing `/ alpha`.
    * @param fallback - Value for a path that resolves to nothing.

@@ -36,6 +36,12 @@ export type WorkerRequest =
       operation: "sort" | "fixes";
     }
   | {
+      /** Serialized discriminator for preparing a batch of targets. */
+      method: "prepare";
+      /** Absolute target paths. */
+      files: readonly string[];
+    }
+  | {
       /** Serialized discriminator for analyzing one target in matching projects. */
       method: "analyze";
       /** Absolute target path. Each project whose scope contains the file returns a result. */
@@ -64,6 +70,12 @@ export type WorkerRequest =
       method: "closeDocument";
       /** Absolute path of the buffer to remove. Unknown files have no effect. */
       file: string;
+    }
+  | {
+      /** Serialized discriminator for checking whether the caller needs to reopen the workspace. */
+      method: "refresh";
+      /** Absolute file paths reported by save or watch notifications. */
+      files: readonly string[];
     }
   | {
       /** Serialized discriminator for refreshing disk and compiler caches. */
@@ -111,7 +123,9 @@ export class AnalysisWorker {
   /** Prevents repeated close calls from sending another cleanup request. */
   #closing = false;
 
-  /** Starts the child process immediately. Call open before analysis and close when finished. */
+  /**
+   * Starts the child process immediately. Call open before analysis and close when finished.
+   */
   constructor() {
     this.#child = fork(fileURLToPath(new URL("./worker.js", import.meta.url)), [], {
       stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -224,6 +238,7 @@ export class AnalysisWorker {
 
   /**
    * Enumerates distinct targets in the opened workspace.
+   *
    * @param patterns - Additional project-relative globs. Omission or an empty list retains all targets.
    * @param stylesheets - Adds the stylesheets that each project lints.
    * @returns Sorted absolute paths, deduplicated across projects.
@@ -239,6 +254,7 @@ export class AnalysisWorker {
 
   /**
    * Computes replacements from captured buffers without writing files.
+   *
    * @param inputs - Distinct absolute target paths and complete original text.
    * @param operation - Utility sorting or lint fixes, limited to ten changing passes per target.
    * @returns Successful replacements and target failures in input order. Captured buffers are removed after planning.

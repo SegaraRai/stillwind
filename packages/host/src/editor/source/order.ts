@@ -1,3 +1,7 @@
+import type { NativeAssetRecord } from "@stillwind/native";
+import type { PreparedSource } from "@stillwind/projection";
+import ts from "typescript-6";
+
 /** Syntax categories used to group direct style inputs. */
 export type InputOrder =
   | {
@@ -127,4 +131,95 @@ function orderRun<T extends InputOrderItem>(
     }
   }
   return sorted;
+}
+
+/**
+ * Classifies direct style input syntax and resolved declarations for grouping.
+ *
+ * @param source - Fixed source whose AST contains node.
+ * @param node - Input or property to classify.
+ * @param resolveAsset - Resolves native declaration identities and stable aliases for this source graph.
+ * @returns An input category, or a barrier when the input cannot move safely.
+ */
+export function classifyInput(
+  source: PreparedSource,
+  node: ts.Node,
+  resolveAsset: (source: PreparedSource, node: ts.Node) => NativeAssetRecord | undefined,
+): InputOrder {
+  if (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+    if (ts.isComputedPropertyName(node.name)) {
+      return {
+        kind: "barrier",
+      };
+    }
+    const name = ts.isStringLiteralLike(node.name) ? node.name.text : node.name.getText();
+    if (name.startsWith("--")) {
+      return {
+        kind: "customProperties",
+      };
+    }
+    return name === "" || name.endsWith(":") || name === "class"
+      ? {
+          kind: "utilities",
+        }
+      : {
+          kind: "barrier",
+        };
+  }
+  if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node)) {
+    return {
+      kind: "utilities",
+    };
+  }
+  const asset = resolveAsset(source, node);
+  if (asset?.identity.kind === "style") {
+    return {
+      kind: "bases",
+    };
+  }
+  if (asset?.identity.kind === "ref") {
+    return {
+      kind: "ref",
+      identity: JSON.stringify(asset.identity),
+      projection: false,
+    };
+  }
+  if (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression) &&
+    ["asAnchor", "asContainer", "positionAnchor"].includes(node.expression.name.text)
+  ) {
+    const ref = resolveAsset(source, node.expression.expression);
+    if (ref?.identity.kind === "ref") {
+      return {
+        kind: "ref",
+        identity: JSON.stringify(ref.identity),
+        projection: true,
+      };
+    }
+  }
+  if (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isNonNullExpression(node)
+  ) {
+    return classifyInput(source, node.expression, resolveAsset);
+  }
+  if (ts.isArrayLiteralExpression(node) || ts.isObjectLiteralExpression(node)) {
+    const elements = ts.isArrayLiteralExpression(node) ? node.elements : node.properties;
+    const orders = elements.map((element) => classifyInput(source, element, resolveAsset));
+    const first = orders[0];
+    if (
+      first &&
+      first.kind !== "barrier" &&
+      first.kind !== "ref" &&
+      orders.every((order) => order.kind === first.kind)
+    ) {
+      return first;
+    }
+  }
+  return {
+    kind: "barrier",
+  };
 }

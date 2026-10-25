@@ -5,7 +5,8 @@
  * loads plugin packages and plugin files for `@plugin` statements.
  */
 
-export { AnalysisProject, type AnalysisHost, type AnalysisResult } from "./analysis.ts";
+export type { AnalysisHost } from "./analysis/host.ts";
+export { AnalysisProject, type AnalysisResult } from "./analysis/project.ts";
 export { EditorProject, type EditorAnalysis, type EditorDocument } from "./editor.ts";
 export { createFileSystemAnalysisHost } from "./filesystem.ts";
 export { compilerOptions, cssEntrypoint } from "./options.ts";

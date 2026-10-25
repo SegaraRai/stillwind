@@ -8,227 +8,51 @@ import {
   fingerprint,
   type BindingEdit,
   type BindingReport,
-  type NativeCandidateContext,
   type NativeDesignSystemLoader,
   type NativeEditorQuery,
   type NativeProjectSession,
 } from "@stillwind/native";
 import type { PreparedSource } from "@stillwind/projection";
-import ts from "typescript-6";
 
-import type { ModuleAnalysis } from "../compilation/compiler.ts";
-import { pluginLoader, type PluginRuntime } from "../css/plugins.ts";
-import { CandidateQueries, markerDocumentation, segments } from "./candidates.ts";
-import { colorReplacement } from "./colors.ts";
-import { completionSnippet, markerModifierSnippet } from "./completion.ts";
-import type { GeneratedPreview } from "./previews.ts";
-import { escapeContent, sortSource } from "./sort.ts";
-import { SourceIndex, type UtilityLiteral } from "./source-index.ts";
+import type { ModuleAnalysis } from "../compilation/request.ts";
+import type { PluginRuntime } from "../css/plugins/runtime.ts";
+import { pluginLoader } from "../css/plugins/session.ts";
+import { CandidateQueries } from "./candidates.ts";
+import { editorResult, type EditorEdit, type EditorRequest, type EditorResult } from "./request.ts";
+import { sortSource } from "./sort.ts";
+import { SourceIndex } from "./source/inputs.ts";
+import { SourceQueries } from "./source/query.ts";
 
-/** Most catalog candidates that one completion request adds. */
-const CATALOG_COMPLETIONS = 200;
-
-/** A replacement in the original document, using half-open UTF-16 offsets. */
-export interface EditorEdit {
-  /** Inclusive UTF-16 offset in the original document. */
-  start: number;
-  /** Exclusive UTF-16 offset in the original document. */
-  end: number;
-  /** Source spelling inserted at the range, including escapes required by its source context. */
-  newText: string;
-}
-
-/** Completion text replaces the entire candidate at the supplied original range. */
-export interface EditorCompletion extends EditorEdit {
-  /** Directive names use the keyword category. Other inputs use candidate categories. */
-  keyword?: boolean;
-  /** True for a variant, including CSS variant labels without a trailing colon. */
-  variant?: boolean;
-  /** True for a label that adds a marker class or starts the modifier of a modifiable marker. */
-  marker?: boolean;
-  /** Static description for a CSS directive or plugin path. CSS summaries load on resolve. */
-  detail?: string;
-  /** Replacement encoded as an LSP snippet when the requesting client supports snippets. */
-  snippet?: string;
-  /** Requests another completion after the client inserts this item. */
-  retrigger?: boolean;
-  /** Completion category for host-resolved plugin names, files, and directories. */
-  category?: "module" | "file" | "directory";
-  /** Lexical priority key supplied by the semantic catalog. Omission sorts by label. */
-  sortText?: string;
-  /** Visible completion text; surrounding group variants are omitted. */
-  label: string;
-  /** Full candidate used for lazy CSS resolution, including surrounding group variants. */
-  candidate: string;
-  /** Original UTF-16 input identity used for completion resolution. */
-  input: number;
-  /** Fingerprint of the captured query inputs. Resolve requires this exact value. */
-  snapshot: string;
-}
-
-/** A concrete sRGB color at an original candidate range. */
-export interface EditorColor {
-  /** Inclusive UTF-16 offset of the authored candidate. */
-  start: number;
-  /** Exclusive UTF-16 offset of the authored candidate. */
-  end: number;
-  /** Red component in the inclusive range 0..1. */
-  red: number;
-  /** Green component in the inclusive range 0..1. */
-  green: number;
-  /** Blue component in the inclusive range 0..1. */
-  blue: number;
-  /** Effective opacity after utility modifiers, in the inclusive range 0..1. */
-  alpha: number;
-}
-
-/** Requests address original document UTF-16 offsets, including incomplete candidate text. */
-export type EditorRequest =
-  | {
-      /** Requests the original definition of a CSS variable or theme reference. */
-      kind: "definition";
-      /** Original UTF-16 cursor offset within the reference. */
-      offset: number;
-    }
-  | {
-      /** Requests plugin module links in the original stylesheet. */
-      kind: "links";
-    }
-  | {
-      /** Requests CSS or documentation for a candidate, expression, or CSS directive. */
-      kind: "hover";
-      /** Original UTF-16 cursor offset at the input to describe. */
-      offset: number;
-    }
-  | {
-      /** Requests matching candidates and variant prefixes for an insertion point. */
-      kind: "completion";
-      /** Includes CSS registry directives. Defaults to false and does not affect compilation. */
-      registryDirectives?: boolean;
-      /** Includes placeholders for clients that support completion snippets. */
-      snippets?: boolean;
-      /** Original UTF-16 insertion point; text before this point determines the prefix. */
-      offset: number;
-    }
-  | {
-      /** Requests CSS or documentation for a completion from the same captured snapshot. */
-      kind: "resolve";
-      /** CSS discovery setting used for the original completion. A change makes it stale. */
-      registryDirectives?: boolean;
-      /** Snippet setting captured when completion was requested. */
-      snippets?: boolean;
-      /** Full candidate or CSS label returned by completion. */
-      candidate: string;
-      /** Original UTF-16 boundary returned as `EditorCompletion.input`. */
-      input: number;
-      /** Captured fingerprint returned by completion; a mismatch omits hover output. */
-      snapshot: string;
-    }
-  | {
-      /** Requests concrete colors for recognized utility candidates in the source. */
-      kind: "colors";
-    }
-  | {
-      /** Requests each report's first fix action for this source revision, with enabled sorting. */
-      kind: "fixes";
-    }
-  | {
-      /** Requests configured sorting independently of lint severity. */
-      kind: "sort";
-      /** Half-open original UTF-16 ranges that sorting must leave untouched. */
-      protectedRanges?: readonly {
-        /** Inclusive original UTF-16 offset of the protected text. */
-        start: number;
-        /** Exclusive original UTF-16 offset of the protected text. */
-        end: number;
-      }[];
-    }
-  | {
-      /** Requests a replacement candidate for a range returned by the colors query. */
-      kind: "colorPresentation";
-      /** Inclusive original UTF-16 offset returned by the colors query. */
-      start: number;
-      /** Exclusive original UTF-16 offset returned by the colors query. */
-      end: number;
-      /** Desired sRGB components and effective opacity, each in 0..1. */
-      color: Pick<EditorColor, "red" | "green" | "blue" | "alpha">;
-    };
-
-/** Editor data belongs to the exact source fingerprint in revision. Absent fields mean no answer. */
-export interface EditorResult {
-  /** Original CSS definitions with zero-based line and UTF-16 column coordinates. */
-  definitions?: {
-    uri: string;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  }[];
-  /** Plugin paths at half-open original UTF-16 ranges. An absent target means unresolved or configured-only. */
-  links?: {
-    start: number;
-    end: number;
-    target?: string;
-  }[];
-  /** Fingerprint of the original source text used to compute every range and edit. */
-  revision: string;
-  /** Formatted CSS at a half-open original UTF-16 range. Generated element subjects use `&`.
-   * Lazy completion resolution uses the sentinel range `[0, 0)`.
-   */
-  hover?: {
-    /** Inclusive original UTF-16 boundary, or zero for completion resolution. */
-    start: number;
-    /** Exclusive original UTF-16 boundary, or zero for completion resolution. */
-    end: number;
-    /** Generated CSS or an active theme declaration. Empty for documentation-only hovers. */
-    css: string;
-    /** Short CSS summary or plugin description for the selected completion. */
-    detail?: string;
-    /** Markdown for CSS directives, output slots, theme references, plugin paths, or marker classes. */
-    documentation?: string;
-    /** Authored runtime key expressions, deduplicated in dependency traversal order.
-     * Absent when the preview has no runtime key expression to explain.
-     */
-    runtimeNames?: string[];
-  };
-  /** Prefix-matching candidates with their full replacement ranges. CSS loads on resolve. */
-  completions?: EditorCompletion[];
-  /** Concrete colors resolved against the active design system. */
-  colors?: EditorColor[];
-  /** Nonoverlapping replacements in ascending original offset order. */
-  edits?: EditorEdit[];
-}
-
-/** Runs source queries and actionable sorting diagnostics using captured compiler output. */
+/**
+ * Runs source editor requests and sorting diagnostics against captured compiler output.
+ */
 export class EditorSnapshot {
   /** Owned source buffers and projection metadata captured before publication. */
   readonly #sources: readonly PreparedSource[];
+
   /** First fix actions from compilation reports, captured in original coordinates. */
   readonly #fixes: readonly (readonly BindingEdit[])[];
+
   /** Checker ASTs, stable aliases, and captured emission plans for the graph's sources. */
   readonly #index: SourceIndex;
+
   /** Native design system and effective lint policy captured during construction. */
   readonly #query: NativeEditorQuery;
+
   /** Candidate caches shared by all queries against this snapshot. */
   readonly #candidates: CandidateQueries;
-  /** Dynamic-family candidates that plugins list for completion, sorted. */
-  readonly #catalog: readonly string[];
-  /** Plugin suggestions for editor inputs that {@link EditorSnapshot.prepare} loaded, keyed by input. */
-  readonly #inputCatalogs = new Map<string, readonly string[]>();
-  /** Fingerprint of captures, graph dependencies, and configuration used for lazy resolution. */
-  readonly #revision: string;
+
   /** Targets for explicit sorting and sorting fixes. False disables both. */
   readonly #sort: Readonly<UtilitySortOptions> | false;
+
   /** Effective prefer-sorted-utilities severity. Off skips its diagnostics and sorting in fixes. */
   readonly #sortSeverity: LintSeverity;
-  /** Comments added to formatted CSS previews. Omitted fields use native defaults. */
-  readonly #annotations: PreviewOptions;
+
   /** Sorting reports cached by full compiler module identity, including empty results. */
   readonly #reports = new Map<string, BindingReport[]>();
-  /** Queries that include callback CSS for selected completions in this snapshot. */
-  readonly #resolved = new Map<string, CandidateQueries>();
-  /** Resolves completion CSS separately from the captured compiler session. */
-  readonly #plugins: PluginRuntime | undefined;
+
+  /** Completion, hover, and color queries over the same captured sources. */
+  readonly #queries: SourceQueries;
 
   /**
    * Captures recognized producers and compiler output for one set of source revisions.
@@ -254,15 +78,17 @@ export class EditorSnapshot {
     catalog: readonly string[] = [],
     plugins?: PluginRuntime,
   ) {
-    this.#catalog = catalog;
-    this.#plugins = plugins;
     const inputs = structuredClone({
       sources: graph.sources,
       dependencies: graph.dependencies,
     });
     this.#sources = inputs.sources;
     this.#fixes = structuredClone(graph.fixes);
-    this.#index = new SourceIndex(inputs, session);
+    this.#index = new SourceIndex(
+      inputs,
+      session,
+      graph.modules.map((module) => module.moduleId),
+    );
     // Plugin definitions added during compilation live in the session's latest loader.
     this.#query = (pluginLoader(session) ?? loader).editorQuery();
     this.#candidates = new CandidateQueries(this.#query);
@@ -275,10 +101,19 @@ export class EditorSnapshot {
             arrays: config.sort?.arrays ?? true,
           };
     this.#sortSeverity = (css["prefer-sorted-utilities"] as LintSeverity) ?? "off";
-    this.#annotations = {
+    const annotations = {
       ...config.preview,
     };
-    this.#revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
+    const revision = fingerprint(JSON.stringify([this.#index.previews.revision, config]));
+    this.#queries = new SourceQueries(
+      this.#index,
+      this.#query,
+      this.#candidates,
+      revision,
+      annotations,
+      catalog,
+      plugins,
+    );
   }
 
   /**
@@ -294,27 +129,7 @@ export class EditorSnapshot {
    */
   async prepare(id: string, request: EditorRequest): Promise<void> {
     const source = this.#sources.find((source) => source.resolverId === id);
-    if (request.kind === "completion" && source && this.#plugins) {
-      const input = this.#completionInput(source, request.offset);
-      const partial =
-        input && this.#catalogContext(input.literal.context)
-          ? segments(input.literal.prefix + input.prefix, ":").pop()!
-          : "";
-      if (partial && !this.#inputCatalogs.has(partial)) {
-        this.#inputCatalogs.set(partial, await this.#plugins.catalog(partial));
-      }
-    }
-    if (
-      request.kind === "resolve" &&
-      request.snapshot === this.#revision &&
-      this.#plugins &&
-      !this.#resolved.has(request.candidate)
-    ) {
-      this.#resolved.set(
-        request.candidate,
-        new CandidateQueries(await this.#plugins.query(request.candidate)),
-      );
-    }
+    await this.#queries.prepare(source, request);
   }
 
   /**
@@ -349,7 +164,7 @@ export class EditorSnapshot {
       return undefined;
     }
 
-    const result: EditorResult = { revision: fingerprint(source.document.code) };
+    const result: EditorResult = editorResult(source.document.code);
     if (request.kind === "definition") {
       return {
         ...result,
@@ -409,368 +224,7 @@ export class EditorSnapshot {
           : seed;
       return result;
     }
-    if (request.kind === "resolve") {
-      const literal = this.#index.literals.find(
-        (literal) => literal.source === source && literal.boundaries[0] === request.input,
-      );
-      const candidates = this.#resolved.get(request.candidate) ?? this.#candidates;
-      const current = literal && request.snapshot === this.#revision;
-      const css = current
-        ? request.candidate.endsWith(":")
-          ? candidates.variant(request.candidate, literal.context)
-          : (this.#preview(literal, request.candidate.slice(literal.prefix.length)) ??
-            candidates.preview(request.candidate, literal.context))
-        : undefined;
-      const marker = current ? candidates.marker(request.candidate, literal.context) : null;
-      if (css || marker) {
-        const formatted = css ? this.#query.formatCss(css, this.#annotations) : "";
-        result.hover = {
-          start: 0,
-          end: 0,
-          css: formatted,
-          detail: css ? this.#candidates.detail(formatted) : "marker class",
-          ...(marker
-            ? {
-                documentation: markerDocumentation(marker),
-              }
-            : {}),
-        };
-      }
-      return result;
-    }
-
-    const tokens = this.#sourceTokens(source);
-    if (request.kind === "colors") {
-      result.colors = tokens.flatMap((token) => {
-        if (!this.#colorInput(token.literal) || !this.#preview(token.literal, token.text)) {
-          return [];
-        }
-        const color = this.#candidates.color(token.literal.prefix + token.text);
-        return color
-          ? [
-              {
-                start: token.start,
-                end: token.end,
-                red: color[0],
-                green: color[1],
-                blue: color[2],
-                alpha: color[3],
-              },
-            ]
-          : [];
-      });
-      return result;
-    }
-
-    if (request.kind === "colorPresentation") {
-      const token = tokens.find(
-        (token) => token.start === request.start && token.end === request.end,
-      );
-      if (!token || !this.#colorInput(token.literal)) {
-        return result;
-      }
-
-      const candidate = colorReplacement(
-        token.text,
-        token.literal.prefix,
-        request.color,
-        this.#candidates,
-      );
-      if (candidate && this.#preview(token.literal, candidate)) {
-        result.edits = [
-          {
-            start: token.start,
-            end: token.end,
-            newText: escapeContent(candidate, token.literal),
-          },
-        ];
-      }
-      return result;
-    }
-
-    const token = tokens.find(
-      (token) => token.start <= request.offset && request.offset <= token.end,
-    );
-    if (request.kind === "hover") {
-      if (token) {
-        const css = this.#preview(token.literal, token.text);
-        const marker = this.#candidates.marker(
-          token.literal.prefix + token.text,
-          token.literal.context,
-        );
-        if (css || marker) {
-          result.hover = {
-            start: token.start,
-            end: token.end,
-            css: css ? this.#query.formatCss(css, this.#annotations) : "",
-            ...(marker
-              ? {
-                  documentation: markerDocumentation(marker),
-                }
-              : {}),
-          };
-        }
-      } else {
-        result.hover = this.#expressionPreview(source, request.offset);
-      }
-      return result;
-    }
-
-    const input = this.#completionInput(source, request.offset);
-    if (!input) {
-      return result;
-    }
-
-    const { literal, start, end, prefix } = input;
-    const native = this.#candidates
-      .complete(literal.prefix + prefix, literal.context, request.snippets === true)
-      .filter(
-        ({ label, marker }) =>
-          marker ||
-          label.endsWith(":") ||
-          !literal.site ||
-          this.#preview(literal, label.slice(literal.prefix.length)),
-      );
-    const known = new Set(native.map(({ label }) => label));
-    result.completions = [
-      ...native,
-      ...this.#catalogCompletions(literal.prefix + prefix, literal.context)
-        .filter((candidate) => !known.has(candidate))
-        .map((label) => ({
-          label,
-          marker: false,
-        })),
-    ].map(({ label: candidate, marker }) => {
-      const label = candidate.slice(literal.prefix.length);
-      const source = (text: string) => escapeContent(text, literal);
-      return {
-        label,
-        candidate,
-        input: literal.boundaries[0],
-        snapshot: this.#revision,
-        start,
-        end,
-        newText: escapeContent(label, literal),
-        ...(marker ? { marker } : {}),
-        snippet: !request.snippets
-          ? undefined
-          : marker && candidate.endsWith("/")
-            ? markerModifierSnippet(label, source)
-            : candidate.endsWith(":")
-              ? completionSnippet(label, source)
-              : undefined,
-        retrigger: candidate.endsWith(":") || candidate.endsWith("-"),
-      };
-    });
-
-    return result;
-  }
-
-  /**
-   * Finds formatted CSS at an original UTF-16 `offset`, walking ancestors through the first call.
-   * A captured occurrence takes precedence over a declaration reached through an alias. Its
-   * missing or invalid output ends the search, preventing an enclosing partial preview.
-   * Without a captured occurrence, the nearest expression with a resolvable declaration supplies
-   * the fallback preview and range.
-   *
-   * @param source - Prepared source stored in this snapshot's index.
-   * @param offset - Cursor offset in the original document's UTF-16 coordinates.
-   * @returns Formatted CSS and its original range, or undefined when no complete preview is available.
-   * @throws If the native formatter rejects the assembled CSS.
-   */
-  #expressionPreview(source: PreparedSource, offset: number): EditorResult["hover"] {
-    let node = this.#index.nodeAt(source, offset);
-    let reference:
-      | {
-          /** Declaration preview reached through the nearest resolvable expression. */
-          preview: GeneratedPreview;
-          /** Inclusive start and exclusive end of that expression in original UTF-16 coordinates. */
-          range: readonly [number, number];
-        }
-      | undefined;
-    while (node) {
-      const site = this.#index.previewSite(source, node);
-      if (site) {
-        const preview = this.#index.previews.preview(site.native);
-        const range = this.#index.range(source, node);
-        return preview && range
-          ? {
-              start: range[0],
-              end: range[1],
-              css: this.#query.formatCss(preview.css, this.#annotations),
-              ...(preview.runtimeNames.length ? { runtimeNames: preview.runtimeNames } : {}),
-            }
-          : undefined;
-      }
-      if (!reference) {
-        const asset = this.#index.asset(source, node);
-        const preview = asset && this.#index.previews.previewIdentity(asset.identity);
-        const range = this.#index.range(source, node);
-        if (preview && range) {
-          reference = {
-            preview,
-            range,
-          };
-        }
-      }
-      if (ts.isCallExpression(node)) {
-        break;
-      }
-      node = node.parent;
-    }
-    return reference
-      ? {
-          start: reference.range[0],
-          end: reference.range[1],
-          css: this.#query.formatCss(reference.preview.css, this.#annotations),
-          ...(reference.preview.runtimeNames.length
-            ? {
-                runtimeNames: reference.preview.runtimeNames,
-              }
-            : {}),
-        }
-      : undefined;
-  }
-
-  /**
-   * Renders candidate text in a captured input plan or the standalone input registry.
-   * A captured plan already retains those variants; a standalone query receives the prefix
-   * explicitly. The original source remains unchanged.
-   *
-   * @param literal - Indexed literal that supplies the input role, enclosing variants, and plan.
-   * @param candidate - Decoded text without the literal's enclosing group prefix.
-   * @returns CSS for the replacement, or undefined for failed or unavailable emission.
-   * @throws If a matching ordinary utility requirement is malformed in a standalone query.
-   */
-  #preview(literal: UtilityLiteral, candidate: string): string | undefined {
-    if (literal.site) {
-      return this.#index.previews.previewInput(
-        literal.source,
-        literal.site.native.start,
-        candidate,
-      );
-    }
-    return this.#candidates.preview(literal.prefix + candidate, literal.context) ?? undefined;
-  }
-
-  /**
-   * Completes dynamic-family candidates that plugins list but compilation has not defined yet.
-   *
-   * @param text - Decoded partial candidate, including enclosing and written variants.
-   * @param context - Input role of the literal. Only utility roles complete catalog names.
-   * @returns Candidates with the written variants, for names that start with the partial
-   * utility, at most {@link CATALOG_COMPLETIONS} of them in catalog order.
-   */
-  #catalogCompletions(text: string, context: NativeCandidateContext): string[] {
-    if (!this.#catalogContext(context)) {
-      return [];
-    }
-    const parts = segments(text, ":");
-    const partial = parts.pop()!;
-    if (!partial) {
-      return [];
-    }
-    const variants = parts.map((part) => `${part}:`).join("");
-    return [...new Set([...this.#catalog, ...(this.#inputCatalogs.get(partial) ?? [])])]
-      .filter((name) => name.startsWith(partial))
-      .slice(0, CATALOG_COMPLETIONS)
-      .map((name) => variants + name);
-  }
-
-  /**
-   * Reports whether an input role completes plugin catalog names.
-   * @param context - Input role of a literal.
-   * @returns Whether the role accepts utilities.
-   */
-  #catalogContext(context: NativeCandidateContext): boolean {
-    return ["utility", "document", "anchoredDocument"].includes(context);
-  }
-
-  /**
-   * Lists the utility tokens of every literal in one source.
-   * @param source - Captured source.
-   * @returns Tokens with their literals, in literal order.
-   */
-  #sourceTokens(source: PreparedSource) {
-    return this.#index.literals
-      .filter((literal) => literal.source === source)
-      .flatMap((literal) =>
-        this.#tokens(literal).map((token) => ({
-          ...token,
-          literal,
-        })),
-      );
-  }
-
-  /**
-   * Finds the completion input at a cursor: the token that contains it, or an empty position in a
-   * literal.
-   * @param source - Captured source.
-   * @param offset - Original UTF-16 cursor offset.
-   * @returns The literal, the replaced UTF-16 range, and the decoded text before the cursor, or
-   * undefined outside every literal.
-   */
-  #completionInput(
-    source: PreparedSource,
-    offset: number,
-  ): { literal: UtilityLiteral; start: number; end: number; prefix: string } | undefined {
-    const token = this.#sourceTokens(source).find(
-      (token) => token.start <= offset && offset <= token.end,
-    );
-    const literal =
-      token?.literal ??
-      this.#index.literals.find(
-        (literal) =>
-          literal.source === source &&
-          literal.boundaries[0] <= offset &&
-          offset <= literal.boundaries.at(-1)!,
-      );
-    if (!literal) {
-      return undefined;
-    }
-    const start = token?.start ?? offset;
-    const end = token?.end ?? offset;
-    const decoded = literal.boundaries.findIndex((position) => position >= offset);
-    const decodedStart = literal.boundaries.indexOf(start);
-    return {
-      literal,
-      start,
-      end,
-      prefix: literal.text.slice(Math.max(0, decodedStart), Math.max(0, decoded)),
-    };
-  }
-
-  /**
-   * Allows color operations only for input roles that emit utility declarations.
-   * Option and definition-prefix inputs use different value contracts.
-   *
-   * @param literal - Indexed literal whose context supplies the input role.
-   * @returns Whether its role supports a utility candidate's concrete color and replacement.
-   */
-  #colorInput(literal: UtilityLiteral): boolean {
-    return ["utility", "keyframesFrame", "viewTransitionUtilities"].includes(literal.context);
-  }
-
-  /**
-   * Maps whitespace-separated decoded tokens to their exact original spellings.
-   *
-   * @param literal - Literal with one source boundary for every decoded UTF-16 position,
-   * including the end. Whitespace is recognized by JavaScript's `\S` regular expression.
-   * @returns Tokens in source order, without trimming or decoding them again.
-   */
-  #tokens(literal: UtilityLiteral): {
-    /** Decoded non-whitespace text without enclosing group variants. */
-    text: string;
-    /** Inclusive original UTF-16 offset of the token's source spelling. */
-    start: number;
-    /** Exclusive original UTF-16 offset of the token's source spelling. */
-    end: number;
-  }[] {
-    return [...literal.text.matchAll(/\S+/gu)].map((match) => ({
-      text: match[0],
-      start: literal.boundaries[match.index],
-      end: literal.boundaries[match.index + match[0].length],
-    }));
+    return this.#queries.query(source, request, result);
   }
 
   /**

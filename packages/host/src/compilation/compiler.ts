@@ -1,6 +1,5 @@
 import type {
   BindingDiagnostic,
-  BindingEdit,
   BindingRejectedIdentifier,
   BindingReport,
   NativeDiagnosticBatch,
@@ -11,151 +10,15 @@ import type {
 } from "@stillwind/native";
 import type { PreparedSource, ProjectInput } from "@stillwind/projection";
 
-import { compileWithPlugins } from "../css/plugins.ts";
+import { compileWithPlugins } from "../css/plugins/session.ts";
 import type { TypeFactsBackend, TypeFactsInputs, UnverifiedRange } from "../semantics/index.ts";
+import { loadSource, type CompilerHost } from "./host.ts";
 import { CompilationFailure, ModuleGraph } from "./module-graph.ts";
-import type { ModuleDescriptor } from "./module-source.ts";
+import type { CompilationProject } from "./project.ts";
+import { createModuleAnalysis, type ModuleAnalysis, type ModuleCompileOptions } from "./request.ts";
 
 /** Most reloads with new plugin definitions during one compilation of a graph. */
 const PLUGIN_ROUNDS = 3;
-
-/**
- * Source metadata, dependency resolution, reads, watches, and warnings supplied to
- * module compilation. Hosts must preserve a stable correspondence between resolver and
- * compiler module identities.
- */
-export interface CompilerHost {
-  /** Requests checker import resolutions. A non-null host resolve result still takes precedence. */
-  typeFactsResolution?: boolean;
-  /**
-   * Loads source before or after preparation, including its original document and projection.
-   *
-   * @param id - Full resolver identity. The returned resolverId must equal this value.
-   * @returns Original input for preparation or a prepared source. Omission uses describe and read.
-   * @throws If loading or preparation fails.
-   */
-  load?(id: string): Promise<ProjectInput | PreparedSource>;
-  /**
-   * Determines whether a resolved dependency supplies source that Stillwind can analyze.
-   *
-   * @param id - Full resolved identity, including query suffixes.
-   * @returns Whether source traversal can continue. Omission checks for supported JS/TS and SFC extensions.
-   */
-  supports?(id: string): boolean;
-  /**
-   * Describes one resolved source before it is scanned or compiled.
-   *
-   * @param id - Full resolver identity of the source, including any query suffix.
-   * @returns Compiler and checker identities, parser metadata, and original document metadata.
-   */
-  describe(id: string): ModuleDescriptor;
-  /**
-   * Resolves a semantic dependency relative to its importing source.
-   *
-   * @param specifier - Authored module request text.
-   * @param importer - Full resolver identity of the importing source.
-   * @param options - Optional resolver policy. Compilation passes `skipSelf: true`.
-   * @returns A promise for a resolved identity and optional external status, or null when
-   * unresolved. Unresolved and external modules are skipped by semantic dependency traversal.
-   */
-  resolve(
-    specifier: string,
-    importer: string,
-    options?: {
-      /** Requests resolution without calling the initiating plugin again. */
-      skipSelf: boolean;
-    },
-  ): Promise<{
-    /** Full host identity used to load the resolved source. */
-    id: string;
-    /** Truthy values mark a dependency that the host does not load as source. */
-    external?: boolean | string;
-  } | null>;
-  /**
-   * Reads one resolved dependency before source preparation.
-   *
-   * @param id - Full resolver identity, including any query selecting transformed source.
-   * @returns A promise for source text. Read failures reject the compilation.
-   */
-  read(id: string): Promise<string>;
-  /**
-   * Records the identity correspondence before a source is prepared.
-   *
-   * This callback can run before preparation fails. Callers must not treat it as proof of a
-   * successful compilation.
-   *
-   * @param moduleId - Stable identity used by the compiler and checker results.
-   * @param resolverId - Full host identity used to resolve and read this source.
-   */
-  onModule?(moduleId: string, resolverId: string): void;
-  /**
-   * Registers a resolved semantic dependency for change tracking.
-   *
-   * @param id - Full dependency identity selected by the host resolver.
-   */
-  watch(id: string): void;
-  /**
-   * Reports a lint warning or a rejected generated name through the host.
-   *
-   * @param message - Formatted warning text. No structured diagnostic location is implied.
-   */
-  warn(message: string): void;
-}
-
-/** Diagnostics, captured checker inputs, and generated imports for one module compilation. */
-export interface ModuleCompileOptions {
-  /** Files captured for this compilation's semantic queries. Omission uses disk dependencies. */
-  typeFactsInputs?: TypeFactsInputs;
-  /**
-   * Whether compiler and checker diagnostics reject compilation or are returned in reports.
-   * Defaults to `throw`. Host I/O and malformed transport failures still reject in `collect` mode.
-   */
-  diagnostics?: "throw" | "collect";
-  /** Module specifiers injected into the entry source to activate its styles, in import order. */
-  stylesheetImports?: string[];
-  /**
-   * JavaScript module exporting CSS for an explicit `stillwind/module-css` import in the entry.
-   * Omission produces a compiler diagnostic when the entry contains that import.
-   */
-  moduleCssImport?: string;
-}
-
-/** One semantic import observed while answering an entry's type probes. */
-export interface SemanticDependency {
-  /** Full resolver identity of the importing source. */
-  importer: string;
-  /** Authored import request text. */
-  specifier: string;
-  /** Resolved identity, when resolution succeeded. */
-  id?: string;
-  /**
-   * Resolved means analyzable source. External modules and dependencies handled through checker
-   * declarations (`types`) are not traversed. Unresolved or unsupported dependencies leave analysis incomplete.
-   */
-  status: "resolved" | "external" | "unresolved" | "unsupported" | "types";
-}
-
-/** Current reports and sources for the semantic graph demanded by one entry. */
-export interface ModuleAnalysis {
-  /** Compiler identity of the entry after loading its descriptor. */
-  entry: string;
-  /** Traversal covers dependencies demanded by semantic probes, rather than all application imports. */
-  coverage: "observed";
-  /** Outputs produced by native project compilation, including diagnostic-only outputs. */
-  modules: ProjectModuleOutput[];
-  /** Structured diagnostic batches keyed by compiler module identity. */
-  batches: NativeDiagnosticBatch[];
-  /** Nonempty first fix actions in report order, excluding editor sorting actions. */
-  fixes: BindingEdit[][];
-  /** Prepared original sources retained for mapping reports, including sources that later fail scanning. */
-  sources: PreparedSource[];
-  /** Import requests and their resolution or support status observed during traversal. */
-  dependencies: SemanticDependency[];
-  /** Original UTF-8 ranges that lack information needed for semantic checks or code generation. */
-  unverified: UnverifiedRange[];
-  /** Blocked when compiler errors or missing facts needed for lowering prevent reliable code generation. */
-  generation: "complete" | "blocked";
-}
 
 /**
  * Analyzes an entry and its semantic dependencies without requiring stylesheet delivery IDs.
@@ -169,6 +32,8 @@ export interface ModuleAnalysis {
  * @param id - Full resolver identity of the entry, including query suffixes.
  * @param host - Source loading, resolution, metadata, and dependency tracking operations.
  * @param typeFactsInputs - Captured overlays and ambient declarations for this analysis.
+ * @param project - Optional sources prepared by earlier analyses of this project.
+ * The caller must invalidate changed sources before analysis starts.
  * @returns Reports and sources for the semantic dependencies demanded by the entry.
  * @throws If entry I/O fails, a host changes resolver identity, or native transport operations fail.
  */
@@ -178,36 +43,23 @@ export async function analyzeModule(
   id: string,
   host: CompilerHost,
   typeFactsInputs?: TypeFactsInputs,
+  project?: CompilationProject,
 ): Promise<ModuleAnalysis> {
-  const input = host.load
-    ? await host.load(id)
-    : {
-        resolverId: id,
-        ...host.describe(id),
-        document: {
-          ...host.describe(id).document,
-          code: await host.read(id),
-        },
-      };
-  const analysis: ModuleAnalysis = {
-    entry: input.moduleId,
-    coverage: "observed",
-    modules: [],
-    batches: [],
-    fixes: [],
-    sources: [],
-    dependencies: [],
-    unverified: [],
-    generation: "complete",
-  };
-  if (input.resolverId !== id) {
+  const revision = project?.revision;
+  const captured = project?.source(id);
+  const input = captured ?? (await loadSource(host, id));
+  if (project?.revision !== revision) {
+    project = undefined;
+  }
+  const analysis: ModuleAnalysis = createModuleAnalysis(input.moduleId);
+  if (!captured && input.resolverId !== id) {
     throw new Error(`Host changed resolver identity for ${id}`);
   }
   await compileGraph(
     session,
     factsService,
     input.document.code,
-    id,
+    input.resolverId,
     host,
     {
       diagnostics: "collect",
@@ -216,6 +68,7 @@ export async function analyzeModule(
     },
     analysis,
     input,
+    project,
   );
   for (const batch of analysis.batches) {
     for (const report of batch.reports) {
@@ -261,6 +114,7 @@ export async function compileModule(
 
 /**
  * Prepares the demanded graph, compiles it into the session, and derives the entry output.
+ *
  * @param session - Initialized native session that retains successful module artifacts.
  * @param factsService - Lazy checker backend for semantic probes.
  * @param code - Original entry text used when entryInput is absent.
@@ -269,6 +123,7 @@ export async function compileModule(
  * @param options - Diagnostic policy, captured checker inputs, and entry transport imports.
  * @param analysis - Optional object populated with sources, dependencies, reports, and generation status.
  * @param entryInput - Optional loaded entry, which takes precedence over code and host.describe.
+ * @param project - Optional prepared sources shared with other analyses of this project.
  * @returns Entry output, a diagnostic-only output after a collected failure, or undefined when no code is emitted.
  * @throws If strict compilation fails or a host or transport failure cannot be collected.
  */
@@ -281,8 +136,9 @@ async function compileGraph(
   options: ModuleCompileOptions,
   analysis?: ModuleAnalysis,
   entryInput?: ProjectInput | PreparedSource,
+  project?: CompilationProject,
 ) {
-  const graph = new ModuleGraph(session, factsService, host, options, analysis);
+  const graph = new ModuleGraph(session, factsService, host, options, analysis, project);
   let hasModuleCssImport = false;
   try {
     const descriptor = entryInput ?? {
@@ -334,6 +190,7 @@ async function compileGraph(
 
 /**
  * Selects the entry and computes its composition dependency identities and topology fingerprint.
+ *
  * @param modules - Native outputs in compiler order.
  * @param entryModuleId - Compiler identity of the requested entry.
  * @param hasModuleCssImport - Whether the entry requested an explicit CSS value.
@@ -382,6 +239,7 @@ function entryOutput(
 
 /**
  * Populates analysis batches and removes artifacts when missing semantic facts block lowering.
+ *
  * @param analysis - Mutable result whose unverified ranges are deduplicated and generation status updated.
  * @param modules - Mutable native outputs whose reports are filtered and artifacts may be cleared.
  * @param session - Session used to diagnose sources independently when facts are unavailable.
@@ -421,6 +279,7 @@ function recordAnalysis(
 
 /**
  * Checks whether unavailable semantic information affects a probe required for lowering.
+ *
  * @param summary - Scanner summary for the module, or undefined if unavailable.
  * @param ranges - Unverified ranges in original UTF-8 bytes. Missing bounds cover the whole module.
  * @returns Whether an unbounded range exists or a bounded range overlaps a probe beyond recognition.
@@ -441,6 +300,7 @@ function generationNeedsFacts(
 
 /**
  * Keeps source failures while omitting missing checker facts errors in unverified ranges.
+ *
  * @param reports - Reports with original UTF-8 locations.
  * @param ranges - Unverified original UTF-8 ranges for the same module.
  * @returns A filtered array in report order. Other diagnostic codes remain unchanged.
@@ -460,6 +320,7 @@ const checkerFactsRequiredCode = "SW30001";
 
 /**
  * Tests whether a diagnostic or probe overlaps an unavailable semantic range.
+ *
  * @param range - Half-open original UTF-8 range. Missing bounds cover the entire module.
  * @param start - Inclusive original UTF-8 byte offset.
  * @param end - Exclusive original UTF-8 byte offset.
@@ -474,6 +335,7 @@ function overlaps(range: UnverifiedRange, start: number, end: number): boolean {
 
 /**
  * Removes generated artifacts while keeping reports and composition metadata for analysis.
+ *
  * @param module - Mutable output whose missing facts make its generated artifacts unreliable.
  */
 function clearArtifacts(module: ProjectModuleOutput): void {
@@ -487,6 +349,7 @@ function clearArtifacts(module: ProjectModuleOutput): void {
 
 /**
  * Checks output identities, reports lint and rejected-name warnings, and enforces diagnostic policy.
+ *
  * @param modules - Native outputs with identities registered in graph.
  * @param graph - Source graph used to verify each output's host identity.
  * @param host - Warning receiver, which may receive messages before a later failure.
@@ -518,6 +381,7 @@ function reportOutputDiagnostics(
 
 /**
  * Reports naming fallbacks through the host warning channel without a source location.
+ *
  * @param rejected - Generator rejections in request order.
  * @param warn - Receives the family, input hash, and rejection reason for each fallback.
  */
@@ -532,6 +396,7 @@ export function warnRejectedNames(
 
 /**
  * Sends enabled lint findings through the host without changing their report severity.
+ *
  * @param output - Findings and per-rule lint levels. Missing settings default to off.
  * @param host - Receiver for warning text with original source positions.
  */

@@ -8,8 +8,11 @@ import {
 } from "@stillwind/native";
 import { dirname, relative, resolve } from "pathe";
 
-import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/compiler.ts";
+import { analyzeModule } from "../compilation/compiler.ts";
+import type { CompilerHost } from "../compilation/host.ts";
 import { fileSourceKind } from "../compilation/module-source.ts";
+import { CompilationProject } from "../compilation/project.ts";
+import type { ModuleAnalysis } from "../compilation/request.ts";
 import {
   isStylesheet,
   loadCssGraph,
@@ -17,12 +20,14 @@ import {
   type CssHost,
   type EditorCssGraph,
 } from "../css/css.ts";
-import { completePluginPaths, pluginDirectory, queryPluginPaths } from "../css/plugin-paths.ts";
-import { attachPlugins, type PluginHost, type PluginRuntime } from "../css/plugins.ts";
+import type { PluginHost } from "../css/plugins/host.ts";
+import { completePluginPaths, pluginDirectory, queryPluginPaths } from "../css/plugins/paths.ts";
+import type { PluginRuntime } from "../css/plugins/runtime.ts";
+import { attachPlugins, prepareSourcePlugins } from "../css/plugins/session.ts";
 import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
 import { compilerOptions, cssEntrypoint } from "../project/options.ts";
 import { StylesheetEditor } from "../project/stylesheet-editor.ts";
-import { BrowserTypeFactsService } from "../semantics/browser.ts";
+import { BrowserTypeFactsService } from "../semantics/browser/service.ts";
 import { resolveVirtualModule } from "./resolution.ts";
 
 /** Files and evaluated configuration captured for one browser project. */
@@ -84,6 +89,10 @@ export class BrowserProject {
   readonly #files: Map<string, string>;
   /** Owned checker for the captured virtual inventory. */
   readonly #facts: BrowserTypeFactsService;
+  /** Prepared sources shared by analyses of different entries. */
+  readonly #compilation = new CompilationProject();
+  /** Virtual paths read by CSS or plugins. Changes to these files reload CSS. */
+  readonly #cssDependencies = new Set<string>();
   /** Lazily loaded CSS graph shared by all entry analyses. */
   #loader?: NativeDesignSystemLoader;
   /** Original or recovered CSS graph retained for queries. Sorting and fixes require original CSS. */
@@ -104,9 +113,9 @@ export class BrowserProject {
   readonly #cache = new Map<string, BrowserModuleAnalysis>();
 
   /**
-   * Copies the file inventory and configuration and creates a checker for that inventory.
-   * @param options - Captured files and configuration. Source mutations require a new project.
-   * @throws If the checker cannot be initialized.
+   * Copies the files and configuration without loading CSS or compiling sources.
+   *
+   * @param options - Captured files and configuration. Use replaceFiles between transactions to change sources.
    */
   constructor(options: BrowserProjectOptions) {
     this.#options = {
@@ -123,6 +132,7 @@ export class BrowserProject {
 
   /**
    * Selects the document identity shared by compiler reports and CSS maps.
+   *
    * @param file - Absolute path in the virtual filesystem.
    * @returns The configured URI, or the path prefixed with `file://`.
    */
@@ -132,6 +142,7 @@ export class BrowserProject {
 
   /**
    * Reads captured text without accessing the physical filesystem.
+   *
    * @param file - Exact path key in the virtual filesystem.
    * @returns The text currently stored under that key.
    * @throws If the virtual file is absent.
@@ -146,6 +157,7 @@ export class BrowserProject {
 
   /**
    * Loads the configured CSS graph once and creates the native session that uses it.
+   *
    * @returns The retained loader.
    * @throws If resolving, reading, or loading the CSS graph fails.
    */
@@ -177,13 +189,15 @@ export class BrowserProject {
 
   /**
    * Creates CSS loader operations backed by this project's captured virtual inventory.
+   *
    * @returns A host that resolves style imports and uses document URIs for diagnostics and maps.
-   * Its reads reject missing files, and its resolver rejects unresolved imports. Watching has no
-   * effect because changing the inventory requires a new project.
+   * Its reads reject missing files, and its resolver rejects unresolved imports. Observed paths
+   * determine when replacement files reload CSS.
    */
   #cssHost(): CssHost {
     /**
      * Selects the document identity of a virtual stylesheet.
+     *
      * @param file - Absolute virtual path.
      * @returns The configured document URI.
      */
@@ -199,13 +213,29 @@ export class BrowserProject {
       read: (file) => this.#read(file),
       documentUri: uri,
       sourceMapSource: uri,
-      watch: () => {},
-      plugins: this.#options.plugins,
+      watch: (id) => {
+        this.#cssDependencies.add(id);
+      },
+      plugins: {
+        load: async (specifier, importer, watch) => {
+          if (!this.#options.plugins) {
+            throw new Error(`This host cannot load plugin ${specifier}`);
+          }
+          return this.#options.plugins.load(specifier, importer, watch);
+        },
+        resolve: async (specifier, importer) =>
+          resolveVirtualModule(this.#files, specifier, importer) ??
+          (await this.#options.plugins?.resolve(specifier, importer)),
+        read: async (id) =>
+          this.#files.get(id) ??
+          (this.#options.plugins ? this.#options.plugins.read(id) : this.#read(id)),
+      },
     };
   }
 
   /**
    * Reports stylesheet lint for the CSS files that this project lints.
+   *
    * @returns Linted virtual paths in load order, and the reports whose primary location is one of
    * them.
    * @throws If the project is closed or the CSS graph cannot be loaded.
@@ -231,7 +261,169 @@ export class BrowserProject {
   }
 
   /**
+   * Creates compiler operations that read the current virtual files.
+   *
+   * @param onModule - Optional callback for each module the compiler attempts to analyze.
+   * @returns A host using this project's configuration, files, and custom source provider.
+   * Its reads reject missing files. Its resolver returns null for unresolved requests.
+   */
+  #host(onModule?: (moduleId: string) => void): CompilerHost {
+    const { config, root } = this.#options;
+    const uri = (file: string) => this.#documentUri(file);
+    const read = (file: string) => this.#read(file);
+    /**
+     * Describes a virtual file for compilation and checker preparation.
+     *
+     * @param file - Absolute virtual path whose extension selects its source format.
+     * @returns Metadata with project-relative module and projection names and an absolute checker path.
+     */
+    const descriptor = (file: string) => ({
+      moduleId: relative(root, file),
+      checkerFileName: file,
+      projectionFileName: relative(root, file),
+      document: {
+        uri: uri(file),
+        format: fileSourceKind(file).format,
+      },
+      syntax: fileSourceKind(file).syntax,
+    });
+
+    return {
+      onModule,
+      describe: descriptor,
+      read,
+      typeFactsResolution: config.typeFacts !== false,
+      supports: (file) =>
+        config.sources?.kind === "custom"
+          ? config.sources.supports(file)
+          : /\.[cm]?[jt]sx?$/.test(file) && !/\.d\.[cm]?ts$/.test(file),
+      load: async (file) => {
+        const input =
+          config.sources?.kind === "custom"
+            ? await config.sources.load(file, {
+                root,
+                documents: this.#files,
+              })
+            : {
+                resolverId: file,
+                ...descriptor(file),
+                document: {
+                  ...descriptor(file).document,
+                  code: await read(file),
+                },
+              };
+        return !("kind" in input) && config.projection?.kind === "custom"
+          ? config.projection.prepare(input)
+          : input;
+      },
+      resolve: async (specifier, importer) => {
+        const custom =
+          config.sources?.kind === "custom" && config.sources.resolve
+            ? await config.sources.resolve(specifier, importer, {
+                root,
+                documents: this.#files,
+              })
+            : null;
+        if (custom) {
+          return {
+            id: custom,
+          };
+        }
+        const resolved =
+          specifier.startsWith(".") || specifier.startsWith("/")
+            ? resolveVirtualModule(this.#files, specifier, importer, "source")
+            : null;
+        return resolved
+          ? {
+              id: resolved,
+            }
+          : null;
+      },
+      watch: () => {},
+      warn: () => {},
+    };
+  }
+
+  /**
+   * Replaces virtual files after earlier operations finish and clears cached analysis and editor results.
+   * Source edits keep CSS loaded. CSS dependencies, package metadata, and file additions or deletions
+   * cause the next operation to reload CSS.
+   *
+   * @param files - All replacement files, copied before the update is queued.
+   * @returns Completion of the update. Unchanged files have no effect.
+   * @throws If the project is closed when the update runs.
+   */
+  replaceFiles(files: ReadonlyMap<string, string>): Promise<void> {
+    const captured = new Map(files);
+    const task = this.#queue.then(() => {
+      if (this.#closed) {
+        throw new Error("Browser project is closed");
+      }
+      const changed = new Set(
+        [...this.#files.keys(), ...captured.keys()].filter(
+          (id) => this.#files.get(id) !== captured.get(id),
+        ),
+      );
+      if (!changed.size) {
+        return;
+      }
+      const resolutionChanged = [...changed].some(
+        (id) => /\.json$/i.test(id) || this.#files.has(id) !== captured.has(id),
+      );
+      this.#compilation.invalidate(changed);
+      this.#files.clear();
+      for (const [id, text] of captured) {
+        this.#files.set(id, text);
+      }
+      this.#cache.clear();
+      this.#editors.clear();
+      if (
+        resolutionChanged ||
+        [...changed].some((id) => isStylesheet(id) || this.#cssDependencies.has(id))
+      ) {
+        this.#loader = undefined;
+        this.#editorCss = undefined;
+        this.#session = undefined;
+        this.#plugins = undefined;
+        this.#resources = [];
+        this.#lintSources = [];
+        this.#cssDependencies.clear();
+      }
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
+  /**
+   * Loads target sources together and prepares their plugin candidates for later analysis.
+   *
+   * @param ids - Full virtual resolver IDs of the targets.
+   * @returns Completion of preparation, or no work after closure. Loading and plugin failures are
+   * left for each target's analysis to report. A failed plugin runtime is discarded before retrying.
+   */
+  prepare(ids: readonly string[]): Promise<void> {
+    const task = this.#queue.then(async () => {
+      if (this.#closed) {
+        return;
+      }
+      try {
+        const loader = await this.#designSystem();
+        await this.#compilation.prepare(ids, this.#host(), this.#session!);
+        await prepareSourcePlugins(this.#session!, loader, this.#compilation.texts());
+      } catch {
+        this.#loader = undefined;
+        this.#session = undefined;
+        this.#plugins = undefined;
+        // Entry analysis reports failures with its own source and project identity.
+      }
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
+  /**
    * Analyzes and transforms an entry with its demanded semantic dependencies.
+   *
    * @param id - Absolute virtual source path, including any query selecting distinct source.
    * @returns Readonly reports, code, and dependency coverage, shared by cache reads.
    * @throws If the project is closed, CSS loading fails, or compilation fails.
@@ -247,93 +439,10 @@ export class BrowserProject {
         return cached;
       }
 
-      const { config, root } = this.#options;
-
-      /**
-       * Selects the document identity of a virtual file.
-       * @param file - Absolute virtual path.
-       * @returns The configured document URI.
-       */
-      const uri = (file: string) => this.#documentUri(file);
-      /**
-       * Reads a captured virtual file.
-       * @param file - Absolute virtual path.
-       * @returns The captured text.
-       */
-      const read = (file: string) => this.#read(file);
-
+      const { config } = this.#options;
       await this.#designSystem();
-
-      /**
-       * Describes a virtual file for compilation and checker preparation.
-       * @param file - Absolute virtual path whose extension selects its source format.
-       * @returns Metadata with project-relative module and projection names and an absolute checker path.
-       */
-      const descriptor = (file: string) => ({
-        moduleId: relative(root, file),
-        checkerFileName: file,
-        projectionFileName: relative(root, file),
-        document: { uri: uri(file), format: fileSourceKind(file).format },
-        syntax: fileSourceKind(file).syntax,
-      });
-
       const attempted = new Set<string>();
-      const host: CompilerHost = {
-        onModule: (moduleId) => {
-          attempted.add(moduleId);
-        },
-        describe: descriptor,
-        read,
-        typeFactsResolution: config.typeFacts !== false,
-        supports: (file) =>
-          config.sources?.kind === "custom"
-            ? config.sources.supports(file)
-            : /\.[cm]?[jt]sx?$/.test(file) && !/\.d\.[cm]?ts$/.test(file),
-        load: async (file) => {
-          const input =
-            config.sources?.kind === "custom"
-              ? await config.sources.load(file, {
-                  root,
-                  documents: this.#files,
-                })
-              : {
-                  resolverId: file,
-                  ...descriptor(file),
-                  document: {
-                    ...descriptor(file).document,
-                    code: await read(file),
-                  },
-                };
-          return !("kind" in input) && config.projection?.kind === "custom"
-            ? config.projection.prepare(input)
-            : input;
-        },
-        resolve: async (specifier, importer) => {
-          const custom =
-            config.sources?.kind === "custom" && config.sources.resolve
-              ? await config.sources.resolve(specifier, importer, {
-                  root,
-                  documents: this.#files,
-                })
-              : null;
-          if (custom) {
-            return {
-              id: custom,
-            };
-          }
-          const resolved =
-            specifier.startsWith(".") || specifier.startsWith("/")
-              ? resolveVirtualModule(this.#files, specifier, importer, "source")
-              : null;
-          return resolved
-            ? {
-                id: resolved,
-              }
-            : null;
-        },
-        watch: () => {},
-        warn: () => {},
-      };
+      const host = this.#host((id) => attempted.add(id));
       let result: ModuleAnalysis;
       try {
         result = await analyzeModule(
@@ -344,6 +453,7 @@ export class BrowserProject {
           {
             overlayFiles: this.#files,
           },
+          this.#compilation,
         );
       } catch (error) {
         this.#invalidate(attempted);
@@ -386,6 +496,7 @@ export class BrowserProject {
    * Returns document CSS for successfully compiled graphs. automatic:false includes
    * only shared base CSS. Local text resources become data URLs; remote URLs retain
    * their authored values.
+   *
    * @returns Document CSS and naming fallbacks, or empty CSS and reports before session creation.
    * @throws If an emitted local resource is absent from the captured files.
    */
@@ -429,6 +540,7 @@ export class BrowserProject {
    * Plugin path completion and links read captured files inside the project root without
    * loading the CSS graph or executing plugins.
    * Script queries first analyze their entry.
+   *
    * @param id - Absolute virtual entry path, including a query that selects distinct source.
    * @param request - Operation with original UTF-16 offsets for that source.
    * @returns The editor answer, or undefined when no snapshot is available, the CSS graph
@@ -535,6 +647,7 @@ export class BrowserProject {
   /**
    * Returns CSS values keyed by absolute source path for explicit stillwind/module-css imports.
    * Parts preserve stylesheet occurrence order and include their content fingerprints.
+   *
    * @returns A new map of module CSS records. No session produces an empty map.
    * @throws If an emitted local resource is absent from the captured files.
    */
@@ -570,6 +683,7 @@ export class BrowserProject {
 
   /**
    * Collects modules with generated code from retained successful graphs.
+   *
    * @returns Distinct compiler identities in first graph occurrence order.
    */
   #modules(): string[] {
@@ -586,6 +700,7 @@ export class BrowserProject {
 
   /**
    * Removes cached graphs and editor snapshots affected by a rejected native transaction.
+   *
    * @param modules - Compiler identities attempted by that transaction, including dependencies.
    */
   #invalidate(modules: ReadonlySet<string>): void {
@@ -602,6 +717,7 @@ export class BrowserProject {
 
   /**
    * Replaces emitted CSS placeholders with authored remote URLs or embedded local text.
+   *
    * @param css - Generated CSS containing zero or more resource placeholders.
    * @param resources - Placeholder records with source names relative to the project root or absolute.
    * @returns CSS with JSON-escaped URL contents. SVG uses image/svg+xml and other local text uses text/plain.
@@ -639,6 +755,7 @@ export class BrowserProject {
 
   /**
    * Prevents new analyses, waits for queued work, and releases the checker, snapshots, and native session.
+   *
    * @returns Completion of project cleanup.
    */
   async close(): Promise<void> {
@@ -654,6 +771,7 @@ export class BrowserProject {
 
 /**
  * Converts a workspace URI to its decoded absolute path without filesystem access.
+ *
  * @param uri - Absolute URI whose pathname identifies a file in the virtual inventory.
  * @returns The decoded pathname; the scheme and authority are omitted.
  * @throws If the URI or its percent encoding is invalid.

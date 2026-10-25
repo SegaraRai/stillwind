@@ -1,5 +1,5 @@
 import { CandidateQueries, segments } from "./candidates.ts";
-import type { EditorColor } from "./snapshot.ts";
+import type { EditorColor } from "./request.ts";
 
 /**
  * Finds a spelling with an arbitrary color that preserves the candidate's variants, importance,
@@ -53,6 +53,7 @@ export function colorReplacement(
   for (const spelling of spellings) {
     /**
      * Rebuilds a color candidate with its variants, importance, and opacity modifier preserved.
+     *
      * @param value - CSS color encoded for an arbitrary utility value.
      * @returns A candidate using the current spelling, without the separately supplied outer variants.
      */
@@ -80,6 +81,7 @@ export function colorReplacement(
 
 /**
  * Serializes a picker color as a CSS literal for one local reference replacement.
+ *
  * @param color - Finite sRGB components and effective alpha, clamped to 0..1.
  * @returns A hex or rgb() literal, or undefined for nonfinite components.
  */

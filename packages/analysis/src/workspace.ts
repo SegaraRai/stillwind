@@ -53,7 +53,27 @@ export interface WorkspaceResult {
 /** URI-based operations shared by Node hosts and browser compiler workers. */
 export interface AnalysisWorkspaceService {
   /**
+   * Prepares targets together so later analyses can reuse their source and checker inputs.
+   *
+   * @param uris - Target document URIs. Each service applies its own project membership rules.
+   * @param signal - Optional cancellation. Work already started may finish without publishing results.
+   * @returns Completion of preparation. Source failures are reported by analyze for each target.
+   * @throws If the service or its transport cannot prepare the workspace.
+   */
+  prepare?(uris: readonly string[], signal?: AbortSignal): Promise<void>;
+  /**
+   * Checks whether a save or watch notification allows the caller to keep this workspace.
+   * This method does not reopen the workspace.
+   *
+   * @param uris - Document URIs reported by save or watch notifications.
+   * @returns True when current buffers cover every change and configuration is unchanged.
+   * False, or the absence of this method, tells the caller to reopen the workspace.
+   * @throws If the service or its transport cannot check the files.
+   */
+  refresh?(uris: readonly string[]): Promise<boolean>;
+  /**
    * Queries optional editor features against captured original documents.
+   *
    * @param uri - Target document URI within a configured project.
    * @param request - Operation using original UTF-16 offsets.
    * @param signal - Cancellation discards obsolete results.

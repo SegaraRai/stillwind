@@ -250,6 +250,19 @@ export function createLanguageServer(
     const cancellation = new AbortController();
     active = cancellation;
     const next = new Map<string, WorkspaceResult[]>();
+    for (const [file, workspace] of workspaces) {
+      try {
+        await workspace.prepare?.(
+          documents.all().map((document) => document.uri),
+          cancellation.signal,
+        );
+      } catch (error) {
+        errors.set(file, String(error));
+      }
+      if (revision !== generation || shutdown) {
+        return;
+      }
+    }
     for (const document of documents.all()) {
       const results: WorkspaceResult[] = [];
       for (const [file, workspace] of workspaces) {
@@ -430,12 +443,27 @@ export function createLanguageServer(
     });
     schedule();
   });
-  documents.onDidSave(() => {
-    control(open);
+  /**
+   * Reopens the workspaces if any service cannot reuse its current buffers after a save or file change.
+   *
+   * @param uris - Document URIs from the save or watch notification.
+   * @returns Completion of the checks and any required workspace replacement.
+   * @throws If a service check or workspace replacement fails.
+   */
+  const refresh = async (uris: readonly string[]) => {
+    for (const workspace of workspaces.values()) {
+      if (!(await workspace.refresh?.(uris))) {
+        await open();
+        break;
+      }
+    }
+  };
+  documents.onDidSave(({ document }) => {
+    control(() => refresh([document.uri]));
     schedule();
   });
-  connection.onDidChangeWatchedFiles(() => {
-    control(open);
+  connection.onDidChangeWatchedFiles(({ changes }) => {
+    control(() => refresh(changes.map((change) => change.uri)));
     schedule();
   });
   connection.onDidChangeConfiguration(({ settings }) => {
@@ -574,6 +602,7 @@ export function createLanguageServer(
 
 /**
  * Reads the editor-only completion field from initialization options or configuration settings.
+ *
  * @param value - A protocol object that may contain `completion.registryDirectives`.
  * @returns The boolean setting, or undefined when the field is absent or invalid.
  */

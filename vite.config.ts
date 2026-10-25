@@ -217,6 +217,7 @@ export default defineConfig(({ mode }) => ({
         dependsOn: ["check", "test"],
       },
       // bench
+      "bench:analysis": "vp run @stillwind-internal/benchmarks#bench:analysis",
       "bench:architecture": "vp run @stillwind-internal/benchmarks#bench:architecture",
       "bench:compiler": "vp run @stillwind-internal/benchmarks#bench:compiler",
       "bench:compiler:browser": "vp run @stillwind-internal/benchmarks#bench:compiler:browser",

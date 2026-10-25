@@ -8,6 +8,19 @@ declare module "vite-plus/test" {
   }
 
   interface TaskMeta {
+    /** Browser analysis timings. Samples use milliseconds and exclude transport and UI work. */
+    analysisBrowser?: {
+      /** Browser version used for the measurements. */
+      userAgent: string;
+      /** Whether the workload queries ref unions using the published Stillwind declarations. */
+      typeFacts: boolean;
+      /** Timings grouped by operation, in measurement order. */
+      measurements: {
+        operation: string;
+        /** Elapsed milliseconds for each run. */
+        samples: number[];
+      }[];
+    };
     environment?: {
       timestamp: string;
       revision: string;

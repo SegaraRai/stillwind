@@ -5,9 +5,68 @@ import { fileURLToPath } from "node:url";
 import { summarizeSource } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { TypeFactsError, type TypeFactSource } from "./backend.ts";
-import { BrowserTypeFactsService } from "./browser.ts";
-import { resolveTypeFactsEnvironment, TypeScriptFactsService } from "./type-facts.ts";
+import { TypeFactsError, type TypeFactSource } from "../src/semantics/backend.ts";
+import { BrowserTypeFactsService } from "../src/semantics/browser/service.ts";
+import { resolveTypeFactsEnvironment } from "../src/semantics/node/project.ts";
+import { TypeScriptFactsService } from "../src/semantics/node/service.ts";
+
+test("browser resolution observes created files, deleted files and changed package exports", () => {
+  const files = new Map<string, string>();
+  const source: TypeFactSource = {
+    kind: "direct",
+    moduleId: "entry.ts",
+    resolverId: "/workspace/entry.ts",
+    checkerFileName: "/workspace/entry.ts",
+    projectionFileName: "entry.ts",
+    document: {
+      uri: "file:///workspace/entry.ts",
+      format: "script",
+      code: 'import {token} from "./tokens"; import {token as other} from "pkg"; export {token,other};',
+    },
+    syntax: {
+      language: "ts",
+      moduleKind: "module",
+    },
+    probes: [],
+  };
+  const service = new BrowserTypeFactsService({
+    root: "/workspace",
+    files,
+    tsconfig: false,
+  });
+  const resolve = () => service.resolveModules([source], new Map()).get(source.resolverId)!;
+  try {
+    expect(resolve().size).toBe(0);
+    files.set("/workspace/tokens.ts", "export const token=1;");
+    files.set(
+      "/workspace/node_modules/pkg/package.json",
+      JSON.stringify({
+        type: "module",
+        exports: "./first.ts",
+      }),
+    );
+    files.set("/workspace/node_modules/pkg/first.ts", "export const token=1;");
+    files.set("/workspace/node_modules/pkg/second.ts", "export const token=2;");
+    expect(resolve()).toEqual(
+      new Map([
+        ["./tokens", "/workspace/tokens.ts"],
+        ["pkg", "/workspace/node_modules/pkg/first.ts"],
+      ]),
+    );
+    files.set(
+      "/workspace/node_modules/pkg/package.json",
+      JSON.stringify({
+        type: "module",
+        exports: "./second.ts",
+      }),
+    );
+    expect(resolve().get("pkg")).toBe("/workspace/node_modules/pkg/second.ts");
+    files.delete("/workspace/tokens.ts");
+    expect(resolve().has("./tokens")).toBe(false);
+  } finally {
+    service.close();
+  }
+});
 
 test.each(["node", "browser"] as const)(
   "%s keeps authored import keys after checker path rewriting",
@@ -112,6 +171,19 @@ test.each(["node", "browser"] as const)(
           })
         : new TypeScriptFactsService(resolveTypeFactsEnvironment(root, false));
     try {
+      service.setProjectSources(
+        [
+          source,
+          {
+            ...source,
+            moduleId: "invalid.ts",
+            resolverId: `${file}.invalid.ts`,
+            checkerFileName: `${file}.invalid.ts`,
+            probes: [{ start: 9999, end: 10000 }],
+          },
+        ],
+        new Map(),
+      );
       const facts = service.collect([source], new Map());
       expect(facts.get(source.moduleId)).toEqual([]);
       expect(service.collectAvailable([source], new Map())).toEqual({
@@ -134,7 +206,7 @@ test.each(["node", "browser"] as const)(
 );
 
 test("browser TS6 and Node TS7 preserve the same finite declaration candidates", async () => {
-  const root = fileURLToPath(new URL("../../", import.meta.url));
+  const root = fileURLToPath(new URL("../", import.meta.url));
   const sourceCode = `import {style} from 'stillwind/react';
 export const first = style.ref('first');
 export const second = style.ref('second');
@@ -191,7 +263,7 @@ selectedStyle;`;
     ],
   });
   const files = new Map<string, string>();
-  const core = fileURLToPath(new URL("../../../core/", import.meta.url));
+  const core = fileURLToPath(new URL("../../core/", import.meta.url));
   await capture(core, "/workspace/node_modules/stillwind", files);
   const library = path.join(root, "node_modules/typescript-6/lib");
   for (const name of await readdir(library)) {
@@ -263,6 +335,7 @@ selectedStyle;`;
 
 /**
  * Copies package metadata and declarations into a browser inventory.
+ *
  * @param directory - Filesystem directory to traverse, skipping node_modules, src, and typecheck.
  * @param virtual - Absolute virtual directory under which captured paths are stored.
  * @param files - Mutable inventory receiving UTF-8 text from JSON and .d.ts files.

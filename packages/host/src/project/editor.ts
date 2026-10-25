@@ -6,7 +6,7 @@ import {
 
 import { cleanModuleId, compileModule, type CompilerHost } from "../compilation/index.ts";
 import type { LoadedCssGraph } from "../css/css.ts";
-import { attachPlugins } from "../css/plugins.ts";
+import { attachPlugins } from "../css/plugins/session.ts";
 import {
   TypeScriptFactsService,
   resolveTypeFactsEnvironment,

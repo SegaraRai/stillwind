@@ -1,10 +1,17 @@
 import plugin from "tailwindcss/plugin";
 import { expect, test } from "vite-plus/test";
 
-import type { TailwindPlugin } from "../plugins.ts";
-import { configurePlugin, TailwindRuntime } from "./plugin.ts";
+import type { TailwindPlugin } from "../host.ts";
+import { configurePlugin } from "./configuration.ts";
+import { TailwindRuntime } from "./plugin.ts";
 
-/** Creates a runtime for configured handlers, one for each `@plugin` statement. */
+/**
+ * Creates a runtime for configured handlers, one for each `@plugin` statement.
+ *
+ * @param plugins - Plugin exports to configure without statement options.
+ * @returns A runtime ready to resolve the handlers' candidates.
+ * @throws If configuring a plugin or executing its handler fails.
+ */
 function runtime(...plugins: unknown[]) {
   return new TailwindRuntime(
     plugins.map((entry) => configurePlugin(entry as TailwindPlugin, [])),
@@ -123,6 +130,7 @@ test("typed registrations stop on invalid arbitrary modifiers, and any-typed one
 
 /**
  * Records the arguments that a `matchUtilities` callback receives for each candidate.
+ *
  * @param options - Options of the registration.
  * @param candidates - Utility keys to resolve.
  * @returns The callback arguments in call order.

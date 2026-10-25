@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { orderInputs, type InputOrder, type InputOrderItem } from "./input-order.ts";
+import { orderInputs, type InputOrder, type InputOrderItem } from "./order.ts";
 
 /**
  * Gives each input an independent range so tests can identify permitted exchanges.
@@ -9,7 +9,11 @@ import { orderInputs, type InputOrder, type InputOrderItem } from "./input-order
  * @returns New items with one-unit ranges spaced ten units apart, in the supplied order.
  */
 function items(orders: InputOrder[]): InputOrderItem[] {
-  return orders.map((order, index) => ({ start: index * 10, end: index * 10 + 1, order }));
+  return orders.map((order, index) => ({
+    start: index * 10,
+    end: index * 10 + 1,
+    order,
+  }));
 }
 
 test("groups retain original order and each ref keeps its marker before its projections", () => {

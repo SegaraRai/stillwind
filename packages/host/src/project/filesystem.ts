@@ -7,9 +7,9 @@ import { resolveProjectConfig } from "@stillwind/config/node";
 import { ResolverFactory } from "oxc-resolver";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
-import { completePluginPaths, pluginDirectory } from "../css/plugin-paths.ts";
+import { completePluginPaths, pluginDirectory } from "../css/plugins/paths.ts";
 import { resolveTypeFactsEnvironment } from "../semantics/index.ts";
-import type { AnalysisHost } from "./analysis.ts";
+import type { AnalysisHost } from "./analysis/host.ts";
 import { nodePluginHost, readPluginDirectory } from "./plugins.ts";
 import { stylesheetResolver } from "./stylesheets.ts";
 

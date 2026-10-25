@@ -5,14 +5,10 @@ import { fileURLToPath } from "node:url";
 import { summarizeSource } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { TypeFactsError, type TypeFactSource } from "./backend.ts";
-import { identityKey } from "./checker-source.ts";
-import {
-  collectTypeScriptFacts,
-  resolveTypeFactsEnvironment,
-  TypeScriptFactsService,
-  type AssetRecord,
-} from "./type-facts.ts";
+import { TypeFactsError, type TypeFactSource } from "../backend.ts";
+import { identityKey } from "../checker-source.ts";
+import { resolveTypeFactsEnvironment } from "./project.ts";
+import { collectTypeScriptFacts, TypeScriptFactsService, type AssetRecord } from "./service.ts";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 
@@ -151,8 +147,8 @@ selected;`;
  * @throws If checker construction or strict fact collection fails.
  */
 function collect(expressions: readonly string[], recognitionOnly = false) {
-  const declarations = `import { style } from '../../../core/src/frameworks/react.ts';
-import type { StyleRef } from '../../../core/src/macro/index.ts';
+  const declarations = `import { style } from '../../../../core/src/frameworks/react.ts';
+import type { StyleRef } from '../../../../core/src/macro/index.ts';
 const a = style.ref('a');
 const b = style.ref('b');
 declare const enabled: boolean;
@@ -175,15 +171,27 @@ declare const label: string | undefined;
   const probes = expressions.map((expression) => {
     const start = Buffer.byteLength(code);
     code += `${expression};\n`;
-    return { start, end: start + Buffer.byteLength(expression), recognitionOnly };
+    return {
+      start,
+      end: start + Buffer.byteLength(expression),
+      recognitionOnly,
+    };
   });
   const moduleId = "ref-facts.ts";
   const assets: AssetRecord[] = ["a", "b"].map((bindingName) => {
     const start = declarations.indexOf(`const ${bindingName} =`) + "const ".length;
     const callStart = declarations.indexOf(`style.ref('${bindingName}')`);
     return {
-      identity: { kind: "ref", moduleId, start, end: start + 1, bindingName },
-      metadata: { label: bindingName },
+      identity: {
+        kind: "ref",
+        moduleId,
+        start,
+        end: start + 1,
+        bindingName,
+      },
+      metadata: {
+        label: bindingName,
+      },
       callStart,
       callEnd: callStart + `style.ref('${bindingName}')`.length,
     };
@@ -195,8 +203,15 @@ declare const label: string | undefined;
     resolverId: fileName,
     checkerFileName: fileName,
     projectionFileName: fileName,
-    document: { uri: `untitled:${moduleId}`, code, format: "script" },
-    syntax: { language: "ts", moduleKind: "module" },
+    document: {
+      uri: `untitled:${moduleId}`,
+      code,
+      format: "script",
+    },
+    syntax: {
+      language: "ts",
+      moduleKind: "module",
+    },
     probes,
   };
   return {
@@ -240,10 +255,19 @@ test("recognition facts identify declarations beside ref uses and widened types"
       ...probes[0],
       value: {
         kind: "refs",
-        value: { kind: "ref", candidates: { kind: "finite", values: [assets[0].identity] } },
+        value: {
+          kind: "ref",
+          candidates: {
+            kind: "finite",
+            values: [assets[0].identity],
+          },
+        },
       },
     },
-    ...probes.slice(1, 5).map((probe) => ({ ...probe, value: null })),
+    ...probes.slice(1, 5).map((probe) => ({
+      ...probe,
+      value: null,
+    })),
   ]);
 });
 
@@ -307,7 +331,11 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
   const operands = ["refAlias", "scopeAlias"];
   const probes = operands.map((operand) => {
     const start = consumer.lastIndexOf(operand);
-    return { start, end: start + operand.length, recognitionOnly: false };
+    return {
+      start,
+      end: start + operand.length,
+      recognitionOnly: false,
+    };
   });
   const sources: TypeFactSource[] = [...modules].map(([moduleId, code]) => {
     const fileName = path.join(root, moduleId);
@@ -317,8 +345,15 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
       resolverId: fileName,
       checkerFileName: fileName,
       projectionFileName: fileName,
-      document: { uri: `untitled:${moduleId}`, code, format: "script" },
-      syntax: { language: "ts", moduleKind: "module" },
+      document: {
+        uri: `untitled:${moduleId}`,
+        code,
+        format: "script",
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
       probes: moduleId === "scope-facts-consumer.ts" ? probes : [],
     };
   });
@@ -342,7 +377,10 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
         kind: "refs",
         value: {
           kind: "ref",
-          candidates: { kind: "finite", values: identities.slice(index * 2, index * 2 + 2) },
+          candidates: {
+            kind: "finite",
+            values: identities.slice(index * 2, index * 2 + 2),
+          },
         },
       },
     })),
@@ -374,7 +412,10 @@ const refUse=target.asAnchor(),variant=target('hover:'),animationUse=frames(''),
   const probes = expressions.map((expression) => {
     const start = Buffer.byteLength(code);
     code += `${expression};\n`;
-    return { start, end: start + Buffer.byteLength(expression) };
+    return {
+      start,
+      end: start + Buffer.byteLength(expression),
+    };
   });
   const id = path.join(root, moduleId);
   const source: TypeFactSource = {

@@ -3,26 +3,27 @@
 Run one benchmark task at a time from the repository root so build and measurement
 processes do not compete for CPU time.
 
-| Task                            | Workload                                                                           |
-| ------------------------------- | ---------------------------------------------------------------------------------- |
-| `vp run bench:compiler`         | Native loading, compilation, graph updates, stylesheet planning, canonical queries |
-| `vp run bench:compiler:wasm`    | Canonical queries through the Node WASI binding                                    |
-| `vp run bench:compiler:browser` | Browser WASM canonical queries and CSS revision preparation                        |
-| `vp run bench:host`             | Checker services; script, Vue, Svelte, and Astro inputs; `@plugin` graph loads     |
-| `vp run bench:sorting`          | Native candidate comparisons and editor input sorting                              |
-| `vp run bench:sorting:wasm`     | The same sorting workloads through Node WASI                                       |
-| `vp run bench:sorting:profile`  | Identity lookup counts for ref and base input grouping                             |
-| `vp run bench:source-map`       | Production CSS map generation with Unicode, CRLF, and resource replacements        |
-| `vp run bench:architecture`     | CSS definition and import scale, native graphs, Vite builds and watch updates      |
-| `vp run test:performance`       | Quick workloads with soft targets and hard limits                                  |
-| `vp run test:performance:full`  | Full workloads including 1000 modules and 10,000 unused utility definitions        |
+| Task                            | Workload                                                                            |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `vp run bench:compiler`         | Native loading, compilation, graph updates, stylesheet planning, canonical queries  |
+| `vp run bench:compiler:wasm`    | Canonical queries through the Node WASI binding                                     |
+| `vp run bench:compiler:browser` | Browser WASM canonical queries, CSS loading, and repeated analysis                  |
+| `vp run bench:host`             | Checker services; script, Vue, Svelte, and Astro inputs; `@plugin` graph loads      |
+| `vp run bench:analysis`         | Fresh CLI lint and fmt processes on the website, including process startup and exit |
+| `vp run bench:sorting`          | Native candidate comparisons and editor input sorting                               |
+| `vp run bench:sorting:wasm`     | The same sorting workloads through Node WASI                                        |
+| `vp run bench:sorting:profile`  | Identity lookup counts for ref and base input grouping                              |
+| `vp run bench:source-map`       | Production CSS map generation with Unicode, CRLF, and resource replacements         |
+| `vp run bench:architecture`     | CSS definition and import scale, native graphs, Vite builds and watch updates       |
+| `vp run test:performance`       | Quick workloads with soft targets and hard limits                                   |
+| `vp run test:performance:full`  | Full workloads including 1000 modules and 10,000 unused utility definitions         |
 
 Vitest benchmarks use `vite-plus/test`. Benchmark and performance modes measure
 native Node ESM modules with TypeScript transformation enabled. They retain raw
 samples and record Git revision, Node version, platform, timestamp, and workload
-settings. Reports go to ignored `benchmarks/results/`. Finite measurement runs
-do not impose universal latency guarantees. Ordinary verification runs budget
-configuration tests without machine-dependent timing checks.
+settings. Reports go to ignored `benchmarks/results/`. Timings describe the chosen
+workloads on the current machine. Ordinary verification checks budget settings
+without checking elapsed time.
 
 Measurements use fixed iteration counts and disable time-based repetition.
 Callbacks state whether they are asynchronous so Tinybench does not execute them
@@ -52,6 +53,16 @@ which binding loaded. Node WASI timings do not include browser worker startup.
 Host reused-service cases preload converters and use synthetic modules without
 a disk dependency graph. Fresh checker cases include subprocess creation and
 closure while reusing loaded JavaScript modules.
+
+CLI analysis runs each command three times in a new process. To select another
+project and iteration count, run `node benchmarks/compiler/analysis-cli.ts <directory> <count>`
+from the repository root after building the CLI.
+
+Browser analysis measures the first lint, then repeats source edits, sorting, and
+preview compilation in the same workspace. The cases cover literal inputs and ref
+unions checked against Stillwind's built declarations. Measurements start after
+the WASM binding loads and the workspace is created. They exclude LSP transport,
+debounce, UI rendering, and Prettier.
 
 Source-map cases measure the production `cssWithSourceMap` implementation for
 10 through 10,000 rules. They validate resource replacement and retained source

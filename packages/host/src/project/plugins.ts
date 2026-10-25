@@ -5,8 +5,8 @@ import { pathToFileURL } from "node:url";
 
 import { evaluateModule } from "@stillwind/config/node";
 
-import { completePluginPaths, type PluginDirectoryEntry } from "../css/plugin-paths.ts";
-import { defaultPluginExport, type LoadedPlugin, type PluginHost } from "../css/plugins.ts";
+import { defaultPluginExport, type LoadedPlugin, type PluginHost } from "../css/plugins/host.ts";
+import { completePluginPaths, type PluginDirectoryEntry } from "../css/plugins/paths.ts";
 
 /**
  * Lists disk children for plugin completion, following directory symlinks.

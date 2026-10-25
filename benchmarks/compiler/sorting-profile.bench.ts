@@ -3,7 +3,7 @@ import { expect, test, type BenchRunOptions } from "vite-plus/test";
 
 import { CandidateQueries } from "../../packages/host/src/editor/candidates.ts";
 import { sortSource } from "../../packages/host/src/editor/sort.ts";
-import { SourceIndex } from "../../packages/host/src/editor/source-index.ts";
+import { SourceIndex } from "../../packages/host/src/editor/source/inputs.ts";
 import { loadSortingDesignSystem, prepareSortingSource } from "./sorting-cases.ts";
 
 const options: BenchRunOptions = {
@@ -29,7 +29,11 @@ for (const count of [10, 30, 100]) {
         loader,
         `${body}\nconst value=style([${[...names].reverse().join(",")}]);`,
       );
-      const index = new SourceIndex(graph, session);
+      const index = new SourceIndex(
+        graph,
+        session,
+        graph.modules.map((module) => module.moduleId),
+      );
       const candidates = new CandidateQueries(loader.editorQuery());
       const run = () =>
         sortSource(

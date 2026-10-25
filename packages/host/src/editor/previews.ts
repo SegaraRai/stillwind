@@ -7,8 +7,8 @@ import {
 } from "@stillwind/native";
 import type { PreparedSource } from "@stillwind/projection";
 
-import type { ModuleAnalysis } from "../compilation/compiler.ts";
 import { byteToUtf16 } from "../compilation/module-source.ts";
+import type { ModuleAnalysis } from "../compilation/request.ts";
 import { identityKey } from "../semantics/checker-source.ts";
 
 type CapturedEditorSite = Readonly<
@@ -61,19 +61,19 @@ export class GeneratedPreviews {
    * Dependency previews require their declaration modules to be present in the graph.
    *
    * @param graph - Original buffers and dependencies for the source revisions to capture.
-   * @param session - Session whose latest analyses match those buffers. Captures remain usable
-   * after later session updates. Published sites are readonly.
+   * @param session - Session whose analyses for modules match the supplied buffers. Captures remain
+   * usable after later session updates. Published sites are readonly.
+   * @param modules - Module IDs successfully compiled from these buffers. Other retained analyses are skipped.
    * @throws If a captured UTF-8 range is invalid for its original buffer.
    */
   constructor(
     graph: Pick<ModuleAnalysis, "sources" | "dependencies">,
     session: NativeProjectSession,
+    modules: readonly string[],
   ) {
     const revisions: string[] = [];
     const captures = new Map(
-      session
-        .editorModules(graph.sources.map((source) => source.moduleId))
-        .map((editor) => [editor.moduleId(), editor]),
+      session.editorModules([...modules]).map((editor) => [editor.moduleId(), editor]),
     );
     for (const source of graph.sources) {
       const editor = captures.get(source.moduleId);

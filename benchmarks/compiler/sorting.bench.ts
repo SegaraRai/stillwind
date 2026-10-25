@@ -4,9 +4,10 @@ import { NativeDesignSystemLoader, __napiBindingTarget } from "@stillwind/native
 import { expect, inject, test, type BenchRunOptions } from "vite-plus/test";
 
 import { CandidateQueries } from "../../packages/host/src/editor/candidates.ts";
-import { EditorSnapshot, type EditorEdit } from "../../packages/host/src/editor/snapshot.ts";
+import { type EditorEdit } from "../../packages/host/src/editor/request.ts";
+import { EditorSnapshot } from "../../packages/host/src/editor/snapshot.ts";
 import { applyEdits, sortSource } from "../../packages/host/src/editor/sort.ts";
-import { SourceIndex } from "../../packages/host/src/editor/source-index.ts";
+import { SourceIndex } from "../../packages/host/src/editor/source/inputs.ts";
 import { assertBudget, budgets } from "../performance/budgets.ts";
 import { loadSortingDesignSystem, prepareSortingSource } from "./sorting-cases.ts";
 
@@ -206,7 +207,16 @@ function publishedProperties(count: number): string[] {
   return properties.slice(0, count);
 }
 
-/** Measures actual editor sorting after CSS loading, compilation, and syntax indexing. */
+/**
+ * Registers sorting and snapshot construction benchmarks for one compiled source.
+ *
+ * @param name - Scenario name ending with the number of utilities to sort.
+ * @param loader - Design system used to compile the source and answer sorting queries.
+ * @param body - Style input text passed to prepareSortingSource.
+ * @param shape - Input form whose sorting option is enabled.
+ * @param changes - Whether sorting is expected to change the source.
+ * @param options - Measurement iterations and warmup settings. Defaults to repeated.
+ */
 function registerSource(
   name: string,
   loader: NativeDesignSystemLoader,
@@ -250,7 +260,11 @@ function registerSource(
           return compare(a, b);
         };
       };
-      const index = new SourceIndex(graph, session);
+      const index = new SourceIndex(
+        graph,
+        session,
+        graph.modules.map((module) => module.moduleId),
+      );
       const instrumented = sortSource(graph.sources[0], index, candidates, config.sort, []);
       expect(applyEdits(source, instrumented)).toBe(expectedSource);
       task.meta.measurement = options;

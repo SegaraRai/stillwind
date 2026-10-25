@@ -64,24 +64,28 @@ export class SourceRewriter {
 
   /**
    * Attaches rewriting to a workspace whose buffers the caller reserves for this rewriter.
+   *
    * @param workspace - Open workspace. Serialize rewrite calls and avoid concurrent updates to input paths.
+   * When prepare is available, the rewriter calls it after installing each pass's buffers.
    */
   constructor(
     private readonly workspace: Pick<
       AnalysisWorkspace,
       "invalidate" | "update" | "analyze" | "query" | "closeDocument"
-    >,
+    > &
+      Partial<Pick<AnalysisWorkspace, "prepare">>,
   ) {}
 
   /**
    * Computes sorting or converged lint fixes without saving files. All input buffers are visible
    * to dependency analysis. After distinct paths are validated, captured
-   * buffers are removed even when rewriting fails.
+   * buffers are removed even when rewriting fails. Preparation runs once before each pass's per-file queries.
+   *
    * @param inputs - Distinct absolute paths and complete text. Only sorting uses protected ranges.
    * @param operation - One sort pass or lint-fix passes until the text stops changing.
    * @returns Successful buffers and failures in input order. Failed buffers retain their original
    * text in subsequent passes. Fixes return no edits because their offsets span several passes.
-   * @throws If paths repeat or workspace invalidation, buffer installation, or cleanup fails.
+   * @throws If paths repeat or workspace invalidation, preparation, buffer installation, or cleanup fails.
    */
   async rewrite(
     inputs: readonly RewriteInput[],
@@ -105,6 +109,9 @@ export class SourceRewriter {
         for (const input of buffers) {
           this.workspace.update(input.file, input.source, version);
         }
+        await this.workspace.prepare?.(
+          buffers.filter((input) => !failures.has(input.file)).map((input) => input.file),
+        );
         const outputs: RewriteResult[] = [];
         let changed = false;
         for (const input of buffers) {
@@ -161,6 +168,7 @@ export class SourceRewriter {
 
   /**
    * Analyzes one installed buffer and requires matching project answers to produce the same text.
+   *
    * @param input - Buffer already installed in the workspace for the current pass.
    * @param operation - Sort or fixes query to apply to the original text of this pass.
    * @returns The first project's edits and all project findings, or unchanged text outside every scope.
@@ -230,6 +238,7 @@ export class SourceRewriter {
 
 /**
  * Applies edits from the end of the original text after validating their ranges.
+ *
  * @param source - Original text from which all edit offsets were measured.
  * @param edits - Half-open ranges with safe integer UTF-16 offsets, in any order. The array is unchanged.
  * @returns Text with every replacement applied.

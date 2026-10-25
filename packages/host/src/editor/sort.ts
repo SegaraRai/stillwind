@@ -3,9 +3,10 @@ import type { PreparedSource } from "@stillwind/projection";
 import ts from "typescript-6";
 
 import type { CandidateQueries } from "./candidates.ts";
-import { orderInputs, type InputOrderItem } from "./input-order.ts";
-import type { EditorEdit } from "./snapshot.ts";
-import type { SourceIndex, UtilityLiteral } from "./source-index.ts";
+import type { EditorEdit } from "./request.ts";
+import type { SourceIndex } from "./source/inputs.ts";
+import type { UtilityLiteral } from "./source/literal.ts";
+import { orderInputs, type InputOrderItem } from "./source/order.ts";
 
 /**
  * Composes existing edits with utility sorting and grouping of direct style inputs.

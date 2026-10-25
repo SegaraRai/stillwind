@@ -9,7 +9,8 @@ import {
   type NativeSkippedCss,
 } from "@stillwind/native";
 
-import { PluginRuntime, type PluginHost, type TailwindSettings } from "./plugins.ts";
+import type { PluginHost, TailwindSettings } from "./plugins/host.ts";
+import { PluginRuntime } from "./plugins/runtime.ts";
 
 /**
  * Checks whether an identity names a stylesheet.
@@ -204,6 +205,7 @@ export interface LoadedCssGraph {
  * `rootContent` skips reading the root file. The function still watches that file
  * and all resolved dependencies. Each file is marked for stylesheet lint as `host.lint` decides,
  * or as {@link lintsStylesheet} decides when the host omits it.
+ * Canonical queries build their indexes on first use.
  *
  * Reads run concurrently, and each request ID is read only once. Responses ready
  * in the same event-loop turn are sent together to reduce native calls. Faster reads
@@ -230,6 +232,8 @@ export async function loadCssGraph(
   pluginInputs?: CssPluginInputs,
 ): Promise<LoadedCssGraph> {
   const loader = suppliedLoader ?? new NativeDesignSystemLoader(options);
+  loader.deferCanonicalIndex();
+
   const plugins = new PluginRuntime(
     options,
     pluginInputs?.plugins ?? [],
@@ -242,10 +246,6 @@ export async function loadCssGraph(
       important: pluginInputs.important,
     },
   );
-  if (plugins.tailwind) {
-    // `PluginRuntime.initialize` loads the graph again with the Tailwind settings.
-    loader.deferCanonicalIndex();
-  }
 
   host.watch(root);
 

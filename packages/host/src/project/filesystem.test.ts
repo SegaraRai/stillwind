@@ -5,7 +5,7 @@ import { prepareSource } from "@stillwind/projection";
 import { expect, test } from "vite-plus/test";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
-import { AnalysisProject } from "./analysis.ts";
+import { AnalysisProject } from "./analysis/project.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
 import { AnalysisWorkspace } from "./workspace.ts";
 

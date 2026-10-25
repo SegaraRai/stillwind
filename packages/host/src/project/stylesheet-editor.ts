@@ -1,11 +1,12 @@
 import type { BaseConfig, PreviewOptions } from "@stillwind/config";
 import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillwind/native";
 
-import { catalogInput, type PluginRuntime } from "../css/plugins.ts";
+import { catalogInput } from "../css/plugins/host.ts";
+import type { PluginRuntime } from "../css/plugins/runtime.ts";
 import { CandidateQueries } from "../editor/candidates.ts";
 import { colorReplacement, cssColor } from "../editor/colors.ts";
 import { completionSnippet } from "../editor/completion.ts";
-import type { EditorEdit, EditorRequest, EditorResult } from "../editor/snapshot.ts";
+import type { EditorEdit, EditorRequest, EditorResult } from "../editor/request.ts";
 
 /** Answers semantic CSS queries and lint fixes from one original buffer and captured design system. */
 export class StylesheetEditor {

@@ -138,6 +138,21 @@ export interface AvailableFacts {
 /** Semantic queries implemented by a Node checker or an embedding application's checker worker. */
 export interface TypeFactsBackend {
   /**
+   * Sets the sources available to later checker queries. Each query still selects its own probes.
+   * Call again after changing these inputs. Without this method, each query prepares its own sources.
+   *
+   * @param sources - All prepared sources for this project, in a stable order.
+   * @param assets - Declarations grouped by compiler module ID for those sources.
+   * @param inputs - File overlays and ambient declarations. Omission supplies no extra files.
+   * The backend may retain these objects. Do not mutate them while they are installed.
+   * Replacing the inputs clears the backend's prepared checker buffers.
+   */
+  setProjectSources?(
+    sources: readonly TypeFactSource[],
+    assets: ReadonlyMap<string, readonly NativeAssetRecord[]>,
+    inputs?: SemanticInputs,
+  ): void;
+  /**
    * Resolves imports using the checker environment before source-provider fallback resolution.
    *
    * @param sources - Prepared sources with original probes and checker correspondences.
@@ -174,7 +189,7 @@ export interface TypeFactsBackend {
    * @param assets - Compiler declarations grouped by module identity.
    * @param inputs - Captured overlays and declarations for this analysis.
    * @returns Facts for successful queries and original ranges with explanations for other queries.
-   * @throws If backend setup or transport fails before partial results can be produced.
+   * @throws If backend setup or transport fails, or checker results conflict for one original range.
    */
   collectAvailable(
     sources: readonly TypeFactSource[],

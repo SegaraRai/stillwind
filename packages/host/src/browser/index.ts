@@ -1,5 +1,5 @@
-export type { PluginPathCompletion } from "../css/plugin-paths.ts";
-export { defaultPluginExport, type PluginHost } from "../css/plugins.ts";
+export { defaultPluginExport, type PluginHost } from "../css/plugins/host.ts";
+export type { PluginPathCompletion } from "../css/plugins/paths.ts";
 export { TypeFactsError } from "../semantics/backend.ts";
 export type {
   AvailableFacts,
@@ -7,7 +7,8 @@ export type {
   TypeFactSource,
   UnverifiedRange,
 } from "../semantics/backend.ts";
-export { BrowserTypeFactsService, type BrowserCheckerOptions } from "../semantics/browser.ts";
+export type { BrowserCheckerOptions } from "../semantics/browser/program.ts";
+export { BrowserTypeFactsService } from "../semantics/browser/service.ts";
 export {
   BrowserProject,
   virtualPath,

@@ -8,7 +8,8 @@ import { glob } from "tinyglobby";
 
 import { isStylesheet } from "../css/index.ts";
 import type { EditorRequest, EditorResult } from "../editor/index.ts";
-import { AnalysisProject, sameFile, type AnalysisResult } from "./analysis.ts";
+import { sameFile } from "./analysis/host.ts";
+import { AnalysisProject, type AnalysisResult } from "./analysis/project.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
 
 /** A project's configuration and results, retained independently when scopes overlap. */
@@ -33,6 +34,10 @@ export interface WorkspaceResult {
 
 /** Owns every project in one evaluated configuration and keeps overlapping scopes independent. */
 export class AnalysisWorkspace {
+  /** Absolute paths with open buffers, including paths outside the configured target globs. */
+  readonly #openDocuments = new Set<string>();
+  /** Configuration files and imports whose changes require reopening this workspace. */
+  readonly #configurationDependencies: readonly string[];
   /** Absolute path evaluated when this workspace opened. Reopen the workspace to apply configuration changes. */
   readonly configFile: string;
   /** Fixed project records in configuration order. Each analysis service owns mutable state. */
@@ -40,12 +45,19 @@ export class AnalysisWorkspace {
 
   /**
    * Retains the evaluated configuration and takes ownership of its initialized projects.
+   *
    * @param configFile - Absolute configuration path.
    * @param projects - Successfully opened hosts in configuration order.
+   * @param dependencies - Absolute configuration and import paths recorded during evaluation.
    */
-  private constructor(configFile: string, projects: WorkspaceProject[]) {
+  private constructor(
+    configFile: string,
+    projects: WorkspaceProject[],
+    dependencies: readonly string[],
+  ) {
     this.configFile = configFile;
     this.projects = projects;
+    this.#configurationDependencies = dependencies;
   }
 
   /**
@@ -57,7 +69,7 @@ export class AnalysisWorkspace {
    */
   static async open(configFile: string): Promise<AnalysisWorkspace> {
     configFile = path.resolve(configFile);
-    const { config } = await loadConfiguration(configFile);
+    const { config, dependencies } = await loadConfiguration(configFile);
     const projects: WorkspaceProject[] = [];
     try {
       for (const supplied of config.projects) {
@@ -69,7 +81,7 @@ export class AnalysisWorkspace {
           analysis: new AnalysisProject(host),
         });
       }
-      return new AnalysisWorkspace(configFile, projects);
+      return new AnalysisWorkspace(configFile, projects, dependencies);
     } catch (error) {
       await Promise.allSettled(projects.map((project) => project.analysis.close()));
       throw error;
@@ -181,6 +193,7 @@ export class AnalysisWorkspace {
 
   /**
    * Keeps editor answers separate when several projects include the same target.
+   *
    * @param file - Absolute target path used for independent scope checks.
    * @param request - Operation in the original document's UTF-16 coordinates.
    * @param signal - Optional cancellation forwarded to each project's queued query.
@@ -250,6 +263,7 @@ export class AnalysisWorkspace {
     for (const project of this.projects) {
       project.analysis.update(file, source, version);
     }
+    this.#openDocuments.add(path.resolve(file));
   }
 
   /**
@@ -258,12 +272,31 @@ export class AnalysisWorkspace {
    * @param file - File path resolved in the same way as update. Unknown buffers have no effect.
    */
   closeDocument(file: string): void {
+    this.#openDocuments.delete(path.resolve(file));
     for (const project of this.projects) {
       project.analysis.closeDocument(file);
     }
   }
 
-  /** Advances every project revision and requests CSS and resolver cache refresh before its next analysis. */
+  /**
+   * Checks whether save or watch notifications need a new workspace.
+   *
+   * @param files - File paths reported by the notification. Relative paths use the working directory.
+   * @returns True when every file has an open buffer and none is a configuration dependency,
+   * a tsconfig, or package.json. This method does not read disk or reopen projects.
+   */
+  refresh(files: readonly string[]): boolean {
+    return files.every(
+      (file) =>
+        [...this.#openDocuments].some((open) => sameFile(open, file)) &&
+        !this.#configurationDependencies.some((dependency) => sameFile(dependency, file)) &&
+        !/(?:^|[/\\])(?:tsconfig(?:\.[^/\\]+)?\.json|package\.json)$/.test(file),
+    );
+  }
+
+  /**
+   * Advances every project revision and requests CSS and resolver cache refresh before its next analysis.
+   */
   invalidate(): void {
     for (const project of this.projects) {
       project.analysis.invalidate();
@@ -305,7 +338,9 @@ export class AnalysisWorkspace {
   async lint(patterns?: string[]): Promise<WorkspaceResult[]> {
     const results: WorkspaceResult[] = [];
     for (const [index, project] of this.projects.entries()) {
-      for (const file of await this.targets(project, patterns, { stylesheets: true })) {
+      const files = await this.targets(project, patterns, { stylesheets: true });
+      await project.analysis.prepare(files);
+      for (const file of files) {
         results.push({
           project: index,
           config: project.configFile,
@@ -317,7 +352,20 @@ export class AnalysisWorkspace {
   }
 
   /**
+   * Prepares targets together in each project that includes them.
+   *
+   * @param files - Absolute target paths. Files outside a project's target globs are skipped.
+   * @returns Completion of preparation. Each target's analysis reports its own source failures.
+   */
+  async prepare(files: readonly string[]): Promise<void> {
+    for (const project of this.projects) {
+      await project.analysis.prepare(files.filter((file) => this.includes(project, file)));
+    }
+  }
+
+  /**
    * Keeps dependency context while filtering findings from known sources to the project's target scope.
+   *
    * @param project - Project whose host and globs identify owned source documents.
    * @param result - Captured analysis with original document URIs.
    * @returns A copy with filtered reports. Reports for unknown source documents remain available.

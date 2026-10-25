@@ -55,43 +55,51 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /** Change counter captured by analyses, editor queries, and application builds. */
   #revision = 0;
-  /** Retained projects shared by editor queries and builds for one inventory revision. */
-  #projects?: BrowserProject[];
-  /** Revision represented by the retained projects. -1 means they have not been prepared. */
-  #buildRevision = -1;
+  /** Retained projects updated between compiler transactions and shared by queries and builds. */
+  readonly #projects: BrowserProject[];
+  /** Revision of the files installed in the projects. -1 means no installation yet. */
+  #projectRevision = -1;
+  /** Project indices whose targets have been prepared at projectRevision. */
+  readonly #preparedProjects = new Set<number>();
   /** Prevents new analysis and invalidates queued editor queries during closure. */
   #closed = false;
   /** Serializes compiler operations and absorbs failures for subsequent operations. */
   #queue: Promise<unknown> = Promise.resolve();
 
   /**
-   * Replaces retained projects when their inventory revision changes.
+   * Updates project files and prepares targets once per workspace revision.
    *
-   * @param revision - Revision captured with the supplied files by the queued caller.
-   * @param files - Complete saved inventory with captured open buffers applied.
-   * @returns Completion of old project closure and new project creation, or no change for the same revision.
-   * @throws If a retained project fails to close or a replacement cannot be constructed.
+   * @param revision - Workspace revision captured with files before this operation was queued.
+   * @param files - All saved files with the captured open buffers applied.
+   * @param indices - Project indices whose script targets need preparation. Omission only updates files.
+   * @returns Completion of file updates and target preparation. Repeated requests reuse that work.
+   * @throws If a project's files cannot be replaced.
    */
-  async #prepareProjects(revision: number, files: ReadonlyMap<string, string>): Promise<void> {
-    if (this.#buildRevision === revision) {
-      return;
+  async #prepareProjects(
+    revision: number,
+    files: ReadonlyMap<string, string>,
+    indices: readonly number[] = [],
+  ): Promise<void> {
+    if (this.#projectRevision !== revision) {
+      await Promise.all(this.#projects.map((project) => project.replaceFiles(files)));
+      this.#preparedProjects.clear();
+      this.#projectRevision = revision;
     }
-    await Promise.all(this.#projects?.map((project) => project.close()) ?? []);
-    this.#projects = this.#options.projects.map(
-      (config) =>
-        new BrowserProject({
-          root: config.root!,
-          config,
-          files,
-          documentUri: this.#options.documentUri,
-          plugins: this.#options.plugins,
-        }),
-    );
-    this.#buildRevision = revision;
+    for (const index of indices) {
+      if (!this.#preparedProjects.has(index)) {
+        await this.#projects[index].prepare(
+          [...files.keys()].filter(
+            (id) => includes(this.#options.projects[index], id) && !isStylesheet(id),
+          ),
+        );
+        this.#preparedProjects.add(index);
+      }
+    }
   }
 
   /**
-   * Creates a service without compiling its projects yet.
+   * Creates the projects without loading CSS or compiling sources.
+   *
    * @param options - Evaluated settings and saved files captured by this service.
    * Replace the service to apply new configuration or saved inventory. Open buffers use update.
    */
@@ -101,10 +109,21 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
       projects: options.projects.map(captureProjectConfig),
       files: new Map(options.files),
     };
+    this.#projects = this.#options.projects.map(
+      (config) =>
+        new BrowserProject({
+          root: config.root!,
+          config,
+          files: this.#options.files,
+          documentUri: this.#options.documentUri,
+          plugins: this.#options.plugins,
+        }),
+    );
   }
 
   /**
    * Reads the revision required when requesting an application build.
+   *
    * @returns Change counter that increases after an effective buffer update or closure.
    */
   get revision(): number {
@@ -113,6 +132,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Stores an original buffer and increments the workspace revision when it changes.
+   *
    * @param uri - Original document URI or virtual path, including dependency files outside target scopes.
    * @param source - Complete unsaved text.
    * @param version - Safe integer greater than the previous version. Identical text at the same version is accepted.
@@ -142,6 +162,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Removes an open buffer and increments the revision only when that buffer existed.
+   *
    * @param uri - Original URI or virtual path. Future snapshots use saved text for this path.
    */
   closeDocument(uri: string): void {
@@ -152,6 +173,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Captures saved files with open buffers applied.
+   *
    * @returns An independent map keyed by absolute virtual path. Later buffer changes do not alter it.
    */
   files(): ReadonlyMap<string, string> {
@@ -162,14 +184,14 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   }
 
   /**
-   * Serializes analysis of a captured inventory using a temporary project for each matching scope.
-   * A stylesheet that a project lints matches that project, and its reports are its stylesheet
-   * lint findings.
+   * Analyzes the current buffers in each matching project, one queued request at a time.
+   * Stylesheets match projects that lint them and return only stylesheet lint findings.
+   *
    * @param uri - Original target URI or virtual path.
    * @param signal - Optional cancellation checked before and after compiler work.
    * @returns Results in project order. Compiler failures produce incomplete results, and obsolete
    * or cancelled results omit reports. Targets outside all scopes return an empty list.
-   * @throws If the service is closed or a temporary project cannot be created or closed.
+   * @throws If the service is closed or its projects cannot be prepared.
    */
   analyze(uri: string, signal?: AbortSignal): Promise<WorkspaceResult[]> {
     const revision = this.#revision;
@@ -199,13 +221,8 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
           continue;
         }
 
-        const project = new BrowserProject({
-          root: config.root!,
-          config,
-          files,
-          documentUri: this.#options.documentUri,
-          plugins: this.#options.plugins,
-        });
+        await this.#prepareProjects(revision, files, stylesheet ? [] : [index]);
+        const project = this.#projects[index];
         let result: WorkspaceResult["result"] = {
           entry: uri,
           revision,
@@ -250,8 +267,6 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
           }
         } catch (error) {
           result.error = error instanceof Error ? error.message : String(error);
-        } finally {
-          await project.close();
         }
         const status = obsolete();
         if (status) {
@@ -277,7 +292,49 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   }
 
   /**
+   * Prepares script targets in the projects that include the requested documents.
+   *
+   * @param uris - Target URIs or absolute virtual paths. Stylesheets do not select a project here.
+   * @param signal - Optional cancellation checked before queued work starts.
+   * @returns Completion of preparation. Closed, cancelled, and outdated requests do no work.
+   * Source failures are left for analyze to report.
+   * @throws If project files cannot be replaced.
+   */
+  prepare(uris: readonly string[], signal?: AbortSignal): Promise<void> {
+    const revision = this.#revision;
+    const files = this.files();
+    const task = this.#queue.then(async () => {
+      if (!this.#closed && !signal?.aborted && revision === this.#revision) {
+        const ids = uris.map(virtualPath).filter((id) => !isStylesheet(id));
+        const indices = this.#options.projects.flatMap((config, index) =>
+          ids.some((id) => includes(config, id)) ? [index] : [],
+        );
+        await this.#prepareProjects(revision, files, indices);
+      }
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
+  /**
+   * Checks whether save or watch notifications need a new workspace.
+   *
+   * @param uris - Document URIs or absolute virtual paths reported by the notification.
+   * @returns True when every file has an open buffer and none is the workspace configuration,
+   * a tsconfig, or package.json. This method does not change files or reopen projects.
+   */
+  async refresh(uris: readonly string[]): Promise<boolean> {
+    return uris.every(
+      (uri) =>
+        uri !== this.#options.config &&
+        this.#documents.has(virtualPath(uri)) &&
+        !/(?:^|\/)(?:tsconfig(?:\.[^/]+)?\.json|package\.json)$/.test(virtualPath(uri)),
+    );
+  }
+
+  /**
    * Transforms a module for a browser application build.
+   *
    * @param uri - Source URI in exactly one configured project.
    * @param revision - Workspace revision captured when the application build started.
    * @returns Transformed source, CSS, and reports.
@@ -312,9 +369,9 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
         throw new Error(`Expected one Stillwind project for ${uri}`);
       }
 
-      await this.#prepareProjects(revision, files);
+      await this.#prepareProjects(revision, files, [matches[0].index]);
 
-      const project = this.#projects![matches[0].index];
+      const project = this.#projects[matches[0].index];
       const graph = await project.analyze(id);
       if (revision !== this.#revision) {
         throw new Error("Browser build snapshot is obsolete");
@@ -341,6 +398,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Queries retained projects against a captured inventory and discards obsolete answers.
+   *
    * @param uri - Original target URI or virtual path.
    * @param request - Operation with offsets in the original UTF-16 document.
    * @param signal - Optional cancellation checked around project preparation and queries.
@@ -358,6 +416,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     const task = this.#queue.then(async () => {
       /**
        * Checks whether this query must discard its captured results.
+       *
        * @returns Whether the service is closed, the signal is aborted, or the revision has changed.
        */
       const obsolete = () => this.#closed || signal?.aborted || revision !== this.#revision;
@@ -370,7 +429,10 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
         if (!includes(config, id) && !isStylesheet(id)) {
           continue;
         }
-        const result = await this.#projects![index].query(id, request);
+        if (!isStylesheet(id)) {
+          await this.#prepareProjects(revision, files, [index]);
+        }
+        const result = await this.#projects[index].query(id, request);
         if (obsolete()) {
           return [];
         }
@@ -386,6 +448,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
   /**
    * Marks the service closed, invalidates captured revisions, and releases retained projects after queued work.
+   *
    * @returns Completion of queued work and project cleanup.
    * @throws If a retained project fails to close.
    */
@@ -393,12 +456,13 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
     this.#closed = true;
     this.#revision++;
     await this.#queue;
-    await Promise.all(this.#projects?.map((project) => project.close()) ?? []);
+    await Promise.all(this.#projects.map((project) => project.close()));
   }
 }
 
 /**
  * Checks whether a virtual identity names a stylesheet.
+ *
  * @param id - Absolute virtual file path.
  * @returns Whether the complete identity ends in `.css`, ignoring case.
  */
@@ -408,6 +472,7 @@ function isStylesheet(id: string): boolean {
 
 /**
  * Checks a virtual path against a project's target globs and exclusions.
+ *
  * @param config - Evaluated configuration with an absolute root.
  * @param id - Absolute virtual file path.
  * @returns Whether the path is under the root, outside node_modules, included, and not excluded.

@@ -9,9 +9,9 @@ import { loadCssGraph } from "../src/css/css.ts";
 import {
   defaultPluginExport,
   type LoadedPlugin,
-  type PluginRuntime,
   type TailwindSettings,
-} from "../src/css/plugins.ts";
+} from "../src/css/plugins/host.ts";
+import type { PluginRuntime } from "../src/css/plugins/runtime.ts";
 
 const root = path.resolve(import.meta.dirname);
 

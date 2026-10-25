@@ -56,6 +56,41 @@ export function checkerId(source: PreparedSource): string {
 }
 
 /**
+ * Applies the current query's probes to the project's sources without changing other inputs.
+ *
+ * @param inventory - Sources currently installed in the checker.
+ * @param requested - Sources whose probe ranges or recognitionOnly settings may have changed.
+ * Sources outside inventory are ignored.
+ * @returns The original array when probes match, or a new array with changed source records.
+ * Neither input is mutated. Unchanged source records are shared.
+ */
+export function withRequestedProbes(
+  inventory: readonly TypeFactSource[],
+  requested: readonly TypeFactSource[],
+): readonly TypeFactSource[] {
+  const probesById = new Map(requested.map((source) => [source.resolverId, source.probes]));
+  let changed = false;
+  const sources = inventory.map((source) => {
+    const probes = probesById.get(source.resolverId);
+    if (
+      !probes ||
+      (probes.length === source.probes.length &&
+        probes.every(
+          (probe, index) =>
+            probe.start === source.probes[index].start &&
+            probe.end === source.probes[index].end &&
+            probe.recognitionOnly === source.probes[index].recognitionOnly,
+        ))
+    ) {
+      return source;
+    }
+    changed = true;
+    return { ...source, probes };
+  });
+  return changed ? sources : inventory;
+}
+
+/**
  * Checker buffer with declaration identities, resolved import paths, and helper aliases inserted
  * for type queries. Its range maps relate checker AST expressions to original document bytes.
  */

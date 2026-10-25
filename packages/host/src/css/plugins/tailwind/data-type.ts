@@ -273,6 +273,7 @@ const checks: Record<DataType, (value: string) => boolean> = {
 
 /**
  * Determine the type of `value` using syntax rules from CSS specs.
+ *
  * @param value - Decoded arbitrary value without a type hint.
  * @param types - Types of the registration, in its order.
  * @returns The first type that the value has, or null. A `var()` value has no type.
@@ -514,17 +515,10 @@ function isBackgroundPosition(value: string): boolean {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Determine if `value` is valid for `background-size`
+ * Recognizes background-size entries for Tailwind type inference.
  *
- * background-size =
- *  <bg-size>#
- *
- * <bg-size> =
- *   [ <length-percentage [0,∞]> | auto ]{1,2}  |
- *   cover                                       |
- *   contain
- *
- * @see https://developer.mozilla.org/en-US/docs/Web/CSS/background-size#formal_syntax
+ * @param value - CSS value text with comma-separated entries.
+ * @returns Whether at least one entry is cover, contain, or one or two size values.
  */
 function isBackgroundSize(value: string) {
   let count = 0;
@@ -544,7 +538,6 @@ function isBackgroundSize(value: string) {
 
     if (values.every((value) => value === "auto" || isLength(value) || isPercentage(value))) {
       count += 1;
-      continue;
     }
   }
 
@@ -558,12 +551,10 @@ const ANGLE_UNITS = ["deg", "rad", "grad", "turn"];
 const IS_ANGLE = new RegExp(`^${HAS_NUMBER.source}(${ANGLE_UNITS.join("|")})$`);
 
 /**
- * Determine if `value` is valid angle
+ * Recognizes a number with an angle unit.
  *
- * <angle> = <number><units>
- * <units> = deg | rad | grad | turn
- *
- * @see https://developer.mozilla.org/en-US/docs/Web/CSS/angle
+ * @param value - CSS text without surrounding whitespace.
+ * @returns Whether the number ends with deg, rad, grad, or turn.
  */
 function isAngle(value: string) {
   return IS_ANGLE.test(value);
@@ -574,18 +565,20 @@ function isAngle(value: string) {
 const IS_VECTOR = new RegExp(`^${HAS_NUMBER.source} +${HAS_NUMBER.source} +${HAS_NUMBER.source}$`);
 
 /**
- * Determine if `value` is valid for the vector component of `rotate`
+ * Recognizes the three numbers of a rotate vector.
  *
- * <vector> = <number> <number> <number>
- *
- * @see https://developer.mozilla.org/en-US/docs/Web/CSS/rotate#vector_plus_angle_value
+ * @param value - CSS text without surrounding whitespace.
+ * @returns Whether exactly three numbers are separated by spaces.
  */
 function isVector(value: string) {
   return IS_VECTOR.test(value);
 }
 
 /**
- * Returns true if the value can be parsed as a positive whole number.
+ * Recognizes integer text used by Tailwind type inference.
+ *
+ * @param value - Number text without surrounding whitespace.
+ * @returns True for zero or a positive integer whose JavaScript number spelling matches value.
  */
 function isPositiveInteger(value: string): boolean {
   const number = Number(value);

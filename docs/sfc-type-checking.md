@@ -155,7 +155,7 @@ in the consuming project. The TS6 SDK is a regular projection dependency, and
 the TS7 checker is a regular host dependency. They use separate TypeScript instances.
 
 The checker implementation lives in
-[type-facts.ts](../packages/host/src/semantics/type-facts.ts). Projection and
+[type-facts.ts](../packages/host/src/semantics/node/service.ts). Projection and
 compilation integration tests live in [sfc-types.test.ts](../packages/host/tests/sfc-types.test.ts).
 
 ## Projection and edits

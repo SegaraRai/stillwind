@@ -1,16 +1,19 @@
 import { fingerprint, stylesheetPluginPaths } from "@stillwind/native";
 import { dirname, isAbsolute, join, relative, resolve } from "pathe";
 
-import type { EditorRequest, EditorResult } from "../editor/snapshot.ts";
-import type { PluginHost } from "./plugins.ts";
+import type { EditorRequest, EditorResult } from "../../editor/request.ts";
 
-/** A complete module specifier that an editor can insert into a CSS string. */
+/**
+ * A complete module specifier that an editor can insert into a CSS string.
+ */
 export interface PluginPathCompletion {
   specifier: string;
   kind: "module" | "file" | "directory";
 }
 
-/** One immediate child of a directory, without a path separator in its name. */
+/**
+ * One immediate child of a directory, without a path separator in its name.
+ */
 export interface PluginDirectoryEntry {
   name: string;
   directory: boolean;
@@ -18,6 +21,7 @@ export interface PluginDirectoryEntry {
 
 /**
  * Lists immediate virtual children without reading the physical filesystem.
+ *
  * @param files - Absolute file identities, including unsaved documents.
  * @param directory - Absolute directory whose immediate children are requested.
  * @param caseSensitive - Whether directory identity is case sensitive. Defaults to true.
@@ -50,6 +54,7 @@ export function pluginDirectory(
 
 /**
  * Completes local script files, directory prefixes, and package dependencies.
+ *
  * @param prefix - Decoded specifier before the CSS cursor.
  * @param importer - Absolute stylesheet identity.
  * @param root - Project directory whose package manifest supplies package names.
@@ -163,6 +168,7 @@ export async function completePluginPaths(
 
 /**
  * Answers plugin path completion and links without loading or evaluating plugins.
+ *
  * @param id - Absolute stylesheet identity inside the project root.
  * @param text - Captured original CSS, including incomplete strings.
  * @param request - Original UTF-16 editor operation.
@@ -178,7 +184,7 @@ export async function queryPluginPaths(
   options: {
     root: string;
     names: readonly string[];
-    host?: Pick<PluginHost, "complete" | "resolve">;
+    host?: PluginPathHost;
     documentUri(id: string): string;
   },
 ): Promise<EditorResult | undefined> {
@@ -280,4 +286,32 @@ export async function queryPluginPaths(
       retrigger: entry.kind === "directory",
     }));
   return result;
+}
+
+/**
+ * File resolution and completion used by plugin path navigation. No plugin evaluation is required.
+ */
+export interface PluginPathHost {
+  /**
+   * Lists complete specifiers for an editor without evaluating their modules.
+   *
+   * @param prefix - Decoded path text before the CSS cursor.
+   * @param importer - Absolute identity of the stylesheet containing the path.
+   * @param root - Absolute project directory used to find package metadata.
+   * @returns Full specifiers with trailing slashes for directory prefixes.
+   */
+  complete?(
+    prefix: string,
+    importer: string,
+    root: string,
+  ): Promise<readonly PluginPathCompletion[]>;
+
+  /**
+   * Resolves a module request for plugin file reads and editor navigation without evaluating it.
+   *
+   * @param specifier - Package specifier with an optional subpath, or a relative or absolute path.
+   * @param importer - Resolved identity of the stylesheet that contains the statement.
+   * @returns The resolved path, or undefined when the request does not resolve.
+   */
+  resolve(specifier: string, importer: string): Promise<string | undefined>;
 }

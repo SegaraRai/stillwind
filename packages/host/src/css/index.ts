@@ -23,13 +23,7 @@ export {
   type EditorCssGraph,
   type LoadedCssGraph,
 } from "./css.ts";
-export type { PluginPathCompletion } from "./plugin-paths.ts";
-export {
-  attachPlugins,
-  compileWithPlugins,
-  defaultPluginExport,
-  pluginLoader,
-  PluginRuntime,
-  type PluginHost,
-  type TailwindSettings,
-} from "./plugins.ts";
+export { defaultPluginExport, type PluginHost, type TailwindSettings } from "./plugins/host.ts";
+export type { PluginPathCompletion } from "./plugins/paths.ts";
+export { PluginRuntime } from "./plugins/runtime.ts";
+export { attachPlugins, compileWithPlugins, pluginLoader } from "./plugins/session.ts";

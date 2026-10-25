@@ -1,5 +1,10 @@
 import { style as astro } from "stillwind/astro";
-import type { StyleArgument, StyleResult, StyleVariantValue } from "stillwind/macro";
+import type {
+  StillwindDeclarationIdentity,
+  StyleArgument,
+  StyleResult,
+  StyleVariantValue,
+} from "stillwind/macro";
 import { style as preact } from "stillwind/preact";
 import { style as react } from "stillwind/react";
 import { style as solid } from "stillwind/solid";
@@ -14,6 +19,31 @@ type Same<A, B> = [keyof A, keyof B] extends [keyof B, keyof A]
     : false
   : false;
 type Props<T> = Omit<T, "data-__stillwindStyleIdentity">;
+
+/**
+ * Checks that compiler-inserted identities preserve the props of composed styles.
+ *
+ * @param active - Selects a branch whose possible props must both remain in the inferred type.
+ * @returns Compile-only assertions. Do not call this function at runtime.
+ */
+function checkerIdentities(active: boolean) {
+  const first = undefined as unknown as StillwindDeclarationIdentity<"first">;
+  const second = undefined as unknown as StillwindDeclarationIdentity<"second">;
+  const third = undefined as unknown as StillwindDeclarationIdentity<"third">;
+  const base = react({ "--size": 4 }, first);
+  const composed = react(base, "block", second);
+  const conditional = react(active ? base : react("flex", third), second);
+  type Contracts = [
+    Assert<Same<(typeof composed)["data-__stillwindStyleIdentity"], "second">>,
+    Assert<Same<Props<typeof composed>, { className?: string; style?: Record<string, string> }>>,
+    Assert<Same<Props<typeof conditional>, { className?: string; style?: Record<string, string> }>>,
+  ];
+  // @ts-expect-error Distinct declaration identities cannot be assigned to each other.
+  const mismatched: typeof base = composed;
+  void mismatched;
+  return null as unknown as Contracts;
+}
+void checkerIdentities;
 
 function classOutputs(active: boolean) {
   const empty = react();

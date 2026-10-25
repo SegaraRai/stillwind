@@ -1,88 +1,25 @@
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-import type { BaseConfig, PreviewOptions } from "@stillwind/config";
-import {
-  NativeProjectSession,
-  type BindingReport,
-  type NativeDesignSystemLoader,
-} from "@stillwind/native";
+import type { BindingReport } from "@stillwind/native";
 
-import { analyzeModule, type CompilerHost, type ModuleAnalysis } from "../compilation/index.ts";
-import {
-  attachPlugins,
-  isStylesheet,
-  loadCssGraph,
-  loadEditorCssGraph,
-  type CssHost,
-  type CssPluginInputs,
-  type EditorCssGraph,
-  type PluginRuntime,
-} from "../css/index.ts";
-import { queryPluginPaths } from "../css/plugin-paths.ts";
-import { EditorSnapshot, type EditorRequest, type EditorResult } from "../editor/index.ts";
+import { analyzeModule, type ModuleAnalysis } from "../../compilation/index.ts";
+import { CompilationProject } from "../../compilation/project.ts";
+import { isStylesheet } from "../../css/index.ts";
+import { queryPluginPaths } from "../../css/plugins/paths.ts";
+import { prepareSourcePlugins } from "../../css/plugins/session.ts";
+import { EditorSnapshot, type EditorRequest, type EditorResult } from "../../editor/index.ts";
 import {
   TypeScriptFactsService,
   type TypeFactsBackend,
-  type TypeFactsEnvironment,
   type TypeScriptFactsStats,
-} from "../semantics/index.ts";
-import { mapAnalysisReports } from "./diagnostic-map.ts";
-import { compilerOptions, cssEntrypoint } from "./options.ts";
-import { StylesheetEditor } from "./stylesheet-editor.ts";
+} from "../../semantics/index.ts";
+import { mapAnalysisReports } from "../diagnostic-map.ts";
+import { StylesheetEditor } from "../stylesheet-editor.ts";
+import { AnalysisCss, type AnalysisHost } from "./host.ts";
 
 /**
- * Loads compiler inputs and CSS for one Node analysis project. AnalysisProject serializes calls
- * and installs captured document contents before asking this backend to resolve or load modules.
+ *  Result of an unpublished analysis at one project revision.
  */
-export interface AnalysisHost extends CompilerHost {
-  /**
-   * Checks whether a resolved target can be analyzed by this host.
-   *
-   * @param id - Full resolver identity of the target.
-   * @returns Whether load can supply supported source for the identity.
-   */
-  supports(id: string): boolean;
-  /** Absolute project directory used for identities and CSS paths. */
-  root: string;
-  /**
-   * Compiler and preview settings fixed for this host's lifetime. Relative CSS and tsconfig paths
-   * use root.
-   */
-  config: BaseConfig & {
-    preview?: PreviewOptions;
-  };
-  /** CSS resolution and reads using the same captured document buffers as source loading. */
-  css: CssHost;
-  /** Fixed TypeScript settings selected when this host opens. */
-  readonly typeFactsEnvironment: TypeFactsEnvironment;
-  /** False disables additional semantic queries for this project. */
-  readonly typeFacts?: false;
-  /**
-   * Replaces all buffers used by subsequent source and CSS reads.
-   *
-   * @param documents - Absolute file paths to captured text. Missing entries use backend reads.
-   * @returns A promise that resolves when subsequent reads can use the supplied snapshot.
-   * @throws If the backend cannot install the supplied buffers.
-   */
-  setDocuments(documents: ReadonlyMap<string, string>): Promise<void>;
-  /**
-   * Discards backend caches before the next transaction. Must not overlap resolution or loads.
-   *
-   * @returns A promise that resolves when cached reads and resolutions have been invalidated.
-   * @throws If backend invalidation fails.
-   */
-  invalidate(): Promise<void>;
-  /**
-   * Releases backend resources. The caller first waits for pending host operations.
-   *
-   * @returns A promise for cleanup completion.
-   * @throws If backend cleanup fails.
-   */
-  close(): Promise<void>;
-}
-
-/** Result of an unpublished analysis at one project revision. */
 export interface AnalysisResult {
   /** Entry resolver identity supplied to analyze. */
   entry: string;
@@ -101,13 +38,22 @@ export interface AnalysisResult {
   error?: string;
 }
 
-/** Owns overlays, a reusable checker, and serialized transactions for one host. */
+/**
+ * Owns open buffers, checker queries, and serialized analysis for one host.
+ */
 export class AnalysisProject {
+  /** Prepared sources shared by analyses of different entries. */
+  readonly #compilation = new CompilationProject();
+
+  /** CSS state and dependencies owned by this project. */
+  readonly #css: AnalysisCss;
+
   /** Owned host. The project serializes its operations and closes it during cleanup. */
   readonly host: AnalysisHost;
 
   /** Optional factory used once when semantic analysis first needs a backend. */
   readonly #backend?: () => TypeFactsBackend;
+
   /** Unsaved original buffers keyed by absolute path and captured before each queued operation. */
   readonly #documents = new Map<
     string,
@@ -118,6 +64,7 @@ export class AnalysisProject {
       version: number;
     }
   >();
+
   /** Editor snapshots retained by entry identity until their project revision changes. */
   readonly #editors = new Map<
     string,
@@ -133,29 +80,25 @@ export class AnalysisProject {
 
   /** Lazily selected custom or Node semantic backend owned by this project. */
   #semantics?: TypeFactsBackend;
+
   /** Change counter used to discard pending analyses and editor answers. */
   #revision = 0;
+
   /** Serializes transactions and absorbs failures before subsequent work. */
   #queue: Promise<unknown> = Promise.resolve();
+
   /** Node backend retained separately to expose checker statistics. */
   #facts?: TypeScriptFactsService;
-  /** CSS loader retained until a CSS update or explicit invalidation. */
-  #loader?: NativeDesignSystemLoader;
-  /** Query-only CSS graph, rebuilt after CSS changes and kept separate from strict analysis. */
-  #editorCss?: EditorCssGraph;
-  /** Identities that the retained loader marked for stylesheet lint, in load order. */
-  #lintSources: string[] = [];
-  /**
-   * Plugin runtime of the retained loader. A CSS update keeps it as the previous runtime of the
-   * next load, so definitions of unchanged plugins survive.
-   */
-  #plugins?: PluginRuntime;
+
   /** Requests backend invalidation before the next transaction. */
   #dirty = true;
+
   /** Requests replacement of the cached CSS loader. */
   #cssDirty = true;
+
   /** Requests semantic disk-cache invalidation after an external change. */
   #diskDirty = true;
+
   /** Prevents transactions from producing new results during cleanup. */
   #closed = false;
 
@@ -168,6 +111,7 @@ export class AnalysisProject {
    */
   constructor(host: AnalysisHost, backend?: () => TypeFactsBackend) {
     this.host = host;
+    this.#css = new AnalysisCss(host);
     this.#backend = backend;
   }
 
@@ -180,12 +124,13 @@ export class AnalysisProject {
   }
 
   /**
-   * Stores an unsaved buffer and advances the revision used to discard pending results.
+   * Stores an unsaved buffer. Changed text advances the revision and makes pending results stale.
    *
    * @param id - File path resolved from the process working directory when relative.
    * @param source - Complete original document text.
    * @param version - Safe integer greater than the open buffer's version. An identical buffer and
-   * version have no effect. A document can restart its version sequence after closeDocument.
+   * version have no effect. Identical text with a newer version updates only the version.
+   * A document can restart its version sequence after closeDocument.
    * @throws If the version is invalid or does not increase for a changed open buffer.
    */
   update(id: string, source: string, version: number): void {
@@ -201,9 +146,15 @@ export class AnalysisProject {
       source,
       version,
     });
+    if (previous?.source === source) {
+      return;
+    }
+    if (this.#compilation.source(id)?.document.code !== source) {
+      this.#compilation.invalidate(id);
+    }
     this.#revision++;
     this.#dirty = true;
-    this.#cssDirty ||= isStylesheet(id);
+    this.#cssDirty ||= this.#css.affects(id);
   }
 
   /**
@@ -215,14 +166,16 @@ export class AnalysisProject {
   closeDocument(id: string): void {
     id = path.resolve(id);
     if (this.#documents.delete(id)) {
+      this.#compilation.invalidate(id);
       this.#revision++;
       this.#dirty = true;
-      this.#cssDirty ||= isStylesheet(id);
+      this.#cssDirty ||= this.#css.affects(id);
     }
   }
 
   /** Makes pending results stale. The next transaction rebuilds CSS and backend caches. */
   invalidate(): void {
+    this.#compilation.invalidate();
     this.#revision++;
     this.#dirty = true;
     this.#cssDirty = true;
@@ -237,23 +190,27 @@ export class AnalysisProject {
    * When true, retries a failed load with recovered definitions so incomplete CSS can still
    * determine membership for completion, hover, and colors.
    * @returns Identities of the CSS entry and the imported files that the CSS host marks for lint,
-   * in load order. Package CSS is excluded unless the host marks it.
+   * in load order. Package CSS is excluded unless the host marks it. Returns an empty list
+   * if the captured buffers become outdated before loading starts.
    * @throws If the project is closed, installing buffers or invalidating caches fails, or the
    * selected CSS loading mode fails.
    */
   stylesheets(editor = false): Promise<string[]> {
+    const revision = this.#revision;
     const documents = new Map([...this.#documents].map(([id, document]) => [id, document.source]));
     const task = this.#queue.then(async () => {
       if (this.#closed) {
         throw new Error("Analysis project is closed");
       }
-      await this.host.setDocuments(documents);
-      await this.#resetCaches();
-      if (editor) {
-        return [...(await this.#editorDesignSystem()).lintSources];
+      if (!(await this.#installDocuments(documents, revision))) {
+        return [];
       }
-      await this.#designSystem();
-      return [...this.#lintSources];
+
+      if (editor) {
+        return [...(await this.#css.editor()).lintSources];
+      }
+      await this.#css.load();
+      return [...this.#css.lintSources];
     });
     this.#queue = task.catch(() => {});
     return task;
@@ -290,11 +247,47 @@ export class AnalysisProject {
   }
 
   /**
+   * Loads targets together and prepares plugin candidates using the current buffers.
+   *
+   * @param entries - Full resolver IDs. The workspace must apply project membership rules first.
+   * @returns Completion of preparation. Closed or outdated requests stop without publishing results.
+   * Loading and plugin failures are left for each target's analysis to report. A failed plugin
+   * runtime is discarded before retrying.
+   */
+  prepare(entries: readonly string[]): Promise<void> {
+    const revision = this.#revision;
+    const documents = new Map([...this.#documents].map(([id, document]) => [id, document.source]));
+    const task = this.#queue.then(async () => {
+      if (this.#closed || this.#discardReason(revision)) {
+        return;
+      }
+      try {
+        if (!(await this.#installDocuments(documents, revision))) {
+          return;
+        }
+
+        const loader = await this.#css.load();
+        if (this.#discardReason(revision)) {
+          return;
+        }
+        await this.#compilation.prepare(entries, this.host, this.#css.session!);
+        await prepareSourcePlugins(this.#css.session!, loader, this.#compilation.texts());
+      } catch {
+        this.#css.discardPlugins();
+        // Scoped analysis reports loading and preparation failures for their original targets.
+      }
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
+  /**
    * Queries the captured analysis for an entry. Buffer changes or cancellation discard its answer.
    * CSS completion, hover, resolution, and colors can load recovered definitions for incomplete
    * input. CSS sorting and lint fixes require the original graph to load successfully.
    * Plugin path completion and links read captured CSS inside the project root without loading
    * its graph or executing plugins.
+   *
    * @param entry - Full resolver identity. The workspace applies target membership filtering.
    * @param request - Operation with offsets in the original UTF-16 document.
    * @param signal - Optional cancellation checked before and after queued work.
@@ -314,8 +307,9 @@ export class AnalysisProject {
         return undefined;
       }
       if (isStylesheet(entry) && ["completion", "resolve", "links"].includes(request.kind)) {
-        await this.host.setDocuments(documents);
-        await this.#resetCaches();
+        if (!(await this.#installDocuments(documents, revision, signal))) {
+          return undefined;
+        }
         const text = await this.host.css.read(entry).catch(() => undefined);
         if (text === undefined) {
           return undefined;
@@ -339,31 +333,16 @@ export class AnalysisProject {
           isStylesheet(entry) &&
           ["completion", "hover", "resolve", "colors", "colorPresentation"].includes(request.kind)
         ) {
-          await this.host.setDocuments(documents);
-          await this.#resetCaches();
-          const graph = await this.#editorDesignSystem();
-          if (!graph.lintSources.some((source) => sameFile(source, entry))) {
+          if (!(await this.#installDocuments(documents, revision, signal))) {
             return undefined;
           }
-          const reports = graph.recovered
-            ? []
-            : graph.loader
-                .stylesheetReports()
-                .filter(
-                  (report) => report.primary.location.uri === this.host.css.documentUri(entry),
-                );
+          const editor = await this.#css.editorSnapshot(entry);
+          if (!editor) {
+            return undefined;
+          }
           this.#editors.set(entry, {
             revision,
-            recovered: graph.recovered,
-            snapshot: new StylesheetEditor(
-              entry,
-              await this.host.css.read(entry),
-              reports,
-              graph.loader.editorQuery(),
-              this.host.config,
-              (await graph.plugins?.catalog()) ?? [],
-              graph.plugins,
-            ),
+            ...editor,
           });
         } else {
           await this.#analyzeSnapshot(entry, revision, documents);
@@ -410,6 +389,7 @@ export class AnalysisProject {
 
   /**
    * Determines whether a captured operation can still publish its result.
+   *
    * @param revision - Change counter captured when the operation was queued.
    * @param signal - Optional request cancellation, which takes precedence over staleness.
    * @returns The discard status, or undefined while the capture remains current.
@@ -426,6 +406,7 @@ export class AnalysisProject {
 
   /**
    * Installs captured buffers, refreshes caches, and retains an editor snapshot after compilation.
+   *
    * @param entry - Supported full resolver identity to analyze.
    * @param revision - Change counter associated with the captured documents.
    * @param documents - Independent map of open absolute paths to original text.
@@ -441,25 +422,35 @@ export class AnalysisProject {
       if (this.#closed) {
         throw new Error("Analysis project is closed");
       }
-      await this.host.setDocuments(documents);
-      await this.#resetCaches();
+      if (!(await this.#installDocuments(documents, revision))) {
+        return result;
+      }
       if (isStylesheet(entry)) {
-        return await this.#analyzeStylesheet(entry, revision, result);
+        const stylesheet = await this.#css.stylesheet(entry);
+        result.reports = stylesheet.reports;
+        result.status = "complete";
+        this.#editors.set(entry, {
+          revision,
+          snapshot: stylesheet.snapshot,
+        });
+        return result;
       }
       if (!this.host.supports?.(entry)) {
         throw new Error(`The ${this.host.constructor.name} host cannot analyze ${entry}`);
       }
-      const loader = await this.#designSystem();
-      const session = new NativeProjectSession(
-        loader,
-        false,
-        "development",
-        this.host.config.naming,
+      await this.#css.load();
+      const loader = this.#css.loader!;
+      const session = this.#css.session!;
+      const graph = await analyzeModule(
+        session,
+        () => this.#semanticBackend(),
+        entry,
+        this.host,
+        {
+          overlayFiles: documents,
+        },
+        revision === this.#revision ? this.#compilation : undefined,
       );
-      attachPlugins(session, this.#plugins);
-      const graph = await analyzeModule(session, () => this.#semanticBackend(), entry, this.host, {
-        overlayFiles: documents,
-      });
       result.graph = structuredClone(graph);
       result.reports = await mapAnalysisReports(
         graph.batches.flatMap((batch) => batch.reports),
@@ -471,8 +462,8 @@ export class AnalysisProject {
         session,
         loader,
         this.host.config,
-        (await this.#plugins?.catalog()) ?? [],
-        this.#plugins,
+        (await this.#css.plugins?.catalog()) ?? [],
+        this.#css.plugins,
       );
       result.reports.push(...editor.reports());
       this.#editors.set(entry, {
@@ -490,43 +481,30 @@ export class AnalysisProject {
   }
 
   /**
-   * Reports stylesheet lint for one stylesheet of the current CSS graph and retains its fixes.
-   * @param entry - Resolver identity of the stylesheet.
-   * @param revision - Change counter associated with the installed documents.
-   * @param result - Result to complete. Its reports are replaced.
-   * @returns The completed result with reports whose primary location is the stylesheet.
-   * @throws If resolving, reading, or loading the CSS graph fails.
+   * Installs captured buffers and refreshes caches before work continues.
+   *
+   * @param documents - Original buffers captured with the supplied revision.
+   * @param revision - Revision that owns this queued operation.
+   * @param signal - Optional cancellation checked between host operations.
+   * @returns Whether the operation can continue with these buffers after cache refresh.
+   * @throws If installing buffers or refreshing host or checker caches fails.
    */
-  async #analyzeStylesheet(
-    entry: string,
+  async #installDocuments(
+    documents: ReadonlyMap<string, string>,
     revision: number,
-    result: AnalysisResult,
-  ): Promise<AnalysisResult> {
-    const loader = await this.#designSystem();
-    result.reports = loader.stylesheetReports().filter((report) => {
-      const uri = report.primary.location.uri;
-      return uri.startsWith("file:")
-        ? sameFile(fileURLToPath(uri), entry)
-        : uri === this.host.css.documentUri(entry);
-    });
-    this.#editors.set(entry, {
-      revision,
-      snapshot: new StylesheetEditor(
-        entry,
-        await this.host.css.read(entry),
-        result.reports,
-        loader.editorQuery(),
-        this.host.config,
-        (await this.#plugins?.catalog()) ?? [],
-        this.#plugins,
-      ),
-    });
-    result.status = "complete";
-    return result;
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    await this.host.setDocuments(documents);
+    if (this.#discardReason(revision, signal)) {
+      return false;
+    }
+    await this.#resetCaches();
+    return !this.#discardReason(revision, signal);
   }
 
   /**
    * Consumes dirty flags and invalidates semantic, CSS, and host caches as requested.
+   *
    * @returns Completion of required invalidation, or no work when the project is clean.
    * @throws If semantic or host invalidation fails.
    */
@@ -541,79 +519,14 @@ export class AnalysisProject {
     }
     if (this.#cssDirty) {
       this.#cssDirty = false;
-      this.#loader = undefined;
-      this.#editorCss = undefined;
+      this.#css.invalidate();
     }
     await this.host.invalidate();
   }
 
   /**
-   * Loads the configured CSS graph once until CSS invalidation clears it.
-   * @returns The retained loader with compiler options applied.
-   * @throws If resolving, reading, or loading the CSS graph fails.
-   */
-  async #designSystem(): Promise<NativeDesignSystemLoader> {
-    if (!this.#loader) {
-      const css = path.resolve(this.host.root, cssEntrypoint(this.host.config));
-      const loaded = await loadCssGraph(
-        css,
-        compilerOptions(this.host.config),
-        this.host.css,
-        undefined,
-        undefined,
-        this.#pluginInputs(),
-      );
-      this.#loader = loaded.loader;
-      this.#lintSources = loaded.lintSources;
-      this.#plugins = loaded.plugins;
-    }
-    return this.#loader;
-  }
-
-  /**
-   * Selects the plugins of the project's CSS graph.
-   * @returns Configured plugins, the project root, and the runtime of the last load.
-   */
-  #pluginInputs(): CssPluginInputs {
-    return {
-      plugins: this.host.config.plugins,
-      tailwind: this.host.config.tailwind,
-      important: this.host.config.important,
-      root: this.host.root,
-      previous: this.#plugins,
-    };
-  }
-
-  /**
-   * Loads a query graph from original CSS or recovered definitions, without publishing its reports.
-   * @returns The cached editor graph, reusing the strict loader when available. Otherwise, a failed
-   * original load is retried with recovered definitions. CSS invalidation clears this cache.
-   * @throws If neither the original nor the recovered CSS graph can be resolved, read, and loaded.
-   */
-  async #editorDesignSystem(): Promise<EditorCssGraph> {
-    if (!this.#editorCss) {
-      if (this.#loader) {
-        this.#editorCss = {
-          loader: this.#loader,
-          resources: [],
-          lintSources: this.#lintSources,
-          recovered: false,
-          plugins: this.#plugins,
-        };
-      } else {
-        this.#editorCss = await loadEditorCssGraph(
-          path.resolve(this.host.root, cssEntrypoint(this.host.config)),
-          compilerOptions(this.host.config),
-          this.host.css,
-          this.#pluginInputs(),
-        );
-      }
-    }
-    return this.#editorCss;
-  }
-
-  /**
    * Lazily selects the custom backend or creates the Node checker with fixed project settings.
+   *
    * @returns The owned backend, or undefined when type facts are disabled.
    * @throws If backend creation fails.
    */
@@ -635,24 +548,8 @@ export class AnalysisProject {
 }
 
 /**
- * Compares file paths as the host filesystem does.
- * @param a - File path resolved against the process working directory when relative.
- * @param b - File path resolved in the same way.
- * @returns Whether both paths name the same file, ignoring case on Windows.
- */
-export function sameFile(a: string, b: string): boolean {
-  /**
-   * Normalizes a path for comparison.
-   * @param file - File path.
-   * @returns The absolute path, lowercased on Windows.
-   */
-  const key = (file: string) =>
-    process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
-  return key(a) === key(b);
-}
-
-/**
  * Creates a result that carries no reports or graph after a capture becomes unusable.
+ *
  * @param entry - Requested resolver identity.
  * @param revision - Change counter captured when the request was queued.
  * @param status - Reason the capture was discarded.
@@ -673,6 +570,7 @@ function discardedResult(
 
 /**
  * Checks whether all demanded semantic inputs were available, independently of compiler error reports.
+ *
  * @param graph - Observed graph returned by compilation.
  * @returns Whether no ranges are unverified and no dependency is unresolved or unsupported.
  */

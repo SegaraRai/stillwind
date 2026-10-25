@@ -1,7 +1,91 @@
-import { lintPresets } from "@stillwind/config";
+import { definePlugin, lintPresets } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
 import { BrowserAnalysisWorkspace } from "./browser.ts";
+
+test("diagnostics, queries and builds share CSS across source edits and reload observed plugin inputs", async () => {
+  const uri = "file:///workspace/entry.ts";
+  const code = 'import {style} from "stillwind/react"; export const value=style("demo-red");';
+  let loads = 0;
+  let unrelatedLoads = 0;
+  const calls: string[][] = [];
+  const workspace = new BrowserAnalysisWorkspace({
+    config: "file:///workspace/stillwind.config.ts",
+    projects: [
+      {
+        root: "/workspace",
+        css: "theme.css",
+        files: ["*.ts"],
+        typeFacts: false,
+        plugins: [
+          definePlugin({
+            name: "demo",
+            css: async (context) => {
+              loads++;
+              context.watch("/workspace/plugin-input.txt");
+              return `@stillwind-dynamic demo-*; @utility selected { color:${await context.read("/workspace/plugin-input.txt")}; }`;
+            },
+            resolve: (candidates) => {
+              calls.push([...candidates]);
+              return candidates
+                .map((candidate) => `@utility ${candidate}{color:${candidate.slice(5)}}`)
+                .join("");
+            },
+          }),
+        ],
+      },
+      {
+        root: "/unused",
+        files: ["*.ts"],
+        css: "theme.css",
+        typeFacts: false,
+        plugins: [
+          definePlugin({
+            name: "unused",
+            css: () => {
+              unrelatedLoads++;
+              return "@utility red{color:red}";
+            },
+          }),
+        ],
+      },
+    ],
+    files: new Map([
+      ["/workspace/entry.ts", code],
+      ["/workspace/other.ts", code.replace("demo-red", "demo-blue")],
+      ["/workspace/plugin-input.txt", "red"],
+      ["/workspace/theme.css", '@plugin "demo"; @stillwind-slot utilities;'],
+      ["/unused/entry.ts", code],
+      ["/unused/theme.css", '@plugin "unused";'],
+    ]),
+  });
+  try {
+    const analysis = (await workspace.analyze(uri))[0].result;
+    expect(analysis.status, JSON.stringify(analysis)).toBe("complete");
+    expect((await workspace.compile(uri, workspace.revision)).css).toContain("color:red");
+    await workspace.query(uri, { kind: "sort" });
+    expect(loads).toBe(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].toSorted()).toEqual(["demo-blue", "demo-red"]);
+    workspace.update(uri, code.replace("value", "updated"), 1);
+    expect((await workspace.analyze(uri))[0].result.status).toBe("complete");
+    expect((await workspace.compile(uri, workspace.revision)).css).toContain("color:red");
+    expect(loads).toBe(1);
+    workspace.update("file:///workspace/plugin-input.txt", "blue", 1);
+    workspace.update(uri, code.replace("demo-red", "selected"), 2);
+    expect((await workspace.compile(uri, workspace.revision)).css).toContain("color:blue");
+    expect(loads).toBe(2);
+    expect(unrelatedLoads).toBe(0);
+    workspace.update(
+      "file:///workspace/theme.css",
+      "@utility selected{color:green} @stillwind-slot utilities;",
+      1,
+    );
+    expect((await workspace.compile(uri, workspace.revision)).css).toContain("color:green");
+  } finally {
+    await workspace.close();
+  }
+});
 
 test("CSS colors recover cold buffers while sorting requires original CSS after recovery", async () => {
   const uri = "file:///workspace/theme.css";
@@ -84,6 +168,12 @@ test("browser workspace captures configuration and files across inventory revisi
     const updated = await workspace.compile(uri, workspace.revision);
     expect(updated.css).toContain("display:block");
     expect(updated.graph.generation).toBe("complete");
+    workspace.update(uri, "const broken = (", 2);
+    const broken = (await workspace.analyze(uri))[0].result;
+    expect(broken.error).toBeUndefined();
+    expect(broken.reports[0].severity).toBe("error");
+    workspace.update(uri, code, 3);
+    expect((await workspace.compile(uri, workspace.revision)).graph.generation).toBe("complete");
   } finally {
     await workspace.close();
   }

@@ -43,8 +43,10 @@ process.on("disconnect", () => {
 
 /**
  * Dispatches one IPC operation against the child-owned workspace and rewriter.
+ *
  * @param request - Operation payload. Open must complete before other operations except close.
- * @returns The operation result, or undefined for state changes. Target paths are sorted and deduplicated.
+ * @returns The operation result, including a boolean for refresh, or undefined for state changes.
+ * The targets operation returns sorted, distinct paths.
  * @throws If no workspace is open or the selected workspace operation fails.
  */
 async function handle(request: WorkerRequest): Promise<unknown> {
@@ -84,6 +86,9 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     case "analyze":
       return workspace.analyze(request.file);
 
+    case "prepare":
+      return workspace.prepare(request.files);
+
     case "query":
       return workspace.query(request.file, request.request);
 
@@ -98,6 +103,9 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     case "invalidate":
       workspace.invalidate();
       return undefined;
+
+    case "refresh":
+      return workspace.refresh(request.files);
 
     case "close":
       await workspace.close();

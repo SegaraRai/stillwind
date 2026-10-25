@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { expect, test } from "vite-plus/test";
 
 import { BrowserProject } from "../browser/index.ts";
-import type { EditorCompletion } from "./snapshot.ts";
+import type { EditorCompletion } from "./request.ts";
 import { applyEdits } from "./sort.ts";
 
 const entry = "/workspace/entry.tsx";

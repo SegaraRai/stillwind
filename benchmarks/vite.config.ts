@@ -36,6 +36,11 @@ export default defineConfig(({ mode }) => ({
   },
   run: {
     tasks: {
+      "bench:analysis": {
+        command: "node compiler/analysis-cli.ts",
+        cache: false,
+        dependsOn: ["@stillwind/cli#build"],
+      },
       "bench:architecture": {
         command:
           "vp test bench research/architecture.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/architecture.json",
@@ -58,7 +63,11 @@ export default defineConfig(({ mode }) => ({
         command:
           "vp test --run --config vite.browser.config.ts --reporter default --reporter json --outputFile results/canonical-browser.json",
         cache: false,
-        dependsOn: ["@stillwind/native#collect:local"],
+        dependsOn: [
+          "@stillwind/native#collect:local",
+          "@stillwind/analysis#build",
+          "stillwind#build",
+        ],
       },
       "bench:compiler:wasm": {
         command:
