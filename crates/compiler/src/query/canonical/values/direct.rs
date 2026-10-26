@@ -399,7 +399,7 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
         })
 }
 
-/// Builds candidate lookup keys by minifying `value` in several declaration contexts.
+/// Builds candidate lookup keys by minifying `value` for each of [`KEY_PROPERTIES`].
 ///
 /// Adds a pixel-to-rem form when the query permits it and one of its theme scales uses
 /// rem. These keys can admit extra candidates, so callers must compare complete CSS and
@@ -414,20 +414,125 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
         }
     }
     values
-        .into_iter()
-        .flat_map(|value| {
-            // Minification depends on the receiving property. These declarations
-            // provide comparison keys for colors, lengths, and untyped token values.
-            ["color", "width", "font-family", "--sw-value"]
-                .into_iter()
-                .filter_map(move |property| {
-                    minify_css(
-                        &format_args!("&{{{property}:{value}}}").to_lean_str(),
-                        &CssMinifyOptions::default(),
-                    )
-                    .ok()
-                    .map(|output| LeanStr::from(output.css))
+        .iter()
+        .flat_map(|value| minified_keys(value))
+        .collect()
+}
+
+/// The properties whose minification gives the keys of a value. Minification depends on
+/// the receiving property, so these declarations give keys for colors, lengths, and
+/// untyped token values.
+const KEY_PROPERTIES: [&str; 4] = ["color", "width", "font-family", "--sw-value"];
+
+/// Returns `&{property:value}` minified for each property of [`KEY_PROPERTIES`].
+///
+/// The function minifies one rule that contains all declarations. It uses the
+/// separate minification of [`separately_minified_keys`] when the rule cannot be split
+/// back into one declaration for each property in order, such as when `value` contains
+/// `;` or when the minifier drops a declaration.
+fn minified_keys(value: &str) -> Vec<LeanStr> {
+    let mut rule = String::from("&{");
+    for (index, property) in KEY_PROPERTIES.iter().enumerate() {
+        if index > 0 {
+            rule.push(';');
+        }
+        rule.push_str(property);
+        rule.push(':');
+        rule.push_str(value);
+    }
+    rule.push('}');
+    if let Ok(output) = minify_css(&rule, &CssMinifyOptions::default())
+        && let Some(body) = output
+            .css
+            .strip_prefix("&{")
+            .and_then(|body| body.strip_suffix('}'))
+    {
+        let declarations: Vec<_> = split_top_level(body, |token| matches!(token, Token::Semicolon))
+            .into_iter()
+            .map(str::trim)
+            .filter(|declaration| !declaration.is_empty())
+            .collect();
+        if declarations.len() == KEY_PROPERTIES.len()
+            && declarations
+                .iter()
+                .zip(KEY_PROPERTIES)
+                .all(|(declaration, property)| {
+                    declaration
+                        .strip_prefix(property)
+                        .is_some_and(|rest| rest.starts_with(':'))
                 })
+        {
+            return declarations
+                .into_iter()
+                .map(|declaration| format_args!("&{{{declaration}}}").to_lean_str())
+                .collect();
+        }
+    }
+    separately_minified_keys(value)
+}
+
+/// Returns `&{property:value}` minified separately for each property of
+/// [`KEY_PROPERTIES`]. A property whose rule cannot be minified gives no key.
+fn separately_minified_keys(value: &str) -> Vec<LeanStr> {
+    KEY_PROPERTIES
+        .into_iter()
+        .filter_map(|property| {
+            minify_css(
+                &format_args!("&{{{property}:{value}}}").to_lean_str(),
+                &CssMinifyOptions::default(),
+            )
+            .ok()
+            .map(|output| LeanStr::from(output.css))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
+    use stillwind_source::{CssSourceName, FileId};
+    use stillwind_test_support::{css_source, with_defaults};
+
+    use super::*;
+
+    #[test]
+    fn combined_minification_matches_separate_minification() {
+        let source = css_source(FileId(1), with_defaults("")).unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("theme.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let mut values: Vec<String> = snapshot
+            .tokens()
+            .iter()
+            .filter_map(|(_, group)| group.first())
+            .map(|token| token.value.value.to_string())
+            .collect();
+        values.extend(
+            [
+                "red",
+                "#FF0000",
+                "1.50rem",
+                "calc(var(--spacing) * 4)",
+                "0 1px 3px 0 rgb(0 0 0 / 0.1)",
+                "\"Inter\", ui-sans-serif",
+                "a;b",
+                "a}b",
+                "}",
+                "",
+                "!important",
+                "url(a.png)",
+            ]
+            .map(String::from),
+        );
+        for value in values {
+            assert_eq!(
+                minified_keys(&value),
+                separately_minified_keys(&value),
+                "{value}"
+            );
+        }
+    }
 }
