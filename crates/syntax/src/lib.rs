@@ -32,7 +32,7 @@ mod candidate;
 mod lexer;
 mod syntax;
 
-pub use arbitrary::decode_arbitrary_value;
+pub use arbitrary::{decode_arbitrary_value, print_arbitrary_value};
 pub use candidate::{CandidatePrefix, source_candidate_tokens};
 pub use lexer::{UtilityToken, lex_utilities};
 pub use syntax::{

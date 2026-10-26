@@ -1,28 +1,36 @@
 //! Renders canonical previews and normalizes their CSS under one query's spacing policy.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write;
 use std::ops::Range;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::{CssMinifyOptions, CssRule, Declaration, fold_calc_expressions, minify_css};
+use stillwind_css::{
+    CssMinifyOptions, CssRule, Declaration, fold_calc_expressions, inspect_css_value, minify_css,
+};
 use stillwind_design_system::UtilityResolutionError;
-use stillwind_source::ReplaceText;
+use stillwind_source::{Fingerprint, ReplaceText};
+use stillwind_syntax::{decode_arbitrary_value, print_arbitrary_value};
 
 use crate::compiler::FLATTEN_COLOR_COMPATIBILITY;
+use crate::options::PACKAGE_TAILWIND_PREFIX;
 use crate::query::QueryContext;
 use crate::query::theme::ScaleReference;
 use crate::{GeneratedRule, RootFontSize};
 
-/// Spacing transformations that affect equality within one query's fixed lint policy.
+/// The changes that a query applies to CSS before it compares two candidates. Each
+/// query uses fixed values of these changes.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(super) struct Normalization {
     /// Whether to substitute the owning query's theme scales.
     pub(super) resolve_scale: bool,
     /// Property names whose pixel dimensions use the query's root font size.
     pub(super) properties: BTreeSet<LeanStr>,
+    /// Whether a selector must keep its specificity during normalization.
+    pub(super) preserve_specificity: bool,
 }
 
 /// Rendered candidate data reused while this query compares canonical spellings.
@@ -39,6 +47,12 @@ pub(in crate::query) struct CanonicalPreview {
     /// Successful and failed normalizations keyed by their spacing transformations.
     /// Query clones share this cache across threads.
     pub(super) signatures: Mutex<BTreeMap<Normalization, Option<LeanStr>>>,
+    /// Whether selectors must keep their specificity. The value comes from the query
+    /// that created the preview.
+    preserve_specificity: bool,
+    /// The internal custom properties that comparison removes. The value comes from the
+    /// query that created the preview.
+    composition: Arc<Composition>,
 }
 
 impl CanonicalPreview {
@@ -56,6 +70,7 @@ impl CanonicalPreview {
         let key = Normalization {
             resolve_scale: !scales.is_empty(),
             properties: properties.clone(),
+            preserve_specificity: self.preserve_specificity,
         };
         if let Some(cached) = self
             .signatures
@@ -65,10 +80,16 @@ impl CanonicalPreview {
         {
             return cached.clone();
         }
-        let result = self
-            .resolved_css
-            .as_deref()
-            .and_then(|css| normalized_signature(css, scales, properties, root_font_size));
+        let result = self.resolved_css.as_deref().and_then(|css| {
+            normalized_signature(
+                css,
+                scales,
+                properties,
+                root_font_size,
+                self.preserve_specificity,
+                &self.composition,
+            )
+        });
         self.signatures
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -87,6 +108,8 @@ pub(super) fn normalized_signature(
     scales: &[ScaleReference],
     properties: &BTreeSet<LeanStr>,
     root_font_size: RootFontSize,
+    preserve_specificity: bool,
+    composition: &Composition,
 ) -> Option<LeanStr> {
     let mut normalized = css.to_lean_string();
     for scale in scales {
@@ -96,9 +119,207 @@ pub(super) fn normalized_signature(
         normalized = convert_spacing_declarations(&normalized, properties, root_font_size.get(), 0);
     }
     normalized = fold_calc_expressions(&normalized, None);
+    normalized = composition_declarations(&normalized, composition, 0).into();
+    if normalized.contains(":is(")
+        || normalized.contains(":not(")
+        || normalized.contains('[')
+        || (!preserve_specificity && normalized.contains(":where("))
+    {
+        normalized =
+            super::selectors::selector_signatures(&normalized, preserve_specificity, 0).into();
+    }
     minify_css(&normalized, &CssMinifyOptions::default())
         .ok()
         .map(|output| LeanStr::from(output.css))
+}
+
+/// Internal custom properties that only repeat the value of a standard property.
+///
+/// A utility definition can set an internal custom property and a standard property to
+/// the same value, as `leading-*` sets `--tw-leading` and `line-height`. Comparison
+/// removes such a custom property when the standard property has the same value,
+/// because the custom property adds no CSS of its own. The pairs come from the utility
+/// definitions of the snapshot.
+#[derive(Debug, Default)]
+pub(in crate::query) struct Composition {
+    /// The prefix of internal custom properties in the generated CSS, such as `--tw-`.
+    pub(super) prefix: LeanStr,
+    /// Maps each internal custom property, with `prefix`, to the standard property that
+    /// receives the same value in some utility definition.
+    pub(super) shadows: BTreeMap<LeanStr, LeanStr>,
+}
+
+impl Composition {
+    /// Finds the pairs in the utility definitions of `query`.
+    fn prepare(query: &QueryContext) -> Self {
+        let mut composition = Self {
+            prefix: query.options.tailwind_prefix.clone(),
+            shadows: BTreeMap::new(),
+        };
+        for definition in query
+            .design_system
+            .utilities()
+            .iter()
+            .flat_map(|(_, definitions)| definitions)
+        {
+            each_declaration_list(&definition.body, 0, &mut |declarations| {
+                for custom in declarations
+                    .iter()
+                    .filter(|declaration| declaration.property.starts_with(PACKAGE_TAILWIND_PREFIX))
+                {
+                    let value = declaration_value(custom);
+                    if let Some(standard) = declarations.iter().find(|other| {
+                        !other.property.starts_with("--") && declaration_value(other) == value
+                    }) {
+                        composition.shadows.insert(
+                            query.options.rewrite_generated(&custom.property),
+                            standard.property.clone(),
+                        );
+                    }
+                }
+            });
+        }
+        composition
+    }
+
+    /// Checks whether `declaration` only repeats a standard property among
+    /// `declarations`, so that comparison can remove it.
+    fn redundant(&self, declaration: &Declaration, declarations: &[Declaration]) -> bool {
+        let Some(standard) = self.shadows.get(&declaration.property) else {
+            return false;
+        };
+        let value = declaration_value(declaration);
+        declarations.iter().any(|other| {
+            other.property == *standard && {
+                let other = declaration_value(other);
+                other == value || (zero(value) && zero(other))
+            }
+        })
+    }
+}
+
+impl QueryContext {
+    /// Returns the internal custom properties of this snapshot that only repeat a
+    /// standard property. Queries for the same snapshot and prefix share the result.
+    pub(in crate::query) fn composition(&self) -> Arc<Composition> {
+        self.design_system.analysis(
+            Fingerprint::of(format!(
+                "canonical-composition/v1\0{}",
+                self.options.tailwind_prefix
+            )),
+            || Composition::prepare(self),
+        )
+    }
+}
+
+/// Calls `visit` with the declarations of each rule in `css` and in its nested rules.
+/// `depth` is the nesting level of `css`. CSS that cannot be parsed, and rules nested
+/// deeper than 64 levels, are skipped.
+fn each_declaration_list(css: &str, depth: usize, visit: &mut impl FnMut(&[Declaration])) {
+    if depth > 64 {
+        return;
+    }
+    if let Some(declarations) = Declaration::parse(css) {
+        visit(&declarations);
+        return;
+    }
+    if let Ok(rules) = CssRule::parse(css) {
+        for body in rules.iter().filter_map(|rule| rule.body.as_deref()) {
+            each_declaration_list(body, depth + 1, visit);
+        }
+    }
+}
+
+/// Returns the value of `declaration`, without `;` and the surrounding spaces.
+fn declaration_value(declaration: &Declaration) -> &str {
+    declaration
+        .css
+        .split_once(':')
+        .map_or("", |(_, value)| value.trim().trim_end_matches(';').trim())
+}
+
+/// Checks whether `value` is zero, with or without a unit, such as `0` or `0px`. An
+/// `!important` suffix is ignored.
+fn zero(value: &str) -> bool {
+    let value = value.trim_end_matches("!important").trim();
+    let number = value.trim_end_matches(|character: char| character.is_ascii_alphabetic());
+    !number.is_empty() && number.parse::<f64>().is_ok_and(|number| number == 0.0)
+}
+
+/// Returns `css` without the internal custom properties that `composition` marks as
+/// redundant, and with each value written with only the required spaces. For example,
+/// `--tw-leading: 1.5` is removed next to `line-height: 1.5`.
+///
+/// `depth` is the nesting level of `css`. CSS that cannot be parsed, and rules nested
+/// deeper than 64 levels, stay as written.
+fn composition_declarations(css: &str, composition: &Composition, depth: usize) -> String {
+    if depth > 64
+        || (!css.contains(composition.prefix.as_str())
+            && !css.contains([',', '+', '~', '>', '*', '/'])
+            && !css.contains(" - "))
+    {
+        return css.into();
+    }
+    if let Some(declarations) = Declaration::parse(css) {
+        return declarations
+            .iter()
+            .filter(|declaration| !composition.redundant(declaration, &declarations))
+            .fold(String::new(), |mut output, declaration| {
+                let value =
+                    decode_arbitrary_value(&print_arbitrary_value(declaration_value(declaration)));
+                let _ = write!(output, "{}:{value};", declaration.property);
+                output
+            });
+    }
+    CssRule::parse(css).map_or_else(
+        |_| css.into(),
+        |rules| {
+            rules
+                .into_iter()
+                .map(|rule| {
+                    rule.body.as_deref().map_or_else(
+                        || rule.prelude.to_string(),
+                        |body| {
+                            format!(
+                                "{}{{{}}}",
+                                rule.prelude,
+                                composition_declarations(body, composition, depth + 1)
+                            )
+                        },
+                    )
+                })
+                .collect()
+        },
+    )
+}
+
+/// Returns `required` without the registered internal properties whose declarations
+/// `composition_declarations` removes from `css`. `required` must contain the
+/// registration requirements of `css`, written with the package prefix or with the
+/// prefix of `composition`.
+pub(super) fn canonical_requirements(
+    css: &str,
+    required: Vec<LeanStr>,
+    composition: &Composition,
+) -> Vec<LeanStr> {
+    let prefix = composition.prefix.as_str();
+    let internal =
+        |name: &str| name.starts_with(PACKAGE_TAILWIND_PREFIX) || name.starts_with(prefix);
+    if !required.iter().any(|name| internal(name)) {
+        return required;
+    }
+    let canonical = composition_declarations(css, composition, 0);
+    required
+        .into_iter()
+        .filter(|name| {
+            let rendered = name
+                .strip_prefix(PACKAGE_TAILWIND_PREFIX)
+                .map_or_else(|| name.to_string(), |suffix| format!("{prefix}{suffix}"));
+            !internal(name)
+                || canonical.contains(&rendered)
+                || !css.contains(&format!("{rendered}:"))
+        })
+        .collect()
 }
 
 impl QueryContext {
@@ -124,10 +345,19 @@ impl QueryContext {
                 .iter()
                 .map(GeneratedRule::to_css)
                 .collect();
+            let resolved_css = self.resolve_theme_values(&css);
+            let composition = self.composition();
+            let required_properties = canonical_requirements(
+                resolved_css.as_deref().unwrap_or(&css),
+                result.required_properties,
+                &composition,
+            );
             Arc::new(CanonicalPreview {
-                resolved_css: (self.resolve_theme_values(&css)),
+                resolved_css,
                 css: (css).into(),
-                required_properties: result.required_properties,
+                required_properties,
+                preserve_specificity: self.canonical_options().preserve_specificity,
+                composition,
                 signatures: Mutex::new(BTreeMap::new()),
             })
         });
@@ -184,6 +414,10 @@ pub(super) fn spacing_properties(
                     scales
                         .iter()
                         .any(|scale| scale.referenced_by(&declaration.css))
+                        || inspect_css_value(&declaration.css)
+                            .0
+                            .iter()
+                            .any(|unit| matches!(unit.as_str(), "px" | "rem"))
                 })
                 .map(|declaration| declaration.property),
         );

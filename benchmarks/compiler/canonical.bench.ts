@@ -1,12 +1,8 @@
 import { NativeProjectSession, __napiBindingTarget } from "@stillwind/native";
 import { expect, inject, test, type BenchRunOptions } from "vite-plus/test";
 
-import {
-  canonicalCases,
-  canonicalLoader,
-  canonicalPalette,
-  canonicalSource,
-} from "./canonical-cases.ts";
+import { canonicalLoader, canonicalPalette, canonicalSource } from "./canonical-cases.ts";
+import { canonicalCases, canonicalMixedGroup } from "./canonical-inputs.ts";
 
 const options: BenchRunOptions = {
   iterations: 9,
@@ -42,13 +38,33 @@ for (const scenario of canonicalCases) {
   });
 }
 
+test("canonical/group/mixed", async ({ bench, task }) => {
+  const loader = canonicalLoader();
+  let query = loader.editorQuery();
+  let answer: string[];
+  task.meta.measurement = options;
+  await bench(
+    "canonical-group",
+    {
+      async: false,
+      beforeEach: () => {
+        query = loader.editorQuery();
+      },
+    },
+    () => {
+      answer = query.canonicalCandidates([...canonicalMixedGroup]);
+    },
+  ).run(options);
+  expect(answer!).toEqual([...canonicalMixedGroup]);
+});
+
 test("canonical/prepare-css-revision", async ({ bench, task }) => {
   let query = canonicalLoader().editorQuery();
   task.meta.measurement = options;
   await bench("load-css-and-index", { async: false }, () => {
     query = canonicalLoader().editorQuery();
   }).run(options);
-  expect(query.canonicalCandidate("[border-color:#123456]")).toBeNull();
+  expect(query.canonicalCandidate("[border-color:#123456]")).toBe("border-[#123456]");
 });
 
 test("canonical/reuse-prepared-revision", async ({ bench, task }) => {
@@ -106,7 +122,7 @@ for (const independent of [true, false]) {
       const source = canonicalSource(100, unique, independent);
       task.meta.notes = independent
         ? "100 independent style calls with canonical diagnostics enabled; no utility pairs share a call."
-        : "One style call with 100 utilities; returns all 4950 pairwise diagnostics, including their source locations.";
+        : "One style call with 100 utilities; returns 4950 pairwise diagnostics and one canonical suggestion, with source locations.";
       let session = new NativeProjectSession(loader, false);
       let reports: ReturnType<NativeProjectSession["diagnose"]>;
       task.meta.measurement = options;
@@ -124,9 +140,14 @@ for (const independent of [true, false]) {
       ).run(options);
       expect(reports!).toHaveLength(1);
       expect(reports![0].reports.map((report) => report.code)).toEqual(
-        Array.from({ length: independent ? 0 : (100 * 99) / 2 }, () =>
-          unique ? "conflicting-utilities" : "duplicate-utility",
-        ),
+        independent
+          ? []
+          : [
+              "prefer-canonical-utilities",
+              ...Array.from({ length: (100 * 99) / 2 }, () =>
+                unique ? "conflicting-utilities" : "duplicate-utility",
+              ),
+            ],
       );
     });
   }

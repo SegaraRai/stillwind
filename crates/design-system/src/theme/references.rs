@@ -1,15 +1,18 @@
-//! Lowering of build-time `--theme()` and `theme()` references.
+//! Replaces `--theme()` and `theme()` references while CSS is generated.
 //!
-//! Tailwind resolves these while generating CSS rather than in the browser, so the
-//! result depends on which tokens are active. In token values, `--theme()` has three
-//! outcomes that must stay distinguishable: a defined token becomes a `var()`
-//! reference, an undefined token with a fallback uses that fallback, and an undefined
-//! token whose fallback is `initial` (or that has no fallback) drops the containing
-//! declaration entirely, which [`None`] reports to the caller.
+//! Tailwind replaces these references at build time, not in the browser, so the result
+//! depends on which tokens are active. In a token value, `--theme()` has three possible
+//! results, and callers must handle each one:
 //!
-//! In arbitrary values, `theme()` is replaced with the token's authored value.
+//! - A defined token becomes a `var()` reference.
+//! - An undefined token with a fallback becomes the fallback.
+//! - An undefined token without a fallback, or with the fallback `initial`, removes the
+//!   declaration that contains it. The functions report this with `None`.
+//!
+//! A modifier such as `/50` applies 50% opacity to the reference or the fallback. In an
+//! arbitrary value, `theme()` is replaced with the value of the token as written.
 
-use cssparser::Token;
+use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 
 use stillwind_css::{find_css_functions, split_once_top_level};
@@ -149,6 +152,27 @@ pub(crate) fn resolve_theme_references(
     value: &str,
     mut is_defined: impl FnMut(&str) -> bool,
 ) -> Result<Option<LeanString>, ThemeReferenceError> {
+    resolve_references(value, &mut is_defined, 0, 0)
+}
+
+/// Replaces the `--theme()` references in `value` in the same way as
+/// `resolve_theme_references`. `depth` is the nesting level of fallback arguments.
+/// `base_offset` is the offset of `value` in the original input, and error offsets
+/// include it. Returns `Ok(None)` when references are nested deeper than 64 levels.
+///
+/// # Errors
+///
+/// Returns the offset and the cause of an invalid reference or argument list.
+fn resolve_references(
+    value: &str,
+    is_defined: &mut impl FnMut(&str) -> bool,
+    depth: usize,
+    base_offset: usize,
+) -> Result<Option<LeanString>, ThemeReferenceError> {
+    if depth > 64 {
+        return Ok(None);
+    }
+
     let mut output = LeanString::with_capacity(value.len());
     let mut cursor = 0;
     let mut omitted = false;
@@ -158,30 +182,43 @@ pub(crate) fn resolve_theme_references(
             continue;
         }
         output.push_str(&value[cursor..start]);
-        let end = found
-            .end
-            .ok_or(ThemeReferenceError::Unterminated { offset: start })?;
+        let end = found.end.ok_or(ThemeReferenceError::Unterminated {
+            offset: base_offset + start,
+        })?;
+        let arguments_end = found.arguments.end;
         let arguments = &value[found.arguments];
         let (reference, fallback) =
             split_once_top_level(arguments, |token| matches!(token, Token::Comma));
-        let reference = reference.trim();
-        if !reference.starts_with("--") {
+        let (reference, opacity) =
+            split_once_top_level(reference, |token| matches!(token, Token::Delim('/')));
+        let Some(reference) = property_reference(reference) else {
             return Err(ThemeReferenceError::InvalidProperty {
-                offset: start,
-                reference: reference.to_lean_str(),
+                offset: base_offset + start,
+                reference: reference.trim().to_lean_str(),
             });
-        }
+        };
         let fallback = fallback
-            .map(str::trim)
-            .filter(|fallback| !fallback.is_empty());
+            .map(str::trim_start)
+            .filter(|fallback| !fallback.trim_end().is_empty() && fallback.trim_end() != "initial")
+            .map(|fallback| {
+                resolve_references(
+                    fallback.trim_end(),
+                    is_defined,
+                    depth + 1,
+                    base_offset + arguments_end - fallback.len(),
+                )
+            })
+            .transpose()?
+            .flatten();
+        let mut replacement = String::new();
         if is_defined(reference) {
-            output.push_str("var(");
-            output.push_str(reference);
-            if let Some(fallback) = fallback.filter(|fallback| *fallback != "initial") {
-                output.push_str(", ");
-                output.push_str(fallback);
+            replacement.push_str("var(");
+            replacement.push_str(reference);
+            if let Some(fallback) = fallback {
+                replacement.push_str(", ");
+                replacement.push_str(&fallback);
             }
-            output.push(')');
+            replacement.push(')');
         } else {
             let Some(fallback) = fallback else {
                 omitted = true;
@@ -193,12 +230,51 @@ pub(crate) fn resolve_theme_references(
                 cursor = end;
                 continue;
             }
-            output.push_str(fallback);
+            replacement.push_str(&fallback);
         }
+        if let Some(opacity) = opacity {
+            let opacity = opacity.trim();
+            if opacity.is_empty() {
+                return Err(ThemeReferenceError::InvalidProperty {
+                    offset: base_offset + start,
+                    reference: reference.to_lean_str(),
+                });
+            }
+            let opacity = opacity
+                .parse::<f64>()
+                .map_or_else(|_| opacity.to_string(), |number| format!("{number}%"));
+            if opacity != "100%" {
+                replacement = format!("color-mix(in oklab, {replacement} {opacity}, transparent)");
+            }
+        }
+        output.push_str(&replacement);
         cursor = end;
     }
     output.push_str(&value[cursor..]);
     Ok((!omitted).then_some(output))
+}
+
+/// Returns the custom property name in `value`, such as `--color-red` for
+/// ` --color-red `. Whitespace and comments around the name are ignored, and escapes in
+/// the name are kept. Returns `None` when `value` is not exactly one custom property
+/// name.
+fn property_reference(value: &str) -> Option<&str> {
+    let mut parser = Parser::new(value);
+    loop {
+        let start = parser.position().byte_index();
+        match parser
+            .next_including_whitespace_and_comments()
+            .cloned()
+            .ok()?
+        {
+            Token::WhiteSpace(_) | Token::Comment(_) => {}
+            Token::Ident(name) if name.starts_with("--") && name.len() > 2 => {
+                let end = parser.position().byte_index();
+                return parser.next().is_err().then_some(&value[start..end]);
+            }
+            _ => return None,
+        }
+    }
 }
 
 /// Replaces every `theme(--name)` and `theme(--name, fallback)` call in an arbitrary
@@ -241,6 +317,40 @@ pub(crate) fn inline_theme_functions<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn theme_references_lower_opacity_and_nested_fallbacks() {
+        for (raw, expected) in [
+            (
+                "--theme(--red/50)",
+                "color-mix(in oklab, var(--red) 50%, transparent)",
+            ),
+            ("--theme(--red/100%)", "var(--red)"),
+            (
+                "--theme(--missing,--theme(--red/25))",
+                "color-mix(in oklab, var(--red) 25%, transparent)",
+            ),
+            (
+                "--theme(--red/var(--opacity))",
+                "color-mix(in oklab, var(--red) var(--opacity), transparent)",
+            ),
+        ] {
+            assert_eq!(
+                resolve_theme_references(raw, |name| name == "--red")
+                    .unwrap()
+                    .as_deref(),
+                Some(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn nested_reference_errors_identify_the_function_in_the_original_value() {
+        let value = "red --theme(--missing,  --theme(invalid)  )";
+        let error = resolve_theme_references(value, |_| false).unwrap_err();
+        assert_eq!(error.offset(), value.find("--theme(invalid)").unwrap());
+        assert!(matches!(error, ThemeReferenceError::InvalidProperty { .. }));
+    }
 
     #[test]
     fn public_css_functions_respect_nesting_strings_and_opacity() {
@@ -317,6 +427,8 @@ mod tests {
     fn defined_missing_and_initial_fallbacks_are_distinct() {
         for (value, defined, expected) in [
             ("--theme(--x)", true, Some("var(--x)")),
+            ("--theme(--x/* , */)", true, Some("var(--x)")),
+            (r"--theme(--x\,part)", true, Some(r"var(--x\,part)")),
             ("--theme(--x, initial)", true, Some("var(--x)")),
             ("--theme(--x, red)", true, Some("var(--x, red)")),
             ("--theme(--x, rgb(1, 2, 3))", false, Some("rgb(1, 2, 3)")),

@@ -416,8 +416,11 @@ export const lintRules = {
     defaults: {
       severity: "warn",
       pxToRem: true,
+      collapse: true,
+      logicalToPhysical: false,
+      preserveSpecificity: true,
     },
-    options: ["severity", "pxToRem"],
+    options: ["severity", "pxToRem", "collapse", "logicalToPhysical", "preserveSpecificity"],
   },
   "prefer-sorted-utilities": {
     category: "style",

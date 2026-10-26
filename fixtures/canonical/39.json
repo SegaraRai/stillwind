@@ -1,0 +1,62 @@
+{
+  "name": "CSS order and explicit variables",
+  "css": "@import 'tailwindcss'; @theme { --a:1rem; --b:1rem; }",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["w-4", "w-5"],
+      "expected": ["w-5"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-5", "w-4"],
+      "expected": ["w-5"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-red-500", "bg-blue-500"],
+      "expected": ["bg-red-500"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["leading-7", "text-sm/6"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm/6", "leading-7"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-(--a)", "h-(--b)"],
+      "expected": ["size-4"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      },
+      "stillwindExpected": ["w-(--a)", "h-(--b)"]
+    }
+  ]
+}

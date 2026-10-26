@@ -7,6 +7,7 @@ serialization, and relationship-aware linting.
 
 @import "./builtin-metadata/tw-registry-metadata.css";
 @import "./builtin-metadata/tw-relationship-metadata.css";
+@import "./builtin-metadata/tw-legacy-metadata.css";
 
 /*
 Load the built-in utility definitions.

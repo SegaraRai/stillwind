@@ -1,12 +1,16 @@
 ---
 title: prefer-canonical-utilities
-description: Reports a utility that the theme can write in a shorter form, such as px-[16px] for px-4.
+description: Suggests standard utility spellings and combines equivalent utilities.
 slug: docs/lints/prefer-canonical-utilities
 ---
 
-This rule reports a utility that your theme can write in a shorter, standard
-form with the same CSS, such as `px-[16px]` for `px-4`. The standard form shows
-that the value is on the scale.
+This rule suggests standard spellings, such as `px-4` for `px-[16px]`. It also
+removes unnecessary spaces from arbitrary values, simplifies variants and modifiers,
+and replaces legacy Tailwind spellings. Suggestions use your active theme and custom
+definitions.
+
+Within one string or one CSS `@apply` statement, it can combine utilities such as
+`w-4 h-4` into `size-4`. Utilities must have the same variants and importance.
 
 ## Reported
 
@@ -34,6 +38,17 @@ Use the suggested form. The automatic fix applies it.
 default root size of 16px, `px-[16px]` matches `px-4`, which is `1rem`. Turn the
 option off if your documents use another root size and you have not set
 `rootFontSize`.
+
+`collapse` controls whether several utilities can share one replacement. It defaults
+to `true`. Set it to `false` to keep each utility separate.
+
+`logicalToPhysical` allows logical properties to match physical properties under
+horizontal, left-to-right writing. It defaults to `false`. Enable it only when that
+writing mode is appropriate for your document.
+
+`preserveSpecificity` defaults to `true`. Set it to `false` to allow Tailwind's ancestor
+variant migrations, such as `[p_&]` to `in-[p]`. That replacement uses `:where()` and
+reduces specificity.
 
 ## Rule settings
 

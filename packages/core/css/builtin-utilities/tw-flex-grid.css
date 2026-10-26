@@ -33,7 +33,7 @@
 }
 
 @stillwind-utility col-* {
-  grid-column: --value([grid-line]);
+  grid-column: --value(integer, [grid-line]);
 }
 
 @stillwind-utility col-span-full {

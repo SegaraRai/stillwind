@@ -90,163 +90,265 @@ export declare class NativeDesignSystemLoader {
 }
 
 /**
- * Candidate operations for one immutable design system and explicitly supplied source
- * buffers.
+ * Answers editor requests for one design system that does not change. Requests that
+ * need source text receive it as an argument.
  */
 export declare class NativeEditorQuery {
   /**
-   * Returns the original definition at a CSS reference's UTF-8 cursor offset.
-   * Unresolved references and sources without a document URI return null.
-   *
-   * # Errors
-   * Returns invalid coordinates from a definition in the captured source graph.
-   */
-  stylesheetDefinition(source: string, offset: number): NativeStylesheetDefinition | null
-  /**
-   * Returns concrete colors with original byte ranges, including incomplete CSS
-   * blocks. Runtime references use the active theme definition.
+   * Returns the canonical spelling of `candidate`, using the lint options of the
+   * project. Returns null when `candidate` is already canonical, or when no
+   * replacement produces the same CSS.
    *
    * # Errors
    *
-   * Returns malformed utility requirements or offsets exceeding uint32.
-   */
-  stylesheetColors(source: string): Array<NativeStylesheetColor>
-  /**
-   * Plans nonoverlapping source edits with captured CSS sorting targets. Protected
-   * ranges use original UTF-8 bytes. Invalid ranges reject the request.
-   *
-   * # Errors
-   *
-   * Returns malformed requirements, invalid protected ranges, or offsets exceeding
-   * uint32.
-   */
-  sortStylesheet(source: string, protected?: Array<NativeStylesheetRange> | undefined | null): Array<NativeEditorLintEdit>
-  /** Returns the captured design-system fingerprint used by completion resolution. */
-  revision(): string
-  /**
-   * Completes an authored CSS input at an original UTF-8 byte boundary. Incomplete
-   * blocks and candidates are accepted. Invalid boundaries have no answer. Optional
-   * discovery settings default to authoring syntax. They affect neither the query's
-   * compiler settings nor its hover and argument catalogs.
-   */
-  completeStylesheet(source: string, offset: number, options?: NativeStylesheetCompletionOptions | undefined | null): Array<NativeStylesheetCompletion>
-  /**
-   * Returns generated CSS or dialect documentation at an original UTF-8 byte
-   * boundary.
-   */
-  hoverStylesheet(source: string, offset: number): NativeStylesheetHover | null
-  /**
-   * Returns a verified canonical replacement using the effective project lint
-   * options, or null.
+   * Returns an error for malformed requirements of a utility definition.
    */
   canonicalCandidate(candidate: string): string | null
-  /** Returns the resolved canonical lint policy used by compilation and Reporter. */
-  canonicalOptions(): NativeCanonicalUtilitiesOptions
   /**
-   * Reports sorting suggestions through the effective typed settings and common
-   * Reporter. URI and text must identify the exact original document addressed by
-   * all byte ranges. `lint_comments` must come from a scan of the same text.
-   */
-  reportSortEdits(uri: string, text: string, edits: Array<NativeEditorLintEdit>, lintComments: Array<NativeLintComment>): Array<BindingReport>
-  /** Returns effective lint severities after stylesheet and project configuration. */
-  lintSettings(): Record<string, string>
-  /**
-   * Checks source suppression for an editor lint at an original UTF-8 byte range.
-   * `lint_comments` must come from a scan of `source`. Returns an error for unknown
-   * rules or invalid source bounds.
-   */
-  lintSuppressed(source: string, start: number, end: number, rule: string, lintComments: Array<NativeLintComment>): boolean
-  /**
-   * Renders decoded text under `context`, using `&` as the utility subject. Omitted
-   * context selects one ordinary utility candidate. Declaration roles accept a token
-   * list; definition prefixes accept trailing colons and return empty enclosing
-   * at-rules. Results omit enclosing source conditions and document support
-   * declarations. Invalid input or failed conditional lowering returns null.
+   * Returns the canonical spellings of `candidates`, the candidates of one source
+   * container such as one class string.
+   *
+   * When the `collapse` option of the query is enabled, several candidates with the
+   * same variants and `!` may become one utility. Candidates that do not change keep
+   * their order.
    *
    * # Errors
    *
-   * Returns a malformed matching utility requirement for ordinary utility input.
+   * Returns an error for malformed requirements of a utility definition.
+   */
+  canonicalCandidates(candidates: Array<string>): string[]
+  /**
+   * Returns the options of the `prefer-canonical-utilities` rule that compilation
+   * and the reporter use. Every field is set.
+   */
+  canonicalOptions(): NativeCanonicalUtilitiesOptions
+  /**
+   * Returns the CSS that the decoded `candidate` produces in the role `context`,
+   * with `&` as the selector of the element. An omitted `context` means one ordinary
+   * utility.
+   *
+   * Roles for declarations accept a list of candidates. A definition prefix may end
+   * with `:`, and its preview contains the at-rules with empty bodies. The preview
+   * does not contain the conditions around the source, or the support declarations
+   * of document-level styles. Returns null when the input is invalid, or when the
+   * compiler cannot write a condition in the configured mode.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a matching utility definition,
+   * but only for ordinary utility input.
    */
   previewCandidate(candidate: string, context?: NativeCandidateContext | undefined | null): string | null
   /**
-   * Returns variant wrappers and their own declarations for decoded `candidate`.
-   * An omitted `context` selects ordinary utilities. Unsupported chains or roles
-   * return null. A trailing colon is optional.
+   * Returns the CSS that the variants of the decoded `candidate` add: their wrappers
+   * and the declarations that the variants themselves add. The final `:` is
+   * optional. An omitted `context` means ordinary utilities. Returns null when the
+   * role or the variants are not supported.
    */
   previewVariant(candidate: string, context?: NativeCandidateContext | undefined | null): string | null
   /**
-   * Returns a complete CSS preview with line breaks and two-space indentation.
-   * Nesting and fallback declarations are retained. When `preview` is supplied, the
-   * result also contains its comments with resolved values; omitted fields use their
-   * defaults. Omitted `preview` adds no comments.
+   * Returns `css` formatted for display, with line breaks and an indentation of two
+   * spaces. Nested rules and fallback declarations stay in the result.
+   *
+   * When `preview` is given, the result also contains comments with resolved values,
+   * as `NativePreviewOptions` describes. An omitted field of `preview` uses its
+   * default. When `preview` is omitted, the result has no comments.
    *
    * # Errors
    *
-   * Returns an error for invalid CSS or an invalid `colorEquivalents` value.
+   * Returns an error when `css` is invalid, or when `colorEquivalents` has an
+   * invalid value.
    */
   formatCss(css: string, preview?: NativePreviewOptions | undefined | null): string
   /**
-   * Completes decoded `prefix` text using the registries and variant constraints of
-   * `context`. The prefix is one partial candidate including any preceding variants;
-   * omitted context selects ordinary utilities. Returns unique labels in lexical
-   * order, retaining existing prefixes and ending variant labels with `:`. An
-   * ordinary utility prefix without variants, `!`, or `-` also offers marker class
-   * names.
+   * Returns the labels that can continue the decoded `prefix` in the role `context`.
+   * `prefix` is one partial candidate, including the variants before it. An omitted
+   * `context` means ordinary utilities.
    *
-   * When `snippets` is true, arbitrary variants include empty `[]` placeholders, and
-   * each modifiable marker `name` also offers `name/`. Omitted snippet support is
-   * false.
+   * The labels are unique and in lexical order. Each label keeps the variants of
+   * `prefix`. A variant label ends with `:`. An ordinary utility prefix without
+   * variants, `!`, or `-` also receives marker class names.
+   *
+   * When `snippets` is true, variants that accept an arbitrary value are also
+   * offered with an empty `[]`, and each marker `name` that accepts a modifier is
+   * also offered as `name/`. The default of `snippets` is false.
    *
    * # Errors
    *
-   * Returns a malformed requirement while validating a matching ordinary utility
-   * label.
+   * Returns an error for malformed requirements of a utility definition that matches
+   * a label.
    */
   completeCandidate(prefix: string, context?: NativeCandidateContext | undefined | null, snippets?: boolean | undefined | null): Array<NativeCandidateCompletion>
   /**
-   * Returns the marker class that decoded `candidate` adds to the element in an
-   * input of `context`, or null when it adds none. Omitted context selects ordinary
-   * utilities, the only role that adds marker classes. The candidate must include
-   * enclosing variants. A ref condition of an enclosing style object also prevents
-   * the class, and this query does not detect it.
+   * Returns the marker class that the decoded `candidate` adds to the element in an
+   * input of the role `context`. Returns null when it adds no marker class. An
+   * omitted `context` means ordinary utilities, which is the only role that adds
+   * marker classes.
+   *
+   * `candidate` must be the complete candidate, including its variants. A candidate
+   * with variants adds no marker class. A ref condition of the surrounding style
+   * object also prevents the class, but this method does not check it.
    */
   addedMarker(candidate: string, context?: NativeCandidateContext | undefined | null): NativeAddedMarker | null
   /**
-   * Returns -1, 0, or 1 in compiler order, or null if either candidate is
-   * unresolved.
-   */
-  compareCandidates(left: string, right: string): number | null
-  /**
-   * Returns ranks for full candidate spellings in input order, with null for
-   * unresolved inputs. Equal candidates share a rank. Ranks apply only to this
-   * batch.
+   * Compares `left` and `right` in the order of the compiled CSS. Returns -1 when
+   * `left` comes first, 1 when `right` comes first, and 0 when their order is the
+   * same. Returns null when either candidate does not resolve.
    *
    * # Errors
    *
-   * Returns malformed matching utility requirements or a rank that exceeds `u32`.
+   * Returns an error for malformed requirements of a utility definition.
+   */
+  compareCandidates(left: string, right: string): number | null
+  /**
+   * Returns a rank for each of `candidates`, in input order. A lower rank comes
+   * first in the compiled CSS. Equal candidates share a rank. A candidate that does
+   * not resolve receives null. Ranks are valid only within one call.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition, or when a
+   * rank does not fit in `u32`.
    */
   candidateRanks(candidates: Array<string>): Array<number | undefined | null>
-  /** Returns active design token values, keyed by their full custom-property names. */
-  themeValues(): Record<string, string>
-  /** Returns active design tokens with the policies used by plugin configuration. */
-  themeTokens(): Array<NativeThemeToken>
-  /** Returns active shared assets in custom-property name order. */
-  sharedAssets(): Array<NativeSharedAsset>
-  /** Reports dynamic utility keys and `@variant ` requests in CSS or source text. */
+  /**
+   * Returns the utility keys of host plugins and the `@variant ` requests that
+   * appear in `text`. `text` can be CSS or source code.
+   */
   dynamicCandidates(text: string): Array<string>
   /**
-   * Reports dynamic utility keys and `@variant ` requests that one stylesheet
-   * applies with `@apply` and `@variant`, at any nesting depth. Comments, strings,
-   * definition headers, and other directives are not read.
+   * Returns the red, green, blue, and alpha components of the CSS color `value`,
+   * each from 0 to 1. Returns null when `value` is not a color whose components are
+   * fully known.
    */
-  stylesheetDynamicCandidates(css: string): Array<string>
-  /** Converts a fully determined CSS color to RGBA components in 0..=1, or null. */
   colorRgba(value: string): Array<number> | null
   /**
-   * Returns RGBA for a utility that sets one concrete color, or null for composite
-   * utilities and unresolved or ambiguous colors.
+   * Returns the red, green, blue, and alpha components of the one color that
+   * `candidate` sets, each from 0 to 1. Returns null when the utility sets more than
+   * colors, or when its color does not resolve or is ambiguous.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition.
    */
   candidateColor(candidate: string): Array<number> | null
+  /**
+   * Returns reports for the sorting edits `edits`, using the lint settings of this
+   * query. Each edit becomes an `unsorted-utilities` finding with a fix. The reports
+   * respect the severity of the rule and the suppression comments of the source.
+   *
+   * `uri` and `text` must identify the original document that the byte ranges of
+   * `edits` refer to. `lint_comments` must come from a scan of `text`.
+   *
+   * # Errors
+   *
+   * Returns an error when `uri` is invalid, when a comment range or an edit range
+   * does not fit `text`, or when the reporter rejects a finding.
+   */
+  reportSortEdits(uri: string, text: string, edits: Array<NativeEditorLintEdit>, lintComments: Array<NativeLintComment>): Array<BindingReport>
+  /**
+   * Returns the severity of each lint rule, keyed by rule name. The severities
+   * combine the compiler defaults, the stylesheet, and the project configuration.
+   */
+  lintSettings(): Record<string, string>
+  /**
+   * Checks whether a suppression comment in `source` disables the editor lint `rule`
+   * at the UTF-8 byte range from `start` to `end`. `rule` must be
+   * `prefer-canonical-utilities` or `prefer-sorted-utilities`. `lint_comments` must
+   * come from a scan of `source`.
+   *
+   * # Errors
+   *
+   * Returns an error when `rule` is not one of those rules, when the range does not
+   * fit `source`, or when a comment range is invalid.
+   */
+  lintSuppressed(source: string, start: number, end: number, rule: string, lintComments: Array<NativeLintComment>): boolean
+  /**
+   * Returns the fingerprint of the design system. Completion results carry this
+   * value, so a client can detect that a result belongs to an older design system.
+   */
+  revision(): string
+  /**
+   * Returns the location of the definition that the CSS reference at the UTF-8 byte
+   * offset `offset` of `source` refers to. Returns null when the reference does not
+   * resolve, or when the source of the definition has no document URI.
+   *
+   * # Errors
+   *
+   * Returns an error when the location of the definition cannot be converted to
+   * lines and columns.
+   */
+  stylesheetDefinition(source: string, offset: number): NativeStylesheetDefinition | null
+  /**
+   * Returns each known color in the CSS `source`, with its byte range. Incomplete
+   * blocks are also read. A reference that is resolved at runtime uses the active
+   * theme definition.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition, or when an
+   * offset does not fit in `u32`.
+   */
+  stylesheetColors(source: string): Array<NativeStylesheetColor>
+  /**
+   * Returns the edits that sort the utilities of the CSS `source`. The edits do not
+   * overlap. The method does not edit inside the byte ranges `protected`.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition, for a
+   * protected range whose start is after its end or that splits a UTF-8 character,
+   * or when an offset does not fit in `u32`.
+   */
+  sortStylesheet(source: string, protected?: Array<NativeStylesheetRange> | undefined | null): Array<NativeEditorLintEdit>
+  /**
+   * Returns the completions for the CSS `source` at the UTF-8 byte offset `offset`.
+   * Incomplete blocks and candidates are accepted. An offset that is not a character
+   * boundary returns no completions.
+   *
+   * An omitted `options` offers the syntax that users write. `options` does not
+   * change the compiler settings of the query, or the lists that hovers and
+   * arguments use.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition.
+   */
+  completeStylesheet(source: string, offset: number, options?: NativeStylesheetCompletionOptions | undefined | null): Array<NativeStylesheetCompletion>
+  /**
+   * Returns the generated CSS or the documentation for the input at the UTF-8 byte
+   * offset `offset` of the CSS `source`. Returns null when there is nothing to show.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition, or when an
+   * offset does not fit in `u32`.
+   */
+  hoverStylesheet(source: string, offset: number): NativeStylesheetHover | null
+  /**
+   * Returns the utility keys of host plugins and the `@variant ` requests that the
+   * stylesheet `css` uses in `@apply` and `@variant`, at any nesting level. The
+   * method does not read comments, strings, definition headers, or other directives.
+   */
+  stylesheetDynamicCandidates(css: string): Array<string>
+  /**
+   * Returns the value of each active theme token, keyed by its complete custom
+   * property name.
+   */
+  themeValues(): Record<string, string>
+  /**
+   * Returns the theme namespace that each Tailwind v3 config key reads, sorted by
+   * config key. A config key that is not included reads the namespace with the
+   * kebab-case name of the key.
+   */
+  legacyThemeKeys(): Array<NativeLegacyThemeKey>
+  /**
+   * Returns the active theme tokens, with the settings that plugin configuration
+   * uses.
+   */
+  themeTokens(): Array<NativeThemeToken>
+  /** Returns the active shared assets, sorted by custom property name. */
+  sharedAssets(): Array<NativeSharedAsset>
 }
 
 /** Captured input plans and previews that remain valid after the session changes. */
@@ -628,19 +730,26 @@ export declare function compileProject(sources: Array<NativePreparedSource>, css
  */
 export declare function compileSource(input: NativeCompileSourceInput, options?: NativeCompilerOptions | undefined | null): BindingOutput
 
-/** Returns a short declaration or rule summary for one selected CSS completion. */
+/**
+ * Returns a short summary of the declarations or rules in the CSS `source` of one
+ * selected completion. Returns null when the CSS has nothing to show.
+ */
 export declare function completionDetail(source: string): string | null
 
 /**
- * Decodes the text inside an arbitrary value or modifier as Tailwind does: `_` becomes
- * a space and `\_` an underscore, except in `url()` and the first argument of `var()`
- * and `theme()`, and operators in math functions receive spaces.
+ * Returns the text inside an arbitrary value or modifier decoded as Tailwind decodes
+ * it.
+ *
+ * An `_` becomes a space, and `\_` becomes `_`. Underscores stay in `url()` and in the
+ * first argument of `var()` and `theme()`. Operators inside math functions such as
+ * `calc()` receive spaces around them.
  */
 export declare function decodeArbitraryValue(value: string): string
 
 /**
- * Extracts definitions and imports for an editor-only load of incomplete CSS.
- * Ordinary compilation and lint must continue to use the original source.
+ * Returns the definitions and imports of the incomplete CSS `source`, so that an
+ * editor can load them while the user types. Ordinary compilation and lint must still
+ * use the original source.
  */
 export declare function editorCssSource(source: string): string
 
@@ -690,11 +799,17 @@ export interface HostRegion {
  */
 export declare function minifyCss(css: string, options?: NativeCssMinifyOptions | undefined | null): NativeMinifiedCss
 
-/** The marker class that a candidate adds to the element as written. */
+/** The marker class that a candidate adds to the element. */
 export interface NativeAddedMarker {
-  /** Decoded class name, including a named modifier of a modifiable marker. */
+  /**
+   * The decoded class name. For a marker that accepts a modifier, the name includes
+   * a named modifier.
+   */
   class: string
-  /** Origins of the marker name, without duplicates. They are never empty. */
+  /**
+   * The statements and definitions that make the name a marker. The list has at
+   * least one entry and no duplicates.
+   */
   origins: Array<NativeMarkerOrigin>
 }
 
@@ -733,22 +848,23 @@ export type NativeAttributeQuote = 'single' | 'double'
 /** One label that candidate completion offers. */
 export interface NativeCandidateCompletion {
   /**
-   * Text to insert. A variant label ends in `:`, and the modifier of a modifiable
-   * marker ends in `/`.
+   * The text to insert. A variant label ends with `:`. A label that starts the
+   * modifier of a marker ends with `/`.
    */
   label: string
   /**
-   * Whether the label adds a marker class to the element, or ends in `/` and starts
-   * the modifier of a modifiable marker. A marker label need not have a preview.
+   * Whether the label is a marker class name, or a marker name followed by `/` for
+   * its modifier. A marker label may have no CSS preview.
    */
   marker: boolean
 }
 
 /**
- * Selects the compiler contract of a candidate's source position.
+ * The input role of a candidate, which depends on where the candidate is written in
+ * the source. The role decides which utilities and variants are valid.
  *
  * Keyframe frames, keyframes uses, and view transitions resolve utilities through
- * their registry contexts.
+ * their own registry context.
  */
 export type NativeCandidateContext = 'utility' | 'keyframesFrame' | 'animationOptions' | 'viewTransitionUtilities' | 'definitionVariants' | 'elementVariants' | 'mediaVariants' | 'document' | 'anchoredDocument' | 'cssTemplate'
 
@@ -762,8 +878,27 @@ export type NativeCandidates =
 export interface NativeCanonicalUtilitiesOptions {
   /** Reporting severity: warn, deny, or off. */
   severity?: string
-  /** Allows pixel spacing to use the active rem scale. Defaults to true. */
+  /**
+   * Whether a `px` length and a `rem` length are equal when they are equal at the
+   * root font size. The default is true.
+   */
   pxToRem?: boolean
+  /**
+   * Whether several utilities of one class string may be replaced by one utility,
+   * such as `w-4 h-4` by `size-4`. The default is true.
+   */
+  collapse?: boolean
+  /**
+   * Whether logical and physical properties may be replaced by one shorthand, such
+   * as `ms-4 pr-4` by `px-4`. The default is false.
+   */
+  logicalToPhysical?: boolean
+  /**
+   * Whether a replacement must keep the specificity of selectors. Set it to false to
+   * allow Tailwind's rewrites of ancestor selectors, such as `in-[p]` for
+   * `[p_&]:flex`. The default is true.
+   */
+  preserveSpecificity?: boolean
 }
 
 /** A validated generated reference that needs a global helper binding. */
@@ -1038,15 +1173,21 @@ export interface NativeDiagnosticBatch {
 }
 
 /**
- * A source operation detected by a host's syntax index and reported through the common
- * lint policy.
+ * One source edit that the host found with its own syntax index. The host reports it
+ * through the common lint settings.
  */
 export interface NativeEditorLintEdit {
-  /** Original inclusive UTF-8 byte boundary. */
+  /**
+   * Inclusive start of the edited range, as a UTF-8 byte offset in the original
+   * source.
+   */
   start: number
-  /** Original exclusive UTF-8 byte boundary. */
+  /**
+   * Exclusive end of the edited range, as a UTF-8 byte offset in the original
+   * source.
+   */
   end: number
-  /** Replacement text for this source operation. */
+  /** The text that replaces the range. */
   replacement: string
 }
 
@@ -1260,6 +1401,21 @@ export interface NativeLayerContext {
   namespace: string
 }
 
+/** The theme namespace that one Tailwind v3 config key reads. */
+export interface NativeLegacyThemeKey {
+  /** The v3 config key, such as `fontSize`. */
+  key: string
+  /** The namespace name without `--` and `-*`, such as `text`. */
+  namespace: string
+  /**
+   * How plugin configuration sees the CSS values of the namespace under the key.
+   * `replace` replaces the v3 default values, and `extend` adds the CSS values to
+   * them. The field is absent when plugin configuration sees only the v3 default
+   * values.
+   */
+  exposure?: 'extend' | 'replace'
+}
+
 /** Body of one comment that contains a `swlint-*` directive, without its delimiters. */
 export interface NativeLintComment {
   /** Inclusive original UTF-8 byte offset. */
@@ -1466,16 +1622,16 @@ export interface NativeMapSource {
 
 /** A statement or definition that makes a class a marker. */
 export interface NativeMarkerOrigin {
-  /** Kind of the statement or definition. */
+  /** The kind of the statement or definition. */
   kind: NativeMarkerOriginKind
   /**
-   * Definition name for `utility` and `variant`, including a trailing `*` for a
-   * functional definition. Absent for other kinds.
+   * The name of the definition for the kinds `utility` and `variant`. A functional
+   * definition ends with `*`. The field is absent for the other kinds.
    */
   name?: string
 }
 
-/** A statement or definition kind that makes a class a marker. */
+/** The kind of statement or definition that makes a class a marker. */
 export type NativeMarkerOriginKind = 'declared' | 'source' | 'utility' | 'variant'
 
 /** Policy for candidates that cannot add the marker class that they name. */
@@ -1593,18 +1749,21 @@ export type NativePreparedSource =
   moduleCssImport?: string }
 
 /**
- * Comments that formatted previews add after values. Omitted fields use their
- * defaults.
+ * The comments that a formatted preview adds after values. An omitted field uses its
+ * default.
  */
 export interface NativePreviewOptions {
   /**
-   * Adds resolved values after theme `var()` references and single-value `calc()`
-   * expressions. Defaults to true.
+   * Whether to add the resolved value after each theme `var()` reference and after
+   * each `calc()` with one value. The default is true.
    */
   themeValues?: boolean
-  /** Adds pixel equivalents for rem values. Defaults to true. */
+  /** Whether to add the pixel value after each `rem` value. The default is true. */
   pixelEquivalents?: boolean
-  /** `approximate`, `exact`, or false. Defaults to `approximate`. */
+  /**
+   * How to add a color value after each color: `approximate`, `exact`, or false for
+   * no color value. The default is `approximate`.
+   */
   colorEquivalents?: 'approximate' | 'exact' | false
 }
 
@@ -1730,15 +1889,18 @@ export interface NativeScriptSyntax {
   moduleKind: NativeScriptModuleKind
 }
 
-/** An active shared asset and the policies that control its output. */
+/** An active shared asset and the setting that controls how the output uses it. */
 export interface NativeSharedAsset {
-  /** Complete, case-sensitive CSS custom-property name. */
+  /** The complete custom property name. Case matters. */
   name: string
-  /** Authored CSS value, including variable references. */
+  /** The CSS value as written, including references to variables. */
   value: string
-  /** Whether an ordinary definition takes precedence over this definition. */
+  /** Whether an ordinary definition overrides this definition. */
   fallback: boolean
-  /** Whether the asset is referenced, inlined, or retained without a reference. */
+  /**
+   * How the output uses the asset. `default` writes a reference to the asset,
+   * `inline` writes its value, and `static` keeps the asset without a reference.
+   */
   mode: 'default' | 'inline' | 'static'
 }
 
@@ -1833,75 +1995,103 @@ export interface NativeStyleDependency {
   base: NativeIdentity
 }
 
-/** A concrete sRGB color at an original CSS utility or reference. */
+/** A known sRGB color at a utility or a reference in the original CSS. */
 export interface NativeStylesheetColor {
-  /** Inclusive original UTF-8 byte boundary. */
+  /** The inclusive start, as a UTF-8 byte offset. */
   start: number
-  /** Exclusive original UTF-8 byte boundary. */
+  /** The exclusive end, as a UTF-8 byte offset. */
   end: number
-  /** sRGB red component in 0..1. */
+  /** The sRGB red component, from 0 to 1. */
   red: number
-  /** sRGB green component in 0..1. */
+  /** The sRGB green component, from 0 to 1. */
   green: number
-  /** sRGB blue component in 0..1. */
+  /** The sRGB blue component, from 0 to 1. */
   blue: number
-  /** Effective opacity in 0..1. */
+  /** The opacity that applies, from 0 to 1. */
   alpha: number
-  /** Original utility spelling. Omitted for a reference replaced by a CSS literal. */
+  /**
+   * The utility as written in the source. The field is absent when an editor would
+   * replace a reference with a CSS color value.
+   */
   candidate?: string
 }
 
-/** A CSS completion whose replacement range counts original UTF-8 bytes. */
+/** One completion in a stylesheet. Its range counts UTF-8 bytes in the original source. */
 export interface NativeStylesheetCompletion {
-  /** Inclusive byte offset of the replaced input. */
+  /** The inclusive start of the replaced text, as a UTF-8 byte offset. */
   start: number
-  /** Exclusive byte offset of the replaced input. */
+  /** The exclusive end of the replaced text, as a UTF-8 byte offset. */
   end: number
-  /** Literal replacement text. */
+  /** The text that replaces the range, exactly as written. */
   label: string
-  /** Whether the replacement names an at-rule. */
+  /** Whether the text is the name of an at-rule. */
   keyword: boolean
-  /** Whether the replacement names a variant. */
+  /** Whether the text is the name of a variant. */
   variant: boolean
-  /** Audience and syntax provenance for a directive, omitted for other inputs. */
+  /**
+   * For a directive, a description of who uses it and which syntax it belongs to.
+   * The field is absent for other completions.
+   */
   detail?: string
-  /** Lexical key that ranks a directive by location, audience, and provenance. */
+  /**
+   * For a directive, a text that an editor sorts lexically. It orders directives by
+   * where they are valid, who uses them, and which syntax they belong to. The field
+   * is absent for other completions.
+   */
   sortText?: string
 }
 
-/** Editor settings that control at-rule discovery without changing compiler output. */
+/**
+ * Editor settings that choose which at-rules stylesheet completion offers. They do not
+ * change the compiler output.
+ */
 export interface NativeStylesheetCompletionOptions {
-  /** Includes registry metadata where it is useful. Defaults to false. */
+  /**
+   * Whether to also offer directives that describe registry data, in places where
+   * they are useful. The default is false.
+   */
   registryDirectives?: boolean
-  /** Includes empty arbitrary-variant placeholders. Defaults to false. */
+  /** Whether to offer arbitrary variants with an empty `[]`. The default is false. */
   snippets?: boolean
-  /** Finite host plugin candidate labels. Variant labels end in `:`. */
+  /**
+   * The complete list of candidate labels that host plugins provide. A variant label
+   * ends with `:`.
+   */
   catalog?: Array<string>
 }
 
-/** A reportable CSS definition with zero-based line and UTF-16 column coordinates. */
+/**
+ * The location of a CSS definition, as zero-based lines and UTF-16 columns that an
+ * editor can show.
+ */
 export interface NativeStylesheetDefinition {
-  /** Absolute document URI of the original definition. */
+  /** The absolute URI of the document that contains the definition. */
   uri: string
-  /** Zero-based line of the inclusive start. */
+  /** The zero-based line of the inclusive start. */
   startLine: number
-  /** Inclusive UTF-16 column on `startLine`. */
+  /** The inclusive start, as a UTF-16 column on `startLine`. */
   startColumn: number
-  /** Zero-based line of the exclusive end. */
+  /** The zero-based line of the exclusive end. */
   endLine: number
-  /** Exclusive UTF-16 column on `endLine`. */
+  /** The exclusive end, as a UTF-16 column on `endLine`. */
   endColumn: number
 }
 
-/** CSS or Markdown documentation at an original UTF-8 range. */
+/**
+ * The CSS or the documentation that an editor shows for a range of a stylesheet. The
+ * range counts UTF-8 bytes in the original source.
+ */
 export interface NativeStylesheetHover {
-  /** Inclusive byte offset of the described input. */
+  /** The inclusive start of the described text, as a UTF-8 byte offset. */
   start: number
-  /** Exclusive byte offset of the described input. */
+  /** The exclusive end of the described text, as a UTF-8 byte offset. */
   end: number
-  /** Generated CSS, or empty for documentation-only hovers. */
+  /** The generated CSS. It is empty when the hover shows only documentation. */
   css: string
-  /** Markdown description, or empty for candidate previews. */
+  /**
+   * A description in Markdown. It is empty when the hover shows the CSS of a
+   * candidate.
+   */
   documentation: string
 }
 
@@ -1964,19 +2154,25 @@ export interface NativeStylesheetPlan {
   producers: Array<NativeStylesheetProducer>
 }
 
-/** A plugin path whose byte range excludes its CSS quotes. */
+/** The path of a `@plugin` statement. Its range does not include the CSS quotes. */
 export interface NativeStylesheetPluginPath {
-  /** Inclusive original UTF-8 byte boundary after the opening quote. */
+  /** The UTF-8 byte offset after the opening quote. */
   start: number
-  /** Exclusive original UTF-8 byte boundary before the closing quote, or at EOF. */
+  /**
+   * The UTF-8 byte offset of the closing quote, or the end of the source when the
+   * quote is missing.
+   */
   end: number
-  /** Decoded CSS string used for module resolution. */
+  /** The decoded CSS string that module resolution uses. */
   specifier: string
-  /** Opening quote, either a single or double quote. */
+  /** The opening quote, either `'` or `"`. */
   quote: string
-  /** Whether the original string has a closing quote. */
+  /** Whether the string has a closing quote in the original source. */
   closed: boolean
-  /** Decoded text before the requested cursor when it lies within this path. */
+  /**
+   * The decoded text before the requested cursor, when the cursor lies inside this
+   * path. The field is absent otherwise.
+   */
   prefix?: string
 }
 
@@ -1996,11 +2192,14 @@ export interface NativeStylesheetProducer {
   analysisRevision: string
 }
 
-/** A half-open UTF-8 byte range in an original stylesheet. */
+/**
+ * A range of UTF-8 bytes in the original stylesheet. The start is inclusive, and the
+ * end is exclusive.
+ */
 export interface NativeStylesheetRange {
-  /** Inclusive original UTF-8 byte boundary. */
+  /** The inclusive start, as a UTF-8 byte offset. */
   start: number
-  /** Exclusive original UTF-8 byte boundary. */
+  /** The exclusive end, as a UTF-8 byte offset. */
   end: number
 }
 
@@ -2038,18 +2237,19 @@ export interface NativeSymbolicValue {
   candidates: NativeCandidates
 }
 
-/** An active CSS theme token used by JavaScript plugin theme resolution. */
+/** An active theme token. JavaScript plugins read it when they resolve theme values. */
 export interface NativeThemeToken {
-  /** Full custom-property name, including the leading double hyphen. */
+  /** The complete custom property name, including the leading `--`. */
   name: string
-  /** Authored CSS value, including references to other tokens. */
+  /** The CSS value as written, including references to other tokens. */
   value: string
   /**
-   * Whether ordinary `@theme` definitions take precedence over this definition: it
-   * comes from `@theme default` or from a plugin's theme configuration.
+   * Whether an ordinary `@theme` definition overrides this definition. This is true
+   * for definitions from `@theme default` and from the theme configuration of a
+   * plugin.
    */
   fallback: boolean
-  /** Whether utility declarations inline the value instead of referencing the token. */
+  /** Whether utilities write the value of the token instead of a reference to it. */
   inline: boolean
 }
 
@@ -2191,12 +2391,13 @@ export declare function renderStylesheet(moduleCss: string, theme: string, optio
 export declare function scanSource(source: NativePreparedSource): NativeScanResult
 
 /**
- * Finds top-level plugin paths without loading CSS or plugins. Offset uses original
- * UTF-8 bytes.
+ * Returns the paths of the top-level `@plugin` statements in `source`. The method does
+ * not load CSS or plugins. When `offset` is given, it is a UTF-8 byte offset of the
+ * cursor, and the path that contains it receives a `prefix`.
  *
  * # Errors
  *
- * Returns an error if a path boundary exceeds uint32.
+ * Returns an error when a path boundary does not fit in `u32`.
  */
 export declare function stylesheetPluginPaths(source: string, offset?: number | undefined | null): Array<NativeStylesheetPluginPath>
 

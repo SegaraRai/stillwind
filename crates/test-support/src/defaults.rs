@@ -10,6 +10,7 @@
 pub const PACKAGE_CSS: &str = concat!(
     include_str!("../../../packages/core/css/builtin-metadata/tw-registry-metadata.css"),
     include_str!("../../../packages/core/css/builtin-metadata/tw-relationship-metadata.css"),
+    include_str!("../../../packages/core/css/builtin-metadata/tw-legacy-metadata.css"),
     include_str!("../../../packages/core/css/builtin-utilities/tw-layout.css"),
     include_str!("../../../packages/core/css/builtin-utilities/tw-spacing-sizing.css"),
     include_str!("../../../packages/core/css/builtin-utilities/tw-flex-grid.css"),

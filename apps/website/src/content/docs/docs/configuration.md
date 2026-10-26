@@ -183,17 +183,17 @@ const rules = {
 };
 ```
 
-| Rule                         | Options                                                                                                                 |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `conflicting-utilities`      | `allowShorthandOverrides`: allows the supported overrides between shorthand and longhand utilities; defaults to `false` |
-| `invalid-marker-use`         | `ignoredClasses`: marker class names that the rule ignores                                                              |
-| `no-arbitrary-spacing`       | `properties`: properties to check in addition to margin, padding, and gap                                               |
-| `no-restricted-utilities`    | `utilities`: utility patterns, each with an optional message                                                            |
-| `no-restricted-declarations` | `rules`: patterns for properties and values; every matching entry applies                                               |
-| `no-restricted-length-units` | `rules`: property patterns and the units to `disallow`; the last matching entry applies                                 |
-| `no-restricted-theme-tokens` | `tokens`: patterns for theme custom properties; required when the rule is on                                            |
-| `prefer-canonical-utilities` | `pxToRem`: compares `px` values with `rem` values by using `rootFontSize`; defaults to `true`                           |
-| `prefer-variant-directive`   | `pxToRem`: treats `px` and `rem` in media queries as equal at 16px per `rem`; defaults to `false`                       |
+| Rule                         | Options                                                                                                                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `conflicting-utilities`      | `allowShorthandOverrides`: allows the supported overrides between shorthand and longhand utilities; defaults to `false`                                                                                 |
+| `invalid-marker-use`         | `ignoredClasses`: marker class names that the rule ignores                                                                                                                                              |
+| `no-arbitrary-spacing`       | `properties`: properties to check in addition to margin, padding, and gap                                                                                                                               |
+| `no-restricted-utilities`    | `utilities`: utility patterns, each with an optional message                                                                                                                                            |
+| `no-restricted-declarations` | `rules`: patterns for properties and values; every matching entry applies                                                                                                                               |
+| `no-restricted-length-units` | `rules`: property patterns and the units to `disallow`; the last matching entry applies                                                                                                                 |
+| `no-restricted-theme-tokens` | `tokens`: patterns for theme custom properties; required when the rule is on                                                                                                                            |
+| `prefer-canonical-utilities` | `pxToRem` and `collapse` default to `true`; `logicalToPhysical` defaults to `false`; `preserveSpecificity` defaults to `true`. See the [rule options](/docs/lints/prefer-canonical-utilities/#options). |
+| `prefer-variant-directive`   | `pxToRem`: treats `px` and `rem` in media queries as equal at 16px per `rem`; defaults to `false`                                                                                                       |
 
 Patterns accept `*` for any text and `?` for one character. Utility and theme
 token patterns are case-sensitive. Property and value patterns are not.

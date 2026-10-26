@@ -101,7 +101,7 @@ pub use values::{
     CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,
     declaration_is_physical, inspect_css_value, is_length_unit, media_has_size_comparison,
     media_size_comparisons, policy_glob_matches, properties_interfere, property_covers,
-    property_value_domains, value_is_well_formed,
+    property_value_domains, repeated_longhands, value_is_well_formed,
 };
 
 #[cfg(feature = "minify")]

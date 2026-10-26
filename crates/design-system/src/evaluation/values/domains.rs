@@ -5,12 +5,15 @@
 //! shapes: literal keywords; CSS grammar hints such as `[length]`; special forms, which
 //! are `integer`, `number`, `percentage`, `--fraction()`, the axis-size built-ins, and
 //! the domain of each declared scale, such as `--spacing()`; and theme namespace
-//! patterns such as `--color-*`.
+//! patterns such as `--color-*`. A numeric domain can limit its values with an
+//! inclusive range, such as `percentage [50,200]`.
 
-use cssparser::Token;
+use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{ValueDomain, split_once_top_level, split_top_level, value_is_well_formed};
+use stillwind_css::{
+    ValueDomain, find_css_functions, split_once_top_level, split_top_level, value_is_well_formed,
+};
 use stillwind_syntax::decode_arbitrary_value;
 
 use super::super::context::{ArbitraryValueCheck, EvaluationContext};
@@ -39,21 +42,8 @@ pub(in crate::evaluation) fn resolve_value_domains(
         .into_iter()
         .find_map(|domain| {
             let domain = domain.trim();
-            if domain == "integer" {
-                return capture
-                    .filter(|value| value.parse::<i64>().is_ok())
-                    .map(LeanStr::from);
-            }
-            if domain == "number" {
-                return capture
-                    .filter(|value| value.parse::<f64>().is_ok())
-                    .map(LeanStr::from);
-            }
-            if domain == "percentage" {
-                return capture
-                    .and_then(|value| value.strip_suffix('%'))
-                    .filter(|value| value.parse::<f64>().is_ok())
-                    .map(|value| format_args!("{value}%").to_lean_str());
+            if let Some(numeric) = NumericDomain::parse(domain) {
+                return capture.and_then(|capture| numeric.resolve(capture));
             }
             if let Some(namespace) = theme.namespaces().scale_domain(domain) {
                 return capture.and_then(|capture| theme_value(namespace, capture, theme));
@@ -71,7 +61,8 @@ pub(in crate::evaluation) fn resolve_value_domains(
                 return capture.and_then(|capture| namespace.resolve(capture, suffix, theme));
             }
             if !domain.starts_with('[') && !domain.starts_with("--") {
-                return capture.filter(|value| *value == domain).map(|value| {
+                let keyword = quoted_keyword(domain).unwrap_or(domain);
+                return capture.filter(|value| *value == keyword).map(|value| {
                     if value == "current" {
                         "currentcolor".to_lean_str()
                     } else {
@@ -93,6 +84,8 @@ pub(in crate::evaluation) fn resolve_value_domains(
                 split_once_top_level(arbitrary, |token| matches!(token, Token::Colon));
             let (hint, value) = tail.map_or(("", head), |value| (head, value));
             let value = theme.inline_theme_functions(&decode_arbitrary_value(value))?;
+            let value = theme.resolve_theme_references(&value).ok()??;
+            let value = theme.resolve_css_functions(&value)?;
             let hint_is_compatible = hint.is_empty() || expected.accepts_hint(hint);
             let accepted = accepts_runtime_value(expected, &value)
                 || (hint.is_empty()
@@ -109,20 +102,95 @@ pub(in crate::evaluation) fn resolve_value_domains(
         })
 }
 
-/// Splits a theme namespace pattern such as `--color-*` or `--text-*--line-height` into
-/// its namespace and trailing suffix.
+/// A `--value(...)` domain that accepts a bare number: `integer`, `number`, or
+/// `percentage`. The domain can end with an inclusive range, such as
+/// `percentage [50,200]`, which limits the number without its `%`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct NumericDomain {
+    /// The written form that the domain accepts.
+    pub kind: NumericKind,
+    /// The smallest accepted number. It is negative infinity without a range.
+    pub min: f64,
+    /// The largest accepted number. It is positive infinity without a range.
+    pub max: f64,
+}
+
+impl NumericDomain {
+    /// Parses one domain, such as `integer` or `percentage [50,200]`. Returns `None`
+    /// for other domains and for a range that is not two numbers in `[min,max]` form.
+    #[must_use]
+    pub fn parse(domain: &str) -> Option<Self> {
+        let (name, range) = domain
+            .trim()
+            .split_once(char::is_whitespace)
+            .map_or((domain.trim(), None), |(name, range)| {
+                (name, Some(range.trim()))
+            });
+        let kind = match name {
+            "integer" => NumericKind::Integer,
+            "number" => NumericKind::Number,
+            "percentage" => NumericKind::Percentage,
+            _ => return None,
+        };
+        let (min, max) = match range {
+            None => (f64::NEG_INFINITY, f64::INFINITY),
+            Some(range) => {
+                let (min, max) = range
+                    .strip_prefix('[')?
+                    .strip_suffix(']')?
+                    .split_once(',')?;
+                (min.trim().parse().ok()?, max.trim().parse().ok()?)
+            }
+        };
+        Some(Self { kind, min, max })
+    }
+
+    /// Returns the CSS value for `capture`, or `None` when the domain does not accept
+    /// it. An integer must parse as an integer, and a percentage must end with `%`.
+    #[must_use]
+    pub fn resolve(&self, capture: &str) -> Option<LeanStr> {
+        let number = match self.kind {
+            NumericKind::Integer => capture.parse::<i64>().ok().and(capture.parse::<f64>().ok()),
+            NumericKind::Number => capture.parse::<f64>().ok(),
+            NumericKind::Percentage => capture.strip_suffix('%')?.parse::<f64>().ok(),
+        }?;
+        (self.min..=self.max)
+            .contains(&number)
+            .then(|| capture.to_lean_str())
+    }
+}
+
+/// The written form of a number that a [`NumericDomain`] accepts.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NumericKind {
+    /// An integer without a unit.
+    Integer,
+    /// A number without a unit.
+    Number,
+    /// A number followed by `%`.
+    Percentage,
+}
+
+/// Splits a theme namespace pattern into its namespace and the suffix after `-*`. For
+/// example, `--text-*--line-height` gives the namespace `text` and the suffix
+/// `--line-height`. `--color` without `-*` also selects the namespace `color`, with an
+/// empty suffix.
 ///
-/// Only a pattern of the form `--namespace-*` with a non-empty namespace name is
-/// recognized. The namespace can have any name, such as `size` or `size-lg`; `theme`
-/// decides whether it is a declared namespace.
+/// Returns `None` when the name is empty, contains whitespace, or is a function call.
+/// `theme` decides whether the namespace is declared.
 pub(in crate::evaluation) fn theme_domain_pattern<'a>(
     domain: &'a str,
     theme: &'a ThemeIndex,
 ) -> Option<(PatternNamespace<'a>, &'a str)> {
-    let domain = domain.strip_prefix("--")?;
-    let (namespace, suffix) = domain.split_once("-*")?;
-    (!namespace.is_empty() && !namespace.contains(char::is_whitespace))
-        .then(|| (PatternNamespace::parse(namespace, theme), suffix))
+    let pattern = domain.strip_prefix("--")?;
+    let (namespace, suffix) = pattern.split_once("-*").unwrap_or((pattern, ""));
+    let name = &domain[..namespace.len() + 2];
+    let mut parser = Parser::new(name);
+    (!namespace.is_empty()
+        && !namespace.contains(char::is_whitespace)
+        && matches!(parser.next(), Ok(Token::Ident(_)))
+        && parser.position().byte_index() == name.len())
+    .then(|| (PatternNamespace::parse(namespace, theme), suffix))
 }
 
 /// Returns the captures written without brackets that the `--value(...)` placeholders
@@ -138,6 +206,11 @@ pub fn named_domain_values(body: &str, theme: &ThemeIndex) -> Vec<LeanString> {
     let _ = expand_placeholder(&mut body, "--value", |domains| {
         for domain in split_top_level(domains, |token| matches!(token, Token::Comma)) {
             let domain = domain.trim();
+            let keyword = quoted_keyword(domain);
+            if let Some(keyword) = keyword {
+                names.push(keyword.to_lean_string());
+                continue;
+            }
             let pattern = theme
                 .namespaces()
                 .scale_domain(domain)
@@ -162,6 +235,27 @@ pub fn named_domain_values(body: &str, theme: &ThemeIndex) -> Vec<LeanString> {
         Some(LeanStr::new())
     });
     names
+}
+
+/// Returns the theme namespaces that the `function` placeholders in the utility body
+/// `body` accept. `function` is `--value` or `--modifier`. For example,
+/// `--value(--color-*, integer)` gives `--color-`.
+///
+/// Each result keeps its leading `--` and ends with `-`, so `--color-*` and `--color`
+/// both give `--color-`. Arguments that are not a namespace, such as `integer` or a
+/// function call, give nothing. Results keep their order in `body` and can repeat.
+#[must_use]
+pub fn placeholder_namespaces(body: &str, function: &str) -> Vec<LeanStr> {
+    find_css_functions(body, &[function], 0)
+        .into_iter()
+        .flat_map(|found| body[found.arguments].split(','))
+        .map(str::trim)
+        .filter(|part| part.starts_with("--") && !part.contains('('))
+        .map(|part| {
+            part.strip_suffix('*')
+                .map_or_else(|| format!("{part}-").into(), LeanStr::from)
+        })
+        .collect()
 }
 
 /// Returns the theme namespace patterns, such as `--size-*`, of the `--value(...)`
@@ -202,6 +296,14 @@ pub fn unresolvable_value_namespaces(body: &str, theme: &ThemeIndex) -> Vec<Lean
     if resolves { Vec::new() } else { patterns }
 }
 
+/// Returns the keyword between the quotes of `domain`, such as `auto` for `'auto'` or
+/// `"auto"`. Returns `None` when `domain` is not quoted.
+fn quoted_keyword(domain: &str) -> Option<&str> {
+    ['"', '\'']
+        .into_iter()
+        .find_map(|quote| domain.strip_prefix(quote)?.strip_suffix(quote))
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -237,7 +339,15 @@ mod tests {
             theme_domain_pattern("--size-lg-*--alt", &theme),
             Some((PatternNamespace::Other("size-lg"), "--alt"))
         );
-        for domain in ["---*", "--size", "-size-*"] {
+        assert_eq!(
+            theme_domain_pattern("--size", &theme),
+            Some((PatternNamespace::Other("size"), ""))
+        );
+        assert_eq!(
+            named_domain_values("--name:--value('--size');", &theme),
+            ["--size"]
+        );
+        for domain in ["---*", "-size-*", "--spacing()", "--size(value)"] {
             assert_eq!(theme_domain_pattern(domain, &theme), None, "{domain}");
         }
         let theme = EvaluationContext::untracked(&theme);
@@ -325,5 +435,21 @@ mod tests {
                 "{body}"
             );
         }
+    }
+
+    #[test]
+    fn numeric_domains_limit_values_to_their_range() {
+        let stretch = NumericDomain::parse("percentage [50,200]").unwrap();
+        assert_eq!(stretch.resolve("50%").as_deref(), Some("50%"));
+        assert_eq!(stretch.resolve("200%").as_deref(), Some("200%"));
+        assert_eq!(stretch.resolve("300%"), None);
+        assert_eq!(stretch.resolve("100"), None);
+
+        let integer = NumericDomain::parse("integer").unwrap();
+        assert_eq!(integer.resolve("-3").as_deref(), Some("-3"));
+        assert_eq!(integer.resolve("1.5"), None);
+
+        assert_eq!(NumericDomain::parse("percentage [50]"), None);
+        assert_eq!(NumericDomain::parse("length"), None);
     }
 }

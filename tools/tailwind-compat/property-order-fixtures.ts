@@ -235,6 +235,15 @@ export function verifyPropertyOrderParity(
         source,
         "src/PropertyOrderParity.tsx",
         stillwindFixtureCss(fixtureCase.input),
+        // Some cases put hundreds of utilities in one call, and canonical lint
+        // compares many combinations of them. This audit checks only the CSS order.
+        {
+          lint: {
+            preferCanonicalUtilities: {
+              severity: "off",
+            },
+          },
+        },
       ) as NativeOutput;
       if (native.diagnostics.length > 0 || native.classes.length !== 1) {
         throw new Error(

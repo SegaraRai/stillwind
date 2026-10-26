@@ -108,7 +108,7 @@ const results = [
     "relative",
     {
       [documentRoot("data-header-mounted")]: "scroll-mbs-0",
-      "data-enhanced:": "block-[calc((1_+_var(--showcase-length))_*_100svh)]",
+      "data-enhanced:": "block-[calc((1_+_var(--showcase-length))*100svh)]",
     },
   )}
 >
@@ -253,7 +253,7 @@ const results = [
         <div
           {...style({
             [story("data-enhanced")]:
-              "absolute inset-0 origin-top-left [transform:translateY(calc(var(--refine-progress)_*_var(--input-y)))]",
+              "absolute inset-0 origin-top-left [transform:translateY(calc(var(--refine-progress)*var(--input-y)))]",
           })}
         >
           <div
@@ -370,7 +370,7 @@ const results = [
                             "absolute inset-s-[var(--diagnostic-x,0px)] inset-bs-[var(--diagnostic-y,100px)] [inline-size:min(360px,100%)]",
                             {
                               [diagnostics("data-multiple")]: [
-                                "[inline-size:min(320px,calc((100%_-_48px)_/_2))]",
+                                "[inline-size:min(320px,calc((100%-48px)/2))]",
                                 {
                                   "max-inline:": "inline-full",
                                 },
@@ -451,7 +451,7 @@ const results = [
                       <span
                         {...style({
                           [story("data-enhanced")]:
-                            "col-start-1 row-start-1 opacity-[max(0,1_-_var(--sort-progress)_*_2)]",
+                            "col-start-1 row-start-1 opacity-[max(0,1-var(--sort-progress)*2)]",
                         })}
                       >
                         $ stillwind lint --fix
@@ -459,7 +459,7 @@ const results = [
                       <span
                         {...style({
                           [story("data-enhanced")]:
-                            "col-start-1 row-start-1 opacity-[max(0,var(--sort-progress)_*_2_-_1)]",
+                            "col-start-1 row-start-1 opacity-[max(0,var(--sort-progress)*2-1)]",
                         })}
                       >
                         $ stillwind fmt
@@ -471,7 +471,7 @@ const results = [
                 <div
                   {...style({
                     [story("data-enhanced")]: [
-                      "absolute inset-s-[var(--output-x)] inset-e-0 inset-bs-[calc(var(--output-y)_-_24px)] grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-[clamp(40px,5vw,72px)]",
+                      "absolute inset-s-[var(--output-x)] inset-e-0 inset-bs-[calc(var(--output-y)-24px)] grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-[clamp(40px,5vw,72px)]",
                       {
                         "max-sidebar:": "grid-cols-1 gap-6",
                         "max-inline:": "gap-y-5.5",
@@ -534,7 +534,7 @@ const results = [
         <div
           {...style("absolute inset-0 z-2 pointer-events-none", {
             [story("data-enhanced")]: [
-              "opacity-[max(0,var(--compile-progress)_*_2_-_1)] [--arrow-size:32px] [--arrow-x:calc(var(--output-x)_-_36px)] [--arrow-y:calc(var(--output-y)_-_3px)]",
+              "opacity-[max(0,var(--compile-progress)*2-1)] [--arrow-size:32px] [--arrow-x:calc(var(--output-x)-36px)] [--arrow-y:calc(var(--output-y)-3px)]",
               {
                 "max-inline:": "[--arrow-size:22px] [--arrow-x:0px]",
               },
@@ -575,7 +575,7 @@ const results = [
           { "--stop-index": showcaseScenes.findIndex((scene) => scene === index) },
           {
             [story("data-enhanced")]:
-              "absolute [inset-block-start:calc(var(--stop-index)_*_(100%_-_100svh)_/_(var(--stop-count)_-_1))] overflow-clip p-0 block-px inline-px border-0 scroll-m-0",
+              "absolute [inset-block-start:calc(var(--stop-index)*(100%-100svh)/(var(--stop-count)-1))] overflow-clip p-0 block-px inline-px border-0 scroll-m-0",
           },
         )}
       >
@@ -667,7 +667,7 @@ const results = [
             <div
               {...style("absolute inset-0 z-2 min-inline-0 pointer-events-none", {
                 [story("data-enhanced")]: [
-                  "opacity-[max(0,var(--compile-progress)_*_2_-_1)] [--arrow-size:32px] [--arrow-x:calc(var(--output-x)_-_36px)] [--arrow-y:calc(var(--output-y)_-_3px)]",
+                  "opacity-[max(0,var(--compile-progress)*2-1)] [--arrow-size:32px] [--arrow-x:calc(var(--output-x)-36px)] [--arrow-y:calc(var(--output-y)-3px)]",
                   {
                     "max-inline:": "[--arrow-size:22px] [--arrow-x:0px]",
                   },

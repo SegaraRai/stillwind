@@ -23,7 +23,8 @@ use lightningcss::traits::{Parse, ToCss};
 use lightningcss::values::ident::Ident;
 
 use stillwind_css::{
-    extract_named_blocks, extract_named_statements, strip_css_comments, whitespace_separated_ranges,
+    ValueType, extract_named_blocks, extract_named_statements, find_css_functions, split_top_level,
+    strip_css_comments, whitespace_separated_ranges,
 };
 
 use crate::conditionals::RuntimeCondition;
@@ -103,6 +104,35 @@ pub struct CustomVariant {
 }
 
 impl CustomVariant {
+    /// Returns captures that the wildcard of this definition can accept, written for
+    /// the inside of `[...]` with `_` for spaces. A typed capture gives the samples of
+    /// its [`StillwindVariantValueType`]. An untyped capture gives the samples of each
+    /// `[hint]` domain of the `--value(...)` placeholders in the body, such as `1rem`
+    /// for `--value([length])`. The result is empty when neither gives a sample.
+    #[must_use]
+    pub fn sample_captures(&self) -> Vec<LeanString> {
+        if let Some(value_type) = self.value_type {
+            return value_type
+                .sample_captures()
+                .iter()
+                .map(ToLeanString::to_lean_string)
+                .collect();
+        }
+        find_css_functions(&self.body, &["--value"], 0)
+            .into_iter()
+            .flat_map(|function| {
+                split_top_level(&self.body[function.arguments], |token| {
+                    matches!(token, Token::Comma)
+                })
+            })
+            .filter_map(|domain| {
+                ValueType::from_hint(domain.trim().strip_prefix('[')?.strip_suffix(']')?)?.samples()
+            })
+            .flatten()
+            .map(|sample| sample.replace(' ', "_").to_lean_string())
+            .collect()
+    }
+
     /// Splits the decoded pattern around its one capture, preserving literal suffixes.
     /// Returns `None` for exact names or an inconsistent capture offset.
     pub fn wildcard_parts(&self) -> Option<(&str, &str)> {
@@ -157,6 +187,19 @@ impl StillwindVariantValueType {
             "supports-condition" => Some(Self::SupportsCondition),
             "if-condition" => Some(Self::IfCondition),
             _ => None,
+        }
+    }
+
+    /// Returns captures that the type accepts, written for the inside of `[...]` with
+    /// `_` for spaces. A variant capture gives a selector and an at-rule.
+    #[must_use]
+    pub fn sample_captures(self) -> &'static [&'static str] {
+        match self {
+            Self::Variant => &["&:hover", "@media_(width>1px)"],
+            Self::Aria | Self::Data => &["pressed"],
+            Self::Nth => &["1"],
+            Self::SupportsCondition => &["display:grid"],
+            Self::IfCondition => &["--flag"],
         }
     }
 
@@ -404,8 +447,9 @@ fn parse_stillwind_variant_header(header: &str) -> Option<ParsedStillwindVariant
 /// retained.
 #[must_use]
 pub fn parse_variant_definitions(css: &str) -> Vec<(usize, CustomVariant)> {
-    let mut definitions = extract_named_statements(css, "@custom-variant")
+    let mut definitions = ["@custom-variant", "@variant"]
         .into_iter()
+        .flat_map(|directive| extract_named_statements(css, directive))
         .filter_map(|(offset, header)| {
             let split = header.find(char::is_whitespace)?;
             let (name, wildcard) = parse_variant_name(&header[..split])?;

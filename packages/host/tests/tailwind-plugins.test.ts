@@ -46,6 +46,10 @@ async function graph(
   );
 }
 
+// Projects in these tests do not import the package, so they declare the legacy theme
+// keys that their plugins read.
+const legacyColors = "@stillwind-legacy-theme-key colors --color-* replace;";
+
 test("theme edits re-evaluate previously requested plugin candidates", async () => {
   const extension = plugin((api) =>
     api.matchUtilities(
@@ -59,12 +63,15 @@ test("theme edits re-evaluate previously requested plugin candidates", async () 
       },
     ),
   );
-  const first = await graph('@plugin "test"; @theme { --color-brand: #123456; }', extension);
+  const first = await graph(
+    `${legacyColors} @plugin "test"; @theme { --color-brand: #123456; }`,
+    extension,
+  );
   expect((await first.plugins!.query("ink-brand")).previewCandidate("ink-brand")).toContain(
     "#123456",
   );
   const second = await graph(
-    '@plugin "test"; @theme { --color-brand: #654321; }',
+    `${legacyColors} @plugin "test"; @theme { --color-brand: #654321; }`,
     extension,
     first.plugins,
   );
@@ -518,7 +525,7 @@ test("Tailwind export forms and typed options preserve the native plugin contrac
 test("handlers see the complete CSS theme and add base, components, and configured defaults", async () => {
   const observed: unknown[] = [];
   const loaded = await graph(
-    `@theme default { --color-brand: red; } @plugin "test"; @theme { --color-brand: blue; } @stillwind-slot utilities;`,
+    `@stillwind-legacy-theme-key colors --color-* replace; @stillwind-legacy-theme-key fontSize --text-* extend; @theme default { --color-brand: red; } @plugin "test"; @theme { --color-brand: blue; } @stillwind-slot utilities;`,
     plugin(
       (api) => {
         observed.push(

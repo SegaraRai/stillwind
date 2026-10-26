@@ -19,28 +19,35 @@
   }
 
   @variant max-inline {
-    @apply [--text-display:clamp(2.125rem,10.5vw,2.75rem)] [--text-code-display:clamp(1rem,4.7vw,1.5rem)] [--text-code-output:clamp(1.0625rem,4.7vw,1.375rem)] [--text-code-feature:clamp(0.71875rem,3.3vw,0.8125rem)];
+    --text-display: clamp(2.125rem, 10.5vw, 2.75rem);
+    --text-code-display: clamp(1rem, 4.7vw, 1.5rem);
+    --text-code-output: clamp(1.0625rem, 4.7vw, 1.375rem);
+    --text-code-feature: clamp(0.71875rem, 3.3vw, 0.8125rem);
   }
 
   @variant selection {
     @apply text-action-foreground bg-action;
   }
 
-  @variant [:where(&)_:focus-visible] {
+  :where(&) :focus-visible {
     @apply outline-2 outline-accent outline-offset-4;
   }
 
-  @variant [:where(&)[data-header-mounted]_[id]] {
+  :where(&)[data-header-mounted] [id] {
     @apply scroll-mbs-18;
   }
 }
 
 @utility code-font {
-  @apply [font-variant-ligatures:none] [font-feature-settings:"liga"_0,"calt"_0,"zero"_1];
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0,
+    "zero" 1;
 }
 
 @utility skip-link {
-  @apply absolute inset-bs-4 inset-s-6 z-50 p-4 text-background bg-foreground [transform:translateY(calc(-100%_-_2rem))];
+  @apply absolute inset-bs-4 inset-s-6 z-50 p-4 text-background bg-foreground [transform:translateY(calc(-100%-2rem))];
 
   @variant focus {
     @apply [transform:none];

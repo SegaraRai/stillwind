@@ -41,6 +41,7 @@ pub(super) fn check_application(
     let theme = checker.theme;
     let settings = checker.settings;
     let mut resolved = Vec::new();
+    let collapsed = check_canonical_group(checker, candidates);
     for range in candidates {
         let raw = &source.text()[range.clone()];
         let span = checker.span(range.clone());
@@ -92,7 +93,6 @@ pub(super) fn check_application(
                     );
                     checker.report_all(fixes);
                 }
-                check_canonical(checker, raw, span);
                 resolved.push((range.clone(), utilities));
             }
             Ok(Err(failure)) => {
@@ -108,6 +108,9 @@ pub(super) fn check_application(
             }
             // Compilation reports a malformed requirement of the design system.
             Err(_) => {}
+        }
+        if !collapsed {
+            check_canonical(checker, raw, span);
         }
     }
     check_pairs(checker, &resolved);
@@ -128,7 +131,13 @@ fn check_canonical(checker: &mut Checker<'_>, raw: &str, span: Span) {
     let Some(range) = checker.edit_range(span) else {
         return;
     };
-    let mut finding = LintFinding::new(LintDiagnostic::NonCanonicalUtility, span);
+    let mut finding = LintFinding::new(
+        LintDiagnostic::NonCanonicalUtility {
+            utility: raw.into(),
+            replacement: canonical.clone(),
+        },
+        span,
+    );
     finding.actions.push(FixAction {
         title: "Use canonical utility spelling".into(),
         edits: vec![SourceEdit {
@@ -137,6 +146,63 @@ fn check_canonical(checker: &mut Checker<'_>, raw: &str, span: Span) {
         }],
     });
     checker.report(finding);
+}
+
+/// Reports one finding that replaces all `candidates` of one `@apply` with fewer
+/// utilities that produce the same CSS, such as `size-4` for `w-4 h-4`. Returns false,
+/// and reports nothing, when the rule is disabled, when there are fewer than two
+/// candidates, when the result has as many utilities as the input, or when a separator
+/// between candidates is not plain whitespace.
+fn check_canonical_group(checker: &mut Checker<'_>, candidates: &[Range<usize>]) -> bool {
+    if candidates.len() < 2 || !checker.enabled(LintKind::PreferCanonicalUtilities) {
+        return false;
+    }
+    let Some(first) = candidates.first() else {
+        return false;
+    };
+    let Some(last) = candidates.last() else {
+        return false;
+    };
+    let text = &checker.source.text()[first.start..last.end];
+    let values: Vec<_> = candidates
+        .iter()
+        .map(|range| checker.source.text()[range.clone()].to_lean_str())
+        .collect();
+    if text
+        .split_whitespace()
+        .ne(values.iter().map(LeanStr::as_str))
+    {
+        return false;
+    }
+    let Ok(canonical) = checker.query.canonical_candidates(&values) else {
+        return false;
+    };
+    if canonical.len() >= values.len() {
+        return false;
+    }
+    let replacement = canonical
+        .iter()
+        .map(LeanStr::as_str)
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lean_str();
+    let span = checker.span(first.start..last.end);
+    let Some(range) = checker.edit_range(span) else {
+        return false;
+    };
+    let mut finding = LintFinding::new(
+        LintDiagnostic::NonCanonicalUtility {
+            utility: text.into(),
+            replacement: replacement.clone(),
+        },
+        span,
+    );
+    finding.actions.push(FixAction {
+        title: "Use canonical utility spelling".into(),
+        edits: vec![SourceEdit { range, replacement }],
+    });
+    checker.report(finding);
+    true
 }
 
 /// Reports `duplicate-utility` and `conflicting-utilities` for each candidate of

@@ -400,11 +400,14 @@ fn supports_feature_test(value: LeanString) -> LeanString {
     }
 }
 
-/// Builds an attribute selector for an aria or data variant.
+/// Returns the attribute selector of an `aria-` or `data-` variant. `prefix` is the
+/// start of the attribute name, such as `aria-`, and `capture` is the captured name or
+/// bracketed value.
 ///
-/// `name=value` becomes an equality selector with the value quoted and escaped; a bare
-/// capture becomes `="true"` for aria variants and a presence check for data variants.
-/// An empty name or value is rejected rather than emitted.
+/// An operator, a quoted value, and a comparison flag in `capture` keep their CSS
+/// meaning. When `default_true` is true, a bare name tests `="true"`, as `aria-checked`
+/// does. A bracketed capture without an operator tests that the attribute exists.
+/// Returns `None` when the attribute name or the value is empty.
 fn attribute_variant_selector(
     prefix: &str,
     capture: &str,
@@ -421,15 +424,39 @@ fn attribute_variant_selector(
         if name.is_empty() || expected.is_empty() {
             return None;
         }
-        return Some(
-            format_args!(
-                "[{prefix}-{name}=\"{}\"]",
-                expected.replace_char('"', r#"\""#)
-            )
-            .to_lean_string(),
-        );
+        let (name, operator) = name
+            .strip_suffix(['~', '|', '^', '$', '*'])
+            .map_or((name, ""), |short| (short, &name[short.len()..]));
+        let expected = expected.trim();
+        let (expected, flag) = if expected.starts_with(['"', '\'']) {
+            let mut parser = Parser::new(expected);
+            if !matches!(parser.next(), Ok(Token::QuotedString(_))) {
+                return None;
+            }
+            let end = parser.position().byte_index();
+            let flag = expected[end..].trim();
+            if !matches!(flag, "" | "i" | "s") {
+                return None;
+            }
+            (expected[..end].to_string(), flag)
+        } else {
+            let (expected, flag) = expected
+                .rsplit_once(' ')
+                .filter(|(_, flag)| matches!(*flag, "i" | "s"))
+                .map_or((expected, ""), |(value, flag)| (value.trim(), flag));
+            if expected.is_empty() {
+                return None;
+            }
+            (format!("\"{}\"", expected.replace('"', "\\\"")), flag)
+        };
+        let flag = if flag.is_empty() {
+            String::new()
+        } else {
+            format!(" {flag}")
+        };
+        return Some(format_args!("[{prefix}-{name}{operator}={expected}{flag}]").to_lean_string());
     }
-    Some(if default_true {
+    Some(if default_true && arbitrary.is_none() {
         format_args!("[{prefix}-{value}=\"true\"]").to_lean_string()
     } else {
         format_args!("[{prefix}-{value}]").to_lean_string()
@@ -472,6 +499,17 @@ mod tests {
             Some("[data-state=\"on\"]".into())
         );
         assert_eq!(attribute_variant_selector("data", "state=", false), None);
+        for (capture, expected) in [
+            ("[selected=\"true\"]", "[aria-selected=\"true\"]"),
+            ("[url$=\".com\"_i]", "[aria-url$=\".com\" i]"),
+            ("[label=\"hello_i\"]", "[aria-label=\"hello i\"]"),
+            ("[visible]", "[aria-visible]"),
+        ] {
+            assert_eq!(
+                attribute_variant_selector("aria", capture, true).as_deref(),
+                Some(expected)
+            );
+        }
         assert!(matches!(
             parse_nested_variant("[&:hover]").kind,
             VariantKind::Arbitrary(_)

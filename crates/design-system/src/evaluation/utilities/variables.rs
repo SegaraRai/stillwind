@@ -118,7 +118,7 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
         let mut samples = Vec::new();
         for component in syntax.split('|') {
             let hint = component.trim().strip_prefix('<')?.strip_suffix('>')?;
-            samples.extend(type_samples(ValueType::from_hint(hint)?)?);
+            samples.extend(ValueType::from_hint(hint)?.samples()?);
         }
         return Some(VariableType {
             label: syntax.to_lean_str(),
@@ -131,7 +131,7 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
     let types = &namespace.types;
     let mut samples = Vec::new();
     for &value_type in types {
-        samples.extend(type_samples(value_type)?);
+        samples.extend(value_type.samples()?);
     }
     (!samples.is_empty()).then(|| VariableType {
         label: types
@@ -142,31 +142,6 @@ fn variable_type(name: &str, theme: &ThemeIndex) -> Option<VariableType> {
             .to_lean_str(),
         source: VariableTypeSource::Theme(namespace.name.clone()),
         samples,
-    })
-}
-
-/// Representative values of `value_type`, or `None` when the type has no small set of
-/// values that identify it.
-fn type_samples(value_type: ValueType) -> Option<&'static [&'static str]> {
-    Some(match value_type {
-        ValueType::Integer | ValueType::ZIndex => &["1"],
-        ValueType::Number => &["1.5"],
-        ValueType::Percentage | ValueType::FontStretch => &["50%"],
-        ValueType::NumberPercentage => &["1.5", "50%"],
-        ValueType::Length | ValueType::LineWidth | ValueType::FontSize => &["1rem"],
-        ValueType::LengthPercentage => &["1rem", "50%"],
-        ValueType::Angle => &["1deg"],
-        ValueType::AnglePercentage => &["1deg", "50%"],
-        ValueType::Time => &["1s"],
-        ValueType::Ratio => &["16 / 9"],
-        ValueType::Easing => &["cubic-bezier(0, 0, 1, 1)"],
-        ValueType::Color => &["rgb(0 0 0)"],
-        ValueType::Image => &["linear-gradient(red, blue)"],
-        ValueType::Url => &["url(a.png)"],
-        ValueType::Shadow => &["0 0 1px rgb(0 0 0)"],
-        ValueType::FontFamily => &["serif"],
-        ValueType::FontWeight => &["700"],
-        _ => return None,
     })
 }
 

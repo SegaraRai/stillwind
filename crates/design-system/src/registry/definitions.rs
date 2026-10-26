@@ -12,6 +12,7 @@ use lean_string::LeanStr;
 use stillwind_css::{CustomPropertyDefinition, parse_property_definitions};
 
 use super::contexts::{RegistryContext, RegistryStatements, mask_registry_blocks};
+use super::formats::{LegacyThemeKey, parse_legacy_theme_keys, parse_legacy_utilities};
 use super::utility_lookup::UtilityLookup;
 use crate::{
     ArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
@@ -37,6 +38,8 @@ pub struct StillwindDefinitions {
     omit_token_prefixes: Vec<(LeanStr, LeanStr)>,
     theme_order: Vec<LeanStr>,
     theme_namespaces: ThemeNamespaces,
+    legacy_utilities: Vec<(LeanStr, LeanStr)>,
+    legacy_theme_keys: BTreeMap<LeanStr, LegacyThemeKey>,
 }
 
 impl StillwindDefinitions {
@@ -97,6 +100,19 @@ impl StillwindDefinitions {
     /// Theme namespaces that the CSS declares.
     pub fn theme_namespaces(&self) -> &ThemeNamespaces {
         &self.theme_namespaces
+    }
+
+    /// Pairs of a legacy utility name and its current name, from
+    /// `@stillwind-legacy-utility` statements in authored order. A trailing `*` in both
+    /// names keeps the rest of the name.
+    pub fn legacy_utilities(&self) -> &[(LeanStr, LeanStr)] {
+        &self.legacy_utilities
+    }
+
+    /// Maps each Tailwind v3 config key to the theme namespace that it reads, such as
+    /// `text` for `fontSize`, from `@stillwind-legacy-theme-key` statements.
+    pub fn legacy_theme_keys(&self) -> &BTreeMap<LeanStr, LegacyThemeKey> {
+        &self.legacy_theme_keys
     }
 
     /// Returns the `@stillwind-utility` definitions whose names match the utility name
@@ -178,6 +194,8 @@ impl StillwindDefinitions {
             omit_token_prefixes: parse_omit_token_prefixes(css),
             theme_order: parse_theme_order(css),
             theme_namespaces: ThemeNamespaces::parse(css),
+            legacy_utilities: parse_legacy_utilities(css),
+            legacy_theme_keys: parse_legacy_theme_keys(css),
         }
     }
 }

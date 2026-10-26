@@ -21,6 +21,7 @@ use super::super::variants::{
     marker_use, resolve_variant,
 };
 use super::matching::resolve_named_utility;
+use super::ranges::CandidateLayout;
 use crate::{CustomUtility, ThemeIndex};
 
 /// Why a utility candidate does not resolve, and which part of its text causes it.
@@ -196,101 +197,6 @@ impl UtilityFailureReason {
     }
 }
 
-/// Byte ranges of the parts of a parsed candidate.
-struct CandidateLayout {
-    /// Start of each variant, in candidate order.
-    variants: Vec<usize>,
-    /// The leading `-` of a negative utility.
-    negative: Option<Range<usize>>,
-    /// The utility name or arbitrary property, without `!`, `-`, or a modifier.
-    name: Range<usize>,
-    /// The `/` and modifier text.
-    modifier: Option<Range<usize>>,
-}
-
-impl CandidateLayout {
-    fn new(raw: &str, candidate: &Candidate) -> Self {
-        let mut offset = 0;
-        let variants = candidate
-            .variants
-            .iter()
-            .map(|variant| {
-                let start = offset;
-                offset += variant.raw.len() + 1;
-                start
-            })
-            .collect();
-        let mut end = raw.len();
-        if raw[offset..].starts_with('!') {
-            offset += 1;
-        } else if candidate.important {
-            end -= 1;
-        }
-        let negative = candidate.negative.then(|| {
-            offset += 1;
-            offset - 1..offset
-        });
-        let name_end = match &candidate.utility {
-            Utility::Named {
-                name,
-                modifier: Some(_),
-            } => offset + name.len(),
-            _ => end,
-        };
-        Self {
-            variants,
-            negative,
-            name: offset..name_end,
-            modifier: (name_end < end).then_some(name_end..end),
-        }
-    }
-}
-
-/// Returns the byte range of the arbitrary value of `candidate`: the last bracketed or
-/// parenthesized value in a utility name, such as `[1/2]` in `md:w-[1/2]` or `(--x)`
-/// in `bg-(--x)`, or the text after the colon of an arbitrary property, such as `1/2`
-/// in `[width:1/2]`. Returns the range of the whole utility when it has no such value.
-/// `raw` is the text that `candidate` was parsed from.
-pub(super) fn arbitrary_value_range(raw: &str, candidate: &Candidate) -> Range<usize> {
-    let name = CandidateLayout::new(raw, candidate).name;
-    let text = &raw[name.clone()];
-    let start = match candidate.utility {
-        Utility::ArbitraryProperty { .. } => text.find(':').map(|colon| (colon + 1, 1)),
-        Utility::Named { .. } if text.ends_with(')') => text.rfind("-(").map(|dash| (dash + 1, 0)),
-        Utility::Named { .. } => text.rfind("-[").map(|dash| (dash + 1, 0)),
-    };
-    start.map_or(name.clone(), |(start, trailing)| {
-        name.start + start..name.end - trailing
-    })
-}
-
-/// Returns the byte range of a utility's value within `raw`.
-///
-/// A named arbitrary value includes its brackets or parentheses. An arbitrary property
-/// returns the text after its colon, without the closing bracket. Other named utilities
-/// return the text after the last `-`, such as `150` in `opacity-150`. Returns `None`
-/// when `raw` is not candidate syntax or a plain named utility has no `-`.
-#[must_use]
-pub fn utility_value_range(raw: &str) -> Option<Range<usize>> {
-    let candidate = parse_candidate(raw)?;
-    let name = CandidateLayout::new(raw, &candidate).name;
-    let text = &raw[name.clone()];
-    match candidate.utility {
-        Utility::Named { .. } if !text.ends_with([']', ')']) => {
-            let dash = text.rfind('-')?;
-            Some(name.start + dash + 1..name.end)
-        }
-        _ => Some(arbitrary_value_range(raw, &candidate)),
-    }
-}
-
-/// Returns the byte range of the modifier of `candidate` after its `/`, or `None` when
-/// it has no modifier. `raw` is the text that `candidate` was parsed from.
-pub(super) fn modifier_value_range(raw: &str, candidate: &Candidate) -> Option<Range<usize>> {
-    let modifier = CandidateLayout::new(raw, candidate).modifier?;
-    Some(modifier.start + 1..modifier.end)
-}
-
 /// Resolves every variant of `candidate` in order and, in [`VariantContext::Document`],
 /// checks that a variant selects the element to style, as [`document_target`]
 /// describes.
@@ -365,7 +271,9 @@ pub(super) fn diagnose_utility(
     };
     let layout = CandidateLayout::new(raw, candidate);
     match &candidate.utility {
-        Utility::ArbitraryProperty { property, value } => UtilityFailure {
+        Utility::ArbitraryProperty {
+            property, value, ..
+        } => UtilityFailure {
             range: layout.name,
             reason: UtilityFailureReason::UnsupportedValue {
                 utility: property.clone(),

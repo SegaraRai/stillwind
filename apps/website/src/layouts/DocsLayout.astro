@@ -214,7 +214,7 @@ const paginationLink = style(
           <ul {...style("grid p-0 gap-1.5 list-none")}>
             {headings.map((heading) => (
               <li
-                {...style("ps-[calc((var(--heading-depth)_-_2)*10px)]", {
+                {...style("ps-[calc((var(--heading-depth)-2)*10px)]", {
                   "--heading-depth": heading.depth,
                 })}
               >

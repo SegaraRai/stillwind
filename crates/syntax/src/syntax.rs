@@ -66,6 +66,9 @@ pub enum Utility {
         property: LeanStr,
         /// Decoded value text after that colon.
         value: LeanStr,
+        /// The opacity modifier after `/`, decoded with the same rules as other
+        /// modifiers. It is `None` when the candidate has no `/`.
+        modifier: Option<Value>,
     },
 }
 
@@ -207,20 +210,21 @@ fn variant(raw: LeanStr) -> Variant {
 /// treated as a named utility whose name happens to be bracketed, leaving the registry
 /// to resolve it.
 fn parse_utility(raw: &str) -> Option<Utility> {
-    if let Some(value) = arbitrary(raw)
-        && let Some((property, value)) = value.split_once(':')
-    {
-        return Some(Utility::ArbitraryProperty {
-            property: property.into(),
-            value: decode_arbitrary_value(value).into(),
-        });
-    }
     let prefix = CandidatePrefix::parse(raw)?;
     let (before_modifier, modifier) = prefix.split_once('/');
     let modifier = match modifier {
         Some(value) => Some(parse_value(value)?),
         None => None,
     };
+    if let Some(value) = arbitrary(before_modifier)
+        && let Some((property, value)) = value.split_once(':')
+    {
+        return Some(Utility::ArbitraryProperty {
+            property: property.into(),
+            value: decode_arbitrary_value(value).into(),
+            modifier,
+        });
+    }
     (!before_modifier.is_empty()).then(|| Utility::Named {
         name: before_modifier.into(),
         modifier,
@@ -324,6 +328,7 @@ mod tests {
             Utility::ArbitraryProperty {
                 property: "color".into(),
                 value: "rebeccapurple".into(),
+                modifier: None,
             }
         );
     }
@@ -407,6 +412,7 @@ mod tests {
             Utility::ArbitraryProperty {
                 property: "--sidebar".into(),
                 value: "calc(100% - 1rem)".into(),
+                modifier: None,
             }
         );
         assert_eq!(

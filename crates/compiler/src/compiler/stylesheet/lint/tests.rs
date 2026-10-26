@@ -186,6 +186,7 @@ fn candidates_of_one_application_are_compared() {
             .map(|(kind, covered, _)| (*kind, covered.as_str()))
             .collect::<Vec<_>>(),
         [
+            (LintKind::PreferCanonicalUtilities, "flex flex block"),
             (LintKind::DuplicateUtility, "flex"),
             (LintKind::ConflictingUtilities, "block"),
             (LintKind::ConflictingUtilities, "block"),
@@ -318,6 +319,13 @@ fn value_and_condition_rules_report_inside_the_candidate() {
             &options
         ),
         [
+            fixed(
+                LintKind::PreferCanonicalUtilities,
+                "bg-red-500/[150%]",
+                ".a { @apply bg-red-500/150 opacity-[150%]; }\n\
+                 .b { @variant motion-safe { @apply motion-reduce:flex; } }\n\
+                 .c { @apply bg-(--brand); }"
+            ),
             finding(LintKind::IncompatiblePropertyValue, "[150%]"),
             finding(LintKind::ClampedValue, "[150%]"),
             finding(LintKind::UnsatisfiableVariants, "motion-reduce"),

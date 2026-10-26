@@ -1,6 +1,10 @@
 import { expect, test } from "vite-plus/test";
 
+import { builtinLegacyThemeKeys } from "./legacy-keys.testing.ts";
 import { keyPathToCssProperty, PluginTheme } from "./theme.ts";
+
+const legacyKeys = builtinLegacyThemeKeys();
+const namespaces = Object.fromEntries(legacyKeys.map(({ key, namespace }) => [key, namespace]));
 
 const token = (name: string, value: string, fallback = false) => ({
   name,
@@ -10,14 +14,18 @@ const token = (name: string, value: string, fallback = false) => ({
 });
 
 test("config key paths map to Tailwind's CSS theme variables", () => {
-  expect(keyPathToCssProperty(["colors", "red", "500"])).toBe("color-red-500");
-  expect(keyPathToCssProperty(["fontSize", "xs", "1", "lineHeight"])).toBe("text-xs--line-height");
-  expect(keyPathToCssProperty(["transitionDuration", "DEFAULT"])).toBe(
+  expect(keyPathToCssProperty(["colors", "red", "500"], namespaces)).toBe("color-red-500");
+  expect(keyPathToCssProperty(["fontSize", "xs", "1", "lineHeight"], namespaces)).toBe(
+    "text-xs--line-height",
+  );
+  expect(keyPathToCssProperty(["transitionDuration", "DEFAULT"], namespaces)).toBe(
     "default-transition-duration",
   );
-  expect(keyPathToCssProperty(["spacing", "1.5"])).toBe("spacing-1_5");
-  expect(keyPathToCssProperty(["backgroundImage", "hero"])).toBe("background-image-hero");
-  expect(keyPathToCssProperty(["container", "center"])).toBeNull();
+  expect(keyPathToCssProperty(["spacing", "1.5"], namespaces)).toBe("spacing-1_5");
+  expect(keyPathToCssProperty(["backgroundImage", "hero"], namespaces)).toBe(
+    "background-image-hero",
+  );
+  expect(keyPathToCssProperty(["container", "center"], namespaces)).toBeNull();
 });
 
 test("theme() prefers ordinary CSS, then plugin config, then CSS defaults and v3 defaults", () => {
@@ -38,6 +46,7 @@ test("theme() prefers ordinary CSS, then plugin config, then CSS defaults and v3
       },
     ],
     [token("--color-brand", "#123456"), token("--color-neon", "#111", true)],
+    legacyKeys,
   );
   expect(theme.get("colors.brand")).toBe("#123456");
   expect(theme.get("colors.neon")).toBe("#0f0");
@@ -61,6 +70,7 @@ test("only the plugins' own configuration is written back as CSS", () => {
       },
     ],
     [],
+    legacyKeys,
   ).css();
   expect(css).toContain("--color-neon:#0f0;");
   expect(css).toContain("--opacity-ghost:10%;");
@@ -78,9 +88,10 @@ test("only the plugins' own configuration is written back as CSS", () => {
         },
       ],
       [],
+      legacyKeys,
     ).css(),
   ).toContain("--color-*:initial;--color-only:red;");
-  expect(new PluginTheme([{}], []).css()).toBe("");
+  expect(new PluginTheme([{}], [], legacyKeys).css()).toBe("");
 });
 
 test("values that refer to their own variable are inlined instead of declared", () => {
@@ -100,6 +111,7 @@ test("values that refer to their own variable are inlined instead of declared", 
         },
       ],
       [],
+      legacyKeys,
     ).css(),
   ).toBe(
     "@stillwind-plugin-theme{--color-brand:var(--color-primary);}" +
@@ -128,6 +140,7 @@ test("fontFamily.sans and fontFamily.mono set the preflight fonts unless CSS def
         },
       ],
       tokens,
+      legacyKeys,
     ).css();
   expect(css([token("--font-sans", "Arial", true)])).toContain(
     '--default-font-family:Inter, sans-serif;--default-font-feature-settings:"cv11";--default-font-variation-settings:normal;' +
@@ -148,6 +161,7 @@ test("fontFamily.sans and fontFamily.mono set the preflight fonts unless CSS def
         },
       ],
       [],
+      legacyKeys,
     ).css(),
   ).not.toContain("--default-");
 });

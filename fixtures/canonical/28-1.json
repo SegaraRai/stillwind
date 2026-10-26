@@ -1,0 +1,232 @@
+{
+  "name": "modernize arbitrary variants",
+  "css": "@import 'tailwindcss';",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["[[data-visible]]:flex"],
+      "expected": ["data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&[data-visible]]:flex"],
+      "expected": ["data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[[data-visible]&]:flex"],
+      "expected": ["data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&>[data-visible]]:flex"],
+      "expected": ["*:data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_>_[data-visible]]:flex"],
+      "expected": ["*:data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&>*]:flex"],
+      "expected": ["*:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_>_*]:flex"],
+      "expected": ["*:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_>_[foo]]:flex"],
+      "expected": ["*:[[foo]]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_[foo]]:flex"],
+      "expected": ["**:[[foo]]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_>_[foo=bar]]:flex"],
+      "expected": ["*:[[foo=bar]]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_[foo=bar]]:flex"],
+      "expected": ["**:[[foo=bar]]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_[data-visible]]:flex"],
+      "expected": ["**:data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_*]:flex"],
+      "expected": ["**:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&:first-child]:flex"],
+      "expected": ["first:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&:not(:first-child)]:flex"],
+      "expected": ["not-first:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_:first-child]:flex"],
+      "expected": ["**:first:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_>_:first-child]:flex"],
+      "expected": ["*:first:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_:--custom]:flex"],
+      "expected": ["**:[:--custom]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&_>_:--custom]:flex"],
+      "expected": ["*:[:--custom]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[p_&]:flex"],
+      "expected": ["in-[p]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[.foo_&]:flex"],
+      "expected": ["in-[.foo]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[[data-visible]_&]:flex"],
+      "expected": ["in-data-visible:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[[data-foo][data-bar]_&]:flex"],
+      "expected": ["[[data-foo][data-bar]_&]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[figure>&]:my-0"],
+      "expected": ["[figure>&]:my-0"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[&:nth-child(2)]:flex"],
+      "expected": ["nth-2:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    }
+  ]
+}

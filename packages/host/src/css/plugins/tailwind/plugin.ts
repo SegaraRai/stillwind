@@ -1,4 +1,4 @@
-import type { NativeThemeToken } from "@stillwind/native";
+import type { NativeLegacyThemeKey, NativeThemeToken } from "@stillwind/native";
 import type { PluginAPI, PluginWithConfig } from "tailwindcss/plugin";
 
 import type { TailwindPlugin } from "../host.ts";
@@ -82,6 +82,7 @@ export class TailwindRuntime {
   /**
    * @param plugins - Configured handlers, one for each `@plugin` statement, in stylesheet order.
    * @param tokens - Active CSS theme tokens, which the handlers' `theme()` calls read.
+   * @param legacyKeys - The namespaces that v3 config keys read, from the design system.
    * @param project - Project's Tailwind configuration. Its keys replace the same keys of every
    * plugin configuration, as the keys of a Tailwind `@config` file do. Its plugins register in
    * {@link TailwindRuntime.settingsCss}.
@@ -89,6 +90,7 @@ export class TailwindRuntime {
   constructor(
     plugins: readonly PluginWithConfig[],
     tokens: readonly NativeThemeToken[],
+    legacyKeys: readonly NativeLegacyThemeKey[],
     project?: PluginWithConfig["config"],
   ) {
     const entries: [PluginWithConfig, number][] = [];
@@ -127,7 +129,7 @@ export class TailwindRuntime {
         this.#owners,
       );
     }
-    this.#theme = new PluginTheme(configs, tokens);
+    this.#theme = new PluginTheme(configs, tokens, legacyKeys);
     const config = resolveConfig(configs);
     const addUtilities: PluginAPI["addUtilities"] = (css) =>
       utilityRules(

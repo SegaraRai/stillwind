@@ -3,6 +3,7 @@
 //! One snapshot owns each index through its analysis cache. Numeric spacing remains
 //! a computed candidate because its domain is not finite.
 
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lean_string::{LeanStr, ToLeanStr};
@@ -185,8 +186,14 @@ impl CanonicalIndex {
     }
 }
 
-pub(super) fn rank(left: &str, right: &str) -> std::cmp::Ordering {
-    left.len().cmp(&right.len()).then_with(|| left.cmp(right))
+/// Compares two spellings by preference. A spelling without a leading `-` comes before
+/// a spelling with one. A shorter spelling comes before a longer one. Spellings of the
+/// same length are compared lexically.
+pub(super) fn rank(left: &str, right: &str) -> Ordering {
+    left.starts_with('-')
+        .cmp(&right.starts_with('-'))
+        .then_with(|| left.len().cmp(&right.len()))
+        .then_with(|| left.cmp(right))
 }
 
 pub(super) fn policy(
@@ -195,16 +202,13 @@ pub(super) fn policy(
     scales: &[ScaleReference],
 ) -> Normalization {
     let mut properties = BTreeSet::new();
-    if options.px_to_rem
-        && scales
-            .iter()
-            .any(|scale| uses_rem(scale) && scale.referenced_by(css))
-    {
+    if options.px_to_rem && scales.iter().any(|scale| scale.referenced_by(css)) {
         spacing_properties(css, scales, &mut properties, 0);
     }
     Normalization {
         resolve_scale: !scales.is_empty(),
         properties,
+        preserve_specificity: options.preserve_specificity,
     }
 }
 

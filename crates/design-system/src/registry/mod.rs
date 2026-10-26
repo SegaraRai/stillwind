@@ -33,8 +33,8 @@ mod variants;
 pub use contexts::{BypassedUndefinition, RegistryContext};
 pub use definitions::StillwindDefinitions;
 pub use formats::{
-    declaration_format, parse_declaration_formats, parse_omit_token_prefixes,
-    parse_relationship_patterns, parse_theme_order,
+    LegacyThemeExposure, LegacyThemeKey, declaration_format, parse_declaration_formats,
+    parse_omit_token_prefixes, parse_relationship_patterns, parse_theme_order,
 };
 pub use markers::{MarkerClasses, MarkerForm, MarkerOrigin};
 pub use order::{ArbitraryPropertyOrder, parse_arbitrary_property_order};

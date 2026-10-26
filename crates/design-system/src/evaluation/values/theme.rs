@@ -225,6 +225,8 @@ fn typed_theme_arbitrary(
     let value = value.strip_prefix('[')?.strip_suffix(']')?;
     let (hint, value) = value.split_once(':').unwrap_or(("", value));
     let value = theme.inline_theme_functions(&decode_arbitrary_value(value))?;
+    let value = theme.resolve_theme_references(&value).ok()??;
+    let value = theme.resolve_css_functions(&value)?;
     let types = &namespace.types;
     let hint_is_compatible = hint.is_empty()
         || types.is_empty()

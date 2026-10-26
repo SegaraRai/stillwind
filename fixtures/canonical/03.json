@@ -1,0 +1,295 @@
+{
+  "name": "arbitrary properties",
+  "css": "@import 'tailwindcss';",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["[color:red]"],
+      "expected": ["text-[red]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--value:theme(spacing.1)]"],
+      "expected": ["[--value:--spacing(1)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--value:theme(fontSize.xs.1.lineHeight)]"],
+      "expected": ["[--value:var(--text-xs--line-height)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--value:theme(spacing[1.25])]"],
+      "expected": ["[--value:--spacing(1.25)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--value:theme(spacing[1.1])]"],
+      "expected": ["[--value:theme(spacing[1.1])]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500)]"],
+      "expected": ["text-red-500"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500)]/50"],
+      "expected": ["text-red-500/50"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/50,theme(colors.blue.500/50))]"],
+      "expected": ["text-[--theme(--color-red-500/50,--theme(--color-blue-500/50))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/50,theme(colors.blue.500/50))]/50"],
+      "expected": ["text-[--theme(--color-red-500/50,--theme(--color-blue-500/50))]/50"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/75%)]"],
+      "expected": ["text-red-500/75"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/.12)]"],
+      "expected": ["text-red-500/12"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/0.12)]"],
+      "expected": ["text-red-500/12"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/12.34%)]"],
+      "expected": ["text-red-500/[12.34%]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/var(--opacity))]"],
+      "expected": ["text-red-500/(--opacity)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/.12345)]"],
+      "expected": ["text-red-500/1234.5"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/50.25%)]"],
+      "expected": ["text-red-500/50.25"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/50%)]/50"],
+      "expected": ["text-[--theme(--color-red-500/50%)]/50"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[padding-top:min(20%,calc(var(--spacing)*8))]"],
+      "expected": ["pt-[min(20%,--spacing(8))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[padding-top:min(20%,calc(var(--spacing)*var(--other)))]"],
+      "expected": ["pt-[min(20%,--spacing(var(--other)))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[padding-top:calc(var(--spacing)*8)]"],
+      "expected": ["pt-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[padding-top:calc(var(--spacing)*var(--other))]"],
+      "expected": ["pt-[--spacing(var(--other))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:theme(transitionDuration.500)]"],
+      "expected": ["[--foo:theme(transitionDuration.500)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:theme(colors.red.500/50/50)]"],
+      "expected": ["[--foo:theme(colors.red.500/50/50)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:theme(colors.red.500/50/50)]/50"],
+      "expected": ["[--foo:theme(colors.red.500/50/50)]/50"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:theme(colors.red.500/50/50)_theme(colors.blue.200)]"],
+      "expected": ["[--foo:theme(colors.red.500/50/50)_var(--color-blue-200)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:theme(colors.red.500/50/50)_theme(colors.blue.200)]/50"],
+      "expected": ["[--foo:theme(colors.red.500/50/50)_var(--color-blue-200)]/50"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-weight:400]"],
+      "expected": ["font-normal"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[line-height:0]"],
+      "expected": ["leading-0"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[border-style:solid]"],
+      "expected": ["border-solid"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:0px]"],
+      "expected": ["[--foo:0px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:calc(0px*1)]"],
+      "expected": ["[--foo:calc(0px*1)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[--foo:calc(0*1rem)]"],
+      "expected": ["[--foo:calc(0*1rem)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    }
+  ]
+}

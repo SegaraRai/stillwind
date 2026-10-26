@@ -273,6 +273,15 @@ impl LintOverrides {
             if let Some(value) = overrides.px_to_rem {
                 config.px_to_rem = value;
             }
+            if let Some(value) = overrides.collapse {
+                config.collapse = value;
+            }
+            if let Some(value) = overrides.logical_to_physical {
+                config.logical_to_physical = value;
+            }
+            if let Some(value) = overrides.preserve_specificity {
+                config.preserve_specificity = value;
+            }
             settings.insert(LintConfig::PreferCanonicalUtilities(config));
         }
         if let Some(overrides) = &self.prefer_variant_directive {

@@ -229,6 +229,9 @@ macro_rules! lint_config_value {
         CanonicalUtilitiesConfig {
             severity: $severity,
             px_to_rem: true,
+            collapse: true,
+            logical_to_physical: false,
+            preserve_specificity: true,
         }
     };
     (PreferVariantDirective, $severity:expr) => {

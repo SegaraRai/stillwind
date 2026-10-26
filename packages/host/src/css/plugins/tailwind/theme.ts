@@ -1,4 +1,4 @@
-import type { NativeThemeToken } from "@stillwind/native";
+import type { NativeLegacyThemeKey, NativeThemeToken } from "@stillwind/native";
 import defaultTheme from "tailwindcss/defaultTheme";
 
 import { serializeCss, splitTopLevel, withAlpha } from "./css.ts";
@@ -18,7 +18,9 @@ type ThemeFunction = ((path?: string, fallback?: unknown) => unknown) & {
 // The tables, `keyPathToCssProperty()`, `themeableValues()`, `readFromCss()`, and the merge
 // rules of `get` follow Tailwind CSS 4.3.3 (compat/apply-config-to-theme.ts and
 // compat/plugin-functions.ts). Keep them aligned with upstream instead of adding names here:
-// they define which v3 config key reads and writes which CSS theme variable.
+// they define which v3 config key reads and writes which CSS theme variable. The v3 config
+// keys whose namespace has another name come from the `@stillwind-legacy-theme-key`
+// statements of the design system.
 
 /**
  * Config keys whose `DEFAULT` value is a shared default in the `--default-*` namespace.
@@ -32,25 +34,6 @@ const SPECIAL_DEFAULT_KEYS: Record<string, string> = {
   transitionTimingFunction: "transition-timing-function",
 };
 
-/**
- * v3 config keys whose v4 theme namespace has another name.
- */
-const OLD_TO_NEW_NAMESPACE: Record<string, string> = {
-  animation: "animate",
-  aspectRatio: "aspect",
-  borderRadius: "radius",
-  boxShadow: "shadow",
-  colors: "color",
-  containers: "container",
-  fontFamily: "font",
-  fontSize: "text",
-  letterSpacing: "tracking",
-  lineHeight: "leading",
-  maxWidth: "container",
-  screens: "breakpoint",
-  transitionTimingFunction: "ease",
-};
-
 const IS_VALID_KEY = /^[a-zA-Z0-9-_%/.]+$/;
 
 /** Tailwind's `ThemeOptions.DEFAULT` flag in `__CSS_VALUES__`. */
@@ -62,10 +45,15 @@ const DEFAULT_OPTION = 4;
  * becomes `default-transition-duration`.
  *
  * @param path - Config keys, such as `["colors", "red", "500"]`.
+ * @param namespaces - The namespace name of each v3 config key whose namespace has another
+ * name, such as `text` for `fontSize`. Other keys use their kebab-case name.
  * @returns The variable name, or null for the legacy container config and for keys with
  * characters that a variable name cannot hold.
  */
-export function keyPathToCssProperty(path: readonly string[]): string | null {
+export function keyPathToCssProperty(
+  path: readonly string[],
+  namespaces: Readonly<Record<string, string>>,
+): string | null {
   const special = SPECIAL_DEFAULT_KEYS[path[0]];
   if (special && path[1] === "DEFAULT") {
     return `default-${special}`;
@@ -73,7 +61,7 @@ export function keyPathToCssProperty(path: readonly string[]): string | null {
   if (path[0] === "container" || !path.every((part) => IS_VALID_KEY.test(part))) {
     return null;
   }
-  const parts = [OLD_TO_NEW_NAMESPACE[path[0]] ?? path[0], ...path.slice(1)];
+  const parts = [namespaces[path[0]] ?? path[0], ...path.slice(1)];
   return parts
     .map((part, index, all) => (part === "1" && index !== all.length - 1 ? "" : part))
     .map((part, index) => {
@@ -283,6 +271,9 @@ export class PluginTheme {
   /** Active tokens by full name. */
   readonly #tokens: ReadonlyMap<string, NativeThemeToken>;
 
+  /** The namespace name of each v3 config key whose namespace has another name. */
+  readonly #namespaces: Readonly<Record<string, string>>;
+
   /** Tailwind's compatibility defaults followed by the plugin configs, in plugin order. */
   readonly #layers: ConfigLayer[];
 
@@ -296,9 +287,15 @@ export class PluginTheme {
   /**
    * @param configs - Configs of the plugins and their presets, in registration order.
    * @param tokens - Active CSS theme tokens.
+   * @param legacyKeys - The namespaces that v3 config keys read, from the design system.
    */
-  constructor(configs: readonly Dictionary[], tokens: readonly NativeThemeToken[]) {
+  constructor(
+    configs: readonly Dictionary[],
+    tokens: readonly NativeThemeToken[],
+    legacyKeys: readonly NativeLegacyThemeKey[],
+  ) {
     this.#tokens = new Map(tokens.map((token) => [token.name, token]));
+    this.#namespaces = Object.fromEntries(legacyKeys.map(({ key, namespace }) => [key, namespace]));
     /**
      * Splits a config's `theme` into its replacing and extending parts.
      * @param theme - The `theme` value of a config.
@@ -317,24 +314,23 @@ export class PluginTheme {
      * @returns A function that returns the namespace's values, or an empty object.
      */
     const fromCss = (namespace: string) => () => this.get(namespace, {});
-    // Tailwind's `createCompatConfig()`: the v3 defaults, colors only from CSS, and the CSS
-    // namespaces exposed under their v3 keys.
+    // Tailwind's `createCompatConfig()`: the v3 defaults, and the CSS namespaces exposed under
+    // their v3 keys. A `replace` key, such as `colors`, reads only CSS. An `extend` key adds
+    // the CSS values to the v3 defaults.
+    const exposed = (exposure: NativeLegacyThemeKey["exposure"]) =>
+      Object.fromEntries(
+        legacyKeys
+          .filter((legacy) => legacy.exposure === exposure)
+          .map(({ key, namespace }) => [key, fromCss(namespace)]),
+      );
     this.#layers = [
       {
         theme: {
           ...(defaultTheme as Dictionary),
-          colors: fromCss("color"),
+          ...exposed("replace"),
         },
         extend: {
-          fontSize: fromCss("text"),
-          boxShadow: fromCss("shadow"),
-          animation: fromCss("animate"),
-          aspectRatio: fromCss("aspect"),
-          borderRadius: fromCss("radius"),
-          screens: fromCss("breakpoint"),
-          letterSpacing: fromCss("tracking"),
-          lineHeight: fromCss("leading"),
-          maxWidth: fromCss("container"),
+          ...exposed("extend"),
           transitionDuration: {
             DEFAULT: this.#tokens.get("--default-transition-duration")?.value ?? null,
           },
@@ -383,7 +379,7 @@ export class PluginTheme {
     // A replaced section clears the `@theme default` values of its namespace, as Tailwind's
     // `clearNamespace(..., ThemeOptions.DEFAULT)` does. Ordinary definitions stay.
     for (const key of replaced) {
-      const name = keyPathToCssProperty([key]);
+      const name = keyPathToCssProperty([key], this.#namespaces);
       if (name) {
         declarations += `--${name}-*:initial;`;
       }
@@ -402,7 +398,7 @@ export class PluginTheme {
           value = `${number * 100}%`;
         }
       }
-      const name = keyPathToCssProperty(path);
+      const name = keyPathToCssProperty(path, this.#namespaces);
       if (!name) {
         continue;
       }
@@ -586,7 +582,7 @@ export class PluginTheme {
       const token = this.#tokens.get(path[0]);
       return [token?.value ?? null, option(token)];
     }
-    const name = keyPathToCssProperty(path);
+    const name = keyPathToCssProperty(path, this.#namespaces);
     if (!name) {
       return [null, 0];
     }

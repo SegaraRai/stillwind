@@ -59,18 +59,18 @@ mod theme;
 pub use conditionals::{RuntimeCondition, runtime_if_arguments};
 pub use evaluation::{
     ConditionContext, DocumentTargetFailure, InvalidPropertyValue, InvalidValueReason, MarkerUse,
-    NestedUtilityAtRule, NestedUtilityRule, RedundantVariant, ResolvedUtility,
-    ResolvedUtilityTarget, ResolvedVariant, ThemeValueMismatch, UnsatisfiableVariants,
-    UntypedVariable, UtilityArbitraryUse, UtilityDeclaration, UtilityDiagnosticData,
-    UtilityFailure, UtilityFailureReason, UtilityOrder, UtilityPropertySort,
+    NestedUtilityAtRule, NestedUtilityRule, NumericDomain, NumericKind, RedundantVariant,
+    ResolvedUtility, ResolvedUtilityTarget, ResolvedVariant, ThemeValueMismatch,
+    UnsatisfiableVariants, UntypedVariable, UtilityArbitraryUse, UtilityDeclaration,
+    UtilityDiagnosticData, UtilityFailure, UtilityFailureReason, UtilityOrder, UtilityPropertySort,
     UtilityResolutionError, UtilityTokenUse, VariableMismatch, VariableTypeSource,
     VariantApplication, VariantContext, VariantDeclaration, VariantDiagnosticData, VariantFailure,
     VariantFailureReason, VariantMediaValue, VariantObstacle, VariantRedundancy,
     VariantSequenceOrder, VariantValueSource, check_candidate_variants, compare_variant_sequences,
     compound_variant_inner, document_scoped_selector, document_target, dynamic_named_spelling,
     exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
-    named_domain_values, redundant_variants, repeated_subject_selector, resolve_utility,
-    resolve_variant, resolve_variant_with_usage, stillwind_declaration_formats,
+    named_domain_values, placeholder_namespaces, redundant_variants, repeated_subject_selector,
+    resolve_utility, resolve_variant, resolve_variant_with_usage, stillwind_declaration_formats,
     stillwind_definitions, stillwind_omit_token_prefixes, stillwind_property_definitions,
     stillwind_theme_order, stillwind_utility_token_prefixes, suggested_theme_token,
     theme_value_mismatch, unresolvable_value_namespaces, unsatisfiable_variants,
@@ -84,10 +84,11 @@ pub use loading::{
 };
 pub use options::{DesignSystemOptions, UtilityOrderMode};
 pub use registry::{
-    ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant, MarkerClasses,
-    MarkerForm, MarkerOrigin, RegistryContext, StillwindDefinitions, StillwindVariantModifierType,
-    StillwindVariantSort, StillwindVariantSortDirection, StillwindVariantValueType, UtilityRole,
-    VariantScope, declaration_format, parse_arbitrary_property_order, parse_declaration_formats,
+    ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant,
+    LegacyThemeExposure, LegacyThemeKey, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext,
+    StillwindDefinitions, StillwindVariantModifierType, StillwindVariantSort,
+    StillwindVariantSortDirection, StillwindVariantValueType, UtilityRole, VariantScope,
+    declaration_format, parse_arbitrary_property_order, parse_declaration_formats,
     parse_omit_token_prefixes, parse_relationship_patterns, parse_stillwind_utility_definitions,
     parse_stillwind_variant_definitions, parse_theme_order, parse_variant_definitions,
 };
@@ -95,8 +96,8 @@ pub use requirements::{PropertyRequirementError, take_property_requirements};
 pub use skipped::{SkipReason, SkippedCss};
 pub use snapshot::{
     DefinitionFingerprints, DefinitionRegistry, DesignSystemError, DesignSystemRevision,
-    DesignSystemSnapshot, PropertyRegistry, ThemeRegistry, UtilityRegistry, UtilitySearchEntry,
-    UtilitySearchIndex, VariantRegistry,
+    DesignSystemSnapshot, PropertyRegistry, SplitFamily, ThemeRegistry, UtilityRegistry,
+    UtilitySearchEntry, UtilitySearchIndex, VariantRegistry, declared_properties,
 };
 pub use target::{BrowserTargetError, BrowserTargets};
 pub use theme::{

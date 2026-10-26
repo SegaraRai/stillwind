@@ -1,0 +1,27 @@
+{
+  "name": "logical property conversion preserves custom property names",
+  "css": "@import 'tailwindcss'; @utility a { width:1px; --probe-inline:1px; } @utility b { height:1px; --probe-block:1px; } @utility c { width:1px; height:1px; --probe-left:1px; --probe-right:1px; --probe-top:1px; --probe-bottom:1px; } @utility d { width:1px; --probe-inline-size:1px; } @utility e { height:1px; --probe-block-size:1px; } @utility f { width:1px; height:1px; --probe-width:1px; --probe-height:1px; } @utility g { width:1px; --probe-Case:1px; } @utility h { height:1px; --probe-Case:1px; } @utility i { width:1px; height:1px; --probe-case:1px; }",
+  "baseTheme": "@theme { --*:initial; }",
+  "cases": [
+    {
+      "input": ["a", "b"],
+      "expected": ["a", "b"],
+      "options": { "collapse": true, "logicalToPhysical": true }
+    },
+    {
+      "input": ["d", "e"],
+      "expected": ["d", "e"],
+      "options": { "collapse": true, "logicalToPhysical": true }
+    },
+    {
+      "input": ["g", "h"],
+      "expected": ["g", "h"],
+      "options": { "collapse": true }
+    },
+    {
+      "input": ["g", "h"],
+      "expected": ["g", "h"],
+      "options": { "collapse": true, "logicalToPhysical": true }
+    }
+  ]
+}

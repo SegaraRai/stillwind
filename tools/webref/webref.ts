@@ -30,10 +30,16 @@ function rustOption(value: string | undefined): string {
   return value === undefined ? "None" : `Some(${rustString(value)})`;
 }
 
+/**
+ * Generates Rust property records in ASCII name order for binary search.
+ *
+ * @param properties - Webref definitions. Entries without syntax are skipped.
+ * @returns The complete Rust source for the property table.
+ */
 function render(properties: readonly CssProperty[]): string {
   const definitions = properties
     .filter((property) => property.syntax)
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
     .map(
       (property) =>
         `    WebrefPropertySyntax { name: ${rustString(property.name)}, syntax: ${rustString(property.syntax!)}, longhands: ${rustSlice(property.longhands)}, logical_group: ${rustOption(property.logicalPropertyGroup)}, href: ${rustString(property.href)} },`,

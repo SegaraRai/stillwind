@@ -7,12 +7,24 @@ use super::LintSeverity;
 
 /// Effective canonical lint policy after compiler defaults and project settings.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)]
 pub struct CanonicalUtilitiesConfig {
     /// Off skips detection and reporting; deny reports an error with the same fixes.
     pub severity: LintSeverity,
-    /// Enables conversion of pixel spacing when the active spacing scale uses rem.
+    /// Whether a `px` length and a `rem` length are equal when they are equal at the
+    /// configured root font size.
     pub px_to_rem: bool,
+    /// Whether several utilities of one source container may be replaced by one
+    /// utility, such as `w-4 h-4` by `size-4`.
+    pub collapse: bool,
+    /// Whether logical and physical properties may be replaced by one shorthand, such
+    /// as `ms-4 pr-4` by `px-4`.
+    pub logical_to_physical: bool,
+    /// Whether a replacement must keep the specificity of selectors. When it is false,
+    /// a variant may be replaced by one that selects the same elements with a different
+    /// specificity.
+    pub preserve_specificity: bool,
 }
 
 impl Default for CanonicalUtilitiesConfig {
@@ -20,19 +32,28 @@ impl Default for CanonicalUtilitiesConfig {
         Self {
             severity: LintSeverity::Warn,
             px_to_rem: true,
+            collapse: true,
+            logical_to_physical: false,
+            preserve_specificity: true,
         }
     }
 }
 
-/// Project fields that override only the explicitly supplied parts of canonical lint
-/// policy.
+/// Project settings for the `prefer-canonical-utilities` rule. Each field that is
+/// `None` keeps the value that applies without this setting.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CanonicalUtilitiesOverride {
-    /// Omission uses the rule default.
+    /// The severity of the rule.
     pub severity: Option<LintSeverity>,
-    /// Omission keeps the default conversion policy.
+    /// The new value of `px_to_rem`.
     pub px_to_rem: Option<bool>,
+    /// The new value of `collapse`. `None` keeps the current value.
+    pub collapse: Option<bool>,
+    /// The new value of `logical_to_physical`. `None` keeps the current value.
+    pub logical_to_physical: Option<bool>,
+    /// The new value of `preserve_specificity`. `None` keeps the current value.
+    pub preserve_specificity: Option<bool>,
 }
 
 /// Effective policy for `invalid-marker-use` after compiler defaults and project

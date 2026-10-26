@@ -11,17 +11,18 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::find_css_functions;
 use stillwind_design_system::{
     NestedUtilityRule, ResolvedUtility, ThemeValue, ThemeValueMode, UtilityResolutionError,
-    resolve_utility, stillwind_property_definitions,
+    placeholder_namespaces, resolve_utility, stillwind_property_definitions,
 };
 use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_source::ReplaceText;
 
 use super::super::index::{policy, rank};
 use super::super::parallel;
-use super::super::preview::{CanonicalPreview, Normalization, normalized_signature};
+use super::super::preview::{
+    CanonicalPreview, Normalization, canonical_requirements, normalized_signature,
+};
 use super::direct::DirectValues;
 use crate::query::QueryContext;
-use crate::query::completion::value_namespaces;
 use crate::query::theme::ScaleReference;
 
 #[derive(Debug, Default)]
@@ -44,7 +45,7 @@ impl ThemeValueIndex {
             };
             let names: BTreeSet<_> = definitions
                 .iter()
-                .flat_map(|definition| value_namespaces(&definition.body, "--value"))
+                .flat_map(|definition| placeholder_namespaces(&definition.body, "--value"))
                 .collect();
             namespaces.extend(names.into_iter().map(|namespace| (root, namespace)));
         }
@@ -225,8 +226,16 @@ impl<'a> ValuePreparation<'a> {
         }
         let scales = &self.scales;
         let root_font_size = self.query.options.root_font_size;
+        let composition = self.query.composition();
         let signatures = parallel::map(&keys, |(css, normalization)| {
-            normalized_signature(css, scales, &normalization.properties, root_font_size)
+            normalized_signature(
+                css,
+                scales,
+                &normalization.properties,
+                root_font_size,
+                normalization.preserve_specificity,
+                &composition,
+            )
         });
         for value in std::mem::take(&mut self.pending) {
             let position = positions[&(value.resolved_css, value.normalization.clone())];
@@ -305,6 +314,11 @@ impl<'a> ValuePreparation<'a> {
             });
             let normalization = policy(&css, &self.options, &self.scales);
             if let Some(resolved_css) = resolved_css {
+                let required_properties = canonical_requirements(
+                    &resolved_css,
+                    required_properties,
+                    &query.composition(),
+                );
                 self.pending.push(PendingValue {
                     label: label.clone(),
                     resolved_css: resolved_css.into(),

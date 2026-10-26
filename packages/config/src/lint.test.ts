@@ -34,6 +34,9 @@ test("omission selects recommended and explicit configurations enable only their
   expect(explicit.rules["prefer-canonical-utilities"]).toEqual({
     severity: "warn",
     pxToRem: false,
+    collapse: true,
+    logicalToPhysical: false,
+    preserveSpecificity: true,
   });
   expect(explicit.rules["unknown-utility"]).toBe("off");
   expect(
@@ -91,6 +94,9 @@ test("nested presets apply in order while severity changes preserve options and 
       "prefer-canonical-utilities": {
         severity: "warn",
         pxToRem: false,
+        collapse: false,
+        logicalToPhysical: true,
+        preserveSpecificity: false,
       },
       "no-restricted-theme-tokens": {
         severity: "warn",
@@ -119,6 +125,9 @@ test("nested presets apply in order while severity changes preserve options and 
   expect(resolved.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
+    collapse: false,
+    logicalToPhysical: true,
+    preserveSpecificity: false,
   });
   expect(resolved.rules["no-restricted-theme-tokens"]).toEqual({
     severity: "deny",
@@ -134,6 +143,9 @@ test("nested presets apply in order while severity changes preserve options and 
   ).toEqual({
     severity: "off",
     pxToRem: false,
+    collapse: false,
+    logicalToPhysical: true,
+    preserveSpecificity: false,
   });
   expect(
     resolveLintConfig({
@@ -168,6 +180,9 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
   expect(resolved.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
+    collapse: true,
+    logicalToPhysical: false,
+    preserveSpecificity: true,
   });
   expect(resolved.rules["unknown-utility"]).toBe("deny");
   const replaced = resolveLintConfig(
@@ -179,6 +194,9 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
   expect(replaced.rules["prefer-canonical-utilities"]).toEqual({
     severity: "warn",
     pxToRem: true,
+    collapse: true,
+    logicalToPhysical: false,
+    preserveSpecificity: true,
   });
   expect(resolveLintConfig(mergeLintConfig(undefined, override)).rules["unknown-utility"]).toBe(
     "warn",

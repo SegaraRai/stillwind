@@ -4,10 +4,7 @@ import path from "node:path";
 import { expect, onTestFinished, test } from "vite-plus/test";
 
 import { resolveBrowserConfig } from "./browser.ts";
-import type { BaseConfig } from "./compiler.ts";
-import { validateConfig, type ProjectionProvider } from "./configuration.ts";
 import { lintPresets } from "./lint-presets.ts";
-import { mergeConfig } from "./merge.ts";
 import { findConfiguration, loadConfiguration, resolveIntegrationConfig } from "./node.ts";
 
 /**
@@ -169,6 +166,9 @@ test("Node and browser compose imported presets and keep project defaults throug
   expect(node.config.lint.rules["prefer-canonical-utilities"]).toEqual({
     severity: "deny",
     pxToRem: false,
+    collapse: true,
+    logicalToPhysical: false,
+    preserveSpecificity: true,
   });
   const replaced = await resolveIntegrationConfig(
     {
@@ -583,106 +583,6 @@ test.each(["ts", "cjs", "json"])(
     expect((await loadConfiguration(configFile)).config.projects[0].css).toBe("second.css");
   },
 );
-
-test("configuration merge replaces arrays and promises and validates duplicate optional names", () => {
-  expect(
-    mergeConfig(
-      {
-        files: ["a"],
-        automatic: true,
-      },
-      {
-        files: ["b"],
-        automatic: false,
-      },
-    ),
-  ).toEqual({
-    files: ["b"],
-    automatic: false,
-  });
-  expect(
-    mergeConfig(
-      {
-        kind: "custom",
-        root: ".",
-      },
-      {
-        kind: undefined,
-      },
-    ),
-  ).toEqual({
-    kind: "custom",
-    root: ".",
-  });
-  const tailwind = Promise.resolve({
-    darkMode: "class" as const,
-  });
-  expect(
-    mergeConfig(
-      {
-        tailwind: Promise.resolve({}),
-      },
-      {
-        tailwind,
-      },
-    ).tailwind,
-  ).toBe(tailwind);
-  expect(() =>
-    validateConfig({
-      projects: [
-        { name: "web", css: "a.css", files: ["*.tsx"] },
-        { name: "web", css: "b.css", files: ["*.ts"] },
-      ],
-    }),
-  ).toThrow("Duplicate Stillwind project name");
-});
-
-test("nested overrides preserve naming callbacks and replace providers when kind changes", () => {
-  /**
-   * Supplies a stable utility callback for checking identity preservation during merging.
-   * @returns The fixture's utility identifier.
-   */
-  const utilityClass = () => "utility";
-  /**
-   * Supplies a separate marker callback for checking identity preservation during merging.
-   * @returns The fixture's marker identifier.
-   */
-  const refMarker = () => "marker";
-  const base: BaseConfig = {
-    naming: {
-      utilityClass,
-      refMarker,
-    },
-  };
-  expect(
-    mergeConfig(base, {
-      naming: {
-        utilityClass: () => "override",
-        refMarker: undefined,
-      },
-    }).naming?.refMarker,
-  ).toBe(refMarker);
-  const project: {
-    /** Provider whose changed kind must replace the previous preparation callback. */
-    projection: ProjectionProvider;
-  } = {
-    projection: {
-      kind: "custom",
-      prepare: async () => expect.fail("Preparation should not execute"),
-    },
-  };
-  expect(
-    mergeConfig(project, {
-      projection: {
-        kind: "framework",
-      },
-    }),
-  ).toEqual({
-    projection: {
-      kind: "framework",
-    },
-  });
-});
 
 test("bundled helpers retain their own directory and unused imports do not execute", async () => {
   const { root, configFile } = await fixture();

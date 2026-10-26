@@ -277,9 +277,11 @@ export class PluginRuntime {
     }
     this.#tailwindInstances = instances;
     const { TailwindRuntime } = await import("./tailwind/plugin.ts");
+    const editor = loader.editorQuery();
     this.#tailwind = new TailwindRuntime(
       instances.map((instance) => instance.tailwind!),
-      loader.editorQuery().themeTokens(),
+      editor.themeTokens(),
+      editor.legacyThemeKeys(),
       project,
     );
     if (this.previous) {

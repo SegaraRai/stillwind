@@ -157,7 +157,7 @@ impl Compiler {
             );
             return result;
         }
-        let query = DesignSystemQuery::new(snapshot.clone(), compiler_options.clone());
+        let query = DesignSystemQuery::shared(snapshot.clone(), compiler_options.clone());
         result
             .lint_findings
             .extend(detect(source, parsed, &query, theme));

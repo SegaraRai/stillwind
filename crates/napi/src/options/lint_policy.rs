@@ -16,8 +16,19 @@ use stillwind_diagnostics::{
 pub struct NativeCanonicalUtilitiesOptions {
     /// Reporting severity: warn, deny, or off.
     pub severity: Option<String>,
-    /// Allows pixel spacing to use the active rem scale. Defaults to true.
+    /// Whether a `px` length and a `rem` length are equal when they are equal at the
+    /// root font size. The default is true.
     pub px_to_rem: Option<bool>,
+    /// Whether several utilities of one class string may be replaced by one utility,
+    /// such as `w-4 h-4` by `size-4`. The default is true.
+    pub collapse: Option<bool>,
+    /// Whether logical and physical properties may be replaced by one shorthand, such
+    /// as `ms-4 pr-4` by `px-4`. The default is false.
+    pub logical_to_physical: Option<bool>,
+    /// Whether a replacement must keep the specificity of selectors. Set it to false to
+    /// allow Tailwind's rewrites of ancestor selectors, such as `in-[p]` for
+    /// `[p_&]:flex`. The default is true.
+    pub preserve_specificity: Option<bool>,
 }
 
 impl TryFrom<NativeCanonicalUtilitiesOptions> for CanonicalUtilitiesOverride {
@@ -30,6 +41,9 @@ impl TryFrom<NativeCanonicalUtilitiesOptions> for CanonicalUtilitiesOverride {
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             px_to_rem: value.px_to_rem,
+            collapse: value.collapse,
+            logical_to_physical: value.logical_to_physical,
+            preserve_specificity: value.preserve_specificity,
         })
     }
 }

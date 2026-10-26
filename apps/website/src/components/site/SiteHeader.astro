@@ -26,10 +26,10 @@ const header = style.ref();
       "flex block-16 items-center justify-between gap-4 border-border border-be max-inline:gap-3",
       {
         "data-floating:": [
-          "invisible fixed inset-s-1/2 inset-bs-0 z-40 px-gutter block-14 inline-[min(100%,var(--container-page))] bg-background opacity-0",
-          "[transform:translate(-50%,-100%)] [transition:transform_180ms_ease,opacity_180ms_ease,visibility_180ms]",
+          "invisible fixed inset-x-0 inset-bs-0 z-40 mx-auto block-14 [inline-size:calc(min(100%,var(--container-page))-2*var(--spacing-gutter))] bg-background opacity-0",
+          "-translate-y-full [transition:translate_180ms_ease,opacity_180ms_ease,visibility_180ms]",
           {
-            "data-visible:": "visible opacity-100 [transform:translate(-50%,0)]",
+            "data-visible:": "visible opacity-100 translate-y-0",
             "motion-reduce:": "transition-none",
           },
         ],

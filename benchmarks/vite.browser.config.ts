@@ -54,6 +54,7 @@ export default defineConfig({
   test: {
     name: "canonical-browser",
     include: ["compiler/canonical.browser.test.ts", "compiler/analysis.browser.test.ts"],
+    fileParallelism: false,
     testTimeout: 120_000,
     provide: {
       analysisBrowserFiles: declarations,

@@ -1,0 +1,484 @@
+{
+  "name": "arbitrary values",
+  "css": "@import 'tailwindcss';\n        @theme {\n          --color-white: #fff;\n        }",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["bg-[theme(colors.red.500)]"],
+      "expected": ["bg-red-500"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[size:theme(spacing.4)]"],
+      "expected": ["bg-size-[--spacing(4)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[calc(100dvh-theme(spacing.2))]"],
+      "expected": ["w-[calc(100dvh-(--spacing(2)))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[calc(100dvh+theme(spacing.2))]"],
+      "expected": ["w-[calc(100dvh+(--spacing(2)))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[calc(100dvh/theme(spacing.2))]"],
+      "expected": ["w-[calc(100dvh/(--spacing(2)))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[calc(100dvh*theme(spacing.2))]"],
+      "expected": ["w-[calc(100dvh*(--spacing(2)))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[theme(colors.red.500,red)]"],
+      "expected": ["bg-(--color-red-500,red)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[theme(colors.foo.1000)]"],
+      "expected": ["bg-[theme(colors.foo.1000)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[theme(colors.foo.1000,theme(colors.red.500))]"],
+      "expected": ["bg-red-500"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[calc(theme(fontSize.xs)*2)]"],
+      "expected": ["text-[calc(var(--text-xs)*2)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[theme(colors.red.500/75%)]"],
+      "expected": ["bg-red-500/75"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[theme(colors.red.500/12.34%)]"],
+      "expected": ["bg-red-500/[12.34%]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[#fff]"],
+      "expected": ["bg-white"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[#FFF]"],
+      "expected": ["bg-white"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["shadow-[shadow:inset_0px_1px_theme(colors.white/15%)]"],
+      "expected": ["shadow-[inset_0px_1px_--theme(--color-white/15%)]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[theme(colors.red.500/50%)]/50"],
+      "expected": ["bg-[--theme(--color-red-500/50%)]/50"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["max-[theme(screens.lg)]:flex"],
+      "expected": ["max-[--theme(--breakpoint-lg)]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["max-[theme(spacing.4)]:flex"],
+      "expected": ["max-[theme(spacing.4)]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["max-[theme(spacing.4/50)]:flex"],
+      "expected": ["max-[theme(spacing.4/50)]:flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["grid-cols-[min(50%_,_theme(spacing.80))_auto]"],
+      "expected": ["grid-cols-[min(50%,--spacing(80))_auto]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["pt-[min(20%,calc(var(--spacing)*8))]"],
+      "expected": ["pt-[min(20%,--spacing(8))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["pt-[min(20%,calc(var(--spacing)*var(--other)))]"],
+      "expected": ["pt-[min(20%,--spacing(var(--other)))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["pt-[calc(var(--spacing)*8)]"],
+      "expected": ["pt-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["pt-[calc(var(--spacing)*var(--other))]"],
+      "expected": ["pt-[--spacing(var(--other))]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["max-w-[theme(screens.md)]"],
+      "expected": ["max-w-(--breakpoint-md)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[theme(maxWidth.md)]"],
+      "expected": ["w-md"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["leading-[1]"],
+      "expected": ["leading-none"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-[2px]"],
+      "expected": ["border-2"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-[1234px]"],
+      "expected": ["border-1234"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[position:123px]"],
+      "expected": ["bg-position-[123px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[size:123px]"],
+      "expected": ["bg-size-[123px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["bg-[123px]"],
+      "expected": ["bg-position-[123px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[64rem]"],
+      "expected": ["w-256"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["from-[25%]"],
+      "expected": ["from-25%"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["from-[2.5%]"],
+      "expected": ["from-[2.5%]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[12rem]"],
+      "expected": ["-mt-48"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[-12rem]"],
+      "expected": ["mt-48"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[12.34rem]"],
+      "expected": ["mt-[-12.34rem]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[-12.34rem]"],
+      "expected": ["mt-[12.34rem]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[12.34px]"],
+      "expected": ["mt-[-12.34px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[-12.34px]"],
+      "expected": ["mt-[12.34px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[492px]"],
+      "expected": ["-mt-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[calc(-1*492px)]"],
+      "expected": ["mt-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[-492px]"],
+      "expected": ["mt-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[calc(-1*-492px)]"],
+      "expected": ["-mt-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-(--my-var)"],
+      "expected": ["-mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[var(--my-var)]"],
+      "expected": ["-mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["mt-[calc(var(--my-var)*-1)]"],
+      "expected": ["-mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["mt-[calc(-1*var(--my-var))]"],
+      "expected": ["-mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[calc(var(--my-var)*-1)]"],
+      "expected": ["mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[calc(-1*var(--my-var))]"],
+      "expected": ["mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["mt-[calc(-1*calc(-1*var(--my-var)))]"],
+      "expected": ["mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-mt-[calc(-1*calc(-1*var(--my-var)))]"],
+      "expected": ["-mt-(--my-var)"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    }
+  ]
+}

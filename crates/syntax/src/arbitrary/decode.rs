@@ -1,29 +1,18 @@
-//! Tailwind's decoding of arbitrary values, such as the `calc(100%_-_1rem)` of
-//! `w-[calc(100%_-_1rem)]`.
-//!
-//! The rules follow Tailwind CSS 4.3.3 (`utils/decode-arbitrary-value.ts`,
-//! `value-parser.ts`, and `utils/math-operators.ts`). Keep them aligned with upstream:
-//! candidates written for Tailwind must decode to the same CSS.
+//! Converts the spelling of an arbitrary value to CSS: underscores become spaces, and
+//! operators in math functions receive spaces.
 
 use lean_string::LeanString;
 
-/// One node of Tailwind's value tokenization.
-enum Node {
-    /// Text between separators, including quoted strings and escapes as written.
-    Word(String),
-    /// A run of `:`, `,`, `=`, `<`, `>`, newline, space, or tab.
-    Separator(String),
-    /// A function name, which may be empty for plain parentheses, and its arguments.
-    Function(String, Vec<Node>),
-}
+use super::value::{Node, parse, write_nodes};
 
-/// Decodes an arbitrary value as Tailwind does.
+/// Converts the arbitrary value `input` from its spelling in a candidate to CSS, as
+/// Tailwind does.
 ///
-/// An unescaped `_` becomes a space and `\_` an underscore. Every other backslash
-/// escape is kept as written. Underscores stay in the arguments of `url()`, and in the
-/// first argument of `var()` and `theme()`, so `var(--my_width)` keeps its name. Binary
-/// operators and commas inside math functions such as `calc()` receive spaces:
-/// `calc(1px+2px)` becomes `calc(1px + 2px)`.
+/// An `_` becomes a space, and `\_` becomes `_`. Other backslash escapes stay as
+/// written. Underscores stay in the arguments of `url()` and in the first argument of
+/// `var()` and `theme()`, so `var(--my_width)` keeps its name. Operators and commas
+/// inside math functions such as `calc()` receive spaces, so `calc(1px+2px)` becomes
+/// `calc(1px + 2px)`.
 #[must_use]
 pub fn decode_arbitrary_value(input: &str) -> LeanString {
     if !input.contains('(') {
@@ -36,7 +25,8 @@ pub fn decode_arbitrary_value(input: &str) -> LeanString {
     add_whitespace_around_math_operators(&css).into()
 }
 
-/// Converts `_` to a space and `\_` to `_`. With `keep_underscores`, only `\_` changes.
+/// Returns `input` with each `_` replaced by a space and each `\_` replaced by `_`.
+/// When `keep_underscores` is true, only `\_` changes.
 fn underscores_to_spaces(input: &str, keep_underscores: bool) -> String {
     let mut output = String::with_capacity(input.len());
     let mut characters = input.chars().peekable();
@@ -53,117 +43,8 @@ fn underscores_to_spaces(input: &str, keep_underscores: bool) -> String {
     output
 }
 
-/// Tokenizes a value into words, separators, and functions, as Tailwind's value parser
-/// does. Text after an unclosed function stays in the outermost list.
-fn parse(input: &str) -> Vec<Node> {
-    let input = input.replace("\r\n", "\n");
-    let characters = input.chars().collect::<Vec<_>>();
-    let mut ast = Vec::new();
-    // Open functions, innermost last.
-    let mut stack: Vec<(String, Vec<Node>)> = Vec::new();
-    let mut buffer = String::new();
-    let mut index = 0;
-    while index < characters.len() {
-        let character = characters[index];
-        match character {
-            '\\' => {
-                buffer.push(character);
-                if let Some(&next) = characters.get(index + 1) {
-                    buffer.push(next);
-                }
-                index += 1;
-            }
-            '/' => {
-                if !buffer.is_empty() {
-                    push(
-                        &mut stack,
-                        &mut ast,
-                        Node::Word(std::mem::take(&mut buffer)),
-                    );
-                }
-                push(&mut stack, &mut ast, Node::Word("/".into()));
-            }
-            _ if separator(character) => {
-                if !buffer.is_empty() {
-                    push(
-                        &mut stack,
-                        &mut ast,
-                        Node::Word(std::mem::take(&mut buffer)),
-                    );
-                }
-                let end = characters[index..]
-                    .iter()
-                    .position(|&next| !separator(next))
-                    .map_or(characters.len(), |offset| index + offset);
-                push(
-                    &mut stack,
-                    &mut ast,
-                    Node::Separator(characters[index..end].iter().collect()),
-                );
-                index = end - 1;
-            }
-            '\'' | '"' => {
-                let start = index;
-                let mut next = index + 1;
-                while next < characters.len() {
-                    if characters[next] == '\\' {
-                        next += 1;
-                    } else if characters[next] == character {
-                        index = next;
-                        break;
-                    }
-                    next += 1;
-                }
-                buffer.extend(&characters[start..=index]);
-            }
-            '(' => {
-                stack.push((std::mem::take(&mut buffer), Vec::new()));
-            }
-            ')' => {
-                if let Some((name, mut nodes)) = stack.pop() {
-                    if !buffer.is_empty() {
-                        nodes.push(Node::Word(std::mem::take(&mut buffer)));
-                    }
-                    push(&mut stack, &mut ast, Node::Function(name, nodes));
-                } else {
-                    buffer.clear();
-                }
-            }
-            _ => {
-                buffer.push(character);
-            }
-        }
-        index += 1;
-    }
-    // Tailwind keeps an unclosed function in the tree when it opens, so its nodes
-    // remain in order.
-    while let Some((name, nodes)) = stack.pop() {
-        push(&mut stack, &mut ast, Node::Function(name, nodes));
-    }
-    if !buffer.is_empty() {
-        ast.push(Node::Word(buffer));
-    }
-    ast
-}
-
-/// Whether a character separates words in Tailwind's value parser.
-fn separator(character: char) -> bool {
-    matches!(character, ':' | ',' | '=' | '>' | '<' | '\n' | ' ' | '\t')
-}
-
-/// Appends a node to the innermost open function, or to the outermost list.
-fn push(stack: &mut [(String, Vec<Node>)], ast: &mut Vec<Node>, node: Node) {
-    match stack.last_mut() {
-        Some((_, nodes)) => {
-            nodes.push(node);
-        }
-        None => {
-            ast.push(node);
-        }
-    }
-}
-
-/// Decodes underscores in every node, keeping them where Tailwind keeps them.
+/// Replaces underscores with spaces in every node of `nodes`. Underscores stay in the
+/// arguments of `url()` and in the first argument of `var()` and `theme()`.
 fn decode_nodes(nodes: &mut [Node]) {
     for node in nodes {
         match node {
@@ -198,37 +79,20 @@ fn decode_nodes(nodes: &mut [Node]) {
     }
 }
 
-/// Serializes nodes back to CSS text.
-fn write_nodes(nodes: &[Node], css: &mut String) {
-    for node in nodes {
-        match node {
-            Node::Word(value) | Node::Separator(value) => {
-                css.push_str(value);
-            }
-            Node::Function(name, arguments) => {
-                css.push_str(name);
-                css.push('(');
-                write_nodes(arguments, css);
-                css.push(')');
-            }
-        }
-    }
-}
-
-/// CSS math functions whose arguments Tailwind formats.
+/// The CSS math functions whose arguments receive spaces around operators.
 const MATH_FUNCTIONS: [&str; 19] = [
     "calc", "min", "max", "clamp", "mod", "rem", "sin", "cos", "tan", "asin", "acos", "atan",
     "atan2", "pow", "sqrt", "hypot", "log", "exp", "round",
 ];
 
-/// Adds whitespace around the operators and after the commas of math functions, as
-/// Tailwind's `addWhitespaceAroundMathOperators()` does.
+/// Returns `input` with spaces around the operators of math functions and a space after
+/// their commas, as Tailwind's `addWhitespaceAroundMathOperators()` does.
 ///
-/// An operator keeps its spelling when it starts an argument, follows another operator,
-/// or is the exponent sign of a number such as `1e-3`. Otherwise it receives spaces
-/// when a number, a closing parenthesis, a value with a unit, an opening parenthesis,
-/// or another operator is next to it. A hyphen between two identifiers stays, because
-/// it may belong to a name.
+/// An operator gets no spaces when it starts an argument, when it follows another
+/// operator, or when it is the sign of an exponent such as in `1e-3`. Otherwise it gets
+/// spaces when a number, a value with a unit, a parenthesis, or another operator is
+/// next to it. A `-` between two identifiers gets no spaces, because it may be part of
+/// a name.
 fn add_whitespace_around_math_operators(input: &str) -> String {
     if !MATH_FUNCTIONS
         .iter()

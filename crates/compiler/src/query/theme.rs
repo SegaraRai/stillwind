@@ -6,7 +6,7 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 use stillwind_css::{
     CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure, split_once_top_level,
 };
-use stillwind_design_system::{ThemeValue, UtilityResolutionError};
+use stillwind_design_system::{LegacyThemeKey, ThemeValue, UtilityResolutionError};
 
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{dynamic_candidates, stylesheet_dynamic_candidates};
@@ -44,6 +44,20 @@ impl DesignSystemQuery {
             .shared_assets()
             .into_iter()
             .cloned()
+            .collect()
+    }
+
+    /// Returns each Tailwind v3 config key with the theme namespace that it reads, such
+    /// as `fontSize` and `text`, from the `@stillwind-legacy-theme-key` statements of
+    /// the snapshot, in key order. A key without a statement is not included.
+    pub fn legacy_theme_keys(&self) -> Vec<(LeanStr, LegacyThemeKey)> {
+        self.context
+            .design_system
+            .theme()
+            .registry()
+            .legacy_theme_keys()
+            .iter()
+            .map(|(key, legacy)| (key.clone(), legacy.clone()))
             .collect()
     }
 

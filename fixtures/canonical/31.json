@@ -1,0 +1,367 @@
+{
+  "name": "font-size/line-height to text-{x}/{y}",
+  "css": "@import 'tailwindcss';",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["[font-size:14px]", "[line-height:28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:14px]", "leading-[28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:14px]", "leading-7"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]", "[line-height:28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]", "leading-[28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]", "leading-7"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]/6", "[line-height:28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]/6", "leading-[28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]/6", "leading-7"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm", "[line-height:28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm", "leading-[28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm", "leading-7"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm/6", "[line-height:28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm/6", "leading-[28px]"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm/6", "leading-7"],
+      "expected": ["text-sm/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:15px]", "[line-height:28px]"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:15px]", "leading-[28px]"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:15px]", "leading-7"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]", "[line-height:28px]"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]", "leading-[28px]"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]", "leading-7"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]/6", "[line-height:28px]"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]/6", "leading-[28px]"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]/6", "leading-7"],
+      "expected": ["text-[15px]/7"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:14px]", "[line-height:28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:14px]", "leading-[28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]", "[line-height:28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]", "leading-[28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]/6", "[line-height:28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[14px]/6", "leading-[28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm", "[line-height:28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm", "leading-[28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm/6", "[line-height:28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-sm/6", "leading-[28.5px]"],
+      "expected": ["text-sm/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:15px]", "[line-height:28.5px]"],
+      "expected": ["text-[15px]/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:15px]", "leading-[28.5px]"],
+      "expected": ["text-[15px]/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]", "[line-height:28.5px]"],
+      "expected": ["text-[15px]/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]", "leading-[28.5px]"],
+      "expected": ["text-[15px]/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]/6", "[line-height:28.5px]"],
+      "expected": ["text-[15px]/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["text-[15px]/6", "leading-[28.5px]"],
+      "expected": ["text-[15px]/[28.5px]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    }
+  ]
+}

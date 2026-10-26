@@ -22,6 +22,10 @@ use stillwind_source::ReplaceText;
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 use crate::query::StylesheetSortOptions;
 
+/// The prefix of internal custom properties in the package's own CSS. Generated text
+/// replaces it with `CompilerOptions::tailwind_prefix`.
+pub(crate) const PACKAGE_TAILWIND_PREFIX: &str = "--tw-";
+
 /// Knobs a host may set per compilation.
 ///
 /// Serialized with camelCase fields and `#[serde(default)]`, so adding a field is
@@ -77,7 +81,7 @@ impl Default for CompilerOptions {
         Self {
             lint: LintOverrides::default(),
             prefix: "--sw-".to_lean_str(),
-            tailwind_prefix: "--tw-".to_lean_str(),
+            tailwind_prefix: PACKAGE_TAILWIND_PREFIX.to_lean_str(),
             utility_order: UtilityOrderMode::default(),
             stylesheet_sort: StylesheetSortOptions::default(),
             target: BrowserTargets::default(),
@@ -151,13 +155,14 @@ impl CompilerOptions {
         let value = value.to_lean_str();
         if !value.contains('\u{e000}')
             && (self.prefix == "--sw-" || !value.contains("--sw-"))
-            && (self.tailwind_prefix == "--tw-" || !value.contains("--tw-"))
+            && (self.tailwind_prefix == PACKAGE_TAILWIND_PREFIX
+                || !value.contains(PACKAGE_TAILWIND_PREFIX))
         {
             return value;
         }
         value
             .replace_text("--sw-", "\u{e000}stillwind-prefix\u{e001}")
-            .replace_text("--tw-", "\u{e000}tailwind-prefix\u{e001}")
+            .replace_text(PACKAGE_TAILWIND_PREFIX, "\u{e000}tailwind-prefix\u{e001}")
             .replace_text("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
             .replace_text("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
             .into()

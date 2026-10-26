@@ -34,7 +34,8 @@ pub use utilities::{
     utility_value_range,
 };
 pub use values::{
-    ThemeValueMismatch, named_domain_values, theme_value_mismatch, unresolvable_value_namespaces,
+    NumericDomain, NumericKind, ThemeValueMismatch, named_domain_values, placeholder_namespaces,
+    theme_value_mismatch, unresolvable_value_namespaces,
 };
 pub use variants::{
     ConditionContext, DocumentTargetFailure, MarkerUse, RedundantVariant, ResolvedVariant,

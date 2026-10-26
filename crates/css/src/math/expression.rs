@@ -1,12 +1,13 @@
-//! The folded numeric tree and its printer.
+//! Stores a folded math expression as a tree, and prints it back as CSS.
 //!
-//! Values are kept in their authored unit spelling, so `2rem + 3rem` folds to `5rem`
-//! but `1cm + 1mm` does not fold at all - no conversion happens here. Anything the
-//! parser cannot reduce to a number, dimension or percentage becomes an `Atom` and is
-//! preserved verbatim.
+//! Each value keeps the unit as written. `2rem + 3rem` folds to `5rem`, but `1cm + 1mm`
+//! keeps both units, because the module does not convert units. A zero length can still
+//! be removed from a sum with another length, such as `0px + 1rem`, which becomes
+//! `1rem`. Text that the parser cannot read as a number, a dimension, or a percentage
+//! becomes an `Atom` and stays as written.
 //!
-//! Serialization uses operator precedence. It may flatten equal-precedence sums and
-//! products, so the printed syntax tree need not be identical to the stored tree.
+//! The printer uses operator precedence. It may join sums or products of the same
+//! precedence, so the printed expression can differ in structure from the stored tree.
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
@@ -95,6 +96,9 @@ impl MathExpression {
     /// multiplying a zero by a percentage stays a percentage so the result keeps
     /// percentage semantics in CSS. Anything else is kept as a product.
     pub(super) fn product(left: Self, right: Self) -> Self {
+        if matches!(left, Self::Value(MathValue::Number(_))) && !matches!(right, Self::Value(_)) {
+            return Self::product(right, left);
+        }
         if let (
             Self::Product(value, coefficient),
             Self::Value(MathValue::Number(right_coefficient)),
@@ -144,6 +148,16 @@ impl MathExpression {
     /// conversion is attempted, so mixed units stay symbolic.
     pub(super) fn sum(left: Self, right: Self) -> Self {
         match (left, right) {
+            (
+                Self::Value(MathValue::Dimension(0.0, zero)),
+                Self::Value(MathValue::Dimension(value, unit)),
+            )
+            | (
+                Self::Value(MathValue::Dimension(value, unit)),
+                Self::Value(MathValue::Dimension(0.0, zero)),
+            ) if crate::is_length_unit(&zero) && crate::is_length_unit(&unit) => {
+                Self::Value(MathValue::Dimension(value, unit))
+            }
             (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
                 Self::Value(MathValue::Number(left + right))
             }
@@ -203,7 +217,15 @@ impl MathExpression {
             }
             Self::Atom(value) => (value.clone()).into(),
             Self::Sum(left, right) => {
-                if let Self::Negate(right) = right.as_ref() {
+                let negative = matches!(right.as_ref(), Self::Value(MathValue::Number(value) | MathValue::Dimension(value, _) | MathValue::Percentage(value)) if *value < 0.0);
+                if negative {
+                    format_args!(
+                        "{} - {}",
+                        left.serialize(precedence),
+                        right.as_ref().clone().negate().serialize(precedence + 1)
+                    )
+                    .to_lean_string()
+                } else if let Self::Negate(right) = right.as_ref() {
                     format_args!(
                         "{} - {}",
                         left.serialize(precedence),
@@ -266,6 +288,15 @@ fn serialize_number(value: f64) -> LeanString {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn products_combine_dimensionless_coefficients_on_either_side() {
+        let variable = MathExpression::Atom("var(--x)".into());
+        let minus_one = MathExpression::Value(MathValue::Number(-1.0));
+        let product = MathExpression::product(minus_one.clone(), variable.clone());
+        assert_eq!(product.serialize(0), "var(--x) * -1");
+        assert_eq!(MathExpression::product(minus_one, product), variable);
+    }
 
     #[test]
     fn arithmetic_preserves_units_and_parenthesizes_non_associative_operands() {

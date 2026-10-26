@@ -43,8 +43,13 @@ pub fn policy_glob_matches(pattern: &str, value: &str) -> bool {
     p == pattern.len()
 }
 
-/// Returns the declaration and its parsed longhand values, including nested shorthands.
-/// Unknown properties and unparsed variable values retain only the original declaration.
+/// Returns each longhand that the declaration `property: value` sets, with its value.
+/// For example, `margin: 1px 2px` gives four longhands. A nested shorthand is expanded
+/// too. Property names are lowercase.
+///
+/// An unknown property, or a value that contains a variable and cannot be split,
+/// returns one entry with `property` and `value`. A trailing `!important` is removed
+/// from `value`.
 pub fn property_value_domains(property: &str, value: &str) -> Vec<(LeanString, LeanString)> {
     let value = value
         .rsplit_once('!')
@@ -55,9 +60,11 @@ pub fn property_value_domains(property: &str, value: &str) -> Vec<(LeanString, L
         property.to_lean_string().to_ascii_lowercase(),
         value.to_lean_string(),
     )];
-    let Ok(parsed) =
-        Property::parse_string(PropertyId::from(property), value, ParserOptions::default())
-    else {
+    let id = PropertyId::from(property);
+    if id.longhands().is_none() {
+        return result;
+    }
+    let Ok(parsed) = Property::parse_string(id, value, ParserOptions::default()) else {
         return result;
     };
     let mut pending = vec![parsed];

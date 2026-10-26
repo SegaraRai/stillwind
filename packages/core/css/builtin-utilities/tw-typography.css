@@ -321,6 +321,11 @@ Tailwind.
   letter-spacing: --value(--tracking-*);
 }
 
+@stillwind-utility -tracking-* {
+  --tw-tracking: calc(--value(--tracking-*) * -1);
+  letter-spacing: calc(--value(--tracking-*) * -1);
+}
+
 /* MARK: `text-wrap` */
 
 @stillwind-arbitrary-property text-wrap;
@@ -538,7 +543,7 @@ Tailwind.
 }
 
 @stillwind-utility font-stretch-* {
-  font-stretch: --value(percentage);
+  font-stretch: --value(percentage [50, 200]);
 }
 
 @stillwind-utility font-stretch-* {

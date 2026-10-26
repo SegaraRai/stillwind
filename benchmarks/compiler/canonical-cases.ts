@@ -1,18 +1,6 @@
 import { resolveFixtureCss } from "@stillwind-internal/tools-fixture-css/stillwind-css";
 import { NativeDesignSystemLoader, type NativePreparedSource } from "@stillwind/native";
 
-/** Inputs shared by compiler benchmarks and canonical performance checks. */
-export const canonicalCases = [
-  { name: "named", candidate: "p-4", expected: null },
-  { name: "spacing", candidate: "p-[16px]", expected: "p-4" },
-  { name: "color-match", candidate: "bg-[#f00]", expected: "bg-brand" },
-  { name: "color-miss", candidate: "bg-[#123456]", expected: null },
-  { name: "property-miss", candidate: "[border-color:#123456]", expected: null },
-  { name: "color-modifier-match", candidate: "bg-[#f00]/50", expected: "bg-brand/50" },
-  { name: "color-modifier-miss", candidate: "bg-[#123456]/50", expected: null },
-  { name: "variant-miss", candidate: "[&:hover]:p-4", expected: null },
-] as const;
-
 const fullCss = resolveFixtureCss(
   '@import "stillwind"; @theme { --spacing:.25rem; --color-brand:red; }',
 );

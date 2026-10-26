@@ -269,7 +269,11 @@
 }
 
 @stillwind-utility aspect-* {
-  aspect-ratio: --value([ratio]);
+  aspect-ratio: --value(--aspect-*, [ratio]);
+}
+
+@stillwind-utility aspect-* {
+  aspect-ratio: --value(integer) / --modifier(integer);
 }
 
 /* MARK: `width` and `height` */

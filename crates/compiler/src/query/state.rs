@@ -1,13 +1,14 @@
 //! Snapshot ownership and caches shared by editor queries.
 
-use std::cell::{OnceCell, RefCell};
+use std::cell::OnceCell;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use lean_string::LeanStr;
 
 use stillwind_design_system::{DesignSystemRevision, DesignSystemSnapshot};
 use stillwind_diagnostics::LintSettings;
+use stillwind_source::Fingerprint;
 
 use super::canonical::CanonicalIndex;
 use super::context::QueryContext;
@@ -24,9 +25,9 @@ pub struct DesignSystemQuery {
     pub(super) context: QueryContext,
     /// Lazily retained index for this snapshot and its canonical conversion policy.
     pub(super) canonical_index: OnceCell<Arc<CanonicalIndex>>,
-    /// Canonical replacements keyed by full candidate spelling. `None` records no
-    /// verified replacement.
-    pub(super) canonical_cache: RefCell<BTreeMap<LeanStr, Option<LeanStr>>>,
+    /// The cache of canonical spellings. `shared` sets it to the cache of the snapshot.
+    /// Otherwise the query creates its own empty cache on first use.
+    pub(super) canonical_cache: OnceCell<Arc<CanonicalCache>>,
     /// Ordering keys and unresolved spellings reused by comparisons and batch ranking.
     pub(super) ordering: CandidateOrdering,
     /// Variant spellings with empty `[]` captures and no trailing colon, mapped to
@@ -47,10 +48,30 @@ impl DesignSystemQuery {
         Self {
             context,
             canonical_index: OnceCell::new(),
-            canonical_cache: RefCell::new(BTreeMap::new()),
+            canonical_cache: OnceCell::new(),
             ordering: CandidateOrdering::default(),
             variant_placeholders: OnceCell::new(),
         }
+    }
+
+    /// Creates a query like `new`, but with a cache of canonical spellings that it
+    /// shares. Every query that this function creates for the same snapshot and the
+    /// same resolved options uses the same cache.
+    ///
+    /// Compilation creates one query for each module. If each query had its own cache,
+    /// the compiler would compute the same canonical spellings again for every module
+    /// and after every edit.
+    pub(crate) fn shared(design_system: DesignSystemSnapshot, options: CompilerOptions) -> Self {
+        let query = Self::new(design_system, options);
+        let cache = query.context.design_system.analysis(
+            Fingerprint::of(format!(
+                "canonical-candidates/v1\0{:?}",
+                query.context.options
+            )),
+            CanonicalCache::default,
+        );
+        let _ = query.canonical_cache.set(cache);
+        query
     }
 
     /// Returns the immutable design-system revision used by every query answer.
@@ -68,6 +89,24 @@ impl DesignSystemQuery {
         self.canonical_index
             .get_or_init(|| self.context.canonical_index())
     }
+
+    /// Returns the cache of canonical spellings that this query reads and writes.
+    pub(super) fn canonical_cache(&self) -> &Arc<CanonicalCache> {
+        self.canonical_cache.get_or_init(Arc::default)
+    }
+}
+
+/// Canonical spellings that were already computed for one snapshot and one set of
+/// resolved options. The cache does not store results that ended with an error about
+/// malformed requirements.
+#[derive(Debug, Default)]
+pub(super) struct CanonicalCache {
+    /// Results of `canonical_candidate`, keyed by the complete candidate. `None` means
+    /// that the candidate has no verified replacement.
+    pub(super) candidates: Mutex<BTreeMap<LeanStr, Option<LeanStr>>>,
+    /// Results of `canonical_candidates`, keyed by the input candidates in source
+    /// order.
+    pub(super) sets: Mutex<BTreeMap<Vec<LeanStr>, Vec<LeanStr>>>,
 }
 
 /// Prepares canonical spelling indexes for `design_system` and effective `options`.

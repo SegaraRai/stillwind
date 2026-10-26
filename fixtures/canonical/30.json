@@ -1,0 +1,232 @@
+{
+  "name": "combine to shorthand utilities",
+  "css": "@import 'tailwindcss';",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["mt-1", "mr-1", "mb-1", "ml-1"],
+      "expected": ["m-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-t-123", "border-r-123", "border-b-123", "border-l-123"],
+      "expected": ["border-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-t-1", "border-r-1", "border-b-1", "border-l-1"],
+      "expected": ["border"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-t-red-500", "border-r-red-500", "border-b-red-500", "border-l-red-500"],
+      "expected": ["border-red-500"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["scroll-mt-1", "scroll-mr-1", "scroll-mb-1", "scroll-ml-1"],
+      "expected": ["scroll-m-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["scroll-pt-1", "scroll-pr-1", "scroll-pb-1", "scroll-pl-1"],
+      "expected": ["scroll-p-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["mt-1", "mb-1"],
+      "expected": ["my-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-t-123", "border-b-123"],
+      "expected": ["border-y-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-t-1", "border-b-1"],
+      "expected": ["border-y"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["border-t-red-500", "border-b-red-500"],
+      "expected": ["border-y-red-500"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["scroll-mt-1", "scroll-mb-1"],
+      "expected": ["scroll-my-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["scroll-pt-1", "scroll-pb-1"],
+      "expected": ["scroll-py-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["overflow-x-hidden", "overflow-y-hidden"],
+      "expected": ["overflow-hidden"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["overscroll-x-contain", "overscroll-y-contain"],
+      "expected": ["overscroll-contain"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["mb-1", "mt-1"],
+      "expected": ["my-1"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-4", "h-4"],
+      "expected": ["size-4"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-123", "h-123"],
+      "expected": ["size-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-128", "h-128"],
+      "expected": ["size-128"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["mt-123", "mb-123"],
+      "expected": ["my-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-8", "w-8"],
+      "expected": ["w-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[calc(1rem+0.25rem)]", "h-[calc(1rem+0.25rem)]", "size-5"],
+      "expected": ["size-5"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["w-[calc(1rem+0.25rem)]", "h-[calc(1rem+0.25rem)]", "size-5", "flex"],
+      "expected": ["size-5", "flex"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["hover:w-4", "h-4"],
+      "expected": ["hover:w-4", "h-4"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[width:_16px_]", "[height:16px]"],
+      "expected": ["size-4"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[font-size:14px]", "[line-height:1.625]"],
+      "expected": ["text-sm/relaxed"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    }
+  ]
+}

@@ -16,18 +16,17 @@ use std::ops::Range;
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{CssProperty, inspect_css_value};
-use stillwind_syntax::{Candidate, Utility, parse_candidate};
+use stillwind_syntax::{Candidate, Utility, Value, parse_candidate};
 
 use super::super::stillwind::{COMPAT_COLOR_SUPPORT, arbitrary_property_order};
 use super::super::values::color_fallback;
 use super::body::{UtilityResolution, UtilityResolutionError};
-use super::diagnosis::{
-    UtilityFailure, arbitrary_value_range, diagnose_utility, modifier_value_range,
-};
+use super::diagnosis::{UtilityFailure, diagnose_utility};
 use super::formatting::finalize_declaration;
 use super::matching::resolve_named_utility;
 use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
+use super::ranges::{arbitrary_value_range, modifier_value_range};
 use super::variables::VariableMismatch;
 use crate::{ThemeIndex, UtilityOrderMode};
 
@@ -207,12 +206,38 @@ fn resolve_candidate(
         return Ok(None);
     };
     let resolution = match &candidate.utility {
-        Utility::ArbitraryProperty { property, value } => {
+        Utility::ArbitraryProperty {
+            property,
+            value,
+            modifier,
+        } => {
             if !theme.accepts_arbitrary_property(&property.as_str().to_ascii_lowercase()) {
                 return Ok(None);
             }
             let Some(value) = theme.inline_theme_functions(value) else {
                 return Ok(None);
+            };
+            let Some(value) = theme.resolve_theme_references(&value).ok().flatten() else {
+                return Ok(None);
+            };
+            let Some(value) = theme.resolve_css_functions(&value) else {
+                return Ok(None);
+            };
+            let value = if let Some(modifier) = modifier {
+                let opacity = match modifier {
+                    Value::Named(value) => format!("{value}%"),
+                    Value::CssVariable(value) => format!("var({value})"),
+                    Value::Arbitrary(value) => value
+                        .parse::<f64>()
+                        .map_or_else(|_| value.to_string(), |value| format!("{}%", value * 100.0)),
+                };
+                if opacity == "100%" {
+                    value
+                } else {
+                    format!("color-mix(in oklab,{value} {opacity},transparent)").into()
+                }
+            } else {
+                value
             };
             let value = value.as_str();
             let mut resolution =

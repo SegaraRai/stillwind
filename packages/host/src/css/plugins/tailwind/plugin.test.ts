@@ -3,7 +3,10 @@ import { expect, test } from "vite-plus/test";
 
 import type { TailwindPlugin } from "../host.ts";
 import { configurePlugin } from "./configuration.ts";
+import { builtinLegacyThemeKeys } from "./legacy-keys.testing.ts";
 import { TailwindRuntime } from "./plugin.ts";
+
+const legacyKeys = builtinLegacyThemeKeys();
 
 /**
  * Creates a runtime for configured handlers, one for each `@plugin` statement.
@@ -16,6 +19,7 @@ function runtime(...plugins: unknown[]) {
   return new TailwindRuntime(
     plugins.map((entry) => configurePlugin(entry as TailwindPlugin, [])),
     [],
+    legacyKeys,
   );
 }
 
@@ -304,6 +308,7 @@ test("the project configuration replaces plugin keys and registers its plugins i
       ),
     ],
     [],
+    legacyKeys,
     {
       important: "#app",
       theme: {
@@ -330,7 +335,7 @@ test("the project configuration replaces plugin keys and registers its plugins i
 test("darkMode defines the dark variant after the handlers, as Tailwind does", () => {
   /** Returns the `dark` variant that a project configuration defines, which ends the settings. */
   const dark = (darkMode: unknown) => {
-    const css = new TailwindRuntime([], [], {
+    const css = new TailwindRuntime([], [], legacyKeys, {
       darkMode,
     } as never).settingsCss();
     const start = css.indexOf("@custom-variant dark");

@@ -1,0 +1,36 @@
+/*
+Legacy Tailwind spellings that canonical lint rewrites to their current form.
+
+`@stillwind-legacy-utility old new;` renames a utility. A trailing `*` in both names
+keeps the rest of the name, so `start-*` to `inset-s-*` rewrites `start-4` to
+`inset-s-4`. The rewrite is used only when the old name does not resolve, or when both
+names produce the same CSS.
+
+`@stillwind-legacy-theme-key key --namespace-* [exposure];` names the theme namespace
+that a Tailwind v3 config key reads, as in Tailwind's compatibility layer. A config key
+without a statement reads the namespace with the kebab-case name of the key. The
+optional exposure decides how plugin configuration sees the CSS values of the namespace:
+`replace` replaces the v3 default values of the key, and `extend` adds the CSS values
+to them. Without an exposure, plugin configuration sees only the v3 default values.
+*/
+
+@stillwind-legacy-utility bg-gradient-to-* bg-linear-to-*;
+@stillwind-legacy-utility order-none order-0;
+@stillwind-legacy-utility overflow-ellipsis text-ellipsis;
+@stillwind-legacy-utility break-words wrap-break-word;
+@stillwind-legacy-utility start-* inset-s-*;
+@stillwind-legacy-utility end-* inset-e-*;
+
+@stillwind-legacy-theme-key animation --animate-* extend;
+@stillwind-legacy-theme-key aspectRatio --aspect-* extend;
+@stillwind-legacy-theme-key borderRadius --radius-* extend;
+@stillwind-legacy-theme-key boxShadow --shadow-* extend;
+@stillwind-legacy-theme-key colors --color-* replace;
+@stillwind-legacy-theme-key containers --container-*;
+@stillwind-legacy-theme-key fontFamily --font-*;
+@stillwind-legacy-theme-key fontSize --text-* extend;
+@stillwind-legacy-theme-key letterSpacing --tracking-* extend;
+@stillwind-legacy-theme-key lineHeight --leading-* extend;
+@stillwind-legacy-theme-key maxWidth --container-* extend;
+@stillwind-legacy-theme-key screens --breakpoint-* extend;
+@stillwind-legacy-theme-key transitionTimingFunction --ease-*;

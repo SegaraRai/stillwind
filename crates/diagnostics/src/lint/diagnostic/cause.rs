@@ -410,8 +410,15 @@ pub enum LintDiagnostic {
         condition: LeanStr,
     },
     /// A source candidate has an equivalent canonical spelling.
-    #[error("prefer canonical utility spelling")]
-    NonCanonicalUtility,
+    #[error("replace `{utility}` with `{replacement}`")]
+    NonCanonicalUtility {
+        /// The utility, or the space-separated utilities, as written in the source,
+        /// without the quotes around them.
+        utility: LeanStr,
+        /// The canonical spelling that produces the same CSS, before escaping for the
+        /// source string.
+        replacement: LeanStr,
+    },
     /// A static source container differs from compiler order.
     #[error("utilities are not in compiler order")]
     UnsortedUtilities,
@@ -873,7 +880,7 @@ impl LintDiagnostic {
             Self::RestrictedLengthUnit { .. } => LintKind::NoRestrictedLengthUnits,
             Self::RestrictedThemeToken { .. } => LintKind::NoRestrictedThemeTokens,
             Self::ArbitraryBreakpoint { .. } => LintKind::NoArbitraryBreakpoints,
-            Self::NonCanonicalUtility => LintKind::PreferCanonicalUtilities,
+            Self::NonCanonicalUtility { .. } => LintKind::PreferCanonicalUtilities,
             Self::UnsortedUtilities | Self::UnsortedStylesheet => LintKind::PreferSortedUtilities,
             Self::MismatchedFrameworkImport { .. } => LintKind::MismatchedFrameworkImport,
             Self::MutatingMacroArgument => LintKind::MutatingMacroArgument,

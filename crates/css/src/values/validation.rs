@@ -147,6 +147,32 @@ pub enum ValueType {
 }
 
 impl ValueType {
+    /// Returns representative values of the type, such as `1rem` for a length. Returns
+    /// `None` when the type has no small set of values that identify it.
+    #[must_use]
+    pub fn samples(self) -> Option<&'static [&'static str]> {
+        Some(match self {
+            Self::Integer | Self::ZIndex => &["1"],
+            Self::Number => &["1.5"],
+            Self::Percentage | Self::FontStretch => &["50%"],
+            Self::NumberPercentage => &["1.5", "50%"],
+            Self::Length | Self::LineWidth | Self::FontSize => &["1rem"],
+            Self::LengthPercentage => &["1rem", "50%"],
+            Self::Angle => &["1deg"],
+            Self::AnglePercentage => &["1deg", "50%"],
+            Self::Time => &["1s"],
+            Self::Ratio => &["16 / 9"],
+            Self::Easing => &["cubic-bezier(0, 0, 1, 1)"],
+            Self::Color => &["rgb(0 0 0)"],
+            Self::Image => &["linear-gradient(red, blue)"],
+            Self::Url => &["url(a.png)"],
+            Self::Shadow => &["0 0 1px rgb(0 0 0)"],
+            Self::FontFamily => &["serif"],
+            Self::FontWeight => &["700"],
+            _ => return None,
+        })
+    }
+
     /// Parses the public arbitrary-value hint used inside `[hint:value]`.
     ///
     /// `None` means the hint is not part of the grammar at all; a registry that sees an
@@ -172,7 +198,7 @@ impl ValueType {
             "image" => Some(Self::Image),
             "url" => Some(Self::Url),
             "position" => Some(Self::Position),
-            "bg-size" => Some(Self::BackgroundSize),
+            "bg-size" | "size" => Some(Self::BackgroundSize),
             "shadow" => Some(Self::Shadow),
             "content" => Some(Self::Content),
             "linear-gradient-arguments" => Some(Self::LinearGradientArguments),

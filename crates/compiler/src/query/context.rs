@@ -53,11 +53,12 @@ impl QueryContext {
     pub(super) fn canonical_index(&self) -> Arc<CanonicalIndex> {
         let key = Fingerprint::of(
             format_args!(
-                "canonical-index/v1\0{}\0{}\0{}\0{}",
+                "canonical-index/v2\0{}\0{}\0{}\0{}\0{}",
                 self.canonical_policy.px_to_rem,
                 self.options.root_font_size.get().to_bits(),
                 self.options.prefix,
-                self.options.tailwind_prefix
+                self.options.tailwind_prefix,
+                self.canonical_policy.preserve_specificity
             )
             .to_lean_string(),
         );

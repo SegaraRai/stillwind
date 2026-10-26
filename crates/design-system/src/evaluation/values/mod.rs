@@ -21,7 +21,10 @@ mod placeholders;
 mod theme;
 mod token_values;
 
-pub use domains::{named_domain_values, unresolvable_value_namespaces};
+pub use domains::{
+    NumericDomain, NumericKind, named_domain_values, placeholder_namespaces,
+    unresolvable_value_namespaces,
+};
 pub use token_values::{ThemeValueMismatch, theme_value_mismatch};
 
 pub(crate) use colors::color_fallback;

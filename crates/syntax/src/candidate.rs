@@ -107,6 +107,16 @@ impl<'a> CandidatePrefix<'a> {
             .find_map(|&(offset, character)| (character == delimiter).then_some(offset))
     }
 
+    /// Returns where the variants of the candidate `raw` end, as a UTF-8 byte offset
+    /// after the last top-level `:`. For example, `md:hover:p-4` gives 9. Returns 0
+    /// when `raw` has no variants, or when a bracket in `raw` is closed by the wrong
+    /// character.
+    pub fn variant_end(raw: &str) -> usize {
+        CandidatePrefix::parse(raw)
+            .and_then(|prefix| prefix.last_separator(':'))
+            .map_or(0, |index| index + 1)
+    }
+
     /// Returns missing bracket closers, innermost first. An open quote or dangling
     /// escape has no safe bracket-only completion.
     pub fn completion_closers(&self) -> Option<LeanString> {

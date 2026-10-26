@@ -14,12 +14,8 @@ import { expect, inject, test, vi, type BenchRunOptions } from "vite-plus/test";
 
 import { createVitePlugins, stillwind } from "../../packages/integration/src/vite/plugin.ts";
 import { createViteProject } from "../../packages/integration/src/vite/project.ts";
-import {
-  canonicalCases,
-  canonicalLoader,
-  canonicalPalette,
-  canonicalSource,
-} from "../compiler/canonical-cases.ts";
+import { canonicalLoader, canonicalPalette, canonicalSource } from "../compiler/canonical-cases.ts";
+import { canonicalCases, canonicalMixedGroup } from "../compiler/canonical-inputs.ts";
 import { assertBudget, budgets } from "./budgets.ts";
 
 const full = inject("performanceFull");
@@ -56,6 +52,29 @@ for (const scenario of canonicalCases) {
   });
 }
 
+test("canonical/group/mixed", async (context) => {
+  const loader = canonicalLoader();
+  let query = loader.editorQuery();
+  let answer: string[];
+  context.task.meta.measurement = options;
+  const result = await context
+    .bench(
+      "canonical-group",
+      {
+        async: false,
+        beforeEach: () => {
+          query = loader.editorQuery();
+        },
+      },
+      () => {
+        answer = query.canonicalCandidates([...canonicalMixedGroup]);
+      },
+    )
+    .run(options);
+  expect(answer!).toEqual([...canonicalMixedGroup]);
+  await assertBudget(context, "canonical-group", result, budgets.canonical.mixedGroup);
+});
+
 test("canonical/prepare-css-revision", async (context) => {
   let query = canonicalLoader().editorQuery();
   context.task.meta.measurement = options;
@@ -64,7 +83,7 @@ test("canonical/prepare-css-revision", async (context) => {
       query = canonicalLoader().editorQuery();
     })
     .run(options);
-  expect(query.canonicalCandidate("[border-color:#123456]")).toBeNull();
+  expect(query.canonicalCandidate("[border-color:#123456]")).toBe("border-[#123456]");
   await assertBudget(context, "load-css-and-index", result, budgets.canonical.preparation);
 });
 
@@ -116,7 +135,7 @@ for (const independent of [true, false]) {
       const source = canonicalSource(100, unique, independent);
       context.task.meta.notes = independent
         ? "100 independent style calls with canonical diagnostics enabled; no utility pairs share a call."
-        : "One style call with 100 utilities; returns all 4950 pairwise diagnostics, including their source locations.";
+        : "One style call with 100 utilities; returns 4950 pairwise diagnostics and one canonical suggestion, with source locations.";
       let session = new NativeProjectSession(loader, false);
       let reports: ReturnType<NativeProjectSession["diagnose"]>;
       context.task.meta.measurement = options;
@@ -136,9 +155,14 @@ for (const independent of [true, false]) {
         .run(options);
       expect(reports!).toHaveLength(1);
       expect(reports![0].reports.map((report) => report.code)).toEqual(
-        Array.from({ length: independent ? 0 : (100 * 99) / 2 }, () =>
-          unique ? "conflicting-utilities" : "duplicate-utility",
-        ),
+        independent
+          ? []
+          : [
+              "prefer-canonical-utilities",
+              ...Array.from({ length: (100 * 99) / 2 }, () =>
+                unique ? "conflicting-utilities" : "duplicate-utility",
+              ),
+            ],
       );
       await assertBudget(
         context,

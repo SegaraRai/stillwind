@@ -1,10 +1,11 @@
 /* Reusable presentation utilities and the height conditions for scroll demonstrations. */
+
 @utility hero-title {
-  @apply font-display text-display font-normal tracking-[var(--display-tracking,_-0.052em)];
+  @apply font-display text-display font-normal tracking-[var(--display-tracking,-0.052em)];
 }
 
 @utility hero-second-line {
-  @apply block [margin-block-start:0.08em] [margin-inline-start:27%] max-inline:ms-0 max-inline:text-end;
+  @apply block mbs-[0.08em] ms-[27%] max-inline:ms-0 max-inline:text-end;
 }
 
 @utility section-title {
@@ -12,7 +13,8 @@
 }
 
 @utility action-link {
-  @apply rounded-control inline-flex items-center justify-between gap-8 py-4 px-5.6 text-(length:--text-small) [transition:background-color_140ms_ease];
+  @apply rounded-control inline-flex items-center justify-between gap-8 py-4 px-5.6 text-(length:--text-small);
+  transition: background-color 140ms ease;
 
   @variant focus-visible {
     @apply outline-2 outline-accent outline-offset-5;
@@ -43,9 +45,15 @@
 
 @utility scene-tab {
   @apply py-5.2 border-bs border-border;
-  @apply [transition:color_140ms_ease];
+  transition: color 140ms ease;
 
-  @apply hover:text-foreground focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-4;
+  @variant hover {
+    @apply text-foreground;
+  }
+
+  @variant focus-visible {
+    @apply outline-2 outline-accent outline-offset-4;
+  }
 
   @variant aria-[current=step] {
     @apply text-foreground border-bs-foreground;
@@ -85,8 +93,7 @@
 }
 
 @utility scoped-example {
-  @apply flex items-center flex-col gap-2.5;
-  @apply inline-[132px];
+  @apply flex items-center flex-col gap-2.5 inline-[132px];
   @apply p-3 border border-border rounded-control bg-background text-(length:--text-caption);
 }
 
@@ -119,27 +126,42 @@
 }
 
 @utility code-actor {
-  @apply absolute inset-s-0 inset-bs-0 whitespace-pre [transform:translate(_calc(var(--from-x)_+_(var(--to-x)_-_var(--from-x))_*_var(--morph-progress)),_calc(_var(--from-y)_+_(var(--to-y)_-_var(--from-y))_*_var(--morph-progress)_+_var(--travel-y,_0px)_*_4_*_var(--morph-progress)_*_(1_-_var(--morph-progress))_)_)];
+  @apply absolute inset-s-0 inset-bs-0 whitespace-pre;
+  transform: translate(
+    calc(var(--from-x) + (var(--to-x) - var(--from-x)) * var(--morph-progress)),
+    calc(
+      var(--from-y) + (var(--to-y) - var(--from-y)) * var(--morph-progress) + var(--travel-y, 0px) *
+        4 * var(--morph-progress) * (1 - var(--morph-progress))
+    )
+  );
 }
 
 @utility code-token {
   @apply code-actor;
-  @apply [color:color-mix(in_srgb,_var(--from-color),_var(--to-color)_calc(var(--morph-progress)_*_100%))];
+  color: color-mix(in_srgb, var(--from-color), var(--to-color) calc(var(--morph-progress) * 100%));
+
   @variant data-entering {
-    @apply opacity-[max(0,_var(--morph-progress)_*_2_-_1)];
+    @apply opacity-[max(0,var(--morph-progress)*2-1)];
   }
+
   @variant data-leaving {
-    @apply opacity-[max(0,_1_-_var(--morph-progress)_*_2)];
+    @apply opacity-[max(0,1-var(--morph-progress)*2)];
   }
 }
 
 @utility code-underline {
-  @apply code-actor;
-  @apply block-px inline-[calc(_var(--from-width)_+_(var(--to-width)_-_var(--from-width))_*_var(--morph-progress)_)] bg-danger opacity-[calc(_var(--from-opacity)_+_(var(--to-opacity)_-_var(--from-opacity))_*_var(--morph-progress)_)];
+  @apply code-actor bg-danger block-px;
+  inline-size: calc(
+    var(--from-width) + (var(--to-width) - var(--from-width)) * var(--morph-progress)
+  );
+  opacity: calc(
+    var(--from-opacity) + (var(--to-opacity) - var(--from-opacity)) * var(--morph-progress)
+  );
 }
 
 @utility source-highlight {
-  @apply absolute bg-surface-muted border-foreground border-be [border-radius:var(--radius-inline)_var(--radius-inline)_0_0];
+  @apply absolute bg-surface-muted border-foreground border-be;
+  border-radius: var(--radius-inline) var(--radius-inline) 0 0;
 }
 
 @custom-variant short-features {

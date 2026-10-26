@@ -29,7 +29,7 @@ export type LintRules = Partial<Record<SimpleLintRule, LintSeverity>> & {
   "prefer-logical-properties"?: LintSeverity | LogicalPropertiesOptions;
   /** Severity or patterns restricting direct references to theme custom properties. */
   "no-restricted-theme-tokens"?: LintSeverity | RestrictedThemeTokensOptions;
-  /** Severity or spacing-conversion settings for canonical utility replacements. */
+  /** Severity and conversion settings for canonical utility replacements. */
   "prefer-canonical-utilities"?: LintSeverity | CanonicalUtilitiesOptions;
   /** Severity or length-conversion settings for `@variant` replacements in stylesheets. */
   "prefer-variant-directive"?: LintSeverity | VariantDirectiveOptions;
@@ -172,8 +172,14 @@ export type ImportantOptions = {
 export type CanonicalUtilitiesOptions = {
   /** Omission preserves inherited severity, or uses warn for a newly configured rule. */
   severity?: LintSeverity;
-  /** Converts pixel spacing to rem when the active spacing scale uses rem. Defaults to true. */
+  /** Compares px and rem lengths using rootFontSize. Defaults to true. */
   pxToRem?: boolean;
+  /** Combines equivalent utilities within one source container. Defaults to true. */
+  collapse?: boolean;
+  /** Allows logical and physical properties to share a shorthand. Defaults to false. */
+  logicalToPhysical?: boolean;
+  /** Keeps selector specificity. Set false to allow Tailwind's ancestor migrations. Defaults to true. */
+  preserveSpecificity?: boolean;
 };
 
 /** Controls replacement of nested rules and conditional at-rules with `@variant`. */
@@ -353,6 +359,9 @@ const ruleOptions = {
   "prefer-canonical-utilities": strictObject({
     severity: v.optional(severitySchema),
     pxToRem: v.optional(v.boolean()),
+    collapse: v.optional(v.boolean()),
+    logicalToPhysical: v.optional(v.boolean()),
+    preserveSpecificity: v.optional(v.boolean()),
   }),
   "prefer-variant-directive": strictObject({
     severity: v.optional(severitySchema),

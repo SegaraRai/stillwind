@@ -409,3 +409,22 @@ test.each([
 ])("invalid settings reject before loading resources: %j", (config) => {
   expect(() => validateConfig(config)).toThrow();
 });
+
+test("validation rejects duplicate project names", () => {
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          name: "web",
+          css: "a.css",
+          files: ["*.tsx"],
+        },
+        {
+          name: "web",
+          css: "b.css",
+          files: ["*.ts"],
+        },
+      ],
+    }),
+  ).toThrow("Duplicate Stillwind project name");
+});

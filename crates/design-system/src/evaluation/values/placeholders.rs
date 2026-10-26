@@ -13,7 +13,7 @@
 use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssFunctionMatch, declaration_ranges, split_top_level};
+use stillwind_css::{CssFunctionMatch, declaration_ranges, find_css_functions, split_top_level};
 use stillwind_syntax::Value;
 
 use super::super::context::EvaluationContext;
@@ -120,6 +120,7 @@ fn resolve_value(
         .flatten();
     resolve_value_domains(domains, fraction.as_deref().or(capture), theme)
 }
+
 /// Resolves all placeholders in `body` for one candidate.
 ///
 /// `utility_name` supplies the wildcard prefix that yields the capture; `modifier` is
@@ -138,6 +139,21 @@ pub(in crate::evaluation) fn resolve_css_placeholders(
         .strip_suffix('*')
         .and_then(|prefix| name.strip_prefix(prefix));
     let mut body = body.to_lean_string();
+    for call in find_css_functions(&body, &["--alpha"], 0).into_iter().rev() {
+        if body[call.arguments.clone()].trim() != "--modifier()" {
+            continue;
+        }
+        let modifier = modifier?;
+        let value = match modifier {
+            Value::Named(value) => value.parse::<f64>().ok().map(|value| format!("{value}%"))?,
+            Value::Arbitrary(value) => value.parse::<f64>().map_or_else(
+                |_| Some(value.to_string()),
+                |value| Some(format!("{}%", value * 100.0)),
+            )?,
+            Value::CssVariable(value) => format!("var({value})"),
+        };
+        body.replace_range(call.arguments, &value);
+    }
     expand_placeholders(
         &mut body,
         &PLACEHOLDERS[..5],

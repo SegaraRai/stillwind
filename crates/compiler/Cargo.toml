@@ -39,6 +39,10 @@ proptest.workspace = true
 blake3.workspace = true
 
 [[test]]
+name = "canonical"
+path = "tests/canonical/mod.rs"
+
+[[test]]
 name = "compilation_contracts"
 path = "tests/compilation_contracts/mod.rs"
 

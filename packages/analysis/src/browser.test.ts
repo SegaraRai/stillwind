@@ -259,7 +259,7 @@ test("browser editor requests keep project policies separate and discard superse
     expect(sorting[0].result.edits).toEqual(sorting[1].result.edits);
     expect(await workspace.query(uri, { kind: "colors" }, AbortSignal.abort())).toEqual([]);
     const superseded = workspace.query(uri, { kind: "fixes" });
-    workspace.update(uri, code.replace("p-[16px]", "p-4"), 1);
+    workspace.update(uri, code.replace("p-[16px] flex block", "p-4 flex"), 1);
     expect(await superseded).toEqual([]);
     expect(
       (await workspace.query(uri, { kind: "fixes" })).every(

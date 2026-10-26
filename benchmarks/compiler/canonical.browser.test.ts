@@ -2,6 +2,7 @@ import { NativeDesignSystemLoader, __napiBindingTarget } from "@stillwind/native
 import { expect, inject, test } from "vite-plus/test";
 
 import { budgets } from "../performance/budgets.ts";
+import { canonicalCases, canonicalMixedGroup } from "./canonical-inputs.ts";
 
 declare module "vite-plus/test" {
   interface ProvidedContext {
@@ -42,15 +43,9 @@ test("browser WASM prepares each revision once and answers uncached canonical qu
       "performance-soft",
     );
   }
-  for (const [name, candidate, expected] of [
-    ["spacing", "p-[16px]", "p-4"],
-    ["color-match", "bg-[#f00]", "bg-brand"],
-    ["color-miss", "bg-[#123456]", null],
-    ["property-miss", "[border-color:#123456]", null],
-    ["color-modifier-match", "bg-[#f00]/50", "bg-brand/50"],
-    ["color-modifier-miss", "bg-[#123456]/50", null],
-    ["variant-miss", "[&:hover]:p-4", null],
-  ] as const) {
+  for (const { name, candidate, expected } of canonicalCases.filter(
+    ({ name }) => name !== "named",
+  )) {
     const samples: number[] = [];
     let answer: string | null = null;
     for (let i = 0; i < 120; i++) {
@@ -77,4 +72,38 @@ test("browser WASM prepares each revision once and answers uncached canonical qu
   for (const { scenario, timeMs, hardMs } of hardChecks) {
     expect.soft(timeMs, scenario).toBeLessThan(hardMs);
   }
+});
+
+test("browser WASM keeps unrelated utilities separate within one group", async (context) => {
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(0, "theme.css", inject("canonicalBrowserCss"), "file:///theme.css");
+  const samples: number[] = [];
+  let answer: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const query = loader.editorQuery();
+    const start = performance.now();
+    answer = query.canonicalCandidates([...canonicalMixedGroup]);
+    if (i > 0) {
+      samples.push(performance.now() - start);
+    }
+  }
+  samples.sort((a, b) => a - b);
+  expect(answer).toEqual([...canonicalMixedGroup]);
+  context.task.meta.canonicalBrowser = {
+    userAgent: navigator.userAgent,
+    measurements: [
+      {
+        scenario: "mixed-group",
+        samples,
+      },
+    ],
+  };
+  const budget = budgets.canonical.mixedGroup;
+  if (samples[4] >= budget.soft) {
+    await context.annotate(
+      `mixed group: median ${samples[4]}ms exceeds ${budget.soft}ms`,
+      "performance-soft",
+    );
+  }
+  expect(samples[4]).toBeLessThan(budget.hard);
 });

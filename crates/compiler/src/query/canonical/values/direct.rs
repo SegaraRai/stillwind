@@ -10,14 +10,13 @@ use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{
     CssMinifyOptions, Declaration, find_css_functions, fold_calc_expressions, minify_css,
-    split_once_top_level,
+    split_once_top_level, split_top_level,
 };
-use stillwind_design_system::take_property_requirements;
+use stillwind_design_system::{NumericDomain, placeholder_namespaces, take_property_requirements};
 
 use super::super::index::uses_rem;
 use super::super::preview::convert_pixel_dimensions;
 use crate::query::QueryContext;
-use crate::query::completion::value_namespaces;
 
 #[derive(Debug, Default)]
 pub(super) struct DirectValues {
@@ -46,12 +45,16 @@ impl DirectValues {
                 root.to_lean_str(),
                 definitions
                     .iter()
-                    .flat_map(|definition| value_namespaces(&definition.body, "--value"))
+                    .flat_map(|definition| placeholder_namespaces(&definition.body, "--value"))
                     .collect(),
             );
+            // An overload that rejects every theme label cannot change the indexed CSS.
             if let Some(namespaces) = copied_namespaces(
                 definitions
                     .iter()
+                    .filter(|definition| {
+                        may_accept_theme_label(&definition.body, &index.search[root], query)
+                    })
                     .map(|definition| definition.body.as_str()),
             ) {
                 index.families.insert(root.to_lean_str(), namespaces);
@@ -202,6 +205,25 @@ fn modifier_branches_are_local(
         })
 }
 
+/// Checks whether the utility body `body` may accept a label built from an active token
+/// in one of `namespaces`. Returns false only when `body` rejects every such token.
+fn may_accept_theme_label(
+    body: &str,
+    namespaces: &BTreeSet<LeanStr>,
+    query: &QueryContext,
+) -> bool {
+    namespaces.iter().any(|namespace| {
+        query
+            .design_system
+            .tokens()
+            .names_with_prefix(namespace)
+            .any(|token| {
+                let capture = token.strip_prefix(namespace.as_str()).unwrap_or(token);
+                !rejects_named_capture(body, capture, query)
+            })
+    })
+}
+
 fn copied_namespaces<'a>(mut bodies: impl Iterator<Item = &'a str>) -> Option<BTreeSet<LeanStr>> {
     let mut namespaces = BTreeSet::new();
     let mut captured = BTreeSet::new();
@@ -252,7 +274,9 @@ fn copied_namespaces<'a>(mut bodies: impl Iterator<Item = &'a str>) -> Option<BT
             {
                 return false;
             }
-            let domains: BTreeSet<_> = value_namespaces(value, "--value").into_iter().collect();
+            let domains: BTreeSet<_> = placeholder_namespaces(value, "--value")
+                .into_iter()
+                .collect();
             if domains.is_empty() || !captured.insert(declaration.property) {
                 return false;
             }
@@ -325,49 +349,53 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
                 return false;
             }
             let arguments = &body[function.arguments.clone()];
-            arguments.split(',').all(|argument| {
-                let argument = argument.trim();
-                if let Some(prefix) = argument
-                    .strip_suffix('*')
-                    .filter(|prefix| prefix.starts_with("--"))
-                {
-                    return query
+            split_top_level(arguments, |token| matches!(token, Token::Comma))
+                .into_iter()
+                .all(|argument| {
+                    let argument = argument.trim();
+                    if let Some(prefix) = argument
+                        .strip_suffix('*')
+                        .filter(|prefix| prefix.starts_with("--"))
+                    {
+                        return query
+                            .design_system
+                            .tokens()
+                            .get(&format_args!("{prefix}{capture}").to_lean_str())
+                            .is_none();
+                    }
+                    if argument.starts_with('[') {
+                        return true;
+                    }
+                    if argument.starts_with(['\'', '"']) {
+                        return false;
+                    }
+                    let numeric = capture.trim_end_matches('%').parse::<f64>().is_ok();
+                    if let Some(namespace) = query
                         .design_system
-                        .tokens()
-                        .get(&format_args!("{prefix}{capture}").to_lean_str())
-                        .is_none();
-                }
-                if argument.starts_with('[') {
-                    return true;
-                }
-                if argument.starts_with(['\'', '"']) {
-                    return false;
-                }
-                let numeric = capture.trim_end_matches('%').parse::<f64>().is_ok();
-                if let Some(namespace) = query
-                    .design_system
-                    .theme()
-                    .namespaces()
-                    .scale_domain(argument)
-                {
-                    return !numeric
-                        && namespace
-                            .scale
-                            .as_ref()
-                            .is_none_or(|scale| !scale.keys.contains_key(capture));
-                }
-                match argument {
-                    "number" | "integer" | "percentage" => !numeric,
-                    "--fraction()" => !capture.contains('/'),
-                    "--stillwind-builtin-width()" | "--stillwind-builtin-height()" => ![
-                        "auto", "full", "screen", "svw", "lvw", "dvw", "svh", "lvh", "dvh", "min",
-                        "max", "fit", "lh",
-                    ]
-                    .contains(&capture),
-                    argument if argument.starts_with("--") => false,
-                    _ => capture != argument,
-                }
-            })
+                        .theme()
+                        .namespaces()
+                        .scale_domain(argument)
+                    {
+                        return !numeric
+                            && namespace
+                                .scale
+                                .as_ref()
+                                .is_none_or(|scale| !scale.keys.contains_key(capture));
+                    }
+                    if let Some(numeric) = NumericDomain::parse(argument) {
+                        return numeric.resolve(capture).is_none();
+                    }
+                    match argument {
+                        "--fraction()" => !capture.contains('/'),
+                        "--stillwind-builtin-width()" | "--stillwind-builtin-height()" => ![
+                            "auto", "full", "screen", "svw", "lvw", "dvw", "svh", "lvh", "dvh",
+                            "min", "max", "fit", "lh",
+                        ]
+                        .contains(&capture),
+                        argument if argument.starts_with("--") => false,
+                        _ => capture != argument,
+                    }
+                })
         })
 }
 
@@ -390,7 +418,7 @@ fn value_keys(value: &str, query: &QueryContext) -> BTreeSet<LeanStr> {
         .flat_map(|value| {
             // Minification depends on the receiving property. These declarations
             // provide comparison keys for colors, lengths, and untyped token values.
-            ["color", "width", "--sw-value"]
+            ["color", "width", "font-family", "--sw-value"]
                 .into_iter()
                 .filter_map(move |property| {
                     minify_css(

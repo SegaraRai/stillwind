@@ -1,0 +1,196 @@
+{
+  "name": "deprecated utilities/With custom implementation",
+  "css": "@import 'tailwindcss';\n\n            \n          @utility order-none {\n            --custom-id-1: implementation;\n          }\n        \n\n          @utility break-words {\n            --custom-id-2: implementation;\n          }\n        \n\n          @utility overflow-ellipsis {\n            --custom-id-3: implementation;\n          }\n        \n\n          @utility start-full {\n            --custom-id-4: implementation;\n          }\n        \n\n          @utility -start-full {\n            --custom-id-5: implementation;\n          }\n        \n\n          @utility start-auto {\n            --custom-id-6: implementation;\n          }\n        \n\n          @utility start-px {\n            --custom-id-7: implementation;\n          }\n        \n\n          @utility -start-px {\n            --custom-id-8: implementation;\n          }\n        \n\n          @utility start-8 {\n            --custom-id-9: implementation;\n          }\n        \n\n          @utility -start-8 {\n            --custom-id-10: implementation;\n          }\n        \n\n          @utility start-123 {\n            --custom-id-11: implementation;\n          }\n        \n\n          @utility -start-123 {\n            --custom-id-12: implementation;\n          }\n        \n\n          @utility end-full {\n            --custom-id-13: implementation;\n          }\n        \n\n          @utility -end-full {\n            --custom-id-14: implementation;\n          }\n        \n\n          @utility end-auto {\n            --custom-id-15: implementation;\n          }\n        \n\n          @utility end-px {\n            --custom-id-16: implementation;\n          }\n        \n\n          @utility -end-px {\n            --custom-id-17: implementation;\n          }\n        \n\n          @utility end-8 {\n            --custom-id-18: implementation;\n          }\n        \n\n          @utility -end-8 {\n            --custom-id-19: implementation;\n          }\n        \n\n          @utility end-123 {\n            --custom-id-20: implementation;\n          }\n        \n\n          @utility -end-123 {\n            --custom-id-21: implementation;\n          }",
+  "baseTheme": "@theme { --*:initial; --breakpoint-lg:64rem; --breakpoint-md:48rem; --color-blue-200:oklch(88.2% 0.059 254.128); --color-blue-500:oklch(62.3% 0.214 259.815); --color-red-500:oklch(63.7% 0.237 25.331); --color-white:#fff; --container-md:28rem; --font-weight-normal:400; --leading-relaxed:1.625; --spacing:.25rem; --text-sm--line-height:calc(1.25 / .875); --text-sm:.875rem; --text-xs--line-height:calc(1 / .75); --text-xs:.75rem; }",
+  "cases": [
+    {
+      "input": ["order-none"],
+      "expected": ["order-none"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["break-words"],
+      "expected": ["break-words"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["overflow-ellipsis"],
+      "expected": ["overflow-ellipsis"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["start-full"],
+      "expected": ["start-full"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-start-full"],
+      "expected": ["-start-full"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["start-auto"],
+      "expected": ["start-auto"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["start-px"],
+      "expected": ["start-px"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-start-px"],
+      "expected": ["-start-px"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["start-8"],
+      "expected": ["start-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-start-8"],
+      "expected": ["-start-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["start-123"],
+      "expected": ["start-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-start-123"],
+      "expected": ["-start-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["end-full"],
+      "expected": ["end-full"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-end-full"],
+      "expected": ["-end-full"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["end-auto"],
+      "expected": ["end-auto"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["end-px"],
+      "expected": ["end-px"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-end-px"],
+      "expected": ["-end-px"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["end-8"],
+      "expected": ["end-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-end-8"],
+      "expected": ["-end-8"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["end-123"],
+      "expected": ["end-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["-end-123"],
+      "expected": ["-end-123"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    }
+  ]
+}

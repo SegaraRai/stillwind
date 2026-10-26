@@ -46,19 +46,7 @@ fn tailwind_resolved_property_sort_matches_upstream() {
         }
         candidates.push((candidate, resolved.order));
     }
-    assert_eq!(
-        unresolved,
-        [
-            "-tracking-normal",
-            "-tracking-tight",
-            "-tracking-tighter",
-            "-tracking-wide",
-            "-tracking-wider",
-            "-tracking-widest",
-            "max-w-prose",
-            "shadow"
-        ]
-    );
+    assert_eq!(unresolved, ["max-w-prose", "shadow"]);
     assert!(
         failures.is_empty(),
         "{} mismatches:\n{}",

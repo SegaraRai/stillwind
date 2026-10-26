@@ -10,6 +10,7 @@
 //! This module is the only reader of that table: property names come from the snapshot,
 //! and lookups are ASCII case-insensitive because CSS property names are.
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 use lean_string::{LeanStr, ToLeanStr};
@@ -41,9 +42,15 @@ include!("../../assets/webref-properties.rs");
 /// name is invalid CSS; the exception table in `properties` depends on this
 /// distinction.
 pub(super) fn webref_property(name: &str) -> Option<&'static WebrefPropertySyntax> {
+    let name = if name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        Cow::Owned(name.to_ascii_lowercase())
+    } else {
+        Cow::Borrowed(name)
+    };
     WEBREF_PROPERTIES
-        .iter()
-        .find(|property| property.name.eq_ignore_ascii_case(name))
+        .binary_search_by(|property| property.name.cmp(name.as_ref()))
+        .ok()
+        .map(|index| &WEBREF_PROPERTIES[index])
 }
 
 /// Returns the CSSWG Web Living Standard's formal value syntax for a CSS
@@ -105,6 +112,9 @@ pub fn property_covers(wider: &str, narrower: &str) -> bool {
     if wider.eq_ignore_ascii_case(narrower) || wider.eq_ignore_ascii_case("all") {
         return false;
     }
+    if webref_property(wider).is_none_or(|property| property.longhands.is_empty()) {
+        return false;
+    }
     let wide = longhand_family(wider);
     let narrow = longhand_family(narrower);
     if wide.contains(&narrower.to_lean_str().to_ascii_lowercase()) {
@@ -125,6 +135,51 @@ pub fn property_covers(wider: &str, narrower: &str) -> bool {
     physical.len() == 4
         && physical.iter().all(|name| wide.contains(*name))
         && leaves.iter().all(|name| logical_group(name) == Some(group))
+}
+
+/// Returns the longhands that the declaration `property: value` sets to `value` itself.
+///
+/// The result is not empty only when `property` repeats one longhand syntax for each of
+/// its longhands, and `value` has no whitespace. For example, `margin` has the syntax
+/// `<'margin-top'>{1,4}`, so `margin: 1px` sets each of its four longhands to `1px`,
+/// and `overscroll-behavior: contain` sets `overscroll-behavior-x` and
+/// `overscroll-behavior-y` to `contain`.
+///
+/// A single `var()` counts as one value. A variable that holds several values, such as
+/// `solid dashed`, sets the longhands differently, so the result is wrong for it.
+#[must_use]
+pub fn repeated_longhands(property: &str, value: &str) -> &'static [&'static str] {
+    let value = value.trim();
+    if value.is_empty() || value.contains(char::is_whitespace) {
+        return &[];
+    }
+    let Some(definition) = webref_property(property) else {
+        return &[];
+    };
+    let longhands = definition.longhands;
+    let Some(first) = longhands.first() else {
+        return &[];
+    };
+    let Some((repeated, count)) = definition
+        .syntax
+        .strip_suffix('}')
+        .and_then(|syntax| syntax.rsplit_once("{1,"))
+    else {
+        return &[];
+    };
+    if count.parse() != Ok(longhands.len()) {
+        return &[];
+    }
+    let repeats_longhand = repeated == format!("<'{first}'>")
+        || repeated
+            .strip_prefix("[ ")
+            .and_then(|syntax| syntax.strip_suffix(" ]"))
+            .is_some_and(|syntax| {
+                longhands
+                    .iter()
+                    .all(|longhand| webref_property(longhand).is_some_and(|p| p.syntax == syntax))
+            });
+    if repeats_longhand { longhands } else { &[] }
 }
 
 /// Whether `all` leaves the property alone; it resets neither custom properties nor these.
@@ -184,6 +239,42 @@ pub(super) fn is_logical(property: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn property_lookup_matches_every_published_name_in_either_case() {
+        for property in WEBREF_PROPERTIES {
+            assert_eq!(webref_property(property.name), Some(property));
+            assert_eq!(
+                webref_property(&property.name.to_ascii_uppercase()),
+                Some(property)
+            );
+        }
+        assert!(webref_property("--custom").is_none());
+        assert!(webref_property("unknown-property").is_none());
+    }
+
+    #[test]
+    fn repeated_longhands_require_one_value_for_a_repeated_syntax() {
+        assert_eq!(
+            repeated_longhands("border-style", "var(--style)"),
+            [
+                "border-top-style",
+                "border-right-style",
+                "border-bottom-style",
+                "border-left-style"
+            ]
+        );
+        assert_eq!(
+            repeated_longhands("overscroll-behavior", "contain"),
+            ["overscroll-behavior-x", "overscroll-behavior-y"]
+        );
+        assert_eq!(
+            repeated_longhands("overscroll-behavior", "contain none"),
+            [] as [&str; 0]
+        );
+        assert_eq!(repeated_longhands("border", "solid"), [] as [&str; 0]);
+        assert_eq!(repeated_longhands("color", "red"), [] as [&str; 0]);
+    }
 
     #[test]
     fn coverage_requires_every_slot_of_a_logical_shorthand() {

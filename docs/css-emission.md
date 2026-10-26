@@ -639,6 +639,20 @@ canonical replacements. A later namespace declaration replaces its types and sca
 `@stillwind-theme-exclude --font-* --font-weight-*;` excludes a narrower namespace
 from the wider namespace's `--value()` patterns.
 
+The `integer`, `number`, and `percentage` domains accept an inclusive range after the
+name. `--value(percentage [50,200])` accepts `font-stretch-150%` and rejects
+`font-stretch-300%`. The range limits the number without its `%`.
+
+`@stillwind-legacy-utility old new;` names a legacy utility that canonical lint rewrites
+to its current name. A trailing `*` in both names keeps the rest of the name, so
+`start-* inset-s-*` rewrites `start-4` to `inset-s-4`. Lint uses the rewrite only when
+the old name does not resolve, or when both names produce the same CSS.
+`@stillwind-legacy-theme-key fontSize --text-* extend;` names the theme namespace that
+a Tailwind v3 config key reads in `theme()` and in plugin configuration. Without a
+statement, the key reads the namespace with its kebab-case name. The optional `extend`
+adds the CSS values to the v3 default values that plugins see, and `replace` replaces
+them.
+
 Plugin selectors that name other classes, such as the component classes of daisyUI and
 the `not-prose` class of `@tailwindcss/typography`, match through
 [marker classes](#marker-classes). Browser hosts require plugin packages that can execute

@@ -210,7 +210,7 @@ export const icons = style("icon-[red] icon-[demo--missing] icon-[2rem] icon-[de
     });
     expect(fixes?.edits?.map((edit) => edit.newText)).toEqual([
       "icon-demo--close",
-      "hover:!icon-demo--close",
+      "hover:icon-demo--close!",
     ]);
   } finally {
     await project.close();

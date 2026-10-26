@@ -1,26 +1,27 @@
 /* Typography and spacing for Markdown, slots, and Nimbus output. */
+
 @utility compiled-example {
-  @variant [&_>_*_+_*] {
+  & > * + * {
     @apply mbs-5;
   }
 }
 
 @utility diagnostic-example {
-  @variant [&_>_*_+_*] {
+  & > * + * {
     @apply mbs-3;
   }
 
-  @variant [&_.astro-code_>_code] {
+  & .astro-code > code {
     @apply grid;
   }
 
-  @variant [&_.astro-code_.line] {
+  & .astro-code .line {
     @apply min-block-lh;
   }
 }
 
 @utility aside-body {
-  @variant [&_>_*_+_*] {
+  & > * + * {
     @apply mbs-3;
   }
 }
@@ -28,120 +29,122 @@
 @utility docs-prose {
   @apply text-body wrap-anywhere;
 
-  @variant [&_.astro-code_.diagnostic-annotation] {
+  & .astro-code_.diagnostic-annotation {
     @apply relative block my-3 px-3 py-2 font-sans text-danger text-body whitespace-pre-wrap bg-danger/10 rounded-control border border-danger/30;
   }
 
-  @variant [&_.astro-code_.line:last-child_>_.diagnostic-annotation:last-child] {
+  & .astro-code .line:last-child > .diagnostic-annotation:last-child {
     @apply mbe-1;
   }
 
-  @variant [&_>_:is(p,_ul,_ol,_blockquote,_h2,_h3,_h4)] {
+  & > :is(p, ul, ol, blockquote, h2, h3, h4) {
     @apply max-inline-prose;
   }
 
-  @variant [&_>_*_+_*] {
+  & > * + * {
     @apply mbs-5;
   }
 
-  @variant [&_h2] {
+  & h2 {
     @apply mbs-12 text-heading tracking-[-0.025em];
   }
 
-  @variant [&_h3] {
+  & h3 {
     @apply mbs-8 text-heading-small font-medium;
   }
 
-  @variant [&_:is(h2,_h3)] {
+  & :is(h2, h3) {
     @apply scroll-mbs-8;
   }
 
-  @variant [&_a] {
+  & a {
     @apply underline underline-offset-4;
   }
 
-  @variant [&_:is(ul,_ol)] {
+  & :is(ul, ol) {
     @apply ps-6;
   }
 
-  @variant [&_ul] {
+  & ul {
     @apply list-disc;
   }
 
-  @variant [&_ol] {
+  & ol {
     @apply list-decimal;
   }
 
-  @variant [&_li_+_li] {
+  & li + li {
     @apply mbs-2;
   }
 
-  @variant [&_code] {
+  & code {
     @apply font-mono text-code-inline;
   }
 
-  @variant [&_:not(pre)_>_code] {
+  & :not(pre) > code {
     @apply px-1 py-0.5 bg-surface-muted rounded-inline border border-border;
   }
 
-  @variant [&_pre] {
+  & pre {
     @apply overflow-x-auto p-panel max-inline-full leading-[1.7] wrap-normal rounded-panel border border-border max-sidebar:p-4;
   }
 
-  @variant [&_.nb-code-title] {
+  & .nb-code-title {
     @apply px-panel py-3 font-mono text-muted text-small bg-surface-muted rounded-t-panel border border-border border-be-0 max-sidebar:px-4;
   }
 
-  @variant [&_.nb-code-title-lang] {
+  & .nb-code-title-lang {
     @apply hidden;
   }
 
-  @variant [&_.nb-code-figure-titled_>_pre] {
+  & .nb-code-figure-titled_ > pre {
     @apply mbs-0 rounded-t-none;
   }
 
-  @variant [&_pre_code] {
+  & pre code {
     @apply p-0 text-code;
   }
 
-  @variant [&_.astro-code,_&_.astro-code_span] {
+  & .astro-code,
+  & .astro-code_span {
     @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
   }
 
-  @variant [&_.astro-code] {
+  & .astro-code {
     @apply bg-surface;
   }
 
-  @variant [&_table] {
+  & table {
     @apply block border-collapse overflow-x-auto max-inline-full text-ui;
   }
 
-  @variant [&_:is(th,_td)] {
+  & :is(th, td) {
     @apply p-3 text-start border-border border-be;
   }
 
-  @variant [&_th] {
+  & th {
     @apply font-medium;
   }
 
-  @variant [&_blockquote] {
+  & blockquote {
     @apply px-5 py-3 text-muted border-muted border-s-2;
   }
 
-  @variant [&_strong] {
+  & strong {
     @apply font-semibold;
   }
 
-  @variant [&_.diagnostic-range] {
+  & .diagnostic-range {
     @apply text-inherit underline decoration-danger decoration-wavy underline-offset-[0.2em] bg-transparent;
   }
 
-  @variant [&_.diagnostic-annotation::before] {
-    @apply absolute inset-bs-0 size-2 font-mono text-code border-danger/30 border-s border-bs;
+  & .diagnostic-annotation::before {
     @apply content-[""];
-    @apply inset-s-[max(0.75rem,_calc(var(--diagnostic-column)_*_1ch))];
-    @apply [background-color:color-mix(in_srgb,_var(--color-danger)_10%,_var(--color-surface))];
-    @apply [transform:translate(-50%,_-50%)_rotate(45deg)];
+    @apply absolute inset-bs-0 size-2 font-mono text-code border-danger/30 border-s border-bs;
+    @apply inset-s-[max(0.75rem,calc(var(--diagnostic-column)*1ch))];
+
+    background-color: color-mix(in_srgb, var(--color-danger) 10%, var(--color-surface));
+    transform: translate(-50%, -50%) rotate(45deg);
   }
 
   @variant [&_:is(pre,_code)] {
@@ -165,6 +168,7 @@
   @apply block px-3 py-2 text-muted wrap-anywhere border-transparent border-s-2;
   @apply aria-[current=page]:text-foreground aria-[current=page]:bg-surface-muted aria-[current=page]:border-foreground;
   @apply hover:text-foreground hover:underline hover:underline-offset-4;
+
   @variant max-sidebar {
     @apply px-0 py-2 border-transparent border-s-0 border-be-2;
     @apply aria-[current=page]:bg-transparent aria-[current=page]:border-be-foreground;
@@ -174,9 +178,11 @@
 @utility utility-result {
   @apply min-inline-0;
 }
+
 @utility utility-result-title {
   @apply mbs-0 mbe-3 text-body;
 }
+
 @utility utility-result-code {
   @apply bg-surface;
 }

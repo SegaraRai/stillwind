@@ -48,6 +48,16 @@ pub(crate) fn detect(
     let mut findings = Vec::new();
     for (literal, prefix) in literals {
         let boundaries = literal_boundaries(source, literal);
+        let collapsed = canonical_enabled
+            && collapse_literal(
+                source,
+                module,
+                query,
+                literal,
+                &prefix,
+                boundaries.as_deref(),
+                &mut findings,
+            );
         let mut offset = 0;
         for token in literal.value.split_whitespace() {
             let Some(relative) = literal.value[offset..].find(token) else {
@@ -80,7 +90,7 @@ pub(crate) fn detect(
                     range: &range,
                 },
             ));
-            if !canonical_enabled || boundaries.is_none() {
+            if !canonical_enabled || boundaries.is_none() || collapsed {
                 continue;
             }
             let Ok(Some(canonical)) =
@@ -91,26 +101,107 @@ pub(crate) fn detect(
             let Some(replacement) = canonical.strip_prefix(prefix.as_str()) else {
                 continue;
             };
-            let Ok(range) = SourceRange::from_source(Arc::clone(&module.source), span) else {
-                continue;
-            };
-            let quote = source.text()[..literal.span.start.0 as usize]
-                .chars()
-                .next_back()
-                .unwrap_or('"');
-            let replacement = escape_literal(replacement, quote);
-            let mut finding = LintFinding::new(LintDiagnostic::NonCanonicalUtility, span);
-            finding.actions.push(FixAction {
-                title: "Use canonical utility spelling".into(),
-                edits: vec![SourceEdit {
-                    range,
-                    replacement: (replacement).into(),
-                }],
-            });
-            findings.push(finding);
+            findings.extend(canonical_finding(
+                source,
+                module,
+                literal,
+                span,
+                token,
+                replacement,
+            ));
         }
     }
     findings
+}
+
+/// Reports one finding that replaces all utilities of `literal` with fewer utilities
+/// that produce the same CSS, such as `size-4` for `w-4 h-4`, and appends it to
+/// `findings`. `prefix` is the variants of the surrounding style input. Returns false,
+/// and reports nothing, when the literal has fewer than two utilities, when the result
+/// has as many utilities as the input, when a result does not start with `prefix`, or
+/// when the literal cannot be mapped to the source.
+fn collapse_literal(
+    source: &SourceFile,
+    module: &ModuleAnalysis,
+    query: &DesignSystemQuery,
+    literal: &Spanned<LeanStr>,
+    prefix: &str,
+    boundaries: Option<&[u32]>,
+    findings: &mut Vec<LintFinding>,
+) -> bool {
+    let Some(boundaries) = boundaries else {
+        return false;
+    };
+    let tokens: Vec<_> = literal.value.split_whitespace().collect();
+    if tokens.len() < 2 {
+        return false;
+    }
+    let inputs: Vec<_> = tokens
+        .iter()
+        .map(|token| format!("{prefix}{token}").into())
+        .collect();
+    let Ok(canonical) = query.canonical_candidates(&inputs) else {
+        return false;
+    };
+    if canonical.len() >= tokens.len() {
+        return false;
+    }
+    let Some(canonical) = canonical
+        .iter()
+        .map(|value| value.strip_prefix(prefix))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return false;
+    };
+    let replacement = canonical.join(" ");
+    let start = literal.value.len() - literal.value.trim_start().len();
+    let end = literal.value.trim_end().len();
+    let span = Span::new(literal.span.file, boundaries[start], boundaries[end]);
+    let Some(finding) = canonical_finding(
+        source,
+        module,
+        literal,
+        span,
+        &literal.value[start..end],
+        &replacement,
+    ) else {
+        return false;
+    };
+    findings.push(finding);
+    true
+}
+
+/// Returns a finding that `utility` at `span` should be written as `replacement`. Its
+/// fix writes `replacement` with the escapes that the quote of `literal` needs. Returns
+/// `None` when `span` cannot be mapped to the source.
+fn canonical_finding(
+    source: &SourceFile,
+    module: &ModuleAnalysis,
+    literal: &Spanned<LeanStr>,
+    span: Span,
+    utility: &str,
+    replacement: &str,
+) -> Option<LintFinding> {
+    let range = SourceRange::from_source(Arc::clone(&module.source), span).ok()?;
+    let quote = source.text()[..literal.span.start.0 as usize]
+        .chars()
+        .next_back()
+        .unwrap_or('"');
+    let mut finding = LintFinding::new(
+        LintDiagnostic::NonCanonicalUtility {
+            utility: utility.into(),
+            replacement: replacement.into(),
+        },
+        span,
+    );
+    finding.actions.push(FixAction {
+        title: "Use canonical utility spelling".into(),
+        edits: vec![SourceEdit {
+            range,
+            replacement: escape_literal(replacement, quote).into(),
+        }],
+    });
+    Some(finding)
 }
 
 fn collect_inputs<'a>(

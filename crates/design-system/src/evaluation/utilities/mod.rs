@@ -1,23 +1,30 @@
-//! Utility resolution: matching a candidate name to definition branches and turning the
-//! matched body into declarations.
+//! Resolves a utility candidate: it finds the definitions that match the candidate
+//! name, and turns the body of each matching definition into declarations.
 //!
-//! A candidate may match an exact definition, several wildcard families, or none.
-//! [`matching`] decides which branches are relevant and how competing branches merge,
-//! [`body`] and [`nested`] split a CSS body into its selector, declarations, and
-//! conditional rules, [`declarations`] resolves placeholders per declaration,
-//! [`formatting`] applies the registry's serialization metadata, and [`resolve`] is the
-//! public entry point that ties them together. [`diagnosis`] explains a candidate that
-//! resolution rejects, and [`variables`] checks a `var()` value without a type hint
-//! against the known type of its variable. [`order`] retains pre-emission Tailwind
-//! property/count keys and authored precedence. [`tailwind_property_order`] supplies
-//! its generated property indices.
+//! A candidate may match one exact definition, several functional families, or nothing.
+//! The modules divide the work as follows:
 //!
-//! Value-domain mismatches are non-matches, allowing another overload to apply. When
-//! every definition rejects an arbitrary value without a type hint, the value is
-//! emitted as written and recorded as an [`InvalidPropertyValue`], as are a variable of
-//! a known type that the property rejects and an opacity modifier outside `0%` to
-//! `100%`. Malformed matched
-//! definitions return a typed error.
+//! - [`matching`] chooses the matching definition branches and merges competing
+//!   branches.
+//! - [`body`] and [`nested`] split a definition body into its selector, its
+//!   declarations, and its conditional rules.
+//! - [`declarations`] replaces the placeholders in each declaration.
+//! - [`formatting`] writes values with the serialization settings of the registry.
+//! - [`resolve`] is the public entry point that runs these steps.
+//! - [`diagnosis`] explains why a candidate does not resolve, and [`ranges`] finds the
+//!   parts of the candidate that the explanation points at.
+//! - [`variables`] checks a `var()` value without a type hint against the known type of
+//!   its variable.
+//! - [`order`] keeps the Tailwind sort keys of each utility and the order in which
+//!   declarations are written. [`tailwind_property_order`] contains the generated
+//!   property order that these keys use.
+//!
+//! When a value does not fit the domain of a definition, that definition does not
+//! match, and another definition can still match. When every definition rejects an
+//! arbitrary value without a type hint, the value is written to the CSS unchanged and
+//! recorded as an [`InvalidPropertyValue`]. The same happens for a variable whose known
+//! type the property rejects, and for an opacity modifier outside `0%` to `100%`. A
+//! matching definition that is malformed returns an error.
 
 mod body;
 mod declarations;
@@ -26,17 +33,17 @@ mod formatting;
 mod matching;
 mod nested;
 mod order;
+mod ranges;
 mod resolve;
 mod tailwind_property_order;
 mod variables;
 
 pub use body::UtilityResolutionError;
-pub use diagnosis::{
-    UtilityFailure, UtilityFailureReason, check_candidate_variants, utility_value_range,
-};
+pub use diagnosis::{UtilityFailure, UtilityFailureReason, check_candidate_variants};
 pub use matching::dynamic_named_spelling;
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
+pub use ranges::utility_value_range;
 pub use resolve::{
     InvalidPropertyValue, InvalidValueReason, ResolvedUtility, ResolvedUtilityTarget,
     UntypedVariable, UtilityArbitraryUse, UtilityDeclaration, UtilityDiagnosticData,

@@ -319,7 +319,7 @@ their stops. Without color stop utilities, the value is the complete argument li
 @stillwind-arbitrary-property --tw-gradient-via-position;
 
 @stillwind-utility via-* {
-  --tw-gradient-via-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-gradient-via-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-gradient-stops;
@@ -351,7 +351,7 @@ their stops. Without color stop utilities, the value is the complete argument li
 @stillwind-arbitrary-property --tw-gradient-from-position;
 
 @stillwind-utility from-* {
-  --tw-gradient-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-gradient-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-gradient-to;
@@ -382,7 +382,7 @@ their stops. Without color stop utilities, the value is the complete argument li
 @stillwind-arbitrary-property --tw-gradient-to-position;
 
 @stillwind-utility to-* {
-  --tw-gradient-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-gradient-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 /* MARK: `background-size` */

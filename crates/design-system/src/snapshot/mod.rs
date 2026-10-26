@@ -18,4 +18,6 @@ pub use data::{
 pub use registry::{
     DefinitionRegistry, PropertyRegistry, ThemeRegistry, UtilityRegistry, VariantRegistry,
 };
-pub use utility_search::{UtilitySearchEntry, UtilitySearchIndex};
+pub use utility_search::{
+    SplitFamily, UtilitySearchEntry, UtilitySearchIndex, declared_properties,
+};

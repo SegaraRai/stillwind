@@ -29,10 +29,11 @@ export const budgets = {
   },
   canonical: {
     named: { soft: 0.01, hard: 0.1 },
+    "named-variants": { soft: 0.1, hard: 1 },
     spacing: { soft: 0.1, hard: 1 },
     "color-match": { soft: 0.1, hard: 1 },
     "color-miss": { soft: 0.1, hard: 1 },
-    "property-miss": { soft: 0.1, hard: 1 },
+    property: { soft: 0.1, hard: 1 },
     "variant-miss": { soft: 0.1, hard: 1 },
     "color-modifier-match": { soft: 0.1, hard: 1 },
     "color-modifier-miss": { soft: 0.1, hard: 1 },
@@ -40,6 +41,7 @@ export const budgets = {
     cachedBatch: { soft: 2, hard: 5 },
     repeated100: { soft: 25, hard: 50 },
     unique100: { soft: 25, hard: 50 },
+    mixedGroup: { soft: 10, hard: 50 },
   },
   canonicalPalette: {
     100: { soft: 0.1, hard: 1 },

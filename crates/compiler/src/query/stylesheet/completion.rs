@@ -211,9 +211,7 @@ fn redundant_variant(css: &str, applied: &AppliedVariants, label: &str) -> bool 
     {
         return true;
     }
-    let last = &label[CandidatePrefix::parse(label)
-        .and_then(|prefix| prefix.last_separator(':'))
-        .map_or(0, |index| index + 1)..];
+    let last = &label[CandidatePrefix::variant_end(label)..];
     applied.enclosing.iter().any(|sequences| {
         !sequences.is_empty()
             && sequences.iter().all(|range| {
@@ -227,9 +225,7 @@ fn redundant_variant(css: &str, applied: &AppliedVariants, label: &str) -> bool 
 
 /// Completes host candidates only inside an applied utility or variant input.
 fn catalog_labels(prefix: &str, variants: bool, catalog: Vec<LeanStr>) -> Vec<LeanStr> {
-    let split = CandidatePrefix::parse(prefix)
-        .and_then(|prefix| prefix.last_separator(':'))
-        .map_or(0, |index| index + 1);
+    let split = CandidatePrefix::variant_end(prefix);
     let (before, partial) = prefix.split_at(split);
     catalog
         .into_iter()
