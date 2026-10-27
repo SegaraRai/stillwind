@@ -133,10 +133,24 @@ fn applied_marker_classes_are_reported_as_marker_uses() {
 }
 
 #[test]
-fn package_css_and_definitions_are_not_checked() {
+fn utility_bodies_are_checked_and_other_definitions_are_not() {
     assert_eq!(
-        default_findings("@utility thing { @apply unknown-x; } @variant nope { .x { } }"),
-        []
+        default_findings(
+            "@utility thing { @apply unknown-x; &:hover { @apply unknown-y; } }
+             @variant nope { .x { } }"
+        ),
+        [
+            finding(LintKind::UnknownUtility, "unknown-x"),
+            finding(LintKind::UnknownUtility, "unknown-y"),
+        ]
+    );
+    assert_eq!(
+        default_findings("@utility thing { @variant hover { @apply hover:flex; } }"),
+        [fixed(
+            LintKind::RedundantVariant,
+            "hover",
+            "@utility thing { @variant hover { @apply flex; } }"
+        )]
     );
 }
 

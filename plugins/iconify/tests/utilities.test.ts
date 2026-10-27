@@ -383,6 +383,7 @@ export const icons = style("icon-");
 export const named = style("hover:icon-demo--");`;
   const css = `@plugin "@stillwind/plugin-iconify";
 .probe { @apply icon-demo--close; }
+:root { @stillwind-slot theme; }
 @stillwind-slot utilities;`;
   const packages = new Map([
     [

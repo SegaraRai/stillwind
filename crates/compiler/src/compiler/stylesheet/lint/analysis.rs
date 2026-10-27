@@ -207,12 +207,21 @@ impl Checker<'_> {
     /// `prefixes` holds one variant prefix, such as `print:hover:`, for each sequence
     /// of the enclosing `@variant` blocks. The empty prefix means no enclosing block. A
     /// style rule starts a new element, so its contents start with the empty prefix
-    /// again. `in_rule` tells whether a style rule encloses `nodes`. Outside one, a
-    /// definition at-rule such as `@utility` or `@variant` is skipped.
+    /// again. `in_rule` tells whether a style rule or a `@utility` body encloses
+    /// `nodes`. A `@utility` body applies to the element that uses the utility, so it
+    /// is checked as a style rule. Outside both, other definition at-rules such as
+    /// `@theme` or `@custom-variant` are skipped.
     fn visit(&mut self, nodes: &[CssNode], prefixes: &[LeanString], in_rule: bool) {
         for node in nodes {
             match &node.kind {
                 CssNodeKind::StyleRule { block, .. } => {
+                    self.visit(&block.children, &[LeanString::new()], true);
+                }
+                CssNodeKind::AtRule {
+                    name,
+                    block: Some(block),
+                    ..
+                } if !in_rule && name == "utility" => {
                     self.visit(&block.children, &[LeanString::new()], true);
                 }
                 CssNodeKind::AtRule {

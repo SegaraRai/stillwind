@@ -259,47 +259,51 @@ export class PluginRuntime {
   }
 
   /**
-   * Evaluates Tailwind handlers with the complete CSS theme, then resolves the candidates that
-   * the graph's CSS applies with `@apply` and `@variant`.
+   * Evaluates Tailwind handlers with the complete CSS theme, then resolves the candidates of
+   * dynamic families that the graph's CSS applies with `@apply` and `@variant`.
    *
    * Tailwind handlers run after the first load because their `theme()` calls read the complete
-   * CSS theme. Their output then needs one more load of the recorded graph, and a second one when
-   * the graph's CSS uses dynamic candidates. Canonical queries prepare spelling indexes on demand.
+   * CSS theme. Their output then needs one more load of the recorded graph. Dynamic candidates in
+   * the graph's CSS need one more load when a plugin defines any of them, with or without
+   * Tailwind. Canonical queries prepare spelling indexes on demand.
    *
    * Each later load requests the Tailwind settings after the root stylesheet, as
    * {@link TailwindRuntime.settingsCss} describes.
    *
    * @param loader - Loader of the completed original load. With Tailwind plugins or settings, it
    * can skip its canonical spelling index, as {@link PluginRuntime.tailwind} allows.
-   * @returns `loader` without Tailwind plugins and settings, and otherwise a loader with their CSS.
-   * @throws If the Tailwind configuration is rejected or invalid, a handler or a callback fails,
-   * or the native loader rejects the generated CSS.
+   * @returns `loader` when no plugin adds CSS, and otherwise a loader with the added CSS.
+   * @throws If the Tailwind configuration is rejected or invalid, a plugin, a handler, or a
+   * callback fails, or the native loader rejects the generated CSS.
    */
   async initialize(loader: NativeDesignSystemLoader): Promise<NativeDesignSystemLoader> {
     this.#loader = loader;
     const instances = this.#orderedInstances().filter((instance) => instance.tailwind);
     const project = await this.#projectConfig();
-    if (!instances.length && !project) {
+    let current = loader;
+    if (instances.length || project) {
+      this.#tailwindInstances = instances;
+      const { TailwindRuntime } = await import("./tailwind/plugin.ts");
+      const editor = loader.editorQuery();
+      this.#tailwind = new TailwindRuntime(
+        instances.map((instance) => instance.tailwind!),
+        editor.themeTokens(),
+        editor.legacyThemeKeys(),
+        project,
+      );
+      if (this.previous) {
+        await this.resolve(this.previous.#requested);
+      }
+      this.#updateTailwindCss();
+      current = this.replay(undefined, true);
+    }
+    if (!this.dynamic) {
       this.#snapshot = {
         generation: this.#generation,
-        loader,
+        loader: current,
       };
-      return loader;
+      return current;
     }
-    this.#tailwindInstances = instances;
-    const { TailwindRuntime } = await import("./tailwind/plugin.ts");
-    const editor = loader.editorQuery();
-    this.#tailwind = new TailwindRuntime(
-      instances.map((instance) => instance.tailwind!),
-      editor.themeTokens(),
-      editor.legacyThemeKeys(),
-      project,
-    );
-    if (this.previous) {
-      await this.resolve(this.previous.#requested);
-    }
-    this.#updateTailwindCss();
-    let current = this.replay(undefined, true);
     // Only `@apply` and `@variant` uses count. A scan of the whole text would also report the
     // names in definition headers and registry metadata, such as `@stillwind-utility duration-*`,
     // so every graph that imports Stillwind would load once more.

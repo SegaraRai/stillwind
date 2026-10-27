@@ -300,6 +300,26 @@ test("sessions keep added definitions, and reloads resolve the earlier candidate
   ]);
 });
 
+test("utilities of the stylesheet apply dynamic utilities that no module uses", async () => {
+  const { plugin, calls } = demoPlugin();
+  const loaded = await load(
+    plugin,
+    '@plugin "demo";\n@utility brand { @apply demo-teal; &:hover { @apply demo-[navy]; } }',
+  );
+  expect(calls).toStrictEqual([["demo-navy", "demo-teal"]]);
+  const session = new NativeProjectSession(loaded.loader, false);
+  attachPlugins(session, loaded.plugins);
+
+  const css = await compile(
+    session,
+    `import { style } from "stillwind/react";
+export const props = style("brand");`,
+  );
+
+  expect(css).toContain("color: teal");
+  expect(css).toContain("color: navy");
+});
+
 test("a candidate that a plugin leaves undefined is requested once", async () => {
   const { plugin, calls } = demoPlugin();
   const loaded = await load(plugin);
