@@ -388,8 +388,8 @@ fn rejects_named_capture(body: &str, capture: &str, query: &QueryContext) -> boo
                     match argument {
                         "--fraction()" => !capture.contains('/'),
                         "--stillwind-builtin-width()" | "--stillwind-builtin-height()" => ![
-                            "auto", "full", "screen", "svw", "lvw", "dvw", "svh", "lvh", "dvh",
-                            "min", "max", "fit", "lh",
+                            "full", "screen", "svw", "lvw", "dvw", "svh", "lvh", "dvh", "min",
+                            "max", "fit", "lh",
                         ]
                         .contains(&capture),
                         argument if argument.starts_with("--") => false,

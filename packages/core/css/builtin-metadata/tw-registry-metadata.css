@@ -40,7 +40,8 @@ arguments name keys with fixed values.
 
 /*
 Narrower namespaces whose tokens a `--value()` pattern of the wider namespace skips,
-as in Tailwind.
+as in Tailwind. Tailwind does not skip `--perspective-origin-*` in `--perspective-*`,
+so its `perspective-origin-<key>` writes the origin token to `perspective`.
 */
 
 @stillwind-theme-exclude --font-* --font-weight-* --font-size-*;
@@ -48,3 +49,4 @@ as in Tailwind.
 @stillwind-theme-exclude --text-* --text-color-* --text-decoration-color-* --text-decoration-thickness-* --text-indent-* --text-shadow-* --text-underline-offset-*;
 @stillwind-theme-exclude --grid-column-* --grid-column-start-* --grid-column-end-*;
 @stillwind-theme-exclude --grid-row-* --grid-row-start-* --grid-row-end-*;
+@stillwind-theme-exclude --perspective-* --perspective-origin-*;

@@ -23,9 +23,10 @@ pub(super) struct TokenLookup {
 
 impl TokenLookup {
     /// Applies `tokens` in authored order. A definition replaces an earlier definition
-    /// of the same name unless the earlier one has higher precedence. `--*: initial`
-    /// and `--namespace-*: initial` remove the earlier definitions of the same or lower
-    /// precedence and the same role. Replacements select the winning value's role.
+    /// of the same name unless the earlier one has higher precedence. `--*: initial`,
+    /// `--namespace-*: initial`, and `--name: initial` remove the earlier definitions
+    /// of the same or lower precedence and the same role, as in Tailwind. Replacements
+    /// select the winning value's role.
     ///
     /// `namespaces` classifies each active token: a namespace's bare name is its scale,
     /// and a longer name is a named token of the longest matching namespace.
@@ -53,6 +54,18 @@ impl TokenLookup {
                         || tokens[*previous].role != token.role
                         || tokens[*previous].precedence > token.precedence
                 });
+                continue;
+            }
+            if token.value.value == "initial" {
+                if values
+                    .get(&token.name.value)
+                    .is_some_and(|previous: &usize| {
+                        tokens[*previous].role == token.role
+                            && tokens[*previous].precedence <= token.precedence
+                    })
+                {
+                    values.remove(&token.name.value);
+                }
                 continue;
             }
             if clear_all || token.name.value.starts_with("--") {

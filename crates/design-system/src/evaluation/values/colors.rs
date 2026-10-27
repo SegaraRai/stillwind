@@ -12,7 +12,7 @@ use stillwind_css::{
 use super::super::context::EvaluationContext;
 use super::super::stillwind::COMPAT_COLOR_MODERN_SPACE;
 use super::domains::resolve_value_domains;
-use super::theme::theme_value_literal;
+use super::theme::{bare_token_literal, theme_value_literal};
 use crate::ThemeIndex;
 
 /// Resolves a color and an alpha, optionally followed by another alpha, to oklab mixing.
@@ -220,10 +220,11 @@ fn contains_current_color(value: &str) -> bool {
 /// `var(--shadow-*)` reference; this intentionally reads the authored token to
 /// construct a CSS Color 5 relative color function.
 ///
-/// The first argument names the theme namespace whose token value is read, the second
-/// names the color property that will hold the result, and the optional third is an
-/// alpha override. The property name must be a custom property, because the generated
-/// function replaces that property inside the shadow.
+/// The first argument names the theme namespace whose token value is read, such as
+/// `--shadow-*`, or the bare token that a utility without a capture reads, such as
+/// `--shadow`. The second argument names the color property that will hold the result,
+/// and the optional third is an alpha override. The property name must be a custom
+/// property, because the generated function replaces that property inside the shadow.
 pub(in crate::evaluation) fn resolve_shadow_color(
     arguments: &str,
     capture: Option<&str>,
@@ -243,12 +244,14 @@ pub(in crate::evaluation) fn resolve_shadow_color(
         }
         value
     } else {
-        let namespace = domain
-            .trim()
-            .strip_prefix("--")
-            .and_then(|domain| domain.strip_suffix("-*"))
-            .and_then(|name| theme.namespaces().get(name))?;
-        theme_value_literal(namespace, capture?, theme)?
+        let pattern = domain.trim().strip_prefix("--")?;
+        match (pattern.strip_suffix("-*"), capture) {
+            (Some(name), Some(capture)) => {
+                theme_value_literal(theme.namespaces().get(name)?, capture, theme)?
+            }
+            (None, None) => bare_token_literal(pattern, theme)?,
+            _ => return None,
+        }
     };
     let color_property = color_property.trim();
     color_property.strip_prefix("--").filter(|name| {

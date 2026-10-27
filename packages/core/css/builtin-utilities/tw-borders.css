@@ -16,6 +16,10 @@
   border-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded {
+  border-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-start-radius;
 
 @stillwind-utility rounded-s-full {
@@ -33,6 +37,11 @@
   border-end-start-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-s {
+  border-start-start-radius: --value(--radius);
+  border-end-start-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-start-start-radius;
 
 @stillwind-utility rounded-ss-full {
@@ -45,6 +54,10 @@
 
 @stillwind-utility rounded-ss-* {
   border-start-start-radius: --value(--radius-*);
+}
+
+@stillwind-utility rounded-ss {
+  border-start-start-radius: --value(--radius);
 }
 
 @stillwind-arbitrary-property border-end-radius;
@@ -64,6 +77,11 @@
   border-end-end-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-e {
+  border-start-end-radius: --value(--radius);
+  border-end-end-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-start-end-radius;
 
 @stillwind-utility rounded-se-full {
@@ -76,6 +94,10 @@
 
 @stillwind-utility rounded-se-* {
   border-start-end-radius: --value(--radius-*);
+}
+
+@stillwind-utility rounded-se {
+  border-start-end-radius: --value(--radius);
 }
 
 @stillwind-arbitrary-property border-end-end-radius;
@@ -92,6 +114,10 @@
   border-end-end-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-ee {
+  border-end-end-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-end-start-radius;
 
 @stillwind-utility rounded-es-full {
@@ -104,6 +130,10 @@
 
 @stillwind-utility rounded-es-* {
   border-end-start-radius: --value(--radius-*);
+}
+
+@stillwind-utility rounded-es {
+  border-end-start-radius: --value(--radius);
 }
 
 @stillwind-arbitrary-property border-top-radius;
@@ -123,6 +153,11 @@
   border-top-right-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-t {
+  border-top-left-radius: --value(--radius);
+  border-top-right-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-left-radius;
 
 @stillwind-utility rounded-l-full {
@@ -140,6 +175,11 @@
   border-bottom-left-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-l {
+  border-top-left-radius: --value(--radius);
+  border-bottom-left-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-top-left-radius;
 
 @stillwind-utility rounded-tl-full {
@@ -152,6 +192,10 @@
 
 @stillwind-utility rounded-tl-* {
   border-top-left-radius: --value(--radius-*);
+}
+
+@stillwind-utility rounded-tl {
+  border-top-left-radius: --value(--radius);
 }
 
 @stillwind-arbitrary-property border-right-radius;
@@ -171,6 +215,11 @@
   border-bottom-right-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-r {
+  border-top-right-radius: --value(--radius);
+  border-bottom-right-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-top-right-radius;
 
 @stillwind-utility rounded-tr-full {
@@ -183,6 +232,10 @@
 
 @stillwind-utility rounded-tr-* {
   border-top-right-radius: --value(--radius-*);
+}
+
+@stillwind-utility rounded-tr {
+  border-top-right-radius: --value(--radius);
 }
 
 @stillwind-arbitrary-property border-bottom-radius;
@@ -202,6 +255,11 @@
   border-bottom-left-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-b {
+  border-bottom-right-radius: --value(--radius);
+  border-bottom-left-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-bottom-right-radius;
 
 @stillwind-utility rounded-br-full {
@@ -216,6 +274,10 @@
   border-bottom-right-radius: --value(--radius-*);
 }
 
+@stillwind-utility rounded-br {
+  border-bottom-right-radius: --value(--radius);
+}
+
 @stillwind-arbitrary-property border-bottom-left-radius;
 
 @stillwind-utility rounded-bl-full {
@@ -228,6 +290,10 @@
 
 @stillwind-utility rounded-bl-* {
   border-bottom-left-radius: --value(--radius-*);
+}
+
+@stillwind-utility rounded-bl {
+  border-bottom-left-radius: --value(--radius);
 }
 
 /* MARK: `border` */
@@ -649,6 +715,19 @@
   :where(& > :not(:last-child)) {
     --tw-divide-x-reverse: 0;
     border-inline-style: var(--tw-border-style);
+    border-inline-start-width: calc(
+      --value(--divide-width-*, --border-width-*) * var(--tw-divide-x-reverse)
+    );
+    border-inline-end-width: calc(
+      --value(--divide-width-*, --border-width-*) * calc(1 - var(--tw-divide-x-reverse))
+    );
+  }
+}
+
+@stillwind-utility divide-x-* (tw-sort: divide-x-width) {
+  :where(& > :not(:last-child)) {
+    --tw-divide-x-reverse: 0;
+    border-inline-style: var(--tw-border-style);
     border-inline-start-width: calc(--value(integer) * 1px * var(--tw-divide-x-reverse));
     border-inline-end-width: calc(--value(integer) * 1px * calc(1 - var(--tw-divide-x-reverse)));
   }
@@ -688,6 +767,20 @@
   :where(& > :not(:last-child)) {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: --value([line-width]);
+  }
+}
+
+@stillwind-utility divide-y-* (tw-sort: divide-y-width) {
+  :where(& > :not(:last-child)) {
+    --tw-divide-y-reverse: 0;
+    border-bottom-style: var(--tw-border-style);
+    border-top-style: var(--tw-border-style);
+    border-top-width: calc(
+      --value(--divide-width-*, --border-width-*) * var(--tw-divide-y-reverse)
+    );
+    border-bottom-width: calc(
+      --value(--divide-width-*, --border-width-*) * calc(1 - var(--tw-divide-y-reverse))
+    );
   }
 }
 

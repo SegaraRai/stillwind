@@ -355,6 +355,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-height(),
     [length]
   );
@@ -389,6 +390,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-height(),
     [length]
   );
@@ -410,6 +412,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-width(),
     [length]
   );
@@ -425,6 +428,7 @@
 
 @stillwind-utility max-w-* {
   max-width: --value(
+    --max-width-*,
     --spacing-*,
     --spacing(),
     --container-*,
@@ -444,6 +448,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-width(),
     [length]
   );
@@ -531,6 +536,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-height(),
     [length]
   );
@@ -544,6 +550,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-width(),
     [length]
   );
@@ -591,6 +598,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-height(),
     [length]
   );
@@ -604,6 +612,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-width(),
     [length]
   );

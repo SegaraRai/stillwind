@@ -167,6 +167,11 @@ an asset while keeping its role, declare the replacement in another `@theme asse
 block. Namespace resets affect only their block's role: `@theme { --*: initial; }`
 keeps assets, and `@theme asset { --*: initial; }` keeps design tokens.
 
+`--name: initial` removes one definition, as in Tailwind: `@theme { --radius-sm: initial; }`
+removes `--radius-sm`, so `rounded-sm` no longer resolves. Like a namespace reset, it
+affects only its block's role, and an `@theme default` reset keeps an ordinary
+definition.
+
 Ordinary assets are selected through `var()` references and transitive dependencies.
 They use the same output positions as theme variables, including the `theme` slot.
 Each independently rendered stylesheet selects its own dependencies. Variants and
@@ -639,9 +644,17 @@ canonical replacements. A later namespace declaration replaces its types and sca
 `@stillwind-theme-exclude --font-* --font-weight-*;` excludes a narrower namespace
 from the wider namespace's `--value()` patterns.
 
+A utility without a capture reads the bare token of a namespace. With
+`@utility rounded { border-radius: --value(--radius); }`, `rounded` uses `--radius`, and
+it does not resolve when `--radius` is not defined. `--value(--backdrop-blur, --blur)`
+tries the tokens in order. `--stillwind-builtin-shadow-color(--shadow, …)` reads the
+bare `--shadow` token in the same way.
+
 The `integer`, `number`, and `percentage` domains accept an inclusive range after the
 name. `--value(percentage [50,200])` accepts `font-stretch-150%` and rejects
-`font-stretch-300%`. The range limits the number without its `%`.
+`font-stretch-300%`. The range limits the number without its `%`, and `∞` leaves a side
+open, as in `integer [1,∞]`. Bare numbers use decimal digits with an optional `-` and
+fraction, so `inf`, `+1`, and `1e3` do not match.
 
 `@stillwind-legacy-utility old new;` names a legacy utility that canonical lint rewrites
 to its current name. A trailing `*` in both names keeps the rest of the name, so

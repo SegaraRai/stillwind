@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
 import { parseMarkdownFixtureCases } from "@stillwind-internal/tools-tailwind/markdown-fixtures";
 
+import { generatesInvalidCss } from "./invalid-upstream.ts";
 import { compileFixtureSource } from "./native-input.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
@@ -102,8 +103,11 @@ for (const file of readdirSync(caseRoot)
           "src/NumericDomainAudit.tsx",
           stillwindFixtureCss(fixtureCase.input),
         ) as { classes: unknown[]; diagnostics: unknown[] };
-        if (result.classes.length === 0 || result.diagnostics.length !== 0) {
-          failures.push(`${file}: ${original} -> ${candidate}`);
+        const rejected = result.classes.length === 0 || result.diagnostics.length !== 0;
+        if (rejected !== generatesInvalidCss(candidate)) {
+          failures.push(
+            `${file}: ${original} -> ${candidate}${rejected ? "" : " (invalid upstream CSS)"}`,
+          );
         }
       }
     }

@@ -481,7 +481,7 @@
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: --value(integer);
+  -webkit-line-clamp: --value(--line-clamp-*, integer [1, ∞]);
 }
 
 /* MARK: `display` */
@@ -845,7 +845,7 @@
 }
 
 @stillwind-utility object-* {
-  object-position: --value([position]);
+  object-position: --value(--object-position-*, [position]);
 }
 
 /* MARK: `will-change` */
@@ -932,6 +932,6 @@
 }
 
 @stillwind-utility content-* {
-  --tw-content: --value([content]);
+  --tw-content: --value(--content-*, [content]);
   content: var(--tw-content);
 }

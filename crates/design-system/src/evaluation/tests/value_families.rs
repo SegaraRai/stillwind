@@ -274,3 +274,266 @@ fn matches_tailwind_unbracketed_value_grammar_catalog() {
         }
     }
 }
+
+/// A theme that defines one token in each namespace that a Tailwind utility reads.
+fn theme_with_utility_namespaces() -> ThemeIndex {
+    parse_fixture_theme(
+        &SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@theme {
+              --order-x: 3; --grid-column-x: 1 / 3; --grid-column-start-x: 2;
+              --grid-column-end-x: 3; --grid-row-x: 1 / 3; --grid-row-start-x: 2;
+              --grid-row-end-x: 3; --grid-template-columns-x: repeat(2, 1fr);
+              --grid-template-rows-x: repeat(2, 1fr); --grid-auto-columns-x: 10rem;
+              --grid-auto-rows-x: 10rem; --scale-big: 150%; --rotate-big: 45deg;
+              --skew-big: 6deg; --transform-origin-corner: top left;
+              --perspective-deep: 900px; --perspective-origin-corner: top left;
+              --brightness-big: 150%; --contrast-big: 150%; --backdrop-brightness-big: 120%;
+              --hue-rotate-big: 30deg; --opacity-half: 50%;
+              --transition-property-fancy: opacity; --transition-delay-slow: 300ms;
+              --transition-duration-slow: 300ms; --cursor-fancy: pointer;
+              --content-mark: '*'; --line-clamp-few: 3; --list-style-type-fancy: square;
+              --list-style-image-dot: url(dot.png); --object-position-corner: top left;
+              --divide-width-thick: 3px; --border-width-thin: 2px;
+            }",
+        )
+        .unwrap(),
+    )
+    .unwrap()
+}
+
+/// Returns the declarations of `resolved`, including those of its nested rules.
+fn all_declarations(resolved: &ResolvedUtility) -> String {
+    std::iter::once(resolved.declaration.as_str())
+        .chain(resolved.nested.iter().map(|rule| rule.declaration.as_str()))
+        .collect::<String>()
+        .replace(' ', "")
+}
+
+#[test]
+fn functional_utilities_read_the_theme_namespaces_that_tailwind_reads() {
+    let theme = theme_with_utility_namespaces();
+    for (candidate, token) in [
+        ("order-x", "--order-x"),
+        ("-order-x", "--order-x"),
+        ("col-x", "--grid-column-x"),
+        ("-col-start-x", "--grid-column-start-x"),
+        ("col-end-x", "--grid-column-end-x"),
+        ("row-x", "--grid-row-x"),
+        ("row-start-x", "--grid-row-start-x"),
+        ("-row-end-x", "--grid-row-end-x"),
+        ("grid-cols-x", "--grid-template-columns-x"),
+        ("grid-rows-x", "--grid-template-rows-x"),
+        ("auto-cols-x", "--grid-auto-columns-x"),
+        ("auto-rows-x", "--grid-auto-rows-x"),
+        ("scale-big", "--scale-big"),
+        ("-scale-x-big", "--scale-big"),
+        ("scale-z-big", "--scale-big"),
+        ("rotate-big", "--rotate-big"),
+        ("-rotate-y-big", "--rotate-big"),
+        ("skew-big", "--skew-big"),
+        ("-skew-x-big", "--skew-big"),
+        ("origin-corner", "--transform-origin-corner"),
+        ("perspective-deep", "--perspective-deep"),
+        ("perspective-origin-corner", "--perspective-origin-corner"),
+        ("brightness-big", "--brightness-big"),
+        ("backdrop-brightness-big", "--backdrop-brightness-big"),
+        ("backdrop-contrast-big", "--contrast-big"),
+        ("hue-rotate-big", "--hue-rotate-big"),
+        ("-hue-rotate-big", "--hue-rotate-big"),
+        ("-backdrop-hue-rotate-big", "--hue-rotate-big"),
+        ("opacity-half", "--opacity-half"),
+        ("backdrop-opacity-half", "--opacity-half"),
+        ("transition-fancy", "--transition-property-fancy"),
+        ("delay-slow", "--transition-delay-slow"),
+        ("duration-slow", "--transition-duration-slow"),
+        ("cursor-fancy", "--cursor-fancy"),
+        ("content-mark", "--content-mark"),
+        ("line-clamp-few", "--line-clamp-few"),
+        ("list-fancy", "--list-style-type-fancy"),
+        ("list-image-dot", "--list-style-image-dot"),
+        ("object-corner", "--object-position-corner"),
+        ("divide-x-thick", "--divide-width-thick"),
+        ("divide-y-thin", "--border-width-thin"),
+    ] {
+        let resolved = resolve_utility(candidate, &theme)
+            .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+        assert!(
+            all_declarations(&resolved).contains(&format!("var({token})")),
+            "`{candidate}` must read {token}: {}",
+            all_declarations(&resolved)
+        );
+    }
+}
+
+#[test]
+fn accepts_tailwind_bare_and_negative_values() {
+    let theme = theme();
+    for (candidate, declaration) in [
+        ("-col-3", "grid-column:calc(3*-1);"),
+        ("-row-2", "grid-row:calc(2*-1);"),
+        ("auto-cols-3", "grid-auto-columns:calc(var(--spacing)*3);"),
+        ("opacity-1.5", "opacity:calc(1.5*1%);"),
+        ("flex-grow-2", "flex-grow:2;"),
+        ("flex-shrink-0", "flex-shrink:0;"),
+        ("max-w-prose", "max-width:65ch;"),
+        ("w-auto", "width:auto;"),
+        ("min-h-auto", "min-height:auto;"),
+    ] {
+        let resolved = resolve_utility(candidate, &theme)
+            .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+        assert!(
+            all_declarations(&resolved).contains(declaration),
+            "`{candidate}` must declare {declaration}: {}",
+            all_declarations(&resolved)
+        );
+    }
+    let resolved = resolve_utility("-hue-rotate-30", &theme).unwrap();
+    assert!(all_declarations(&resolved).contains("hue-rotate(calc(30*1deg*-1))"));
+}
+
+#[test]
+fn rejects_values_that_produce_invalid_css() {
+    let theme = theme();
+    for candidate in [
+        // `<grid-line>` and `span` do not accept 0.
+        "col-0",
+        "-col-0",
+        "row-start-0",
+        "-col-end-0",
+        "col-span-0",
+        "row-span-0",
+        // `-webkit-line-clamp` and `repeat()` require a positive count.
+        "line-clamp-0",
+        "grid-cols-0",
+        "grid-rows-0",
+        // `max-*` sizes accept `none`, not `auto`.
+        "max-w-auto",
+        "max-h-auto",
+        "max-inline-auto",
+        "max-block-auto",
+        // `scroll-margin` does not accept percentages.
+        "scroll-m-1/2",
+        "-scroll-mt-1/3",
+        // Conic gradient stops accept angles and percentages, not lengths.
+        "mask-conic-from-4",
+        "mask-conic-to-px",
+        "mask-conic-from-0",
+        // Bare numbers are written in decimal digits.
+        "grow-inf",
+        "opacity-NaN",
+        "z-1e3",
+    ] {
+        assert!(
+            resolve_utility(candidate, &theme).is_none(),
+            "`{candidate}` must not resolve"
+        );
+    }
+    let theme = theme_with_utility_namespaces();
+    let resolved = resolve_utility("perspective-origin-corner", &theme).unwrap();
+    assert!(all_declarations(&resolved).starts_with("perspective-origin:"));
+    for candidate in ["mask-conic-from-50%", "mask-linear-from-4", "indent-1/2"] {
+        assert!(
+            resolve_utility(candidate, &theme).is_some(),
+            "`{candidate}` must resolve"
+        );
+    }
+}
+
+#[test]
+fn utilities_without_a_value_read_bare_theme_tokens() {
+    let theme = theme();
+    for (candidate, declaration) in [
+        ("rounded", "border-radius:0.25rem;"),
+        (
+            "rounded-t",
+            "border-top-left-radius:0.25rem;border-top-right-radius:0.25rem;",
+        ),
+        ("rounded-bl", "border-bottom-left-radius:0.25rem;"),
+        ("blur", "--tw-blur:blur(8px);"),
+        ("backdrop-blur", "--tw-backdrop-blur:blur(8px);"),
+        (
+            "shadow",
+            "--tw-shadow:01px3px0var(--tw-shadow-color,rgb(000/0.1))",
+        ),
+        ("shadow/50", "--tw-shadow-alpha:50%;"),
+        ("drop-shadow", "--tw-drop-shadow-size:drop-shadow("),
+        ("drop-shadow/50", "--tw-drop-shadow-alpha:50%;"),
+    ] {
+        let resolved = resolve_utility(candidate, &theme)
+            .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+        assert!(
+            all_declarations(&resolved).contains(declaration),
+            "`{candidate}` must declare {declaration}: {}",
+            all_declarations(&resolved)
+        );
+    }
+    for candidate in ["text-shadow", "inset-shadow", "rounded/50", "blur/50"] {
+        assert!(
+            resolve_utility(candidate, &theme).is_none(),
+            "`{candidate}` must not resolve"
+        );
+    }
+
+    let reset = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@theme { --radius: initial; --radius-sm: initial; --blur: initial; --shadow: initial; --drop-shadow: initial; }",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    for candidate in [
+        "rounded",
+        "rounded-t",
+        "rounded-sm",
+        "blur",
+        "backdrop-blur",
+        "shadow",
+        "drop-shadow",
+    ] {
+        assert!(
+            resolve_utility(candidate, &reset).is_none(),
+            "`{candidate}` must not resolve without its token"
+        );
+    }
+
+    let custom = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            "@theme { --radius: 1rem; --backdrop-blur: 2px; --text-shadow: 0 1px 2px red; --inset-shadow: inset 0 1px 2px red; }",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    for (candidate, declaration) in [
+        ("rounded", "border-radius:var(--radius);"),
+        (
+            "backdrop-blur",
+            "--tw-backdrop-blur:blur(var(--backdrop-blur));",
+        ),
+        (
+            "text-shadow",
+            "text-shadow:01px2pxvar(--tw-text-shadow-color,red);",
+        ),
+        ("text-shadow/50", "--tw-text-shadow-alpha:50%;"),
+        (
+            "inset-shadow",
+            "--tw-inset-shadow:inset01px2pxvar(--tw-inset-shadow-color,red);",
+        ),
+    ] {
+        let resolved = resolve_utility(candidate, &custom)
+            .unwrap_or_else(|| panic!("expected `{candidate}` to resolve"));
+        assert!(
+            all_declarations(&resolved).contains(declaration),
+            "`{candidate}` must declare {declaration}: {}",
+            all_declarations(&resolved)
+        );
+    }
+}

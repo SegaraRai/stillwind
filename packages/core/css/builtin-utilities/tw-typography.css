@@ -27,7 +27,7 @@
 }
 
 @stillwind-utility list-* {
-  list-style-type: --value([list-style-type]);
+  list-style-type: --value(--list-style-type-*, [list-style-type]);
 }
 
 @stillwind-utility list-image-none {
@@ -35,7 +35,7 @@
 }
 
 @stillwind-utility list-image-* {
-  list-style-image: --value([list-style-image]);
+  list-style-image: --value(--list-style-image-*, [list-style-image]);
 }
 
 /* MARK: Breaks */

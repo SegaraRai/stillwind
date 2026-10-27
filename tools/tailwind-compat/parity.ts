@@ -12,6 +12,7 @@ import {
   parityFixture,
   fixtureThemeKeyframes,
 } from "./comparison.ts";
+import { generatesInvalidCss } from "./invalid-upstream.ts";
 import { verifyPropertyOrderParity } from "./property-order-fixtures.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
@@ -312,7 +313,16 @@ for (const file of readdirSync(caseRoot)
         recordDifference(file, candidate, expected, "", "native-exception");
         continue;
       }
-      if (native.diagnostics.length !== 0 || native.classes.length === 0) {
+      const rejected = native.diagnostics.length !== 0 || native.classes.length === 0;
+      if (generatesInvalidCss(candidate)) {
+        if (rejected) {
+          skipped += 1;
+        } else {
+          failures.push(`${file} ${candidate}: accepted CSS that Tailwind generates as invalid`);
+        }
+        continue;
+      }
+      if (rejected) {
         const received = minify(native.css);
         // A rejected/empty candidate must not hide extra generated CSS. A fixture
         // with no style call still compares its authored @apply output directly.
@@ -360,7 +370,7 @@ for (const file of readdirSync(caseRoot)
 }
 
 console.log(
-  `Tailwind minified parity: ${checked - failures.length}/${checked} passed (${skipped} excluded by scope)`,
+  `Tailwind minified parity: ${checked - failures.length}/${checked} passed (${skipped} excluded by scope or invalid upstream CSS)`,
 );
 if (analyze) {
   printCounter("Difference categories", categories);

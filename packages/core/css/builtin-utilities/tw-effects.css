@@ -9,7 +9,11 @@
 }
 
 @stillwind-utility opacity-* {
-  opacity: calc(--value(integer) * 1%);
+  opacity: --value(--opacity-*);
+}
+
+@stillwind-utility opacity-* {
+  opacity: calc(--value(number [0, ∞]) * 1%);
 }
 
 /* MARK: `mix-blend-mode` */
@@ -117,6 +121,13 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
+@stillwind-utility shadow {
+  --tw-shadow: --stillwind-builtin-shadow-color(--shadow, --tw-shadow-color);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
 /*
 An untyped variable selects the earliest registered branch that accepts it. Keep this
 branch before the shadow color branches so `shadow-(--x)` sets the shadow, as in
@@ -136,6 +147,14 @@ Tailwind.
     --tw-shadow-color,
     --alpha(--modifier())
   );
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+@stillwind-utility shadow {
+  --tw-shadow-alpha: --alpha(--modifier());
+  --tw-shadow: --stillwind-builtin-shadow-color(--shadow, --tw-shadow-color, --alpha(--modifier()));
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
@@ -291,6 +310,13 @@ width branch after the ring color branches so `ring-(--x)` sets the color, as in
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
+@stillwind-utility inset-shadow {
+  --tw-inset-shadow: --stillwind-builtin-shadow-color(--inset-shadow, --tw-inset-shadow-color);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
 /*
 Theme inset shadows already contain `inset`, while arbitrary shadows receive it here.
 Keep this branch before the inset shadow color branches so `inset-shadow-(--x)` sets the
@@ -312,6 +338,18 @@ CSS Color 5 relative-color operation.
   --tw-inset-shadow-alpha: --alpha(--modifier());
   --tw-inset-shadow: --stillwind-builtin-shadow-color(
     --inset-shadow-*,
+    --tw-inset-shadow-color,
+    --alpha(--modifier())
+  );
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
+}
+
+@stillwind-utility inset-shadow {
+  --tw-inset-shadow-alpha: --alpha(--modifier());
+  --tw-inset-shadow: --stillwind-builtin-shadow-color(
+    --inset-shadow,
     --tw-inset-shadow-color,
     --alpha(--modifier())
   );
@@ -383,8 +421,22 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
+@stillwind-utility blur {
+  --tw-blur: blur(--value(--blur));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
 @stillwind-utility brightness-* {
   --tw-brightness: brightness(--value([number-percentage]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility brightness-* {
+  --tw-brightness: brightness(--value(--brightness-*));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);
@@ -399,6 +451,13 @@ CSS Color 5 relative-color operation.
 
 @stillwind-utility contrast-* {
   --tw-contrast: contrast(--value([number-percentage]));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility contrast-* {
+  --tw-contrast: contrast(--value(--contrast-*));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);
@@ -430,6 +489,16 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
+@stillwind-utility drop-shadow {
+  --tw-drop-shadow-size: drop-shadow(
+    --stillwind-builtin-shadow-color(--drop-shadow, --tw-drop-shadow-color)
+  );
+  --tw-drop-shadow: drop-shadow(--value(--drop-shadow));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
 @stillwind-utility drop-shadow-* {
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color([shadow], --tw-drop-shadow-color)
@@ -444,6 +513,17 @@ CSS Color 5 relative-color operation.
   --tw-drop-shadow-alpha: --alpha(--modifier());
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color(--drop-shadow-*, --tw-drop-shadow-color, --alpha(--modifier()))
+  );
+  --tw-drop-shadow: var(--tw-drop-shadow-size);
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility drop-shadow {
+  --tw-drop-shadow-alpha: --alpha(--modifier());
+  --tw-drop-shadow-size: drop-shadow(
+    --stillwind-builtin-shadow-color(--drop-shadow, --tw-drop-shadow-color, --alpha(--modifier()))
   );
   --tw-drop-shadow: var(--tw-drop-shadow-size);
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
@@ -504,6 +584,13 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility grayscale-* {
+  --tw-grayscale: grayscale(--value(--grayscale-*));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility grayscale-* {
   --tw-grayscale: grayscale(calc(--value(integer) * 1%));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
@@ -518,7 +605,28 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility hue-rotate-* {
+  --tw-hue-rotate: hue-rotate(--value(--hue-rotate-*));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility hue-rotate-* {
   --tw-hue-rotate: hue-rotate(calc(--value(integer) * 1deg));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility -hue-rotate-* {
+  --tw-hue-rotate: hue-rotate(calc(--value(--hue-rotate-*) * -1));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility -hue-rotate-* {
+  --tw-hue-rotate: hue-rotate(calc(--value(integer) * 1deg * -1));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);
@@ -539,7 +647,21 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility invert-* {
+  --tw-invert: invert(--value(--invert-*));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility invert-* {
   --tw-invert: invert(calc(--value(integer) * 1%));
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility saturate-* {
+  --tw-saturate: saturate(--value(--saturate-*));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);
@@ -561,6 +683,13 @@ CSS Color 5 relative-color operation.
 
 @stillwind-utility sepia {
   --tw-sepia: sepia(100%);
+  filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
+    var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
+    var(--tw-drop-shadow,);
+}
+
+@stillwind-utility sepia-* {
+  --tw-sepia: sepia(--value(--sepia-*));
   filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,)
     var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,)
     var(--tw-drop-shadow,);
@@ -616,7 +745,19 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility backdrop-blur-* {
-  --tw-backdrop-blur: blur(--value(--blur-*));
+  --tw-backdrop-blur: blur(--value(--backdrop-blur-*, --blur-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-blur {
+  --tw-backdrop-blur: blur(--value(--backdrop-blur, --blur));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
@@ -631,6 +772,18 @@ CSS Color 5 relative-color operation.
 
 @stillwind-utility backdrop-brightness-* {
   --tw-backdrop-brightness: brightness(--value([number-percentage]));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-brightness-* {
+  --tw-backdrop-brightness: brightness(--value(--backdrop-brightness-*, --brightness-*));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
@@ -657,6 +810,18 @@ CSS Color 5 relative-color operation.
 
 @stillwind-utility backdrop-contrast-* {
   --tw-backdrop-contrast: contrast(--value([number-percentage]));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-contrast-* {
+  --tw-backdrop-contrast: contrast(--value(--backdrop-contrast-*, --contrast-*));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
@@ -706,6 +871,18 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility backdrop-grayscale-* {
+  --tw-backdrop-grayscale: grayscale(--value(--backdrop-grayscale-*, --grayscale-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-grayscale-* {
   --tw-backdrop-grayscale: grayscale(calc(--value(integer) * 1%));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
@@ -732,7 +909,43 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility backdrop-hue-rotate-* {
+  --tw-backdrop-hue-rotate: hue-rotate(--value(--backdrop-hue-rotate-*, --hue-rotate-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-hue-rotate-* {
   --tw-backdrop-hue-rotate: hue-rotate(calc(--value(integer) * 1deg));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility -backdrop-hue-rotate-* {
+  --tw-backdrop-hue-rotate: hue-rotate(calc(--value(--backdrop-hue-rotate-*, --hue-rotate-*) * -1));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility -backdrop-hue-rotate-* {
+  --tw-backdrop-hue-rotate: hue-rotate(calc(--value(integer) * 1deg * -1));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
@@ -770,6 +983,18 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility backdrop-invert-* {
+  --tw-backdrop-invert: invert(--value(--backdrop-invert-*, --invert-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-invert-* {
   --tw-backdrop-invert: invert(calc(--value(integer) * 1%));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
@@ -796,7 +1021,19 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility backdrop-opacity-* {
-  --tw-backdrop-opacity: opacity(calc(--value(integer) * 1%));
+  --tw-backdrop-opacity: opacity(--value(--backdrop-opacity-*, --opacity-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-opacity-* {
+  --tw-backdrop-opacity: opacity(calc(--value(number [0, ∞]) * 1%));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
@@ -811,6 +1048,18 @@ CSS Color 5 relative-color operation.
 
 @stillwind-utility backdrop-saturate-* {
   --tw-backdrop-saturate: saturate(--value([number-percentage]));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-saturate-* {
+  --tw-backdrop-saturate: saturate(--value(--backdrop-saturate-*, --saturate-*));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
     var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
@@ -860,6 +1109,18 @@ CSS Color 5 relative-color operation.
 }
 
 @stillwind-utility backdrop-sepia-* {
+  --tw-backdrop-sepia: sepia(--value(--backdrop-sepia-*, --sepia-*));
+  -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+  backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
+    var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
+    var(--tw-backdrop-invert,) var(--tw-backdrop-opacity,) var(--tw-backdrop-saturate,)
+    var(--tw-backdrop-sepia,);
+}
+
+@stillwind-utility backdrop-sepia-* {
   --tw-backdrop-sepia: sepia(calc(--value(integer) * 1%));
   -webkit-backdrop-filter: var(--tw-backdrop-blur,) var(--tw-backdrop-brightness,)
     var(--tw-backdrop-contrast,) var(--tw-backdrop-grayscale,) var(--tw-backdrop-hue-rotate,)
@@ -889,6 +1150,10 @@ CSS Color 5 relative-color operation.
   text-shadow: --stillwind-builtin-shadow-color(--text-shadow-*, --tw-text-shadow-color);
 }
 
+@stillwind-utility text-shadow {
+  text-shadow: --stillwind-builtin-shadow-color(--text-shadow, --tw-text-shadow-color);
+}
+
 @stillwind-utility text-shadow-* {
   text-shadow: --stillwind-builtin-shadow-color([shadow], --tw-text-shadow-color);
 }
@@ -897,6 +1162,15 @@ CSS Color 5 relative-color operation.
   --tw-text-shadow-alpha: --alpha(--modifier());
   text-shadow: --stillwind-builtin-shadow-color(
     --text-shadow-*,
+    --tw-text-shadow-color,
+    --alpha(--modifier())
+  );
+}
+
+@stillwind-utility text-shadow {
+  --tw-text-shadow-alpha: --alpha(--modifier());
+  text-shadow: --stillwind-builtin-shadow-color(
+    --text-shadow,
     --tw-text-shadow-color,
     --alpha(--modifier())
   );

@@ -46,7 +46,11 @@ fn tailwind_resolved_property_sort_matches_upstream() {
         }
         candidates.push((candidate, resolved.order));
     }
-    assert_eq!(unresolved, ["max-w-prose", "shadow"]);
+    // Tailwind generates invalid CSS for these candidates.
+    assert_eq!(
+        unresolved,
+        ["justify-baseline", "mask-conic-from-0", "mask-conic-to-0"]
+    );
     assert!(
         failures.is_empty(),
         "{} mismatches:\n{}",

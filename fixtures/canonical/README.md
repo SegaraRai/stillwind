@@ -9,6 +9,7 @@ The compiler integration test checks the same cases and verifies idempotence.
 `40.json` checks that named variants keep their spelling when variants are stacked.
 `41.json` checks a larger group whose utilities have no shorter equivalent group.
 `42.json` checks that comparisons keep custom property names and their case.
+`43.json` checks that `row-*` and `col-*` accept bare line numbers.
 
 `stillwindExpected` records a specific supported difference without changing Tailwind's
 expectation. Stillwind also matches equivalent color spellings to theme tokens when a

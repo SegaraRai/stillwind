@@ -185,7 +185,7 @@
 }
 
 @stillwind-utility cursor-* {
-  cursor: --value([cursor]);
+  cursor: --value(--cursor-*, [cursor]);
 }
 
 /* MARK: `touch-action` */
@@ -328,111 +328,111 @@
 @stillwind-arbitrary-property scroll-margin;
 
 @stillwind-utility scroll-m-* {
-  scroll-margin: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-m-* {
-  scroll-margin: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-inline;
 
 @stillwind-utility scroll-mx-* {
-  scroll-margin-inline: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-inline: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-mx-* {
-  scroll-margin-inline: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-inline: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-block;
 
 @stillwind-utility scroll-my-* {
-  scroll-margin-block: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-block: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-my-* {
-  scroll-margin-block: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-block: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-inline-start;
 
 @stillwind-utility scroll-ms-* {
-  scroll-margin-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-inline-start: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-ms-* {
-  scroll-margin-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-inline-start: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-inline-end;
 
 @stillwind-utility scroll-me-* {
-  scroll-margin-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-inline-end: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-me-* {
-  scroll-margin-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-inline-end: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-block-start;
 
 @stillwind-utility scroll-mbs-* {
-  scroll-margin-block-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-block-start: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-mbs-* {
-  scroll-margin-block-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-block-start: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-block-end;
 
 @stillwind-utility scroll-mbe-* {
-  scroll-margin-block-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-block-end: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-mbe-* {
-  scroll-margin-block-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-block-end: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-top;
 
 @stillwind-utility scroll-mt-* {
-  scroll-margin-top: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-top: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-mt-* {
-  scroll-margin-top: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-top: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-right;
 
 @stillwind-utility scroll-mr-* {
-  scroll-margin-right: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-right: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-mr-* {
-  scroll-margin-right: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-right: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-bottom;
 
 @stillwind-utility scroll-mb-* {
-  scroll-margin-bottom: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-bottom: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-mb-* {
-  scroll-margin-bottom: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-bottom: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-margin-left;
 
 @stillwind-utility scroll-ml-* {
-  scroll-margin-left: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  scroll-margin-left: --value(--spacing-*, --spacing(), [length]);
 }
 
 @stillwind-utility -scroll-ml-* {
-  scroll-margin-left: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  scroll-margin-left: calc(--value(--spacing-*, --spacing(), [length]) * -1);
 }
 
 @stillwind-arbitrary-property scroll-padding;

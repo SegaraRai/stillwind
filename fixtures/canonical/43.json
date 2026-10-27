@@ -1,0 +1,27 @@
+{
+  "name": "grid placement accepts bare line numbers",
+  "css": "@import 'tailwindcss'; @theme { --*:initial; }",
+  "baseTheme": "",
+  "cases": [
+    {
+      "input": ["[grid-row:2]"],
+      "expected": ["row-2"],
+      "options": {}
+    },
+    {
+      "input": ["[grid-row:1234]"],
+      "expected": ["row-1234"],
+      "options": {}
+    },
+    {
+      "input": ["row-[3]"],
+      "expected": ["row-3"],
+      "options": {}
+    },
+    {
+      "input": ["col-[3]"],
+      "expected": ["col-3"],
+      "options": {}
+    }
+  ]
+}

@@ -41,7 +41,7 @@
 }
 
 @stillwind-utility origin-* {
-  transform-origin: --value([position]);
+  transform-origin: --value(--transform-origin-*, [position]);
 }
 
 /* MARK: `translate` */
@@ -181,6 +181,13 @@
 }
 
 @stillwind-utility scale-* {
+  --tw-scale-x: --value(--scale-*);
+  --tw-scale-y: --value(--scale-*);
+  --tw-scale-z: --value(--scale-*);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@stillwind-utility scale-* {
   --tw-scale-x: calc(--value(integer) * 1%);
   --tw-scale-y: calc(--value(integer) * 1%);
   --tw-scale-z: calc(--value(integer) * 1%);
@@ -189,6 +196,13 @@
 
 @stillwind-utility scale-* {
   scale: --value([number-percentage]);
+}
+
+@stillwind-utility -scale-* {
+  --tw-scale-x: calc(--value(--scale-*) * -1);
+  --tw-scale-y: calc(--value(--scale-*) * -1);
+  --tw-scale-z: calc(--value(--scale-*) * -1);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 
 @stillwind-utility -scale-* {
@@ -201,7 +215,17 @@
 @stillwind-arbitrary-property --tw-scale-x;
 
 @stillwind-utility scale-x-* {
+  --tw-scale-x: --value(--scale-*);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@stillwind-utility scale-x-* {
   --tw-scale-x: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@stillwind-utility -scale-x-* {
+  --tw-scale-x: calc(--value(--scale-*) * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 
@@ -213,7 +237,17 @@
 @stillwind-arbitrary-property --tw-scale-y;
 
 @stillwind-utility scale-y-* {
+  --tw-scale-y: --value(--scale-*);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@stillwind-utility scale-y-* {
   --tw-scale-y: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+
+@stillwind-utility -scale-y-* {
+  --tw-scale-y: calc(--value(--scale-*) * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 
@@ -225,7 +259,17 @@
 @stillwind-arbitrary-property --tw-scale-z;
 
 @stillwind-utility scale-z-* {
+  --tw-scale-z: --value(--scale-*);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+
+@stillwind-utility scale-z-* {
   --tw-scale-z: calc(--value(integer) * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
+}
+
+@stillwind-utility -scale-z-* {
+  --tw-scale-z: calc(--value(--scale-*) * -1);
   scale: var(--tw-scale-x) var(--tw-scale-y) var(--tw-scale-z);
 }
 
@@ -244,7 +288,15 @@
 }
 
 @stillwind-utility rotate-* {
+  rotate: --value(--rotate-*);
+}
+
+@stillwind-utility rotate-* {
   rotate: calc(--value(integer) * 1deg);
+}
+
+@stillwind-utility -rotate-* {
+  rotate: calc(--value(--rotate-*) * -1);
 }
 
 @stillwind-utility -rotate-* {
@@ -262,7 +314,19 @@
 @stillwind-arbitrary-property --tw-rotate-x;
 
 @stillwind-utility rotate-x-* {
+  --tw-rotate-x: rotateX(--value(--rotate-*));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility rotate-x-* {
   --tw-rotate-x: rotateX(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility -rotate-x-* {
+  --tw-rotate-x: rotateX(calc(--value(--rotate-*) * -1));
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
     var(--tw-skew-y,);
 }
@@ -276,7 +340,19 @@
 @stillwind-arbitrary-property --tw-rotate-y;
 
 @stillwind-utility rotate-y-* {
+  --tw-rotate-y: rotateY(--value(--rotate-*));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility rotate-y-* {
   --tw-rotate-y: rotateY(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility -rotate-y-* {
+  --tw-rotate-y: rotateY(calc(--value(--rotate-*) * -1));
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
     var(--tw-skew-y,);
 }
@@ -290,7 +366,19 @@
 @stillwind-arbitrary-property --tw-rotate-z;
 
 @stillwind-utility rotate-z-* {
+  --tw-rotate-z: rotateZ(--value(--rotate-*));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility rotate-z-* {
   --tw-rotate-z: rotateZ(calc(--value(integer) * 1deg));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility -rotate-z-* {
+  --tw-rotate-z: rotateZ(calc(--value(--rotate-*) * -1));
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
     var(--tw-skew-y,);
 }
@@ -313,6 +401,13 @@
 }
 
 @stillwind-utility skew-* {
+  --tw-skew-x: skewX(--value(--skew-*));
+  --tw-skew-y: skewY(--value(--skew-*));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility skew-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg));
   --tw-skew-y: skewY(calc(--value(integer) * 1deg));
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
@@ -321,6 +416,13 @@
 
 @stillwind-utility skew-* {
   transform: skew(--value([skew-arguments]));
+}
+
+@stillwind-utility -skew-* {
+  --tw-skew-x: skewX(calc(--value(--skew-*) * -1));
+  --tw-skew-y: skewY(calc(--value(--skew-*) * -1));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility -skew-* {
@@ -339,6 +441,12 @@
 }
 
 @stillwind-utility skew-x-* {
+  --tw-skew-x: skewX(--value(--skew-*));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility skew-x-* {
   --tw-skew-x: skewX(calc(--value(integer) * 1deg));
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
     var(--tw-skew-y,);
@@ -346,6 +454,12 @@
 
 @stillwind-utility skew-x-* {
   transform: skewX(--value([skew-x-arguments]));
+}
+
+@stillwind-utility -skew-x-* {
+  --tw-skew-x: skewX(calc(--value(--skew-*) * -1));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility -skew-x-* {
@@ -363,6 +477,12 @@
 }
 
 @stillwind-utility skew-y-* {
+  --tw-skew-y: skewY(--value(--skew-*));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
+}
+
+@stillwind-utility skew-y-* {
   --tw-skew-y: skewY(calc(--value(integer) * 1deg));
   transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
     var(--tw-skew-y,);
@@ -370,6 +490,12 @@
 
 @stillwind-utility skew-y-* {
   transform: skewY(--value([skew-y-arguments]));
+}
+
+@stillwind-utility -skew-y-* {
+  --tw-skew-y: skewY(calc(--value(--skew-*) * -1));
+  transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,)
+    var(--tw-skew-y,);
 }
 
 @stillwind-utility -skew-y-* {
@@ -444,7 +570,7 @@
 }
 
 @stillwind-utility perspective-* {
-  perspective: --value([length]);
+  perspective: --value(--perspective-*, [length]);
 }
 
 @stillwind-arbitrary-property perspective-origin;
@@ -486,7 +612,7 @@
 }
 
 @stillwind-utility perspective-origin-* {
-  perspective-origin: --value([position]);
+  perspective-origin: --value(--perspective-origin-*, [position]);
 }
 
 /* MARK: `transform-style` */

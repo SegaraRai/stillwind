@@ -11,6 +11,10 @@ use stillwind_test_support::{CssAssertions as _, assert_css_eq, catalog_section,
 use super::*;
 use crate::test_support::parse_fixture_theme;
 
+/// Upstream static utilities whose declaration is invalid CSS. `justify-content` has no
+/// `baseline` value.
+const INVALID_UPSTREAM_STATIC_UTILITIES: &[&str] = &["justify-baseline"];
+
 #[test]
 fn resolves_every_upstream_static_utility_from_the_css_registry() {
     let catalog =
@@ -20,6 +24,7 @@ fn resolves_every_upstream_static_utility_from_the_css_registry() {
 
     let unresolved = candidates
         .into_iter()
+        .filter(|candidate| !INVALID_UPSTREAM_STATIC_UTILITIES.contains(candidate))
         .filter(|candidate| resolve_utility(candidate, &theme).is_none())
         .collect::<Vec<_>>();
 
@@ -27,6 +32,12 @@ fn resolves_every_upstream_static_utility_from_the_css_registry() {
         unresolved.is_empty(),
         "unresolved static utilities: {unresolved:?}"
     );
+    for candidate in INVALID_UPSTREAM_STATIC_UTILITIES {
+        assert!(
+            resolve_utility(candidate, &theme).is_none(),
+            "{candidate} must not resolve"
+        );
+    }
 }
 
 #[test]

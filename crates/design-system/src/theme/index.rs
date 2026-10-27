@@ -912,6 +912,29 @@ mod tests {
     }
 
     #[test]
+    fn initial_removes_one_token_unless_the_token_has_higher_precedence() {
+        let theme = asset_theme(
+            "@theme default { --radius: 4px; --radius-sm: 2px; }
+             @theme { --radius-lg: 8px; --radius: initial; --radius-sm: initial; }
+             @theme default { --radius-lg: initial; }
+             @theme { --radius-sm: 3px; }",
+        );
+        assert_eq!(theme.token_property("--radius"), None);
+        assert_eq!(
+            theme
+                .token_property("--radius-sm")
+                .map(|token| token.value.value.as_str()),
+            Some("3px")
+        );
+        assert_eq!(
+            theme
+                .token_property("--radius-lg")
+                .map(|token| token.value.value.as_str()),
+            Some("8px")
+        );
+    }
+
+    #[test]
     fn resets_and_redefinitions_select_only_effective_tokens() {
         let theme = ThemeBuilder {
             tokens: extract_theme_declarations(

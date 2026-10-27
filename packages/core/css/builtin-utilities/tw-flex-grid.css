@@ -13,7 +13,7 @@
 }
 
 @stillwind-utility order-* {
-  order: --value(integer, [integer]);
+  order: --value(--order-*, integer, [integer]);
 }
 
 @stillwind-utility order-* {
@@ -21,7 +21,7 @@
 }
 
 @stillwind-utility -order-* {
-  order: calc(--value(integer) * -1);
+  order: calc(--value(--order-*, integer) * -1);
 }
 
 /* MARK: `grid-column` */
@@ -33,7 +33,11 @@
 }
 
 @stillwind-utility col-* {
-  grid-column: --value(integer, [grid-line]);
+  grid-column: --value(--grid-column-*, integer [1, ∞], [grid-line]);
+}
+
+@stillwind-utility -col-* {
+  grid-column: calc(--value(--grid-column-*, integer [1, ∞]) * -1);
 }
 
 @stillwind-utility col-span-full {
@@ -45,7 +49,7 @@
 }
 
 @stillwind-utility col-span-* {
-  grid-column: span --value(integer) / span --value(integer);
+  grid-column: span --value(integer [1, ∞]) / span --value(integer [1, ∞]);
 }
 
 @stillwind-arbitrary-property grid-column-start;
@@ -55,7 +59,7 @@
 }
 
 @stillwind-utility col-start-* {
-  grid-column-start: --value(integer, [integer]);
+  grid-column-start: --value(--grid-column-start-*, integer [1, ∞], [integer]);
 }
 
 @stillwind-utility col-start-* {
@@ -63,7 +67,7 @@
 }
 
 @stillwind-utility -col-start-* {
-  grid-column-start: calc(--value(integer) * -1);
+  grid-column-start: calc(--value(--grid-column-start-*, integer [1, ∞]) * -1);
 }
 
 @stillwind-arbitrary-property grid-column-end;
@@ -73,7 +77,7 @@
 }
 
 @stillwind-utility col-end-* {
-  grid-column-end: --value(integer, [integer]);
+  grid-column-end: --value(--grid-column-end-*, integer [1, ∞], [integer]);
 }
 
 @stillwind-utility col-end-* {
@@ -81,7 +85,7 @@
 }
 
 @stillwind-utility -col-end-* {
-  grid-column-end: calc(--value(integer) * -1);
+  grid-column-end: calc(--value(--grid-column-end-*, integer [1, ∞]) * -1);
 }
 
 /* MARK: `grid-row` */
@@ -93,7 +97,11 @@
 }
 
 @stillwind-utility row-* {
-  grid-row: --value([grid-line]);
+  grid-row: --value(--grid-row-*, integer [1, ∞], [grid-line]);
+}
+
+@stillwind-utility -row-* {
+  grid-row: calc(--value(--grid-row-*, integer [1, ∞]) * -1);
 }
 
 @stillwind-utility row-span-full {
@@ -101,7 +109,7 @@
 }
 
 @stillwind-utility row-span-* {
-  grid-row: span --value(integer) / span --value(integer);
+  grid-row: span --value(integer [1, ∞]) / span --value(integer [1, ∞]);
 }
 
 @stillwind-utility row-span-* {
@@ -115,7 +123,7 @@
 }
 
 @stillwind-utility row-start-* {
-  grid-row-start: --value(integer, [integer]);
+  grid-row-start: --value(--grid-row-start-*, integer [1, ∞], [integer]);
 }
 
 @stillwind-utility row-start-* {
@@ -123,7 +131,7 @@
 }
 
 @stillwind-utility -row-start-* {
-  grid-row-start: calc(--value(integer) * -1);
+  grid-row-start: calc(--value(--grid-row-start-*, integer [1, ∞]) * -1);
 }
 
 @stillwind-arbitrary-property grid-row-end;
@@ -133,7 +141,7 @@
 }
 
 @stillwind-utility row-end-* {
-  grid-row-end: --value(integer, [integer]);
+  grid-row-end: --value(--grid-row-end-*, integer [1, ∞], [integer]);
 }
 
 @stillwind-utility row-end-* {
@@ -141,7 +149,7 @@
 }
 
 @stillwind-utility -row-end-* {
-  grid-row-end: calc(--value(integer) * -1);
+  grid-row-end: calc(--value(--grid-row-end-*, integer [1, ∞]) * -1);
 }
 
 /* MARK: `flex` */
@@ -186,6 +194,14 @@
   flex-shrink: --value(number, [number]);
 }
 
+@stillwind-utility flex-shrink {
+  flex-shrink: 1;
+}
+
+@stillwind-utility flex-shrink-* {
+  flex-shrink: --value(number, [number]);
+}
+
 @stillwind-arbitrary-property flex-grow;
 
 @stillwind-utility grow {
@@ -197,6 +213,14 @@
 }
 
 @stillwind-utility grow-* {
+  flex-grow: --value(number, [number]);
+}
+
+@stillwind-utility flex-grow {
+  flex-grow: 1;
+}
+
+@stillwind-utility flex-grow-* {
   flex-grow: --value(number, [number]);
 }
 
@@ -216,6 +240,7 @@
     --spacing(),
     --container-*,
     --fraction(),
+    auto,
     --stillwind-builtin-width(),
     [length]
   );
@@ -246,7 +271,7 @@
 }
 
 @stillwind-utility auto-cols-* {
-  grid-auto-columns: --value([grid-track-size]);
+  grid-auto-columns: --value(--grid-auto-columns-*, --spacing(), [grid-track-size]);
 }
 
 @stillwind-arbitrary-property grid-auto-flow;
@@ -290,7 +315,7 @@
 }
 
 @stillwind-utility auto-rows-* {
-  grid-auto-rows: --value([grid-track-size]);
+  grid-auto-rows: --value(--grid-auto-rows-*, --spacing(), [grid-track-size]);
 }
 
 /* MARK: `grid-template-columns` and `grid-template-rows` */
@@ -306,7 +331,11 @@
 }
 
 @stillwind-utility grid-cols-* {
-  grid-template-columns: repeat(--value(integer), minmax(0, 1fr));
+  grid-template-columns: --value(--grid-template-columns-*);
+}
+
+@stillwind-utility grid-cols-* {
+  grid-template-columns: repeat(--value(integer [1, ∞]), minmax(0, 1fr));
 }
 
 @stillwind-utility grid-cols-* {
@@ -324,11 +353,15 @@
 }
 
 @stillwind-utility grid-rows-* {
+  grid-template-rows: --value(--grid-template-rows-*);
+}
+
+@stillwind-utility grid-rows-* {
   grid-template-rows: --value([grid-track-list]);
 }
 
 @stillwind-utility grid-rows-* {
-  grid-template-rows: repeat(--value(integer), minmax(0, 1fr));
+  grid-template-rows: repeat(--value(integer [1, ∞]), minmax(0, 1fr));
 }
 
 /* MARK: `flex-direction` and `flex-wrap` */
@@ -527,10 +560,6 @@
 
 @stillwind-utility justify-around {
   justify-content: space-around;
-}
-
-@stillwind-utility justify-baseline {
-  justify-content: baseline;
 }
 
 @stillwind-utility justify-between {

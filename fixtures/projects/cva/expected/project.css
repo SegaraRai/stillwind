@@ -426,8 +426,9 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_1chda {
+  .sw_5z9t1 {
     display: inline-flex;
+    border-radius: 0.25rem;
   }
   .sw_jy94h {
     padding: calc(var(--spacing) * 4);

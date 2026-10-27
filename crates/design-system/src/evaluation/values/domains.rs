@@ -19,20 +19,24 @@ use stillwind_syntax::decode_arbitrary_value;
 use super::super::context::{ArbitraryValueCheck, EvaluationContext};
 use super::arbitrary::parse_css_variable;
 use super::expansion::expand_placeholder;
-use super::theme::{PatternNamespace, ViewportAxis, axis_size_value, fraction_value, theme_value};
+use super::theme::{
+    PatternNamespace, ViewportAxis, axis_size_value, bare_token_value, fraction_value, theme_value,
+};
 use crate::ThemeIndex;
 use crate::conditionals::accepts_runtime_value;
 
 /// Resolves the first matching domain in a comma-separated domain list.
 ///
 /// A theme namespace domain looks the capture up in that namespace and may append an
-/// authored suffix; a CSS grammar domain accepts either a parenthesized variable (whose
-/// optional hint must fit) or an arbitrary value (whose value and hint must fit). When
-/// `theme` checks [`ArbitraryValueCheck::WellFormed`] values, every well-formed
-/// arbitrary value without a hint fits a CSS grammar domain. Whole `--if` values must
-/// have two branches accepted by the same domain; nested expressions use
-/// deferred-variable validation after their conditional syntax is checked. [`None`]
-/// means no domain matched, including malformed conditional captures.
+/// authored suffix. Without a capture, as in an exact utility such as `rounded`, a
+/// namespace domain without a suffix reads the bare token of the namespace, such as
+/// `--radius` for `--radius` or `--radius-*`. A CSS grammar domain accepts either a
+/// parenthesized variable (whose optional hint must fit) or an arbitrary value (whose
+/// value and hint must fit). When `theme` checks [`ArbitraryValueCheck::WellFormed`]
+/// values, every well-formed arbitrary value without a hint fits a CSS grammar domain.
+/// Whole `--if` values must have two branches accepted by the same domain; nested
+/// expressions use deferred-variable validation after their conditional syntax is
+/// checked. [`None`] means no domain matched, including malformed conditional captures.
 pub(in crate::evaluation) fn resolve_value_domains(
     domains: &str,
     capture: Option<&str>,
@@ -58,7 +62,13 @@ pub(in crate::evaluation) fn resolve_value_domains(
                 return capture.and_then(|capture| axis_size_value(capture, ViewportAxis::Height));
             }
             if let Some((namespace, suffix)) = theme_domain_pattern(domain, theme) {
-                return capture.and_then(|capture| namespace.resolve(capture, suffix, theme));
+                return match capture {
+                    Some(capture) => namespace.resolve(capture, suffix, theme),
+                    None => suffix
+                        .is_empty()
+                        .then(|| bare_token_value(namespace.name(), theme))
+                        .flatten(),
+                };
             }
             if !domain.starts_with('[') && !domain.starts_with("--") {
                 let keyword = quoted_keyword(domain).unwrap_or(domain);
@@ -104,7 +114,8 @@ pub(in crate::evaluation) fn resolve_value_domains(
 
 /// A `--value(...)` domain that accepts a bare number: `integer`, `number`, or
 /// `percentage`. The domain can end with an inclusive range, such as
-/// `percentage [50,200]`, which limits the number without its `%`.
+/// `percentage [50,200]` or `integer [1,∞]`, which limits the number without its `%`.
+/// `∞` and `-∞` leave that side of the range open.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NumericDomain {
     /// The written form that the domain accepts.
@@ -117,7 +128,8 @@ pub struct NumericDomain {
 
 impl NumericDomain {
     /// Parses one domain, such as `integer` or `percentage [50,200]`. Returns `None`
-    /// for other domains and for a range that is not two numbers in `[min,max]` form.
+    /// for other domains and for a range that is not two bounds in `[min,max]` form. A
+    /// bound is a number, `∞`, or `-∞`.
     #[must_use]
     pub fn parse(domain: &str) -> Option<Self> {
         let (name, range) = domain
@@ -139,24 +151,51 @@ impl NumericDomain {
                     .strip_prefix('[')?
                     .strip_suffix(']')?
                     .split_once(',')?;
-                (min.trim().parse().ok()?, max.trim().parse().ok()?)
+                (range_bound(min)?, range_bound(max)?)
             }
         };
         Some(Self { kind, min, max })
     }
 
     /// Returns the CSS value for `capture`, or `None` when the domain does not accept
-    /// it. An integer must parse as an integer, and a percentage must end with `%`.
+    /// it. The number must be written in decimal digits with an optional `-` and an
+    /// optional fraction, so `inf`, `NaN`, `+1`, and `1e3` are rejected. An integer
+    /// must have no fraction, and a percentage must end with `%`.
     #[must_use]
     pub fn resolve(&self, capture: &str) -> Option<LeanStr> {
-        let number = match self.kind {
-            NumericKind::Integer => capture.parse::<i64>().ok().and(capture.parse::<f64>().ok()),
-            NumericKind::Number => capture.parse::<f64>().ok(),
-            NumericKind::Percentage => capture.strip_suffix('%')?.parse::<f64>().ok(),
-        }?;
+        let digits = match self.kind {
+            NumericKind::Integer | NumericKind::Number => capture,
+            NumericKind::Percentage => capture.strip_suffix('%')?,
+        };
+        let (whole, fraction) = digits
+            .strip_prefix('-')
+            .unwrap_or(digits)
+            .split_once('.')
+            .map_or(
+                (digits.strip_prefix('-').unwrap_or(digits), None),
+                |(whole, fraction)| (whole, Some(fraction)),
+            );
+        let is_digits =
+            |part: &str| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit());
+        if !is_digits(whole)
+            || fraction.is_some_and(|fraction| !is_digits(fraction))
+            || (self.kind == NumericKind::Integer && fraction.is_some())
+        {
+            return None;
+        }
+        let number = digits.parse::<f64>().ok()?;
         (self.min..=self.max)
             .contains(&number)
             .then(|| capture.to_lean_str())
+    }
+}
+
+/// Parses one bound of a numeric range: a number, `∞`, or `-∞`.
+fn range_bound(bound: &str) -> Option<f64> {
+    match bound.trim() {
+        "∞" => Some(f64::INFINITY),
+        "-∞" => Some(f64::NEG_INFINITY),
+        bound => bound.parse().ok().filter(|bound: &f64| bound.is_finite()),
     }
 }
 
@@ -448,6 +487,16 @@ mod tests {
         let integer = NumericDomain::parse("integer").unwrap();
         assert_eq!(integer.resolve("-3").as_deref(), Some("-3"));
         assert_eq!(integer.resolve("1.5"), None);
+
+        let line = NumericDomain::parse("integer [1, ∞]").unwrap();
+        assert_eq!(line.resolve("0"), None);
+        assert_eq!(line.resolve("12").as_deref(), Some("12"));
+
+        let number = NumericDomain::parse("number").unwrap();
+        assert_eq!(number.resolve("1.5").as_deref(), Some("1.5"));
+        for capture in ["inf", "NaN", "+1", "1e3", ".5", "1.", ""] {
+            assert_eq!(number.resolve(capture), None, "{capture}");
+        }
 
         assert_eq!(NumericDomain::parse("percentage [50]"), None);
         assert_eq!(NumericDomain::parse("length"), None);

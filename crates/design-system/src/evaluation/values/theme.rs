@@ -41,6 +41,14 @@ impl<'a> PatternNamespace<'a> {
             .map_or(Self::Other(name), Self::Declared)
     }
 
+    /// Returns the namespace name without the leading `--`, such as `radius`.
+    pub(in crate::evaluation) fn name(self) -> &'a str {
+        match self {
+            Self::Declared(namespace) => &namespace.name,
+            Self::Other(name) => name,
+        }
+    }
+
     /// Resolves the capture `key` with the pattern suffix `suffix`, such as `--alt` of
     /// `--size-*--alt`, to the text a declaration should contain. Returns [`None`] when
     /// the namespace has no matching value.
@@ -130,6 +138,29 @@ impl<'a> PatternNamespace<'a> {
             Self::Other(_) => &[],
         }
     }
+}
+
+/// Returns the text that refers to the bare token of the namespace `namespace`, such as
+/// `--radius` for `radius`, as [`token_reference`] describes. Returns `None` when the
+/// token is not active.
+pub(in crate::evaluation) fn bare_token_value(
+    namespace: &str,
+    theme: &EvaluationContext<'_>,
+) -> Option<LeanStr> {
+    let token = theme.token_property(&format_args!("--{namespace}").to_lean_str())?;
+    Some(token_reference(token, theme))
+}
+
+/// Returns the authored value of the bare token of the namespace `namespace`, such as
+/// `--shadow` for `shadow`, and records the token as used. Returns `None` when the token
+/// is not active.
+pub(in crate::evaluation) fn bare_token_literal(
+    namespace: &str,
+    theme: &EvaluationContext<'_>,
+) -> Option<LeanStr> {
+    let token = theme.token_property(&format_args!("--{namespace}").to_lean_str())?;
+    theme.record_token(&token.name.value);
+    Some(token.value.value.clone())
 }
 
 /// Returns the text that refers to `token` in a declaration: the authored value of an
@@ -282,7 +313,6 @@ pub(in crate::evaluation) fn axis_size_value(
     viewport_axis: ViewportAxis,
 ) -> Option<LeanStr> {
     let value = match value {
-        "auto" => "auto".to_lean_string(),
         "full" => "100%".to_lean_string(),
         "screen" => format_args!("100{}", viewport_axis.unit()).to_lean_string(),
         "svw" => "100svw".to_lean_string(),

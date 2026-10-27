@@ -70,7 +70,7 @@
 }
 
 @stillwind-utility transition-* {
-  transition-property: --value([transition-property]);
+  transition-property: --value(--transition-property-*, [transition-property]);
   transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
   transition-duration: var(--tw-duration, var(--default-transition-duration));
 }
@@ -88,6 +88,10 @@
 @stillwind-arbitrary-property transition-delay;
 
 @stillwind-utility delay-* {
+  transition-delay: --value(--transition-delay-*);
+}
+
+@stillwind-utility delay-* {
   transition-delay: calc(--value(integer) * 1ms);
 }
 
@@ -102,6 +106,11 @@
 }
 
 @stillwind-arbitrary-property transition-duration;
+
+@stillwind-utility duration-* {
+  --tw-duration: --value(--transition-duration-*);
+  transition-duration: --value(--transition-duration-*);
+}
 
 @stillwind-utility duration-* {
   --tw-duration: calc(--value(integer) * 1ms);
