@@ -3,6 +3,7 @@ import { getIconData } from "@iconify/utils/lib/icon-set/get-icon";
 import { iconToSVG } from "@iconify/utils/lib/svg/build";
 import { iconToHTML } from "@iconify/utils/lib/svg/html";
 import { svgToURL } from "@iconify/utils/lib/svg/url";
+import { optimize, type Config } from "svgo/browser";
 
 /**
  * How an icon utility paints the icon. `mask` paints the element's text color through the icon's
@@ -17,6 +18,14 @@ export type IconMode = "auto" | "mask" | "background";
  */
 export const ICON_SIZE = "--sw-icon-size";
 
+/** SVGO configuration that minifies the SVG of each icon. */
+export type SvgoConfig = Config;
+
+/** SVGO configuration that the `svgo` option selects when it is true or omitted. */
+export const DEFAULT_SVGO: SvgoConfig = {
+  multipass: true,
+};
+
 /** Settings that apply to every icon utility of a plugin instance. */
 export interface IconStyle {
   /** Default icon height in `em`. The width keeps the icon's aspect ratio. */
@@ -25,6 +34,8 @@ export interface IconStyle {
   readonly mode: IconMode;
   /** Fixed base36 hash length, from 1 to 7 characters. */
   readonly hashLength: number;
+  /** SVGO configuration that minifies each icon's SVG, or false to keep the SVG unchanged. */
+  readonly svgo: SvgoConfig | false;
 }
 
 /**
@@ -33,8 +44,9 @@ export interface IconStyle {
  * @param utility - Utility name, such as `icon-mdi--close` or `icon-[mdi--close]`.
  * @param collection - Icon set that contains the icon.
  * @param name - Icon name or alias in the set.
- * @param style - Size and paint method.
+ * @param style - Size, paint method, and SVG minification.
  * @returns CSS for the icon and its resources, or undefined when the set has no such icon.
+ * @throws If SVGO fails to optimize the icon's SVG.
  */
 export function iconCss(
   utility: string,
@@ -51,7 +63,8 @@ export function iconCss(
     height: "auto",
   });
   const [, , width, height] = svg.viewBox;
-  const url = svgToURL(iconToHTML(svg.body, svg.attributes));
+  const html = iconToHTML(svg.body, svg.attributes);
+  const url = svgToURL(style.svgo ? optimize(html, style.svgo).data : html);
   const asset = assetName(url, style.hashLength);
   const mask =
     style.mode === "mask" || (style.mode === "auto" && svg.body.includes("currentColor"));

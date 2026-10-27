@@ -1,7 +1,14 @@
 import type { PluginContext, StillwindPlugin } from "@stillwind/config";
 
 import { Collections, type CollectionSource } from "./collections.ts";
-import { ICON_SIZE, iconCss, type IconMode, type IconStyle } from "./icons.ts";
+import {
+  DEFAULT_SVGO,
+  ICON_SIZE,
+  iconCss,
+  type IconMode,
+  type IconStyle,
+  type SvgoConfig,
+} from "./icons.ts";
 
 /**
  * Icon name formats. `named` accepts `icon-mdi--close`, `bracket` accepts
@@ -33,9 +40,16 @@ export interface IconifyOptions {
   readonly hashLength?: number;
   /**
    * Custom icon sets keyed by set prefix, such as `brand`. Accepts data, absolute JSON
-   * file paths, or functions that return data. These sets override installed packages.
+   * file paths, or functions that return data, such as the result of `svgDirectory`. These
+   * sets override installed packages.
    */
   readonly collections?: Readonly<Record<string, CollectionSource>>;
+  /**
+   * SVGO minification of each icon's SVG. `true` selects a multipass `preset-default`
+   * configuration, an object replaces that configuration, and `false` keeps the SVG that
+   * Iconify builds. Defaults to `true`.
+   */
+  readonly svgo?: boolean | SvgoConfig;
 }
 
 /** Settings of one `@plugin` statement. */
@@ -47,7 +61,7 @@ interface Settings extends IconStyle {
 }
 
 /** Iconify set prefixes and icon names: lowercase words joined by single hyphens. */
-const ICONIFY_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const ICONIFY_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Utility prefixes, which must start a CSS identifier and must not contain `--`. */
 const PREFIX = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
@@ -78,7 +92,7 @@ const SIZE_CSS = [
  *
  * @param options - Default settings and configured icon sets.
  * @returns The plugin to add to your project's `plugins` list.
- * @throws If `prefix`, `syntax`, `scale`, `mode`, or `hashLength` is invalid.
+ * @throws If `prefix`, `syntax`, `scale`, `mode`, `hashLength`, or `svgo` is invalid.
  */
 export function iconify(options: IconifyOptions = {}): StillwindPlugin {
   const defaults = settings(options);
@@ -233,6 +247,7 @@ function statementSettings(defaults: Settings, context: PluginContext): Settings
     scale: scale === undefined ? defaults.scale : Number(scale),
     mode: (mode ?? defaults.mode) as IconMode,
     hashLength: hashLength === undefined ? defaults.hashLength : Number(hashLength),
+    svgo: defaults.svgo,
   });
 }
 
@@ -242,10 +257,19 @@ function statementSettings(defaults: Settings, context: PluginContext): Settings
  * @param options - Options that may omit settings.
  * @returns Complete settings.
  * @throws If the prefix is not a lowercase identifier, the syntax or mode is unknown, or the
- * scale is not a positive finite number, or the hash length is not an integer from 1 to 7.
+ * scale is not a positive finite number, the hash length is not an integer from 1 to 7, or
+ * `svgo` is neither a boolean nor an object.
  */
 function settings(options: IconifyOptions): Settings {
-  const { prefix = "icon", syntax = "both", scale = 1, mode = "auto", hashLength = 4 } = options;
+  const {
+    prefix = "icon",
+    syntax = "both",
+    scale = 1,
+    mode = "auto",
+    hashLength = 4,
+    svgo = true,
+  } = options;
+
   if (!PREFIX.test(prefix)) {
     throw new Error(`Invalid Iconify utility prefix: ${prefix}`);
   }
@@ -261,12 +285,17 @@ function settings(options: IconifyOptions): Settings {
   if (!Number.isInteger(hashLength) || hashLength < 1 || hashLength > 7) {
     throw new Error(`Iconify hash length must be an integer from 1 to 7: ${hashLength}`);
   }
+  if (typeof svgo !== "boolean" && (typeof svgo !== "object" || svgo === null)) {
+    throw new Error(`Iconify svgo must be a boolean or an SVGO configuration: ${String(svgo)}`);
+  }
+
   return {
     prefix,
     syntax,
     scale,
     mode,
     hashLength,
+    svgo: svgo === true ? DEFAULT_SVGO : svgo,
   };
 }
 

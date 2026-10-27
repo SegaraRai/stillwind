@@ -109,6 +109,14 @@ export interface CssHost {
    */
   watch(id: string): void;
   /**
+   * Registers a directory that a plugin lists, so that adding, removing, or renaming an entry
+   * reloads the graph. Omission ignores directory registrations, which suits a host that loads
+   * the graph once or reloads it after every file addition or removal.
+   *
+   * @param id - Absolute directory path.
+   */
+  watchDirectory?(id: string): void;
+  /**
    * Decides whether stylesheet lint checks a file. Omission selects {@link lintsStylesheet}.
    *
    * @param id - Resolved CSS file identity.
@@ -239,7 +247,13 @@ export async function loadCssGraph(
     pluginInputs?.plugins ?? [],
     pluginInputs?.root ?? root.replace(/[\\/][^\\/]*$/, ""),
     host.plugins,
-    (path) => host.watch(path),
+    (path, kind): void => {
+      if (kind === "directory") {
+        host.watchDirectory?.(path);
+      } else {
+        host.watch(path);
+      }
+    },
     pluginInputs?.previous,
     pluginInputs && {
       tailwind: pluginInputs.tailwind,

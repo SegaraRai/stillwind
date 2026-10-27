@@ -177,6 +177,9 @@ export async function createProject(
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
+      watchDirectory: (id) => {
+        context.addContextDependency(id);
+      },
       resolve: resolver({
         conditionNames: ["style", "import", "default"],
         extensions: [".css"],

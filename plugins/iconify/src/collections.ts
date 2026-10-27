@@ -5,10 +5,25 @@ import type { PluginContext } from "@stillwind/config";
  * A custom icon set: Iconify data, an absolute JSON file path, or a function that
  * returns Iconify data synchronously or asynchronously.
  */
-export type CollectionSource = IconifyJSON | string | (() => IconifyJSON | Promise<IconifyJSON>);
+export type CollectionSource =
+  | IconifyJSON
+  | string
+  | ((context: CollectionLoadContext) => IconifyJSON | Promise<IconifyJSON>);
+
+/**
+ * Set name and host operations that a function source receives. A function source watches
+ * each file and directory that it reads, so that a change reloads the design system.
+ */
+export interface CollectionLoadContext extends Pick<
+  PluginContext,
+  "root" | "watch" | "read" | "list"
+> {
+  /** Set name that selects the source in `collections`, such as `brand`. */
+  readonly prefix: string;
+}
 
 /** Host operations that icon set lookup uses. */
-export type CollectionContext = Pick<PluginContext, "root" | "watch" | "resolve" | "read">;
+export type CollectionContext = Pick<PluginContext, "root" | "watch" | "resolve" | "read" | "list">;
 
 /** Icon set data and the file that it comes from. */
 interface LoadedCollection {
@@ -138,8 +153,15 @@ export class Collections {
   async #load(prefix: string): Promise<LoadedCollection> {
     const source = Object.hasOwn(this.#sources, prefix) ? this.#sources[prefix] : undefined;
     if (typeof source === "function") {
+      const context = this.#context;
       return {
-        data: await source(),
+        data: await source({
+          prefix,
+          root: context.root,
+          watch: (path, kind) => context.watch(path, kind),
+          read: (path) => context.read(path),
+          list: (path) => context.list(path),
+        }),
       };
     }
     if (typeof source === "string") {

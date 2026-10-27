@@ -2,7 +2,7 @@ import type { IconifyJSON } from "@iconify/types";
 import type { PluginContext } from "@stillwind/config";
 import { describe, expect, test } from "vite-plus/test";
 
-import { iconify } from "./plugin.ts";
+import { iconify, type IconifyOptions } from "./plugin.ts";
 
 const collection: IconifyJSON = {
   prefix: "demo",
@@ -38,7 +38,21 @@ function context(options: Record<string, string> = {}): PluginContext {
     read: async (path) => {
       throw new Error(`${path} does not exist`);
     },
+    list: async (path) => {
+      throw new Error(`${path} does not exist`);
+    },
   };
+}
+
+/**
+ * Decodes the SVG of each icon asset in generated CSS.
+ * @param css - CSS that `resolve` returned.
+ * @returns SVG text of each asset declaration in order.
+ */
+function assetSvgs(css: string): string[] {
+  return [...css.matchAll(/--sw-icon-svg-[0-9a-z]+: url\("data:image\/svg\+xml,([^"]*)"\)/g)].map(
+    (match) => decodeURIComponent(match[1]),
+  );
 }
 
 describe("iconify", () => {
@@ -227,6 +241,7 @@ describe("iconify", () => {
           ? "/project/node_modules/@iconify-json/demo/icons.json"
           : undefined,
       read: async (path) => files.get(path) ?? expect.fail(`unexpected read of ${path}`),
+      list: async (path) => expect.fail(`unexpected list of ${path}`),
     };
     const plugin = iconify();
 
@@ -259,6 +274,7 @@ describe("iconify", () => {
           ? `/project/node_modules/${specifier}`
           : undefined,
       read: async (path) => files.get(path) ?? expect.fail(`unexpected read of ${path}`),
+      list: async (path) => expect.fail(`unexpected list of ${path}`),
     };
     const plugin = iconify();
 
@@ -275,11 +291,45 @@ describe("iconify", () => {
     expect(watched).toContain("/project/node_modules/@iconify/json/collections.json");
   });
 
+  test("minifies icon SVG with SVGO unless svgo is false, and accepts an SVGO configuration", async () => {
+    const verbose: IconifyJSON = {
+      prefix: "demo",
+      icons: {
+        mark: {
+          body: '<!-- mark --><g><path fill="currentColor" d="M 0 0 L 16 0 L 16 16 Z"/></g>',
+        },
+      },
+    };
+    const svg = async (svgo?: IconifyOptions["svgo"]) => {
+      const css = await iconify({ svgo, collections: { demo: verbose } }).resolve!(
+        ["icon-demo--mark"],
+        context(),
+      );
+      expect(css).toMatch(/mask-image: var\(--sw-icon-svg-[0-9a-z]+\);/);
+      return assetSvgs(css)[0];
+    };
+
+    const original = await svg(false);
+    expect(original).toContain("<!-- mark -->");
+    expect(original).toContain("<g>");
+    const minified = await svg();
+    expect(minified).not.toContain("<!--");
+    expect(minified).not.toContain("<g>");
+    expect(minified).toContain("viewBox='0 0 16 16'");
+    expect(minified.length).toBeLessThan(original.length);
+    expect(await svg(true)).toBe(minified);
+    const configured = await svg({ plugins: ["removeComments"] });
+    expect(configured).not.toContain("<!--");
+    expect(configured).toContain("<g>");
+  });
+
   test("rejects invalid options", async () => {
     expect(() => iconify({ prefix: "Icon" })).toThrow("Invalid Iconify utility prefix");
     expect(() => iconify().css(context({ scale: "0" }))).toThrow("positive number");
     expect(() => iconify().css(context({ mode: "outline" }))).toThrow("Iconify mode");
     expect(() => iconify().css(context({ syntax: "plain" }))).toThrow("Iconify syntax");
+    expect(() => iconify({ svgo: "yes" as never })).toThrow("Iconify svgo");
+    expect(() => iconify({ svgo: null as never })).toThrow("Iconify svgo");
     for (const hashLength of [0, -1, 8, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => iconify({ hashLength })).toThrow("Iconify hash length");
       expect(() => iconify().css(context({ "hash-length": String(hashLength) }))).toThrow(

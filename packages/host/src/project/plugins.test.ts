@@ -84,3 +84,17 @@ test("plugin files are evaluated again after they or their imports change", asyn
     name: "third",
   });
 });
+
+test("plugin directories list their own entries and mark subdirectories", async () => {
+  const directory = path.join(root, "icons");
+  await mkdir(path.join(directory, "arrows"), { recursive: true });
+  await writeFile(path.join(directory, "logo.svg"), "<svg/>");
+
+  expect(
+    [...(await nodePluginHost.list!(directory))].sort((a, b) => a.name.localeCompare(b.name)),
+  ).toEqual([
+    { name: "arrows", directory: true },
+    { name: "logo.svg", directory: false },
+  ]);
+  await expect(nodePluginHost.list!(path.join(root, "missing"))).rejects.toThrow();
+});

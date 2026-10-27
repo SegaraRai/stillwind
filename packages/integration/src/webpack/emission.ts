@@ -5,7 +5,9 @@ import type { CssUpstreamMap } from "@stillwind/host";
 import { compilationStyles } from "./compilation-styles.ts";
 import { createCompilationHost, type ResolverHost } from "./host.ts";
 
-/** A producer and its captured dependencies stored in bundler metadata for CSS reconstruction. */
+/**
+ * A producer and its captured dependencies stored in bundler metadata for CSS reconstruction.
+ */
 export interface ProducerInput {
   /** Source text received by the producer loader, before Stillwind compilation. */
   source: string;
@@ -74,7 +76,9 @@ export interface EmissionModule {
   };
 }
 
-/** Compilation operations required to collect producers and rebuild document CSS carriers. */
+/**
+ * Compilation operations required to collect producers and rebuild document CSS carriers.
+ */
 export interface EmissionCompilation<Module extends EmissionModule = EmissionModule> {
   /** Parent compilation used by CSS extraction loaders that run a child compiler. */
   compiler?: {
@@ -86,6 +90,7 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
   missingDependencies: {
     /**
      * Registers a missing path so its creation invalidates this compilation.
+     *
      * @param id - Absolute missing configuration candidate.
      * @returns The bundler collection's insertion result, which Stillwind ignores.
      */
@@ -97,6 +102,7 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
     finishModules: {
       /**
        * Registers asynchronous CSS reconstruction for the completed modules.
+       *
        * @param name - Plugin registration name.
        * @param callback - Operation receiving cached and newly built modules. Rejections fail compilation.
        */
@@ -107,7 +113,18 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
   fileDependencies: {
     /**
      * Adds a compiler or source file to watch tracking.
+     *
      * @param id - Absolute dependency path.
+     * @returns The bundler collection's insertion result, which Stillwind ignores.
+     */
+    add(id: string): unknown;
+  };
+  /** Directories whose entry additions and removals invalidate reconstructed CSS. */
+  contextDependencies: {
+    /**
+     * Adds a directory that a plugin lists to watch tracking.
+     *
+     * @param id - Absolute directory path.
      * @returns The bundler collection's insertion result, which Stillwind ignores.
      */
     add(id: string): unknown;
@@ -116,6 +133,7 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
   warnings: {
     /**
      * Appends a warning without failing reconstruction.
+     *
      * @param error - Warning represented as an Error instance.
      * @returns The collection's append result, which Stillwind ignores.
      */
@@ -123,6 +141,7 @@ export interface EmissionCompilation<Module extends EmissionModule = EmissionMod
   };
   /**
    * Reruns a document carrier after reconstructed CSS has been stored on the compilation.
+   *
    * @param module - Carrier from the completed module graph.
    * @param callback - Completion handler receiving an error when rebuilding fails.
    */
@@ -186,8 +205,15 @@ export function installEmission<Module extends EmissionModule>(
       producers,
       io,
       context.mode,
-      (id) => compilation.fileDependencies.add(id),
-      (message) => compilation.warnings.push(new Error(message)),
+      (id) => {
+        compilation.fileDependencies.add(id);
+      },
+      (id) => {
+        compilation.contextDependencies.add(id);
+      },
+      (message) => {
+        compilation.warnings.push(new Error(message));
+      },
     );
     for (const carrier of carriers) {
       await new Promise<void>((resolve, reject) =>

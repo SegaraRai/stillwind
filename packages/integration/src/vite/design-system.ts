@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { readFile, realpath } from "node:fs/promises";
+import { readdir, readFile, realpath } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -25,7 +25,9 @@ import { readableFile } from "./file-access.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolvedFile, type StylesheetResource } from "./resources.ts";
 
-/** Vite operations needed to resolve design-system CSS and record files used by compilation. */
+/**
+ * Vite operations needed to resolve design-system CSS and record files used by compilation.
+ */
 export interface CssContext {
   /**
    * Resolves an import through the other Vite plugins.
@@ -77,6 +79,8 @@ export interface DesignSystemStatus {
    * after changes.
    */
   readonly cssObservedFiles: ReadonlySet<string>;
+  /** Absolute directories whose entry additions and removals the last load observes. */
+  readonly cssObservedDirectories: ReadonlySet<string>;
   /** Number of observed file-change events. Several events can advance this before one reload. */
   readonly cssChange: number;
   /** Change counter captured by the last successful load or reload. */
@@ -88,9 +92,20 @@ export interface DesignSystemStatus {
   readonly cssAttempted: number;
   /** Failure from the latest refresh attempt. Successful loads and reloads clear it. */
   readonly cssError?: unknown;
+  /**
+   * Checks whether a file event changes an input of the loaded design system.
+   *
+   * @param file - Absolute path of the changed file.
+   * @param entry - Whether the event adds or removes the file, rather than changing its content.
+   * @returns Whether `cssObservedFiles` contains the file, or the event adds or removes an entry
+   * of a directory in `cssObservedDirectories`.
+   */
+  observes(file: string, entry: boolean): boolean;
 }
 
-/** Owns one environment's compiler, design-system resources, and CSS reload state. */
+/**
+ * Owns one environment's compiler, design-system resources, and CSS reload state.
+ */
 export class DesignSystem {
   /** Compiler session retained across CSS reloads and replaced when initialization restarts. */
   #compiler?: IntegrationSession;
@@ -114,6 +129,8 @@ export class DesignSystem {
    * failed loads.
    */
   cssObservedFiles = new Set<string>();
+  /** Absolute directories that plugins list. Adding or removing an entry is an observed change. */
+  cssObservedDirectories = new Set<string>();
   /** Content fingerprint used to detect changes when development runs without a CSS watcher. */
   cssVersion?: string;
   /** Counter advanced by changes to observed files. */
@@ -179,13 +196,28 @@ export class DesignSystem {
   }
 
   /**
+   * Checks whether a file event changes an input of the loaded design system.
+   *
+   * @param file - Absolute path of the changed file.
+   * @param entry - Whether the event adds or removes the file, rather than changing its content.
+   * @returns Whether `cssObservedFiles` contains the file, or the event adds or removes an entry
+   * of a directory in `cssObservedDirectories`.
+   */
+  observes(file: string, entry: boolean): boolean {
+    return (
+      this.cssObservedFiles.has(file) || (entry && this.cssObservedDirectories.has(dirname(file)))
+    );
+  }
+
+  /**
    * Marks a design-system revision pending when an observed file changes.
    *
-   * @param file - Absolute path of the changed file. Paths outside `cssObservedFiles` have no
-   * effect.
+   * @param file - Absolute path of the changed file. Paths that {@link DesignSystem.observes}
+   * rejects have no effect.
+   * @param entry - Whether the event adds or removes the file.
    */
-  changed(file: string): void {
-    if (this.cssObservedFiles.has(file)) {
+  changed(file: string, entry: boolean): void {
+    if (this.observes(file, entry)) {
       this.cssChange++;
     }
   }
@@ -217,7 +249,7 @@ export class DesignSystem {
       }
       const version =
         this.settings.watching && !this.settings.cssWatching
-          ? await designSystemVersion(loaded.dependencies)
+          ? await designSystemVersion(loaded.dependencies, loaded.directories)
           : undefined;
       if (this.settings.cssWatching && change !== this.cssChange) {
         continue;
@@ -236,6 +268,7 @@ export class DesignSystem {
       this.resources = loaded.resources;
       this.cssFiles = loaded.dependencies;
       this.cssObservedFiles = loaded.observed;
+      this.cssObservedDirectories = loaded.directories;
       this.cssVersion = version;
       this.cssApplied = this.cssAttempted = change;
       this.cssError = undefined;
@@ -277,18 +310,18 @@ export class DesignSystem {
       try {
         const version = this.settings.cssWatching
           ? undefined
-          : await designSystemVersion(this.cssFiles);
+          : await designSystemVersion(this.cssFiles, this.cssObservedDirectories);
         if (!this.settings.cssWatching && version === this.cssVersion) {
           return;
         }
         const loaded = await this.#loadRevision(context);
         const nextVersion = this.settings.cssWatching
           ? undefined
-          : await designSystemVersion(loaded.dependencies);
+          : await designSystemVersion(loaded.dependencies, loaded.directories);
         if (
           this.settings.cssWatching
             ? change !== this.cssChange
-            : version !== (await designSystemVersion(this.cssFiles))
+            : version !== (await designSystemVersion(this.cssFiles, this.cssObservedDirectories))
         ) {
           continue;
         }
@@ -299,6 +332,7 @@ export class DesignSystem {
         this.resources = loaded.resources;
         this.cssFiles = loaded.dependencies;
         this.cssObservedFiles = loaded.observed;
+        this.cssObservedDirectories = loaded.directories;
         this.cssVersion = nextVersion;
         this.cssApplied = this.cssAttempted = change;
         this.cssError = undefined;
@@ -336,6 +370,7 @@ export class DesignSystem {
     const tracking = this.cssObservedFiles;
     /**
      * Records a dependency once for this load and registers it with Vite's watchers.
+     *
      * @param file - Attempted or resolved file path, normalized to an absolute path.
      */
     const watch = (file: string) => {
@@ -345,6 +380,24 @@ export class DesignSystem {
       }
       observed.add(path);
       tracking.add(path);
+      context.addWatchFile(path);
+      this.settings.devServerRef?.watcher.add(path);
+    };
+    const directories = new Set<string>();
+    const trackingDirectories = this.cssObservedDirectories;
+    /**
+     * Records a directory that a plugin lists once for this load and registers it with Vite's
+     * watchers.
+     *
+     * @param directory - Absolute directory path.
+     */
+    const watchDirectory = (directory: string) => {
+      const path = resolve(directory);
+      if (directories.has(path)) {
+        return;
+      }
+      directories.add(path);
+      trackingDirectories.add(path);
       context.addWatchFile(path);
       this.settings.devServerRef?.watcher.add(path);
     };
@@ -359,13 +412,16 @@ export class DesignSystem {
       dependencies,
       this.#initialized ? this.#compiler?.native : undefined,
       watch,
+      watchDirectory,
       this.#plugins,
     );
-    return { ...result, dependencies, observed };
+    return { ...result, dependencies, observed, directories };
   }
 }
 
-/** Loaded design system and resolved resource files for one Vite environment. */
+/**
+ * Loaded design system and resolved resource files for one Vite environment.
+ */
 export interface LoadedDesignSystem {
   /** Native loader containing the complete CSS graph and compiler settings. */
   loader: NativeDesignSystemLoader;
@@ -377,12 +433,16 @@ export interface LoadedDesignSystem {
   skipped: NativeSkippedCss[];
 }
 
-/** Loaded design system with the file sets needed to watch and apply its revision. */
+/**
+ * Loaded design system with the file sets needed to watch and apply its revision.
+ */
 export interface DesignSystemRevision extends LoadedDesignSystem {
   /** Absolute paths required by the successful load, including referenced assets. */
   dependencies: Set<string>;
   /** Absolute paths observed during loading, including unresolved relative candidates. */
   observed: Set<string>;
+  /** Absolute directories that plugins list during loading. */
+  directories: Set<string>;
 }
 
 /**
@@ -396,6 +456,7 @@ export interface DesignSystemRevision extends LoadedDesignSystem {
  * @param session - Existing native session used to create a compatible loader during reload.
  * @param watch - Records attempted and resolved file paths, including unresolved relative
  * candidates.
+ * @param watchDirectory - Records directories that plugins list.
  * @param previous - Plugin runtime of the previous load, whose candidates are resolved again.
  * @returns A native design-system loader, a map from resource placeholders to resolved files, the
  * plugin runtime, and the skipped statements.
@@ -409,6 +470,7 @@ async function loadDesignSystem(
   dependencies: Set<string>,
   session?: NativeProjectSession,
   watch: (file: string) => void = () => {},
+  watchDirectory: (directory: string) => void = () => {},
   previous?: PluginRuntime,
 ): Promise<LoadedDesignSystem> {
   const entry = resolve(settings.projectRoot, cssEntrypoint(config));
@@ -470,6 +532,7 @@ async function loadDesignSystem(
         dependencies.add(name);
         watch(name);
       },
+      watchDirectory,
       plugins: nodePluginHost,
     },
     undefined,
@@ -501,14 +564,30 @@ async function loadDesignSystem(
 }
 
 /**
- * Computes a stable fingerprint of the paths and contents used by the design system.
+ * Computes a stable fingerprint of the paths and contents used by the design system, and of the
+ * entry names of the directories that plugins list.
  *
  * @param files - Absolute dependency paths. Iteration order does not affect the fingerprint.
- * @returns A SHA-256 hexadecimal fingerprint. Missing files contribute a fixed marker.
- * @throws If reading a file fails for a reason other than `ENOENT`.
+ * @param directories - Absolute directory paths. Iteration order and entry order do not affect the
+ * fingerprint.
+ * @returns A SHA-256 hexadecimal fingerprint. Missing files and directories contribute a fixed
+ * marker.
+ * @throws If reading a file or directory fails for a reason other than `ENOENT`.
  */
-async function designSystemVersion(files: Set<string>) {
+async function designSystemVersion(files: Set<string>, directories: ReadonlySet<string>) {
   const hash = createHash("sha256");
+  for (const directory of [...directories].sort()) {
+    let names: string;
+    try {
+      names = (await readdir(directory)).sort().join("\0");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+      names = "\0missing";
+    }
+    hash.update(directory).update("\0\0").update(names).update("\0");
+  }
   const ordered = [...files].sort();
   for (let offset = 0; offset < ordered.length; offset += 64) {
     const batch = ordered.slice(offset, offset + 64);

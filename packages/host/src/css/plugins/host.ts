@@ -1,4 +1,4 @@
-import type { StillwindPlugin, TailwindConfig } from "@stillwind/config";
+import type { PluginDirectoryEntry, StillwindPlugin, TailwindConfig } from "@stillwind/config";
 import type { NativeCssRequest } from "@stillwind/native";
 
 import type { PluginPathHost } from "./paths.ts";
@@ -92,6 +92,15 @@ export interface PluginHost extends PluginPathHost {
    * @throws If the file does not exist or cannot be read.
    */
   read(path: string): Promise<string>;
+
+  /**
+   * Lists a directory requested by a plugin. Omission makes plugin directory reads fail.
+   *
+   * @param path - Absolute directory path.
+   * @returns The directory's own entries.
+   * @throws If the directory does not exist or cannot be read.
+   */
+  list?(path: string): Promise<readonly PluginDirectoryEntry[]>;
 }
 
 /**

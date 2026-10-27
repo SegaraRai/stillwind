@@ -229,6 +229,16 @@ export class BrowserProject {
         read: async (id) =>
           this.#files.get(id) ??
           (this.#options.plugins ? this.#options.plugins.read(id) : this.#read(id)),
+        list: async (id) => {
+          const entries = pluginDirectory(this.#files, id);
+          if (!entries.length) {
+            if (this.#options.plugins?.list) {
+              return this.#options.plugins.list(id);
+            }
+            throw new Error(`Directory ${id} does not exist`);
+          }
+          return entries;
+        },
       },
     };
   }

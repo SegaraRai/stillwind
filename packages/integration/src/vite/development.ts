@@ -48,7 +48,7 @@ export function developmentHooks(
         },
       };
       try {
-        if (state.designSystem.cssObservedFiles.has(resolve(context.file))) {
+        if (state.designSystem.observes(resolve(context.file), context.type !== "update")) {
           await state.refreshDesignSystem(host);
           await publish(name, host);
           const changed = state.takeThemeChanges();

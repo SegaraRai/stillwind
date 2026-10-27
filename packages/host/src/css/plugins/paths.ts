@@ -1,3 +1,4 @@
+import type { PluginDirectoryEntry } from "@stillwind/config";
 import { fingerprint, stylesheetPluginPaths } from "@stillwind/native";
 import { dirname, isAbsolute, join, relative, resolve } from "pathe";
 
@@ -9,14 +10,6 @@ import type { EditorRequest, EditorResult } from "../../editor/request.ts";
 export interface PluginPathCompletion {
   specifier: string;
   kind: "module" | "file" | "directory";
-}
-
-/**
- * One immediate child of a directory, without a path separator in its name.
- */
-export interface PluginDirectoryEntry {
-  name: string;
-  directory: boolean;
 }
 
 /**

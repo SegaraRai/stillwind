@@ -37,6 +37,14 @@ for (const [name, directory] of [
 ] as const) {
   await collect(path.resolve(root, directory), `/workspace/node_modules/${name}`);
 }
+// The Iconify plugin imports only the self-contained `svgo/browser` bundle.
+const svgo = path.resolve(root, "../../plugins/iconify/node_modules/svgo");
+for (const file of ["package.json", "dist/svgo.browser.js"]) {
+  files.push([
+    `/workspace/node_modules/svgo/${file}`,
+    await readFile(path.join(svgo, file), "utf8"),
+  ]);
+}
 const require = createRequire(path.join(root, "package.json"));
 // Icon sets need only their manifests and icon data. The hidden workspace manifest lists them so
 // that the Iconify plugin offers their icons as completions.

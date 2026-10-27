@@ -3,13 +3,15 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import type { PluginDirectoryEntry } from "@stillwind/config";
 import { evaluateModule } from "@stillwind/config/node";
 
 import { defaultPluginExport, type LoadedPlugin, type PluginHost } from "../css/plugins/host.ts";
-import { completePluginPaths, type PluginDirectoryEntry } from "../css/plugins/paths.ts";
+import { completePluginPaths } from "../css/plugins/paths.ts";
 
 /**
- * Lists disk children for plugin completion, following directory symlinks.
+ * Lists disk children for plugin completion and plugin directory reads, following
+ * directory symlinks.
  * @param id - Absolute directory to enumerate without loading its scripts.
  * @returns Immediate entries in filesystem order. Broken symlinks are treated as files.
  * @throws If the directory cannot be read.
@@ -104,4 +106,5 @@ export const nodePluginHost: PluginHost = {
   async read(path) {
     return await readFile(path, "utf8");
   },
+  list: readPluginDirectory,
 };

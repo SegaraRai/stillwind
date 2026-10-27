@@ -1,4 +1,9 @@
-import type { PluginContext, StillwindPlugin, TailwindConfig } from "@stillwind/config";
+import type {
+  PluginContext,
+  PluginWatchKind,
+  StillwindPlugin,
+  TailwindConfig,
+} from "@stillwind/config";
 import {
   NativeDesignSystemLoader,
   type NativeCompilerOptions,
@@ -118,7 +123,7 @@ export class PluginRuntime {
    * @param root - Absolute project directory passed to plugins.
    * @param host - Loads plugin packages and plugin files, or undefined when the host can only use
    * configured plugins.
-   * @param watch - Registers files that plugins read.
+   * @param watch - Registers files and directories that plugins read.
    * @param previous - Runtime of an earlier load of the same project. A statement with the same
    * specifier, options, and plugin resolves the earlier load's candidates of its families again.
    * @param settings - Project's Tailwind settings. Either field makes the graph use the Tailwind
@@ -129,7 +134,7 @@ export class PluginRuntime {
     readonly plugins: readonly StillwindPlugin[],
     readonly root: string,
     readonly host: PluginHost | undefined,
-    readonly watch: (path: string) => void,
+    readonly watch: (path: string, kind?: PluginWatchKind) => void,
     readonly previous?: PluginRuntime,
     readonly settings?: TailwindSettings,
   ) {}
@@ -208,6 +213,12 @@ export class PluginRuntime {
             throw new Error(`This host cannot read plugin files: ${path}`);
           }
           return this.host.read(path);
+        },
+        list: async (path) => {
+          if (!this.host?.list) {
+            throw new Error(`This host cannot list plugin directories: ${path}`);
+          }
+          return this.host.list(path);
         },
       };
       const css = nativePlugin(plugin) ? await plugin.css(context) : "";

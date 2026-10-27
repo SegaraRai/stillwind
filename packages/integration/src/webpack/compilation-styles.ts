@@ -30,6 +30,8 @@ import { sourceDescriptor } from "./sources.ts";
  * and assets.
  * @param mode - Bundler mode. Only `development` selects development compilation.
  * @param watch - Registers a file as a compilation dependency.
+ * @param watchDirectory - Registers a directory whose entry additions and removals invalidate the
+ * compilation.
  * @param warn - Reports compiler warnings and the CSS statements that loading skipped through the
  * bundler.
  * @returns Document CSS with asset requests and an inline source map composed with recorded
@@ -42,6 +44,7 @@ export async function compilationStyles(
   io: CompilationHost,
   mode: string | undefined,
   watch: (id: string) => void,
+  watchDirectory: (id: string) => void,
   warn: (message: string) => void,
 ): Promise<string> {
   const { config, root } = producers[0];
@@ -55,6 +58,7 @@ export async function compilationStyles(
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => pathToFileURL(id).href,
       watch,
+      watchDirectory,
       plugins: nodePluginHost,
     },
     undefined,

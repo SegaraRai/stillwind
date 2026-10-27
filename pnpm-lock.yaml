@@ -3097,6 +3097,9 @@ importers:
       '@stillwind/config':
         specifier: workspace:*
         version: link:../../packages/config
+      svgo:
+        specifier: ^4.1.0
+        version: 4.1.0
     devDependencies:
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*

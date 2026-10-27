@@ -104,8 +104,8 @@ The options block of the statement sets these options:
   from `1` to `7` and defaults to `4`. Increase it when using many icons to reduce collisions.
 
 For custom icon sets or TypeScript options, add `iconify(...)` to your project's
-`plugins` list. Icon sets can be data, absolute JSON file paths, or functions that
-return data. Keep `@plugin "@stillwind/plugin-iconify";` in your stylesheet:
+`plugins` list. Icon sets can be data, absolute JSON file paths, functions that
+return data, or SVG directories. Keep `@plugin "@stillwind/plugin-iconify";` in your stylesheet:
 
 ```ts
 import { iconify } from "@stillwind/plugin-iconify";
@@ -128,5 +128,114 @@ export default defineConfig({
 });
 ```
 
-Options in the stylesheet's `@plugin` block override the TypeScript options. Use
-`hashLength` for the `hash-length` option in TypeScript, such as `iconify({ hashLength: 6 })`.
+> [!NOTE]
+> Options in the stylesheet's `@plugin` block override the TypeScript options. Use
+> `hashLength` for the `hash-length` option in TypeScript, such as `iconify({ hashLength: 6 })`.
+> The stylesheet cannot set `collections` or `svgo` (described below).
+
+### Custom icon set format
+
+A custom icon set uses the Iconify JSON format, which the `IconifyJSON` type of
+`@iconify/types` describes. This is the same format as the `icons.json` file of an
+`@iconify-json/*` package:
+
+```json
+{
+  "prefix": "brand",
+  "width": 24,
+  "height": 24,
+  "icons": {
+    "logo": {
+      "body": "<path fill=\"currentColor\" d=\"M4 4h16v16H4z\"/>"
+    },
+    "badge": {
+      "body": "<circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"#e11d48\"/>",
+      "width": 32,
+      "height": 32
+    }
+  },
+  "aliases": {
+    "logo-flipped": {
+      "parent": "logo",
+      "hFlip": true
+    }
+  }
+}
+```
+
+- `icons` maps each icon name to its SVG content. `body` contains the elements inside the
+  `<svg>` element, without the `<svg>` element itself.
+- `left`, `top`, `width`, and `height` define the icon's `viewBox`. An icon can set them, and
+  the top level sets the default values for every icon. Missing values default to `0`, `0`,
+  `16`, and `16`.
+- `aliases` maps additional names to an existing icon in `parent`. An alias can override the
+  `viewBox` values and add `rotate` (quarter turns), `hFlip`, and `vFlip` transformations.
+- The key in `collections` sets the set name in utilities, such as `icon-brand--logo`. The
+  plugin does not use the `prefix` field to find the set.
+
+Set names and icon names must consist of lowercase letters and digits, separated by single
+hyphens. Utilities cannot select other names, such as `Logo` or `logo_dark`.
+
+With the default `mode: auto`, an icon whose `body` contains `currentColor` paints the text
+color, and the other icons keep their own colors. In the example, `logo` follows the text
+color and `badge` stays red.
+
+The plugin does not validate the data. A JSON file must contain valid JSON, but the plugin
+treats an icon that it cannot find in the data as an unknown utility.
+
+### Icon sets from SVG files
+
+`svgDirectory()` creates an icon set from the SVG files in a directory. Each file becomes one
+icon, and the file name without `.svg` becomes the icon name:
+
+```ts
+import { iconify, svgDirectory } from "@stillwind/plugin-iconify";
+
+iconify({
+  collections: {
+    brand: svgDirectory("src/icons/brand"),
+    ui: svgDirectory("src/icons/ui", {
+      recursive: true,
+      transform: (svg) => svg.replaceAll('fill="#000"', 'fill="currentColor"'),
+    }),
+  },
+});
+```
+
+The directory can be an absolute path or a path relative to the project directory. Each file
+must contain an `<svg>` element with a `viewBox` attribute, which sets the icon's dimensions.
+The plugin keeps the `style` attribute of the `<svg>` element and its attributes whose names
+start with `fill` or `stroke`, such as `fill-rule`. It drops the other attributes of the
+`<svg>` element.
+
+- `recursive`: reads subdirectories. The default icon name joins the path segments with `-`,
+  such as `arrows-left` for `arrows/left.svg`. Defaults to `false`.
+- `name`: maps the file path relative to the directory, without `.svg` and with `/` separators,
+  to an icon name. Returning `undefined` skips the file.
+- `transform`: rewrites the SVG text of each file before the plugin parses it.
+
+Loading fails when an icon name is invalid, two files have the same icon name, or a file has
+no `viewBox`. The error names the file. Adding, removing, or editing an SVG file reloads the
+icons while a development server or build watcher runs.
+
+A function in `collections` receives the set name and the host's `read`, `list`, and `watch`
+operations, so you can write similar loaders. Watch each file and directory that the function
+reads, such as `context.watch(file)` and `context.watch(directory, "directory")`.
+
+### SVG minification
+
+The plugin minifies the SVG of each icon with [SVGO](https://svgo.dev/) before it embeds the
+SVG in CSS. The `svgo` TypeScript option controls this:
+
+- `true`, the default, uses `preset-default` with `multipass` enabled.
+- An SVGO configuration object replaces that default configuration.
+- `false` embeds the SVG without minification.
+
+```ts
+iconify({
+  svgo: {
+    multipass: true,
+    plugins: ["preset-default", "removeDimensions"],
+  },
+});
+```

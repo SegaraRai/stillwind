@@ -114,9 +114,10 @@ export class ViteEnvironment {
    * Records a changed file for the next design-system refresh.
    *
    * @param file - Absolute path of the changed file.
+   * @param entry - Whether the event adds or removes the file, rather than changing its content.
    */
-  changed(file: string): void {
-    this.#designSystem.changed(file);
+  changed(file: string, entry: boolean): void {
+    this.#designSystem.changed(file, entry);
   }
 
   /**

@@ -20,7 +20,8 @@
   "dependencies": {
     "@iconify/types": "^2.0.0",
     "@iconify/utils": "^3.1.7",
-    "@stillwind/config": "workspace:*"
+    "@stillwind/config": "workspace:*",
+    "svgo": "^4.1.0"
   },
   "devDependencies": {
     "@stillwind-internal/tools-workspace": "workspace:*",

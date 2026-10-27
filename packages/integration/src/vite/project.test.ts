@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { StillwindPlugin } from "@stillwind/config";
 import { createServer, type ResolvedConfig } from "vite";
 import { afterEach, describe, expect, onTestFinished, test, vi } from "vite-plus/test";
 
@@ -147,6 +148,40 @@ describe("invalid or missing CSS imports", () => {
     expect(await fixture.getCss()).toMatch(/width:\s*11px/);
     expect(state.cssFiles.has(addedFile)).toBe(true);
     expect(fixture.takeWarnings()).toEqual([]);
+  });
+
+  test("adding or removing an entry of a directory that a plugin watches reloads CSS", async () => {
+    const lister: StillwindPlugin = {
+      name: "lister",
+      async css(context) {
+        const directory = path.join(context.root, "icons");
+        context.watch(directory, "directory");
+        return `.listed { width: ${(await context.list(directory)).length}px; }`;
+      },
+    };
+    const fixture = await createWatchedProject(
+      {
+        "root.css": '@plugin "lister"; @stillwind-slot utilities;',
+        "icons/a.svg": "<svg/>",
+      },
+      {
+        plugins: [lister],
+      },
+    );
+    await fixture.waitUntilWatched("a.svg");
+    const state = fixture.project.environment("client").designSystem;
+    expect(await fixture.getCss()).toMatch(/width:\s*1px/);
+
+    const afterLoad = state.cssChange;
+    writeFileSync(path.join(fixture.root, "icons/a.svg"), "<svg></svg>");
+    writeFileSync(path.join(fixture.root, "icons/b.svg"), "<svg/>");
+    await expect.poll(() => state.cssChange).toBeGreaterThan(afterLoad);
+    expect(await fixture.getCss()).toMatch(/width:\s*2px/);
+
+    const afterAddition = state.cssChange;
+    rmSync(path.join(fixture.root, "icons/a.svg"));
+    await expect.poll(() => state.cssChange).toBeGreaterThan(afterAddition);
+    expect(await fixture.getCss()).toMatch(/width:\s*1px/);
   });
 
   test("removing a CSS import removes its rules and stops observing its file", async () => {
@@ -342,13 +377,19 @@ async function createWatchedProject(
     environmentCss?: boolean;
     /** Whether Vite HMR is enabled for this fixture. Defaults to false. */
     hmr?: boolean;
+    /** Plugins configured for the project. */
+    plugins?: StillwindPlugin[];
   } = {},
 ) {
   const root = mkdtempSync(path.join(repositoryRoot, ".test-css-watch-"));
   for (const [filename, content] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(root, filename)), { recursive: true });
     writeFileSync(path.join(root, filename), content);
   }
-  const project = createViteProject({ css: "root.css" });
+  const project = createViteProject({
+    css: "root.css",
+    plugins: options.plugins,
+  });
   const plugins = createVitePlugins(project);
   const watcherReady = Promise.withResolvers<void>();
   const server = await createServer({

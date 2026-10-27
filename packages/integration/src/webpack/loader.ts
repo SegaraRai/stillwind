@@ -132,6 +132,7 @@ export default function webpackLoader(
         documentUri: (id) => pathToFileURL(id).href,
         sourceMapSource: (id) => pathToFileURL(id).href,
         watch,
+        watchDirectory: (id) => this.addContextDependency(id),
         plugins: nodePluginHost,
       },
       undefined,

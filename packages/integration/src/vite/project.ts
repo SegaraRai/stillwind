@@ -406,7 +406,7 @@ export function createViteProject(
         return;
       }
       for (const state of environments.values()) {
-        state.changed(path);
+        state.changed(path, event !== "change");
       }
     };
     /** Closes discovery watchers, detaches server listeners, and clears the CSS-watching flag. */

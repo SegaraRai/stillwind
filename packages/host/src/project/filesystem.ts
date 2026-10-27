@@ -49,6 +49,7 @@ export function createFileSystemAnalysisHost(
 
   /**
    * Normalizes paths for lookup in the captured buffer map.
+   *
    * @param id - File path resolved against the process working directory when relative.
    * @returns An absolute path, lowercased on Windows to share keys across case variations.
    */
@@ -57,6 +58,7 @@ export function createFileSystemAnalysisHost(
 
   /**
    * Reads a captured buffer before falling back to the physical file.
+   *
    * @param id - File path accepted by the Node filesystem.
    * @returns Captured text when present, otherwise UTF-8 file text.
    * @throws If the required physical file cannot be read.
@@ -65,7 +67,36 @@ export function createFileSystemAnalysisHost(
     Promise.resolve(buffers.get(documentKey(id)) ?? readFile(id, "utf8"));
 
   /**
+   * Lists a directory with the open buffers inside it, so that an unsaved file appears as an entry.
+   *
+   * @param id - Absolute directory path.
+   * @returns Disk and buffered entries, each listed once.
+   * @throws If neither the disk nor the buffers contain the directory.
+   */
+  const list = async (id: string) => {
+    const buffered = pluginDirectory(documents, id, process.platform !== "win32");
+    const entries = [
+      ...(await readPluginDirectory(id).catch((error: unknown) => {
+        if (!buffered.length) {
+          throw error;
+        }
+        return [];
+      })),
+      ...buffered,
+    ];
+    return [
+      ...new Map(
+        entries.map((entry) => [
+          process.platform === "win32" ? entry.name.toLowerCase() : entry.name,
+          entry,
+        ]),
+      ).values(),
+    ];
+  };
+
+  /**
    * Selects script and framework sources eligible for default analysis.
+   *
    * @param id - File path tested case-insensitively by extension.
    * @returns Whether the path has a supported extension and is not a TypeScript declaration file.
    */
@@ -146,6 +177,7 @@ export function createFileSystemAnalysisHost(
         /**
          * Resolves a plugin file request, preferring open buffers for a relative or absolute
          * path so that an unsaved plugin file resolves.
+         *
          * @param specifier - Package specifier or path.
          * @param importer - Stylesheet that contains the statement.
          * @returns A buffered or existing file, or undefined when the request does not resolve
@@ -169,23 +201,11 @@ export function createFileSystemAnalysisHost(
             ? resolved
             : undefined;
         },
+        list,
         complete: (prefix, importer, projectRoot) =>
           completePluginPaths(prefix, importer, projectRoot, {
             read,
-            directory: async (id) => {
-              const entries = [
-                ...(await readPluginDirectory(id).catch(() => [])),
-                ...pluginDirectory(documents, id, process.platform !== "win32"),
-              ];
-              return [
-                ...new Map(
-                  entries.map((entry) => [
-                    process.platform === "win32" ? entry.name.toLowerCase() : entry.name,
-                    entry,
-                  ]),
-                ).values(),
-              ];
-            },
+            directory: (id) => list(id).catch(() => []),
           }),
       },
     },

@@ -67,11 +67,16 @@ export interface PluginContext {
   /** Absolute project directory. */
   readonly root: string;
   /**
-   * Registers a file that the plugin reads, so that a change reloads the design system.
+   * Registers a file or directory that the plugin reads, so that a change reloads the design
+   * system. A file reloads it when its content changes. A directory reloads it when an entry is
+   * added, removed, or renamed. A change to an entry's content does not reload it unless the
+   * plugin also watches that entry. A host that does not reload the design system ignores both
+   * kinds.
    *
-   * @param path - Absolute file path.
+   * @param path - Absolute file or directory path.
+   * @param kind - Whether `path` names a file or a directory. Defaults to `"file"`.
    */
-  watch(path: string): void;
+  watch(path: string, kind?: PluginWatchKind): void;
   /**
    * Resolves a module request from the stylesheet that contains the statement, with the host's
    * module resolution. A plugin uses it instead of Node APIs, so that it also runs in browser hosts.
@@ -89,6 +94,26 @@ export interface PluginContext {
    * @throws If the file does not exist or cannot be read.
    */
   read(path: string): Promise<string>;
+  /**
+   * Lists the entries of a directory through the host. Listing does not watch the directory.
+   *
+   * @param path - Absolute directory path.
+   * @returns The directory's own entries in no particular order, without the entries of its
+   * subdirectories.
+   * @throws If the directory does not exist or cannot be read, or the host cannot list directories.
+   */
+  list(path: string): Promise<readonly PluginDirectoryEntry[]>;
+}
+
+/** Kind of path that {@link PluginContext.watch} registers. */
+export type PluginWatchKind = "file" | "directory";
+
+/** One entry of a directory that {@link PluginContext.list} returns. */
+export interface PluginDirectoryEntry {
+  /** Entry name without the directory path. */
+  name: string;
+  /** Whether the entry is a directory or a symbolic link to a directory. */
+  directory: boolean;
 }
 
 /**
