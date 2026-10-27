@@ -12,6 +12,10 @@ import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
 
+const title = "Stillwind — Familiar utilities. Enforced rules.";
+const description =
+  "Familiar utilities. Enforced rules. Stillwind checks component styles against your design system and compiles static utilities to CSS.";
+const socialImage = new URL("/og.png", Astro.site);
 const repository = "https://github.com/SegaraRai/stillwind";
 const docs = "/docs/";
 const integrations = "/docs/integrations/";
@@ -32,11 +36,21 @@ const frameworks = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <ThemeHead />
-    <meta
-      name="description"
-      content="Familiar utilities. Enforced rules. Stillwind checks component styles against your design system and compiles static utilities to CSS."
-    />
-    <title>Stillwind — Familiar utilities. Enforced rules.</title>
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <meta property="og:title" content={title} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Stillwind" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={new URL("/", Astro.site)} />
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={jetbrainsMono} as="font" type="font/woff2" crossorigin />

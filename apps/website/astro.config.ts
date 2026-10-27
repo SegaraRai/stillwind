@@ -17,7 +17,7 @@ export default defineConfig({
         locale: "en",
         github: "https://github.com/SegaraRai/stillwind",
         editPattern: "https://github.com/SegaraRai/stillwind/edit/main/apps/website/{path}",
-        socialImage: "/favicon.svg",
+        socialImage: "/og.png",
         search: false,
         sidebar: {
           items: [
