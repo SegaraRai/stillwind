@@ -1,4 +1,5 @@
 import path from "node:path";
+import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters, styleText } from "node:util";
 

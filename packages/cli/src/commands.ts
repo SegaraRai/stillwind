@@ -1,3 +1,4 @@
+import process from "node:process";
 import { stripVTControlCharacters, styleText } from "node:util";
 
 import { defineCommand, renderUsage, runCommand, type ArgsDef, type CommandDef } from "citty";

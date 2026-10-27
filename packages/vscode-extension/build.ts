@@ -1,6 +1,7 @@
 import { cp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+import process from "node:process";
 
 import { extensionManifest } from "./src/manifest.ts";
 

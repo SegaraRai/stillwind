@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import { stillwind } from "@stillwind/integration/astro";
 import { dev } from "astro";
 import type { ViteDevServer } from "vite";

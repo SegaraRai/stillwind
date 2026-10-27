@@ -1,4 +1,5 @@
 import { fork, type ChildProcess } from "node:child_process";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import type { EditorRequest, WorkspaceResult } from "@stillwind/host";

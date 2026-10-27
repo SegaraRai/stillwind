@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import { SourceFormatter, type RewriteInput, type RewriteResult } from "@stillwind/analysis/node";
 
 /** Formatters shared by the exact configuration path across calls in this Node process. */

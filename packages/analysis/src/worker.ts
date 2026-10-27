@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import { AnalysisWorkspace } from "@stillwind/host";
 
 import { RewriteFailure, SourceRewriter } from "./rewrite.ts";

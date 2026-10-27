@@ -1,3 +1,4 @@
+import process from "node:process";
 import { parseArgs as tokenizeArgs } from "node:util";
 
 import { defineCittyPlugin, parseArgs, type ArgsDef } from "citty";

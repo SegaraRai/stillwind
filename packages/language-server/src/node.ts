@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import { openNodeWorkspaces } from "@stillwind/analysis/node";
 import { createConnection, ProposedFeatures } from "vscode-languageserver/node";
 

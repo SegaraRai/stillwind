@@ -1,3 +1,5 @@
+import process from "node:process";
+
 import type { InlineConfig } from "@stillwind/config";
 import { resolveIntegrationConfig, type ResolvedIntegrationConfig } from "@stillwind/config/node";
 
