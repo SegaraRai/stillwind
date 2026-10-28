@@ -2,13 +2,18 @@
 import { Code } from "astro:components";
 import { style } from "stillwind/astro";
 
-import { compileExample, noCssMessage } from "./compiled-example";
+import { compileExample, documentCssHeading, noCssMessage } from "./compiled-example";
 
 interface Props {
-  source: string;
+  source?: string;
+  stylesheet?: string;
+  /** Leaves out the generated stylesheet, such as for `style.css()` examples. */
+  hideCss?: boolean;
 }
 
-const example = await compileExample(Astro.props.source);
+const { hideCss } = Astro.props;
+
+const example = await compileExample(Astro.props);
 
 const theme = {
   light: "github-light",
@@ -17,13 +22,23 @@ const theme = {
 ---
 
 <div {...style("compiled-example")}>
-  <h3>Source</h3>
-  <Code code={example.source.trim()} lang="tsx" themes={theme} defaultColor={false} />
-  <h3>Compiled code</h3>
-  <Code code={example.code.trim()} lang="ts" themes={theme} defaultColor={false} />
-  <h3>Generated CSS</h3>
-  {example.css ? (
-    <Code code={example.css.trim()} lang="css" themes={theme} defaultColor={false} />
+  {example.stylesheet !== undefined && (
+    <>
+      <h3>Stylesheet</h3>
+      <Code code={example.stylesheet.trim()} lang="css" themes={theme} defaultColor={false} />
+    </>
+  )}
+  {example.source !== undefined && (
+    <>
+      <h3>Source</h3>
+      <Code code={example.source.trim()} lang="tsx" themes={theme} defaultColor={false} />
+      <h3>Compiled code</h3>
+      <Code code={example.code!.trim()} lang="ts" themes={theme} defaultColor={false} />
+    </>
+  )}
+  {!hideCss && <h3>{example.stylesheet === undefined ? "Generated CSS" : documentCssHeading}</h3>}
+  {hideCss ? null : example.css ? (
+    <Code code={example.css} lang="css" themes={theme} defaultColor={false} />
   ) : (
     <p>{noCssMessage}</p>
   )}

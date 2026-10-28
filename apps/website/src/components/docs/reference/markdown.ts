@@ -1,12 +1,17 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 import type { GeneratedMarkdownComponentTransform } from "@cloudflare/nimbus-docs/types";
 import { lintRules, type LintRule } from "stillwind/config";
 
 import { compilerRevision, documentationCompiler } from "../../../lib/docs/reference/compiler";
 import { loadUtilityCatalog, utilityCatalogMarkdown } from "../../../lib/docs/utilities/catalog";
-import { compiledExampleMarkdown, compileWith } from "./compiled-example";
+import {
+  compiledExampleMarkdown,
+  compileExample,
+  compileWith,
+  type CompiledExampleOutput,
+} from "./compiled-example";
 import { compiledSource, compiledSourcePlugin } from "./compiled-source";
 import {
   diagnosticExample,
@@ -58,6 +63,28 @@ export async function referenceMarkdown() {
       }
     }
   }
+  // Markdown renderers run synchronously, so examples with a stylesheet, which
+  // need their own compiler, are compiled before rendering.
+  const stylesheetExamples = new Map<string, CompiledExampleOutput>();
+  const pages = new URL("../../../content/docs/docs/", import.meta.url);
+  for (const file of await readdir(pages, { recursive: true })) {
+    if (!file.endsWith(".mdx")) {
+      continue;
+    }
+    const page = await readFile(new URL(file.replaceAll("\\", "/"), pages), "utf8");
+    for (const [, children] of page.matchAll(
+      /<CompiledExample[^>]*>([\s\S]*?)<\/CompiledExample>/g,
+    )) {
+      const input = compiledSource(children!);
+      if (input.stylesheet !== undefined) {
+        try {
+          stylesheetExamples.set(JSON.stringify(input), await compileExample(input));
+        } catch (error) {
+          failures.push(`${file}: ${String(error)}`);
+        }
+      }
+    }
+  }
   if (failures.length) {
     throw new Error(failures.join("\n"));
   }
@@ -72,8 +99,17 @@ export async function referenceMarkdown() {
     },
     CompiledExample: {
       revision: componentRevision,
-      render: ({ children }) =>
-        compiledExampleMarkdown(compileWith(compiler, compiledSource(children))),
+      render: ({ attrs, children }) => {
+        const input = compiledSource(children);
+        const example =
+          input.stylesheet === undefined
+            ? compileWith(compiler, input.source!)
+            : stylesheetExamples.get(JSON.stringify(input));
+        if (!example) {
+          throw new Error("Unknown CompiledExample stylesheet");
+        }
+        return compiledExampleMarkdown(example, attrs.hideCss === true || attrs.hideCss === "true");
+      },
     },
     DiagnosticExample: {
       revision: componentRevision,

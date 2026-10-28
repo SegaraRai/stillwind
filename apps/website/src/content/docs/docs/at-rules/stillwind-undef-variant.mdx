@@ -1,0 +1,42 @@
+---
+title: "@stillwind-undef-variant"
+description: Remove built-in or plugin variant definitions that match a name or a prefix.
+slug: docs/at-rules/stillwind-undef-variant
+sidebar:
+  order: 14
+---
+
+```css
+@stillwind-undef-variant name;
+@stillwind-undef-variant prefix-*;
+@stillwind-undef-variant *;
+```
+
+`@stillwind-undef-variant` removes the matching variant definitions that
+register before it. A removed variant becomes unknown, and
+[unknown-variant](/docs/lints/unknown-variant/) reports its uses. Write it at the
+top level of the stylesheet or in a
+[@stillwind-registry](/docs/at-rules/stillwind-registry/) block.
+
+## Example
+
+<CompiledExample>
+
+```css
+@stillwind-undef-variant print;
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const toolbar = style("print:hidden");
+```
+
+</CompiledExample>
+
+`print:hidden` produces no class, because `print` is unknown.
+
+Patterns and registration order work as in
+[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/). A
+[@custom-variant](/docs/at-rules/custom-variant/) after the statement can define
+a variant with the removed name again.

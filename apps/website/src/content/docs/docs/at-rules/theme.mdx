@@ -1,0 +1,169 @@
+---
+title: "@theme"
+description: Define design tokens that add utilities, and shared values such as images.
+slug: docs/at-rules/theme
+sidebar:
+  order: 1
+---
+
+```css
+@theme [default] [asset] [inline | static] {
+  --name: value;
+}
+```
+
+`@theme` defines design tokens as custom properties. A token in a known
+namespace adds utilities: `--color-brand` adds `bg-brand`, `text-brand`, and the
+other color utilities. Write `@theme` at the top level of the stylesheet.
+
+## Example
+
+<CompiledExample>
+
+```css
+@theme {
+  --color-brand: oklch(0.6 0.2 250);
+  --color-brand-muted: oklch(0.8 0.08 250);
+  --radius-card: 0.75rem;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const card = style("rounded-card bg-brand");
+```
+
+</CompiledExample>
+
+The generated stylesheet declares only the tokens that the used utilities
+reference. `--color-brand-muted` is not used, so the stylesheet leaves it out.
+
+## Options
+
+| Option    | Effect                                                                              |
+| --------- | ----------------------------------------------------------------------------------- |
+| `default` | Marks the tokens as defaults. A token without `default` replaces them in any order. |
+| `asset`   | Declares shared values, such as images, that are not design tokens                  |
+| `inline`  | Replaces each `var()` reference to a token with the token's value                   |
+| `static`  | Declares the tokens even when no used utility references them                       |
+
+`inline` and `static` cannot be combined. The other options can be combined
+freely.
+
+### Defaults
+
+<CompiledExample>
+
+```css
+@theme {
+  --color-brand: red;
+}
+
+@theme default {
+  --color-brand: blue;
+  --color-brand-muted: lightblue;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const label = style("bg-brand text-brand-muted");
+```
+
+</CompiledExample>
+
+`--color-brand` without `default` wins although it comes first. The default
+theme of Stillwind uses `default`, so your tokens replace its values.
+
+### Inline and static values
+
+<CompiledExample>
+
+```css
+@theme inline {
+  --font-display: "Inter Display", sans-serif;
+}
+
+@theme static {
+  --color-highlight: #fde047;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const title = style("font-display");
+```
+
+</CompiledExample>
+
+`font-display` contains the value of `--font-display` instead of a `var()`
+reference, and the stylesheet does not declare `--font-display`. The stylesheet
+declares `--color-highlight`, although no utility uses it, so your own CSS can
+reference it.
+
+### Assets
+
+<CompiledExample>
+
+```css
+@theme asset {
+  --image-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E");
+}
+
+@utility checkmark {
+  mask-image: var(--image-check);
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const done = style("checkmark");
+```
+
+</CompiledExample>
+
+An asset is declared when a used rule references it, like a token. An asset adds
+no utilities. Token restrictions, `--value()` patterns, `theme()`, and
+`--theme()` do not see assets.
+
+## Remove tokens
+
+Set a namespace to `initial` to remove its earlier tokens. `--*: initial`
+removes every token.
+
+<CompiledExample>
+
+```css
+@theme {
+  --color-*: initial;
+  --color-ink: #1f2937;
+  --color-paper: #ffffff;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const page = style("bg-paper text-ink");
+```
+
+</CompiledExample>
+
+After this block, palette utilities such as `bg-red-500` are unknown.
+
+A reset affects only tokens of the same kind: `@theme { --*: initial; }` keeps
+assets, and `@theme asset { --*: initial; }` keeps design tokens.
+
+## Placement
+
+The `theme` slot places the declarations. `@import "stillwind"` puts it on
+`:root, :host`. See [@stillwind-slot](/docs/at-rules/stillwind-slot/).
+
+[incompatible-theme-value](/docs/lints/incompatible-theme-value/) reports a token
+with a value of the wrong type for its namespace, such as a length in
+`--color-*`. [Design systems](/docs/guides/design-systems/) shows how to name
+tokens by role and report values outside them.

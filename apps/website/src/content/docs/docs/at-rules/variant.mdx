@@ -1,0 +1,57 @@
+---
+title: "@variant"
+description: Apply variants, such as hover or dark, to a block of declarations in a rule of your stylesheet.
+slug: docs/at-rules/variant
+sidebar:
+  order: 6
+---
+
+```css
+selector {
+  @variant variant:sequence, alternative {
+    declarations
+  }
+}
+```
+
+`@variant` wraps its block in the rules of the listed variants. Write it inside
+a style rule.
+
+## Example
+
+<CompiledExample>
+
+```css
+.card {
+  background-color: white;
+
+  @variant hover, focus-within {
+    background-color: var(--color-gray-50);
+  }
+
+  @variant dark:hover {
+    background-color: var(--color-gray-800);
+  }
+}
+```
+
+</CompiledExample>
+
+## Rules
+
+- Each comma-separated sequence receives its own copy of the block.
+- In a sequence, the leftmost variant is the outermost one. `dark:hover` puts
+  the `dark` media query around the `:hover` rule.
+- A sequence that does not resolve contributes nothing.
+  `@variant nope, print { ... }` keeps only the `print` copy.
+- Nested blocks expand inside the rules of the enclosing sequences.
+- A `@variant` statement without a block stays in the output unchanged.
+
+[prefer-variant-directive](/docs/lints/prefer-variant-directive/) reports an
+`@media` query that a variant of your theme can replace, such as a breakpoint.
+
+## Variant definitions
+
+At the top level of the stylesheet, a `@variant` block that contains `@slot`
+defines a variant, for compatibility with older Tailwind CSS stylesheets. Use
+[@custom-variant](/docs/at-rules/custom-variant/) for new definitions.

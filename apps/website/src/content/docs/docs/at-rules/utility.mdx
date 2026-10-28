@@ -1,0 +1,166 @@
+---
+title: "@utility"
+description: Define a utility, or add declarations to a built-in utility with the same name.
+slug: docs/at-rules/utility
+sidebar:
+  order: 2
+---
+
+```css
+@utility name { ... }
+@utility name-* { ... }
+@utility name (implementation) { ... }
+```
+
+`@utility` defines a utility for `style()`, `@apply`, and the other places that
+accept utilities. Write it at the top level of the stylesheet.
+
+## Static and functional utilities
+
+A name without `*` defines a static utility. A name that ends in `-*` defines a
+functional utility, and `--value()` reads the rest of the candidate.
+
+<CompiledExample>
+
+```css
+@utility content-auto {
+  content-visibility: auto;
+}
+
+@utility stack-* {
+  display: flex;
+  flex-direction: column;
+  gap: --spacing(--value(integer));
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const list = style("content-auto stack-3");
+```
+
+</CompiledExample>
+
+## Values and modifiers
+
+`--value()` lists the accepted forms of the value, and the first matching form
+decides. `--modifier()` reads the part after `/` in the same way.
+
+| Form           | Accepts                        | Example candidate |
+| -------------- | ------------------------------ | ----------------- |
+| `--tab-size-*` | A token of the namespace       | `tab-width-wide`  |
+| `integer`      | A bare value of the type       | `tab-width-2`     |
+| `[integer]`    | An arbitrary value of the type | `tab-width-[3]`   |
+
+<CompiledExample>
+
+```css
+@theme {
+  --tab-size-wide: 8;
+}
+
+@utility tab-width-* {
+  tab-size: --value(--tab-size-*, integer, [integer]);
+}
+
+@utility text-fluid-* {
+  font-size: --value(--text-*);
+  line-height: --modifier(--leading-*, [length]);
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const code = style("tab-width-wide text-fluid-lg/tight");
+```
+
+</CompiledExample>
+
+A declaration whose `--value()` matches no form is left out. A candidate that
+matches no declaration produces no CSS, and
+[unknown-utility](/docs/lints/unknown-utility/) reports it.
+
+## Definitions with the same name
+
+A definition with an existing name adds its declarations to the existing
+utility. It does not replace it. Every definition that accepts the candidate
+contributes, and a later definition wins in the cascade.
+
+<CompiledExample>
+
+```css
+@utility container {
+  padding-inline: 1rem;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const page = style("container");
+```
+
+</CompiledExample>
+
+A static definition replaces a functional one for its exact name:
+`@utility shadow-lg { ... }` replaces the built-in `shadow-*` for `shadow-lg`
+only. To remove built-in definitions, use
+[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/).
+
+## Body
+
+A body can contain nested rules, `@apply`, `@keyframes`, and `@property`. A
+nested selector without `&` selects descendants: `[data-icon]` means
+`& [data-icon]`. Variants select the utility element, and the nested selector
+applies inside them.
+
+The compiler moves `@keyframes` and `@property` rules of a used utility to the
+`keyframes` slot, because browsers ignore them inside a style rule. An unused
+utility adds no such rules.
+
+To use a registered custom property, register it with
+[@stillwind-property](/docs/at-rules/stillwind-property/) and require it with
+[@stillwind-require-properties](/docs/at-rules/stillwind-require-properties/).
+
+## The implementation descriptor
+
+`(implementation)` marks the fixed declarations of the body as part of the
+utility's implementation. The `checkImplementation` option of a lint rule decides
+whether the rule checks them:
+
+- [prefer-logical-properties](/docs/lints/prefer-logical-properties/) and
+  [no-restricted-length-units](/docs/lints/no-restricted-length-units/) skip them
+  unless the option is `true`. The `em` values below are skipped.
+- [no-important](/docs/lints/no-important/),
+  [no-restricted-declarations](/docs/lints/no-restricted-declarations/), and
+  [no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens/) check them
+  unless the option is `false`.
+
+<CompiledExample>
+
+```css
+@utility icon-box (implementation) {
+  width: 1em;
+  height: 1em;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const icon = style("icon-box");
+```
+
+</CompiledExample>
+
+Declarations that read the candidate through `--value()` or `--modifier()` are
+still checked.
+
+## Conditions
+
+A definition inside `@media` or another conditional at-rule keeps its
+declarations, and the compiler ignores the condition.
+[ignored-definition-condition](/docs/lints/ignored-definition-condition/)
+reports it. Write the condition inside the body instead, or use a variant.

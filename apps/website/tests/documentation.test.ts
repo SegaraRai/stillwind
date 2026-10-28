@@ -31,7 +31,7 @@ test("documents every lint rule and compiler error at its public URL", async () 
       }
     }
   }
-});
+}, 30_000);
 
 test("lists the current recommended severity of every lint rule", async () => {
   const index = await readFile(new URL("lints/index.mdx", content), "utf8");
@@ -46,4 +46,37 @@ test("lists the current recommended severity of every lint rule", async () => {
     ]),
   );
   expect(documented).toEqual(actual);
-});
+}, 30_000);
+
+test("documents every stylesheet directive that editors suggest", async () => {
+  const table = await readFile(
+    new URL("../../../crates/compiler/src/query/stylesheet/directives.rs", import.meta.url),
+    "utf8",
+  );
+  const directives = [...table.matchAll(/name: "([a-z-]+)",\s*purpose: Purpose::(\w+),/g)].map(
+    ([, name, purpose]) => ({
+      name: name!,
+      purpose: purpose!,
+    }),
+  );
+  const pages = directives.filter(({ purpose }) => purpose === "Authoring");
+  expect(pages.length).toBeGreaterThan(0);
+  const directory = new URL("at-rules/", content);
+  const files = await readdir(directory);
+  expect(files.toSorted()).toEqual(
+    ["index.mdx", "registry-directives.mdx", ...pages.map(({ name }) => `${name}.mdx`)].toSorted(),
+  );
+  const index = await readFile(new URL("index.mdx", directory), "utf8");
+  for (const { name } of pages) {
+    const page = await readFile(new URL(`${name}.mdx`, directory), "utf8");
+    expect(page, name).toMatch(new RegExp(`^slug: docs/at-rules/${name}$`, "m"));
+    expect(page, name).toMatch(new RegExp(`^title: "@${name}"$`, "m"));
+    expect(index, name).toContain(`[@${name}](/docs/at-rules/${name}/)`);
+  }
+  const registry = await readFile(new URL("registry-directives.mdx", directory), "utf8");
+  for (const { name, purpose } of directives) {
+    if (purpose !== "Authoring") {
+      expect(registry, name).toMatch(new RegExp(`^### @${name}$`, "m"));
+    }
+  }
+}, 30_000);

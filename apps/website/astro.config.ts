@@ -21,7 +21,7 @@ export default defineConfig({
         search: false,
         sidebar: {
           items: [
-            "docs",
+            "docs", // Getting Started
             {
               label: "Introduction",
               items: ["docs/why", "docs/guides/migrating-from-tailwind"],
@@ -55,12 +55,16 @@ export default defineConfig({
             {
               label: "Reference",
               items: [
+                "docs/utilities",
                 "docs/configuration",
                 {
                   label: "Macros",
                   autogenerate: { directory: "docs/macros" },
                 },
-                "docs/utilities",
+                {
+                  label: "At-rules",
+                  autogenerate: { directory: "docs/at-rules" },
+                },
                 {
                   label: "Lint rules",
                   autogenerate: { directory: "docs/lints" },

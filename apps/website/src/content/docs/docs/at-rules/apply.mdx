@@ -1,0 +1,49 @@
+---
+title: "@apply"
+description: Insert the declarations of utilities, including their variants, into a rule of your stylesheet.
+slug: docs/at-rules/apply
+sidebar:
+  order: 5
+---
+
+```css
+selector {
+  @apply utilities;
+}
+```
+
+`@apply` replaces itself with the declarations of the listed utilities. Write it
+inside a style rule or a utility definition. Whitespace separates the utilities.
+
+## Example
+
+<CompiledExample>
+
+```css
+.button {
+  @apply rounded-md px-4 py-2 hover:bg-blue-600 focus-visible:outline-2;
+}
+```
+
+</CompiledExample>
+
+A utility with variants becomes nested rules, and the selector of the enclosing
+rule takes the place of the generated class. Utilities without variants come
+first in utility order. Utilities with variants follow in variant order.
+
+The stylesheet declares the theme values and registered properties that the
+applied utilities need, as it does for `style()`.
+
+## Rules
+
+- A utility that does not resolve adds nothing. `.button { @apply unknown-x; }`
+  becomes `.button {}`.
+- An applied utility can apply other utilities. A circular application is a
+  compilation error.
+- In a utility definition, `@apply` expands after the variants of the utility
+  apply, so the applied declarations stay under them.
+- `@apply` adds no class to any element. `@apply group` does not make the
+  element a `group` for `group-hover:`.
+
+To apply a condition to your own declarations, use
+[@variant](/docs/at-rules/variant/) instead.

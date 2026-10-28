@@ -1,0 +1,86 @@
+---
+title: "@stillwind-registry"
+description: Define or remove utilities only for style(), keyframes, animation options, or view transitions.
+slug: docs/at-rules/stillwind-registry
+sidebar:
+  order: 12
+---
+
+```css
+@stillwind-registry default, keyframe, animation, view-transition {
+  ...
+}
+```
+
+Each place where utilities are written resolves them with its own set of
+definitions, called a registry. `@stillwind-registry` selects the registries
+that the definitions inside the block change. Write it at the top level of the
+stylesheet, or inside another `@stillwind-registry` block.
+
+| Registry          | Resolves the utilities of                                                     |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `default`         | `style()`, `style.cva()`, `style.css()`, and `@apply`                         |
+| `keyframe`        | The frames of `style.keyframes()`                                             |
+| `animation`       | The options of a keyframes use, such as `enter("both")`                       |
+| `view-transition` | The `group`, `old`, `new`, and `imagePair` fields of `style.viewTransition()` |
+
+A definition outside every block changes `default`, `keyframe`, and
+`view-transition`. `animation` starts empty and changes only through blocks that
+name it.
+
+## Example
+
+The built-in `keyframe` and `view-transition` registries replace `duration-*`
+with definitions that set animation properties. A top-level `@utility` with a
+name that they replace also reaches those registries, and
+[bypassed-undefinition](/docs/lints/bypassed-undefinition/) reports it. A
+`default` block keeps the definition out of them:
+
+<CompiledExample>
+
+```css
+@stillwind-registry default {
+  @utility duration-slow {
+    transition-duration: 600ms;
+  }
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const panel = style("transition duration-slow");
+```
+
+</CompiledExample>
+
+A block that names `animation` and `view-transition` defines the utility for
+animations instead:
+
+```css
+@stillwind-registry animation, view-transition {
+  @utility duration-slow {
+    animation-duration: 600ms;
+  }
+}
+```
+
+## Contents
+
+A block contains only these statements. Another statement is an error.
+
+- `@utility`, `@custom-variant`, and `@variant` definitions
+- [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/),
+  [@stillwind-undef-variant](/docs/at-rules/stillwind-undef-variant/), and
+  [@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property/)
+- `@stillwind-arbitrary-property`, `@stillwind-utility`, and
+  `@stillwind-variant` from the [registry directives](/docs/at-rules/registry-directives/)
+- A nested `@stillwind-registry` block. The innermost block decides.
+
+The header names one or more registries, separated by commas. An unknown or
+missing name is an error, and
+[invalid-css-directive](/docs/lints/invalid-css-directive/) reports it.
+
+[Animations](/docs/guides/animations/) and
+[View transitions](/docs/guides/view-transitions/) show how utilities such as
+`duration-300` set animation properties in those registries.

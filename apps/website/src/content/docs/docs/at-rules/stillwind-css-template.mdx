@@ -1,0 +1,115 @@
+---
+title: "@stillwind-css-template"
+description: Define where style.css() places its utilities, theme values, and other supporting CSS.
+slug: docs/at-rules/stillwind-css-template
+sidebar:
+  order: 11
+---
+
+```css
+@stillwind-css-template name {
+  ...
+  @stillwind-slot utilities;
+}
+```
+
+`@stillwind-css-template` defines a template for the string that
+[style.css()](/docs/macros/css/) returns. The `template` option of the call
+selects the template by name, and `default` applies when the call names none.
+Write it at the top level of the stylesheet.
+
+## Example
+
+<CompiledExample hideCss>
+
+```css
+@stillwind-css-template layered {
+  @layer component {
+    :host {
+      @stillwind-slot theme;
+    }
+
+    @stillwind-slot utilities;
+  }
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const css = style.css("p-4 text-blue-600", {
+  selector: ":host",
+  template: "layered",
+});
+```
+
+</CompiledExample>
+
+The string contains the template's own CSS, and each slot receives the output of
+the call. The string never contains the preflight reset or the other rules of
+your stylesheet.
+
+## Leave out supporting CSS
+
+A slot that the template omits drops its output. This template places only the
+utilities, so the string uses `--spacing` and `--color-blue-600` without
+declaring them. The page or the shadow root must declare them in another way.
+
+<CompiledExample hideCss>
+
+```css
+@stillwind-css-template bare {
+  @stillwind-slot utilities;
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const css = style.css("p-4 text-blue-600", {
+  selector: ":host",
+  template: "bare",
+});
+```
+
+</CompiledExample>
+
+## The default template
+
+`@import "stillwind"` defines `default`:
+
+```css
+@stillwind-css-template default {
+  :where(:root, :host) {
+    @stillwind-slot theme;
+    @stillwind-slot property-initials inherited;
+  }
+
+  :where(*, :host),
+  ::before,
+  ::after,
+  ::backdrop {
+    @stillwind-slot property-initials non-inherited;
+  }
+
+  @stillwind-slot keyframes;
+  @stillwind-slot utilities;
+}
+```
+
+It places the theme values on the root of the tree that adopts the string. It
+emits no `@property` rules, because a registration inside a shadow root has no
+effect. No rule is in a layer.
+
+A later template with the same name replaces an earlier one, so your stylesheet
+can redefine `default` after `@import "stillwind"`.
+
+## Rules
+
+- A template must contain a `utilities` slot.
+- A template cannot contain definitions, such as `@theme` or `@utility`.
+- The loader skips a template that breaks these rules, and
+  [invalid-css-directive](/docs/lints/invalid-css-directive/) reports it.
+- A template name that the stylesheet does not define reports
+  [invalid-css-input](/docs/lints/invalid-css-input/) at the call. The call then
+  uses no template, and its string contains only the rules.

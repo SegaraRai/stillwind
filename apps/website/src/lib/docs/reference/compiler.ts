@@ -12,6 +12,7 @@ import {
 } from "@stillwind/native";
 
 const require = createRequire(import.meta.url);
+
 export async function referenceCompiler(
   options: NativeCompilerOptions = {},
   stylesheet = '@import "stillwind";',
@@ -44,10 +45,20 @@ export async function referenceCompiler(
     compile(code: string) {
       return new NativeProjectSession(loader, false).compile([source(code)]).modules[0]!;
     },
+    /** Compiles `code` when present and renders the complete stylesheet of the session. */
+    document(code?: string) {
+      const session = new NativeProjectSession(loader, false);
+      const module = code === undefined ? undefined : session.compile([source(code)]).modules[0]!;
+      return {
+        module,
+        css: session.css().css,
+      };
+    },
   };
 }
 
 let shared: ReturnType<typeof referenceCompiler> | undefined;
+
 export const documentationCompiler = () => (shared ??= referenceCompiler());
 
 export async function compilerRevision() {

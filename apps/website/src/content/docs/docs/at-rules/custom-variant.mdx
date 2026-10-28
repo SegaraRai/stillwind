@@ -1,0 +1,92 @@
+---
+title: "@custom-variant"
+description: Define a variant with a selector, or with a block that marks the styled content with @slot.
+slug: docs/at-rules/custom-variant
+sidebar:
+  order: 3
+---
+
+```css
+@custom-variant name (selector);
+@custom-variant name {
+  selector {
+    @slot;
+  }
+}
+@custom-variant name scope(document) ...;
+```
+
+`@custom-variant` defines a variant. Write it at the top level of the
+stylesheet.
+
+## Example
+
+The short form takes a selector in parentheses. The block form wraps the
+content with any rules, and `@slot` marks where the content goes.
+
+<CompiledExample>
+
+```css
+@custom-variant theme-dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@custom-variant hocus {
+  &:hover,
+  &:focus-visible {
+    @slot;
+  }
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const link = style("theme-dark:text-white hocus:underline");
+```
+
+</CompiledExample>
+
+The block form can also contain at-rules, such as `@media` or `@supports`,
+around `@slot`.
+
+## Selectors without &
+
+`&` refers to the element that the utility styles. As in CSS Nesting, a
+selector without `&` selects descendants:
+`@custom-variant expanded ([aria-expanded="true"])` means
+`& [aria-expanded="true"]`.
+[prefer-explicit-nesting-selector](/docs/lints/prefer-explicit-nesting-selector/)
+reports such a selector, and its fix writes the `&` without changing the
+meaning.
+
+## Document-level elements
+
+`scope(document)` after the name keeps selectors without `&` as written, so the
+variant can select a document-level element such as `:host` or `:root`.
+
+<CompiledExample hideCss>
+
+```css
+@custom-variant shell scope(document) (:host);
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const css = style.css("shell:block shell:p-4 [button]:rounded-md");
+```
+
+</CompiledExample>
+
+In `style.css()`, the first such variant selects the element that the utility
+styles. In `style()`, the rule stays document-wide, and
+[document-scoped-selector](/docs/lints/document-scoped-selector/) reports it.
+
+## Definitions with the same name
+
+A later variant definition with the same name replaces the earlier one.
+[duplicate-definition](/docs/lints/duplicate-definition/) reports it. To match
+several selectors, list them in one definition.
+
+The order of variant definitions decides the output order of rules with
+different variants. A definition in your stylesheet comes after the built-in
+variants.

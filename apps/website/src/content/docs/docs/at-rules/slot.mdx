@@ -1,0 +1,39 @@
+---
+title: "@slot"
+description: Mark where a variant definition inserts the styled content.
+slug: docs/at-rules/slot
+sidebar:
+  order: 4
+---
+
+```css
+@slot;
+```
+
+`@slot` marks where the block form of a variant definition inserts the
+declarations of the utility. Write it in the body of
+[@custom-variant](/docs/at-rules/custom-variant/), or of a registry variant
+definition.
+
+<CompiledExample>
+
+```css
+@custom-variant hocus {
+  &:hover,
+  &:focus-visible {
+    @slot;
+  }
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const link = style("hocus:underline");
+```
+
+</CompiledExample>
+
+`@slot` belongs to variant definitions only.
+[@stillwind-slot](/docs/at-rules/stillwind-slot/) is a different at-rule: it
+places generated CSS in your stylesheet.

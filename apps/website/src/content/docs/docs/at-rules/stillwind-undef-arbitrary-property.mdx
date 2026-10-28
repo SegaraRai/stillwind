@@ -1,0 +1,55 @@
+---
+title: "@stillwind-undef-arbitrary-property"
+description: Reject arbitrary-property utilities such as [color:red] for the properties that match a pattern.
+slug: docs/at-rules/stillwind-undef-arbitrary-property
+sidebar:
+  order: 15
+---
+
+```css
+@stillwind-undef-arbitrary-property property;
+@stillwind-undef-arbitrary-property prefix-*;
+@stillwind-undef-arbitrary-property *;
+```
+
+An arbitrary property is a utility that writes a declaration directly, such as
+`[color:red]`. `@stillwind-undef-arbitrary-property` rejects arbitrary
+properties for the matching CSS properties. A rejected candidate produces no
+CSS. Write the statement at the top level of the stylesheet or in a
+[@stillwind-registry](/docs/at-rules/stillwind-registry/) block.
+
+## Example
+
+<CompiledExample>
+
+```css
+@stillwind-undef-arbitrary-property *;
+@stillwind-arbitrary-property --*;
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const rejected = style("[color:red]");
+export const accepted = style("[--gutter:1rem]");
+```
+
+</CompiledExample>
+
+The first statement rejects every property. The second statement accepts custom
+properties again, so components can still set variables.
+
+## Rules
+
+- The last matching statement decides for each property. A property that no
+  statement matches is accepted.
+- `@stillwind-arbitrary-property pattern;` accepts the matching properties
+  again. The [registry directives](/docs/at-rules/registry-directives/) describe
+  its other role.
+- Patterns use the same forms as
+  [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/), with
+  property names instead of utility names.
+
+To report arbitrary values without rejecting them, use lint rules such as
+[no-arbitrary-colors](/docs/lints/no-arbitrary-colors/) or
+[no-restricted-declarations](/docs/lints/no-restricted-declarations/) instead.

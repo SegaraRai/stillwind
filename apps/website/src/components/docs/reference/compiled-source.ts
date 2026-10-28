@@ -37,22 +37,33 @@ export const compiledSourcePlugin = (
       return;
     }
     const blocks = node.children.filter((child) => child.type === "code");
-    if (blocks.length !== 1 || !["tsx", "ts"].includes(blocks[0]!.lang ?? "")) {
-      throw new Error("CompiledExample requires one TypeScript code fence");
+    const scripts = blocks.filter((block) => ["tsx", "ts"].includes(block.lang ?? ""));
+    const stylesheets = blocks.filter((block) => block.lang === "css");
+    if (
+      scripts.length > 1 ||
+      stylesheets.length > 1 ||
+      scripts.length + stylesheets.length !== blocks.length ||
+      (!scripts.length && !stylesheets.length)
+    ) {
+      throw new Error(
+        "CompiledExample requires one TypeScript code fence, one CSS code fence, or one of each",
+      );
     }
+    const attribute = (name: string, value: string) => ({
+      type: "mdxJsxAttribute" as const,
+      name,
+      value: {
+        type: "mdxJsxAttributeValueExpression" as const,
+        value: JSON.stringify(value),
+      },
+    });
     context.replaceNode(node, {
       type: "mdxJsxFlowElement",
       name: node.name,
       attributes: [
         ...node.attributes,
-        {
-          type: "mdxJsxAttribute",
-          name: "source",
-          value: {
-            type: "mdxJsxAttributeValueExpression",
-            value: JSON.stringify(blocks[0]!.value),
-          },
-        },
+        ...scripts.map((block) => attribute("source", block.value)),
+        ...stylesheets.map((block) => attribute("stylesheet", block.value)),
       ],
       children: [],
     });
@@ -60,9 +71,11 @@ export const compiledSourcePlugin = (
 });
 
 export function compiledSource(markdown: string) {
-  const match = /^```tsx?\n([\s\S]*?)\n```/m.exec(markdown);
-  if (!match) {
-    throw new Error("CompiledExample requires a TypeScript code fence");
+  const fence = (languages: string) =>
+    new RegExp(String.raw`^\`\`\`(?:${languages})\n([\s\S]*?)\n\`\`\``, "m").exec(markdown)?.[1];
+  const input = { source: fence("tsx|ts"), stylesheet: fence("css") };
+  if (input.source === undefined && input.stylesheet === undefined) {
+    throw new Error("CompiledExample requires a TypeScript or CSS code fence");
   }
-  return match[1]!;
+  return input;
 }

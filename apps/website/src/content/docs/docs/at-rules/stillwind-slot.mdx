@@ -1,0 +1,86 @@
+---
+title: "@stillwind-slot"
+description: Place generated utilities, theme values, keyframes, and property registrations in your stylesheet.
+slug: docs/at-rules/stillwind-slot
+sidebar:
+  order: 10
+---
+
+```css
+@stillwind-slot name;
+```
+
+`@stillwind-slot` marks where the compiler writes one kind of generated CSS.
+`@import "stillwind"` already places every slot, so you need this at-rule only
+when you write your own entry stylesheet or a
+[CSS template](/docs/at-rules/stillwind-css-template/).
+
+## Slots
+
+These slots insert complete rules. Write them outside style rules:
+
+| Slot         | Inserts                                             |
+| ------------ | --------------------------------------------------- |
+| `utilities`  | The rules of the utilities that modules use         |
+| `keyframes`  | The `@keyframes` rules that the used utilities need |
+| `properties` | The `@property` rules of the needed registrations   |
+
+These slots insert declarations. Write them inside a style rule, which supplies
+the selector:
+
+| Slot                              | Inserts                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `theme`                           | The theme values that the generated CSS uses, and `@theme static` values   |
+| `property-initials`               | The initial values of the needed registrations                             |
+| `property-initials inherited`     | The initial values of the needed registrations with `inherits: true` only  |
+| `property-initials non-inherited` | The initial values of the needed registrations with `inherits: false` only |
+
+## Example
+
+`@import "stillwind"` places the slots like this, in simplified form:
+
+```css
+@layer properties, theme, base, components, utilities;
+
+@layer theme {
+  :root,
+  :host {
+    @stillwind-slot theme;
+  }
+
+  @stillwind-slot keyframes;
+}
+
+@layer utilities {
+  @stillwind-slot utilities;
+}
+
+@layer properties {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    @stillwind-slot property-initials;
+  }
+}
+
+@stillwind-slot properties;
+```
+
+The position of a slot decides the cascade order of its output. An enclosing
+`@layer` or conditional at-rule also applies to the output. Moving
+`utilities` before your own rules, or into another layer, can change which
+declarations win.
+
+## Rules
+
+- A slot with an unknown name, or in a position that cannot contain its output,
+  is skipped. [invalid-css-directive](/docs/lints/invalid-css-directive/) reports
+  it.
+- A stylesheet without a `utilities` slot is [SW14001](/docs/errors/SW14001/).
+  A missing slot for other generated CSS that a module needs, such as
+  `keyframes`, is [SW14002](/docs/errors/SW14002/).
+- A repeated slot repeats its output at every position.
+
+`@stillwind-slot` places generated CSS. [@slot](/docs/at-rules/slot/) is a
+different at-rule for variant definitions.

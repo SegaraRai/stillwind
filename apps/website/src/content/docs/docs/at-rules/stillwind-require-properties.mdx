@@ -1,0 +1,58 @@
+---
+title: "@stillwind-require-properties"
+description: Make a utility emit the registrations of custom properties that it needs.
+slug: docs/at-rules/stillwind-require-properties
+sidebar:
+  order: 9
+---
+
+```css
+@utility name {
+  @stillwind-require-properties --name --other;
+}
+```
+
+`@stillwind-require-properties` adds registrations to the requirements of a
+utility. When a module uses the utility, the stylesheet emits each listed
+registration. Write it in the body of a utility definition. Separate several
+names with spaces.
+
+## Example
+
+`spin-*` only sets `--spin-angle`, and another rule reads it. Without the
+requirement, the stylesheet would not emit the registration, because the default
+activation waits for a `var()` reference.
+
+<CompiledExample>
+
+```css
+@stillwind-property --spin-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@utility spin-* {
+  @stillwind-require-properties --spin-angle;
+  --spin-angle: --value([angle]);
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const icon = style("spin-[45deg]");
+```
+
+</CompiledExample>
+
+## Errors
+
+Each name must be a complete custom property name that starts with `--`. The
+compiler reports an invalid name as [SW14003](/docs/errors/SW14003/) in your
+stylesheet. When a module uses a utility with an invalid name, the compiler
+reports [SW14004](/docs/errors/SW14004/), including for plugin utilities.
+
+A required name needs a [@stillwind-property](/docs/at-rules/stillwind-property/)
+registration in the loaded stylesheets. A missing registration is
+[SW14005](/docs/errors/SW14005/).

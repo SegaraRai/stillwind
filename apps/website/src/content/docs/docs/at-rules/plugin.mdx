@@ -1,0 +1,59 @@
+---
+title: "@plugin"
+description: Load a Stillwind plugin or a Tailwind CSS v4 JavaScript plugin, with optional options.
+slug: docs/at-rules/plugin
+sidebar:
+  order: 7
+---
+
+```css
+@plugin "name";
+@plugin "name" {
+  option: value;
+}
+```
+
+`@plugin` loads JavaScript that generates CSS definitions, and the generated CSS
+replaces the statement. Write it at the top level of the stylesheet.
+
+## Example
+
+```css
+@import "stillwind";
+@plugin "@stillwind/plugin-iconify";
+```
+
+[`@stillwind/plugin-iconify`](https://github.com/SegaraRai/stillwind/blob/main/plugins/iconify/README.md)
+adds icon utilities such as `icon-mdi--close`. Only the icons that your modules
+use reach the stylesheet.
+
+## Finding the plugin
+
+The host looks up `name` in the `plugins` field of the project in
+`stillwind.config.ts` first. Otherwise, it imports the package or the local file
+from the stylesheet and uses its default export. See
+[Configuration](/docs/configuration/).
+
+## Options
+
+The block contains only `name: value;` declarations. Strings keep their quotes,
+so a `;` inside a string does not end a declaration. The loader rejects other
+statements and empty values.
+
+## Tailwind CSS plugins
+
+Tailwind CSS v4 JavaScript plugins use the same statement, including plugins
+that `plugin.withOptions()` creates. The host supports `addBase`,
+`addUtilities`, `addComponents`, `matchUtilities`, `matchComponents`,
+`addVariant`, `matchVariant`, `theme`, `config`, and `prefix`. These plugins
+need the `tailwindcss` package.
+
+Definitions from a plugin register before the definitions of your stylesheet,
+wherever the `@plugin` statement stands. A `@utility` in your stylesheet
+therefore adds to a plugin utility with the same name, and
+[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/) can remove
+plugin utilities.
+
+[invalid-css-import](/docs/lints/invalid-css-import/) reports a plugin that the
+host cannot find or load, and invalid options. The stylesheet loads without that
+plugin.

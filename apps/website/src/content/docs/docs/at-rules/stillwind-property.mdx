@@ -1,0 +1,99 @@
+---
+title: "@stillwind-property"
+description: Register a custom property that the stylesheet declares with @property only when generated CSS needs it.
+slug: docs/at-rules/stillwind-property
+sidebar:
+  order: 8
+---
+
+```css
+@stillwind-property --name {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+```
+
+`@stillwind-property` registers a custom property. The compiler emits a
+standard `@property` rule, and an initial value for each element, only when the
+generated CSS needs the property. Write it at the top level of the stylesheet.
+
+## Example
+
+<CompiledExample>
+
+```css
+@stillwind-property --spin-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@utility spin-* {
+  --spin-angle: --value([angle]);
+  rotate: var(--spin-angle);
+}
+```
+
+```tsx
+import { style } from "stillwind/react";
+
+export const icon = style("spin-[45deg]");
+```
+
+</CompiledExample>
+
+The `properties` slot places the `@property` rule. The `property-initials` slot
+places the initial values, for browsers that ignore `@property`. See
+[@stillwind-slot](/docs/at-rules/stillwind-slot/).
+
+## Descriptors
+
+The standard `@property` descriptors, `syntax`, `inherits`, and `initial-value`,
+go into the emitted rule as written. The compiler reads the other descriptors and
+removes them from the output:
+
+| Descriptor    | Value                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------ |
+| `activation`  | When to emit: `referenced` (default), `declared`, `either`, or `dependency`                |
+| `depends-on`  | Space-separated custom properties that are emitted with this one                           |
+| `group`       | Space-separated group names. The registrations of a group are emitted together.            |
+| `activate-on` | Space-separated ordinary properties. A declaration of one of them emits this registration. |
+| `value-for`   | Comma-separated ordinary properties whose value rules check the values of this property    |
+
+`referenced` emits the registration when a rule reads the property through
+`var()`. `declared` emits it when a rule sets the property. `either` emits it in
+both cases. `dependency` emits it only through `depends-on` or `group`.
+
+A utility can also require a registration with
+[@stillwind-require-properties](/docs/at-rules/stillwind-require-properties/).
+
+## Value checks
+
+`value-for` makes lint rules check the value of the custom property as a value
+of the listed properties:
+
+```css
+@stillwind-property --box-size {
+  syntax: "*";
+  inherits: false;
+  value-for: width, height;
+}
+
+@utility box-* {
+  --box-size: --value([length]);
+}
+```
+
+[no-arbitrary-spacing](/docs/lints/no-arbitrary-spacing/),
+[no-arbitrary-colors](/docs/lints/no-arbitrary-colors/), and
+[no-restricted-length-units](/docs/lints/no-restricted-length-units/) check
+`box-[13px]` as a `width` and a `height` value. Each listed property uses its own
+rule settings.
+
+## Registrations with the same name
+
+The last registration of a name decides. A registration in your stylesheet
+replaces the registration of a package. An ordinary `@property` rule in your
+stylesheet stays as written, and the compiler does not emit a registration with
+the same name.

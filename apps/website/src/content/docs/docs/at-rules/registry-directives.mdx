@@ -1,0 +1,182 @@
+---
+title: Registry directives
+description: Read the at-rules that define Stillwind's built-in utilities, variants, and theme metadata.
+slug: docs/at-rules/registry-directives
+sidebar:
+  order: 16
+---
+
+Stillwind defines its built-in utilities and variants in CSS, in the files that
+`@import "stillwind"` loads. These files use registry directives, which describe
+cascade order, theme metadata, and other information that ordinary definitions
+cannot express. Use them when you write a utility library. An application
+stylesheet normally uses [@utility](/docs/at-rules/utility/) and
+[@custom-variant](/docs/at-rules/custom-variant/) instead.
+
+Editors suggest these directives inside definitions and registry blocks. The
+[built-in definitions](https://github.com/SegaraRai/stillwind/tree/main/packages/core/css)
+show complete examples.
+
+## Definitions
+
+### @stillwind-utility
+
+```css
+@stillwind-utility name-* (tw-sort: property) { ... }
+```
+
+Defines a utility with the same body language as `@utility`. The position of the
+definition decides its cascade order: a later definition wins over an earlier
+one when both set the same property. The optional `tw-sort` descriptor names the
+property that Tailwind-compatible class sorting uses for the definition. The
+header also accepts `implementation`.
+
+All `@stillwind-utility` definitions of a name register before plugin
+definitions and the `@utility` definitions of the stylesheet.
+
+### @stillwind-variant
+
+```css
+@stillwind-variant name (descriptors) { ... }
+```
+
+Defines a variant with the body language of `@custom-variant`. Its position
+decides the output order of variant rules. The optional header is a
+comma-separated list:
+
+| Descriptor  | Value                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------- |
+| `value`     | The accepted value type of a `*` name, such as `[supports-condition]`                     |
+| `modifier`  | The accepted modifier type                                                                |
+| `scope`     | `document`, which keeps selectors without `&` as written                                  |
+| `sort`      | A theme namespace, such as `--breakpoint-*`, whose token values order the variants        |
+| `direction` | `asc` or `desc`, the order of the `sort` values                                           |
+| `group`     | A group name. Variants of a group are ordered together, at the position of the first one. |
+| `bare`      | `true` when the variant also matches a bare token name, such as `lg` for `min-lg`         |
+
+```css
+@stillwind-variant min-* (sort: --breakpoint-*, direction: asc, bare: true) {
+  @media (width >= --value(--breakpoint-*)) {
+    @slot;
+  }
+}
+```
+
+### @stillwind-intrinsic
+
+```css
+@stillwind-intrinsic name;
+```
+
+Replaces the body of a `@stillwind-variant` with a behavior that the compiler
+implements, such as `not-*`. The names are internal to Stillwind.
+
+### @stillwind-arbitrary-property
+
+```css
+@stillwind-arbitrary-property pattern;
+```
+
+Places arbitrary-property candidates for the matching properties, such as
+`[color:red]`, at this position in the cascade order of utilities. The built-in
+definitions end with `@stillwind-arbitrary-property *;`, so other arbitrary
+properties come after every built-in utility. The statement also accepts the
+matching properties again after
+[@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property/).
+
+## Theme metadata
+
+### @stillwind-theme-namespace
+
+```css
+@stillwind-theme-namespace --spacing-* [length] scale(px: 1px);
+```
+
+Declares a theme namespace. The bracketed types limit the arbitrary values and
+typed variables that the namespace accepts.
+[incompatible-theme-value](/docs/lints/incompatible-theme-value/) uses them to
+check tokens.
+
+`scale()` makes the token with the namespace name, such as `--spacing`, the scale
+of the namespace. A numeric key then resolves to a multiple of the scale, and
+`--spacing(4)` lowers to the same multiple. Each argument of `scale()` names a
+key with a fixed value, such as `px` for `1px`.
+
+### @stillwind-theme-exclude
+
+```css
+@stillwind-theme-exclude --text-* --text-shadow-*;
+```
+
+Makes a `--value(--text-*)` pattern skip the tokens of the narrower namespaces
+that follow the first one. Without it, `--text-shadow-lg` would be a value of
+`--text-*`.
+
+### @stillwind-theme-order
+
+```css
+@stillwind-theme-order spacing color;
+```
+
+Sets the order of namespaces in the declarations that the `theme` slot emits.
+
+### @stillwind-omit-token-prefix
+
+```css
+@stillwind-omit-token-prefix --shadow- --tw-shadow:;
+```
+
+Leaves out the tokens with the prefix when the generated CSS contains the
+condition text.
+
+## Values and dependencies
+
+### @stillwind-format
+
+```css
+@stillwind-format transform compose-space;
+@stillwind-format --tw-translate-* zero-length;
+```
+
+Declares how the compiler treats the values of the matching properties.
+`compose-space` marks a property whose declarations compose space-separated
+parts. `zero-length` gives a zero value the length type that `calc()` needs.
+
+## Classes and relationships
+
+### @stillwind-marker
+
+```css
+@stillwind-marker group (modifiable);
+```
+
+Declares a marker class: a class that a candidate adds to the element as
+written, so that selectors such as `.group:hover &` can match it. `modifiable`
+also accepts a named modifier, so `group/menu` adds the class `group/menu`.
+
+The classes that the selectors of `@utility` and `@custom-variant` definitions
+name are also marker classes.
+[invalid-marker-use](/docs/lints/invalid-marker-use/) reports a candidate that
+names a marker class but cannot add it, such as `hover:group`.
+
+### @stillwind-marker-source
+
+```css
+@stillwind-marker-source ".card .title {}";
+```
+
+Makes the classes that the rules in the string select marker classes, as a
+definition body does. It defines and emits nothing. Plugins use it for classes
+that their dynamic utilities use.
+
+### @stillwind-relationship
+
+```css
+@stillwind-relationship group-*;
+```
+
+Registers a pattern of utility or variant names that relate an element to
+another element, such as `group-*` and `peer-*`.
+[prefer-typed-relationships](/docs/lints/prefer-typed-relationships/) reports
+candidates that match a pattern, because [style.ref()](/docs/macros/ref/) can
+express the same relationship. The patterns do not change the generated CSS.
