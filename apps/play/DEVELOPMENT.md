@@ -107,6 +107,11 @@ automatically.
 
 The playground interface uses Stillwind through the Vite integration. `stillwind.config.ts`
 selects `src/styles.css` for `src/**/*.tsx`. `src/theme.css` uses the website's token
-names, type scale, and fonts with its dark palette. Monaco reads its colors and code font
-from these tokens when the workspace opens. `src/icons/stillwind` contains the logo icons
+names, type scale, fonts, and light and dark palettes with `light-dark()`.
+
+The theme button cycles through system, light, and dark. The playground stores the choice
+under the website's `stillwind:theme` local storage key and sets `data-theme` on the root
+element, and `index.html` applies the stored choice before the first paint. Monaco uses the
+Default Light Modern or Default Dark Modern theme with colors resolved from the tokens, and
+the playground updates them when the color scheme changes. `src/icons/stillwind` contains the logo icons
 from the website and the colored mark for `stillwind.config.ts`.

@@ -1,61 +1,62 @@
 /*
-The playground shares token names, type scale, and fonts with the website. Its colors follow the
-website's dark palette because Monaco uses a dark theme. The workbench adds layer, divider, and
-file type colors. `workspace/editor.ts` reads `--font-mono` and several color tokens to style
-Monaco, so color tokens must use a CSS color syntax that VS Code accepts, such as hexadecimal.
+The playground shares token names, type scale, fonts, and palette with the website. Each color uses
+light-dark(), so the root element's color scheme selects the light or dark value. The workbench adds
+layer, divider, and file type colors. `workspace/editor.ts` resolves `--font-mono` and several color
+tokens to style Monaco.
 */
 
 @theme static {
   --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 
-  --color-background: #121a29;
-  --color-surface: #1b263b;
-  --color-surface-muted: #283752;
-  --color-foreground: #e4edff;
-  --color-muted: #a8b8d4;
-  --color-subtle: #74859f;
-  --color-border: #3d506f;
-  --color-divider: #233049;
-  --color-action: #b6cdff;
-  --color-action-foreground: #172448;
-  --color-action-hover: #96b6ff;
-  --color-accent: #8bcff4;
-  --color-danger: #f1a297;
-  --color-warning: #e4c276;
-  --color-success: #a4c991;
-  --color-selection: #253c63;
+  --color-background: light-dark(#f4f7fc, #121a29);
+  --color-surface: light-dark(#f8fcfe, #1b263b);
+  --color-surface-muted: light-dark(#e6edf9, #283752);
+  --color-foreground: light-dark(#202b35, #e4edff);
+  --color-muted: light-dark(#596a78, #a8b8d4);
+  --color-subtle: light-dark(#7d8b99, #74859f);
+  --color-border: light-dark(#cad5e8, #3d506f);
+  --color-divider: light-dark(#dbe3f0, #233049);
+  --color-action: light-dark(#354fa2, #b6cdff);
+  --color-action-foreground: light-dark(#f7faff, #172448);
+  --color-action-hover: light-dark(#293f88, #96b6ff);
+  --color-accent: light-dark(#3569bc, #8bcff4);
+  --color-danger: light-dark(#a04b40, #f1a297);
+  --color-warning: light-dark(#805a19, #e4c276);
+  --color-success: light-dark(#3d6844, #a4c991);
+  --color-selection: light-dark(#d5e2f7, #253c63);
 
-  --color-editor: #161f31;
-  --color-editor-line: #1c2740;
-  --color-editor-gutter: #55657f;
-  --color-editor-selection: #2c4573;
-  --color-editor-widget: #1b263b;
+  --color-editor: light-dark(#fcfdff, #161f31);
+  --color-editor-line: light-dark(#eef3fb, #1c2740);
+  --color-editor-gutter: light-dark(#98a5b6, #55657f);
+  --color-editor-selection: light-dark(#c9daf5, #2c4573);
+  --color-editor-widget: light-dark(#f8fcfe, #1b263b);
 
-  --color-stage: #0d1320;
-  --color-stage-dot: #222d42;
+  --color-stage: light-dark(#e7edf7, #0d1320);
+  --color-stage-dot: light-dark(#c9d4e6, #222d42);
   --color-frame: #ffffff;
 
-  --shadow-overlay: 0 1.5rem 3rem -1rem #000000a0, 0 0 0 1px #ffffff10;
+  --shadow-overlay:
+    0 1.5rem 3rem -1rem light-dark(#1b263b40, #000000a0), 0 0 0 1px light-dark(#1b263b14, #ffffff10);
 
   --color-stillwind-logo-e: #d9825b;
   --color-stillwind-logo-o: #379988;
-  --color-stillwind-logo-t: #e9f2fd;
+  --color-stillwind-logo-t: light-dark(#20222c, #e9f2fd);
 
-  --color-file-javascriptreact: #61dafb;
-  --color-file-javascript: #f7df1e;
-  --color-file-typescriptreact: #67e8f9;
-  --color-file-typescript: #60a5fa;
-  --color-file-astro: #c084fc;
-  --color-file-svelte: #ff6b4a;
-  --color-file-vue: #5ddbac;
-  --color-file-css: #49a6e9;
-  --color-file-svg: #ffbf53;
-  --color-file-image: #4ade80;
-  --color-file-html: #ff795e;
-  --color-file-json: #f5c842;
-  --color-file-markdown: #77bee7;
-  --color-file-plaintext: #e8d49a;
+  --color-file-javascriptreact: light-dark(#0e8fb5, #61dafb);
+  --color-file-javascript: light-dark(#a08600, #f7df1e);
+  --color-file-typescriptreact: light-dark(#0891b2, #67e8f9);
+  --color-file-typescript: light-dark(#2563eb, #60a5fa);
+  --color-file-astro: light-dark(#9333ea, #c084fc);
+  --color-file-svelte: light-dark(#e5482a, #ff6b4a);
+  --color-file-vue: light-dark(#2f9b72, #5ddbac);
+  --color-file-css: light-dark(#1f7fc7, #49a6e9);
+  --color-file-svg: light-dark(#c27c00, #ffbf53);
+  --color-file-image: light-dark(#16a34a, #4ade80);
+  --color-file-html: light-dark(#dc4a2f, #ff795e);
+  --color-file-json: light-dark(#a77f00, #f5c842);
+  --color-file-markdown: light-dark(#2f80b8, #77bee7);
+  --color-file-plaintext: light-dark(#857331, #e8d49a);
 
   --icon-size-inline: 0.875rem;
   --icon-size-control: 1rem;

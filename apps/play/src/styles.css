@@ -17,7 +17,20 @@ contains the document defaults and the utilities that several workbench parts sh
   }
 
   body {
-    @apply overflow-hidden font-sans text-foreground text-ui antialiased bg-background scheme-dark;
+    @apply overflow-hidden font-sans text-foreground text-ui antialiased bg-background;
+  }
+
+  /* `data-theme` holds the stored preference. Without it, the system color scheme applies. */
+  :root {
+    @apply scheme-light-dark;
+  }
+
+  :root[data-theme="light"] {
+    @apply scheme-light;
+  }
+
+  :root[data-theme="dark"] {
+    @apply scheme-dark;
   }
 
   ::selection {

@@ -12,6 +12,7 @@ import "@codingame/monaco-vscode-api/vscode/vs/workbench/contrib/format/browser/
 import EditorWorker from "@codingame/monaco-vscode-api/workers/editor.worker?worker";
 import getConfiguration, {
   initUserConfiguration,
+  updateUserConfiguration,
 } from "@codingame/monaco-vscode-configuration-service-override";
 import "@codingame/monaco-vscode-css-default-extension";
 import * as monaco from "@codingame/monaco-vscode-editor-api";
@@ -100,20 +101,7 @@ export class PlaygroundWorkspace {
     for (const [file, text] of [...packages, ...initial]) {
       await initFile(URI.file(file), text);
     }
-    await initUserConfiguration(
-      JSON.stringify({
-        "workbench.colorTheme": "Default Dark Modern",
-        "workbench.colorCustomizations": themeColors(),
-        "editor.minimap.enabled": false,
-        ...formatterConfiguration,
-        "js/ts.disableAutomaticTypeAcquisition": true,
-        "js/ts.tsserver.web.projectWideIntellisense.enabled": true,
-        "js/ts.tsserver.web.typeAcquisition.enabled": false,
-        "js/ts.tsserver.web.projectWideIntellisense.suppressSemanticErrors": false,
-        "js/ts.experimental.useTsgo": false,
-        "typescript.experimental.useTsgo": false,
-      }),
-    );
+    await initUserConfiguration(userConfiguration());
     const embedding = registerExtension(
       {
         name: "playground",
@@ -372,6 +360,37 @@ export function editorAppearance(): monaco.editor.IStandaloneEditorConstructionO
 }
 
 /**
+ * Applies the root element's current color scheme and theme tokens to every editor.
+ * Call it after the color scheme of the document changes.
+ */
+export async function applyEditorTheme(): Promise<void> {
+  await updateUserConfiguration(userConfiguration());
+}
+
+/**
+ * Returns the user settings of the playground, including the color theme that matches the root
+ * element's current color scheme.
+ */
+function userConfiguration(): string {
+  // The root element's color scheme is `light dark` while the system preference applies.
+  const scheme = getComputedStyle(document.documentElement).colorScheme;
+  const dark =
+    scheme === "dark" || (scheme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  return JSON.stringify({
+    "workbench.colorTheme": dark ? "Default Dark Modern" : "Default Light Modern",
+    "workbench.colorCustomizations": themeColors(),
+    "editor.minimap.enabled": false,
+    ...formatterConfiguration,
+    "js/ts.disableAutomaticTypeAcquisition": true,
+    "js/ts.tsserver.web.projectWideIntellisense.enabled": true,
+    "js/ts.tsserver.web.typeAcquisition.enabled": false,
+    "js/ts.tsserver.web.projectWideIntellisense.suppressSemanticErrors": false,
+    "js/ts.experimental.useTsgo": false,
+    "typescript.experimental.useTsgo": false,
+  });
+}
+
+/**
  * Reads a theme token from the playground stylesheet on the document root.
  */
 function token(name: string): string {
@@ -379,31 +398,47 @@ function token(name: string): string {
 }
 
 /**
+ * Resolves a color token for the root element's current color scheme.
+ *
+ * @returns `#rrggbb`, or `#rrggbbaa` for a translucent color, which VS Code accepts.
+ */
+function color(name: string): string {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${name})`;
+  document.documentElement.append(probe);
+  const value = getComputedStyle(probe).color;
+  probe.remove();
+  const [red = 0, green = 0, blue = 0, alpha = 1] = (value.match(/[\d.]+/g) ?? []).map(Number);
+  const hex = (channel: number) => Math.round(channel).toString(16).padStart(2, "0");
+  return `#${hex(red)}${hex(green)}${hex(blue)}${alpha < 1 ? hex(alpha * 255) : ""}`;
+}
+
+/**
  * Maps playground theme tokens to VS Code color identifiers for the editor and its widgets.
  */
 function themeColors(): Record<string, string> {
-  const editor = token("--color-editor");
-  const widget = token("--color-editor-widget");
-  const border = token("--color-border");
+  const editor = color("--color-editor");
+  const widget = color("--color-editor-widget");
+  const border = color("--color-border");
   return {
-    focusBorder: token("--color-accent"),
+    focusBorder: color("--color-accent"),
     "editor.background": editor,
     "editorGutter.background": editor,
-    "editor.lineHighlightBackground": token("--color-editor-line"),
-    "editor.lineHighlightBorder": token("--color-editor-line"),
-    "editor.selectionBackground": token("--color-editor-selection"),
-    "editorLineNumber.foreground": token("--color-editor-gutter"),
-    "editorLineNumber.activeForeground": token("--color-muted"),
-    "editorCursor.foreground": token("--color-accent"),
+    "editor.lineHighlightBackground": color("--color-editor-line"),
+    "editor.lineHighlightBorder": color("--color-editor-line"),
+    "editor.selectionBackground": color("--color-editor-selection"),
+    "editorLineNumber.foreground": color("--color-editor-gutter"),
+    "editorLineNumber.activeForeground": color("--color-muted"),
+    "editorCursor.foreground": color("--color-accent"),
     "editorWidget.background": widget,
     "editorWidget.border": border,
     "editorHoverWidget.background": widget,
     "editorHoverWidget.border": border,
     "editorSuggestWidget.background": widget,
     "editorSuggestWidget.border": border,
-    "editorSuggestWidget.selectedBackground": token("--color-selection"),
+    "editorSuggestWidget.selectedBackground": color("--color-selection"),
     "quickInput.background": widget,
-    "list.hoverBackground": token("--color-surface-muted"),
-    "list.activeSelectionBackground": token("--color-selection"),
+    "list.hoverBackground": color("--color-surface-muted"),
+    "list.activeSelectionBackground": color("--color-selection"),
   };
 }

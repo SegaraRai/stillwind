@@ -4,13 +4,14 @@ import { style } from "stillwind/react";
 import type * as vscode from "vscode";
 
 import { ApplicationBuilder, type ApplicationBuild } from "./build/client.ts";
+import { useColorTheme } from "./color-theme.ts";
 import { fileIcon, getFileInfo } from "./file-info.ts";
 import { PreviewChannel, previewDocument } from "./preview/channel.ts";
 import { Explorer } from "./workbench/explorer.tsx";
 import { countProblems, ProblemsPanel, type Problem } from "./workbench/problems.tsx";
 import { ResultPane, selectOutput, type ResultTab, type Viewport } from "./workbench/results.tsx";
 import { Sash } from "./workbench/sash.tsx";
-import { PlaygroundWorkspace } from "./workspace/editor.ts";
+import { applyEditorTheme, PlaygroundWorkspace } from "./workspace/editor.ts";
 import { formatSource } from "./workspace/formatter.ts";
 import { OutputView } from "./workspace/output.ts";
 import { encodeState } from "./workspace/permalink.ts";
@@ -26,6 +27,13 @@ const navLink = style(
   "inline-flex items-center text-muted whitespace-nowrap rounded-control hover:text-foreground",
 );
 
+/** Preference that the theme button selects next. */
+const nextTheme = {
+  system: "light",
+  light: "dark",
+  dark: "system",
+} as const;
+
 function Playground() {
   const editor = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -33,6 +41,7 @@ function Playground() {
   const workspace = useRef<PlaygroundWorkspace>(undefined);
   const outputView = useRef<OutputView>(undefined);
   const [outputReady, setOutputReady] = useState(false);
+  const theme = useColorTheme();
   const [fixable, setFixable] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
   const [active, setActive] = useState("/workspace/App.tsx");
@@ -191,6 +200,14 @@ function Playground() {
     };
   }, [active, problems]);
 
+  // The root element's color scheme changes before this effect runs, so the editors read the
+  // tokens of the new scheme. The initial theme is applied when the workspace opens.
+  useEffect(() => {
+    if (outputReady) {
+      void applyEditorTheme();
+    }
+  }, [theme.scheme]);
+
   const select = (file: string, range?: vscode.Range) => {
     setActive(file);
     setView("code");
@@ -269,7 +286,7 @@ function Playground() {
           "max-inline:": "px-3 gap-x-2",
         })}
       >
-        <span {...style("flex items-center gap-3 text-foreground select-none")}>
+        <span {...style("flex items-center gap-3 text-foreground select-none max-header:order-0")}>
           <a
             href="https://stillwind.dev/"
             target="_blank"
@@ -287,7 +304,7 @@ function Playground() {
           popoverTarget="header-menu"
           aria-label="Menu"
           title="Menu"
-          {...style("ms-auto icon-button header:hidden")}
+          {...style("icon-button order-2 header:hidden")}
         >
           <span aria-hidden="true" {...style("icon-control icon-lucide--menu")} />
         </button>
@@ -366,6 +383,25 @@ function Playground() {
             </a>
           </nav>
         </div>
+        <button
+          type="button"
+          aria-label={`Color theme: ${theme.preference}. Switch to ${nextTheme[theme.preference]}.`}
+          title={`Color theme: ${theme.preference}. Switch to ${nextTheme[theme.preference]}.`}
+          onClick={theme.cycle}
+          {...style("icon-button max-header:order-1 max-header:ms-auto")}
+        >
+          <span
+            aria-hidden="true"
+            {...style(
+              "icon-control",
+              {
+                system: "icon-lucide--monitor",
+                light: "icon-lucide--sun",
+                dark: "icon-lucide--moon",
+              }[theme.preference],
+            )}
+          />
+        </button>
         {notice && (
           <p
             role="note"
