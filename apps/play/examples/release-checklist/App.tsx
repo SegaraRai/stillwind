@@ -1,7 +1,7 @@
 import { useState, type SubmitEvent } from "react";
 import { style } from "stillwind/react";
 
-import { control, field, panel, toggle } from "./styles";
+import { control, field, panel, primary, toggle } from "./styles";
 import { initialTasks, type Task } from "./tasks";
 import { ThemeSwitch, type Theme } from "./ThemeSwitch";
 import { layout, transition } from "./transition";
@@ -204,10 +204,7 @@ export function App() {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
-            <button
-              type="submit"
-              {...style(control, "text-action-foreground bg-action")}
-            >
+            <button type="submit" {...primary}>
               <span
                 aria-hidden="true"
                 {...style("icon-control icon-lucide--plus")}

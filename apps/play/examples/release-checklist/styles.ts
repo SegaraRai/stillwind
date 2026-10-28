@@ -17,7 +17,17 @@ export const toggle = style(
   "text-muted aria-pressed:text-action-foreground aria-pressed:bg-action",
 );
 
-/** Text input or select in a form. */
+/** Button for the main action of a form. It keeps the action color while hovered or focused. */
+export const primary = style(
+  control,
+  "text-action-foreground bg-action hocus:bg-action/85",
+);
+
+/**
+ * Text input or select in a form. The focus outline covers the border instead of `focus-ring`,
+ * whose offset would draw a second line outside the border.
+ */
 export const field = style(
-  "px-3 py-1.5 text-sm bg-canvas rounded-control border border-border placeholder:text-muted focus-visible:focus-ring",
+  "px-3 py-1.5 text-sm bg-canvas rounded-control border border-border placeholder:text-muted",
+  "focus-visible:outline-2 focus-visible:outline-action focus-visible:-outline-offset-1",
 );
