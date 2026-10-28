@@ -125,6 +125,7 @@ export function ResultPane({
   frame,
   outputHost,
   output,
+  previewReady,
   error,
 }: {
   tab: ResultTab;
@@ -134,6 +135,7 @@ export function ResultPane({
   frame: Ref<HTMLIFrameElement>;
   outputHost: Ref<HTMLDivElement>;
   output: Output | undefined;
+  previewReady: boolean;
   error: string | undefined;
 }) {
   return (
@@ -239,7 +241,8 @@ export function ResultPane({
           title="Stillwind Playground Preview"
           sandbox="allow-forms allow-scripts"
           {...style(
-            "block-full inline-full min-block-70 bg-frame rounded-panel shadow-overlay [transition:max-inline-size_200ms]",
+            "block-full inline-full min-block-70 bg-frame rounded-panel shadow-overlay [transition:max-inline-size_200ms,opacity_300ms]",
+            !previewReady && "opacity-0",
             {
               desktop: "max-inline-full",
               tablet: "max-inline-tablet",

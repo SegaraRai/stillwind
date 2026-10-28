@@ -253,9 +253,14 @@ function Playground() {
   const segments = ["workspace", ...relative.split("/")];
 
   return (
-    <div {...style("grid block-full grid-rows-[auto_minmax(0,1fr)_auto]")}>
+    <div
+      {...style("grid block-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]")}
+    >
       <header
-        {...style("flex px-4 block-16 items-center gap-4 bg-background border-divider border-be")}
+        {...style(
+          "flex px-4 min-block-16 flex-wrap items-center gap-x-4 bg-background border-divider border-be",
+          "max-inline:px-3 max-inline:gap-x-2",
+        )}
       >
         <span {...style("flex items-center gap-3 text-foreground select-none")}>
           <a
@@ -269,52 +274,98 @@ function Playground() {
           <span aria-hidden="true" {...style("block-5 border-border border-s")} />
           <span {...style("text-heading-small text-muted font-medium")}>Playground</span>
         </span>
-        <select
-          aria-label="Preset"
-          value={start?.preset.id ?? presets[0].id}
-          disabled={!start}
-          onChange={(event) => openPreset(event.target.value)}
+        {/* Below the header breakpoint, the controls move into a popover menu. */}
+        <button
+          type="button"
+          popoverTarget="header-menu"
+          aria-label="Menu"
+          title="Menu"
+          {...style("ms-auto icon-button header:hidden")}
+        >
+          <span aria-hidden="true" {...style("icon-control icon-lucide--menu")} />
+        </button>
+        <div
+          id="header-menu"
+          popover="auto"
           {...style(
-            "ms-2 px-2 block-6.5 text-caption text-foreground bg-surface rounded-control border border-divider cursor-pointer disabled:cursor-default",
+            "header:contents",
+            "max-header:fixed max-header:inset-s-auto max-header:inset-e-2 max-header:inset-bs-15 max-header:inset-be-auto max-header:m-0 max-header:p-2 max-header:min-inline-56 max-header:text-foreground max-header:bg-surface max-header:rounded-panel max-header:border max-header:border-border max-header:shadow-overlay",
+            { "max-header:open:": "flex flex-col items-stretch gap-1" },
           )}
         >
-          {presets.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.title}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          title="Discard changes and reopen the preset"
-          disabled={!start}
-          onClick={() => start && openPreset(start.preset.id)}
-          {...style("select-none text-button")}
-        >
-          <span aria-hidden="true" {...style("icon-inline icon-lucide--rotate-ccw")} />
-          <span>Reset</span>
-        </button>
-        <button
-          type="button"
-          title="Copy a link that restores this workspace"
-          disabled={!start}
-          onClick={() => void share()}
-          {...style("select-none text-button")}
-        >
-          <span
-            aria-hidden="true"
+          <select
+            aria-label="Preset"
+            value={start?.preset.id ?? presets[0].id}
+            disabled={!start}
+            onChange={(event) => openPreset(event.target.value)}
             {...style(
-              "icon-inline",
-              shared ? "icon-lucide--check text-success" : "icon-lucide--link",
+              "px-2 block-6.5 text-caption text-foreground bg-surface rounded-control border border-divider cursor-pointer disabled:cursor-default",
             )}
-          />
-          <span>{shared ? "Link copied" : "Share"}</span>
-        </button>
+          >
+            {presets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.title}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            title="Discard changes and reopen the preset"
+            disabled={!start}
+            onClick={() => start && openPreset(start.preset.id)}
+            {...style("select-none text-button", "max-header:block-8")}
+          >
+            <span aria-hidden="true" {...style("icon-inline icon-lucide--rotate-ccw")} />
+            <span>Reset</span>
+          </button>
+          <button
+            type="button"
+            title="Copy a link that restores this workspace"
+            disabled={!start}
+            onClick={() => void share()}
+            {...style("select-none text-button", "max-header:block-8")}
+          >
+            <span
+              aria-hidden="true"
+              {...style(
+                "icon-inline",
+                shared ? "icon-lucide--check text-success" : "icon-lucide--link",
+              )}
+            />
+            <span>{shared ? "Link copied" : "Share"}</span>
+          </button>
+          <nav
+            aria-label="Main navigation"
+            {...style(
+              "flex ms-auto items-center gap-5 text-ui max-header:ms-0",
+              "max-header:mbs-1 max-header:pbs-1 max-header:flex-col max-header:items-stretch max-header:gap-0 max-header:border-divider max-header:border-bs",
+            )}
+          >
+            <a
+              href="https://stillwind.dev/docs/"
+              target="_blank"
+              {...style(navLink, "max-header:px-2 max-header:block-8")}
+            >
+              Docs
+            </a>
+            <a
+              href="https://github.com/SegaraRai/stillwind"
+              target="_blank"
+              {...style(navLink, "gap-2 max-header:px-2 max-header:block-8")}
+            >
+              <span aria-hidden="true" {...style("icon-simple-icons--github")} />
+              <span>GitHub</span>
+            </a>
+          </nav>
+        </div>
         {notice && (
           <p
             role="note"
             title={notice}
-            {...style("flex min-inline-0 items-center gap-1.5 text-caption text-warning")}
+            {...style(
+              "flex min-inline-0 items-center gap-1.5 text-caption text-warning",
+              "max-header:pbe-2 max-header:order-last max-header:basis-full",
+            )}
           >
             <span
               aria-hidden="true"
@@ -331,22 +382,6 @@ function Playground() {
             </button>
           </p>
         )}
-        <nav
-          aria-label="Main navigation"
-          {...style("flex ms-auto items-center gap-5 text-ui max-inline:gap-3")}
-        >
-          <a href="https://stillwind.dev/docs/" target="_blank" {...style(navLink)}>
-            Docs
-          </a>
-          <a
-            href="https://github.com/SegaraRai/stillwind"
-            target="_blank"
-            {...style(navLink, "gap-2")}
-          >
-            <span aria-hidden="true" {...style("icon-simple-icons--github")} />
-            <span>GitHub</span>
-          </a>
-        </nav>
       </header>
       <div
         {...style(
@@ -492,6 +527,7 @@ function Playground() {
                 frame={frame}
                 outputHost={outputHost}
                 output={output}
+                previewReady={outputReady && result != null}
                 error={error}
               />
             </div>

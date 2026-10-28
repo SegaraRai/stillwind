@@ -67,6 +67,8 @@ Monaco, so color tokens must use a CSS color syntax that VS Code accepts, such a
   --radius-panel: 0.5rem;
 
   --breakpoint-inline: 40rem;
+  /* The header shows its controls in one row from this width and in a menu below it. */
+  --breakpoint-header: 50rem;
   --breakpoint-workbench: 64rem;
 
   --container-tablet: 48rem;
