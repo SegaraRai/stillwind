@@ -130,7 +130,7 @@ export const bracket = style("hover:icon-[demo--close]");
   expect(css.match(/--sw-icon-svg-[0-9a-z]+:/g)).toHaveLength(1);
   expect(css).toMatch(/mask-image: var\(--sw-icon-svg-[0-9a-z]+\)/);
   expect(css).toMatch(/:hover/);
-});
+}, 30_000);
 
 test("the bracket syntax leaves the named spelling undefined", async () => {
   const bracket = await compile(

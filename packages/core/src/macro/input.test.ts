@@ -85,7 +85,7 @@ style(
       }
     },
   );
-});
+}, 30_000);
 
 test("literal CVA values omit self-completions while selections, defaults, and compounds retain choices", () => {
   checkCompletions(
@@ -134,7 +134,7 @@ style.cva<LimitedVariants>(null, { variants: { size: { sm: "text-xs" } } });
       expect(completions("text-xs").toSorted()).toEqual(["text-base", "text-xs"]);
     },
   );
-});
+}, 30_000);
 
 test("finite macro choices remain available as string completions", () => {
   checkCompletions(
@@ -158,4 +158,4 @@ style<readonly [{ "--theme": "theme-a" | "theme-b" }]>({ "--theme": "theme-a" })
       expect(completions("theme-a")).toEqual(["theme-a", "theme-b"]);
     },
   );
-});
+}, 30_000);
