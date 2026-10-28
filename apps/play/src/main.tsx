@@ -264,10 +264,10 @@ function Playground() {
       )}
     >
       <header
-        {...style(
-          "flex px-4 min-block-16 flex-wrap items-center gap-x-4 bg-background border-divider border-be",
-          "max-inline:px-3 max-inline:gap-x-2",
-        )}
+        {...style({
+          "": "flex px-4 min-block-16 flex-wrap items-center gap-x-4 bg-background border-divider border-be",
+          "max-inline:": "px-3 gap-x-2",
+        })}
       >
         <span {...style("flex items-center gap-3 text-foreground select-none")}>
           <a
@@ -294,11 +294,12 @@ function Playground() {
         <div
           id="header-menu"
           popover="auto"
-          {...style(
-            "header:contents",
-            "max-header:fixed max-header:inset-s-auto max-header:inset-e-2 max-header:inset-bs-15 max-header:inset-be-auto max-header:m-0 max-header:p-2 max-header:min-inline-56 max-header:text-foreground max-header:bg-surface max-header:rounded-panel max-header:border max-header:border-border max-header:shadow-overlay",
-            { "max-header:open:": "flex flex-col items-stretch gap-1" },
-          )}
+          {...style({
+            "header:": "contents",
+            "max-header:":
+              "fixed inset-s-auto inset-e-2 inset-bs-15 inset-be-auto m-0 p-2 min-inline-56 text-foreground bg-surface rounded-panel border border-border shadow-overlay",
+            "max-header:open:": "flex flex-col items-stretch gap-1",
+          })}
         >
           <select
             aria-label="Preset"
@@ -343,10 +344,10 @@ function Playground() {
           </button>
           <nav
             aria-label="Main navigation"
-            {...style(
-              "flex ms-auto items-center gap-5 text-ui max-header:ms-0",
-              "max-header:mbs-1 max-header:pbs-1 max-header:flex-col max-header:items-stretch max-header:gap-0 max-header:border-divider max-header:border-bs",
-            )}
+            {...style({
+              "": "flex ms-auto items-center gap-5 text-ui max-header:ms-0",
+              "max-header:": "mbs-1 pbs-1 flex-col items-stretch gap-0 border-divider border-bs",
+            })}
           >
             <a
               href="https://stillwind.dev/docs/"
@@ -369,10 +370,10 @@ function Playground() {
           <p
             role="note"
             title={notice}
-            {...style(
-              "flex min-inline-0 items-center gap-1.5 text-caption text-warning",
-              "max-header:pbe-2 max-header:order-last max-header:basis-full",
-            )}
+            {...style({
+              "": "flex min-inline-0 items-center gap-1.5 text-caption text-warning",
+              "max-header:": "pbe-2 order-last basis-full",
+            })}
           >
             <span
               aria-hidden="true"
@@ -391,29 +392,28 @@ function Playground() {
         )}
       </header>
       <div
-        {...style(
-          "grid min-block-0 grid-cols-[minmax(0,var(--sidebar))_minmax(0,1fr)]",
-          "max-inline:grid-cols-1 max-inline:grid-rows-[minmax(0,1fr)]",
-          { "--sidebar": `${sidebar}px` },
-        )}
+        {...style({
+          "": "grid min-block-0 grid-cols-[minmax(0,var(--sidebar))_minmax(0,1fr)]",
+          "max-inline:": "grid-cols-1 grid-rows-[minmax(0,1fr)]",
+          "--sidebar": `${sidebar}px`,
+        })}
       >
         <div
-          {...style(
-            "grid min-block-0 min-inline-0",
+          {...style({
+            "": "grid min-block-0 min-inline-0",
             // The explorer covers the workbench as a drawer.
-            "max-inline:z-10 max-inline:col-start-1 max-inline:row-start-1",
-            !filesOpen && "max-inline:hidden",
-          )}
+            "max-inline:": ["z-10 col-start-1 row-start-1", !filesOpen && "hidden"],
+          })}
         >
           <Explorer files={files} active={active} onSelect={select} onAdd={add} />
         </div>
         <div
-          {...style(
-            "relative grid min-block-0 min-inline-0 grid-rows-[minmax(0,1fr)_var(--panel)] border-divider border-s",
-            "max-workbench:grid-rows-[minmax(0,1fr)_10rem]",
-            "max-inline:col-start-1 max-inline:row-start-1 max-inline:grid-rows-[minmax(0,1fr)] max-inline:border-s-0",
-            { "--panel": `${panel}px` },
-          )}
+          {...style({
+            "": "relative grid min-block-0 min-inline-0 grid-rows-[minmax(0,1fr)_var(--panel)] border-divider border-s",
+            "max-workbench:": "grid-rows-[minmax(0,1fr)_10rem]",
+            "max-inline:": "col-start-1 row-start-1 grid-rows-[minmax(0,1fr)] border-s-0",
+            "--panel": `${panel}px`,
+          })}
         >
           <Sash
             label="Resize explorer"
@@ -425,13 +425,12 @@ function Playground() {
             onChange={setSidebar}
           />
           <div
-            {...style(
-              "grid min-block-0 grid-cols-[minmax(0,1fr)_minmax(20rem,min(var(--results),calc(100%-20rem)))]",
-              "max-workbench:grid-cols-1 max-workbench:grid-rows-2",
-              "max-inline:grid-rows-[minmax(0,1fr)]",
-              view === "problems" && "max-inline:hidden",
-              { "--results": `${results}px` },
-            )}
+            {...style({
+              "": "grid min-block-0 grid-cols-[minmax(0,1fr)_minmax(20rem,min(var(--results),calc(100%-20rem)))]",
+              "max-workbench:": "grid-cols-1 grid-rows-2",
+              "max-inline:": ["grid-rows-[minmax(0,1fr)]", view === "problems" && "hidden"],
+              "--results": `${results}px`,
+            })}
           >
             <section
               aria-label="Editor"
@@ -530,11 +529,11 @@ function Playground() {
               <div ref={editor} {...style("min-block-0 flex-1")} />
             </section>
             <div
-              {...style(
-                "relative grid min-block-0 min-inline-0 border-divider border-s",
-                "max-workbench:border-s-0 max-workbench:border-bs max-inline:border-bs-0",
-                view !== "preview" && "max-inline:hidden",
-              )}
+              {...style({
+                "": "relative grid min-block-0 min-inline-0 border-divider border-s",
+                "max-workbench:": "border-s-0 border-bs",
+                "max-inline:": ["border-bs-0", view !== "preview" && "hidden"],
+              })}
             >
               <Sash
                 label="Resize result pane"
@@ -585,27 +584,30 @@ function Playground() {
               setView(id);
               setFilesOpen(false);
             }}
-            {...style(
-              "relative flex items-center justify-center gap-1.5 text-caption text-muted select-none",
-              "aria-pressed:text-foreground aria-pressed:before:absolute aria-pressed:before:inset-x-6 aria-pressed:before:inset-bs-0 aria-pressed:before:block-0.5 aria-pressed:before:bg-accent",
-            )}
+            {...style({
+              "": "relative flex items-center justify-center gap-1.5 text-caption text-muted select-none",
+              "aria-pressed:":
+                "text-foreground before:absolute before:inset-x-6 before:inset-bs-0 before:block-0.5 before:bg-accent",
+            })}
           >
             <span
               aria-hidden="true"
               {...style(
                 "icon-control",
-                id === "code"
-                  ? "icon-lucide--code-xml"
-                  : id === "preview"
-                    ? "icon-lucide--app-window"
-                    : "icon-lucide--circle-alert",
+                {
+                  code: "icon-lucide--code-xml",
+                  preview: "icon-lucide--app-window",
+                  problems: "icon-lucide--circle-alert",
+                }[id],
               )}
             />
-            {id === "code"
-              ? "Code"
-              : id === "preview"
-                ? "Preview"
-                : `Problems (${problems.length})`}
+            {
+              {
+                code: "Code",
+                preview: "Preview",
+                problems: `Problems (${problems.length})`,
+              }[id]
+            }
           </button>
         ))}
       </nav>
