@@ -4,6 +4,10 @@ import Refresh from "react-refresh/runtime";
 import * as JSXDev from "react/jsx-dev-runtime";
 import * as JSX from "react/jsx-runtime";
 
+import { installSandboxGuards } from "./sandbox.ts";
+
+installSandboxGuards(window);
+
 Refresh.injectIntoGlobalHook(window);
 
 const Client = require("react-dom/client") as typeof import("react-dom/client");
@@ -30,7 +34,9 @@ Object.assign(window, {
     }
     return modules[name];
   },
-  $RefreshReg$: (type: unknown, id: string) => Refresh.register(type, id),
+  $RefreshReg$: (type: unknown, id: string) => {
+    Refresh.register(type, id);
+  },
   $RefreshSig$: Refresh.createSignatureFunctionForTransform,
 });
 
@@ -70,6 +76,7 @@ window.addEventListener("message", (event): void => {
     if (data.revision < revision) {
       return;
     }
+
     revision = data.revision;
     document.getElementById("styles")!.textContent = data.css;
     try {

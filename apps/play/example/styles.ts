@@ -16,3 +16,8 @@ export const toggle = style(
   control,
   "text-muted aria-pressed:text-action-foreground aria-pressed:bg-action",
 );
+
+/** Text input or select in a form. */
+export const field = style(
+  "px-3 py-1.5 text-sm bg-canvas rounded-control border border-border placeholder:text-muted focus-visible:focus-ring",
+);

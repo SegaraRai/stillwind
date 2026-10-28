@@ -76,9 +76,10 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       }
     });
     page.on("pageerror", (error) => {
-      // VS Code's background tokenizer can apply worker results to a model that this test has just
-      // replaced entirely. That race throws inside setTokensAndStates and leaves the editor usable.
-      if (!error.stack?.includes("setTokensAndStates")) {
+      // VS Code's background tokenizer races with edits that replace a whole model, which this test
+      // makes repeatedly. The race throws in the TextMate worker (tokenizeEncoded) or while the
+      // editor applies its results (setTokensAndStates), and it leaves the editor usable.
+      if (!/\b(?:setTokensAndStates|tokenizeEncoded)\b/.test(error.stack ?? "")) {
         errors.push(error.message);
       }
     });
@@ -218,8 +219,8 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       beforeModuleCss,
       beforeModuleCss
         .replace(
-          'import { useState } from "react";',
-          'import { useState } from "react";\nimport moduleCss from "stillwind/module-css";',
+          'import { style } from "stillwind/react";',
+          'import { style } from "stillwind/react";\nimport moduleCss from "stillwind/module-css";',
         )
         .replace("<main", "<main data-css-length={moduleCss.length}"),
     );

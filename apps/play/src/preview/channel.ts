@@ -11,7 +11,7 @@ export interface PreviewUpdate {
 }
 
 /**
- * Creates a document for an iframe with sandbox="allow-scripts".
+ * Creates a document for an iframe with sandbox="allow-forms allow-scripts".
  *
  * @param runtime - Trusted bundled runtime. Closing script tokens are escaped for HTML parsing.
  * @returns HTML containing one persistent React mount and stylesheet element.
@@ -20,7 +20,9 @@ export function previewDocument(runtime: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style id="styles"></style></head><body><div id="root"></div><script>${runtime.replace(/<\/script/gi, "<\\/script")}</script></body></html>`;
 }
 
-/** Keeps one preview frame and sends builds over a channel that the frame claims only once. */
+/**
+ * Keeps one preview frame and sends builds over a channel that the frame claims only once.
+ */
 export class PreviewChannel {
   #port?: MessagePort;
   #update?: PreviewUpdate;

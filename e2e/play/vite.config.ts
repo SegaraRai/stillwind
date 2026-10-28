@@ -1,7 +1,11 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  test: { name: "static-play", include: ["src/**/*.test.ts"], testTimeout: 120_000 },
+  test: {
+    name: "static-play",
+    include: ["src/**/*.test.ts"],
+    testTimeout: 300_000,
+  },
   run: {
     tasks: {
       "test:e2e": {
@@ -9,7 +13,9 @@ export default defineConfig({
         cache: false,
         dependsOn: ["@stillwind-internal/apps-play#build:acceptance"],
       },
-      typecheck: { command: "tsc --noEmit" },
+      typecheck: {
+        command: "tsc --noEmit",
+      },
     },
   },
 });

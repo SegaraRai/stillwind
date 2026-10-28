@@ -56,6 +56,14 @@ The preview entry exports `App` or a default React component from `Component.tsx
 Compatible edits retain component state. Changes to hook order can reset it.
 Build errors retain the last successful preview.
 
+The preview frame uses `sandbox="allow-scripts allow-forms"` without `allow-same-origin`, so
+the application cannot reach the editor. The frame must keep its document, so the runtime
+cancels form submissions and clicks on links that would load another document. Submit and
+click handlers still run, and a `#id` link scrolls to its target. The opaque origin denies
+`localStorage` and `sessionStorage`, so the runtime replaces them with storage that lasts
+until the frame reloads. IndexedDB, cookies, `alert()`, popups, and the clipboard API remain
+unavailable.
+
 ## Formatting and edits
 
 Prettier formats JS, JSX, TS, TSX, CSS, JSON, and JSONC with the editor's indentation

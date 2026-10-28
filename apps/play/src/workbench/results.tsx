@@ -237,7 +237,7 @@ export function ResultPane({
         <iframe
           ref={frame}
           title="Stillwind Play preview"
-          sandbox="allow-scripts"
+          sandbox="allow-forms allow-scripts"
           {...style(
             "block-full inline-full min-block-70 bg-frame rounded-panel shadow-overlay [transition:max-inline-size_200ms]",
             {

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, type SubmitEvent } from "react";
 import { style } from "stillwind/react";
 
-import { control, panel, toggle } from "./styles";
+import { control, field, panel, toggle } from "./styles";
 import { initialTasks, type Task } from "./tasks";
 import { ThemeSwitch, type Theme } from "./ThemeSwitch";
+import { layout, transition } from "./transition";
 
 // A ref names each task row. Its children react to the row's state and width.
 const row = style.ref("row");
@@ -17,9 +18,32 @@ export function App() {
   const visible = openOnly ? tasks.filter((task) => !task.done) : tasks;
 
   const update = (id: number, change: Partial<Task>) =>
-    setTasks(
-      tasks.map((task) => (task.id === id ? { ...task, ...change } : task)),
+    transition(() =>
+      setTasks(
+        tasks.map((task) => (task.id === id ? { ...task, ...change } : task)),
+      ),
     );
+
+  const add = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const title = data.get("title");
+    if (typeof title !== "string" || !title.trim()) {
+      return;
+    }
+
+    const task: Task = {
+      id: Math.max(0, ...tasks.map((other) => other.id)) + 1,
+      title: title.trim(),
+      owner: "You",
+      priority: data.get("priority") as Task["priority"],
+      done: false,
+    };
+    transition(() => setTasks([...tasks, task]));
+    form.reset();
+  };
 
   return (
     <main
@@ -49,12 +73,15 @@ export function App() {
           <ThemeSwitch value={theme} onChange={setTheme} />
         </header>
 
-        <section aria-label="Tasks" {...style(panel, "grid gap-4")}>
+        <section
+          aria-label="Tasks"
+          {...style(panel, layout.for("tasks"), "grid gap-4")}
+        >
           <div role="group" aria-label="Filter" {...style("flex gap-1")}>
             <button
               type="button"
               aria-pressed={!openOnly}
-              onClick={() => setOpenOnly(false)}
+              onClick={() => transition(() => setOpenOnly(false))}
               {...toggle}
             >
               All
@@ -62,7 +89,7 @@ export function App() {
             <button
               type="button"
               aria-pressed={openOnly}
-              onClick={() => setOpenOnly(true)}
+              onClick={() => transition(() => setOpenOnly(true))}
               {...toggle}
             >
               Open
@@ -76,6 +103,7 @@ export function App() {
                 {...style(
                   row,
                   row.asContainer("inline-size"),
+                  layout.for(`task-${task.id}`),
                   "flex p-3 items-center gap-3 rounded-control border border-border",
                 )}
               >
@@ -132,7 +160,9 @@ export function App() {
                   type="button"
                   aria-label={`Remove ${task.title}`}
                   onClick={() =>
-                    setTasks(tasks.filter((other) => other.id !== task.id))
+                    transition(() =>
+                      setTasks(tasks.filter((other) => other.id !== task.id)),
+                    )
                   }
                   {...style(
                     control,
@@ -150,9 +180,47 @@ export function App() {
               </li>
             ))}
           </ul>
+          {visible.length === 0 && (
+            <p {...style("text-muted text-sm")}>Every task is done.</p>
+          )}
+          <form
+            onSubmit={add}
+            {...style(layout.for("form"), "flex flex-wrap gap-2")}
+          >
+            <input
+              name="title"
+              required
+              aria-label="New task"
+              placeholder="Add a task"
+              {...style(field, "min-w-0 flex-1")}
+            />
+            <select
+              name="priority"
+              defaultValue="medium"
+              aria-label="Priority"
+              {...field}
+            >
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <button
+              type="submit"
+              {...style(control, "text-action-foreground bg-action")}
+            >
+              <span
+                aria-hidden="true"
+                {...style("icon-control icon-lucide--plus")}
+              />
+              Add
+            </button>
+          </form>
         </section>
 
-        <aside aria-label="Progress" {...style(panel, "grid h-fit gap-3")}>
+        <aside
+          aria-label="Progress"
+          {...style(panel, layout.for("progress"), "grid h-fit gap-3")}
+        >
           <p {...style("flex items-baseline justify-between")}>
             <span {...style("font-medium")}>Progress</span>
             <span {...style("text-muted text-sm")}>
@@ -163,7 +231,8 @@ export function App() {
             {/* The width is a runtime value, so the utility reads it from a custom property. */}
             <div
               {...style(
-                "h-full w-(--progress) bg-success rounded-full transition-[width]",
+                layout.for("progress-bar"),
+                "h-full w-(--progress) bg-success rounded-full",
                 {
                   "--progress": `${tasks.length ? (done / tasks.length) * 100 : 0}%`,
                 },
