@@ -93,7 +93,8 @@ pub struct UtilityDeclaration {
 }
 
 /// A value that a utility emits although its property rejects it, such as `1/2` for
-/// `width` in `w-[1/2]` or `[width:1/2]`.
+/// `width` in `w-[1/2]` or `[width:1/2]`, or although no value type of the utility
+/// accepts it and no property grammar can confirm it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InvalidPropertyValue {
     /// Lowercase CSS property name receiving the value.
@@ -104,11 +105,11 @@ pub struct InvalidPropertyValue {
     /// parenthesized value of a named utility, the text after the colon of an arbitrary
     /// property, or the text after the `/` of a modifier.
     pub range: Range<usize>,
-    /// Why the property rejects the value.
+    /// Why the value is invalid.
     pub reason: InvalidValueReason,
 }
 
-/// Why the property of an [`InvalidPropertyValue`] rejects its value.
+/// Why the value of an [`InvalidPropertyValue`] is invalid.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InvalidValueReason {
     /// The grammar of the property rejects an arbitrary value: a value without a type
@@ -117,6 +118,14 @@ pub enum InvalidValueReason {
         /// Type hints of the value types that a named utility accepts, in registration
         /// order, when the utility accepts several types and the property was chosen
         /// because the value's type could not be inferred. Empty otherwise.
+        fallback_type_hints: Vec<LeanStr>,
+    },
+    /// No value type of a named utility accepts an arbitrary value without a type hint,
+    /// and no property grammar decides the value: only custom properties receive it, or
+    /// its declaration contains `var()`, `env()`, or `attr()`. `property` names the
+    /// property that receives the value, which need not reject it.
+    ValueType {
+        /// Type hints as [`InvalidValueReason::Grammar`] records them.
         fallback_type_hints: Vec<LeanStr>,
     },
     /// The value is one `var()` reference without a type hint, and the property
@@ -348,6 +357,11 @@ fn resolve_candidate(
     let value_range = arbitrary_value_range(raw, &candidate);
     let reason = match resolution.diagnostic_data.variable_mismatch {
         Some(mismatch) => InvalidValueReason::VariableType(mismatch),
+        None if resolution.diagnostic_data.invalid_value_unchecked => {
+            InvalidValueReason::ValueType {
+                fallback_type_hints: resolution.diagnostic_data.fallback_type_hints,
+            }
+        }
         None => InvalidValueReason::Grammar {
             fallback_type_hints: resolution.diagnostic_data.fallback_type_hints,
         },
@@ -409,22 +423,29 @@ pub(super) fn diagnostic_property(property: &str) -> LeanStr {
 
 /// Whether the grammar of `property` rejects the arbitrary property value `value`.
 ///
-/// Custom properties accept every value. A property that the Webref data does not
-/// define, and a value that contains `var()`, `env()`, or `attr()`, cannot be checked
-/// and count as accepted.
+/// Custom properties accept every value. A value that [`property_accepts`] cannot
+/// check counts as accepted.
 fn property_rejects(property: &str, value: &str) -> bool {
+    property_accepts(property, value) == Some(false)
+}
+
+/// Checks `value` against the grammar of `property`.
+///
+/// Returns `None` when no grammar decides the value: for a custom property, for a
+/// property that the Webref data does not define, and for a value that contains
+/// `var()`, `env()`, or `attr()`, because substitution happens at computed-value time.
+pub(super) fn property_accepts(property: &str, value: &str) -> Option<bool> {
     if property.starts_with("--") {
-        return false;
+        return None;
     }
     let lowercase = value.to_ascii_lowercase();
     if ["var(", "env(", "attr("]
         .iter()
         .any(|function| lowercase.contains(function))
     {
-        return false;
+        return None;
     }
-    CssProperty::from_name(&property.to_ascii_lowercase())
-        .is_some_and(|property| !property.accepts(value))
+    CssProperty::from_name(&property.to_ascii_lowercase()).map(|property| property.accepts(value))
 }
 
 /// Resolves a candidate through the project registry and then the Stillwind definitions.

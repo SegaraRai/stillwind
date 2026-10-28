@@ -311,6 +311,13 @@ pub(crate) fn invalid_property_value_finding(
             property: value.property.clone(),
             value: value.value.clone(),
         },
+        InvalidValueReason::ValueType {
+            fallback_type_hints,
+        } => LintDiagnostic::UnacceptedUtilityValue {
+            alternatives: hinted(fallback_type_hints),
+            utility,
+            value: value.value.clone(),
+        },
         InvalidValueReason::VariableType(mismatch) => LintDiagnostic::VariableTypeMismatch {
             alternatives: hinted(&mismatch.type_hints),
             utility,

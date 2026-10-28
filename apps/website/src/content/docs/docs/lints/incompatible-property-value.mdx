@@ -8,6 +8,14 @@ This rule reports a utility whose value the browser rejects for its CSS property
 The compiler still writes the CSS, but the browser ignores the declaration. For
 example, `w-[1/2]` writes `width: 1/2`, which is not a valid width.
 
+The compiler checks an arbitrary value against the grammar of each CSS property
+that receives it. A value that every receiving property accepts is not reported,
+even when no value type of the utility accepts it, such as `basis-[content]`.
+
+Some utilities pass the value only to custom properties, such as `--tw-blur` for
+`blur-[5%]`, so no property grammar can check it. When no value type of such a
+utility accepts the value, the rule reports that the utility does not accept it.
+
 ## Reported
 
 <DiagnosticExample code="incompatible-property-value">

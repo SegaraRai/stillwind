@@ -9,22 +9,25 @@
 //! Property names are not part of the public `--value([type])` grammar: this module
 //! backs named value domains that the registry maps to properties.
 
+use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr};
 use lightningcss::properties::{Property, PropertyId};
 use lightningcss::stylesheet::ParserOptions;
 use lightningcss::traits::Parse;
-use lightningcss::values::length::Length;
+use lightningcss::values::length::{Length, LengthPercentage};
 use lightningcss::values::percentage::NumberOrPercentage;
 use lightningcss::values::position::Position;
 
 use super::domain::is_css_wide_keyword;
 use super::webref::webref_property;
+use crate::lists::split_top_level;
 
 /// Which validator decides a property's value grammar.
 ///
 /// `LightningCss` is the default for every property in the Webref snapshot. The named
-/// variants exist only where Lightning CSS has no parser yet; each one maps to a narrow
-/// function below and has accept/reject boundary tests.
+/// variants exist only where Lightning CSS has no parser yet or its parser rejects
+/// values that the Webref grammar defines; each one maps to a narrow function below and
+/// has accept/reject boundary tests.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CssPropertyGrammar {
     /// The property grammar provided by Lightning CSS.
@@ -33,10 +36,19 @@ enum CssPropertyGrammar {
     Columns,
     /// The CSS `contain` property grammar.
     Contain,
+    /// The CSS `flex-basis` property grammar: `content` or a `width` value.
+    FlexBasis,
     /// The CSS `font-feature-settings` property grammar.
     FontFeatureSettings,
     /// The CSS `object-position` property grammar.
     ObjectPosition,
+    /// The CSS `outline-offset` property grammar: `<length>`.
+    OutlineOffset,
+    /// The CSS `text-underline-offset` property grammar: `auto | <length-percentage>`.
+    TextUnderlineOffset,
+    /// `<length>{1,n}`, the grammar of the `scroll-margin` properties, with `n` as the
+    /// maximum count.
+    LengthList(usize),
     /// The CSS `will-change` property grammar.
     WillChange,
     /// The CSS `zoom` property grammar.
@@ -53,7 +65,9 @@ enum CssPropertyGrammar {
     PositionTryFallbacks,
 }
 
-/// Properties that Webref defines but Lightning CSS cannot parse.
+/// Properties that Webref defines but Lightning CSS cannot parse, or parses with a
+/// grammar that rejects values that Webref defines. An entry takes precedence over the
+/// Lightning CSS parser.
 ///
 /// Matching is ASCII case-insensitive, and every entry must have a narrow validator and
 /// a boundary test; an unchecked catch-all would silently accept invalid CSS.
@@ -68,8 +82,38 @@ const PROPERTY_GRAMMAR_EXCEPTIONS: &[(&str, CssPropertyGrammar)] = &[
         CssPropertyGrammar::FontFeatureSettings,
     ),
     ("object-position", CssPropertyGrammar::ObjectPosition),
+    ("outline-offset", CssPropertyGrammar::OutlineOffset),
+    (
+        "text-underline-offset",
+        CssPropertyGrammar::TextUnderlineOffset,
+    ),
     ("will-change", CssPropertyGrammar::WillChange),
     ("zoom", CssPropertyGrammar::Zoom),
+    // Lightning CSS parses `flex-basis` as `auto | <length-percentage>`, without
+    // `content` and the intrinsic sizes of `width`.
+    ("flex-basis", CssPropertyGrammar::FlexBasis),
+    // Lightning CSS accepts percentages for the `scroll-margin` properties, whose
+    // Webref grammar is `<length>`.
+    ("scroll-margin", CssPropertyGrammar::LengthList(4)),
+    ("scroll-margin-block", CssPropertyGrammar::LengthList(2)),
+    ("scroll-margin-inline", CssPropertyGrammar::LengthList(2)),
+    ("scroll-margin-block-end", CssPropertyGrammar::LengthList(1)),
+    (
+        "scroll-margin-block-start",
+        CssPropertyGrammar::LengthList(1),
+    ),
+    ("scroll-margin-bottom", CssPropertyGrammar::LengthList(1)),
+    (
+        "scroll-margin-inline-end",
+        CssPropertyGrammar::LengthList(1),
+    ),
+    (
+        "scroll-margin-inline-start",
+        CssPropertyGrammar::LengthList(1),
+    ),
+    ("scroll-margin-left", CssPropertyGrammar::LengthList(1)),
+    ("scroll-margin-right", CssPropertyGrammar::LengthList(1)),
+    ("scroll-margin-top", CssPropertyGrammar::LengthList(1)),
     // CSS Anchor Positioning is intentionally kept here until Lightning CSS exposes
     // property parsers for it. Each exception has a narrow validator below and a
     // boundary test; do not add an unchecked catch-all.
@@ -106,20 +150,19 @@ impl CssProperty {
     #[must_use]
     pub fn from_name(name: &str) -> Option<Self> {
         let webref = webref_property(name)?;
-        let property_id = PropertyId::from(name);
-        if !matches!(property_id, PropertyId::Custom(_)) {
-            return Some(Self {
-                name: webref.name.to_lean_str(),
-                grammar: CssPropertyGrammar::LightningCss,
-            });
-        }
-        PROPERTY_GRAMMAR_EXCEPTIONS
+        if let Some((name, grammar)) = PROPERTY_GRAMMAR_EXCEPTIONS
             .iter()
             .find(|(candidate, _)| candidate.eq_ignore_ascii_case(name))
-            .map(|(name, grammar)| Self {
+        {
+            return Some(Self {
                 name: (*name).to_lean_str(),
                 grammar: *grammar,
-            })
+            });
+        }
+        (!matches!(PropertyId::from(name), PropertyId::Custom(_))).then(|| Self {
+            name: webref.name.to_lean_str(),
+            grammar: CssPropertyGrammar::LightningCss,
+        })
     }
 
     /// The property name as published by Webref.
@@ -140,18 +183,19 @@ impl CssProperty {
             return true;
         }
         match self.grammar {
-            CssPropertyGrammar::LightningCss => matches!(
-                Property::parse_string(
-                    PropertyId::from(self.name()),
-                    value.trim(),
-                    ParserOptions::default(),
-                ),
-                Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
-            ),
+            CssPropertyGrammar::LightningCss => lightning_css_accepts(self.name(), value),
             CssPropertyGrammar::Columns => columns_value(value),
             CssPropertyGrammar::Contain => contain_value(value),
+            CssPropertyGrammar::FlexBasis => {
+                value.trim() == "content" || lightning_css_accepts("width", value)
+            }
             CssPropertyGrammar::FontFeatureSettings => font_feature_settings(value),
             CssPropertyGrammar::ObjectPosition => Position::parse_string(value).is_ok(),
+            CssPropertyGrammar::OutlineOffset => Length::parse_string(value).is_ok(),
+            CssPropertyGrammar::TextUnderlineOffset => {
+                value.trim() == "auto" || LengthPercentage::parse_string(value).is_ok()
+            }
+            CssPropertyGrammar::LengthList(max) => length_list(value, max),
             CssPropertyGrammar::WillChange => will_change(value),
             CssPropertyGrammar::Zoom => {
                 matches!(value.trim(), "normal" | "reset")
@@ -168,6 +212,24 @@ impl CssProperty {
             CssPropertyGrammar::PositionTryFallbacks => position_try_fallbacks(value),
         }
     }
+}
+
+/// Validates `value` with the Lightning CSS parser for the property `name`. A value
+/// that Lightning CSS parses as unparsed or custom is a rejection.
+fn lightning_css_accepts(name: &str, value: &str) -> bool {
+    matches!(
+        Property::parse_string(PropertyId::from(name), value.trim(), ParserOptions::default()),
+        Ok(property) if !matches!(property, Property::Unparsed(_) | Property::Custom(_))
+    )
+}
+
+/// Validates `<length>{1,max}`: one to `max` lengths separated by whitespace.
+fn length_list(value: &str, max: usize) -> bool {
+    let lengths = split_top_level(value.trim(), |token| matches!(token, Token::WhiteSpace(_)));
+    (1..=max).contains(&lengths.len())
+        && lengths
+            .iter()
+            .all(|length| Length::parse_string(length).is_ok())
 }
 
 /// Validates the `columns` shorthand: `auto` or `<length>` for the width, and `auto` or
@@ -390,6 +452,19 @@ mod tests {
             ("contain", "layout paint", "middle"),
             ("font-feature-settings", "\"liga\" 1", "liga"),
             ("object-position", "left 25%", "middle middle"),
+            ("outline-offset", "-2px", "5%"),
+            ("text-underline-offset", "auto", "red"),
+            ("text-underline-offset", "10%", "auto auto"),
+            (
+                "scroll-margin",
+                "1px calc(2px + 1rem) 3px 4px",
+                "1px 2px 3px 4px 5px",
+            ),
+            ("scroll-margin-top", "-1rem", "5%"),
+            ("scroll-margin-inline", "1px 2px", "1px 5%"),
+            ("flex-basis", "content", "foo"),
+            ("flex-basis", "max-content", "auto auto"),
+            ("flex-basis", "calc(50% - 1rem)", "red"),
             ("will-change", "transform, opacity", "1px"),
             ("zoom", "125%", "red"),
         ] {

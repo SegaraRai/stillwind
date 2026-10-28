@@ -644,23 +644,31 @@ mod tests {
                 "{raw}"
             );
         }
-        for root in [
-            "bg",
-            "border",
-            "stroke",
-            "shadow",
-            "decoration",
-            "outline",
-            "ring",
-            "text",
+        // `shadow` and `ring` pass the value only to custom properties, so no property
+        // grammar decides it.
+        for (root, checked) in [
+            ("bg", true),
+            ("border", true),
+            ("stroke", true),
+            ("shadow", false),
+            ("decoration", true),
+            ("outline", true),
+            ("ring", false),
+            ("text", true),
         ] {
             let raw = format_args!("{root}-[12px_foo]").to_lean_string();
             let resolved = resolve_utility(&raw, &theme).unwrap().unwrap();
             let reason = resolved.diagnostic_data.invalid_value.unwrap().reason;
-            assert!(
-                matches!(&reason, InvalidValueReason::Grammar { fallback_type_hints } if fallback_type_hints.len() > 1),
-                "{raw}: {reason:?}"
-            );
+            let hints = match &reason {
+                InvalidValueReason::Grammar {
+                    fallback_type_hints,
+                } if checked => fallback_type_hints,
+                InvalidValueReason::ValueType {
+                    fallback_type_hints,
+                } if !checked => fallback_type_hints,
+                _ => panic!("{raw}: {reason:?}"),
+            };
+            assert!(hints.len() > 1, "{raw}: {reason:?}");
         }
         for raw in [
             "w-[2px]",

@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use stillwind_source::ModuleId;
 
 use super::super::LintKind;
-use super::candidate::{DidYouMean, DocumentScopedMessage, PropertyValueMessage};
+use super::candidate::{
+    DidYouMean, DocumentScopedMessage, PropertyValueMessage, UtilityValueMessage,
+};
 use super::variables::VariableTypeMessage;
 use super::variants::{RedundantVariantMessage, UnsatisfiableMessage, VariantDirectiveMessage};
 use super::{MarkerUseErrorKind, RuleGroupInputErrorKind};
@@ -581,6 +583,20 @@ pub enum LintDiagnostic {
         /// be inferred; empty otherwise.
         alternatives: Vec<LeanStr>,
     },
+    /// No value type of a utility accepts an arbitrary value without a type hint, and
+    /// no property grammar decides the value, so it is emitted as written
+    /// (`incompatible-property-value`). The value reaches only custom properties or a
+    /// declaration that contains `var()`, `env()`, or `attr()`.
+    #[error("{}", UtilityValueMessage { utility, value, alternatives })]
+    UnacceptedUtilityValue {
+        /// Utility text as authored, without enclosing variant wrappers.
+        utility: LeanStr,
+        /// Decoded value text as emitted.
+        value: LeanStr,
+        /// The utility with a type hint for each value type it accepts, when it accepts
+        /// several types; empty otherwise.
+        alternatives: Vec<LeanStr>,
+    },
     /// A `var()` value without a type hint refers to a variable of a known type that
     /// the receiving property rejects (`incompatible-property-value`).
     #[error("{}", VariableTypeMessage {
@@ -900,6 +916,7 @@ impl LintDiagnostic {
             Self::UnknownUtility { .. } => LintKind::UnknownUtility,
             Self::InvalidUtility { .. } => LintKind::InvalidUtility,
             Self::IncompatiblePropertyValue { .. }
+            | Self::UnacceptedUtilityValue { .. }
             | Self::VariableTypeMismatch { .. }
             | Self::OpacityModifierOutOfRange { .. } => LintKind::IncompatiblePropertyValue,
             Self::RedundantVariant { .. } => LintKind::RedundantVariant,

@@ -104,6 +104,9 @@ pub(in crate::evaluation) struct UtilityResolutionDiagnosticData {
     /// An unhinted arbitrary value that no definition accepted by grammar, emitted as
     /// written.
     pub(in crate::evaluation) invalid_value: Option<UtilityArbitraryUse>,
+    /// True when no property grammar confirms that `invalid_value` is invalid, because
+    /// only custom properties or declarations with substitution functions receive it.
+    pub(in crate::evaluation) invalid_value_unchecked: bool,
     /// Type hints of the value types that the utility accepts, when `invalid_value`
     /// received a property chosen as a fallback between them; otherwise empty.
     pub(in crate::evaluation) fallback_type_hints: Vec<LeanStr>,

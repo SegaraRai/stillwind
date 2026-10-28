@@ -28,7 +28,10 @@ use super::body::{
     resolve_css_utility_body,
 };
 use super::nested::{NestedUtilityRule, contains_selector};
-use super::resolve::ResolvedUtilityTarget;
+use super::resolve::{
+    ResolvedUtilityTarget, UtilityArbitraryUse, UtilityDeclaration, diagnostic_property,
+    property_accepts,
+};
 use super::variables::{single_variable, variable_mismatch};
 use crate::{CustomUtility, ThemeIndex};
 
@@ -64,14 +67,19 @@ pub fn dynamic_named_spelling(
 /// value type is a non-match, not an invitation to reinterpret the candidate.
 ///
 /// An arbitrary value without a type hint that no definition accepts by grammar is
-/// emitted as written, as Tailwind emits it, and the resolution records it in
-/// `invalid_value`. When the matching definitions accept values of several types, the
-/// resolution also records their type hints, because the receiving property is then a
-/// fallback rather than the type of the value. Branch selection then follows the rules
-/// for an unhinted value whose type cannot be inferred. This fallback does not apply to
-/// a `var()` reference, to a value that is not well formed, or when the candidate
-/// resolves without its modifier, because then the modifier, not the value, is
-/// rejected.
+/// emitted as written, as Tailwind emits it. When the grammar of each property that
+/// receives the value accepts the declaration that it emits, the value is valid CSS
+/// and the resolution records nothing, so `basis-[content]` resolves like a typed
+/// value. Otherwise, the resolution records the value in `invalid_value`: a property
+/// that rejects its declaration when there is one, or else the receiving declaration
+/// with `invalid_value_unchecked` set, because only custom properties or substitution
+/// functions receive the value. When the matching definitions accept values of several
+/// types, the resolution also records their type hints, because the receiving property
+/// is then a fallback rather than the type of the value. Branch selection then follows
+/// the rules for an unhinted value whose type cannot be inferred. This fallback does
+/// not apply to a `var()` reference, to a value that is not well formed, or when the
+/// candidate resolves without its modifier, because then the modifier, not the value,
+/// is rejected.
 ///
 /// A definition that accepts the bracket value of a dynamic family's bracket candidate
 /// by grammar resolves that candidate. `icon-[2rem]` then selects an `icon-*`
@@ -115,16 +123,88 @@ pub(in crate::evaluation) fn resolve_named_utility(
     else {
         return Ok(None);
     };
-    resolution.diagnostic_data.invalid_value = resolution
-        .diagnostic_data
-        .arbitrary_uses
+    let uses = &resolution.diagnostic_data.arbitrary_uses;
+    let verdicts = uses
         .iter()
-        .find(|usage| usage.base)
-        .or_else(|| resolution.diagnostic_data.arbitrary_uses.first())
-        .cloned();
+        .map(|usage| emitted_value_verdict(usage, &resolution.policy_declarations))
+        .collect::<Vec<_>>();
+    if let Some(index) = verdicts.iter().position(|verdict| *verdict == Some(false)) {
+        resolution.diagnostic_data.invalid_value = Some(uses[index].clone());
+    } else if verdicts.contains(&Some(true)) {
+        return Ok(Some(resolution));
+    } else {
+        resolution.diagnostic_data.invalid_value = uses
+            .iter()
+            .find(|usage| usage.base)
+            .or_else(|| uses.first())
+            .cloned();
+        resolution.diagnostic_data.invalid_value_unchecked = true;
+    }
     resolution.diagnostic_data.fallback_type_hints =
         fallback_type_hints(lookup.as_deref().unwrap_or(name), theme);
     Ok(Some(resolution))
+}
+
+/// Ranks a branch by how the grammars of its properties judge the declarations that
+/// receive arbitrary values: 0 when one accepts and none rejects, 1 when none decides,
+/// and 2 when one rejects.
+fn emitted_values_rank(resolution: &UtilityResolution) -> u8 {
+    let verdicts = resolution
+        .diagnostic_data
+        .arbitrary_uses
+        .iter()
+        .map(|usage| emitted_value_verdict(usage, &resolution.policy_declarations))
+        .collect::<Vec<_>>();
+    match (
+        verdicts.contains(&Some(false)),
+        verdicts.contains(&Some(true)),
+    ) {
+        (true, _) => 2,
+        (false, true) => 0,
+        (false, false) => 1,
+    }
+}
+
+/// Returns the index of the branch to keep when a value selects one definition: the
+/// earliest registration, ranked first by [`emitted_values_rank`] when `check_emitted`
+/// is true. Each item is a branch resolution and its registration.
+fn single_branch<'a>(
+    branches: impl Iterator<Item = (&'a UtilityResolution, usize)>,
+    check_emitted: bool,
+) -> Option<usize> {
+    branches
+        .enumerate()
+        .min_by_key(|(_, (resolution, registration))| {
+            let rank = if check_emitted {
+                emitted_values_rank(resolution)
+            } else {
+                0
+            };
+            (rank, *registration)
+        })
+        .map(|(index, _)| index)
+}
+
+/// Checks the declaration that receives `usage` against the grammar of its property.
+///
+/// Returns `None` when no grammar decides it, as [`property_accepts`] describes, and
+/// when `usage` belongs to a nested or additional target, whose declarations
+/// `declarations` does not record.
+fn emitted_value_verdict(
+    usage: &UtilityArbitraryUse,
+    declarations: &[UtilityDeclaration],
+) -> Option<bool> {
+    if !usage.base {
+        return None;
+    }
+    let declaration = declarations
+        .iter()
+        .find(|declaration| diagnostic_property(&declaration.property) == usage.property)?;
+    let value = declaration.value.trim();
+    let value = value
+        .strip_suffix("!important")
+        .map_or(value, str::trim_end);
+    property_accepts(&usage.property, value)
 }
 
 /// Records the type hint of the selected definition and a type mismatch when the value
@@ -323,9 +403,11 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
 ///
 /// Without an exact definition, an unhinted arbitrary value keeps only the branches
 /// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand for
-/// any type, so only the earliest registered branch that accepts it is kept. The same
-/// rule applies when `arbitrary_check` accepts every well-formed value, because such a
-/// value has no type to infer.
+/// any type, so only the earliest registered branch that accepts it is kept. When
+/// `arbitrary_check` accepts every well-formed value, such a value has no type to
+/// infer, so one branch is kept as well: the earliest registered branch whose
+/// properties accept the declarations that it emits, else the earliest one that no
+/// property grammar decides, else the earliest one.
 pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     utilities: impl Iterator<Item = &'a CustomUtility>,
     name: &str,
@@ -371,12 +453,16 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
             // of setting every property that accepts it: `border-(--x)` must not set
             // both border-width and border-color. Emission order can give every
             // overload of a name the same position, so the individual registrations
-            // decide.
-            let first = branches
-                .iter()
-                .enumerate()
-                .min_by_key(|(_, (_, _, _, _, registration))| *registration)
-                .map(|(index, _)| index);
+            // decide. A value that no type accepts prefers a definition whose
+            // properties accept the declarations that it emits, then one that no
+            // property grammar decides.
+            let first = single_branch(
+                branches
+                    .iter()
+                    .map(|(_, _, _, resolution, registration)| (resolution, *registration)),
+                arbitrary_check == ArbitraryValueCheck::WellFormed
+                    && !stands_for_any_type(&arbitrary),
+            );
             branches = first
                 .map(|index| branches.swap_remove(index))
                 .into_iter()

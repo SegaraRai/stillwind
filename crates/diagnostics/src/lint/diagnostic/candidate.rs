@@ -1,6 +1,6 @@
 //! Optional parts of messages about utility candidates: a spelling suggestion, the
 //! branch of a selector list that keeps it document-wide, and the type hints for a
-//! value whose property was chosen as a fallback.
+//! value whose property was chosen as a fallback or that no value type accepts.
 
 use std::fmt;
 
@@ -59,13 +59,56 @@ impl fmt::Display for PropertyValueMessage<'_> {
             value,
             alternatives,
         } = self;
-        let Some((last, rest)) = alternatives.split_last() else {
+        if alternatives.is_empty() {
             return write!(formatter, "`{property}` does not accept `{value}`");
-        };
+        }
         write!(
             formatter,
-            "`{utility}` sets `{property}` because `{value}` has no type hint and its type cannot be inferred, but `{property}` does not accept it; add a type hint, such as "
+            "`{utility}` sets `{property}` because `{value}` has no type hint and its type cannot be inferred, but `{property}` does not accept it; add a type hint, such as {}",
+            Alternatives(alternatives)
+        )
+    }
+}
+
+/// Message of [`super::LintDiagnostic::UnacceptedUtilityValue`], which lists hinted
+/// spellings when there are any.
+pub(super) struct UtilityValueMessage<'a> {
+    pub(super) utility: &'a str,
+    pub(super) value: &'a str,
+    pub(super) alternatives: &'a [LeanStr],
+}
+
+impl fmt::Display for UtilityValueMessage<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self {
+            utility,
+            value,
+            alternatives,
+        } = self;
+        write!(
+            formatter,
+            "no value type of `{utility}` accepts `{value}`, so it is emitted as written"
         )?;
+        if !alternatives.is_empty() {
+            write!(
+                formatter,
+                "; add a type hint, such as {}",
+                Alternatives(alternatives)
+            )?;
+        }
+        Ok(())
+    }
+}
+
+/// Formats a nonempty list of spellings as `` `a` ``, `` `a` or `b` ``, or
+/// `` `a`, `b`, or `c` ``.
+struct Alternatives<'a>(&'a [LeanStr]);
+
+impl fmt::Display for Alternatives<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Some((last, rest)) = self.0.split_last() else {
+            return Ok(());
+        };
         for alternative in rest {
             write!(formatter, "`{alternative}`")?;
             formatter.write_str(if rest.len() > 1 { ", " } else { " " })?;
@@ -118,6 +161,29 @@ mod tests {
         assert_eq!(
             fallback.to_lean_string(),
             "`text-[12px_foo]` sets `color` because `12px foo` has no type hint and its type cannot be inferred, but `color` does not accept it; add a type hint, such as `text-[color:12px_foo]` or `text-[length:12px_foo]`"
+        );
+        let unaccepted = LintDiagnostic::UnacceptedUtilityValue {
+            utility: "blur-[5%]".into(),
+            value: "5%".into(),
+            alternatives: Vec::new(),
+        };
+        assert_eq!(unaccepted.code(), "incompatible-property-value");
+        assert_eq!(
+            unaccepted.to_lean_string(),
+            "no value type of `blur-[5%]` accepts `5%`, so it is emitted as written"
+        );
+        let hinted = LintDiagnostic::UnacceptedUtilityValue {
+            utility: "probe-[x]".into(),
+            value: "x".into(),
+            alternatives: vec![
+                "probe-[color:x]".into(),
+                "probe-[length:x]".into(),
+                "probe-[number:x]".into(),
+            ],
+        };
+        assert_eq!(
+            hinted.to_lean_string(),
+            "no value type of `probe-[x]` accepts `x`, so it is emitted as written; add a type hint, such as `probe-[color:x]`, `probe-[length:x]`, or `probe-[number:x]`"
         );
         let variant = LintDiagnostic::UnknownVariant {
             variant: "foo".into(),

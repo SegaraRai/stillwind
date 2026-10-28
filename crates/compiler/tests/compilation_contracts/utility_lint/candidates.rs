@@ -304,6 +304,52 @@ fn arbitrary_percentages_follow_the_grammar_of_the_target_property() {
 }
 
 #[test]
+fn untyped_values_are_reported_by_what_rejects_them() {
+    let options = CompilerOptions::default();
+    let messages = |utilities: &str| {
+        let (_, result) = compile_utilities(utilities, &options);
+        result
+            .lint_findings
+            .iter()
+            .filter(|finding| finding.kind() == LintKind::IncompatiblePropertyValue)
+            .map(|finding| finding.diagnostic.to_string())
+            .collect::<Vec<_>>()
+    };
+    // The property grammar accepts these values, although no value type of the utility
+    // does.
+    for utilities in [
+        "basis-[content]",
+        "basis-[max-content]",
+        "leading-[normal]",
+        "underline-offset-[auto]",
+    ] {
+        assert_eq!(messages(utilities), Vec::<String>::new(), "{utilities}");
+    }
+    // The color definition registers first, but only the thickness definition emits a
+    // declaration that its property accepts.
+    let (_, result) = compile_utilities("decoration-[from-font]", &options);
+    assert!(
+        result.css.contains("text-decoration-thickness:from-font"),
+        "{}",
+        result.css
+    );
+    assert_eq!(messages("decoration-[from-font]"), Vec::<String>::new());
+    assert_eq!(
+        messages("basis-[foo]"),
+        ["`flex-basis` does not accept `foo`"]
+    );
+    // Only custom properties receive these values.
+    assert_eq!(
+        messages("blur-[5%]"),
+        ["no value type of `blur-[5%]` accepts `5%`, so it is emitted as written"]
+    );
+    assert_eq!(
+        messages("translate-x-[foo]"),
+        ["no value type of `translate-x-[foo]` accepts `foo`, so it is emitted as written"]
+    );
+}
+
+#[test]
 fn variables_of_known_types_and_opacity_modifiers_report_invalid_values() {
     let options = CompilerOptions::default();
     for (utilities, covered, variable) in [
