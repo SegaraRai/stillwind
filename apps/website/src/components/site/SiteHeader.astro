@@ -1,14 +1,8 @@
 ---
 import { style } from "stillwind/astro";
 
+import { URL_DOCS, URL_PLAYGROUND, URL_REPOSITORY } from "../../lib/config";
 import { documentRoot } from "./document";
-
-interface Props {
-  docs: string;
-  repository: string;
-}
-
-const { docs, repository } = Astro.props;
 
 const headerTransition = style.viewTransition({
   group: "duration-300 ease-out",
@@ -45,7 +39,7 @@ const header = style.ref();
         { [header("data-floating")]: "text-(length:--text-heading-small)" },
       )}
     >
-      <span aria-label="Stillwind" {...style("stillwind-logo")}></span>
+      <span aria-label="Stillwind" role="img" {...style("stillwind-logo")}></span>
     </a>
     <nav
       aria-label="Main navigation"
@@ -53,13 +47,13 @@ const header = style.ref();
         "flex items-center gap-7 text-ui/[inherit] max-inline:gap-2 max-inline:text-caption/[inherit]",
       )}
     >
-      <a href={docs} {...link}>
+      <a href={URL_PLAYGROUND} {...link}>
+        Playground
+      </a>
+      <a href={URL_DOCS} {...link}>
         Docs
       </a>
-      <a href="/#examples" {...link}>
-        Examples
-      </a>
-      <a href={repository} {...style(link, "gap-2")}>
+      <a href={URL_REPOSITORY} {...style(link, "gap-2")}>
         <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
         GitHub
       </a>

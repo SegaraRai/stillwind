@@ -11,14 +11,13 @@ import Showcase from "../components/landing/Showcase.astro";
 import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
+import { URL_DOCS, URL_REPOSITORY } from "../lib/config";
 
 const title = "Stillwind — Familiar utilities. Enforced rules.";
 const description =
   "Familiar utilities. Enforced rules. Stillwind checks component styles against your design system and compiles static utilities to CSS.";
 const socialImage = new URL("/og.png", Astro.site);
-const repository = "https://github.com/SegaraRai/stillwind";
-const docs = "/docs/";
-const integrations = "/docs/integrations/";
+
 const frameworkLink = style.ref();
 const frameworks = [
   { name: "React", icon: style("icon-framework icon-simple-icons--react") },
@@ -60,7 +59,7 @@ const frameworks = [
       Skip to content
     </a>
     <div {...style("mx-auto px-gutter inline-full max-inline-page")}>
-      <SiteHeader docs={docs} repository={repository} />
+      <SiteHeader />
 
       <main id="main">
         <section aria-labelledby="tagline" {...style("py-16 sidebar:py-28")}>
@@ -84,7 +83,7 @@ const frameworks = [
               </p>
               <div {...style("flex mbs-7 flex-wrap items-center gap-7")}>
                 <a
-                  href={docs}
+                  href={URL_DOCS}
                   {...style("text-action-foreground bg-action action-link hover:bg-action-hover")}
                 >
                   Get started{" "}
@@ -122,7 +121,7 @@ const frameworks = [
               </p>
             </div>
             <a
-              href={docs}
+              href={URL_DOCS}
               {...style(
                 "shrink-0 text-action-foreground bg-action action-link hover:bg-action-hover",
               )}
@@ -139,7 +138,7 @@ const frameworks = [
           >
             {frameworks.map((framework) => (
               <a
-                href={`${integrations}#${framework.name === "Astro" ? "astro" : "vite"}`}
+                href={`/docs/integrations/#${framework.name === "Astro" ? "astro" : "vite"}`}
                 {...style(frameworkLink, "framework-link")}
               >
                 <span
@@ -219,7 +218,7 @@ const frameworks = [
         )}
       >
         <span>Stillwind · Open source · MIT</span>
-        <a href={repository} {...style("inline-flex items-center gap-2 nav-link")}>
+        <a href={URL_REPOSITORY} {...style("inline-flex items-center gap-2 nav-link")}>
           <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
           Explore the source
         </a>
