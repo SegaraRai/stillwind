@@ -72,6 +72,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand("stillwind.compile", async (input: unknown) => {
       return client?.sendRequest("stillwind/compile", input);
     }),
+    vscode.commands.registerCommand("stillwind.sortSource", async (input: unknown) => {
+      return client?.sendRequest("stillwind/sort", input);
+    }),
   );
 
   await start();

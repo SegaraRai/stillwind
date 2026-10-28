@@ -66,6 +66,7 @@ self.onmessage = async ({
     await initialization;
     const files = new Map(data.files);
     const transformed = new Map<string, string>();
+    const moduleCss = new Map<string, string>();
     const cssValues = new Map<string, Compilation["cssValues"][number][1]>();
     const rejectedNames = new Map<string, BrowserStylesheetOutput["rejectedNames"][number]>();
     let css = "";
@@ -155,8 +156,12 @@ self.onmessage = async ({
                       );
                     }
                     for (const module of compilation.graph.modules) {
+                      const file = resolve("/workspace", module.moduleId);
                       if (module.code !== null) {
-                        transformed.set(resolve("/workspace", module.moduleId), module.code);
+                        transformed.set(file, module.code);
+                      }
+                      if (!moduleCss.has(file)) {
+                        moduleCss.set(file, module.css);
                       }
                     }
                     css = compilation.css;
@@ -228,6 +233,7 @@ self.onmessage = async ({
           .map((file) => file.text)
           .join("\n"),
       transformed: [...transformed],
+      moduleCss: [...moduleCss],
       rejectedNames: [...rejectedNames.values()],
     });
   } catch (error) {

@@ -1,4 +1,6 @@
-/** Code and CSS delivered together after one complete application build. */
+/**
+ * Code and CSS delivered together after one complete application build.
+ */
 export interface PreviewUpdate {
   /** Monotonic application build sequence. Earlier messages are ignored by the frame. */
   revision: number;
@@ -10,6 +12,7 @@ export interface PreviewUpdate {
 
 /**
  * Creates a document for an iframe with sandbox="allow-scripts".
+ *
  * @param runtime - Trusted bundled runtime. Closing script tokens are escaped for HTML parsing.
  * @returns HTML containing one persistent React mount and stylesheet element.
  */
@@ -21,9 +24,13 @@ export function previewDocument(runtime: string): string {
 export class PreviewChannel {
   #port?: MessagePort;
   #update?: PreviewUpdate;
+
   readonly #receive: (event: MessageEvent) => void;
 
-  /** @param frame - Persistent script-only iframe. @param onError - Receives frame execution errors. */
+  /**
+   * @param frame - Persistent script-only iframe.
+   * @param onError - Receives frame execution errors.
+   */
   constructor(frame: HTMLIFrameElement, onError: (message: string) => void) {
     this.#receive = (event) => {
       if (event.source !== frame.contentWindow || event.data !== "stillwind-preview-ready") {
@@ -57,6 +64,7 @@ export class PreviewChannel {
 
   /**
    * Sends a completed build, or retains it until the frame connects.
+   *
    * @param update - Code and CSS from one revision. Revisions must increase for subsequent builds.
    */
   update(update: PreviewUpdate): void {
@@ -64,7 +72,9 @@ export class PreviewChannel {
     this.#port?.postMessage(update);
   }
 
-  /** Releases the frame connection and its window listener. */
+  /**
+   * Releases the frame connection and its window listener.
+   */
   dispose(): void {
     window.removeEventListener("message", this.#receive);
     this.#port?.close();

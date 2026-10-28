@@ -1,7 +1,9 @@
 import type { BrowserStylesheetOutput } from "@stillwind/host/browser";
 import type * as vscode from "vscode";
 
-/** Output of a complete browser build from one revision of the virtual workspace. */
+/**
+ * Output of a complete browser build from one revision of the virtual workspace.
+ */
 export interface ApplicationBuild {
   /** Browser bundle whose React imports use the preview's persistent renderer. */
   code: string;
@@ -9,11 +11,18 @@ export interface ApplicationBuild {
   css: string;
   /** Absolute virtual source paths paired with code after Stillwind macro transformation. */
   transformed: [string, string][];
+  /**
+   * Absolute virtual source paths paired with the CSS that Stillwind generated for the module.
+   * The compiler omits rules that a module compiled earlier in the same build already emitted.
+   */
+  moduleCss: [string, string][];
   /** Naming fallbacks observed during compilation and stylesheet assembly. */
   rejectedNames: BrowserStylesheetOutput["rejectedNames"];
 }
 
-/** Builds the application in a worker and requests Stillwind transformations from the active extension. */
+/**
+ * Builds the application in a worker and requests Stillwind transformations from the active extension.
+ */
 export class ApplicationBuilder {
   readonly #worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
   readonly #api: typeof vscode;
@@ -64,6 +73,7 @@ export class ApplicationBuilder {
 
   /**
    * Captures saved files and open buffers before bundling. Obsolete snapshots are retried twice.
+   *
    * @param reload - Reevaluate configuration before capturing the first snapshot.
    * @returns Code and CSS from the same captured revision.
    * @throws If compilation fails or edits invalidate all three attempts.
@@ -96,7 +106,9 @@ export class ApplicationBuilder {
     });
   }
 
-  /** Terminates the build worker and rejects unfinished requests. */
+  /**
+   * Terminates the build worker and rejects unfinished requests.
+   */
   dispose(): void {
     this.#worker.terminate();
     for (const pending of this.#pending.values()) {

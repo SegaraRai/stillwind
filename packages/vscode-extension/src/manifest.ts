@@ -44,6 +44,10 @@ export const extensionManifest = {
         title: "Stillwind: Compile Module",
       },
       {
+        command: "stillwind.sortSource",
+        title: "Stillwind: Sort Source Text",
+      },
+      {
         command: "stillwind.sortUtilities",
         title: "Stillwind: Sort Utilities",
       },
@@ -56,6 +60,10 @@ export const extensionManifest = {
         },
         {
           command: "stillwind.compile",
+          when: "false",
+        },
+        {
+          command: "stillwind.sortSource",
           when: "false",
         },
       ],

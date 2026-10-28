@@ -1,0 +1,87 @@
+/*
+The playground shares token names, type scale, and fonts with the website. Its colors follow the
+website's dark palette because Monaco uses a dark theme. The workbench adds layer, divider, and
+file type colors. `workspace/editor.ts` reads `--font-mono` and several color tokens to style
+Monaco, so color tokens must use a CSS color syntax that VS Code accepts, such as hexadecimal.
+*/
+
+@theme static {
+  --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --color-background: #121a29;
+  --color-surface: #1b263b;
+  --color-surface-muted: #283752;
+  --color-foreground: #e4edff;
+  --color-muted: #a8b8d4;
+  --color-subtle: #74859f;
+  --color-border: #3d506f;
+  --color-divider: #233049;
+  --color-action: #b6cdff;
+  --color-action-foreground: #172448;
+  --color-action-hover: #96b6ff;
+  --color-accent: #8bcff4;
+  --color-danger: #f1a297;
+  --color-warning: #e4c276;
+  --color-success: #a4c991;
+  --color-selection: #253c63;
+
+  --color-editor: #161f31;
+  --color-editor-line: #1c2740;
+  --color-editor-gutter: #55657f;
+  --color-editor-selection: #2c4573;
+  --color-editor-widget: #1b263b;
+
+  --color-stage: #0d1320;
+  --color-stage-dot: #222d42;
+  --color-frame: #ffffff;
+
+  --shadow-overlay: 0 1.5rem 3rem -1rem #000000a0, 0 0 0 1px #ffffff10;
+
+  --color-stillwind-logo-e: #d9825b;
+  --color-stillwind-logo-o: #379988;
+  --color-stillwind-logo-t: #e9f2fd;
+
+  --color-file-javascriptreact: #61dafb;
+  --color-file-javascript: #f7df1e;
+  --color-file-typescriptreact: #67e8f9;
+  --color-file-typescript: #60a5fa;
+  --color-file-astro: #c084fc;
+  --color-file-svelte: #ff6b4a;
+  --color-file-vue: #5ddbac;
+  --color-file-css: #49a6e9;
+  --color-file-svg: #ffbf53;
+  --color-file-image: #4ade80;
+  --color-file-html: #ff795e;
+  --color-file-json: #f5c842;
+  --color-file-markdown: #77bee7;
+  --color-file-plaintext: #e8d49a;
+
+  --icon-size-inline: 0.875rem;
+  --icon-size-control: 1rem;
+
+  --spacing: 0.25rem;
+
+  --radius-inline: 0.1875rem;
+  --radius-control: 0.25rem;
+  --radius-panel: 0.5rem;
+
+  --breakpoint-inline: 40rem;
+  --breakpoint-workbench: 64rem;
+
+  --container-tablet: 48rem;
+  --container-phone: 24.375rem;
+
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1.5;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+  --text-ui: 0.8125rem;
+  --text-ui--line-height: 1.5;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.6;
+  --text-heading-small: 1.25rem;
+  --text-heading-small--line-height: 1.4;
+  --text-code: 0.8125rem;
+  --text-code--line-height: 1.6;
+}

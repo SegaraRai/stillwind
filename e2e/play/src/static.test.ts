@@ -74,11 +74,18 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     await frame.getByRole("button", { name: "Count: 0" }).click();
     await page.getByRole("button", { name: "Component.tsx", exact: true }).click();
     await page.getByRole("button", { name: "Format", exact: true }).click();
-    const input = page.locator(".monaco-editor textarea.inputarea");
+    const input = page
+      .getByRole("region", { name: "Editor" })
+      .locator(".monaco-editor textarea.inputarea");
     await expect
       .poll(
         async () =>
-          (await page.locator(".monaco-editor .view-lines").innerText()).replaceAll("\u00a0", " "),
+          (
+            await page
+              .getByRole("region", { name: "Editor" })
+              .locator(".monaco-editor .view-lines")
+              .innerText()
+          ).replaceAll("\u00a0", " "),
         { timeout: 10_000 },
       )
       .toContain("return (");
@@ -133,7 +140,6 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       'style(card, "p-4 rounded-md")',
       'style(card, style("p-4 rounded-md"))',
     );
-    await page.getByRole("button", { name: /^Diagnostics/ }).click();
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("nested style() calls are not supported");
@@ -215,7 +221,6 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       "export function App()",
       'const wrong: number = "invalid";\nexport function App()',
     );
-    await page.getByRole("button", { name: /^Diagnostics/ }).click();
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("2322");
@@ -258,7 +263,9 @@ async function replace(
   const text = buffers.get(key)!.replace(from, to);
   buffers.set(key, text);
   await page.getByRole("button", { name: file, exact: true }).click();
-  const input = page.locator(".monaco-editor textarea.inputarea");
+  const input = page
+    .getByRole("region", { name: "Editor" })
+    .locator(".monaco-editor textarea.inputarea");
   await input.focus();
   await page.keyboard.press("Control+a");
   await page.keyboard.insertText(text);

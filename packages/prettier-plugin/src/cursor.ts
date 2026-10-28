@@ -1,4 +1,4 @@
-import type { RewriteResult } from "@stillwind/analysis/node";
+import type { SortOutput } from "./plugin.ts";
 
 /**
  * Maps an original UTF-16 cursor offset through nonoverlapping edits ordered by start.
@@ -11,7 +11,7 @@ import type { RewriteResult } from "@stillwind/analysis/node";
  * @returns The cursor position after the edits. A relative position is clamped to the replacement's
  * length when no unique matching token is available. The input edits remain unchanged.
  */
-export function mapOffset(offset: number, source: string, edits: RewriteResult["edits"]): number {
+export function mapOffset(offset: number, source: string, edits: SortOutput["edits"]): number {
   if (offset < 0) {
     return offset;
   }

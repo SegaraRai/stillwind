@@ -49,16 +49,32 @@ test("the provider skips cancelled requests and discards edits for changed buffe
     languages: {
       registerDocumentFormattingEditProvider: register,
     },
-    TextEdit: { replace },
+    TextEdit: {
+      replace,
+    },
+    commands: {
+      executeCommand: async () => ({
+        edits: [],
+      }),
+    },
   } as unknown as typeof vscode);
   const getText = vi.fn(() => "const x=1");
   const document = {
     version: 1,
     languageId: "typescript",
+    uri: {
+      path: "/workspace/entry.ts",
+      toString: () => "file:///workspace/entry.ts",
+    },
     getText,
   } as unknown as vscode.TextDocument;
-  const token = { isCancellationRequested: true } as vscode.CancellationToken;
-  const options = { insertSpaces: true, tabSize: 2 };
+  const token = {
+    isCancellationRequested: true,
+  } as vscode.CancellationToken;
+  const options = {
+    insertSpaces: true,
+    tabSize: 2,
+  };
   expect(await provider!.provideDocumentFormattingEdits(document, options, token)).toEqual([]);
   expect(getText).not.toHaveBeenCalled();
   const pending = provider!.provideDocumentFormattingEdits(document, options, {
@@ -66,4 +82,39 @@ test("the provider skips cancelled requests and discards edits for changed buffe
   } as vscode.CancellationToken);
   Object.assign(document, { version: 2 });
   expect(await pending).toEqual([]);
+});
+
+test("sorting runs inside Prettier and leaves ignored nodes unchanged", async () => {
+  const requests: unknown[] = [];
+  const source = 'const a=style("flex block");\n// prettier-ignore\nconst b=style("flex block");\n';
+  const formatted = await formatSource(
+    source,
+    "typescript",
+    {
+      insertSpaces: true,
+      tabSize: 2,
+    },
+    {
+      filepath: "/workspace/entry.ts",
+      async sort(input) {
+        requests.push(input.protectedRanges.length);
+        const start = input.source.indexOf("flex block");
+        const edits = [
+          {
+            start,
+            end: start + 10,
+            newText: "block flex",
+          },
+        ];
+        return {
+          code: input.source.slice(0, start) + "block flex" + input.source.slice(start + 10),
+          edits,
+        };
+      },
+    },
+  );
+  expect(formatted).toBe(
+    'const a = style("block flex");\n// prettier-ignore\nconst b=style("flex block");\n',
+  );
+  expect(requests).toEqual([1]);
 });

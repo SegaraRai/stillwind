@@ -1,0 +1,103 @@
+/*
+Stillwind stylesheet entry of the playground. theme.css defines the tokens, and this file
+contains the document defaults and the utilities that several workbench parts share.
+*/
+
+@import "stillwind";
+
+@import "./theme.css";
+
+@plugin "@stillwind/plugin-iconify";
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply block-full;
+  }
+
+  body {
+    @apply overflow-hidden font-sans text-foreground text-ui antialiased bg-background scheme-dark;
+  }
+
+  ::selection {
+    @apply text-action-foreground bg-action;
+  }
+
+  :focus-visible {
+    @apply outline-1 outline-accent -outline-offset-1;
+  }
+}
+
+@utility code-font {
+  @apply font-mono;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0,
+    "zero" 1;
+}
+
+/* Section titles in the explorer and panel headers, as in VS Code. */
+@utility pane-title {
+  @apply text-label font-semibold tracking-[0.08em] uppercase text-muted;
+}
+
+/* Icon-only toolbar button. Callers must give the button an accessible name. */
+@utility icon-button {
+  @apply inline-grid place-items-center inline-6.5 block-6.5 text-muted rounded-control cursor-pointer;
+
+  @variant hover {
+    @apply text-foreground bg-surface-muted;
+  }
+
+  @variant aria-pressed {
+    @apply text-foreground bg-surface-muted;
+  }
+
+  @variant disabled {
+    @apply opacity-40 cursor-default;
+  }
+}
+
+/* Labelled button in the title bar and pane toolbars. */
+@utility text-button {
+  @apply inline-flex items-center gap-1.5 block-6.5 px-2 text-caption text-muted rounded-control cursor-pointer;
+
+  @variant hover {
+    @apply text-foreground bg-surface-muted;
+  }
+
+  @variant disabled {
+    @apply text-muted bg-transparent opacity-40 cursor-default;
+  }
+}
+
+/* Tab in the result pane and the editor tab strip. The active tab uses `aria-selected`. */
+@utility workbench-tab {
+  @apply relative inline-flex shrink-0 items-center gap-1.5 block-full px-3 text-caption text-muted whitespace-nowrap border-e border-divider cursor-pointer max-inline:px-2;
+
+  @variant hover {
+    @apply text-foreground;
+  }
+
+  @variant aria-selected {
+    @apply text-foreground bg-editor;
+    @apply before:absolute before:inset-x-0 before:inset-bs-0 before:block-0.5 before:bg-accent;
+  }
+}
+
+@utility stage-grid {
+  @apply bg-stage;
+  background-image: radial-gradient(var(--color-stage-dot) 1px, transparent 1px);
+  background-size: 1rem 1rem;
+}
+
+/* Stillwind logo. The pseudo-elements overlay the colored parts of the mark on the `t` icon. */
+@utility stillwind-logo {
+  @apply relative icon-stillwind--t text-stillwind-logo-t;
+  @apply before:absolute before:inset-0 before:icon-stillwind--e before:text-stillwind-logo-e;
+  @apply after:absolute after:inset-0 after:icon-stillwind--o after:text-stillwind-logo-o;
+
+  background: linear-gradient(to right, transparent 29%, currentColor 0);
+}

@@ -1,6 +1,6 @@
 import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
+import { defineConfig, lazyPlugins } from "vite-plus";
 
 const headers = {
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -40,7 +40,10 @@ export default defineConfig({
       "@codingame/monaco-vscode-extension-api",
     ],
   },
-  plugins: [react()],
+  plugins: lazyPlugins(async () => {
+    const { stillwind } = await import("@stillwind/integration/vite");
+    return [stillwind(), react()];
+  }),
   test: {
     name: "play",
     include: ["src/**/*.test.ts"],
@@ -51,15 +54,30 @@ export default defineConfig({
       dev: {
         command: "vp dev",
         cache: false,
-        dependsOn: ["build:assets", "@stillwind/host#build"],
+        dependsOn: [
+          "build:assets",
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "prettier-plugin-stillwind#build",
+        ],
       },
       build: {
         command: "vp build",
-        dependsOn: ["build:assets", "@stillwind/host#build"],
+        dependsOn: [
+          "build:assets",
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "prettier-plugin-stillwind#build",
+        ],
       },
       "build:acceptance": {
         command: "vp build --base=/play/ --outDir=dist/acceptance",
-        dependsOn: ["build:assets", "@stillwind/host#build"],
+        dependsOn: [
+          "build:assets",
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "prettier-plugin-stillwind#build",
+        ],
       },
       "build:assets": {
         command: "node build/assets.ts",
@@ -75,12 +93,16 @@ export default defineConfig({
       },
       typecheck: {
         command: "tsc --noEmit",
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: [
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "prettier-plugin-stillwind#build",
+        ],
       },
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["@stillwind/host#build"],
+        dependsOn: ["@stillwind/host#build", "prettier-plugin-stillwind#build"],
       },
     },
   },

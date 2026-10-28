@@ -17,7 +17,11 @@ the captured workspace before evaluation. Imports of Node built-ins fail during
 configuration evaluation.
 
 Desktop, Web VS Code, and the static Playground share hover, completion, colors,
-and edit plans through the language server. Transport and analysis embedding
+and edit plans through the language server. The Web extension also registers hidden
+commands for the Playground: `stillwind.snapshot` and `stillwind.compile` build the
+application, and `stillwind.sortSource` returns sort edits for a buffer that the
+browser entry of `prettier-plugin-stillwind` formats. `stillwind.sortSource` rejects
+text that differs from the server's current buffer. Transport and analysis embedding
 contracts are maintained in [Standalone analysis](../../docs/standalone-analysis.md#embedding-the-language-server).
 
 ## Build and package

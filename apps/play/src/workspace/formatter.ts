@@ -1,4 +1,5 @@
 import type { Options } from "prettier";
+import type { SortInput, SortOutput } from "prettier-plugin-stillwind/browser";
 import type * as vscode from "vscode";
 
 const parsers = {
@@ -11,7 +12,9 @@ const parsers = {
   jsonc: "jsonc",
 } as const;
 
-/** Identity of the embedded extension that owns the document formatter provider. */
+/**
+ * Identity of the embedded extension that owns the document formatter provider.
+ */
 export const formatterManifest = {
   name: "prettier",
   publisher: "stillwind-internal",
@@ -22,7 +25,9 @@ export const formatterManifest = {
   },
 };
 
-/** Language-specific defaults leave unsupported files with their existing formatter. */
+/**
+ * Language-specific defaults leave unsupported files with their existing formatter.
+ */
 export const formatterConfiguration = {
   [Object.keys(parsers)
     .map((language) => `[${language}]`)
@@ -32,7 +37,24 @@ export const formatterConfiguration = {
 };
 
 /**
+ * Stillwind sorting for one document, supplied to the Prettier plugin.
+ */
+export interface SourceSorting {
+  /** Absolute virtual path that selects the parser wrapper and the Stillwind project. */
+  filepath: string;
+  /**
+   * Sorts the original buffer and leaves its protected ranges untouched.
+   *
+   * @throws If the language server rejects the buffer or its projects disagree.
+   */
+  sort(input: SortInput): Promise<SortOutput>;
+}
+
+/**
  * Registers full-document formatting with the embedded formatter extension's API.
+ * Stillwind sorting runs inside Prettier through `prettier-plugin-stillwind`, and the Web
+ * extension's `stillwind.sortSource` command computes the sort edits.
+ *
  * @param api - API scoped to the formatter extension, so VS Code can select it by extension ID.
  * @returns Registration to dispose with the playground workspace. Cancelled requests and changed
  * buffers produce no edits; syntax errors are reported through VS Code's formatter error handling.
@@ -45,7 +67,16 @@ export function registerFormatter(api: typeof vscode): vscode.Disposable {
       }
       const text = document.getText();
       const version = document.version;
-      const formatted = await formatSource(text, document.languageId, options);
+      const formatted = await formatSource(text, document.languageId, options, {
+        filepath: document.uri.path,
+        async sort(input) {
+          const result = await api.commands.executeCommand<
+            { edits: SortOutput["edits"] } | undefined
+          >("stillwind.sortSource", { uri: document.uri.toString(), ...input });
+          const edits = result?.edits ?? [];
+          return { code: applyEdits(input.source, edits), edits };
+        },
+      });
       if (token.isCancellationRequested || document.version !== version || formatted === text) {
         return [];
       }
@@ -61,23 +92,27 @@ export function registerFormatter(api: typeof vscode): vscode.Disposable {
 
 /**
  * Formats one buffer with Prettier's browser runtime and bundled parser plugins.
+ *
  * @param text - Complete original source text.
  * @param language - VS Code language ID; unsupported IDs return the text unchanged.
  * @param options - Editor indentation preferences. Other formatting options use Prettier defaults.
- * @returns Formatted source. Stillwind utility strings retain their authored token order.
- * @throws If a parser cannot parse the source or a bundled plugin cannot load.
+ * @param sorting - Stillwind sorting for JS, TS, and CSS sources. Omission keeps the authored
+ *   utility order.
+ * @returns Formatted source.
+ * @throws If a parser cannot parse the source, a bundled plugin cannot load, or sorting fails.
  */
 export async function formatSource(
   text: string,
   language: string,
   options: Pick<vscode.FormattingOptions, "insertSpaces" | "tabSize">,
+  sorting?: SourceSorting,
 ): Promise<string> {
   if (!Object.hasOwn(parsers, language)) {
     return text;
   }
   const parser = parsers[language as keyof typeof parsers];
   const { format } = await import("prettier/standalone");
-  let plugins: Options["plugins"];
+  let plugins: NonNullable<Options["plugins"]>;
   if (parser === "css") {
     plugins = [await import("prettier/plugins/postcss")];
   } else {
@@ -88,10 +123,23 @@ export async function formatSource(
         : import("prettier/plugins/babel")),
     ];
   }
+  if (sorting && parser !== "json" && parser !== "jsonc") {
+    const { createStillwindPlugin } = await import("prettier-plugin-stillwind/browser");
+    plugins.push(createStillwindPlugin(() => (input) => sorting.sort(input)));
+  }
   return format(text, {
     parser,
     plugins,
+    filepath: sorting?.filepath,
     useTabs: !options.insertSpaces,
     tabWidth: options.tabSize,
   });
+}
+
+function applyEdits(source: string, edits: SortOutput["edits"]): string {
+  let code = source;
+  for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
+    code = code.slice(0, edit.start) + edit.newText + code.slice(edit.end);
+  }
+  return code;
 }

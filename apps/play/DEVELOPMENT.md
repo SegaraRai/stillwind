@@ -23,8 +23,14 @@ Netlify/Cloudflare Pages format. The threaded WASM compiler requires these heade
 The initial workspace contains `Component.tsx`, an imported style module, a stylesheet,
 `stillwind.config.ts`, and `tsconfig.json`. Its CSS loads the Iconify plugin, and the
 workspace bundles the `mdi`, `lucide`, and `fluent-emoji-flat` icon sets.
-The file pane can add local source files. Site builds bundle runtime dependencies
+The explorer can add local source files. Site builds bundle runtime dependencies
 and React declarations.
+
+The result pane shows the preview, the CSS that Stillwind generated for the file open in
+the editor, that file's compiled code, and the bundled stylesheet of the preview build. A
+read-only Monaco editor shows the outputs. Its models are not sent to extensions, so language
+servers do not report diagnostics for them. The preview frame stays mounted while another view
+is shown. The Problems panel below the editor lists diagnostics from all workspace files.
 
 Configuration accepts objects, functions, async functions, and promises. Imports
 must be browser-compatible; Node built-ins are unavailable.
@@ -38,11 +44,23 @@ Build errors retain the last successful preview.
 ## Formatting and edits
 
 Prettier formats JS, JSX, TS, TSX, CSS, JSON, and JSONC with the editor's indentation
-settings. The Format button runs Stillwind sorting before Prettier; Format Document
-runs Prettier alone. The site bundles Prettier's standalone runtime and parsers.
-It does not load Prettier configuration files or third-party plugins.
+settings. Format Document and the Format button run the same formatter. For JS, TS, and
+CSS, the browser entry of `prettier-plugin-stillwind` sorts Stillwind utilities inside
+Prettier, and the Web extension's `stillwind.sortSource` command computes the sort edits.
+The site bundles Prettier's standalone runtime and parsers. It does not load Prettier
+configuration files or other plugins.
 
-Stillwind sorting and fixes are also available through `Stillwind: Sort Utilities`,
-`source.sort.stillwind`, and `source.fixAll.stillwind`. Cancelled requests and older
-buffer versions produce no edits. Conflicting sorts from different projects are
-reported without selecting one automatically.
+The Fix button applies `source.fixAll.stillwind` to the file open in the editor. It is
+disabled when that file has no fixable Stillwind lint findings. Stillwind sorting and fixes
+are also available through `Stillwind: Sort Utilities`, `source.sort.stillwind`, and
+`source.fixAll.stillwind`. Cancelled requests and older buffer versions produce no edits.
+Conflicting sorts or fixes from different projects are reported without selecting one
+automatically.
+
+## Interface styles
+
+The playground interface uses Stillwind through the Vite integration. `stillwind.config.ts`
+selects `src/styles.css` for `src/**/*.tsx`. `src/theme.css` uses the website's token
+names, type scale, and fonts with its dark palette. Monaco reads its colors and code font
+from these tokens when the workspace opens. `src/icons/stillwind` contains the logo icons
+from the website and the colored mark for `stillwind.config.ts`.

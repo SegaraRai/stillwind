@@ -48,7 +48,7 @@ before formatting. `stillwindConfig` can select an explicit configuration path r
 API callers must supply `filepath`; the plugin analyzes the supplied text, including unsaved
 buffers. Files without a discovered configuration or outside its project scopes keep ordinary
 Prettier formatting. Invalid explicit configuration and incomplete or conflicting analysis fail
-the formatting request. The plugin runs in Node.js and does not provide a browser entry point.
+the formatting request. The default entry runs in Node.js.
 
 `prettier-ignore` protects the following syntax node from sorting. Range formatting protects
 source outside the supplied range. CSS statement and variant movement also preserves the relative
@@ -62,3 +62,27 @@ Prettier owns saving files. The plugin reloads project configuration for each fo
 See [Editor sorting](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#editor-sorting)
 for the shared sorting contract and [Lint policies](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#utility-lint-policies)
 for canonical replacements and other checks.
+
+## Browser entry
+
+Browsers cannot start the Node analysis process. `prettier-plugin-stillwind/browser` exports
+`createStillwindPlugin(resolve)`, and the host supplies the sorting service through `resolve`:
+
+```js
+import { createStillwindPlugin } from "prettier-plugin-stillwind/browser";
+import { format } from "prettier/standalone";
+
+const stillwind = createStillwindPlugin((filepath) =>
+  isProjectFile(filepath) ? (input) => sortWithLanguageServer(filepath, input) : undefined,
+);
+await format(source, {
+  filepath,
+  plugins: [estree, typescript, stillwind],
+});
+```
+
+`resolve` receives the filepath and the Prettier options. It returns `undefined` to keep ordinary
+formatting, or a function that sorts `input.source`. That function must leave
+`input.protectedRanges` untouched and return the sorted `code` with its `edits` in the original
+text. The browser entry wraps Prettier's built-in parsers only, so Svelte and Astro files keep
+ordinary formatting.

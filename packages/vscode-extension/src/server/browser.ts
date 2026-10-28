@@ -1,8 +1,8 @@
 /**
  * Runs the browser LSP worker over files captured by the extension's workspace provider.
  * Configurations and `@plugin` packages are bundled from that inventory and evaluated as ESM.
- * Node imports fail resolution. Snapshot and compile requests require one workspace and matching
- * document and reload revisions.
+ * Node imports fail resolution. Snapshot, compile, and sort requests require one workspace.
+ * Compile requests also require matching document and reload revisions.
  */
 
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
@@ -178,6 +178,41 @@ connection.onRequest(
       throw new Error("Application builds require exactly one opened workspace");
     }
     return workspaces[0].compile(input.uri, input.revision);
+  },
+);
+
+connection.onRequest(
+  "stillwind/sort",
+  async (input: {
+    /** Original document URI within the sole opened workspace. */
+    uri: string;
+    /** Text that the caller formats. It must equal the server's current buffer for the URI. */
+    source: string;
+    /** Half-open UTF-16 ranges in `source` that sorting must leave untouched. */
+    protectedRanges?: {
+      start: number;
+      end: number;
+    }[];
+  }) => {
+    await server.ready();
+    if (workspaces.length !== 1) {
+      throw new Error("Sorting requires exactly one opened workspace");
+    }
+    const workspace = workspaces[0];
+    if (workspace.files().get(virtualPath(input.uri)) !== input.source) {
+      throw new Error("Obsolete document buffer");
+    }
+    const entries = await workspace.query(input.uri, {
+      kind: "sort",
+      protectedRanges: input.protectedRanges,
+    });
+    const answers = new Set(entries.map((entry) => JSON.stringify(entry.result.edits ?? [])));
+    if (answers.size > 1) {
+      throw new Error("Stillwind projects disagree on the sort order of this document");
+    }
+    return {
+      edits: entries[0]?.result.edits ?? [],
+    };
   },
 );
 

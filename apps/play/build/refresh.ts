@@ -2,6 +2,7 @@ import { build } from "esbuild";
 
 /**
  * Bundles React Refresh for emitFullSignatures mode, which requires no Node crypto.
+ *
  * @param entry - Resolved React Refresh Babel plugin entry.
  * @param outfile - Generated ESM file that the build worker imports from the static site.
  */
