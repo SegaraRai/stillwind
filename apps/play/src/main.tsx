@@ -41,6 +41,9 @@ function Playground() {
   const [result, setResult] = useState<ApplicationBuild>();
   const [problems, setProblems] = useState<Problem[]>([]);
   const [tab, setTab] = useState<ResultTab>("preview");
+  // Below the inline breakpoint, the workbench shows one view at a time.
+  const [view, setView] = useState<"code" | "preview" | "problems">("code");
+  const [filesOpen, setFilesOpen] = useState(false);
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [sidebar, setSidebar] = useState(224);
   const [results, setResults] = useState(() => Math.max(480, Math.round(window.innerWidth * 0.38)));
@@ -190,6 +193,8 @@ function Playground() {
 
   const select = (file: string, range?: vscode.Range) => {
     setActive(file);
+    setView("code");
+    setFilesOpen(false);
     workspace.current?.select(file, range);
   };
 
@@ -254,7 +259,9 @@ function Playground() {
 
   return (
     <div
-      {...style("grid block-full grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto]")}
+      {...style(
+        "grid block-dvh grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]",
+      )}
     >
       <header
         {...style(
@@ -386,14 +393,16 @@ function Playground() {
       <div
         {...style(
           "grid min-block-0 grid-cols-[minmax(0,var(--sidebar))_minmax(0,1fr)]",
-          "max-inline:grid-cols-1 max-inline:grid-rows-[auto_minmax(0,1fr)]",
+          "max-inline:grid-cols-1 max-inline:grid-rows-[minmax(0,1fr)]",
           { "--sidebar": `${sidebar}px` },
         )}
       >
         <div
           {...style(
             "grid min-block-0 min-inline-0",
-            "max-inline:max-block-36 max-inline:border-divider max-inline:border-be",
+            // The explorer covers the workbench as a drawer.
+            "max-inline:z-10 max-inline:col-start-1 max-inline:row-start-1",
+            !filesOpen && "max-inline:hidden",
           )}
         >
           <Explorer files={files} active={active} onSelect={select} onAdd={add} />
@@ -401,7 +410,8 @@ function Playground() {
         <div
           {...style(
             "relative grid min-block-0 min-inline-0 grid-rows-[minmax(0,1fr)_var(--panel)] border-divider border-s",
-            "max-workbench:grid-rows-[minmax(0,1fr)_10rem] max-inline:border-s-0",
+            "max-workbench:grid-rows-[minmax(0,1fr)_10rem]",
+            "max-inline:col-start-1 max-inline:row-start-1 max-inline:grid-rows-[minmax(0,1fr)] max-inline:border-s-0",
             { "--panel": `${panel}px` },
           )}
         >
@@ -418,18 +428,33 @@ function Playground() {
             {...style(
               "grid min-block-0 grid-cols-[minmax(0,1fr)_minmax(20rem,min(var(--results),calc(100%-20rem)))]",
               "max-workbench:grid-cols-1 max-workbench:grid-rows-2",
+              "max-inline:grid-rows-[minmax(0,1fr)]",
+              view === "problems" && "max-inline:hidden",
               { "--results": `${results}px` },
             )}
           >
             <section
               aria-label="Editor"
-              {...style("flex min-block-0 min-inline-0 flex-col bg-editor")}
+              {...style(
+                "flex min-block-0 min-inline-0 flex-col bg-editor",
+                view !== "code" && "max-inline:hidden",
+              )}
             >
               <div
                 {...style(
                   "flex block-9 shrink-0 items-stretch bg-background border-divider border-be",
                 )}
               >
+                <button
+                  type="button"
+                  aria-label="Files"
+                  title="Files"
+                  aria-expanded={filesOpen}
+                  onClick={() => setFilesOpen(!filesOpen)}
+                  {...style("ms-1 self-center icon-button inline:hidden")}
+                >
+                  <span aria-hidden="true" {...style("icon-control icon-lucide--folder-tree")} />
+                </button>
                 <div
                   role="tablist"
                   aria-label="Open editors"
@@ -507,7 +532,8 @@ function Playground() {
             <div
               {...style(
                 "relative grid min-block-0 min-inline-0 border-divider border-s",
-                "max-workbench:border-s-0 max-workbench:border-bs",
+                "max-workbench:border-s-0 max-workbench:border-bs max-inline:border-bs-0",
+                view !== "preview" && "max-inline:hidden",
               )}
             >
               <Sash
@@ -532,7 +558,7 @@ function Playground() {
               />
             </div>
           </div>
-          <div {...style("relative grid min-block-0")}>
+          <div {...style("relative grid min-block-0", view !== "problems" && "max-inline:hidden")}>
             <Sash
               label="Resize problems panel"
               orientation="horizontal"
@@ -546,6 +572,43 @@ function Playground() {
           </div>
         </div>
       </div>
+      <nav
+        aria-label="Views"
+        {...style("grid block-12 grid-cols-3 bg-background border-divider border-bs inline:hidden")}
+      >
+        {(["code", "preview", "problems"] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={view === id}
+            onClick={() => {
+              setView(id);
+              setFilesOpen(false);
+            }}
+            {...style(
+              "relative flex items-center justify-center gap-1.5 text-caption text-muted select-none",
+              "aria-pressed:text-foreground aria-pressed:before:absolute aria-pressed:before:inset-x-6 aria-pressed:before:inset-bs-0 aria-pressed:before:block-0.5 aria-pressed:before:bg-accent",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              {...style(
+                "icon-control",
+                id === "code"
+                  ? "icon-lucide--code-xml"
+                  : id === "preview"
+                    ? "icon-lucide--app-window"
+                    : "icon-lucide--circle-alert",
+              )}
+            />
+            {id === "code"
+              ? "Code"
+              : id === "preview"
+                ? "Preview"
+                : `Problems (${problems.length})`}
+          </button>
+        ))}
+      </nav>
       <footer
         {...style(
           "flex block-6 items-stretch text-caption text-muted bg-background border-divider border-bs select-none",
