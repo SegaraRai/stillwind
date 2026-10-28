@@ -7,6 +7,7 @@ import * as v from "valibot";
 import {
   resolveLintConfig,
   validateLintConfig,
+  type DefinitionScope,
   type LintConfig,
   type ResolvedLintRules,
 } from "./lint.ts";
@@ -321,6 +322,10 @@ export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
   lint: {
     /** Complete rules after ordered preset composition. Unconfigured rules are off. */
     rules: ResolvedLintRules;
+    /** Packages whose utility definitions lint checks. Defaults to false. */
+    checkLibraries: DefinitionScope;
+    /** Plugins whose utility definitions lint checks. Defaults to false. */
+    checkPlugins: DefinitionScope;
   };
   /** Whether producer CSS applies to the document. Defaults to true. */
   automatic: boolean;

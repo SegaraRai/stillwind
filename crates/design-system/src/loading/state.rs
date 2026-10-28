@@ -36,7 +36,7 @@ use super::protocol::{
 };
 use crate::skipped::locate;
 use crate::theme::parse_theme_builder;
-use crate::{DesignSystemOptions, DesignSystemSnapshot, SkipReason, SkippedCss};
+use crate::{DefinitionOrigin, DesignSystemOptions, DesignSystemSnapshot, SkipReason, SkippedCss};
 
 /// Why a load could not produce a snapshot.
 ///
@@ -237,6 +237,7 @@ impl DesignSystemLoader {
             source_map_source,
             content,
             lint: false,
+            origin: None,
             unresolved: false,
         }])
     }
@@ -305,6 +306,14 @@ impl DesignSystemLoader {
             )?;
             if let Some(source) = self.graph.sources.get_mut(index) {
                 source.lint |= file.lint;
+                let origin = file.origin.unwrap_or(if file.lint {
+                    DefinitionOrigin::Own
+                } else {
+                    DefinitionOrigin::default()
+                });
+                if origin == DefinitionOrigin::Own || source.origin == DefinitionOrigin::default() {
+                    source.origin = origin;
+                }
             }
             if let Some((source, import)) = parent {
                 *self
@@ -384,8 +393,20 @@ impl DesignSystemLoader {
         // host supplied, so no host-visible identity may claim it. Token spans
         // that point at it are mapped below into their original buffers.
         let source = SourceFile::new(FileId(u32::MAX), None, None, output.text.as_str())?;
-        let mut theme =
-            parse_theme_builder(&source, &name, &output.plugin_ranges).map_err(|mut error| {
+        let origins = output
+            .mappings
+            .iter()
+            .filter_map(|mapping| {
+                let source = self
+                    .graph
+                    .sources
+                    .iter()
+                    .find(|source| source.source.id() == mapping.file)?;
+                Some((mapping.generated.clone(), source.origin.clone()))
+            })
+            .collect::<Vec<_>>();
+        let mut theme = parse_theme_builder(&source, &name, &output.plugin_ranges, &origins)
+            .map_err(|mut error| {
                 // Whole-expansion failures use the root when no contiguous original span exists.
                 for label in &mut error.labels {
                     label.span = output
@@ -537,7 +558,7 @@ impl DesignSystemLoader {
                 String::from_utf8_lossy(&text).as_ref(),
             )?)
         };
-        parse_theme_builder(&validated, &name, &[])?;
+        parse_theme_builder(&validated, &name, &[], &[])?;
         if index == 0
             && let Some(specifier) = self.trailing_plugin.take()
         {
@@ -580,6 +601,7 @@ impl DesignSystemLoader {
             name,
             source,
             lint: false,
+            origin: DefinitionOrigin::default(),
         });
         Ok(index)
     }
@@ -727,6 +749,7 @@ mod tests {
                 name: "node.css".into(),
                 source,
                 lint: false,
+                origin: DefinitionOrigin::default(),
             });
         }
         loader

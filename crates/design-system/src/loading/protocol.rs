@@ -16,7 +16,7 @@ use stillwind_css::ParsedDeclaration;
 use stillwind_source::{CssSourceName, FileId, SourceFile, SourceUri, Span};
 
 use super::state::DesignSystemLoadError;
-use crate::{DesignSystemSnapshot, SkippedCss};
+use crate::{DefinitionOrigin, DesignSystemSnapshot, SkippedCss};
 
 /// Why the loader needs a source.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -59,6 +59,10 @@ pub struct CssSource {
     /// Whether stylesheet lint checks this source. It is true when any response that
     /// supplied this name set [`CssFileInput::lint`].
     pub lint: bool,
+    /// Origin of the definitions in this source. It is [`DefinitionOrigin::Own`] when
+    /// any response that supplied this name gave that origin, and otherwise the origin
+    /// of the first response that gave one other than the default.
+    pub origin: DefinitionOrigin,
 }
 
 /// A resolved import edge. `target` is the name the host supplied for the request,
@@ -156,6 +160,11 @@ pub struct CssFileInput {
     /// and leave it false for package CSS, such as the `stillwind` package and files
     /// under `node_modules`. It does not change the snapshot's definitions or output.
     pub lint: bool,
+    /// Origin of the definitions in this source, which decides whether lint checks the
+    /// declarations that they emit. `None` selects [`DefinitionOrigin::Own`] for a
+    /// source marked with `lint`, and a library of an unknown package otherwise. It
+    /// does not change the snapshot's output.
+    pub origin: Option<DefinitionOrigin>,
     /// Whether the host could not resolve or read the requested file. The loader then
     /// leaves the import out, records it in [`CssSourceGraph::skipped`], and ignores
     /// the other fields except `id`. The root source cannot be unresolved.

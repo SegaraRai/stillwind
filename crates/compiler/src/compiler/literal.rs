@@ -6,9 +6,9 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    MarkerUse, ThemeIndex, UtilityFailureReason, VariantApplication, VariantContext,
-    is_tailwind_relationship_candidate, marker_use, repeated_subject_selector, resolve_variant,
-    unsatisfiable_variants, utility_value_range,
+    DefinitionOrigin, MarkerUse, ThemeIndex, UtilityFailureReason, VariantApplication,
+    VariantContext, is_tailwind_relationship_candidate, marker_use, repeated_subject_selector,
+    resolve_variant, unsatisfiable_variants, utility_value_range,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -314,15 +314,29 @@ pub(super) fn variant_list_lints(
     findings
 }
 
+/// Returns whether lint checks the declarations of definitions from `origin`: always
+/// for the user's own definitions, and for packages and plugins that `lint_settings`
+/// selects.
+fn checks_definitions(lint_settings: &LintSettings, origin: &DefinitionOrigin) -> bool {
+    match origin {
+        DefinitionOrigin::Own => true,
+        DefinitionOrigin::Library { package } => {
+            lint_settings.check_libraries().includes(package.as_deref())
+        }
+        DefinitionOrigin::Plugin { name } => lint_settings.check_plugins().includes(Some(name)),
+    }
+}
+
 /// Returns the enabled findings for the resolved candidate `raw`, whose last `written`
 /// bytes the author wrote at `span`.
 ///
-/// `incompatible-property-value` reports a value that its property rejects.
-/// `unsatisfiable-variants` reports variants whose combined condition never holds, at
-/// the range from the first to the last contradicting variant. `clamped-value` reports
-/// the first literal value that browsers clamp, and `incompatible-property-value`
-/// reports a negative filter amount, at the value of the utility. `resolved` holds
-/// every rule of the candidate.
+/// `incompatible-property-value` reports a value that its property rejects. A value
+/// that a definition declares is reported only when the definition is the user's own,
+/// or when `lint_settings` selects its package or plugin. `unsatisfiable-variants`
+/// reports variants whose combined condition never holds, at the range from the first
+/// to the last contradicting variant. `clamped-value` reports the first literal value
+/// that browsers clamp, and `incompatible-property-value` reports a negative filter
+/// amount, at the value of the utility. `resolved` holds every rule of the candidate.
 pub(super) fn resolved_candidate_lints(
     raw: &str,
     written: usize,
@@ -336,6 +350,10 @@ pub(super) fn resolved_candidate_lints(
         && let Some(value) = resolved
             .first()
             .and_then(|first| first.diagnostic_data.invalid_value.as_ref())
+        && value
+            .origin
+            .as_ref()
+            .is_none_or(|origin| checks_definitions(lint_settings, origin))
     {
         findings.push(invalid_property_value_finding(raw, written, value, span));
     }
@@ -487,5 +505,33 @@ fn condition_lint(utility: &str, failure: UnsupportedCondition) -> LintDiagnosti
                 detail: detail.to_lean_str(),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use stillwind_diagnostics::{DefinitionScope, LintSettings};
+
+    use super::*;
+
+    #[test]
+    fn definitions_are_checked_by_origin_and_scope() {
+        let mut settings = LintSettings::default();
+        let library = |package: Option<&str>| DefinitionOrigin::Library {
+            package: package.map(Into::into),
+        };
+        let plugin = DefinitionOrigin::Plugin {
+            name: "brand".into(),
+        };
+        assert!(checks_definitions(&settings, &DefinitionOrigin::Own));
+        assert!(!checks_definitions(&settings, &library(Some("stillwind"))));
+        assert!(!checks_definitions(&settings, &plugin));
+
+        settings.set_check_libraries(DefinitionScope::Matching(vec!["@acme/*".into()]));
+        settings.set_check_plugins(DefinitionScope::All);
+        assert!(checks_definitions(&settings, &library(Some("@acme/ui"))));
+        assert!(!checks_definitions(&settings, &library(Some("stillwind"))));
+        assert!(!checks_definitions(&settings, &library(None)));
+        assert!(checks_definitions(&settings, &plugin));
     }
 }

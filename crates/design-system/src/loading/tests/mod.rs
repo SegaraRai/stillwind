@@ -19,7 +19,8 @@ use stillwind_syntax::parse_candidate;
 
 use super::*;
 use crate::{
-    CustomUtility, DesignSystemError, DesignSystemOptions, DesignSystemSnapshot, resolve_variant,
+    CustomUtility, DefinitionOrigin, DesignSystemError, DesignSystemOptions, DesignSystemSnapshot,
+    resolve_variant,
 };
 use crate::{SkipReason, SkippedCss};
 

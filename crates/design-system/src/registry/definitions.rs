@@ -15,9 +15,9 @@ use super::contexts::{RegistryContext, RegistryStatements, mask_registry_blocks}
 use super::formats::{LegacyThemeKey, parse_legacy_theme_keys, parse_legacy_utilities};
 use super::utility_lookup::UtilityLookup;
 use crate::{
-    ArbitraryPropertyOrder, CustomUtility, CustomVariant, MarkerClasses, ThemeNamespaces,
-    parse_arbitrary_property_order, parse_declaration_formats, parse_omit_token_prefixes,
-    parse_relationship_patterns, parse_theme_order,
+    ArbitraryPropertyOrder, CustomUtility, CustomVariant, DefinitionOrigin, MarkerClasses,
+    ThemeNamespaces, parse_arbitrary_property_order, parse_declaration_formats,
+    parse_omit_token_prefixes, parse_relationship_patterns, parse_theme_order,
 };
 
 /// Immutable registries parsed from the CSS supplied by a host.
@@ -152,8 +152,13 @@ impl StillwindDefinitions {
     /// contexts read are not part of them.
     pub fn from_css(css: &str) -> Self {
         let masked = mask_registry_blocks(css);
-        let definitions = RegistryStatements::parse(css, |_| false, &mut Vec::new())
-            .definitions(RegistryContext::Default);
+        let definitions = RegistryStatements::parse(
+            css,
+            |_| false,
+            |_| DefinitionOrigin::default(),
+            &mut Vec::new(),
+        )
+        .definitions(RegistryContext::Default);
         Self::from_parts(
             css,
             masked.as_deref().unwrap_or(css),

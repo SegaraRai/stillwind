@@ -9,11 +9,12 @@ import {
   type NativeSkippedCss,
 } from "@stillwind/native";
 
-import type { PluginHost, TailwindSettings } from "./plugins/host.ts";
+import { PATH_SPECIFIER, type PluginHost, type TailwindSettings } from "./plugins/host.ts";
 import { PluginRuntime } from "./plugins/runtime.ts";
 
 /**
  * Checks whether an identity names a stylesheet.
+ *
  * @param id - Resolver identity or file path.
  * @returns Whether the complete identity ends in `.css`, ignoring case. The check includes any
  * query suffix.
@@ -22,7 +23,9 @@ export function isStylesheet(id: string): boolean {
   return /\.css$/i.test(id);
 }
 
-/** A CSS graph for interactive queries. Recovered text must never supply lint fixes or builds. */
+/**
+ * A CSS graph for interactive queries. Recovered text must never supply lint fixes or builds.
+ */
 export interface EditorCssGraph extends Omit<LoadedCssGraph, "skipped"> {
   /** Whether incomplete sources were replaced with recovered definitions. */
   recovered: boolean;
@@ -30,6 +33,7 @@ export interface EditorCssGraph extends Omit<LoadedCssGraph, "skipped"> {
 
 /**
  * Loads original CSS, then retries with recovered definitions if that load fails.
+ *
  * @param root - Resolved CSS entrypoint.
  * @param options - Compiler policies used by semantic queries.
  * @param host - Resolver and reads of the captured original buffers.
@@ -142,7 +146,9 @@ export interface CssHost {
   plugins?: PluginHost;
 }
 
-/** Plugins, Tailwind settings, and project inputs for the `@plugin` statements of one CSS graph. */
+/**
+ * Plugins, Tailwind settings, and project inputs for the `@plugin` statements of one CSS graph.
+ */
 export interface CssPluginInputs extends TailwindSettings {
   /** Plugins configured for the project. */
   plugins?: readonly StillwindPlugin[];
@@ -177,15 +183,40 @@ export function lintsStylesheet(
   if (/[\\/]node_modules[\\/]/.test(id)) {
     return false;
   }
-  return (
-    !importer ||
-    (importer.lint &&
-      specifier !== undefined &&
-      /^(?:\.{1,2}[\\/]|[\\/]|[a-z]:[\\/]|file:)/i.test(specifier))
-  );
+  return !importer || (importer.lint && specifier !== undefined && PATH_SPECIFIER.test(specifier));
 }
 
-/** Completed design-system loader and resource references discovered in its CSS graph. */
+/**
+ * Names the package that supplies an imported stylesheet that is not the user's own CSS.
+ *
+ * A package specifier, such as `stillwind` or `@scope/name/theme.css`, names its package. A path
+ * specifier keeps the package of its importer, so a package's relative imports stay in the
+ * package. Otherwise, the last `node_modules` directory in `id` names the package.
+ *
+ * @param id - Resolved CSS file identity.
+ * @param specifier - Import request text.
+ * @param importerPackage - Package of the importing file, or undefined when it has none.
+ * @returns The package name, or undefined when none of these rules names one.
+ */
+export function stylesheetPackage(
+  id: string,
+  specifier: string,
+  importerPackage: string | undefined,
+): string | undefined {
+  if (!PATH_SPECIFIER.test(specifier)) {
+    const [first, second] = specifier.split("/");
+    return first.startsWith("@") && second !== undefined ? `${first}/${second}` : first;
+  }
+  if (importerPackage !== undefined) {
+    return importerPackage;
+  }
+  const directories = [...id.matchAll(/[\\/]node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/g)];
+  return directories.at(-1)?.[1].replace("\\", "/");
+}
+
+/**
+ * Completed design-system loader and resource references discovered in its CSS graph.
+ */
 export interface LoadedCssGraph {
   /** Native loader whose complete CSS graph is ready for compilation. */
   loader: NativeDesignSystemLoader;
@@ -264,6 +295,8 @@ export async function loadCssGraph(
   host.watch(root);
 
   const lints = new Map<string, boolean>();
+  // Package of each stylesheet that is not the user's own CSS, as `stylesheetPackage` names it.
+  const packages = new Map<string, string | undefined>();
   const lint: typeof lintsStylesheet = (id, importer, specifier) =>
     host.lint ? host.lint(id, importer, specifier) : lintsStylesheet(id, importer, specifier);
   lints.set(root, lint(root));
@@ -331,7 +364,10 @@ export async function loadCssGraph(
          */
         const read = async () => {
           if (request.pluginOptions !== undefined) {
-            const answer = await plugins.answerPlugin(request);
+            const answer = await plugins.answerPlugin(
+              request,
+              lints.get(request.importer) ?? false,
+            );
             if (plugins.tailwind) {
               // `PluginRuntime.initialize` loads the graph again, so this load only provides its
               // theme and recorded answers.
@@ -394,12 +430,26 @@ export async function loadCssGraph(
             request.specifier,
           );
           lints.set(name, (lints.get(name) ?? false) || marked);
+          const library = marked
+            ? undefined
+            : stylesheetPackage(name, request.specifier, packages.get(request.importer));
+          if (!marked && !packages.has(name)) {
+            packages.set(name, library);
+          }
           const answer = {
             name,
             content,
             uri: host.documentUri(name),
             sourceMapSource: host.sourceMapSource(name),
             lint: marked,
+            ...(marked
+              ? {}
+              : {
+                  origin: {
+                    kind: "library",
+                    name: library,
+                  },
+                }),
           };
           plugins.recordImport(request, answer);
           ready.push({ id: request.id, ...answer });

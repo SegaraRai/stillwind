@@ -21,6 +21,37 @@ use stillwind_css::{
     decode_css_escapes, extract_named_blocks, strip_css_comments, whitespace_separated_ranges,
 };
 
+/// Where a definition comes from. Lint checks the declarations that a definition
+/// emits when the definition is the user's own, or when the lint settings select its
+/// package or plugin.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DefinitionOrigin {
+    /// The user's own CSS, including the answer to a `@plugin` statement that the
+    /// user's CSS loads by a relative or absolute path.
+    Own,
+    /// Package CSS, such as the `stillwind` package and files under `node_modules`.
+    Library {
+        /// Package name, such as `stillwind` or `@scope/name`, or `None` when the host
+        /// does not know it.
+        package: Option<LeanStr>,
+    },
+    /// The answer to a `@plugin` statement that loads a package or a plugin configured
+    /// for the project.
+    Plugin {
+        /// Specifier of the `@plugin` statement, which names the package or the
+        /// configured plugin.
+        name: LeanStr,
+    },
+}
+
+impl Default for DefinitionOrigin {
+    /// Returns a library of an unknown package, the origin of CSS that the host does
+    /// not classify.
+    fn default() -> Self {
+        Self::Library { package: None }
+    }
+}
+
 /// One registered utility definition with its CSS body, matching role, ordering, and
 /// classification for lint policies.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -48,6 +79,9 @@ pub struct CustomUtility {
     /// before the stylesheet's definitions, as Tailwind registers plugins before the
     /// stylesheet's `@utility` rules.
     pub plugin: bool,
+    /// Source of the definition, which decides whether lint checks the declarations
+    /// that it emits.
+    pub origin: DefinitionOrigin,
 }
 
 /// Header flags of a definition that stands for one candidate of a functional
@@ -151,6 +185,7 @@ pub fn parse_stillwind_utility_definitions(css: &str) -> Vec<CustomUtility> {
                 role,
                 implementation,
                 plugin: false,
+                origin: DefinitionOrigin::default(),
             })
         })
         .collect()
@@ -184,6 +219,7 @@ pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)
                     role,
                     implementation,
                     plugin: false,
+                    origin: DefinitionOrigin::default(),
                 },
             ))
         })

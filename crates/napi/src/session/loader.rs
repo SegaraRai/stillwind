@@ -5,8 +5,8 @@ use napi_derive::napi;
 
 use stillwind_compiler::{CompilerOptions, lint_stylesheets, prepare_canonical_index};
 use stillwind_design_system::{
-    CssFileInput, CssSourceGraph, DesignSystemError, DesignSystemLoadStep, DesignSystemLoader,
-    DesignSystemSnapshot,
+    CssFileInput, CssSourceGraph, DefinitionOrigin, DesignSystemError, DesignSystemLoadStep,
+    DesignSystemLoader, DesignSystemSnapshot,
 };
 use stillwind_diagnostics::{LintSettings, LintSurface, LocatedDiagnostic, Reporter};
 use stillwind_source::{SourceRegistry, SourceUri};
@@ -35,10 +35,43 @@ pub struct NativeCssFileInput {
     /// Whether stylesheet lint checks this source. Mark the user's own CSS and leave
     /// package CSS unmarked. Absent means false.
     pub lint: Option<bool>,
+    /// Origin of the definitions in this source, which decides whether lint checks the
+    /// declarations that they emit. Absent selects `own` for a source marked with
+    /// `lint`, and a library of an unknown package otherwise.
+    pub origin: Option<NativeDefinitionOrigin>,
     /// Whether the host could not resolve or read the requested file. The loader then
     /// leaves the import out and records it for `invalid-css-import`, and it ignores
     /// the other fields except `id`. Absent means false. The root cannot be unresolved.
     pub unresolved: Option<bool>,
+}
+
+/// Origin of the definitions in one supplied CSS source.
+#[napi(object)]
+pub struct NativeDefinitionOrigin {
+    /// `own` for the user's own CSS, `library` for package CSS, or `plugin` for the
+    /// answer to a `@plugin` statement that loads a package or a configured plugin.
+    pub kind: String,
+    /// Package name of a library, which may be absent, or the `@plugin` specifier of a
+    /// plugin, which is required. Ignored for `own`.
+    pub name: Option<String>,
+}
+
+impl TryFrom<NativeDefinitionOrigin> for DefinitionOrigin {
+    type Error = Error;
+
+    fn try_from(origin: NativeDefinitionOrigin) -> napi::Result<Self> {
+        match (origin.kind.as_str(), origin.name) {
+            ("own", _) => Ok(Self::Own),
+            ("library", package) => Ok(Self::Library {
+                package: package.map(Into::into),
+            }),
+            ("plugin", Some(name)) => Ok(Self::Plugin { name: name.into() }),
+            ("plugin", None) => Err(Error::from_reason("a plugin origin requires a name")),
+            (kind, _) => Err(Error::from_reason(format!(
+                "unknown definition origin `{kind}`; expected own, library, or plugin"
+            ))),
+        }
+    }
 }
 
 /// Loads CSS files supplied by the caller into a design-system snapshot.
@@ -116,6 +149,7 @@ impl NativeDesignSystemLoader {
                 source_map_source,
                 content,
                 lint,
+                origin: None,
                 unresolved: None,
             }],
         )
@@ -147,6 +181,7 @@ impl NativeDesignSystemLoader {
                     source_map_source: file.source_map_source.map(Into::into),
                     content: file.content.into(),
                     lint: file.lint.unwrap_or(false),
+                    origin: file.origin.map(DefinitionOrigin::try_from).transpose()?,
                     unresolved: file.unresolved.unwrap_or(false),
                 })
             })

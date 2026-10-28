@@ -16,6 +16,16 @@ Some utilities pass the value only to custom properties, such as `--tw-blur` for
 `blur-[5%]`, so no property grammar can check it. When no value type of such a
 utility accepts the value, the rule reports that the utility does not accept it.
 
+For a utility that your own stylesheet defines, the rule also checks the other
+declarations that the utility writes, such as a bare value in `fg-5` from
+`@utility fg-* { color: --value(integer); }`. It skips values that contain
+`var()`, values that come from theme tokens, and custom properties.
+[incompatible-theme-value](/docs/lints/incompatible-theme-value/) checks theme
+tokens where you define them. By default, the rule does not check the
+definitions of packages and plugins, because you cannot change them. The
+[`checkLibraries` and `checkPlugins`](/docs/configuration/#definitions-of-packages-and-plugins)
+fields of `lint` select packages and plugins to check.
+
 ## Reported
 
 <DiagnosticExample code="incompatible-property-value">

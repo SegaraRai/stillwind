@@ -397,3 +397,59 @@ fn config_statements_are_removed_from_the_expansion() {
     assert!(!css.contains("@config"), "{css}");
     assert!(css.contains(".a") && css.contains(".b"), "{css}");
 }
+
+#[test]
+fn rejected_declarations_record_the_origin_of_their_definition() {
+    let root = "@import 'pkg';
+        @utility fg-* { color: --value(integer); }
+        @utility bad { color: 12px; }
+        @utility fine-* { opacity: --value(integer); }";
+    let package = "@utility pkg-* { color: --value(integer); }";
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let request = requests(loader.provide_many([CssFileInput {
+        lint: true,
+        ..input(0, "root.css", root)
+    }]));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide_many([CssFileInput {
+        origin: Some(DefinitionOrigin::Library {
+            package: Some("pkg".into()),
+        }),
+        ..input(request[0].id, "pkg", package)
+    }]) else {
+        panic!("expected loaded snapshot");
+    };
+    let theme = snapshot.theme();
+    let invalid = |raw: &str| {
+        resolve_utility(raw, theme)
+            .unwrap()
+            .unwrap()
+            .diagnostic_data
+            .invalid_value
+            .map(|invalid| {
+                (
+                    invalid.property.to_string(),
+                    invalid.value.to_string(),
+                    invalid.origin,
+                )
+            })
+    };
+    // A source marked for lint without an explicit origin is the user's own.
+    let own = Some(DefinitionOrigin::Own);
+    assert_eq!(
+        invalid("fg-5"),
+        Some(("color".into(), "5".into(), own.clone()))
+    );
+    assert_eq!(invalid("bad"), Some(("color".into(), "12px".into(), own)));
+    assert_eq!(invalid("fine-5"), None);
+    assert_eq!(
+        invalid("pkg-5"),
+        Some((
+            "color".into(),
+            "5".into(),
+            Some(DefinitionOrigin::Library {
+                package: Some("pkg".into()),
+            }),
+        ))
+    );
+}

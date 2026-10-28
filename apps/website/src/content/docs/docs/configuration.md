@@ -198,6 +198,33 @@ const rules = {
 Patterns accept `*` for any text and `?` for one character. Utility and theme
 token patterns are case-sensitive. Property and value patterns are not.
 
+### Definitions of packages and plugins
+
+[incompatible-property-value](/docs/lints/incompatible-property-value/) checks
+the declarations that utility definitions write. By default, it checks only your
+own definitions: your stylesheet, the stylesheets that it imports by a relative
+or absolute path, and the plugin files that it loads by path. Two project-level
+fields of `lint` add the definitions of packages and plugins. Presets cannot set
+them.
+
+```ts
+lint: {
+  extends: [lintPresets.recommended],
+  checkLibraries: ["@acme/*"],
+  checkPlugins: ["brand"],
+}
+```
+
+| Field            | Checks the definitions of                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `checkLibraries` | Stylesheets that you import by package name, and stylesheets under `node_modules`, matched by package name, such as `stillwind` |
+| `checkPlugins`   | Plugins that you load by package name or configure in `plugins`, matched by the name in the `@plugin` rule                      |
+
+Each field accepts `true` for every package or plugin, `false` for none, or a
+list of case-sensitive patterns. Both fields default to `false`. Use them to
+check a package of your own, such as a design system in the same repository, or
+to find problems to report upstream.
+
 ## Suppression comments
 
 To allow one exception, add a comment that names the rule. Give the reason after

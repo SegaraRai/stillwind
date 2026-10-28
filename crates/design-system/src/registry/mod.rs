@@ -38,7 +38,9 @@ pub use formats::{
 };
 pub use markers::{MarkerClasses, MarkerForm, MarkerOrigin};
 pub use order::{ArbitraryPropertyOrder, parse_arbitrary_property_order};
-pub use utilities::{CustomUtility, UtilityRole, parse_stillwind_utility_definitions};
+pub use utilities::{
+    CustomUtility, DefinitionOrigin, UtilityRole, parse_stillwind_utility_definitions,
+};
 pub use variants::{
     CustomVariant, StillwindVariantModifierType, StillwindVariantSort,
     StillwindVariantSortDirection, StillwindVariantValueType, VariantScope,

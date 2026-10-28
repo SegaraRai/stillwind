@@ -191,7 +191,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{CustomUtility, UtilityRole};
+    use crate::{CustomUtility, DefinitionOrigin, UtilityRole};
 
     #[test]
     fn search_keeps_nested_properties_overloads_and_prefix_boundaries() {
@@ -205,6 +205,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    origin: DefinitionOrigin::default(),
                     implementation: false,
                 }),
             ),
@@ -217,6 +218,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    origin: DefinitionOrigin::default(),
                     implementation: false,
                 }),
             ),
@@ -229,6 +231,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    origin: DefinitionOrigin::default(),
                     implementation: false,
                 }),
             ),
@@ -257,6 +260,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    origin: DefinitionOrigin::default(),
                     implementation: false,
                 }),
             )

@@ -28,6 +28,12 @@ export interface TailwindSettings {
 }
 
 /**
+ * Matches an import or `@plugin` specifier that names a file by a relative or absolute path or
+ * a `file:` URL, rather than a package.
+ */
+export const PATH_SPECIFIER = /^(?:\.{1,2}[\\/]|[\\/]|[a-z]:[\\/]|file:)/i;
+
+/**
  * A native Stillwind plugin or a plugin using Tailwind v4's JavaScript API.
  */
 export type LoadedPlugin = StillwindPlugin | TailwindPlugin;

@@ -1069,6 +1069,12 @@ export interface NativeCssFileInput {
    */
   lint?: boolean
   /**
+   * Origin of the definitions in this source, which decides whether lint checks the
+   * declarations that they emit. Absent selects `own` for a source marked with
+   * `lint`, and a library of an unknown package otherwise.
+   */
+  origin?: NativeDefinitionOrigin
+  /**
    * Whether the host could not resolve or read the requested file. The loader then
    * leaves the import out and records it for `invalid-css-import`, and it ignores
    * the other fields except `id`. Absent means false. The root cannot be unresolved.
@@ -1162,6 +1168,20 @@ export interface NativeDeclarationContext {
   binding: string
   /** Authored label, when the declaration has one. */
   label?: string
+}
+
+/** Origin of the definitions in one supplied CSS source. */
+export interface NativeDefinitionOrigin {
+  /**
+   * `own` for the user's own CSS, `library` for package CSS, or `plugin` for the
+   * answer to a `@plugin` statement that loads a package or a configured plugin.
+   */
+  kind: string
+  /**
+   * Package name of a library, which may be absent, or the `@plugin` specifier of a
+   * plugin, which is required. Ignored for `own`.
+   */
+  name?: string
 }
 
 /** Latest source-resolved findings for one module's attempted revision. */
@@ -1566,6 +1586,16 @@ export interface NativeLintOptions {
   invalidLintSuppression?: string
   /** Settings for `unused-lint-suppression`. */
   unusedLintSuppression?: string
+  /**
+   * Packages whose utility definitions lint checks: `true`, `false`, or package-name
+   * globs.
+   */
+  checkLibraries?: boolean | Array<string>
+  /**
+   * Plugins whose utility definitions lint checks: `true`, `false`, or `@plugin`
+   * name globs.
+   */
+  checkPlugins?: boolean | Array<string>
 }
 
 /** The fields of a projection's custom-ident request. */

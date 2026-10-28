@@ -35,7 +35,10 @@ use crate::registry::{
     parse_relationship_patterns, parse_utility_definitions, registration_positions,
 };
 use crate::skipped::SkippedRange;
-use crate::{BrowserTargets, MarkerClasses, SkipReason, StillwindDefinitions, UtilityOrderMode};
+use crate::{
+    BrowserTargets, DefinitionOrigin, MarkerClasses, SkipReason, StillwindDefinitions,
+    UtilityOrderMode,
+};
 
 /// Parses only host-supplied definitions and retains their authored output positions.
 /// No package names, default theme, reset, or registry are injected here.
@@ -56,7 +59,7 @@ pub fn parse_theme(
     source: &SourceFile,
     source_identity: &CssSourceName,
 ) -> Result<ThemeIndex, CompileError> {
-    parse_theme_builder(source, source_identity, &[]).map(ThemeBuilder::finish)
+    parse_theme_builder(source, source_identity, &[], &[]).map(ThemeBuilder::finish)
 }
 
 /// Collects declarations from `source` without preparing evaluation data. The loader
@@ -64,7 +67,9 @@ pub fn parse_theme(
 ///
 /// `plugin_ranges` contains the byte ranges of `source` that answer `@plugin`
 /// statements. The `@utility` definitions inside them become plugin definitions, as
-/// [`crate::CustomUtility::plugin`] describes.
+/// [`crate::CustomUtility::plugin`] describes. `origins` contains the byte ranges of
+/// `source` that come from supplied sources with their origins, as
+/// [`crate::CustomUtility::origin`] describes. Other offsets have the default origin.
 ///
 /// # Errors
 ///
@@ -73,8 +78,9 @@ pub(crate) fn parse_theme_builder(
     source: &SourceFile,
     source_identity: &CssSourceName,
     plugin_ranges: &[Range<usize>],
+    origins: &[(Range<usize>, DefinitionOrigin)],
 ) -> Result<ThemeBuilder, CompileError> {
-    parse_theme_contents(source, source_identity, plugin_ranges)
+    parse_theme_contents(source, source_identity, plugin_ranges, origins)
         .map_err(|kind| CompileError::new(kind, source.full_span()))
 }
 
@@ -87,6 +93,7 @@ fn parse_theme_contents(
     source: &SourceFile,
     source_identity: &CssSourceName,
     plugin_ranges: &[Range<usize>],
+    origins: &[(Range<usize>, DefinitionOrigin)],
 ) -> Result<ThemeBuilder, CompileDiagnostic> {
     if let Some(offset) = unterminated_block(source.text()) {
         return Err(CompileDiagnostic::UnterminatedCssBlock { offset });
@@ -126,11 +133,18 @@ fn parse_theme_contents(
         template.source_identity = source_identity.clone();
     }
     let in_plugin = |offset: usize| plugin_ranges.iter().any(|range| range.contains(&offset));
+    let origin_at = |offset: usize| {
+        origins
+            .iter()
+            .find(|(range, _)| range.contains(&offset))
+            .map(|(_, origin)| origin.clone())
+            .unwrap_or_default()
+    };
     // Stylesheet-wide metadata ignores the statements inside `@stillwind-registry`
     // blocks, so its parsers read a copy in which the blocks are blank.
     let masked = mask_registry_blocks(source.text());
     let definitions = masked.as_deref().unwrap_or(source.text());
-    let statements = RegistryStatements::parse(source.text(), in_plugin, &mut skipped);
+    let statements = RegistryStatements::parse(source.text(), in_plugin, origin_at, &mut skipped);
     let defaults = statements.definitions(RegistryContext::Default);
     theme.registry = Arc::new(StillwindDefinitions::from_parts(
         source.text(),
@@ -553,7 +567,7 @@ mod tests {
         ] {
             let source = SourceFile::new(FileId(1), None, None, css).unwrap();
             let builder =
-                parse_theme_builder(&source, &CssSourceName::from("test.css"), &[]).unwrap();
+                parse_theme_builder(&source, &CssSourceName::from("test.css"), &[], &[]).unwrap();
             assert!(builder.dynamic_utilities.is_empty(), "{css}");
             assert!(
                 matches!(

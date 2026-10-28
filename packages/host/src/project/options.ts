@@ -31,12 +31,22 @@ export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
   const resolved = normalizeCompilerConfig(config);
 
   return {
-    lint: Object.fromEntries(
-      Object.entries(resolved.lint.rules).map(([name, setting]) => [
-        lintRules[name as LintRule].nativeName,
-        setting,
-      ]),
-    ),
+    lint: {
+      ...Object.fromEntries(
+        Object.entries(resolved.lint.rules).map(([name, setting]) => [
+          lintRules[name as LintRule].nativeName,
+          setting,
+        ]),
+      ),
+      checkLibraries:
+        typeof resolved.lint.checkLibraries === "boolean"
+          ? resolved.lint.checkLibraries
+          : [...resolved.lint.checkLibraries],
+      checkPlugins:
+        typeof resolved.lint.checkPlugins === "boolean"
+          ? resolved.lint.checkPlugins
+          : [...resolved.lint.checkPlugins],
+    },
     prefix: resolved.prefix,
     tailwindPrefix: resolved.tailwindPrefix,
     utilityOrder: resolved.utilityOrder,

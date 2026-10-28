@@ -29,8 +29,8 @@ use super::body::{
 };
 use super::nested::{NestedUtilityRule, contains_selector};
 use super::resolve::{
-    ResolvedUtilityTarget, UtilityArbitraryUse, UtilityDeclaration, diagnostic_property,
-    property_accepts,
+    ResolvedUtilityTarget, UtilityArbitraryUse, UtilityDeclaration, declared_value,
+    diagnostic_property, property_accepts,
 };
 use super::variables::{single_variable, variable_mismatch};
 use crate::{CustomUtility, ThemeIndex};
@@ -200,11 +200,7 @@ fn emitted_value_verdict(
     let declaration = declarations
         .iter()
         .find(|declaration| diagnostic_property(&declaration.property) == usage.property)?;
-    let value = declaration.value.trim();
-    let value = value
-        .strip_suffix("!important")
-        .map_or(value, str::trim_end);
-    property_accepts(&usage.property, value)
+    property_accepts(&usage.property, declared_value(&declaration.value))
 }
 
 /// Records the type hint of the selected definition and a type mismatch when the value
@@ -857,7 +853,7 @@ fn utility_branch_specificity(utility: &CustomUtility, name: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::UtilityRole;
+    use crate::{DefinitionOrigin, UtilityRole};
 
     #[test]
     fn branch_merging_keeps_primary_values_and_adds_only_missing_properties() {
@@ -894,6 +890,7 @@ mod tests {
             tw_sort: None,
             role: UtilityRole::default(),
             plugin: false,
+            origin: DefinitionOrigin::default(),
             implementation: false,
         };
         let wildcard = CustomUtility {
@@ -901,6 +898,7 @@ mod tests {
             tw_sort: None,
             role: UtilityRole::default(),
             plugin: false,
+            origin: DefinitionOrigin::default(),
             implementation: false,
             ..exact.clone()
         };

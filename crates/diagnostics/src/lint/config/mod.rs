@@ -29,4 +29,4 @@ pub use policies::{
     VariantDirectiveConfig, VariantDirectiveOverride,
 };
 pub use presets::LintPreset;
-pub use settings::LintSettings;
+pub use settings::{DefinitionScope, LintSettings};

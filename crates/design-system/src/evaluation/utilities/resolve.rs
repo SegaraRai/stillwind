@@ -11,6 +11,8 @@
 //! [`UtilityFailure`]. Malformed property requirements return
 //! [`UtilityResolutionError`].
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
@@ -28,7 +30,7 @@ use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
 use super::ranges::{arbitrary_value_range, modifier_value_range};
 use super::variables::VariableMismatch;
-use crate::{ThemeIndex, UtilityOrderMode};
+use crate::{DefinitionOrigin, ThemeIndex, UtilityOrderMode};
 
 /// One candidate resolved to the declarations and selectors it emits.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -105,6 +107,10 @@ pub struct InvalidPropertyValue {
     /// parenthesized value of a named utility, the text after the colon of an arbitrary
     /// property, or the text after the `/` of a modifier.
     pub range: Range<usize>,
+    /// Origin of the definition that declares the value, when the definition rather
+    /// than the candidate's own text supplies it. `None` for an arbitrary value, a
+    /// variable, and an opacity modifier, which the candidate supplies.
+    pub origin: Option<DefinitionOrigin>,
     /// Why the value is invalid.
     pub reason: InvalidValueReason,
 }
@@ -373,7 +379,20 @@ fn resolve_candidate(
             property: usage.property,
             value: usage.value,
             range: value_range.clone(),
+            origin: None,
             reason,
+        })
+        .or_else(|| {
+            let (usage, origin) = resolution.diagnostic_data.rejected_declaration?;
+            Some(InvalidPropertyValue {
+                property: usage.property,
+                value: usage.value,
+                range: value_range.clone(),
+                origin: Some(origin),
+                reason: InvalidValueReason::Grammar {
+                    fallback_type_hints: Vec::new(),
+                },
+            })
         })
         .or_else(|| {
             let usage = resolution.diagnostic_data.out_of_range_alpha?;
@@ -381,6 +400,7 @@ fn resolve_candidate(
                 property: usage.property,
                 value: usage.value,
                 range: modifier_value_range(raw, &candidate)?,
+                origin: None,
                 reason: InvalidValueReason::OpacityModifier,
             })
         });
@@ -435,6 +455,39 @@ fn property_rejects(property: &str, value: &str) -> bool {
 /// property that the Webref data does not define, and for a value that contains
 /// `var()`, `env()`, or `attr()`, because substitution happens at computed-value time.
 pub(super) fn property_accepts(property: &str, value: &str) -> Option<bool> {
+    thread_local! {
+        /// Results keyed by property and value. Resolution checks the same declarations
+        /// for every use of a utility.
+        static CACHE: RefCell<HashMap<(LeanStr, LeanStr), Option<bool>>> =
+            RefCell::new(HashMap::new());
+    }
+    const CACHE_LIMIT: usize = 4096;
+    let key = (property.to_lean_str(), value.to_lean_str());
+    if let Some(verdict) = CACHE.with(|cache| cache.borrow().get(&key).copied()) {
+        return verdict;
+    }
+    let verdict = check_property_value(property, value);
+    CACHE.with(|cache| {
+        let mut cache = cache.borrow_mut();
+        if cache.len() >= CACHE_LIMIT {
+            cache.clear();
+        }
+        cache.insert(key, verdict);
+    });
+    verdict
+}
+
+/// Returns the value of a recorded declaration without a trailing `!important`.
+pub(super) fn declared_value(value: &str) -> &str {
+    let value = value.trim();
+    value
+        .strip_suffix("!important")
+        .map_or(value, str::trim_end)
+}
+
+/// Checks `value` against the grammar of `property` without the cache of
+/// [`property_accepts`].
+fn check_property_value(property: &str, value: &str) -> Option<bool> {
     if property.starts_with("--") {
         return None;
     }

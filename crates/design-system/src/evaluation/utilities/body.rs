@@ -28,10 +28,11 @@ use super::nested::{
 };
 use super::resolve::{
     ResolvedUtilityTarget, UtilityArbitraryUse, UtilityDeclaration, UtilityTokenUse,
+    declared_value, property_accepts,
 };
 use super::variables::VariableMismatch;
 use crate::requirements::{PropertyRequirementError, take_property_requirements};
-use crate::{CustomUtility, ThemeIndex, UtilityOrderMode};
+use crate::{CustomUtility, DefinitionOrigin, ThemeIndex, UtilityOrderMode};
 
 /// A failed utility resolution caused by a malformed requirement in the matched definition.
 #[derive(Clone, Debug, thiserror::Error)]
@@ -107,6 +108,10 @@ pub(in crate::evaluation) struct UtilityResolutionDiagnosticData {
     /// True when no property grammar confirms that `invalid_value` is invalid, because
     /// only custom properties or declarations with substitution functions receive it.
     pub(in crate::evaluation) invalid_value_unchecked: bool,
+    /// The first base declaration whose property grammar rejects it, among the
+    /// declarations that receive no arbitrary value and no theme token, with the origin
+    /// of its definition. Its value is the whole declared value.
+    pub(in crate::evaluation) rejected_declaration: Option<(UtilityArbitraryUse, DefinitionOrigin)>,
     /// Type hints of the value types that the utility accepts, when `invalid_value`
     /// received a property chosen as a fallback between them; otherwise empty.
     pub(in crate::evaluation) fallback_type_hints: Vec<LeanStr>,
@@ -130,9 +135,15 @@ impl UtilityResolutionDiagnosticData {
     /// The caller must merge `branch` into the same declaration list and pass the
     /// decoded property names already supplied by the more-specific branch in
     /// `existing`. Base uses of those properties are discarded. Non-base uses are
-    /// retained with their implementation classifications. Other checks in `branch` are
-    /// not merged into `self`.
+    /// retained with their implementation classifications. A rejected declaration of
+    /// `branch` is kept when `self` has none and its property is not in `existing`.
+    /// Other checks in `branch` are not merged into `self`.
     pub(super) fn extend_shared_uses(&mut self, branch: Self, existing: &HashSet<&str>) {
+        if self.rejected_declaration.is_none() {
+            self.rejected_declaration = branch
+                .rejected_declaration
+                .filter(|(usage, _)| !existing.contains(usage.property.as_str()));
+        }
         self.arbitrary_uses.extend(
             branch
                 .arbitrary_uses
@@ -191,8 +202,43 @@ pub(in crate::evaluation) fn resolve_css_utility_body(
         source: *source,
     })?;
     Ok(body.as_ref().and_then(|body| {
-        resolve_valid_utility_body(utility, name, modifier, theme, body, arbitrary_check)
+        let mut resolution =
+            resolve_valid_utility_body(utility, name, modifier, theme, body, arbitrary_check)?;
+        resolution.diagnostic_data.rejected_declaration =
+            rejected_declaration(&resolution).map(|usage| (usage, utility.origin.clone()));
+        Some(resolution)
     }))
+}
+
+/// Returns the first base declaration of `resolution` that receives no arbitrary value
+/// and no theme token and that the grammar of its property rejects. Declarations that
+/// [`property_accepts`] cannot check are skipped.
+fn rejected_declaration(resolution: &UtilityResolution) -> Option<UtilityArbitraryUse> {
+    let data = &resolution.diagnostic_data;
+    resolution
+        .policy_declarations
+        .iter()
+        .filter(|declaration| declaration.base)
+        .find_map(|declaration| {
+            let property = &declaration.property;
+            let receives = data
+                .arbitrary_uses
+                .iter()
+                .any(|usage| usage.base && usage.property == *property)
+                || data
+                    .token_uses
+                    .iter()
+                    .any(|usage| usage.base && usage.property == *property);
+            let value = declared_value(&declaration.value);
+            (!receives && property_accepts(property, value) == Some(false)).then(|| {
+                UtilityArbitraryUse {
+                    base: true,
+                    property: property.clone(),
+                    value: value.into(),
+                    color: false,
+                }
+            })
+        })
 }
 
 /// Structural utility syntax retained by the immutable evaluator.

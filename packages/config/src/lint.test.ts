@@ -606,3 +606,53 @@ test("invalid-marker-use keeps its preset severity when only ignored classes are
     ),
   ).toThrow("config.lint.rules.invalid-marker-use.ignoredClasses");
 });
+
+test("project settings select the packages and plugins whose definitions lint checks", () => {
+  expect(resolveLintConfig()).toMatchObject({
+    checkLibraries: false,
+    checkPlugins: false,
+  });
+  expect(
+    resolveLintConfig({
+      checkLibraries: ["@acme/*"],
+      checkPlugins: true,
+    }),
+  ).toMatchObject({
+    checkLibraries: ["@acme/*"],
+    checkPlugins: true,
+  });
+  expect(
+    mergeLintConfig(
+      {
+        checkLibraries: true,
+        checkPlugins: ["brand"],
+      },
+      {
+        checkPlugins: false,
+      },
+    ),
+  ).toMatchObject({
+    checkLibraries: true,
+    checkPlugins: false,
+  });
+  expect(() =>
+    resolveLintConfig({
+      checkLibraries: "all" as never,
+    }),
+  ).toThrow("config.lint.checkLibraries");
+  expect(() =>
+    resolveLintConfig({
+      checkPlugins: ["has space"],
+    }),
+  ).toThrow("config.lint.checkPlugins");
+  // Presets cannot supply the scope, which belongs to the project.
+  expect(() =>
+    resolveLintConfig({
+      extends: [
+        {
+          checkLibraries: true,
+        } as LintPreset,
+      ],
+    }),
+  ).toThrow("config.lint.extends[0]");
+});

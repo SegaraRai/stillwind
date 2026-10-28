@@ -30,7 +30,7 @@ use stillwind_css::{
     CssNode, CssNodeKind, extract_directive_blocks, extract_order_statements, parse_structure,
 };
 
-use super::utilities::parse_utility_definitions;
+use super::utilities::{DefinitionOrigin, parse_utility_definitions};
 use super::{
     CustomUtility, CustomVariant, parse_stillwind_utility_definitions,
     parse_stillwind_variant_definitions,
@@ -272,8 +272,10 @@ impl RegistryStatements {
     /// Reads the definition and undefinition statements of `css`, including those
     /// inside `@stillwind-registry` blocks. `in_plugin` returns true for the byte
     /// offsets of `@plugin` answers, which register before the other statements.
+    /// `origin_at` returns the origin of the source that supplied a byte offset.
     ///
-    /// The plugin flag of a `@utility` definition records `in_plugin` for its offset.
+    /// The plugin flag of a `@utility` definition records `in_plugin` for its offset,
+    /// and the origin of each utility definition records `origin_at`.
     ///
     /// A block header that names no context or an unknown context is appended to
     /// `skipped`, and the statements of its body apply nowhere. A statement in a block
@@ -282,6 +284,7 @@ impl RegistryStatements {
     pub(crate) fn parse(
         css: &str,
         in_plugin: impl Fn(usize) -> bool,
+        origin_at: impl Fn(usize) -> DefinitionOrigin,
         skipped: &mut Vec<SkippedRange>,
     ) -> Self {
         let scopes = registry_scopes(css, skipped);
@@ -321,9 +324,11 @@ impl RegistryStatements {
         positioned.extend(
             parse_stillwind_utility_definitions(css)
                 .into_iter()
-                .filter_map(|utility| {
+                .filter_map(|mut utility| {
+                    let position = utility.position?;
+                    utility.origin = origin_at(position);
                     Some((
-                        utility.position?,
+                        position,
                         RegistryOperation::StillwindUtility(Arc::new(utility)),
                     ))
                 }),
@@ -331,6 +336,7 @@ impl RegistryStatements {
         positioned.extend(parse_utility_definitions(css).into_iter().map(
             |(offset, mut utility)| {
                 utility.plugin = in_plugin(offset);
+                utility.origin = origin_at(offset);
                 (offset, RegistryOperation::Utility(Arc::new(utility)))
             },
         ));
@@ -568,7 +574,12 @@ mod tests {
     use super::*;
 
     fn statements(css: &str) -> RegistryStatements {
-        RegistryStatements::parse(css, |_| false, &mut Vec::new())
+        RegistryStatements::parse(
+            css,
+            |_| false,
+            |_| DefinitionOrigin::default(),
+            &mut Vec::new(),
+        )
     }
 
     fn utility_bodies(definitions: &ContextDefinitions) -> Vec<&str> {
@@ -635,8 +646,12 @@ mod tests {
     fn plugin_statements_register_before_the_others() {
         let css = "@stillwind-undef-utility p; @utility p { color: red; }";
         let plugin_start = css.find("@utility").unwrap();
-        let statements =
-            RegistryStatements::parse(css, |offset| offset >= plugin_start, &mut Vec::new());
+        let statements = RegistryStatements::parse(
+            css,
+            |offset| offset >= plugin_start,
+            |_| DefinitionOrigin::default(),
+            &mut Vec::new(),
+        );
         assert_eq!(
             utility_bodies(&statements.definitions(RegistryContext::Default)),
             [] as [&str; 0]
@@ -657,7 +672,12 @@ mod tests {
             ),
         ] {
             let mut skipped = Vec::new();
-            let statements = RegistryStatements::parse(css, |_| false, &mut skipped);
+            let statements = RegistryStatements::parse(
+                css,
+                |_| false,
+                |_| DefinitionOrigin::default(),
+                &mut skipped,
+            );
             assert!(
                 matches!(
                     skipped.as_slice(),
@@ -684,7 +704,12 @@ mod tests {
             ),
         ] {
             let mut skipped = Vec::new();
-            RegistryStatements::parse(css, |_| false, &mut skipped);
+            RegistryStatements::parse(
+                css,
+                |_| false,
+                |_| DefinitionOrigin::default(),
+                &mut skipped,
+            );
             assert!(
                 matches!(
                     skipped.as_slice(),
@@ -698,6 +723,7 @@ mod tests {
         let statements = RegistryStatements::parse(
             "@stillwind-registry keyframe { @theme { --x: 1; } @utility k { color: red; } }",
             |_| false,
+            |_| DefinitionOrigin::default(),
             &mut skipped,
         );
         assert_eq!(

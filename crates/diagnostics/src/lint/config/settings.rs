@@ -2,19 +2,108 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Serialize, Serializer};
+use lean_string::LeanStr;
+use serde::{Deserialize, Serialize, Serializer};
+
+use stillwind_css::policy_glob_matches;
 
 use super::{LintConfig, LintKind, LintPreset, LintSeverity};
 
-/// Settings indexed by rule, with at most one setting for each rule.
+/// Packages or plugins whose utility definitions lint checks, in addition to the user's
+/// own definitions. It serializes as `false`, `true`, or a list of name globs.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(from = "ScopeForm", into = "ScopeForm")]
+pub enum DefinitionScope {
+    /// No package or plugin.
+    #[default]
+    None,
+    /// Every package or plugin, including ones whose name is unknown.
+    All,
+    /// The packages or plugins whose names match one of these case-sensitive globs,
+    /// which support `*` and `?`.
+    Matching(Vec<LeanStr>),
+}
+
+/// Serialized form of [`DefinitionScope`].
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum ScopeForm {
+    /// `false` for [`DefinitionScope::None`] and `true` for [`DefinitionScope::All`].
+    Flag(bool),
+    /// Name globs of [`DefinitionScope::Matching`].
+    Names(Vec<LeanStr>),
+}
+
+impl From<ScopeForm> for DefinitionScope {
+    fn from(form: ScopeForm) -> Self {
+        match form {
+            ScopeForm::Flag(false) => Self::None,
+            ScopeForm::Flag(true) => Self::All,
+            ScopeForm::Names(names) => Self::Matching(names),
+        }
+    }
+}
+
+impl From<DefinitionScope> for ScopeForm {
+    fn from(scope: DefinitionScope) -> Self {
+        match scope {
+            DefinitionScope::None => Self::Flag(false),
+            DefinitionScope::All => Self::Flag(true),
+            DefinitionScope::Matching(names) => Self::Names(names),
+        }
+    }
+}
+
+impl DefinitionScope {
+    /// Returns whether the scope includes the package or plugin `name`. A missing name
+    /// is included only by [`DefinitionScope::All`].
+    pub fn includes(&self, name: Option<&str>) -> bool {
+        match self {
+            Self::None => false,
+            Self::All => true,
+            Self::Matching(patterns) => name.is_some_and(|name| {
+                patterns
+                    .iter()
+                    .any(|pattern| policy_glob_matches(pattern, name))
+            }),
+        }
+    }
+}
+
+/// Settings indexed by rule, with at most one setting for each rule, and the packages
+/// and plugins whose definitions lint checks.
 /// Absent settings disable detection and reporting. Producers can still collect raw
 /// findings independently of the detection lookup.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LintSettings {
     entries: BTreeMap<LintKind, LintConfig>,
+    /// Packages whose utility definitions lint checks.
+    check_libraries: DefinitionScope,
+    /// Plugins whose utility definitions lint checks.
+    check_plugins: DefinitionScope,
 }
 
 impl LintSettings {
+    /// Returns the packages whose utility definitions lint checks.
+    pub fn check_libraries(&self) -> &DefinitionScope {
+        &self.check_libraries
+    }
+
+    /// Returns the plugins whose utility definitions lint checks.
+    pub fn check_plugins(&self) -> &DefinitionScope {
+        &self.check_plugins
+    }
+
+    /// Replaces the packages whose utility definitions lint checks.
+    pub fn set_check_libraries(&mut self, scope: DefinitionScope) {
+        self.check_libraries = scope;
+    }
+
+    /// Replaces the plugins whose utility definitions lint checks.
+    pub fn set_check_plugins(&mut self, scope: DefinitionScope) {
+        self.check_plugins = scope;
+    }
+
     /// Returns the recommended preset. Other rules remain unconfigured and report off.
     pub fn with_defaults() -> Self {
         LintPreset::Recommended.settings()
@@ -80,6 +169,31 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
+    use crate::LintOverrides;
+
+    #[test]
+    fn definition_scopes_match_names_and_keep_their_settings() {
+        assert!(!DefinitionScope::None.includes(Some("stillwind")));
+        assert!(DefinitionScope::All.includes(None));
+        let scope = DefinitionScope::Matching(vec!["@acme/*".into(), "brand".into()]);
+        assert!(scope.includes(Some("@acme/design-system")));
+        assert!(scope.includes(Some("brand")));
+        assert!(!scope.includes(Some("brand-extra")));
+        assert!(!scope.includes(None));
+
+        let overrides: LintOverrides =
+            serde_json::from_str(r#"{"check-libraries": true, "check-plugins": ["brand"]}"#)
+                .unwrap();
+        let settings = overrides.resolve(&LintSettings::with_defaults());
+        assert_eq!(settings.check_libraries(), &DefinitionScope::All);
+        assert_eq!(
+            settings.check_plugins(),
+            &DefinitionScope::Matching(vec!["brand".into()])
+        );
+        // An override without the fields keeps the earlier scopes.
+        let kept = LintOverrides::default().resolve(&settings);
+        assert_eq!(kept.check_libraries(), &DefinitionScope::All);
+    }
 
     #[test]
     fn rule_names_and_setting_variants_correspond_exactly() {

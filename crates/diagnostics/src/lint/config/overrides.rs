@@ -5,12 +5,12 @@ use serde::{Deserialize, Serialize};
 use super::{
     ArbitrarySpacingConfig, ArbitrarySpacingOverride, CanonicalUtilitiesConfig,
     CanonicalUtilitiesOverride, ConflictingUtilitiesConfig, ConflictingUtilitiesOverride,
-    ImportantConfig, ImportantOverride, LintConfig, LintKind, LintSettings, LintSeverity,
-    LogicalPropertiesConfig, LogicalPropertiesOverride, MarkerUseConfig, MarkerUseOverride,
-    RestrictedDeclarationsConfig, RestrictedDeclarationsOverride, RestrictedLengthUnitsConfig,
-    RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig, RestrictedThemeTokensOverride,
-    RestrictedUtilitiesConfig, RestrictedUtilitiesOverride, VariantDirectiveConfig,
-    VariantDirectiveOverride,
+    DefinitionScope, ImportantConfig, ImportantOverride, LintConfig, LintKind, LintSettings,
+    LintSeverity, LogicalPropertiesConfig, LogicalPropertiesOverride, MarkerUseConfig,
+    MarkerUseOverride, RestrictedDeclarationsConfig, RestrictedDeclarationsOverride,
+    RestrictedLengthUnitsConfig, RestrictedLengthUnitsOverride, RestrictedThemeTokensConfig,
+    RestrictedThemeTokensOverride, RestrictedUtilitiesConfig, RestrictedUtilitiesOverride,
+    VariantDirectiveConfig, VariantDirectiveOverride,
 };
 
 /// Project lint settings applied to compiler defaults.
@@ -157,6 +157,10 @@ pub struct LintOverrides {
     pub prefer_explicit_nesting_selector: Option<LintSeverity>,
     /// Field-wise `prefer-variant-directive` policy overrides.
     pub prefer_variant_directive: Option<VariantDirectiveOverride>,
+    /// Packages whose utility definitions lint checks.
+    pub check_libraries: Option<DefinitionScope>,
+    /// Plugins whose utility definitions lint checks.
+    pub check_plugins: Option<DefinitionScope>,
 }
 
 impl LintOverrides {
@@ -167,6 +171,12 @@ impl LintOverrides {
     /// Neither input is changed.
     pub fn resolve(&self, defaults: &LintSettings) -> LintSettings {
         let mut settings = defaults.clone();
+        if let Some(scope) = &self.check_libraries {
+            settings.set_check_libraries(scope.clone());
+        }
+        if let Some(scope) = &self.check_plugins {
+            settings.set_check_plugins(scope.clone());
+        }
         self.resolve_reporting_levels(&mut settings);
         self.resolve_source_restrictions(&mut settings);
         if let Some(overrides) = &self.prefer_logical_properties {

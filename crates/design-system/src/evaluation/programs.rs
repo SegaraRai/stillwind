@@ -70,7 +70,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::theme::ThemeBuilder;
-    use crate::{CustomUtility, UtilityRole, resolve_utility};
+    use crate::{CustomUtility, DefinitionOrigin, UtilityRole, resolve_utility};
 
     #[test]
     fn resolution_retains_the_first_malformed_project_requirement() {
@@ -84,6 +84,7 @@ mod tests {
                     tw_sort: None,
                     role: UtilityRole::default(),
                     plugin: false,
+                    origin: DefinitionOrigin::default(),
                     implementation: false,
                 })
                 .map(Arc::new)

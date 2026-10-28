@@ -84,7 +84,7 @@ pub use loading::{
 };
 pub use options::{DesignSystemOptions, UtilityOrderMode};
 pub use registry::{
-    ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant,
+    ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant, DefinitionOrigin,
     LegacyThemeExposure, LegacyThemeKey, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext,
     StillwindDefinitions, StillwindVariantModifierType, StillwindVariantSort,
     StillwindVariantSortDirection, StillwindVariantValueType, UtilityRole, VariantScope,

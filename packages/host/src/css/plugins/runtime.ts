@@ -15,6 +15,7 @@ import {
 } from "@stillwind/native";
 
 import {
+  PATH_SPECIFIER,
   answerKey,
   instanceKey,
   nativePlugin,
@@ -31,10 +32,14 @@ import type { TailwindRuntime } from "./tailwind/plugin.ts";
  */
 const SETTINGS = "\0stillwind-tailwind-settings";
 
-/** Number of nonempty editor inputs whose catalogs a runtime keeps. */
+/**
+ * Number of nonempty editor inputs whose catalogs a runtime keeps.
+ */
 const CATALOG_INPUTS = 16;
 
-/** Matches `@stillwind-dynamic <prefix>*;` or `<prefix>[*];` and captures the prefix. */
+/**
+ * Matches `@stillwind-dynamic <prefix>*;` or `<prefix>[*];` and captures the prefix.
+ */
 const DYNAMIC = /@stillwind-dynamic\s+([^\s;*[\]]+)(?:\[\*\]|\*)\s*;/g;
 
 /**
@@ -55,9 +60,13 @@ interface PluginInstance {
   candidates: string[];
   /** CSS returned by {@link StillwindPlugin.resolve}, in the order of its calls. */
   definitions: string[];
+  /** Origin of the definitions in the statement's answer. */
+  origin: NonNullable<NativeCssFileInput["origin"]>;
 }
 
-/** A recorded answer to one loader request, keyed by importer, specifier, and options. */
+/**
+ * A recorded answer to one loader request, keyed by importer, specifier, and options.
+ */
 type RecordedAnswer = Omit<NativeCssFileInput, "id">;
 
 /**
@@ -184,18 +193,23 @@ export class PluginRuntime {
   /**
    * Runs the plugin of an `@plugin` request and returns the answer for it.
    *
+   * The answer's definitions are the user's own when the host loads the plugin from a
+   * relative or absolute path and `own` is true. Otherwise, they belong to the plugin that the
+   * specifier names, including a plugin configured for the project.
+   *
    * @param request - Loader request whose `pluginOptions` is set.
+   * @param own - Whether the stylesheet that contains the statement is the user's own CSS.
    * @returns File input without its request ID. Its name identifies the specifier and options.
    * @throws If no plugin has the specifier's name and the host cannot load it, or the plugin fails.
    */
-  async answerPlugin(request: NativeCssRequest): Promise<RecordedAnswer> {
+  async answerPlugin(request: NativeCssRequest, own = false): Promise<RecordedAnswer> {
     this.#recordRequest(request);
     const key = instanceKey(request);
     let instance = this.#instances.get(key);
     if (!instance) {
+      const configured = this.plugins.find((candidate) => candidate.name === request.specifier);
       const plugin =
-        this.plugins.find((candidate) => candidate.name === request.specifier) ??
-        (await this.host?.load(request.specifier, request.importer, this.watch));
+        configured ?? (await this.host?.load(request.specifier, request.importer, this.watch));
       if (!plugin) {
         throw new Error(
           `Stillwind plugin ${request.specifier} is not configured, and this host cannot load packages`,
@@ -244,6 +258,10 @@ export class PluginRuntime {
         prefixes,
         candidates,
         definitions: resolved.trim() ? [resolved] : [],
+        origin:
+          !configured && own && PATH_SPECIFIER.test(request.specifier)
+            ? { kind: "own" }
+            : { kind: "plugin", name: request.specifier },
         tailwind: nativePlugin(plugin)
           ? undefined
           : (await import("./tailwind/configuration.ts")).configurePlugin(
@@ -518,6 +536,7 @@ export class PluginRuntime {
     return {
       name: `stillwind-plugin:${key.replaceAll("\0", "#")}#${this.#generation}#${instance.definitions.length}`,
       content: [instance.css, ...instance.definitions].join("\n"),
+      origin: instance.origin,
     };
   }
 

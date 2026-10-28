@@ -1,7 +1,7 @@
 import type { StillwindPlugin } from "@stillwind/config";
 import { expect, test } from "vite-plus/test";
 
-import { lintsStylesheet, loadCssGraph, type CssHost } from "./css.ts";
+import { lintsStylesheet, loadCssGraph, stylesheetPackage, type CssHost } from "./css.ts";
 import type { PluginHost } from "./plugins/host.ts";
 
 test("only the user's own CSS is selected for stylesheet lint", () => {
@@ -170,4 +170,23 @@ test("plugins list directories through the host and watch directories apart from
       root: "/app",
     }),
   ).rejects.toThrow("This host cannot list plugin directories: /app/icons");
+});
+
+test("stylesheets that are not the user's own CSS are attributed to their package", () => {
+  expect(stylesheetPackage("/repo/packages/core/index.css", "stillwind", undefined)).toBe(
+    "stillwind",
+  );
+  expect(stylesheetPackage("/repo/ui/theme.css", "@acme/ui/theme.css", undefined)).toBe("@acme/ui");
+  // A relative import stays in the package of its importer.
+  expect(stylesheetPackage("/repo/packages/core/base.css", "./base.css", "stillwind")).toBe(
+    "stillwind",
+  );
+  expect(
+    stylesheetPackage(
+      "/app/node_modules/@acme/ui/node_modules/dep/a.css",
+      "../dep/a.css",
+      undefined,
+    ),
+  ).toBe("dep");
+  expect(stylesheetPackage("/app/vendor/a.css", "./vendor/a.css", undefined)).toBe(undefined);
 });
