@@ -1,14 +1,17 @@
-/* Semantic tokens are shared by the website, documentation, and compiled examples. */
+/*
+Semantic tokens are shared by the website, documentation, and compiled examples.
+*/
+
 @theme static {
   --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --font-display: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
 
   --color-background: light-dark(#f4f7fc, #131b2b);
-  --color-surface: light-dark(#ffffff, #1b263b);
+  --color-surface: light-dark(#f8fcfe, #1b263b);
   --color-surface-muted: light-dark(#e6edf9, #283752);
-  --color-foreground: light-dark(#202b45, #e4edff);
-  --color-muted: light-dark(#596a88, #a8b8d4);
+  --color-foreground: light-dark(#202b35, #e4edff);
+  --color-muted: light-dark(#596a78, #a8b8d4);
   --color-border: light-dark(#cad5e8, #3d506f);
   --color-action: light-dark(#354fa2, #b6cdff);
   --color-action-foreground: light-dark(#f7faff, #172448);

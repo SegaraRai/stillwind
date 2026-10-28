@@ -1,4 +1,6 @@
-/* Reusable presentation utilities and the height conditions for scroll demonstrations. */
+/*
+Reusable presentation utilities and the height conditions for scroll demonstrations.
+*/
 
 @utility hero-title {
   @apply font-display text-display font-normal tracking-[var(--display-tracking,-0.052em)];

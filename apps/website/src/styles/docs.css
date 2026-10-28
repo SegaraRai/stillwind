@@ -1,4 +1,6 @@
-/* Typography and spacing for Markdown, slots, and Nimbus output. */
+/*
+Typography and spacing for Markdown, slots, and Nimbus output.
+*/
 
 @utility compiled-example {
   & > * + * {
@@ -166,8 +168,14 @@
 
 @utility docs-navigation-link {
   @apply block px-3 py-2 text-muted wrap-anywhere border-transparent border-s-2;
-  @apply aria-[current=page]:text-foreground aria-[current=page]:bg-surface-muted aria-[current=page]:border-foreground;
-  @apply hover:text-foreground hover:underline hover:underline-offset-4;
+
+  @variant aria-[current=page] {
+    @apply text-foreground bg-surface-muted border-foreground;
+  }
+
+  @variant hover {
+    @apply text-foreground underline underline-offset-4;
+  }
 
   @variant max-sidebar {
     @apply px-0 py-2 border-transparent border-s-0 border-be-2;

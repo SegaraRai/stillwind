@@ -1,3 +1,4 @@
+import { iconify, svgDirectory } from "@stillwind/plugin-iconify";
 import { defineConfig, lintPresets } from "stillwind/config";
 
 export default defineConfig({
@@ -14,6 +15,13 @@ export default defineConfig({
           "no-arbitrary-colors": "deny",
         },
       },
+      plugins: [
+        iconify({
+          collections: {
+            stillwind: svgDirectory("src/icons/stillwind"),
+          },
+        }),
+      ],
     },
   ],
 });

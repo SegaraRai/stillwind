@@ -1,5 +1,7 @@
-/* Stillwind stylesheet entry of the website. theme.css defines the shared tokens, site.css
-   contains rules for every page, and landing.css and docs.css contain rules for each part. */
+/*
+Stillwind stylesheet entry of the website. theme.css defines the shared tokens, site.css
+contains rules for every page, and landing.css and docs.css contain rules for each part.
+*/
 
 @import "stillwind";
 
