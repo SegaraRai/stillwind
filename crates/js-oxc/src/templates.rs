@@ -34,7 +34,11 @@ impl<'a> MacroExtractor<'a> {
         let mut token = TemplateToken::default();
         let mut collected = Vec::new();
         for (index, quasi) in template.quasis.iter().enumerate() {
-            let Some(text) = quasi.value.cooked.as_ref() else {
+            let Some(text) = quasi
+                .value
+                .cooked
+                .and_then(|value| self.unicode_string(value, quasi.span))
+            else {
                 self.lint_findings
                     .push(template_error(self.source_span(quasi.span)));
                 self.omit_input(template.span);

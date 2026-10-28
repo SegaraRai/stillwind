@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "stillwind": "workspace:*",
-    "svelte": "5.57.2"
+    "svelte": "5.57.3"
   },
   "devDependencies": {
     "@stillwind-internal/e2e-harness": "workspace:*",

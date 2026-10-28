@@ -104,6 +104,23 @@ test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
   },
 );
 
+test("configuration loads before framework TypeScript files are generated", async () => {
+  const { root, configFile, write } = await fixture();
+  await writeFile(
+    path.join(root, "tsconfig.json"),
+    JSON.stringify({
+      extends: "./.svelte-kit/tsconfig.json",
+    }),
+  );
+  await write([
+    {
+      css: "theme.css",
+      files: ["*.tsx"],
+    },
+  ]);
+  expect((await loadConfiguration(configFile)).config.projects[0].css).toBe("theme.css");
+});
+
 test("discovery prefers the nearest directory and tracks candidates before its selected extension", async () => {
   const { root, configFile, write } = await fixture();
   await write([

@@ -24,9 +24,9 @@
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "prettier": "^3.9.10",
-    "prettier-plugin-astro": "^1.1.1",
+    "prettier-plugin-astro": "^1.1.2",
     "prettier-plugin-svelte": "^4.1.1",
-    "svelte": "^5.57.2",
+    "svelte": "^5.57.3",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },

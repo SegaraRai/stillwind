@@ -114,6 +114,13 @@ export async function expectModuleRetraction(app: EmissionApplication): Promise<
       "added.ts",
       'import { style } from "stillwind/react";\n\nexport const props=style("m-7");\n',
     );
+    const server = app.server;
+    if (!server || !("watcher" in server)) {
+      expect.fail("Expected the development server");
+    }
+    await expect
+      .poll(() => Object.values(server.watcher.getWatched()).flat())
+      .toContain("added.ts");
     await page.evaluate(`(async () => {
       const { props } = await import("/added.ts");
       document.querySelector("#target").className = props.className;

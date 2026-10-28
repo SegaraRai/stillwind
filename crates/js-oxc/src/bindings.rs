@@ -30,7 +30,12 @@ impl<'a> MacroExtractor<'a> {
     /// Type-only imports still answer `true` here; callers must check
     /// [`ImportDeclaration::import_kind`] themselves if that matters.
     pub(crate) fn is_style_import(declaration: &ImportDeclaration<'a>) -> bool {
-        from_macro_import(declaration.source.value.as_str()).is_some()
+        declaration
+            .source
+            .value
+            .as_str()
+            .and_then(from_macro_import)
+            .is_some()
     }
 
     /// True when `expression` is `style.<property>` on the imported macro.

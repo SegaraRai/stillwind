@@ -307,7 +307,9 @@ impl<'a> MacroExtractor<'a> {
         match name {
             ModuleExportName::IdentifierName(name) => name.name.to_lean_str(),
             ModuleExportName::IdentifierReference(name) => name.name.to_lean_str(),
-            ModuleExportName::StringLiteral(name) => name.value.to_lean_str(),
+            ModuleExportName::StringLiteral(name) => {
+                name.value.as_str().unwrap_or_default().to_lean_str()
+            }
         }
     }
 }

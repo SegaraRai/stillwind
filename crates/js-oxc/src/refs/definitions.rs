@@ -184,7 +184,8 @@ impl<'a> MacroExtractor<'a> {
                     self.ref_input_error(LintDiagnostic::NonStaticRefVariant, tagged.quasi.span);
                     return None;
                 }
-                let cooked = tagged.quasi.quasis[0].value.cooked.as_ref()?;
+                let cooked =
+                    self.unicode_string(tagged.quasi.quasis[0].value.cooked?, tagged.quasi.span)?;
                 let span = self.source_span(tagged.quasi.span);
                 Some(RefVariantText::Prefix {
                     reference: &tagged.tag,

@@ -5,10 +5,10 @@
   "type": "module",
   "dependencies": {
     "stillwind": "workspace:*",
-    "svelte": "5.57.2"
+    "svelte": "5.57.3"
   },
   "devDependencies": {
-    "@rsbuild/core": "2.2.12",
+    "@rsbuild/core": "2.2.14",
     "@rsbuild/plugin-svelte": "2.0.1",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

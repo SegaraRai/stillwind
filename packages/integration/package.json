@@ -78,14 +78,14 @@
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@sveltejs/kit": "^3.1.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@swc/core": "^1.16.18",
+    "@swc/core": "^1.16.20",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.10",
     "astro": "^7.4.2",
     "css-loader": "^7.1.5",
-    "next": "^16.4.2",
-    "nuxt": "^4.6.2",
-    "svelte": "^5.57.2",
+    "next": "^16.4.3",
+    "nuxt": "^4.6.3",
+    "svelte": "^5.57.3",
     "svelte-loader": "^3.2.4",
     "swc-loader": "^0.2.7",
     "typescript": "catalog:",
@@ -93,7 +93,7 @@
     "vite-plus": "catalog:",
     "vue": "^3.5.44",
     "vue-loader": "^17.4.2",
-    "webpack": "^5.112.0"
+    "webpack": "^5.112.2"
   },
   "peerDependencies": {
     "@rsbuild/core": "^2.0.0",

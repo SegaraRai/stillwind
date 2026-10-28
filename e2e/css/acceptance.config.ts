@@ -1,6 +1,8 @@
 import config from "@stillwind-internal/e2e-harness/acceptance-config";
 import { defineConfig, mergeConfig } from "vite-plus";
 
+import { browserTests } from "./vite.browser.config.ts";
+
 export default mergeConfig(
   config,
   defineConfig({
@@ -11,7 +13,7 @@ export default mergeConfig(
           test: {
             name: "applications",
             include: ["tests/**/*.test.ts"],
-            exclude: ["tests/ref-scopes.test.ts", "tests/cva.test.ts"],
+            exclude: browserTests,
           },
         },
         "./vite.browser.config.ts",

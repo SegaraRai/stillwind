@@ -1,4 +1,4 @@
-//! Small bridges between Oxc spans and editable-source spans.
+//! Converts Oxc spans and static strings for extraction.
 //!
 //! Oxc spans are tagged with the file id of the buffer being analysed. That buffer
 //! may be a normalized projection; the projection pipeline subsequently maps its
@@ -7,7 +7,9 @@
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{Expression, PropertyKey, StringLiteral};
 use oxc::span::Span as OxcSpan;
+use oxc::str::JSStr;
 
+use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_ir::AssetReference;
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{Span, Spanned};
@@ -19,15 +21,39 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// The quotes are excluded, so the span can be sliced back out of the source and
     /// compared with the value. Decoded escapes may make the value shorter than the
-    /// span; producers that need byte-exact text keep the raw source instead.
-    pub(crate) fn string_literal(&self, literal: &StringLiteral<'a>) -> Spanned<LeanStr> {
+    /// span; producers that need byte-exact text keep the raw source instead. A lone
+    /// surrogate records a fatal diagnostic and returns an empty value.
+    pub(crate) fn string_literal(&mut self, literal: &StringLiteral<'a>) -> Spanned<LeanStr> {
         let literal_span = self.source_span(literal.span);
         let content_span = Span::new(
             literal_span.file,
             literal_span.start.0 + 1,
             literal_span.end.0.saturating_sub(1),
         );
-        Spanned::new(literal.value.to_lean_str(), content_span)
+        let value = self
+            .unicode_string(literal.value, literal.span)
+            .unwrap_or_default()
+            .to_lean_str();
+        Spanned::new(value, content_span)
+    }
+
+    /// Borrows UTF-8 text or records a fatal diagnostic at `span` for a lone surrogate.
+    pub(crate) fn unicode_string<'s>(
+        &mut self,
+        value: JSStr<'s>,
+        span: OxcSpan,
+    ) -> Option<&'s str> {
+        let text = value.as_str();
+        if text.is_none() {
+            let error = CompileError::new(
+                CompileDiagnostic::InvalidUnicodeString,
+                self.source_span(span),
+            );
+            if !self.diagnostics.contains(&error) {
+                self.diagnostics.push(error);
+            }
+        }
+        text
     }
 
     /// Re-tags an Oxc span with the file id of the analysed source.
@@ -85,7 +111,7 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// Computed and numeric keys return `None`; callers decide whether that is an error
     /// or simply an entry they do not understand.
-    pub(crate) fn property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<LeanStr>> {
+    pub(crate) fn property_name(&mut self, key: &PropertyKey<'a>) -> Option<Spanned<LeanStr>> {
         match key {
             PropertyKey::StaticIdentifier(identifier) => Some(Spanned::new(
                 identifier.name.to_lean_str(),
@@ -97,7 +123,10 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Resolves literal object keys, including expression-free template keys.
-    pub(crate) fn static_property_name(&self, key: &PropertyKey<'a>) -> Option<Spanned<LeanStr>> {
+    pub(crate) fn static_property_name(
+        &mut self,
+        key: &PropertyKey<'a>,
+    ) -> Option<Spanned<LeanStr>> {
         if let Some(name) = self.property_name(key) {
             return Some(name);
         }
@@ -105,12 +134,8 @@ impl<'a> MacroExtractor<'a> {
         match expression {
             Expression::StringLiteral(literal) => Some(self.string_literal(literal)),
             Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
-                let value = template
-                    .quasis
-                    .first()?
-                    .value
-                    .cooked
-                    .as_ref()?
+                let value = self
+                    .unicode_string(template.quasis.first()?.value.cooked?, template.span)?
                     .to_lean_str();
                 let span = self.source_span(template.span);
                 Some(Spanned::new(

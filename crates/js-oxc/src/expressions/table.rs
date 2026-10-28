@@ -215,7 +215,7 @@ impl<'a> MacroExtractor<'a> {
 
     /// Returns the property name of a static object key: an identifier, a string, a
     /// number, or a computed literal.
-    fn table_key(&self, key: &PropertyKey<'a>) -> Option<LeanStr> {
+    fn table_key(&mut self, key: &PropertyKey<'a>) -> Option<LeanStr> {
         if let PropertyKey::NumericLiteral(number) = key {
             return Some(number.value.to_js_string().to_lean_str());
         }
@@ -240,9 +240,10 @@ impl<'a> MacroExtractor<'a> {
                     self.invalid_entry(value.span());
                     return None;
                 };
+                let text = self.unicode_string(*text, template.span)?.to_lean_str();
                 let span = self.source_span(template.span);
                 Some(vec![RuleExpression::Utilities(Spanned::new(
-                    text.to_lean_str(),
+                    text,
                     Span::new(span.file, span.start.0 + 1, span.end.0 - 1),
                 ))])
             }
@@ -286,7 +287,7 @@ enum TableKey<'e, 'a> {
 /// template, or a number in JavaScript's string form.
 fn literal_key(key: &Expression<'_>) -> Option<LeanStr> {
     match key.get_inner_expression() {
-        Expression::StringLiteral(literal) => Some(literal.value.to_lean_str()),
+        Expression::StringLiteral(literal) => Some(literal.value.as_str()?.to_lean_str()),
         Expression::TemplateLiteral(template) if template.expressions.is_empty() => Some(
             template
                 .quasis
@@ -294,6 +295,7 @@ fn literal_key(key: &Expression<'_>) -> Option<LeanStr> {
                 .value
                 .cooked
                 .as_ref()?
+                .as_str()?
                 .to_lean_str(),
         ),
         Expression::NumericLiteral(number) => Some(number.value.to_js_string().to_lean_str()),

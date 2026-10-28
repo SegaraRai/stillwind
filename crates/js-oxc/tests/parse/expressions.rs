@@ -255,3 +255,127 @@ fn external_class_arrays_keep_leaf_occurrences_and_spread_boundaries() {
         .unwrap();
     assert_eq!(restored, parsed.module);
 }
+
+#[test]
+fn decoded_unicode_utilities_preserve_values_and_original_spans() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+const props = style("content-['\uD83D\uDE00']", `content-['😀']`, "content-['\uFFFD']", "content-['\\ud800']");"#,
+    ).unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    for (input, (value, spelling)) in parsed.module.style_calls[0].inputs.iter().zip([
+        ("content-['😀']", r"content-['\uD83D\uDE00']"),
+        ("content-['😀']", r"content-['😀']"),
+        ("content-['�']", r"content-['\uFFFD']"),
+        (r"content-['\ud800']", r"content-['\\ud800']"),
+    ]) {
+        let StyleInput::Class(expression) = input else {
+            panic!("expected a class input")
+        };
+        let RuleExpression::Utilities(utilities) = rule(expression) else {
+            panic!("expected utilities")
+        };
+        assert_eq!(utilities.value, value);
+        assert_eq!(source.slice(utilities.span).unwrap(), spelling);
+    }
+    assert_eq!(parsed.module.style_calls[0].inputs.len(), 4);
+}
+
+#[test]
+fn compiled_strings_report_lone_surrogates_at_their_source() {
+    for statement in [
+        r#"style("\uD800");"#,
+        r"style(`\uDFFF`);",
+        r#"style.css("\uD800");"#,
+        r"style.css(`\uD800`);",
+        r"style.media(`\uD800`);",
+        r#"const ref = style.ref("\uD800");"#,
+        r#"const frames = style.keyframes({from: "\uD800"});"#,
+        r#"const transition = style.viewTransition({label: "\uD800"});"#,
+        r#"style({"\uD800": "flex"});"#,
+        r#"const variants = style.cva("flex", {variants: {"\uD800": {normal: "grid"}}});"#,
+    ] {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            format!("import {{ style }} from 'stillwind/react'; {statement}"),
+        )
+        .unwrap();
+        let parsed = parse(
+            &source,
+            &ModuleId::from("test.tsx"),
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
+        let errors: Vec<_> = parsed
+            .diagnostics
+            .iter()
+            .filter(|error| error.diagnostic == CompileDiagnostic::InvalidUnicodeString)
+            .collect();
+        assert_eq!(errors.len(), 1, "{statement}: {:?}", parsed.diagnostics);
+        let text = source.slice(errors[0].labels[0].span).unwrap();
+        assert!(
+            text.contains(r"\uD800") || text.contains(r"\uDFFF"),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn unrelated_javascript_strings_can_contain_lone_surrogates() {
+    let source = SourceFile::new(FileId(1), None, None, r#"import { style } from 'stillwind/react'; const unrelated = "\uD800"; const props = style("flex");"#).unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    assert_eq!(parsed.module.style_calls[0].inputs.len(), 1);
+}
+
+#[test]
+fn custom_property_lone_surrogates_keep_the_runtime_expression() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from 'stillwind/react'; const props = style({"--value": "\uD800"});"#,
+    )
+    .unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    let StyleInput::Class(ClassExpression::Group { entries, .. }) =
+        &parsed.module.style_calls[0].inputs[0]
+    else {
+        panic!("expected a group")
+    };
+    let GroupEntry::CustomProperty(property) = &entries[0] else {
+        panic!("expected a custom property")
+    };
+    assert_eq!(property.static_value, None);
+    assert_eq!(source.slice(property.value).unwrap(), r#""\uD800""#);
+}

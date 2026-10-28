@@ -28,30 +28,32 @@ allowBuilds:
   sharp: true
   svelte-preprocess: false
 
-patchedDependencies:
-  unplugin@3.4.0: patches/unplugin@3.4.0.patch
-
 catalogs:
   default:
     "@jridgewell/gen-mapping": ^0.3.13
     "@jridgewell/remapping": ^2.3.5
     "@jridgewell/trace-mapping": ^0.3.31
-    "@rolldown/browser": ^1.2.14
+    "@rolldown/browser": ^1.2.15
     "@types/node": ^26.6.5
-    "@vitest/browser-playwright": 5.0.4
-    "@vitest/ui": 5.0.4
-    "@webref/css": 8.7.6
+    "@vitest/browser-playwright": 5.0.5
+    "@vitest/ui": 5.0.5
+    "@webref/css": 8.7.8
     pathe: ^2.0.3
     playwright: ^1.64.1
-    rolldown: ^1.2.14
+    rolldown: ^1.2.15
     tailwindcss: 4.3.3
     typescript: ^6.0.3
-    vite: npm:@voidzero-dev/vite-plus-core@1.2.0
-    vite-plus: 1.2.0
-    vitest: 5.0.4
+    vite: npm:@voidzero-dev/vite-plus-core@1.4.0
+    vite-plus: 1.4.0
+    vitest: 5.0.5
 
 overrides:
-  "@vitest/ui": 5.0.4
+  # The browser loader and wasm-runtime plugins require the same emnapi API.
+  "@rolldown/browser>@emnapi/core": 2.0.0-beta.2
+  "@rolldown/browser>@emnapi/runtime": 2.0.0-beta.2
+  # Vue's language plugin and its TypeScript augmentation share one Volar version.
+  "@vue/language-core@3.3.13>@volar/language-core": 2.4.30
+  "@vitest/ui": "catalog:"
   vite@*: "catalog:"
   vitest@*: "catalog:"
 
@@ -64,46 +66,7 @@ peerDependencyRules:
     vitest: "*"
 
 minimumReleaseAgeExclude:
-  - "@oxfmt/binding-android-arm64@0.73.0"
-  - "@oxfmt/binding-darwin-arm64@0.73.0"
-  - "@oxfmt/binding-darwin-x64@0.73.0"
-  - "@oxfmt/binding-freebsd-x64@0.73.0"
-  - "@oxfmt/binding-linux-arm-gnueabihf@0.73.0"
-  - "@oxfmt/binding-linux-arm64-musl@0.73.0"
-  - "@oxfmt/binding-linux-x64-gnu@0.73.0"
-  - "@oxfmt/binding-linux-x64-musl@0.73.0"
-  - "@oxfmt/binding-openharmony-arm64@0.73.0"
-  - "@oxfmt/binding-win32-ia32-msvc@0.73.0"
-  - "@oxfmt/binding-win32-x64-msvc@0.73.0"
-  - "@oxlint/binding-android-arm-eabi@1.88.0"
-  - "@oxlint/binding-darwin-x64@1.88.0"
-  - "@oxlint/binding-freebsd-x64@1.88.0"
-  - "@oxlint/binding-linux-arm-gnueabihf@1.88.0"
-  - "@oxlint/binding-linux-arm-musleabihf@1.88.0"
-  - "@oxlint/binding-linux-arm64-musl@1.88.0"
-  - "@oxlint/binding-linux-ppc64-gnu@1.88.0"
-  - "@oxlint/binding-linux-riscv64-gnu@1.88.0"
-  - "@oxlint/binding-linux-riscv64-musl@1.88.0"
-  - "@oxlint/binding-linux-s390x-gnu@1.88.0"
-  - "@oxlint/binding-linux-x64-gnu@1.88.0"
-  - "@oxlint/binding-linux-x64-musl@1.88.0"
-  - "@oxlint/binding-openharmony-arm64@1.88.0"
-  - "@oxlint/binding-win32-ia32-msvc@1.88.0"
-  - "@oxlint/binding-win32-x64-msvc@1.88.0"
-  - "@oxlint/plugins@1.88.0"
-  - "@voidzero-dev/vite-plus-core@1.2.0"
-  - "@voidzero-dev/vite-plus-darwin-arm64@1.2.0"
-  - "@voidzero-dev/vite-plus-darwin-x64@1.2.0"
-  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.2.0"
-  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.2.0"
-  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.2.0"
-  - "@voidzero-dev/vite-plus-linux-x64-musl@1.2.0"
-  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.2.0"
-  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.2.0"
-  - oxfmt@0.73.0
-  - oxlint@1.88.0
-  - vite-plus@1.2.0
-  - "@astrojs/markdown-satteri@0.4.5"
-  - "@astrojs/prism@4.1.1"
-  - "@astrojs/telemetry@3.4.1"
-  - astro@7.4.2
+  - "@iconify-json/lucide@1.2.148"
+  - "@solidjs/signals@2.0.0-rc.19"
+  - "@solidjs/web@2.0.0-rc.19"
+  - solid-js@2.0.0-rc.19

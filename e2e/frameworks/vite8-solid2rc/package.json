@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@solidjs/web": "2.0.0-rc.14",
-    "solid-js": "2.0.0-rc.14",
+    "@solidjs/web": "2.0.0-rc.19",
+    "solid-js": "2.0.0-rc.19",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@solidjs/vite-plugin": "3.0.0-next.49",
+    "@solidjs/vite-plugin": "3.0.0-next.51",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",

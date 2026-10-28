@@ -63,7 +63,7 @@ impl<'a> Visit<'a> for MacroBindings {
         if import.import_kind.is_type() {
             return;
         }
-        let Some(spec) = from_macro_import(import.source.value.as_str()) else {
+        let Some(spec) = import.source.value.as_str().and_then(from_macro_import) else {
             return;
         };
         for specifier in import.specifiers.iter().flatten() {

@@ -113,6 +113,7 @@ define_compile_codes! {
         // 10: JavaScript and component source
         JavaScriptParse => "SW10001",
         ComponentSyntax { .. } => "SW10002",
+        InvalidUnicodeString => "SW10003",
         UnconsumedMacroUse { .. } => "SW10004",
         UntransformedMacroReference { .. } => "SW10005",
         // 11: style composition

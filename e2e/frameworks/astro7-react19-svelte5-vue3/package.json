@@ -4,17 +4,17 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "astro": "7.3.8",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "astro": "7.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "stillwind": "workspace:*",
-    "svelte": "5.57.2",
-    "vue": "3.5.43"
+    "svelte": "5.57.3",
+    "vue": "3.5.44"
   },
   "devDependencies": {
-    "@astrojs/react": "7.0.1",
-    "@astrojs/svelte": "9.0.1",
-    "@astrojs/vue": "7.0.3",
+    "@astrojs/react": "7.1.1",
+    "@astrojs/svelte": "9.1.1",
+    "@astrojs/vue": "7.1.2",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",

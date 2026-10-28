@@ -164,11 +164,11 @@ pub(crate) fn literal_member<'e, 'a>(
         )),
         Expression::ComputedMemberExpression(member) => {
             let name = match member.expression.get_inner_expression() {
-                Expression::StringLiteral(name) => name.value.as_str(),
+                Expression::StringLiteral(name) => name.value.as_str()?,
                 Expression::TemplateLiteral(template)
                     if template.expressions.is_empty() && template.quasis.len() == 1 =>
                 {
-                    template.quasis[0].value.cooked.as_ref()?.as_str()
+                    template.quasis[0].value.cooked.as_ref()?.as_str()?
                 }
                 _ => return None,
             };

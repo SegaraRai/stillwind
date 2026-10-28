@@ -315,7 +315,9 @@ impl<'a> MacroExtractor<'a> {
             return valid;
         }
         let key = match expression.get_inner_expression() {
-            Expression::StringLiteral(value) => Some(value.value.to_lean_str()),
+            Expression::StringLiteral(value) => self
+                .unicode_string(value.value, value.span)
+                .map(ToLeanStr::to_lean_str),
             Expression::NumericLiteral(value) => Some(value.value.to_js_string().to_lean_str()),
             Expression::BooleanLiteral(value) => Some(value.value.to_lean_str()),
             Expression::NullLiteral(_) => None,
@@ -362,7 +364,7 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
-    fn valid_cva_value(&self, expression: &Expression<'a>) -> bool {
+    fn valid_cva_value(&mut self, expression: &Expression<'a>) -> bool {
         match expression.get_inner_expression() {
             Expression::StringLiteral(_)
             | Expression::BooleanLiteral(_)

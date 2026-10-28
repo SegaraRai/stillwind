@@ -43,7 +43,13 @@ impl<'a> Visit<'a> for StatementReads {
     /// then walks the declaration to collect its bindings. Default and namespace
     /// imports use `default` and `*` as their imported names.
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
-        if from_macro_import(declaration.source.value.as_str()).is_none() {
+        if declaration
+            .source
+            .value
+            .as_str()
+            .and_then(from_macro_import)
+            .is_none()
+        {
             for specifier in declaration.specifiers.iter().flatten() {
                 let (local, imported) = match specifier {
                     ImportDeclarationSpecifier::ImportSpecifier(specifier) => {
@@ -60,7 +66,12 @@ impl<'a> Visit<'a> for StatementReads {
                     self.imports.push((
                         symbol,
                         ImportBinding {
-                            source: declaration.source.value.to_lean_str(),
+                            source: declaration
+                                .source
+                                .value
+                                .as_str()
+                                .unwrap_or_default()
+                                .to_lean_str(),
                             imported,
                             local: local.name.to_lean_str(),
                         },

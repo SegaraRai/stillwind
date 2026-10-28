@@ -405,12 +405,11 @@ impl<'a> MacroExtractor<'a> {
 /// Unwraps source parentheses and type wrappers. Strings and expression-free templates
 /// use their decoded text, numbers use JavaScript number formatting, and booleans
 /// become one space or `initial`. Unary negation is supported only for a numeric
-/// literal operand. Returns `None` for other expressions or an unavailable cooked
-/// template value, leaving conversion to runtime even when the expression could be
-/// constant.
+/// literal operand. Returns `None` for other expressions, an unavailable cooked
+/// template value, or a lone surrogate. These values retain their runtime conversion.
 fn static_css_value(expression: &Expression<'_>) -> Option<LeanStr> {
     match expression.get_inner_expression() {
-        Expression::StringLiteral(value) => Some(value.value.to_lean_str()),
+        Expression::StringLiteral(value) => value.value.as_str().map(ToLeanStr::to_lean_str),
         Expression::BooleanLiteral(value) => Some(if value.value { " " } else { "initial" }.into()),
         Expression::NumericLiteral(value) => Some(value.value.to_js_string().to_lean_str()),
         Expression::UnaryExpression(value) if value.operator == UnaryOperator::UnaryNegation => {
@@ -426,6 +425,7 @@ fn static_css_value(expression: &Expression<'_>) -> Option<LeanStr> {
             .value
             .cooked
             .as_ref()
+            .and_then(|value| value.as_str())
             .map(ToLeanStr::to_lean_str),
         _ => None,
     }

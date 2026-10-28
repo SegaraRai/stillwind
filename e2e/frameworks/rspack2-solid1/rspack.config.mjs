@@ -41,13 +41,7 @@ export default {
         loader: require.resolve("babel-loader"),
         options: {
           presets: [
-            [
-              require.resolve("@babel/preset-typescript"),
-              {
-                allExtensions: true,
-                isTSX: true,
-              },
-            ],
+            require.resolve("@babel/preset-typescript"),
             [
               require.resolve("babel-preset-solid"),
               {

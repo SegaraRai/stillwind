@@ -8,11 +8,12 @@
     "preact/debug": "npm:preact@10.29.8/debug",
     "preact/jsx-runtime": "npm:preact@10.29.8/jsx-runtime",
     "preact/jsx-dev-runtime": "npm:preact@10.29.8/jsx-dev-runtime",
-    "vite": "npm:vite@7.3.1"
+    "vite": "npm:vite@7.3.7",
+    "typescript": "npm:typescript@6.0.3"
   },
   "compilerOptions": {
     "jsx": "precompile",
     "jsxImportSource": "preact",
-    "types": ["npm:vite@7.3.1/client"]
+    "types": ["npm:@types/node@26.6.5", "npm:vite@7.3.7/client"]
   }
 }

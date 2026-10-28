@@ -183,7 +183,8 @@ impl<'a> MacroExtractor<'a> {
                 Some(ViewTransitionKey::Literal(raw.to_lean_str()))
             }
             Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
-                let cooked = template.quasis[0].value.cooked.as_ref()?;
+                let cooked =
+                    self.unicode_string(template.quasis[0].value.cooked?, template.span)?;
                 Some(ViewTransitionKey::Literal(cooked.to_lean_str()))
             }
             argument => Some(ViewTransitionKey::Dynamic(

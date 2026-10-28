@@ -1,0 +1,31 @@
+---
+title: "SW10003: Invalid Unicode string"
+description: A string used to generate CSS or resolve a module contains a lone Unicode surrogate.
+slug: docs/errors/SW10003
+---
+
+This error occurs when a static string contains an unpaired UTF-16 surrogate.
+Stillwind requires well-formed Unicode in strings that it compiles, including
+utility strings, declaration labels, and module specifiers.
+
+## Reported
+
+<DiagnosticExample code="SW10003">
+
+```tsx
+export const props = style("content-['\uD800']");
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```tsx
+export const props = style("content-['\u{1F600}']");
+```
+
+## How to fix
+
+Complete the surrogate pair, use a valid code point with `\u{...}`, or remove the
+invalid escape. Strings that Stillwind leaves for runtime evaluation can still
+contain lone surrogates.

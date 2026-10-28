@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@builder.io/qwik": "1.20.2",
-    "@builder.io/qwik-city": "1.20.2",
+    "@builder.io/qwik": "1.20.3",
+    "@builder.io/qwik-city": "1.20.3",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
@@ -15,6 +15,6 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
-    "vite7": "npm:vite@7.3.1"
+    "vite7": "npm:vite@7.3.7"
   }
 }

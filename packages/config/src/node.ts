@@ -78,17 +78,20 @@ export interface EvaluatedModule {
 }
 
 /**
- * Bundles local imports of a module in memory and evaluates the bundle without module caches.
- * Local sources are read again on each call, so a changed local import takes effect. External
- * packages use runtime module loading, and Node keeps them cached. The module runs as trusted Node
- * code and can perform side effects.
+ * Bundles local imports of a module in memory and evaluates the bundle without module
+ * caches. Local sources are read again on each call, so a changed local import takes
+ * effect. External packages use runtime module loading, and Node keeps them cached. The
+ * module runs as trusted Node code and can perform side effects. Evaluation is
+ * available before a framework generates its TypeScript configuration.
  *
- * `import.meta.url`, `import.meta.filename`, `import.meta.dirname`, `__filename`, and `__dirname`
- * describe the original source file of each bundled module.
+ * `import.meta.url`, `import.meta.filename`, `import.meta.dirname`, `__filename`, and
+ * `__dirname` describe the original source file of each bundled module.
  *
- * @param file - JS, TS, or JSON module path. Relative paths use the process working directory.
- * @returns The export and the file paths observed while resolving and bundling imports. Runtime
- * file reads and imports that cannot be statically resolved are not added to dependencies.
+ * @param file - JS, TS, or JSON module path. Relative paths use the process working
+ * directory.
+ * @returns The export and the file paths observed while resolving and bundling imports.
+ * Runtime file reads and imports that cannot be statically resolved are not added to
+ * dependencies.
  * @throws If a package cannot be resolved, or bundling or module evaluation fails.
  */
 export async function evaluateModule(file: string): Promise<EvaluatedModule> {
@@ -99,9 +102,10 @@ export async function evaluateModule(file: string): Promise<EvaluatedModule> {
   const bundle = await rolldown({
     input: file,
     cwd: path.dirname(file),
-    platform: "node",
     logLevel: "silent",
+    platform: "node",
     treeshake: false,
+    tsconfig: false,
     transform: {
       target: "node22",
       define: {

@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "preact": "11.0.1",
+    "preact": "11.0.2",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@rspack/core": "2.2.8",
-    "@rspack/dev-server": "2.2.1",
+    "@rspack/core": "2.2.9",
+    "@rspack/dev-server": "2.2.2",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.18",
+    "@swc/core": "1.16.20",
     "@types/node": "catalog:",
     "swc-loader": "0.2.7",
     "typescript": "catalog:",

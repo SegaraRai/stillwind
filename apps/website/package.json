@@ -12,10 +12,10 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.11",
+    "@astrojs/check": "^0.9.12",
     "@emnapi/runtime": "^1.11.3",
-    "@iconify-json/lucide": "^1.2.147",
-    "@iconify-json/simple-icons": "^1.2.100",
+    "@iconify-json/lucide": "^1.2.148",
+    "@iconify-json/simple-icons": "^1.2.101",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@stillwind/cli": "workspace:*",
     "@stillwind/host": "workspace:*",

@@ -65,6 +65,9 @@ pub enum CompileDiagnostic {
         /// Explanation supplied by the component parser.
         detail: LeanStr,
     },
+    /// A string contains invalid Unicode.
+    #[error("string contains invalid Unicode")]
+    InvalidUnicodeString,
     /// A macro use was not consumed at a supported style input position.
     #[error(
         "{syntax} must be consumed at its supported input position within style(); it cannot be materialized independently"

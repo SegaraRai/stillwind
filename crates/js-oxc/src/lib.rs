@@ -27,7 +27,8 @@
 //! preserves ref substitutions. `resolution` distinguishes unsupported values from
 //! missing facts. `refs`, `keyframes`, and `view_transition` extract their declarations
 //! and uses. `demand` finds the imports needed by unresolved values. `ast` tags Oxc
-//! ranges with their analysis buffer identity before coordinate mapping.
+//! ranges with their analysis buffer identity before coordinate mapping and validates
+//! Unicode strings consumed during extraction.
 
 #![cfg_attr(
     not(test),

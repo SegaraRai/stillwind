@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "astro": "7.3.8",
+    "astro": "7.4.2",
     "preact": "10.29.8",
     "solid-js": "1.9.17",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@astrojs/preact": "6.0.6",
-    "@astrojs/solid-js": "7.0.2",
+    "@astrojs/preact": "6.1.1",
+    "@astrojs/solid-js": "7.1.1",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",

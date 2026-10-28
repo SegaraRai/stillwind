@@ -119,7 +119,11 @@ impl<'a> Visit<'a> for Collector<'_> {
         {
             self.module_css.push(self.span(declaration.source.span));
         }
-        if let Some(adapter) = from_macro_import(declaration.source.value.as_str())
+        if let Some(adapter) = declaration
+            .source
+            .value
+            .as_str()
+            .and_then(from_macro_import)
             && !declaration.import_kind.is_type()
             && let Some(specifiers) = &declaration.specifiers
         {

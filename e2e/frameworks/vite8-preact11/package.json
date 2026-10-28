@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "preact": "11.0.1",
+    "preact": "11.0.2",
     "stillwind": "workspace:*"
   },
   "devDependencies": {

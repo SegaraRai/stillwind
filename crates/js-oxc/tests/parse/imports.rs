@@ -265,3 +265,28 @@ export function attach(handle: unknown) { return style(handle); }
         [] as [ImportBinding; 0]
     );
 }
+
+#[test]
+fn module_specifiers_reject_lone_surrogates() {
+    for declaration in [
+        r#"import value from "./\uD800";"#,
+        r#"export { value } from "./\uD800";"#,
+        r#"export * from "./\uD800";"#,
+    ] {
+        let source = SourceFile::new(FileId(1), None, None, declaration).unwrap();
+        let parsed = parse(
+            &source,
+            &ModuleId::from("test.ts"),
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Ts,
+            ScriptModuleKind::Unambiguous,
+        );
+        let error = parsed
+            .diagnostics
+            .iter()
+            .find(|error| error.diagnostic == CompileDiagnostic::InvalidUnicodeString)
+            .unwrap();
+        assert_eq!(source.slice(error.labels[0].span).unwrap(), r#""./\uD800""#);
+    }
+}

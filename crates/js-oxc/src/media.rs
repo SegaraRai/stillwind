@@ -68,7 +68,8 @@ impl<'a> MacroExtractor<'a> {
                         if let Some(value) = template
                             .quasis
                             .first()
-                            .and_then(|quasi| quasi.value.cooked.as_ref())
+                            .and_then(|quasi| quasi.value.cooked)
+                            .and_then(|value| self.unicode_string(value, template.span))
                         {
                             let template_span = self.source_span(template.span);
                             arguments.push(Spanned::new(

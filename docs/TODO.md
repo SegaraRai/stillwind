@@ -13,14 +13,6 @@ template inputs and finite macro choices.
 Sources: [style declaration](../packages/core/src/macro/style.ts),
 [input checks](../packages/core/src/macro/input.ts).
 
-## Playground editor state
-
-The Playground reports `Cannot set null/undefined state` browser errors during static
-acceptance. Trace the Monaco state update that receives the missing value. Confirm that
-formatting, completion, and HMR complete with an empty browser error list.
-
-Source: [static acceptance](../e2e/play/src/static.test.ts).
-
 ## Semantic fingerprints and prefix rewriting
 
 Semantic revisions hash `Debug` representations of facts and asset metadata in

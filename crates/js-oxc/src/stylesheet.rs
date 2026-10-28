@@ -112,6 +112,9 @@ impl<'a> MacroExtractor<'a> {
                     self.css_input_error(expression, "the template contains an invalid escape");
                     return;
                 };
+                let Some(value) = self.unicode_string(*value, template.span) else {
+                    return;
+                };
                 let template_span = self.source_span(template.span);
                 inputs.push(CssInput {
                     variants: variants.to_vec(),
@@ -247,6 +250,7 @@ impl<'a> MacroExtractor<'a> {
                         .quasis
                         .first()
                         .and_then(|quasi| quasi.value.cooked.as_ref())
+                        .and_then(|value| self.unicode_string(*value, template.span))
                         .map(|value| {
                             let span = self.source_span(template.span);
                             Spanned::new(
@@ -303,6 +307,6 @@ fn is_options(object: &ObjectExpression<'_>) -> bool {
                 && property
                     .key
                     .static_name()
-                    .is_some_and(|name| OPTIONS.contains(&name.as_ref()))
+                    .is_some_and(|name| name.as_str().is_some_and(|name| OPTIONS.contains(&name)))
         })
 }

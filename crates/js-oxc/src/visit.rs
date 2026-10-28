@@ -44,8 +44,12 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// contribute style symbols, and only non-macro imports contribute
     /// [`ImportBinding`]s.
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
+        let source = self
+            .unicode_string(declaration.source.value, declaration.source.span)
+            .unwrap_or_default()
+            .to_lean_str();
         self.module_specifiers.push(ModuleSpecifier {
-            source: declaration.source.value.to_lean_str(),
+            source: source.clone(),
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
@@ -67,7 +71,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 };
                 self.imports.push(ImportBinding {
                     local: local.clone(),
-                    source: declaration.source.value.to_lean_str(),
+                    source: source.clone(),
                     imported,
                 });
             }
@@ -119,15 +123,19 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// The re-export edge keeps both spellings, so a consumer can follow the chain
     /// without re-parsing this module.
     fn visit_export_from_declaration(&mut self, declaration: &ExportFromDeclaration<'a>) {
+        let source = self
+            .unicode_string(declaration.source.value, declaration.source.span)
+            .unwrap_or_default()
+            .to_lean_str();
         self.module_specifiers.push(ModuleSpecifier {
-            source: declaration.source.value.to_lean_str(),
+            source: source.clone(),
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
         for specifier in &declaration.specifiers {
             self.re_exports.push(ReExport {
                 exported: Self::module_export_name(&specifier.exported),
-                source: declaration.source.value.to_lean_str(),
+                source: source.clone(),
                 imported: Self::module_export_name(&specifier.local),
             });
         }
@@ -139,8 +147,12 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// A named `export * as ns from` keeps its exported name, so the star form is
     /// distinguishable from a genuine `*` re-export.
     fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
+        let source = self
+            .unicode_string(declaration.source.value, declaration.source.span)
+            .unwrap_or_default()
+            .to_lean_str();
         self.module_specifiers.push(ModuleSpecifier {
-            source: declaration.source.value.to_lean_str(),
+            source: source.clone(),
             start: declaration.source.span.start,
             end: declaration.source.span.end,
         });
@@ -149,7 +161,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
                 .exported
                 .as_ref()
                 .map_or_else(|| "*".to_lean_str(), Self::module_export_name),
-            source: declaration.source.value.to_lean_str(),
+            source: source.clone(),
             imported: "*".to_lean_str(),
         });
         walk::walk_export_all_declaration(self, declaration);

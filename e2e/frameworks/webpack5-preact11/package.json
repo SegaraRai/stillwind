@@ -4,19 +4,19 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "preact": "11.0.1",
+    "preact": "11.0.2",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.18",
+    "@swc/core": "1.16.20",
     "@types/node": "catalog:",
     "html-webpack-plugin": "5.6.8",
     "swc-loader": "0.2.7",
     "typescript": "catalog:",
     "vite-plus": "catalog:",
-    "webpack": "5.112.0",
+    "webpack": "5.112.2",
     "webpack-dev-server": "6.1.0"
   }
 }

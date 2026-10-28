@@ -8,11 +8,11 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@babel/core": "7.29.7",
-    "@babel/preset-typescript": "7.29.7",
+    "@babel/core": "8.0.9",
+    "@babel/preset-typescript": "8.0.7",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.18",
+    "@swc/core": "1.16.20",
     "@types/node": "catalog:",
     "babel-loader": "10.1.1",
     "babel-preset-solid": "1.9.16",
@@ -20,7 +20,7 @@
     "swc-loader": "0.2.7",
     "typescript": "catalog:",
     "vite-plus": "catalog:",
-    "webpack": "5.112.0",
+    "webpack": "5.112.2",
     "webpack-dev-server": "6.1.0"
   }
 }
