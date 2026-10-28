@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { createRoot } from "react-dom/client";
 import { style } from "stillwind/react";
 import type * as vscode from "vscode";
 
@@ -18,11 +17,6 @@ import { encodeState } from "./workspace/permalink.ts";
 import { presets } from "./workspace/presets.ts";
 import { captureState, resolveStart, type Start } from "./workspace/start.ts";
 
-import "@fontsource/instrument-sans/400.css";
-import "@fontsource/instrument-sans/500.css";
-import "@fontsource/instrument-sans/600.css";
-import "./styles.css";
-
 const navLink = style(
   "inline-flex items-center text-muted whitespace-nowrap rounded-control hover:text-foreground",
 );
@@ -34,7 +28,11 @@ const nextTheme = {
   dark: "system",
 } as const;
 
-function Playground() {
+/**
+ * Renders the whole playground. It reads browser state while rendering, so the page mounts it
+ * only on the client.
+ */
+export default function Playground() {
   const editor = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const outputHost = useRef<HTMLDivElement>(null);
@@ -682,5 +680,3 @@ function Playground() {
     </div>
   );
 }
-
-createRoot(document.getElementById("root")!).render(<Playground />);

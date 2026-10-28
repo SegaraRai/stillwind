@@ -70,3 +70,8 @@ minimumReleaseAgeExclude:
   - "@solidjs/signals@2.0.0-rc.19"
   - "@solidjs/web@2.0.0-rc.19"
   - solid-js@2.0.0-rc.19
+  - "@astrojs/react@7.1.2"
+  - "@astrojs/markdown-satteri@0.4.6"
+  - "@astrojs/prism@4.1.2"
+  - "@astrojs/telemetry@3.4.2"
+  - astro@7.4.3

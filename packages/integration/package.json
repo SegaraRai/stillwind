@@ -81,7 +81,7 @@
     "@swc/core": "^1.16.20",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.10",
-    "astro": "^7.4.2",
+    "astro": "^7.4.3",
     "css-loader": "^7.1.5",
     "next": "^16.4.3",
     "nuxt": "^4.6.3",

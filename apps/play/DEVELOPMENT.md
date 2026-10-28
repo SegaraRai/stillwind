@@ -1,6 +1,9 @@
 # Playground development
 
-The playground serves static files. Monaco uses VS Code services and the built-in
+The playground is a static Astro site. `src/pages/index.astro` renders the document head,
+including the title, description, canonical URL, and Open Graph and Twitter card tags, and it
+mounts `src/Playground.tsx` with `client:only="react"`. The playground reads browser state while
+rendering, so the build emits no HTML for it. Monaco uses VS Code services and the built-in
 TypeScript extension. The public Stillwind Web extension supplies compiler diagnostics
 and Quick Fixes. Application builds run separately in a worker with the browser build
 of Rolldown. Its JSX transform adds React Refresh registrations, and React Refresh updates a
@@ -19,7 +22,9 @@ vp run @stillwind-internal/apps-play#dev
 vp run @stillwind-internal/apps-play#build
 ```
 
-Serve `dist/site` with `Cross-Origin-Opener-Policy: same-origin` and
+`build/assets.ts` writes the static assets and the files from `public/` to
+`dist/assets-static`, which Astro uses as its public directory. Serve `dist/site` with
+`Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: require-corp`. The generated `_headers` file uses the
 Netlify/Cloudflare Pages format. The threaded WASM compiler requires these headers.
 
@@ -105,13 +110,15 @@ automatically.
 
 ## Interface styles
 
-The playground interface uses Stillwind through the Vite integration. `stillwind.config.ts`
-selects `src/styles.css` for `src/**/*.tsx`. `src/theme.css` uses the website's token
+The playground interface uses Stillwind through the Astro integration, which adds the
+stylesheet to the page. `stillwind.config.ts` selects `src/styles.css` for `src/**/*.tsx` and
+`src/**/*.astro`. `src/theme.css` uses the website's token
 names, type scale, fonts, and light and dark palettes with `light-dark()`.
 
 The theme button cycles through system, light, and dark. The playground stores the choice
 under the website's `stillwind:theme` local storage key and sets `data-theme` on the root
-element, and `index.html` applies the stored choice before the first paint. Monaco uses the
+element, and an inline script in `src/pages/index.astro` applies the stored choice before the
+first paint. Monaco uses the
 Default Light Modern or Default Dark Modern theme with colors resolved from the tokens, and
 the playground updates them when the color scheme changes. `src/icons/stillwind` contains the logo icons
 from the website and the colored mark for `stillwind.config.ts`.

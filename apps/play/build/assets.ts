@@ -71,6 +71,7 @@ await collect(
   "/workspace/node_modules/csstype",
 );
 await writeFile(path.join(output, "workspace.json"), JSON.stringify(files));
+await cp(path.join(root, "public"), output, { recursive: true });
 await cp(
   path.resolve(root, "../../packages/vscode-extension/dist/extension"),
   path.join(output, "extensions/stillwind"),
