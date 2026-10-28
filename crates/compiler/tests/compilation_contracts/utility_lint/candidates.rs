@@ -268,6 +268,42 @@ fn contradicting_variants_and_clamped_values_cover_their_part() {
 }
 
 #[test]
+fn arbitrary_percentages_follow_the_grammar_of_the_target_property() {
+    let options = CompilerOptions::default();
+    let incompatible = |utilities: &str| {
+        let (_, result) = compile_utilities(utilities, &options);
+        result
+            .lint_findings
+            .iter()
+            .any(|finding| finding.kind() == LintKind::IncompatiblePropertyValue)
+    };
+    for utilities in [
+        "ms-[27%]",
+        "-ms-[27%]",
+        "w-[calc(50%_+_1px)]",
+        "size-[50%]",
+        "space-x-[10%]",
+        "text-[120%]",
+        "text-sm/[150%]",
+        "stroke-[50%]",
+        "mask-l-from-[30%]",
+        "translate-x-[10%]",
+        "leading-[150%]",
+        "rounded-s-[50%]",
+    ] {
+        assert!(!incompatible(utilities), "{utilities}");
+    }
+    for utilities in [
+        "scroll-m-[5%]",
+        "outline-offset-[5%]",
+        "translate-z-[5%]",
+        "perspective-[5%]",
+    ] {
+        assert!(incompatible(utilities), "{utilities}");
+    }
+}
+
+#[test]
 fn variables_of_known_types_and_opacity_modifiers_report_invalid_values() {
     let options = CompilerOptions::default();
     for (utilities, covered, variable) in [

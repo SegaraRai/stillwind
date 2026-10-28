@@ -242,12 +242,12 @@
     --fraction(),
     auto,
     --stillwind-builtin-width(),
-    [length]
+    [length-percentage]
   );
 }
 
 @stillwind-utility basis-* {
-  flex-basis: --value(--spacing-*, --spacing(), [length]);
+  flex-basis: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 /* MARK: `grid-auto-columns`, `grid-auto-flow`, and `grid-auto-rows` */
@@ -633,19 +633,19 @@
 @stillwind-arbitrary-property gap;
 
 @stillwind-utility gap-* {
-  gap: --value(--spacing-*, --spacing(), [length]);
+  gap: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property column-gap;
 
 @stillwind-utility gap-x-* {
-  column-gap: --value(--spacing-*, --spacing(), [length]);
+  column-gap: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property row-gap;
 
 @stillwind-utility gap-y-* {
-  row-gap: --value(--spacing-*, --spacing(), [length]);
+  row-gap: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 /* MARK: `place-self`, `align-self`, and `justify-self` */

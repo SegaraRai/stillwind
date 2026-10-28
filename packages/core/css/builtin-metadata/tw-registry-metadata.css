@@ -27,9 +27,9 @@ arguments name keys with fixed values.
 @stillwind-theme-namespace --font-stretch-* [percentage];
 @stillwind-theme-namespace --font-weight-* [font-weight];
 @stillwind-theme-namespace --inset-shadow-* [shadow];
-@stillwind-theme-namespace --leading-* [number] [length];
+@stillwind-theme-namespace --leading-* [number] [length-percentage];
 @stillwind-theme-namespace --perspective-* [length];
-@stillwind-theme-namespace --radius-* [length];
+@stillwind-theme-namespace --radius-* [length-percentage];
 @stillwind-theme-namespace --shadow-* [shadow];
 @stillwind-theme-namespace --spacing-* [length] scale(px: 1px);
 @stillwind-theme-namespace --text-* [font-size];

@@ -46,5 +46,5 @@ Tailwind.
 @stillwind-arbitrary-property stroke-width;
 
 @stillwind-utility stroke-* {
-  stroke-width: --value(integer, [length]);
+  stroke-width: --value(integer, [length-percentage]);
 }

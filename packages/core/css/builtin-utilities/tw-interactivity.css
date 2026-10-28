@@ -438,67 +438,67 @@
 @stillwind-arbitrary-property scroll-padding;
 
 @stillwind-utility scroll-p-* {
-  scroll-padding: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-inline;
 
 @stillwind-utility scroll-px-* {
-  scroll-padding-inline: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-inline: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-block;
 
 @stillwind-utility scroll-py-* {
-  scroll-padding-block: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-block: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-inline-start;
 
 @stillwind-utility scroll-ps-* {
-  scroll-padding-inline-start: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-inline-start: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-inline-end;
 
 @stillwind-utility scroll-pe-* {
-  scroll-padding-inline-end: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-inline-end: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-block-start;
 
 @stillwind-utility scroll-pbs-* {
-  scroll-padding-block-start: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-block-start: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-block-end;
 
 @stillwind-utility scroll-pbe-* {
-  scroll-padding-block-end: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-block-end: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-top;
 
 @stillwind-utility scroll-pt-* {
-  scroll-padding-top: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-top: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-right;
 
 @stillwind-utility scroll-pr-* {
-  scroll-padding-right: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-right: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-bottom;
 
 @stillwind-utility scroll-pb-* {
-  scroll-padding-bottom: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-bottom: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 @stillwind-arbitrary-property scroll-padding-left;
 
 @stillwind-utility scroll-pl-* {
-  scroll-padding-left: --value(--spacing-*, --spacing(), [length]);
+  scroll-padding-left: --value(--spacing-*, --spacing(), [length-percentage]);
 }
 
 /* MARK: Scrollbar Width, Color, and Gutter */

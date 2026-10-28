@@ -118,7 +118,7 @@
 }
 
 @stillwind-utility inset-* {
-  inset: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-full {
@@ -126,7 +126,7 @@
 }
 
 @stillwind-utility -inset-* {
-  inset: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility inset-x-auto {
@@ -138,7 +138,7 @@
 }
 
 @stillwind-utility inset-x-* {
-  inset-inline: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-inline: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-x-full {
@@ -146,7 +146,7 @@
 }
 
 @stillwind-utility -inset-x-* {
-  inset-inline: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-inline: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility inset-y-auto {
@@ -158,7 +158,7 @@
 }
 
 @stillwind-utility inset-y-* {
-  inset-block: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-block: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-y-full {
@@ -166,7 +166,7 @@
 }
 
 @stillwind-utility -inset-y-* {
-  inset-block: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-block: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility inset-s-auto {
@@ -178,7 +178,7 @@
 }
 
 @stillwind-utility inset-s-* {
-  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-s-full {
@@ -186,7 +186,9 @@
 }
 
 @stillwind-utility -inset-s-* {
-  inset-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-inline-start: calc(
+    --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+  );
 }
 
 @stillwind-utility start-auto {
@@ -198,7 +200,7 @@
 }
 
 @stillwind-utility start-* {
-  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-inline-start: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -start-full {
@@ -206,7 +208,9 @@
 }
 
 @stillwind-utility -start-* {
-  inset-inline-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-inline-start: calc(
+    --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+  );
 }
 
 @stillwind-utility end-auto {
@@ -218,7 +222,7 @@
 }
 
 @stillwind-utility end-* {
-  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -end-full {
@@ -226,7 +230,7 @@
 }
 
 @stillwind-utility -end-* {
-  inset-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility inset-e-auto {
@@ -238,7 +242,7 @@
 }
 
 @stillwind-utility inset-e-* {
-  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-inline-end: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-e-full {
@@ -246,7 +250,7 @@
 }
 
 @stillwind-utility -inset-e-* {
-  inset-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-inline-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility inset-bs-auto {
@@ -258,7 +262,7 @@
 }
 
 @stillwind-utility inset-bs-* {
-  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-block-start: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-bs-full {
@@ -266,7 +270,9 @@
 }
 
 @stillwind-utility -inset-bs-* {
-  inset-block-start: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-block-start: calc(
+    --value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1
+  );
 }
 
 @stillwind-utility inset-be-auto {
@@ -278,7 +284,7 @@
 }
 
 @stillwind-utility inset-be-* {
-  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  inset-block-end: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -inset-be-full {
@@ -286,7 +292,7 @@
 }
 
 @stillwind-utility -inset-be-* {
-  inset-block-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  inset-block-end: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility top-auto {
@@ -298,7 +304,7 @@
 }
 
 @stillwind-utility top-* {
-  top: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  top: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -top-full {
@@ -306,7 +312,7 @@
 }
 
 @stillwind-utility -top-* {
-  top: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  top: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility right-auto {
@@ -318,7 +324,7 @@
 }
 
 @stillwind-utility right-* {
-  right: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  right: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -right-full {
@@ -326,7 +332,7 @@
 }
 
 @stillwind-utility -right-* {
-  right: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  right: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility bottom-auto {
@@ -338,7 +344,7 @@
 }
 
 @stillwind-utility bottom-* {
-  bottom: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  bottom: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -bottom-full {
@@ -346,7 +352,7 @@
 }
 
 @stillwind-utility -bottom-* {
-  bottom: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  bottom: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 @stillwind-utility left-auto {
@@ -358,7 +364,7 @@
 }
 
 @stillwind-utility left-* {
-  left: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  left: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -left-full {
@@ -366,7 +372,7 @@
 }
 
 @stillwind-utility -left-* {
-  left: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  left: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 /* MARK: `isolation` */

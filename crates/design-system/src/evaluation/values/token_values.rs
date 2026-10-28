@@ -98,7 +98,11 @@ mod tests {
             ("--spacing", "red", Some("length")),
             ("--container-card", "auto", Some("length")),
             ("--text-huge", "red", Some("font-size")),
-            ("--leading-loose", "red", Some("number or length")),
+            (
+                "--leading-loose",
+                "red",
+                Some("number or length-percentage"),
+            ),
             ("--duration-slow", "10px", Some("time")),
             ("--shadow-card", "0 1px 2px red, 12px", Some("shadow")),
             ("--color-brand", "oklch(60% 0.2 25)", None),

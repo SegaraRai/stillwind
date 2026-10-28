@@ -11,13 +11,18 @@
     var(--tw-mask-top-from-color) var(--tw-mask-top-from-position),
     var(--tw-mask-top-to-color) var(--tw-mask-top-to-position)
   );
-  --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   --tw-mask-bottom: linear-gradient(
     to bottom,
     var(--tw-mask-bottom-from-color) var(--tw-mask-bottom-from-position),
     var(--tw-mask-bottom-to-color) var(--tw-mask-bottom-to-position)
   );
-  --tw-mask-bottom-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom-from-position: --value(
+    --spacing-*,
+    --spacing(),
+    percentage,
+    [length-percentage]
+  );
   mask-composite: intersect;
 }
 
@@ -78,7 +83,7 @@
     var(--tw-mask-top-from-color) var(--tw-mask-top-from-position),
     var(--tw-mask-top-to-color) var(--tw-mask-top-to-position)
   );
-  --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-top-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-top-from-color;
@@ -121,13 +126,13 @@
     var(--tw-mask-top-from-color) var(--tw-mask-top-from-position),
     var(--tw-mask-top-to-color) var(--tw-mask-top-to-position)
   );
-  --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   --tw-mask-bottom: linear-gradient(
     to bottom,
     var(--tw-mask-bottom-from-color) var(--tw-mask-bottom-from-position),
     var(--tw-mask-bottom-to-color) var(--tw-mask-bottom-to-position)
   );
-  --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   mask-composite: intersect;
 }
 
@@ -187,7 +192,7 @@
     var(--tw-mask-top-from-color) var(--tw-mask-top-from-position),
     var(--tw-mask-top-to-color) var(--tw-mask-top-to-position)
   );
-  --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-top-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-top-to-color;
@@ -230,13 +235,13 @@
     var(--tw-mask-right-from-color) var(--tw-mask-right-from-position),
     var(--tw-mask-right-to-color) var(--tw-mask-right-to-position)
   );
-  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   --tw-mask-left: linear-gradient(
     to left,
     var(--tw-mask-left-from-color) var(--tw-mask-left-from-position),
     var(--tw-mask-left-to-color) var(--tw-mask-left-to-position)
   );
-  --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   mask-composite: intersect;
 }
 
@@ -297,7 +302,7 @@
     var(--tw-mask-right-from-color) var(--tw-mask-right-from-position),
     var(--tw-mask-right-to-color) var(--tw-mask-right-to-position)
   );
-  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-right-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-right-from-color;
@@ -340,13 +345,13 @@
     var(--tw-mask-right-from-color) var(--tw-mask-right-from-position),
     var(--tw-mask-right-to-color) var(--tw-mask-right-to-position)
   );
-  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   --tw-mask-left: linear-gradient(
     to left,
     var(--tw-mask-left-from-color) var(--tw-mask-left-from-position),
     var(--tw-mask-left-to-color) var(--tw-mask-left-to-position)
   );
-  --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
   mask-composite: intersect;
 }
 
@@ -406,7 +411,7 @@
     var(--tw-mask-right-from-color) var(--tw-mask-right-from-position),
     var(--tw-mask-right-to-color) var(--tw-mask-right-to-position)
   );
-  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-right-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-right-to-color;
@@ -453,7 +458,12 @@
     var(--tw-mask-bottom-from-color) var(--tw-mask-bottom-from-position),
     var(--tw-mask-bottom-to-color) var(--tw-mask-bottom-to-position)
   );
-  --tw-mask-bottom-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom-from-position: --value(
+    --spacing-*,
+    --spacing(),
+    percentage,
+    [length-percentage]
+  );
 }
 
 @stillwind-arbitrary-property --tw-mask-bottom-from-color;
@@ -499,7 +509,7 @@
     var(--tw-mask-bottom-from-color) var(--tw-mask-bottom-from-position),
     var(--tw-mask-bottom-to-color) var(--tw-mask-bottom-to-position)
   );
-  --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-bottom-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-bottom-to-color;
@@ -546,7 +556,7 @@
     var(--tw-mask-left-from-color) var(--tw-mask-left-from-position),
     var(--tw-mask-left-to-color) var(--tw-mask-left-to-position)
   );
-  --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-left-from-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-left-from-color;
@@ -592,7 +602,7 @@
     var(--tw-mask-left-from-color) var(--tw-mask-left-from-position),
     var(--tw-mask-left-to-color) var(--tw-mask-left-to-position)
   );
-  --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-left-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-left-to-color;
@@ -667,7 +677,12 @@
     var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
     var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
-  --tw-mask-linear-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-linear-from-position: --value(
+    --spacing-*,
+    --spacing(),
+    percentage,
+    [length-percentage]
+  );
 }
 
 @stillwind-arbitrary-property --tw-mask-linear-from-color;
@@ -718,7 +733,7 @@
     var(--tw-mask-linear-from-color) var(--tw-mask-linear-from-position),
     var(--tw-mask-linear-to-color) var(--tw-mask-linear-to-position);
   --tw-mask-linear: linear-gradient(var(--tw-mask-linear-stops));
-  --tw-mask-linear-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-linear-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-linear-to-color;
@@ -782,7 +797,12 @@
     var(--tw-mask-radial-from-color) var(--tw-mask-radial-from-position),
     var(--tw-mask-radial-to-color) var(--tw-mask-radial-to-position);
   --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
-  --tw-mask-radial-from-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-radial-from-position: --value(
+    --spacing-*,
+    --spacing(),
+    percentage,
+    [length-percentage]
+  );
 }
 
 @stillwind-arbitrary-property --tw-mask-radial-from-color;
@@ -822,7 +842,7 @@
     var(--tw-mask-radial-from-color) var(--tw-mask-radial-from-position),
     var(--tw-mask-radial-to-color) var(--tw-mask-radial-to-position);
   --tw-mask-radial: radial-gradient(var(--tw-mask-radial-stops));
-  --tw-mask-radial-to-position: --value(--spacing-*, --spacing(), percentage, [length]);
+  --tw-mask-radial-to-position: --value(--spacing-*, --spacing(), percentage, [length-percentage]);
 }
 
 @stillwind-arbitrary-property --tw-mask-radial-to-color;

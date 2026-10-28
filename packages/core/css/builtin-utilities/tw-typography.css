@@ -159,11 +159,11 @@
 @stillwind-arbitrary-property text-indent;
 
 @stillwind-utility indent-* {
-  text-indent: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  text-indent: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
 }
 
 @stillwind-utility -indent-* {
-  text-indent: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  text-indent: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
 }
 
 /* MARK: `vertical-align` */
@@ -254,7 +254,7 @@ Tailwind.
 @stillwind-arbitrary-property font-size;
 
 @stillwind-utility text-* {
-  font-size: --value(--text-*, [length]);
+  font-size: --value(--text-*, [length-percentage]);
 }
 
 @stillwind-utility text-* {
@@ -270,7 +270,7 @@ Tailwind.
 
 @stillwind-utility text-* {
   font-size: --value(--text-*);
-  line-height: --modifier(--leading-*, --spacing(), [length]);
+  line-height: --modifier(--leading-*, --spacing(), [length-percentage]);
 }
 
 /* MARK: `line-height` */
@@ -291,8 +291,8 @@ Tailwind.
 }
 
 @stillwind-utility leading-* {
-  --tw-leading: --value(--leading-*, --spacing(), number, [length]);
-  line-height: --value(--leading-*, --spacing(), number, [length]);
+  --tw-leading: --value(--leading-*, --spacing(), number, [length-percentage]);
+  line-height: --value(--leading-*, --spacing(), number, [length-percentage]);
 }
 
 /* MARK: `font-weight` */
@@ -690,7 +690,7 @@ Tailwind.
 }
 
 @stillwind-utility underline-offset-* {
-  text-underline-offset: --value(--text-underline-offset-*, [length]);
+  text-underline-offset: --value(--text-underline-offset-*, [length-percentage]);
 }
 
 @stillwind-utility underline-offset-* {
@@ -698,7 +698,7 @@ Tailwind.
 }
 
 @stillwind-utility -underline-offset-* {
-  text-underline-offset: calc(--value(--text-underline-offset-*, [length]) * -1);
+  text-underline-offset: calc(--value(--text-underline-offset-*, [length-percentage]) * -1);
 }
 
 @stillwind-utility -underline-offset-* {

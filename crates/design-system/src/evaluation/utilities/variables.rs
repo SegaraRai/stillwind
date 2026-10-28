@@ -198,7 +198,7 @@ mod tests {
                 "color:var(--text-sm);",
                 "font-size",
                 VariableTypeSource::Theme("text".into()),
-                &["length"],
+                &["length-percentage"],
             ),
         ] {
             let resolved = resolve_utility(raw, &theme).unwrap().unwrap();

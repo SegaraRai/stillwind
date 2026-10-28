@@ -64,8 +64,8 @@
 }
 
 @stillwind-utility translate-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length]);
-  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -76,8 +76,8 @@
 }
 
 @stillwind-utility -translate-* {
-  --tw-translate-x: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
-  --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  --tw-translate-x: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
+  --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -99,7 +99,7 @@
 }
 
 @stillwind-utility translate-x-* {
-  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  --tw-translate-x: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -114,7 +114,7 @@
 }
 
 @stillwind-utility -translate-x-* {
-  --tw-translate-x: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  --tw-translate-x: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -136,7 +136,7 @@
 }
 
 @stillwind-utility translate-y-* {
-  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length]);
+  --tw-translate-y: --value(--spacing-*, --spacing(), --fraction(), [length-percentage]);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 
@@ -151,7 +151,7 @@
 }
 
 @stillwind-utility -translate-y-* {
-  --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length]) * -1);
+  --tw-translate-y: calc(--value(--spacing-*, --spacing(), --fraction(), [length-percentage]) * -1);
   translate: var(--tw-translate-x) var(--tw-translate-y);
 }
 

@@ -615,7 +615,7 @@ mod tests {
                 "color",
                 "12px foo",
                 "[12px_foo]",
-                &["color", "length"],
+                &["color", "length-percentage"],
             ),
             ("[width:1/2]", "width:1/2;", "width", "1/2", "1/2", &[]),
             (
