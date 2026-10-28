@@ -435,9 +435,15 @@ importers:
       '@iconify-json/mdi':
         specifier: ^1.2.3
         version: 1.2.3
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.101
+        version: 1.2.101
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:../../tools/workspace
+      '@stillwind/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@stillwind/host':
         specifier: workspace:*
         version: link:../../packages/host

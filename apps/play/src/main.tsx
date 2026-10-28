@@ -247,7 +247,7 @@ function Play() {
           />
           <div
             {...style(
-              "grid min-block-0 grid-cols-[minmax(0,1fr)_minmax(20rem,var(--results))]",
+              "grid min-block-0 grid-cols-[minmax(0,1fr)_minmax(20rem,min(var(--results),calc(100%-20rem)))]",
               "max-workbench:grid-cols-1 max-workbench:grid-rows-2",
               { "--results": `${results}px` },
             )}

@@ -13,6 +13,7 @@ export const fileIcon = style({
   "data-[type=svg]:": "icon-file--svg text-file-svg",
   "data-[type=image]:": "icon-lucide--image text-file-image",
   "data-[type=html]:": "icon-file--html text-file-html",
+  "data-[type=tsconfig]:": "icon-simple-icons--typescript text-file-typescript",
   "data-[type=json]:": "icon-file--json text-file-json",
   "data-[type=markdown]:": "icon-simple-icons--markdown text-file-markdown",
   "data-[type=plaintext]:": "icon-lucide--file-text text-file-plaintext",
@@ -95,6 +96,12 @@ export function getFileInfo(filename: string): FileInfo {
     return {
       type: "html",
       label: "HTML",
+    };
+  }
+  if (/(?:^|\/)tsconfig\.json$/i.test(filename)) {
+    return {
+      type: "tsconfig",
+      label: "TypeScript Config",
     };
   }
   if (/\.json$/i.test(filename)) {

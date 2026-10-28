@@ -1,0 +1,62 @@
+@import "stillwind";
+@plugin "@stillwind/plugin-iconify";
+
+/*
+Tokens are named by their role, not their value. light-dark() picks the first value in a light
+color scheme and the second in a dark one, so components use the same utilities in both themes.
+*/
+@theme {
+  --color-canvas: light-dark(oklch(0.97 0.01 250), oklch(0.17 0.02 260));
+  --color-surface: light-dark(oklch(1 0 0), oklch(0.22 0.025 260));
+  --color-surface-muted: light-dark(
+    oklch(0.95 0.012 250),
+    oklch(0.28 0.03 260)
+  );
+  --color-foreground: light-dark(oklch(0.24 0.03 260), oklch(0.95 0.01 250));
+  --color-muted: light-dark(oklch(0.5 0.03 260), oklch(0.72 0.03 255));
+  --color-border: light-dark(oklch(0.9 0.012 250), oklch(0.33 0.03 260));
+  --color-action: light-dark(oklch(0.52 0.19 262), oklch(0.76 0.13 250));
+  --color-action-foreground: light-dark(oklch(0.99 0 0), oklch(0.2 0.05 262));
+  --color-success: light-dark(oklch(0.52 0.13 155), oklch(0.78 0.14 155));
+  --color-warning: light-dark(oklch(0.56 0.13 70), oklch(0.83 0.13 80));
+  --color-danger: light-dark(oklch(0.55 0.19 25), oklch(0.75 0.14 25));
+
+  --spacing-gutter: 1.5rem;
+  --spacing-panel: 1.25rem;
+
+  --radius-control: 0.5rem;
+  --radius-panel: 0.875rem;
+
+  --icon-size-control: 1rem;
+
+  --text-title: 1.75rem;
+  --text-title--line-height: 1.2;
+
+  --shadow-panel:
+    0 1px 2px oklch(0.2 0.03 260 / 0.08), 0 8px 24px oklch(0.2 0.03 260 / 0.06);
+
+  --container-page: 60rem;
+  --container-summary: 17rem;
+
+  /* The task list and the summary sit side by side from this width. */
+  --breakpoint-sidebar: 48rem;
+}
+
+/* Matches pointer hover and keyboard focus, so both input methods get the same feedback. */
+@custom-variant hocus {
+  &:hover,
+  &:focus-visible {
+    @slot;
+  }
+}
+
+/* Focus indicator shared by every interactive element. */
+@utility focus-ring {
+  @apply outline-2 outline-offset-2 outline-action;
+}
+
+/* Tinted label in a color token, such as `badge-danger`. */
+@utility badge-* {
+  color: --value(--color-*);
+  background-color: color-mix(in oklab, --value(--color-*) 14%, transparent);
+}

@@ -3,7 +3,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
   fmt: {
-    ignorePatterns: ["packages/native/binding.d.ts"],
+    ignorePatterns: ["apps/play/example/**", "packages/native/binding.d.ts"],
     sortImports: true,
     sortPackageJson: true,
     astro: true,
@@ -109,7 +109,7 @@ export default defineConfig(({ mode }) => ({
       // fmt
       fmt: {
         command: "",
-        dependsOn: ["fmt:js", "fmt:rust"],
+        dependsOn: ["fmt:js", "fmt:rust", "@stillwind-internal/apps-play#fmt:example"],
       },
       "fmt:check": {
         command: "",
@@ -161,7 +161,13 @@ export default defineConfig(({ mode }) => ({
       // check
       check: {
         command: "",
-        dependsOn: ["fmt:check", "lint", "typecheck", "check:generated"],
+        dependsOn: [
+          "fmt:check",
+          "lint",
+          "typecheck",
+          "check:generated",
+          "@stillwind-internal/apps-play#check:example",
+        ],
       },
       "check:generated": {
         command: "",

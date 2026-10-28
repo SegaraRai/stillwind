@@ -20,9 +20,24 @@ Netlify/Cloudflare Pages format. The threaded WASM compiler requires these heade
 
 ## Workspace and preview
 
-The initial workspace contains `Component.tsx`, an imported style module, a stylesheet,
-`stillwind.config.ts`, and `tsconfig.json`. Its CSS loads the Iconify plugin, and the
-workspace bundles the `mdi`, `lucide`, and `fluent-emoji-flat` icon sets.
+The initial workspace is a release checklist that shows recommended Stillwind usage.
+Its files live in `example/`, and Vite embeds them as text when it builds the site.
+`Component.tsx` renders the page from `ThemeSwitch.tsx`, `tasks.ts`, and the shared styles in
+`styles.ts`. `stillwind.css` defines tokens by role with `light-dark()`, a custom variant, and
+custom utilities, and it loads the Iconify plugin. `stillwind.config.ts` enables lint rules
+that report values outside the theme. The workspace bundles the `mdi`, `lucide`, and
+`fluent-emoji-flat` icon sets.
+
+The demo must have no Stillwind lint findings and must keep Prettier's default formatting and
+Stillwind's utility order, so the Format and Fix buttons leave it unchanged. `vp fmt` skips
+`example/` because its settings differ from Prettier's defaults. Run the checks with:
+
+```sh
+vp run @stillwind-internal/apps-play#check:example
+```
+
+The repository `check` task includes them. `e2e/play` edits the demo files by their text, so
+update its replacements when the demo changes.
 The explorer can add local source files. Site builds bundle runtime dependencies
 and React declarations.
 
