@@ -55,9 +55,9 @@ for (const [index, property] of properties.entries()) {
 const rust = `//! Generated from tailwindcss ${version} by tools/tailwind/utility-order.ts.
 //! Property indices used by the Tailwind utility comparator.
 
-pub(super) const PROPERTIES: &[&str] = &[
+pub(super) static PROPERTIES: phf::OrderedSet<&'static str> = phf::phf_ordered_set! {
 ${properties.map((property) => `    ${JSON.stringify(property)},`).join("\n")}
-];
+};
 `;
 if (check) {
   if (readFileSync(propertyPath, "utf8").replace(/\r\n/g, "\n") !== rust) {

@@ -47,10 +47,9 @@ pub(super) fn webref_property(name: &str) -> Option<&'static WebrefPropertySynta
     } else {
         Cow::Borrowed(name)
     };
-    WEBREF_PROPERTIES
-        .binary_search_by(|property| property.name.cmp(name.as_ref()))
-        .ok()
-        .map(|index| &WEBREF_PROPERTIES[index])
+    WEBREF_PROPERTY_INDEX
+        .get(name.as_ref())
+        .map(|index| &WEBREF_PROPERTIES[*index])
 }
 
 /// Returns the CSSWG Web Living Standard's formal value syntax for a CSS

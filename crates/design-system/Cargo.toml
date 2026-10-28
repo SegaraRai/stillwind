@@ -17,6 +17,7 @@ stillwind-syntax = { path = "../syntax" }
 cssparser.workspace = true
 lean_string.workspace = true
 lightningcss.workspace = true
+phf.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

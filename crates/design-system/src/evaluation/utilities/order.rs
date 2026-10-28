@@ -70,8 +70,7 @@ impl UtilityPropertySort {
     ) -> Self {
         let mut properties = BTreeSet::new();
         let mut count = usize::from(tw_sort.is_some());
-        let override_index =
-            tw_sort.and_then(|value| PROPERTIES.iter().position(|name| *name == value));
+        let override_index = tw_sort.and_then(|value| PROPERTIES.get_index(value));
         for group in groups {
             collect_properties(group, &parse_structure(group), &mut properties, &mut count);
         }
@@ -122,7 +121,7 @@ fn collect_properties(
                     continue;
                 }
                 *count += 1;
-                if let Some(index) = PROPERTIES.iter().position(|name| *name == property) {
+                if let Some(index) = PROPERTIES.get_index(property) {
                     properties.insert(index);
                 }
             }
@@ -185,6 +184,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn properties_and_sort_overrides_keep_their_tailwind_indices() {
+        for (index, &property) in PROPERTIES.iter().enumerate() {
+            let declaration = format!("{property}:initial;");
+            assert_eq!(
+                UtilityPropertySort::from_groups([declaration.as_str()], None).properties,
+                [index],
+                "{property}"
+            );
+            assert_eq!(
+                UtilityPropertySort::from_groups(["unregistered:initial;"], Some(property))
+                    .properties,
+                [index],
+                "{property}"
+            );
+        }
+    }
+
+    #[test]
     fn property_sequences_use_infinity_and_counts_include_unknown_empty_and_repeated_declarations()
     {
         let key = |css| UtilityPropertySort::from_groups([css], None);
@@ -198,6 +215,7 @@ mod tests {
             Ordering::Less
         );
         assert_eq!(key("unregistered:1").properties, Vec::<usize>::new());
+        assert_eq!(key("COLOR:red").properties, Vec::<usize>::new());
         assert_eq!(
             key("--tw-sort:margin;color:red").properties,
             key("color:red").properties

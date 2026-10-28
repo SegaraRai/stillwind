@@ -1,7 +1,7 @@
 //! Generated from tailwindcss 4.3.3 by tools/tailwind/utility-order.ts.
 //! Property indices used by the Tailwind utility comparator.
 
-pub(super) const PROPERTIES: &[&str] = &[
+pub(super) static PROPERTIES: phf::OrderedSet<&'static str> = phf::phf_ordered_set! {
     "container-type",
     "pointer-events",
     "visibility",
@@ -361,4 +361,4 @@ pub(super) const PROPERTIES: &[&str] = &[
     "contain",
     "content",
     "forced-color-adjust",
-];
+};
