@@ -71,7 +71,7 @@ self.onmessage = async ({
     const rejectedNames = new Map<string, BrowserStylesheetOutput["rejectedNames"][number]>();
     let css = "";
     const output = await esbuild.build({
-      entryPoints: ["/workspace/Component.tsx"],
+      entryPoints: ["/workspace/App.tsx"],
       bundle: true,
       write: false,
       outdir: "/build",

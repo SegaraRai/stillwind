@@ -28,7 +28,7 @@ function Play() {
   const [outputReady, setOutputReady] = useState(false);
   const [fixable, setFixable] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
-  const [active, setActive] = useState("/workspace/Component.tsx");
+  const [active, setActive] = useState("/workspace/App.tsx");
   const [status, setStatus] = useState("Starting language services");
   const [error, setError] = useState<string>();
   const [result, setResult] = useState<ApplicationBuild>();

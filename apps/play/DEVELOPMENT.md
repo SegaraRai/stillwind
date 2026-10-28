@@ -22,7 +22,7 @@ Netlify/Cloudflare Pages format. The threaded WASM compiler requires these heade
 
 The initial workspace is a release checklist that shows recommended Stillwind usage.
 Its files live in `example/`, and Vite embeds them as text when it builds the site.
-`Component.tsx` renders the page from `ThemeSwitch.tsx`, `tasks.ts`, and the shared styles in
+`App.tsx` renders the page from `ThemeSwitch.tsx`, `tasks.ts`, and the shared styles in
 `styles.ts`. `stillwind.css` defines tokens by role with `light-dark()`, a custom variant, and
 custom utilities, and it loads the Iconify plugin. `stillwind.config.ts` enables lint rules
 that report values outside the theme. The workspace bundles the `mdi`, `lucide`, and
@@ -52,7 +52,7 @@ must be browser-compatible; Node built-ins are unavailable.
 See [Web extension development](../../packages/vscode-extension/DEVELOPMENT.md)
 for the shared editor runtime and analysis embedding.
 
-The preview entry exports `App` or a default React component from `Component.tsx`.
+The preview entry exports `App` or a default React component from `App.tsx`.
 Compatible edits retain component state. Changes to hook order can reset it.
 Build errors retain the last successful preview.
 

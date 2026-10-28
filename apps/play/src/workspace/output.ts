@@ -30,7 +30,7 @@ export class OutputView {
    * Shows one output. Each identifier keeps its own model, so switching back keeps its scroll
    * position until its text changes.
    *
-   * @param id - Stable identifier such as `css:/workspace/Component.tsx`.
+   * @param id - Stable identifier such as `css:/workspace/App.tsx`.
    * @param language - VS Code language ID used for highlighting.
    * @param text - Complete output text.
    */

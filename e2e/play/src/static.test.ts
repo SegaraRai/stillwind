@@ -97,9 +97,9 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     await replace(
       page,
       buffers,
-      "Component.tsx",
-      exampleFiles.get("/workspace/Component.tsx")!,
-      `${exampleFiles.get("/workspace/Component.tsx")!}\nexport const unsorted = style("p-4 flex");\n`,
+      "App.tsx",
+      exampleFiles.get("/workspace/App.tsx")!,
+      `${exampleFiles.get("/workspace/App.tsx")!}\nexport const unsorted = style("p-4 flex");\n`,
     );
     await page.getByRole("button", { name: "Format", exact: true }).click();
     const input = page
@@ -121,28 +121,16 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     await page.keyboard.press("Control+a");
     const formatted = await input.inputValue();
     expect(formatted).toContain('export const unsorted = style("flex p-4");');
-    buffers.set("/workspace/Component.tsx", formatted);
-    await replace(
-      page,
-      buffers,
-      "Component.tsx",
-      formatted,
-      exampleFiles.get("/workspace/Component.tsx")!,
-    );
-    await replace(
-      page,
-      buffers,
-      "Component.tsx",
-      ">Release checklist</h1>",
-      ">Updated component</h1>",
-    );
+    buffers.set("/workspace/App.tsx", formatted);
+    await replace(page, buffers, "App.tsx", formatted, exampleFiles.get("/workspace/App.tsx")!);
+    await replace(page, buffers, "App.tsx", ">Release checklist</h1>", ">Updated component</h1>");
     await frame.getByRole("heading", { name: "Updated component" }).waitFor();
     expect(await task.getAttribute("aria-checked")).toBe("true");
-    const beforeProbe = buffers.get("/workspace/Component.tsx")!;
+    const beforeProbe = buffers.get("/workspace/App.tsx")!;
     await replace(
       page,
       buffers,
-      "Component.tsx",
+      "App.tsx",
       beforeProbe,
       `${beforeProbe}\nexport const probe = style("flex gap-panel");`,
     );
@@ -157,18 +145,12 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       .toContain("gap-panel");
     expect(await suggestions.allInnerTexts()).not.toContain("flex gap-panel");
     await page.keyboard.press("Escape");
+    await replace(page, buffers, "App.tsx", buffers.get("/workspace/App.tsx")!, beforeProbe);
+    const main = buffers.get("/workspace/App.tsx")!;
     await replace(
       page,
       buffers,
-      "Component.tsx",
-      buffers.get("/workspace/Component.tsx")!,
-      beforeProbe,
-    );
-    const main = buffers.get("/workspace/Component.tsx")!;
-    await replace(
-      page,
-      buffers,
-      "Component.tsx",
+      "App.tsx",
       main,
       main.replace(/style\(\s*("[^"]+")/, "style(style($1)"),
     );
@@ -183,22 +165,22 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       .toBe("0px");
     await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
     expect(await page.locator(".runtime-error").count()).toBe(0);
-    await replace(page, buffers, "Component.tsx", buffers.get("/workspace/Component.tsx")!, main);
+    await replace(page, buffers, "App.tsx", buffers.get("/workspace/App.tsx")!, main);
     await expect
       .poll(
         () => frame.locator("main").evaluate((element) => getComputedStyle(element).paddingTop),
         { timeout: 30_000 },
       )
       .toBe("24px");
-    const component = buffers.get("/workspace/Component.tsx")!;
+    const component = buffers.get("/workspace/App.tsx")!;
     const invalidComponent = component + '\nconst broken = "unterminated;';
-    await replace(page, buffers, "Component.tsx", component, invalidComponent);
+    await replace(page, buffers, "App.tsx", component, invalidComponent);
     await page.getByRole("status").filter({ hasText: "Build error" }).waitFor();
     await expect
       .poll(() => page.locator(".runtime-error").innerText(), { timeout: 30_000 })
       .toContain("JavaScript parse error");
     expect(await task.getAttribute("aria-checked")).toBe("true");
-    await replace(page, buffers, "Component.tsx", invalidComponent, component);
+    await replace(page, buffers, "App.tsx", invalidComponent, component);
     await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
     expect(await page.locator(".runtime-error").count()).toBe(0);
     expect(await task.getAttribute("aria-checked")).toBe("true");
@@ -211,11 +193,11 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       config.replace("defineConfig({", "defineConfig(async () => ({").replace("});", "}));"),
     );
     await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
-    const beforeModuleCss = buffers.get("/workspace/Component.tsx")!;
+    const beforeModuleCss = buffers.get("/workspace/App.tsx")!;
     await replace(
       page,
       buffers,
-      "Component.tsx",
+      "App.tsx",
       beforeModuleCss,
       beforeModuleCss
         .replace(
@@ -248,19 +230,19 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     await replace(
       page,
       buffers,
-      "Component.tsx",
+      "App.tsx",
       "export function App()",
       'const wrong: number = "invalid";\nexport function App()',
     );
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("2322");
-    await replace(page, buffers, "Component.tsx", '"min-h-dvh p-gutter', '"min-h-dvh p-[24px]');
+    await replace(page, buffers, "App.tsx", '"min-h-dvh p-gutter', '"min-h-dvh p-[24px]');
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("prefer-canonical-utilities");
-    await replace(page, buffers, "Component.tsx", '"min-h-dvh p-[24px]', '"min-h-dvh p-gutter');
-    await replace(page, buffers, "Component.tsx", '"min-h-dvh', '"unknown-utility min-h-dvh');
+    await replace(page, buffers, "App.tsx", '"min-h-dvh p-[24px]', '"min-h-dvh p-gutter');
+    await replace(page, buffers, "App.tsx", '"min-h-dvh', '"unknown-utility min-h-dvh');
     await expect
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("unknown-utility");

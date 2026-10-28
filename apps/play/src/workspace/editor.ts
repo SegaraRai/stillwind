@@ -205,7 +205,7 @@ export class PlaygroundWorkspace {
       wordWrap: "on",
       editContext: false,
     });
-    this.select("/workspace/Component.tsx");
+    this.select("/workspace/App.tsx");
   }
 
   /**

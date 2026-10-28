@@ -89,7 +89,7 @@ window.addEventListener("message", (event): void => {
         };
         const component = exports.App ?? exports.default;
         if (!component) {
-          throw new Error("Component.tsx must export App or a default React component");
+          throw new Error("App.tsx must export App or a default React component");
         }
         if (!mounted || !Refresh.isLikelyComponentType(current)) {
           root.render(React.createElement(component));
