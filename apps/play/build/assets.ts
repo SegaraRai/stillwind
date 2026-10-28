@@ -2,9 +2,7 @@ import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promi
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { build } from "esbuild";
-
-import { bundleRefresh } from "./refresh.ts";
+import { build } from "rolldown";
 
 const root = path.resolve(import.meta.dirname, "..");
 /** Iconify sets available in the playground: two monochrome sets and one colored set. */
@@ -16,14 +14,18 @@ if (path.dirname(output) !== path.join(root, "dist")) {
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await build({
-  entryPoints: [
-    path.join(root, "node_modules/@codingame/monaco-vscode-api/workers/extensionHost.worker.js"),
-  ],
-  outfile: path.join(output, "extension-host.js"),
-  bundle: true,
-  format: "iife",
+  input: path.join(
+    root,
+    "node_modules/@codingame/monaco-vscode-api/workers/extensionHost.worker.js",
+  ),
   platform: "browser",
-  target: "esnext",
+  // The worker resolves URLs against `location.href` and reads `import.meta.url` only without it.
+  transform: { define: { "import.meta": "{}" } },
+  output: {
+    file: path.join(output, "extension-host.js"),
+    format: "iife",
+    codeSplitting: false,
+  },
 });
 const files: [string, string][] = [];
 for (const [name, directory] of [
@@ -64,19 +66,11 @@ files.push([
     devDependencies: Object.fromEntries(ICON_SETS.map((set) => [`@iconify-json/${set}`, "*"])),
   }),
 ]);
-await bundleRefresh(
-  require.resolve("react-refresh/babel"),
-  path.join(output, "react-refresh-babel.js"),
-);
 await collect(
   path.dirname(require.resolve("csstype/package.json")),
   "/workspace/node_modules/csstype",
 );
 await writeFile(path.join(output, "workspace.json"), JSON.stringify(files));
-await cp(
-  path.join(root, "node_modules/esbuild-wasm/esbuild.wasm"),
-  path.join(output, "esbuild.wasm"),
-);
 await cp(
   path.resolve(root, "../../packages/vscode-extension/dist/extension"),
   path.join(output, "extensions/stillwind"),
@@ -87,13 +81,15 @@ await cp(
   },
 );
 await build({
-  entryPoints: [path.join(root, "src/preview/runtime.ts")],
-  outfile: path.join(output, "preview-runtime.js"),
-  bundle: true,
-  format: "iife",
+  input: path.join(root, "src/preview/runtime.ts"),
   platform: "browser",
-  define: { "process.env.NODE_ENV": '"development"' },
-  minify: true,
+  transform: { define: { "process.env.NODE_ENV": '"development"' } },
+  output: {
+    file: path.join(output, "preview-runtime.js"),
+    format: "iife",
+    codeSplitting: false,
+    minify: true,
+  },
 });
 await writeFile(
   path.join(output, "_headers"),

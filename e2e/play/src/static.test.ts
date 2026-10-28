@@ -84,7 +84,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       }
     });
     await page.goto(`http://127.0.0.1:${address.port}/play/`);
-    const frame = page.frameLocator('iframe[title="Stillwind Play preview"]');
+    const frame = page.frameLocator('iframe[title="Stillwind Playground Preview"]');
     await frame.getByRole("heading", { name: "Release checklist" }).waitFor({ timeout: 60_000 });
     await expect
       .poll(() =>

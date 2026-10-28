@@ -19,7 +19,11 @@ import "@fontsource/instrument-sans/500.css";
 import "@fontsource/instrument-sans/600.css";
 import "./styles.css";
 
-function Play() {
+const navLink = style(
+  "inline-flex items-center text-muted whitespace-nowrap rounded-control hover:text-foreground",
+);
+
+function Playground() {
   const editor = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const outputHost = useRef<HTMLDivElement>(null);
@@ -191,28 +195,44 @@ function Play() {
   return (
     <div {...style("grid block-full grid-rows-[auto_minmax(0,1fr)_auto]")}>
       <header
-        {...style("flex px-3 block-10 items-center gap-3 bg-background border-divider border-be")}
+        {...style("flex px-4 block-16 items-center gap-4 bg-background border-divider border-be")}
       >
-        <span
-          {...style("flex px-1 items-center gap-2 text-foreground rounded-control select-none")}
-        >
-          <span aria-label="Stillwind" role="img" {...style("text-heading-small stillwind-logo")} />
-          <span
-            {...style(
-              "px-1.5 py-px text-action-foreground text-label font-semibold tracking-[0.08em] uppercase bg-action rounded-inline",
-            )}
+        <span {...style("flex items-center gap-3 text-foreground select-none")}>
+          <a
+            href="https://stillwind.dev/"
+            target="_blank"
+            aria-label="Stillwind home"
+            {...style("inline-flex items-center rounded-control")}
           >
-            Play
-          </span>
+            <span aria-label="Stillwind" role="img" {...style("text-heading stillwind-logo")} />
+          </a>
+          <span aria-hidden="true" {...style("block-5 border-border border-s")} />
+          <span {...style("text-heading-small text-muted font-medium")}>Playground</span>
         </span>
         <button
           type="button"
           onClick={() => location.reload()}
-          {...style("ms-auto text-button select-none")}
+          {...style("ms-2 select-none text-button")}
         >
           <span aria-hidden="true" {...style("icon-inline icon-lucide--rotate-ccw")} />
-          {"Reset"}
+          <span>Reset</span>
         </button>
+        <nav
+          aria-label="Main navigation"
+          {...style("flex ms-auto items-center gap-5 text-ui max-inline:gap-3")}
+        >
+          <a href="https://stillwind.dev/docs/" target="_blank" {...style(navLink)}>
+            Docs
+          </a>
+          <a
+            href="https://github.com/SegaraRai/stillwind"
+            target="_blank"
+            {...style(navLink, "gap-2")}
+          >
+            <span aria-hidden="true" {...style("icon-simple-icons--github")} />
+            <span>GitHub</span>
+          </a>
+        </nav>
       </header>
       <div
         {...style(
@@ -284,10 +304,10 @@ function Play() {
                         setError(String(error));
                       }
                     }}
-                    {...style("text-button select-none")}
+                    {...style("select-none text-button")}
                   >
                     <span aria-hidden="true" {...style("icon-inline icon-lucide--wand-sparkles")} />
-                    {"Format"}
+                    <span>Format</span>
                   </button>
                   <button
                     type="button"
@@ -300,10 +320,10 @@ function Play() {
                         setError(String(error));
                       }
                     }}
-                    {...style("text-button select-none")}
+                    {...style("select-none text-button")}
                   >
                     <span aria-hidden="true" {...style("icon-inline icon-lucide--wrench")} />
-                    {"Fix"}
+                    <span>Fix</span>
                   </button>
                 </div>
               </div>
@@ -412,4 +432,4 @@ function Play() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<Play />);
+createRoot(document.getElementById("root")!).render(<Playground />);

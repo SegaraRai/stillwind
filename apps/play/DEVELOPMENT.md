@@ -2,8 +2,13 @@
 
 The playground serves static files. Monaco uses VS Code services and the built-in
 TypeScript extension. The public Stillwind Web extension supplies compiler diagnostics
-and Quick Fixes. Application builds run separately in an esbuild-wasm worker.
-React Refresh updates a persistent sandboxed iframe; CSS updates replace its stylesheet.
+and Quick Fixes. Application builds run separately in a worker with the browser build
+of Rolldown. Its JSX transform adds React Refresh registrations, and React Refresh updates a
+persistent sandboxed iframe. CSS updates replace its stylesheet.
+
+Rolldown does not bundle CSS. The build inlines `@import` rules that name workspace
+stylesheets, and it appends imported stylesheets in module order after the Stillwind CSS.
+Other `@import` rules and `url()` references stay unchanged.
 
 ## Local tasks and hosting
 

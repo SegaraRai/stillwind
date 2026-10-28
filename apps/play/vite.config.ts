@@ -38,6 +38,8 @@ export default defineConfig({
       "@codingame/monaco-vscode-api",
       "@codingame/monaco-vscode-editor-api",
       "@codingame/monaco-vscode-extension-api",
+      // Its WASM binding and thread worker load from URLs relative to the package files.
+      "@rolldown/browser",
     ],
   },
   plugins: lazyPlugins(async () => {

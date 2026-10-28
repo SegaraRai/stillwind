@@ -82,6 +82,8 @@ Monaco, so color tokens must use a CSS color syntax that VS Code accepts, such a
   --text-small--line-height: 1.6;
   --text-heading-small: 1.25rem;
   --text-heading-small--line-height: 1.4;
+  --text-heading: 1.5rem;
+  --text-heading--line-height: 1.35;
   --text-code: 0.8125rem;
   --text-code--line-height: 1.6;
 }

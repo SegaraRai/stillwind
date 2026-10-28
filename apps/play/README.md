@@ -1,4 +1,4 @@
-# Stillwind Play
+# Stillwind Playground
 
 Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
 It uses theme rules and compiler checks to keep styling code in order, even when

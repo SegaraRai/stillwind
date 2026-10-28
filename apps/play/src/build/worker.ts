@@ -1,12 +1,13 @@
-import * as Babel from "@babel/standalone";
+import { rolldown, type Plugin } from "@rolldown/browser";
 import type {
   BrowserModuleAnalysis,
   BrowserModuleCss,
   BrowserStylesheetOutput,
 } from "@stillwind/host/browser";
 import { resolveVirtualModule } from "@stillwind/host/resolution";
-import * as esbuild from "esbuild-wasm";
 import { resolve } from "pathe";
+
+import { inlineImports } from "./stylesheet.ts";
 
 const replies = new Map<
   number,
@@ -16,7 +17,6 @@ const replies = new Map<
   }
 >();
 let sequence = 0;
-let initialization: Promise<void> | undefined;
 
 /** Stillwind output sent from the extension's LSP worker for one captured source. */
 interface Compilation {
@@ -25,6 +25,12 @@ interface Compilation {
   rejectedNames: BrowserStylesheetOutput["rejectedNames"];
   cssValues: [string, BrowserModuleCss][];
 }
+
+/** Prefix of module IDs that read a runtime module through the preview frame's `require`. */
+const EXTERNAL = "\0external:";
+
+/** Prefix of module IDs that export the CSS of a `stillwind/module-css` import. */
+const CSS_VALUE = "\0css-value:";
 
 self.onmessage = async ({
   data,
@@ -49,189 +55,159 @@ self.onmessage = async ({
   }
 
   try {
-    initialization ??= Promise.all([
-      esbuild.initialize({
-        wasmURL: new URL(`${import.meta.env.BASE_URL}esbuild.wasm`, self.location.origin).href,
-        worker: false,
-      }),
-      import(
-        /* @vite-ignore */ new URL(
-          `${import.meta.env.BASE_URL}react-refresh-babel.js`,
-          self.location.origin,
-        ).href
-      ).then((module) => {
-        Babel.registerPlugin("react-refresh", module.default);
-      }),
-    ]).then(() => {});
-    await initialization;
     const files = new Map(data.files);
     const transformed = new Map<string, string>();
     const moduleCss = new Map<string, string>();
     const cssValues = new Map<string, Compilation["cssValues"][number][1]>();
     const rejectedNames = new Map<string, BrowserStylesheetOutput["rejectedNames"][number]>();
+    const stylesheets = new Map<string, string>();
     let css = "";
-    const output = await esbuild.build({
-      entryPoints: ["/workspace/App.tsx"],
-      bundle: true,
-      write: false,
-      outdir: "/build",
-      format: "iife",
-      globalName: "StillwindApplication",
-      platform: "browser",
-      jsx: "automatic",
-      sourcemap: "inline",
-      sourcesContent: true,
-      define: {
-        "process.env.NODE_ENV": '"development"',
+
+    /** Requests Stillwind compilation of one source from the extension through the main thread. */
+    const compile = (path: string) => {
+      const id = ++sequence;
+      return new Promise<Compilation>((resolve, reject) => {
+        replies.set(id, { resolve, reject });
+        self.postMessage({
+          kind: "compile",
+          id,
+          uri: `file://${path}`,
+          revision: data.revision,
+          generation: data.generation,
+        });
+      });
+    };
+
+    const workspace: Plugin = {
+      name: "browser-workspace",
+      resolveId(source, importer) {
+        if (source === "stillwind/module-css" && importer) {
+          return CSS_VALUE + importer;
+        }
+        // React must be the instance that the preview frame's renderer and React Refresh use.
+        if (/^(react|react-dom)(\/|$)/.test(source)) {
+          return EXTERNAL + source;
+        }
+        const file = importer ? resolveVirtualModule(files, source, importer) : source;
+        if (!file || !files.has(file)) {
+          throw new Error(`Cannot resolve ${source} from ${importer}`);
+        }
+        return file;
       },
-      plugins: [
-        {
-          name: "browser-workspace",
-          setup(build) {
-            build.onLoad({ filter: /.*/, namespace: "css-value" }, (args) => {
-              const value = cssValues.get(args.path);
-              if (!value) {
-                throw new Error(`Missing compiled CSS value for ${args.path}`);
-              }
-              return {
-                contents: `export const parts = ${JSON.stringify(value.parts)}; export const css = ${JSON.stringify(value.css)}; export default css;`,
-                loader: "js",
-              };
-            });
-            build.onResolve(
-              {
-                filter: /.*/,
-              },
-              (args) => {
-                if (args.path === "stillwind/module-css") {
-                  return { path: args.importer, namespace: "css-value" };
-                }
-                if (/^(react|react-dom)(\/|$)/.test(args.path)) {
-                  return {
-                    path: args.path,
-                    external: true,
-                  };
-                }
-                const file =
-                  args.kind === "entry-point"
-                    ? args.path
-                    : resolveVirtualModule(files, args.path, args.importer);
-                if (!file) {
-                  throw new Error(`Cannot resolve ${args.path} from ${args.importer}`);
-                }
-                return {
-                  path: file,
-                  namespace: "workspace",
-                };
-              },
+      async load(id) {
+        if (id.startsWith(EXTERNAL)) {
+          return {
+            code: `module.exports = window.require(${JSON.stringify(id.slice(EXTERNAL.length))});`,
+            moduleType: "js",
+          };
+        }
+        if (id.startsWith(CSS_VALUE)) {
+          const value = cssValues.get(id.slice(CSS_VALUE.length));
+          if (!value) {
+            throw new Error(`Missing compiled CSS value for ${id.slice(CSS_VALUE.length)}`);
+          }
+          return {
+            code: `export const parts = ${JSON.stringify(value.parts)}; export const css = ${JSON.stringify(value.css)}; export default css;`,
+            moduleType: "js",
+          };
+        }
+        const code = files.get(id);
+        if (code === undefined) {
+          throw new Error(`Missing virtual file ${id}`);
+        }
+        if (id.endsWith(".css")) {
+          // Rolldown does not bundle CSS. The build concatenates imported stylesheets in module
+          // order after bundling, so the module itself exports nothing.
+          stylesheets.set(id, inlineImports(files, id, new Set()));
+          return { code: "", moduleType: "js" };
+        }
+        if (id.endsWith(".json")) {
+          return { code, moduleType: "json" };
+        }
+        const moduleType = /\.[cm]?tsx$/.test(id)
+          ? "tsx"
+          : /\.[cm]?ts$/.test(id)
+            ? "ts"
+            : id.endsWith("x")
+              ? "jsx"
+              : "js";
+        if (id.includes("/node_modules/") || !/\.[cm]?[jt]sx?$/.test(id)) {
+          return { code, moduleType };
+        }
+        if (!transformed.has(id)) {
+          const compilation = await compile(id);
+          if (compilation.graph.generation === "blocked") {
+            throw new Error(
+              compilation.graph.batches
+                .flatMap((batch) => batch.reports.map((report) => report.message))
+                .join("\n") || "Stillwind code generation is blocked",
             );
-            build.onLoad(
-              {
-                filter: /.*/,
-                namespace: "workspace",
-              },
-              async (args) => {
-                let code = files.get(args.path);
-                if (code === undefined) {
-                  throw new Error(`Missing virtual file ${args.path}`);
-                }
-                if (!args.path.includes("/node_modules/") && /\.[cm]?[jt]sx?$/.test(args.path)) {
-                  if (!transformed.has(args.path)) {
-                    const id = ++sequence;
-                    const compilation = await new Promise<Compilation>((resolve, reject) => {
-                      replies.set(id, { resolve, reject });
-                      self.postMessage({
-                        kind: "compile",
-                        id,
-                        uri: `file://${args.path}`,
-                        revision: data.revision,
-                        generation: data.generation,
-                      });
-                    });
-                    if (compilation.graph.generation === "blocked") {
-                      throw new Error(
-                        compilation.graph.batches
-                          .flatMap((batch) => batch.reports.map((report) => report.message))
-                          .join("\n") || "Stillwind code generation is blocked",
-                      );
-                    }
-                    for (const module of compilation.graph.modules) {
-                      const file = resolve("/workspace", module.moduleId);
-                      if (module.code !== null) {
-                        transformed.set(file, module.code);
-                      }
-                      if (!moduleCss.has(file)) {
-                        moduleCss.set(file, module.css);
-                      }
-                    }
-                    css = compilation.css;
-                    for (const entry of [
-                      ...compilation.rejectedNames,
-                      ...compilation.graph.modules.flatMap((module) => module.rejectedNames),
-                      ...compilation.cssValues.flatMap(([, value]) => value.rejectedNames),
-                    ]) {
-                      rejectedNames.set(
-                        JSON.stringify([entry.kind, entry.hash, entry.reason]),
-                        entry,
-                      );
-                    }
-                    for (const [file, value] of compilation.cssValues) {
-                      cssValues.set(file, value);
-                    }
-                  }
-                  code = transformed.get(args.path) ?? code;
-                  const refreshCode = Babel.transform(code, {
-                    filename: args.path,
-                    sourceType: "module",
-                    presets: ["typescript"],
-                    parserOpts: {
-                      plugins: args.path.endsWith("x") ? ["jsx"] : [],
-                    },
-                    plugins: [
-                      [
-                        "react-refresh",
-                        {
-                          skipEnvCheck: true,
-                          emitFullSignatures: true,
-                        },
-                      ],
-                    ],
-                  })?.code;
-                  if (refreshCode == null) {
-                    throw new Error("React Refresh transformation did not generate code");
-                  }
-                  code = `const $RefreshReg$ = (type, name) => window.$RefreshReg$(type, ${JSON.stringify(args.path + " ")} + name);\nconst $RefreshSig$ = window.$RefreshSig$;\n${refreshCode}`;
-                }
-                return {
-                  contents: code,
-                  loader: args.path.endsWith(".json")
-                    ? "json"
-                    : args.path.endsWith(".css")
-                      ? "css"
-                      : args.path.endsWith("x")
-                        ? "jsx"
-                        : "js",
-                  resolveDir: "/workspace",
-                };
-              },
-            );
-          },
-        },
-      ],
+          }
+          for (const module of compilation.graph.modules) {
+            const file = resolve("/workspace", module.moduleId);
+            if (module.code !== null) {
+              transformed.set(file, module.code);
+            }
+            if (!moduleCss.has(file)) {
+              moduleCss.set(file, module.css);
+            }
+          }
+          css = compilation.css;
+          for (const entry of [
+            ...compilation.rejectedNames,
+            ...compilation.graph.modules.flatMap((module) => module.rejectedNames),
+            ...compilation.cssValues.flatMap(([, value]) => value.rejectedNames),
+          ]) {
+            rejectedNames.set(JSON.stringify([entry.kind, entry.hash, entry.reason]), entry);
+          }
+          for (const [file, value] of compilation.cssValues) {
+            cssValues.set(file, value);
+          }
+        }
+        // The JSX transform adds React Refresh registrations. They go through per-module bindings
+        // so that component IDs include the file path. The transform can call the bindings before
+        // the module's first statement, so they are hoisted function declarations.
+        return {
+          code: `function $RefreshReg$(type, name) { window.$RefreshReg$(type, ${JSON.stringify(`${id} `)} + name); }\nfunction $RefreshSig$() { return window.$RefreshSig$(); }\n${transformed.get(id) ?? code}`,
+          moduleType,
+        };
+      },
+    };
+
+    const bundle = await rolldown({
+      input: "/workspace/App.tsx",
+      cwd: "/",
+      platform: "browser",
+      tsconfig: false,
+      transform: {
+        jsx: { runtime: "automatic", development: true, refresh: true },
+        define: { "process.env.NODE_ENV": '"development"' },
+      },
+      plugins: [workspace],
     });
-    const code =
-      output.outputFiles!.find((file) => file.path.endsWith(".js"))?.text ??
-      output.outputFiles![0].text;
+    let code: string;
+    let order: string[];
+    try {
+      const output = await bundle.generate({
+        format: "iife",
+        name: "StillwindApplication",
+        sourcemap: "inline",
+        codeSplitting: false,
+      });
+      const chunk = output.output.find((item) => item.type === "chunk" && item.isEntry);
+      if (chunk?.type !== "chunk") {
+        throw new Error("The application bundle has no entry chunk");
+      }
+      code = chunk.code;
+      order = chunk.moduleIds;
+    } finally {
+      await bundle.close();
+    }
     self.postMessage({
       kind: "built",
       id: data.id,
       code,
-      css:
-        css +
-        output
-          .outputFiles!.filter((file) => file.path.endsWith(".css"))
-          .map((file) => file.text)
-          .join("\n"),
+      css: [css, ...order.flatMap((id) => stylesheets.get(id) ?? [])].join("\n"),
       transformed: [...transformed],
       moduleCss: [...moduleCss],
       rejectedNames: [...rejectedNames.values()],

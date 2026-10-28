@@ -332,9 +332,6 @@ importers:
 
   apps/play:
     dependencies:
-      '@babel/standalone':
-        specifier: ^8.0.9
-        version: 8.0.9
       '@codingame/monaco-vscode-api':
         specifier: ^38.0.4
         version: 38.0.4
@@ -395,15 +392,15 @@ importers:
       '@fontsource/instrument-sans':
         specifier: ^5.3.0
         version: 5.3.0
+      '@rolldown/browser':
+        specifier: 'catalog:'
+        version: 1.2.15
       '@stillwind/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@stillwind/vscode-extension':
         specifier: workspace:*
         version: link:../../packages/vscode-extension
-      esbuild-wasm:
-        specifier: ^0.28.2
-        version: 0.28.2
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
@@ -456,9 +453,6 @@ importers:
       '@stillwind/plugin-iconify':
         specifier: workspace:*
         version: link:../../plugins/iconify
-      '@types/babel__standalone':
-        specifier: ^7.1.9
-        version: 7.1.9
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
@@ -480,9 +474,9 @@ importers:
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
+      rolldown:
+        specifier: 'catalog:'
+        version: 1.2.15
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -4295,10 +4289,6 @@ packages:
   '@babel/runtime@7.29.10':
     resolution: {integrity: sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA==}
     engines: {node: '>=6.9.0'}
-
-  '@babel/standalone@8.0.9':
-    resolution: {integrity: sha512-MV6XC/x7mcLXL926iP0vpkK/fNNXyPdPAGK4MqJROu74zjTJs98Jcne5E7BdYbs+aBal+T77FnkzbCjkzyKxAg==}
-    engines: {node: ^22.18.0 || >=24.11.0}
 
   '@babel/template@7.29.7':
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
@@ -8482,9 +8472,6 @@ packages:
   '@types/babel__generator@7.27.0':
     resolution: {integrity: sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg==}
 
-  '@types/babel__standalone@7.1.9':
-    resolution: {integrity: sha512-IcCNPLqpevUD7UpV8QB0uwQPOyoOKACFf0YtYWRHcmxcakaje4Q7dbG2+jMqxw/I8Zk0NHvEps66WwS7z/UaaA==}
-
   '@types/babel__template@7.4.4':
     resolution: {integrity: sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A==}
 
@@ -11194,11 +11181,6 @@ packages:
 
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
-
-  esbuild-wasm@0.28.2:
-    resolution: {integrity: sha512-GccVwhv3mmOUVQHCQm2Ox/rby8n/EqUwvZxE6Pjfikrq/lWw9g9WX/u9EykWnpot3Ko6j426DgQdea2xWKIAQA==}
-    engines: {node: '>=18'}
-    hasBin: true
 
   esbuild@0.28.2:
     resolution: {integrity: sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA==}
@@ -18625,12 +18607,6 @@ snapshots:
 
   '@babel/runtime@7.29.10': {}
 
-  '@babel/standalone@8.0.9':
-    dependencies:
-      '@babel/core': 8.0.9
-      '@babel/generator': 8.0.6
-      '@babel/parser': 8.0.8
-
   '@babel/template@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -23696,15 +23672,6 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.11
 
-  '@types/babel__standalone@7.1.9':
-    dependencies:
-      '@babel/parser': 7.29.11
-      '@babel/types': 7.29.11
-      '@types/babel__core': 7.20.5
-      '@types/babel__generator': 7.27.0
-      '@types/babel__template': 7.4.4
-      '@types/babel__traverse': 7.28.0
-
   '@types/babel__template@7.4.4':
     dependencies:
       '@babel/parser': 7.29.11
@@ -27088,8 +27055,6 @@ snapshots:
       acorn: 8.19.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
-
-  esbuild-wasm@0.28.2: {}
 
   esbuild@0.28.2:
     optionalDependencies:
