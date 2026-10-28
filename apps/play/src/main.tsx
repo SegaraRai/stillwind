@@ -13,6 +13,9 @@ import { Sash } from "./workbench/sash.tsx";
 import { PlaygroundWorkspace } from "./workspace/editor.ts";
 import { formatSource } from "./workspace/formatter.ts";
 import { OutputView } from "./workspace/output.ts";
+import { encodeState } from "./workspace/permalink.ts";
+import { presets } from "./workspace/presets.ts";
+import { captureState, resolveStart, type Start } from "./workspace/start.ts";
 
 import "@fontsource/instrument-sans/400.css";
 import "@fontsource/instrument-sans/500.css";
@@ -42,6 +45,9 @@ function Playground() {
   const [sidebar, setSidebar] = useState(224);
   const [results, setResults] = useState(() => Math.max(480, Math.round(window.innerWidth * 0.38)));
   const [panel, setPanel] = useState(176);
+  const [start, setStart] = useState<Start>();
+  const [notice, setNotice] = useState<string>();
+  const [shared, setShared] = useState(false);
 
   const output = tab === "preview" ? undefined : selectOutput(tab, active, result);
 
@@ -94,7 +100,10 @@ function Playground() {
     };
     void (async () => {
       try {
-        const current = await PlaygroundWorkspace.open();
+        const opened = await resolveStart(location.hash);
+        setStart(opened);
+        setNotice(opened.notice);
+        const current = await PlaygroundWorkspace.open(opened.files);
         if (disposed) {
           current.dispose();
           return;
@@ -105,6 +114,8 @@ function Playground() {
           schedule();
         });
         setFiles([...current.files.keys()]);
+        current.select(opened.active);
+        setActive(opened.active);
         outputView.current = new OutputView(outputHost.current!);
         setOutputReady(true);
         const refreshDiagnostics = () =>
@@ -183,9 +194,58 @@ function Playground() {
   };
 
   const add = async (name: string) => {
-    await workspace.current?.add(name);
-    setFiles([...workspace.current!.files.keys()]);
-    select("/workspace/" + name.replace(/^\/+/, ""));
+    if (!workspace.current) {
+      return;
+    }
+    const file = await workspace.current.add(name);
+    setFiles([...workspace.current.files.keys()]);
+    select(file);
+  };
+
+  // A pasted link or an edited fragment selects another workspace, which needs a new page load.
+  useEffect(() => {
+    const reload = () => location.reload();
+    window.addEventListener("hashchange", reload);
+    return () => window.removeEventListener("hashchange", reload);
+  }, []);
+
+  useEffect(() => {
+    if (!shared) {
+      return;
+    }
+    const timer = setTimeout(() => setShared(false), 2000);
+    return () => clearTimeout(timer);
+  }, [shared]);
+
+  /** Opens a preset in a new page load, after confirming that edits may be discarded. */
+  const openPreset = (id: string) => {
+    const current = workspace.current?.files;
+    const original = start?.preset.files;
+    const modified =
+      current !== undefined &&
+      original !== undefined &&
+      (current.size !== original.size ||
+        [...current].some(([path, text]) => original.get(path) !== text));
+    const title = presets.find((preset) => preset.id === id)?.title ?? id;
+    if (modified && !window.confirm(`Discard your changes and open ${title}?`)) {
+      return;
+    }
+    location.hash = `preset=${id}`;
+    location.reload();
+  };
+
+  const share = async () => {
+    if (!start || !workspace.current) {
+      return;
+    }
+    try {
+      const data = await encodeState(captureState(start.preset, workspace.current.files, active));
+      history.replaceState(null, "", `#code=${data}`);
+      await navigator.clipboard.writeText(location.href);
+      setShared(true);
+    } catch (error) {
+      setError(String(error));
+    }
   };
 
   const { errors, warnings } = countProblems(problems);
@@ -209,14 +269,68 @@ function Playground() {
           <span aria-hidden="true" {...style("block-5 border-border border-s")} />
           <span {...style("text-heading-small text-muted font-medium")}>Playground</span>
         </span>
+        <select
+          aria-label="Preset"
+          value={start?.preset.id ?? presets[0].id}
+          disabled={!start}
+          onChange={(event) => openPreset(event.target.value)}
+          {...style(
+            "ms-2 px-2 block-6.5 text-caption text-foreground bg-surface rounded-control border border-divider cursor-pointer disabled:cursor-default",
+          )}
+        >
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.title}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
-          onClick={() => location.reload()}
-          {...style("ms-2 select-none text-button")}
+          title="Discard changes and reopen the preset"
+          disabled={!start}
+          onClick={() => start && openPreset(start.preset.id)}
+          {...style("select-none text-button")}
         >
           <span aria-hidden="true" {...style("icon-inline icon-lucide--rotate-ccw")} />
           <span>Reset</span>
         </button>
+        <button
+          type="button"
+          title="Copy a link that restores this workspace"
+          disabled={!start}
+          onClick={() => void share()}
+          {...style("select-none text-button")}
+        >
+          <span
+            aria-hidden="true"
+            {...style(
+              "icon-inline",
+              shared ? "icon-lucide--check text-success" : "icon-lucide--link",
+            )}
+          />
+          <span>{shared ? "Link copied" : "Share"}</span>
+        </button>
+        {notice && (
+          <p
+            role="note"
+            title={notice}
+            {...style("flex min-inline-0 items-center gap-1.5 text-caption text-warning")}
+          >
+            <span
+              aria-hidden="true"
+              {...style("icon-inline icon-lucide--triangle-alert shrink-0")}
+            />
+            <span {...style("truncate")}>{notice}</span>
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => setNotice(undefined)}
+              {...style("shrink-0 icon-button")}
+            >
+              <span aria-hidden="true" {...style("icon-inline icon-lucide--x")} />
+            </button>
+          </p>
+        )}
         <nav
           aria-label="Main navigation"
           {...style("flex ms-auto items-center gap-5 text-ui max-inline:gap-3")}

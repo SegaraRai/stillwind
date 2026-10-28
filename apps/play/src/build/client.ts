@@ -24,7 +24,9 @@ export interface ApplicationBuild {
  * Builds the application in a worker and requests Stillwind transformations from the active extension.
  */
 export class ApplicationBuilder {
-  readonly #worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+  readonly #worker = new Worker(new URL("./worker.ts", import.meta.url), {
+    type: "module",
+  });
   readonly #api: typeof vscode;
   readonly #pending = new Map<
     number,
@@ -49,9 +51,17 @@ export class ApplicationBuilder {
             revision: data.revision,
             generation: data.generation,
           });
-          this.#worker.postMessage({ ...data, kind: "compile-reply", value });
+          this.#worker.postMessage({
+            ...data,
+            kind: "compile-reply",
+            value,
+          });
         } catch (error) {
-          this.#worker.postMessage({ ...data, kind: "compile-reply", error: String(error) });
+          this.#worker.postMessage({
+            ...data,
+            kind: "compile-reply",
+            error: String(error),
+          });
         }
       } else {
         const pending = this.#pending.get(data.id);
@@ -95,14 +105,23 @@ export class ApplicationBuilder {
       files: [string, string][];
       revision: number;
       generation: number;
-    }>("stillwind.snapshot", { reload });
+    }>("stillwind.snapshot", {
+      reload,
+    });
     if (!snapshot) {
       throw new Error("Stillwind extension has not opened the workspace");
     }
     const id = ++this.#sequence;
     return new Promise((resolve, reject) => {
-      this.#pending.set(id, { resolve, reject });
-      this.#worker.postMessage({ kind: "build", id, ...snapshot });
+      this.#pending.set(id, {
+        resolve,
+        reject,
+      });
+      this.#worker.postMessage({
+        kind: "build",
+        id,
+        ...snapshot,
+      });
     });
   }
 

@@ -18,7 +18,9 @@ const replies = new Map<
 >();
 let sequence = 0;
 
-/** Stillwind output sent from the extension's LSP worker for one captured source. */
+/**
+ * Stillwind output sent from the extension's LSP worker for one captured source.
+ */
 interface Compilation {
   graph: BrowserModuleAnalysis;
   css: string;
@@ -63,11 +65,16 @@ self.onmessage = async ({
     const stylesheets = new Map<string, string>();
     let css = "";
 
-    /** Requests Stillwind compilation of one source from the extension through the main thread. */
+    /**
+     * Requests Stillwind compilation of one source from the extension through the main thread.
+     */
     const compile = (path: string) => {
       const id = ++sequence;
       return new Promise<Compilation>((resolve, reject) => {
-        replies.set(id, { resolve, reject });
+        replies.set(id, {
+          resolve,
+          reject,
+        });
         self.postMessage({
           kind: "compile",
           id,
@@ -119,10 +126,16 @@ self.onmessage = async ({
           // Rolldown does not bundle CSS. The build concatenates imported stylesheets in module
           // order after bundling, so the module itself exports nothing.
           stylesheets.set(id, inlineImports(files, id, new Set()));
-          return { code: "", moduleType: "js" };
+          return {
+            code: "",
+            moduleType: "js",
+          };
         }
         if (id.endsWith(".json")) {
-          return { code, moduleType: "json" };
+          return {
+            code,
+            moduleType: "json",
+          };
         }
         const moduleType = /\.[cm]?tsx$/.test(id)
           ? "tsx"
@@ -132,7 +145,10 @@ self.onmessage = async ({
               ? "jsx"
               : "js";
         if (id.includes("/node_modules/") || !/\.[cm]?[jt]sx?$/.test(id)) {
-          return { code, moduleType };
+          return {
+            code,
+            moduleType,
+          };
         }
         if (!transformed.has(id)) {
           const compilation = await compile(id);
@@ -180,8 +196,14 @@ self.onmessage = async ({
       platform: "browser",
       tsconfig: false,
       transform: {
-        jsx: { runtime: "automatic", development: true, refresh: true },
-        define: { "process.env.NODE_ENV": '"development"' },
+        jsx: {
+          runtime: "automatic",
+          development: true,
+          refresh: true,
+        },
+        define: {
+          "process.env.NODE_ENV": '"development"',
+        },
       },
       plugins: [workspace],
     });

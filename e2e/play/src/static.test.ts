@@ -5,9 +5,12 @@ import { relative, resolve, sep, extname } from "node:path";
 import { chromium, type Page } from "playwright";
 import { expect, test } from "vite-plus/test";
 
-// The site embeds these files as the initial workspace. Vitest stubs CSS imports, so the test
+// The site embeds these files as the Release checklist preset. Vitest stubs CSS imports, so the test
 // reads them from disk instead of importing the playground module.
-const exampleDirectory = resolve(import.meta.dirname, "../../../apps/play/example");
+const exampleDirectory = resolve(
+  import.meta.dirname,
+  "../../../apps/play/examples/release-checklist",
+);
 const exampleFiles = new Map(
   await Promise.all(
     (await readdir(exampleDirectory, { recursive: true, withFileTypes: true }))
@@ -66,7 +69,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
   }
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ permissions: ["clipboard-read", "clipboard-write"] });
     const buffers = new Map(exampleFiles);
     const errors: string[] = [];
     const remote: string[] = [];
@@ -83,7 +86,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
         errors.push(error.message);
       }
     });
-    await page.goto(`http://127.0.0.1:${address.port}/play/`);
+    await page.goto(`http://127.0.0.1:${address.port}/play/#preset=release-checklist`);
     const frame = page.frameLocator('iframe[title="Stillwind Playground Preview"]');
     await frame.getByRole("heading", { name: "Release checklist" }).waitFor({ timeout: 60_000 });
     await expect
@@ -247,6 +250,24 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("unknown-utility");
     expect(await task.getAttribute("aria-checked")).toBe("true");
+    await page.getByRole("button", { name: "Share" }).click();
+    await page.getByRole("button", { name: "Link copied" }).waitFor();
+    const link = page.url();
+    expect(link).toMatch(/#code=[\w-]+$/);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
+    const restored = await browser.newPage();
+    await restored.goto(link);
+    await restored
+      .frameLocator('iframe[title="Stillwind Playground Preview"]')
+      .getByRole("heading", { name: "Updated component" })
+      .waitFor({ timeout: 60_000 });
+    await restored.getByRole("button", { name: "App.tsx", exact: true }).click();
+    await expect
+      .poll(() => restored.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
+      .toContain("unknown-utility");
+    expect(await restored.getByRole("combobox", { name: "Preset" }).inputValue()).toBe(
+      "release-checklist",
+    );
     expect(errors).toEqual([]);
     expect(remote).toEqual([]);
     expect(new Set(requests)).toEqual(new Set(["GET"]));

@@ -25,24 +25,42 @@ Netlify/Cloudflare Pages format. The threaded WASM compiler requires these heade
 
 ## Workspace and preview
 
-The initial workspace is a release checklist that shows recommended Stillwind usage.
-Its files live in `example/`, and Vite embeds them as text when it builds the site.
-`App.tsx` renders the page from `ThemeSwitch.tsx`, `tasks.ts`, and the shared styles in
-`styles.ts`. `stillwind.css` defines tokens by role with `light-dark()`, a custom variant, and
-custom utilities, and it loads the Iconify plugin. `stillwind.config.ts` enables lint rules
-that report values outside the theme. The workspace bundles the `mdi`, `lucide`, and
-`fluent-emoji-flat` icon sets.
+The workspace starts from a preset. Each preset lives in `examples/<id>/`, and
+`src/workspace/presets.ts` lists the presets in menu order. Vite embeds their files as text when
+it builds the site. Every preset needs `App.tsx`, which exports `App` or a default component.
 
-The demo must have no Stillwind lint findings and must keep Prettier's default formatting and
-Stillwind's utility order, so the Format and Fix buttons leave it unchanged. `vp fmt` skips
-`example/` because its settings differ from Prettier's defaults. Run the checks with:
+- `minimal` is the default. It keeps a few utilities and role-based tokens, so a reproduction
+  can start from it without deleting code.
+- `release-checklist` shows recommended Stillwind usage: role-based tokens with `light-dark()`,
+  a custom variant, custom utilities, refs, container queries, view transitions, and lint rules
+  that report values outside the theme.
+
+The workspace bundles the `mdi`, `lucide`, and `fluent-emoji-flat` icon sets.
+
+Presets must have no Stillwind lint findings and must keep Prettier's default formatting and
+Stillwind's utility order, so the Format and Fix buttons leave them unchanged. `vp fmt` skips
+`examples/` because its settings differ from Prettier's defaults. Check or fix the presets with:
 
 ```sh
-vp run @stillwind-internal/apps-play#check:example
+vp run @stillwind-internal/apps-play#check:examples
+vp run @stillwind-internal/apps-play#fmt:examples
 ```
 
-The repository `check` task includes them. `e2e/play` edits the demo files by their text, so
-update its replacements when the demo changes.
+The repository `check` and `fmt` tasks include them. `e2e/play` opens `release-checklist` and
+edits its files by their text, so update its replacements when that preset changes.
+
+## Presets and permalinks
+
+The location fragment selects the workspace. `#preset=<id>` opens a preset, and an empty
+fragment opens the first one. The Share button writes `#code=<data>` and copies the URL.
+The data is deflate-compressed JSON in base64url. It contains every editable file, the preset
+id, the file open in the editor, and the Stillwind version of the site. A link therefore
+reproduces its files even after the preset changes, and the playground shows a notice when the
+version differs. Unknown presets and unreadable links open the first preset with a notice.
+
+Choosing a preset or Reset reloads the page with `#preset=<id>`. Both ask for confirmation when
+the files differ from the preset.
+
 The explorer can add local source files. Site builds bundle runtime dependencies
 and React declarations.
 

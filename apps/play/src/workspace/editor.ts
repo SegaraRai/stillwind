@@ -35,8 +35,8 @@ import "@codingame/monaco-vscode-typescript-language-features-default-extension"
 import { configurationFiles } from "@stillwind/config";
 import type * as vscode from "vscode";
 
-import { exampleFiles } from "./example.ts";
 import { formatterConfiguration, formatterManifest, registerFormatter } from "./formatter.ts";
+import { normalizeWorkspacePath } from "./path.ts";
 
 /**
  * Editor context menu commands that the playground hides. The workspace contains declarations
@@ -59,27 +59,33 @@ MenuRegistry.getMenuItems = (id) => {
     : items;
 };
 
-/** VS Code services, editor buffers, and dependency files used by one playground session. */
+/**
+ * VS Code services, editor buffers, and dependency files used by one playground session.
+ */
 export class PlaygroundWorkspace {
   /** API for commands, workspace edits, and diagnostics in the initialized extension host. */
   readonly api: typeof vscode;
   /** Editable original files keyed by absolute virtual path. */
-  readonly files = new Map(exampleFiles);
+  readonly files: Map<string, string>;
   readonly #references = new Map<string, Awaited<ReturnType<typeof createModelReference>>>();
   #editor?: monaco.editor.IStandaloneCodeEditor;
   #changed: () => void = () => {};
   #formatter?: vscode.Disposable;
 
-  private constructor(api: typeof vscode) {
+  private constructor(api: typeof vscode, files: Map<string, string>) {
     this.api = api;
+    this.files = files;
   }
 
   /**
    * Loads dependencies and activates the public Web extension in VS Code services.
+   *
+   * @param initial - Editable workspace files keyed by absolute virtual path. They must include
+   *   `/workspace/App.tsx`.
    * @returns The page's workspace with open source buffers and active language clients.
    * @throws If isolation headers, static assets, or extension activation are unavailable.
    */
-  static async open(): Promise<PlaygroundWorkspace> {
+  static async open(initial: ReadonlyMap<string, string>): Promise<PlaygroundWorkspace> {
     if (!crossOriginIsolated || typeof SharedArrayBuffer === "undefined") {
       throw new Error(
         "Serve this site with COOP: same-origin and COEP: require-corp to run the Stillwind compiler.",
@@ -91,7 +97,7 @@ export class PlaygroundWorkspace {
       throw new Error("Cannot load the playground dependency inventory");
     }
     const packages = (await response.json()) as [string, string][];
-    for (const [file, text] of [...packages, ...exampleFiles]) {
+    for (const [file, text] of [...packages, ...initial]) {
       await initFile(URI.file(file), text);
     }
     await initUserConfiguration(
@@ -179,7 +185,7 @@ export class PlaygroundWorkspace {
     );
     const api = await embedding.getApi();
     await embedding.setAsDefaultApi();
-    const workspace = new PlaygroundWorkspace(api);
+    const workspace = new PlaygroundWorkspace(api, new Map(initial));
     workspace.#formatter = registerFormatter(await formatter.getApi());
     for (const file of workspace.files.keys()) {
       await workspace.#reference(file);
@@ -283,17 +289,18 @@ export class PlaygroundWorkspace {
   /**
    * Adds an empty source file and opens its buffer.
    *
-   * @param name - Relative JS, TS, TSX, JSX, CSS, or JSON path without parent directory segments.
-   * @throws If the path is invalid or already exists.
+   * @param name - JS, TS, TSX, JSX, CSS, or JSON path relative to the workspace. It is normalized
+   *   with `normalizeWorkspacePath`.
+   * @returns Absolute virtual path of the new file.
+   * @throws If the normalized path is `null`, has another extension, or already exists. No file
+   *   is created in that case.
    */
-  async add(name: string): Promise<void> {
-    if (
-      !/^[\w./-]+\.(?:[cm]?[jt]s|tsx|jsx|css|json)$/.test(name) ||
-      name.split("/").includes("..")
-    ) {
+  async add(name: string): Promise<string> {
+    const path = normalizeWorkspacePath(name);
+    if (!path || !/\.(?:[cm]?[jt]s|tsx|jsx|css|json)$/.test(path)) {
       throw new Error("Use a relative JS, TS, TSX, CSS, or JSON filename inside the workspace");
     }
-    const file = `/workspace/${name.replace(/^\/+/, "")}`;
+    const file = `/workspace/${path}`;
     if (this.files.has(file)) {
       throw new Error("This file already exists");
     }
@@ -302,6 +309,7 @@ export class PlaygroundWorkspace {
     await this.#reference(file);
     this.select(file);
     this.#changed();
+    return file;
   }
 
   /**

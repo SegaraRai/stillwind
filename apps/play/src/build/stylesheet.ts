@@ -2,6 +2,7 @@ import { resolveVirtualModule } from "@stillwind/host/resolution";
 
 /**
  * Replaces `@import` rules that name workspace stylesheets with their contents.
+ *
  * @param files - Virtual workspace files keyed by absolute path.
  * @param file - Absolute path of the stylesheet to read.
  * @param seen - Stylesheets already inlined on the current import path. A cycle leaves the rule.

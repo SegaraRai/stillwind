@@ -1,0 +1,14 @@
+@import "stillwind";
+
+@theme {
+  --color-canvas: light-dark(oklch(0.98 0.01 250), oklch(0.18 0.02 260));
+  --color-foreground: light-dark(oklch(0.25 0.03 260), oklch(0.95 0.01 250));
+  --color-action: oklch(0.55 0.2 262);
+  --color-action-foreground: oklch(0.99 0 0);
+
+  --radius-control: 0.5rem;
+}
+
+:root {
+  color-scheme: light dark;
+}
