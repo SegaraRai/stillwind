@@ -50,8 +50,15 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
       resolverId: filename,
       checkerFileName: filename,
       projectionFileName: "Projection.astro",
-      document: { uri: "untitled:Projection.astro", format: "astro", code },
-      syntax: { language: "ts", moduleKind: "module" },
+      document: {
+        uri: "untitled:Projection.astro",
+        format: "astro",
+        code,
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
     });
     if (prepared.kind !== "projected") {
       expect.fail("an Astro document must produce a projection");
@@ -84,13 +91,22 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
 
   async function compile(prepared: PreparedSource) {
     const collected = collect(prepared);
-    const module = compileProject([{ ...prepared, typeFacts: collected.typeFacts }], stylesheet)
-      .modules[0];
+    const module = compileProject(
+      [
+        {
+          ...prepared,
+          typeFacts: collected.typeFacts,
+        },
+      ],
+      stylesheet,
+    ).modules[0];
     expect(module.diagnostics).toStrictEqual([]);
     if (module.code === null) {
       expect.fail("a compiled Astro document must contain code");
     }
-    const compiled = await compileAstro(module.code, { filename: prepared.projectionFileName });
+    const compiled = await compileAstro(module.code, {
+      filename: prepared.projectionFileName,
+    });
     expect(compiled.diagnostics.filter(({ severity }) => severity === 1)).toStrictEqual([]);
     return module;
   }
@@ -104,9 +120,15 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
       name: "@astrojs/compiler",
       version: "4.0.0",
     });
-    expect(prepared.projection.syntax).toStrictEqual({ language: "tsx", moduleKind: "module" });
+    expect(prepared.projection.syntax).toStrictEqual({
+      language: "tsx",
+      moduleKind: "module",
+    });
     expect(
-      prepared.projection.importRealms.map(({ start, end }) => ({ start, end })),
+      prepared.projection.importRealms.map(({ start, end }) => ({
+        start,
+        end,
+      })),
     ).toStrictEqual([{ start: 3, end: code.indexOf("\r\n---", 3) + 2 }]);
     const module = await compile(prepared);
     expect(module.composition).toMatchObject([
@@ -146,7 +168,11 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       "{[base].map(item=><><div {...style(identity(item),'grid',{class:label})}/><span>{label}</span></>)}",
     );
     const module = await compile(await project(code));
-    expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+    expect(module.composition).toMatchObject([
+      {
+        base: originalRange(code, "style('flex')"),
+      },
+    ]);
     expect(module.code).toContain("[base].map(item=><>");
     expect(module.code).toContain("{label}</span></>");
     expect(module.css).toMatch(/display:\s*grid/);
@@ -158,7 +184,11 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       "<div {...style(base,'grid')}/>",
     );
     const module = await compile(await project(code));
-    expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+    expect(module.composition).toMatchObject([
+      {
+        base: originalRange(code, "style('flex')"),
+      },
+    ]);
     expect(module.code).toContain("if(Astro.props.enabled)return Astro.redirect('/');");
   });
 
@@ -173,19 +203,34 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       const body = `\r\n// 日本語 🧭\r\n${macroImport}\r\n${baseDeclaration}\r\nconst derived=style(base,'grid');\r\nconsole.log(derived);\r\n`;
       const prefix = `<p>日本語 🧭</p>\r\n<script${attributes}>`;
       const code = `${prefix}${body}</script>`;
-      const region = { start: prefix.length, end: prefix.length + body.length };
+      const region = {
+        start: prefix.length,
+        end: prefix.length + body.length,
+      };
       const prepared = await project(code);
       expect(prepared.projection.checkerScriptRanges).toStrictEqual([region]);
       expect(
-        prepared.projection.importRealms.map(({ start, end }) => ({ start, end })),
+        prepared.projection.importRealms.map(({ start, end }) => ({
+          start,
+          end,
+        })),
       ).toStrictEqual([region]);
       expect(prepared.projection.editableRegions).toStrictEqual([
-        { ...region, importRealm: prepared.projection.importRealms[0].id },
+        {
+          ...region,
+          importRealm: prepared.projection.importRealms[0].id,
+        },
       ]);
       const buffers = checkerEnvironment(prepared).checkerBuffers!;
       expect(buffers).toMatchObject([
-        { language: "tsx" },
-        { source: body, language: "ts", region },
+        {
+          language: "tsx",
+        },
+        {
+          source: body,
+          language: "ts",
+          region,
+        },
       ]);
       expect(buffers[0].source.length).toBe(prepared.projection.code.length);
       expect(
@@ -197,7 +242,11 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
         ]),
       );
       const module = await compile(prepared);
-      expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+      expect(module.composition).toMatchObject([
+        {
+          base: originalRange(code, "style('flex')"),
+        },
+      ]);
       expect(module.code).toContain(prefix);
       expect(module.code).toContain("console.log(derived);");
       expect(module.css).toMatch(/display:\s*grid/);
@@ -249,7 +298,10 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       clientStarts.map((start) => ({
         source: body,
         language: "ts",
-        region: { start, end: start + body.length },
+        region: {
+          start,
+          end: start + body.length,
+        },
       })),
     );
     expect(new Set(prepared.projection.importRealms.map(({ id }) => id)).size).toBe(3);
@@ -264,7 +316,10 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     );
     expect(
       module.composition
-        .map(({ base: { start, end } }) => ({ start, end }))
+        .map(({ base: { start, end } }) => ({
+          start,
+          end,
+        }))
         .sort((a, b) => a.start - b.start),
     ).toStrictEqual(expected);
   });
@@ -273,7 +328,11 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const client = "function style(value){return value;}const authored=style('authored');";
     const code = component("", `<div {...style(base,'grid')}/><script>${client}</script>`);
     const module = await compile(await project(code));
-    expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+    expect(module.composition).toMatchObject([
+      {
+        base: originalRange(code, "style('flex')"),
+      },
+    ]);
     expect(module.code).toContain(client);
   });
 
@@ -299,7 +358,9 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       const range = originalRange(code, "selected", code.indexOf(errorText) + errorOffset);
       expect(() => collect(prepared)).toThrow(
         expect.objectContaining({
-          issue: expect.objectContaining({ kind: issueKind }),
+          issue: expect.objectContaining({
+            kind: issueKind,
+          }),
           moduleId: prepared.moduleId,
           ...range,
         }),
@@ -318,10 +379,17 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const prepared = await project(code);
     expect(prepared.projection.checkerScriptRanges).toStrictEqual([]);
     expect(checkerEnvironment(prepared).checkerBuffers).toStrictEqual([
-      { source: prepared.projection.code, language: "tsx" },
+      {
+        source: prepared.projection.code,
+        language: "tsx",
+      },
     ]);
     const module = await compile(prepared);
-    expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+    expect(module.composition).toMatchObject([
+      {
+        base: originalRange(code, "style('flex')"),
+      },
+    ]);
     for (const script of scripts) {
       expect(module.code).toContain(script);
     }
@@ -332,7 +400,11 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const prepared = await project(code);
     expect(prepared.projection.importRealms).toHaveLength(2);
     const module = await compile(prepared);
-    expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+    expect(module.composition).toMatchObject([
+      {
+        base: originalRange(code, "style('flex')"),
+      },
+    ]);
     expect(module.code).toContain("---\r\n---\r\n<script>");
   });
 });
