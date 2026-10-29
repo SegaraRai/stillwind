@@ -58,6 +58,11 @@ Vite+ builds the static sites and `tools/sites` writes Cloudflare Build Output
 under `.deploy/<app>/.cloudflare/output/v0/`. The build excludes source maps and
 internal build files, checks asset limits, and preserves WASM isolation headers.
 Preview builds add `noindex` and block crawlers in `robots.txt`.
+`PUBLIC_WEBSITE_URL` and `PUBLIC_PLAYGROUND_URL` select the two origins used by
+metadata, sitemaps, agent indexes, and navigation between the sites. CI uses the
+configured Preview URLs on `main` and pull requests, and the production URLs on `stable`.
+`check:urls` checks the generated files before deployment. The deployment checks also
+compare the published canonical and social card URLs with the actual deployment URL.
 
 The lockfile fixes the versions of Cloudflare CLI `cf` and its Build Output libraries. Update
 them together and verify both deployment modes when upgrading during the beta.
@@ -101,6 +106,10 @@ and [Custom Domains](https://developers.cloudflare.com/workers/configuration/rou
 3. Add `CLOUDFLARE_API_TOKEN` under **Environment secrets** in each environment.
    Both can initially use the token created above. Add `CLOUDFLARE_ACCOUNT_ID`
    as a repository variable under **Settings → Secrets and variables → Actions**.
+   Add repository variables `SITES_PREVIEW_WEBSITE_URL` and `SITES_PREVIEW_PLAYGROUND_URL`
+   with the `main` Preview URL of each Worker. These must be absolute HTTPS origins.
+   For the current account, they are `https://main-stillwind-website.abelia.workers.dev/`
+   and `https://main-stillwind-play.abelia.workers.dev/`.
    Remove any repository secret with the same token name after configuring both
    environments, so deployments require the environment secret.
 4. Require the `Build and verify` check on pull requests to `main` and `stable`
@@ -114,8 +123,10 @@ supports environments, environment secrets, and deployment branch rules for
 private repositories. Required reviewers and wait timers on that plan require
 a public repository. See [Managing environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
 
-For local verification, set `SITE_URL=https://stillwind.dev` and set
-`SITE_DEPLOYMENT` to `preview` or `production`, then run `vp run verify:sites`.
+For local verification, set `PUBLIC_WEBSITE_URL` and `PUBLIC_PLAYGROUND_URL` to
+the intended origins and set `SITE_DEPLOYMENT` to `preview` or `production`,
+then run `vp run verify:sites`. Both URLs default to the production origins.
+Use localhost origins to test navigation between local development servers.
 Production output also supports `vp run @stillwind-internal/tools-sites#check:production`,
 which performs a `cf deploy --prebuilt --dry-run` without credentials.
 To deploy prepared output locally, set `CLOUDFLARE_ACCOUNT_ID` and

@@ -33,6 +33,7 @@ const socialImage = new URL("/og.png", Astro.site);
     {noindex && <meta name="robots" content="noindex" />}
     <ThemeHead />
     <title>{title}</title>
+    {!noindex && <link rel="canonical" href={url} />}
     {description && (
       <>
         <meta name="description" content={description} />

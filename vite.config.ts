@@ -255,6 +255,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/apps-play#typecheck",
           "@stillwind-internal/apps-website#test",
           "@stillwind-internal/apps-play#build:acceptance",
+          "@stillwind-internal/tools-sites#check:urls",
           "@stillwind-internal/tools-sites#prepare:play",
           "@stillwind-internal/tools-sites#prepare:website",
           "@stillwind-internal/tools-sites#test",

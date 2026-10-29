@@ -31,6 +31,11 @@ these headers for Cloudflare Workers Static Assets. The threaded WASM compiler r
 See [Site deployments](../../DEVELOPMENT.md#site-deployments) for CI, Preview,
 production, and the required Cloudflare and GitHub settings.
 
+`PUBLIC_PLAYGROUND_URL` sets the origin of canonical URLs and social cards.
+`PUBLIC_WEBSITE_URL` sets links to the website and its documentation, including the
+404 page. They default to `https://play.stillwind.dev/` and `https://stillwind.dev/`.
+The build and content-sync task caches include both variables.
+
 ## Workspace and preview
 
 The workspace starts from a preset. Each preset lives in `examples/<id>/`, and

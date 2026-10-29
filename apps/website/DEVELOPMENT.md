@@ -108,10 +108,11 @@ that matches its reader task. The **Macros** group lists its pages explicitly:
 that list. Directory groups under **Reference** pick up new at-rule, lint, and
 error pages automatically.
 
-Set `SITE_URL` to the deployment origin before building for publication. It
-defaults to `http://localhost:4322` for local previews and controls absolute
-links in metadata, agent indexes, and the sitemap. Build and content-sync task
-caches include this variable.
+Set `PUBLIC_WEBSITE_URL` and `PUBLIC_PLAYGROUND_URL` to the two deployment origins
+before building for publication. They default to `https://stillwind.dev/` and
+`https://play.stillwind.dev/`. The website origin controls metadata,
+agent indexes, and sitemaps. The playground origin controls links to the playground.
+Build and content-sync task caches include both variables.
 
 ## Writing documentation
 

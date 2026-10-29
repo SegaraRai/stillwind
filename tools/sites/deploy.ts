@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 
+import { checkPageUrls } from "./check-urls.ts";
 import { parseSite, sites, type Deployment, type Site } from "./prepare.ts";
 
 /**
@@ -37,7 +38,7 @@ export function previewUrl(output: string): string {
 }
 
 /**
- * Checks the deployed site's routes, Preview indexing policy, and WASM response headers.
+ * Checks the deployed site's routes, metadata, Preview indexing policy, and WASM response headers.
  * Throws when an HTTP request fails or a response breaks the hosting contract.
  */
 export async function checkSite(site: Site, origin: string, deployment: Deployment): Promise<void> {
@@ -76,6 +77,12 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
       throw new Error(`${url}: expected application/wasm`);
     }
   }
+  const pageUrl = new URL("/", origin);
+  const page = await fetch(pageUrl, { signal: AbortSignal.timeout(15_000) });
+  if (!page.ok) {
+    throw new Error(`${pageUrl}: HTTP ${page.status}`);
+  }
+  checkPageUrls(await page.text(), pageUrl.href, new URL("og.png", pageUrl).href);
 }
 
 async function deploy(site: Site, branch: string | undefined, dryRun: boolean): Promise<void> {
