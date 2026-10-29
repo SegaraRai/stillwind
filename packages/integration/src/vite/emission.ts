@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { NativeStylesheetPart } from "@stillwind/native";
+import { cssBanners } from "stillwind/css";
 
 /**
  * Packs adjacent occurrences with identical ordered producer lists without moving any rule.
@@ -27,7 +28,7 @@ export function partitionStylesheet(
         })),
       );
       previous.css += part.css;
-      previous.banners = [...new Set([...previous.banners, ...part.banners])];
+      previous.banners = cssBanners([...previous.banners, ...part.banners]);
       previous.key = createHash("sha256")
         .update(previous.css)
         .update(JSON.stringify(previous.banners))

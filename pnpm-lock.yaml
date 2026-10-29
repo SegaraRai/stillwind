@@ -2727,9 +2727,6 @@ importers:
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
-      stillwind:
-        specifier: workspace:*
-        version: link:../core
       tinyglobby:
         specifier: ^0.2.17
         version: 0.2.17
@@ -2752,6 +2749,9 @@ importers:
       '@vue/compiler-sfc':
         specifier: ^3.5.44
         version: 3.5.44
+      stillwind:
+        specifier: workspace:*
+        version: link:../core
       svelte:
         specifier: ^5.57.3
         version: 5.57.3
@@ -2806,9 +2806,6 @@ importers:
       rolldown:
         specifier: 'catalog:'
         version: 1.2.15
-      stillwind:
-        specifier: workspace:*
-        version: link:../core
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@1.4.0
         version: '@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.5)(@volar/typescript@2.4.30(typescript@6.0.3))(@vue/language-core@3.3.13)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(typescript@6.0.3)(yaml@2.9.1)'
@@ -2852,6 +2849,9 @@ importers:
       nuxt:
         specifier: ^4.6.3
         version: 4.6.3(787edbbe78d3f1f027e4f2fd2933017e)
+      stillwind:
+        specifier: workspace:*
+        version: link:../core
       svelte:
         specifier: ^5.57.3
         version: 5.57.3

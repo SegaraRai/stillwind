@@ -68,8 +68,7 @@
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
-    "rolldown": "catalog:",
-    "stillwind": "workspace:*"
+    "rolldown": "catalog:"
   },
   "devDependencies": {
     "@rsbuild/core": "^2.2.14",
@@ -85,6 +84,7 @@
     "css-loader": "^7.1.5",
     "next": "^16.4.3",
     "nuxt": "^4.6.3",
+    "stillwind": "workspace:*",
     "svelte": "^5.57.3",
     "svelte-loader": "^3.2.4",
     "swc-loader": "^0.2.7",
@@ -101,6 +101,7 @@
     "@sveltejs/kit": "^2.0.0 || ^3.0.0",
     "astro": "^6.0.0 || ^7.0.0",
     "nuxt": "^4.0.0",
+    "stillwind": "workspace:*",
     "vite": "^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {

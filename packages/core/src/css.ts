@@ -220,18 +220,30 @@ export async function loadStyles(
 }
 
 /**
+ * Orders notices as a published stylesheet lists them.
+ *
+ * @param banners - Complete preserved comments selected by the compiler, in any order and possibly
+ * repeated.
+ * @returns A new array with the Stillwind and Tailwind notices first, then the other unique notices
+ * in lexical order.
+ */
+export function cssBanners(banners: readonly string[]): string[] {
+  const priority = (text: string) =>
+    text.startsWith("/*! stillwind v") ? 0 : text.startsWith("/*! tailwindcss v") ? 1 : 2;
+  return [...new Set(banners)].sort(
+    (a, b) => priority(a) - priority(b) || (a < b ? -1 : a > b ? 1 : 0),
+  );
+}
+
+/**
  * Formats notices as the prefix of a published stylesheet.
  *
  * @param banners - Complete preserved comments selected by the compiler, in any order and possibly
  * repeated.
- * @returns The Stillwind and Tailwind notices, then the other unique notices in lexical order,
- * each followed by a newline.
+ * @returns The notices in the order of {@link cssBanners}, each followed by a newline.
  */
-export function cssBannerPrefix(banners: readonly string[] = []): string {
-  const priority = (text: string) =>
-    text.startsWith("/*! stillwind v") ? 0 : text.startsWith("/*! tailwindcss v") ? 1 : 2;
-  return [...new Set(banners)]
-    .sort((a, b) => priority(a) - priority(b) || (a < b ? -1 : a > b ? 1 : 0))
+export function cssBannerPrefix(banners: readonly string[]): string {
+  return cssBanners(banners)
     .map((banner) => banner + "\n")
     .join("");
 }

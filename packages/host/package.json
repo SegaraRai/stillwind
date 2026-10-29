@@ -35,7 +35,6 @@
     "minimatch": "^10.2.6",
     "oxc-resolver": "^11.24.2",
     "pathe": "catalog:",
-    "stillwind": "workspace:*",
     "tinyglobby": "^0.2.17",
     "typescript-6": "npm:typescript@^6.0.3",
     "typescript-7": "npm:typescript@^7.0.2"
@@ -45,6 +44,7 @@
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@vue/compiler-sfc": "^3.5.44",
+    "stillwind": "workspace:*",
     "svelte": "^5.57.3",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
