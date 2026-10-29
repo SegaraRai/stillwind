@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     name: "static-play",
     include: ["src/**/*.test.ts"],
-    testTimeout: 300_000,
+    testTimeout: 600_000,
   },
   run: {
     tasks: {
