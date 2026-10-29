@@ -1,6 +1,7 @@
 ---
 import { style } from "stillwind/astro";
 
+import Backdrop from "../components/landing/Backdrop.astro";
 import Features from "../components/landing/Features.astro";
 import Showcase from "../components/landing/Showcase.astro";
 import HomeLayout from "../layouts/HomeLayout.astro";
@@ -22,7 +23,9 @@ const frameworks = [
 ---
 
 <HomeLayout title={title} description={description}>
-  <section aria-labelledby="tagline" {...style("py-16 sidebar:py-28")}>
+  <Backdrop />
+
+  <section aria-labelledby="tagline" data-backdrop-hero {...style("py-16 sidebar:py-28")}>
     <h1 id="tagline" {...style("hero-title")}>
       Familiar utilities.
       <span {...style("hero-second-line")}>Enforced rules.</span>
