@@ -8,7 +8,11 @@ export default defineConfig(({ isPreview }) => ({
     previewUrls: true,
     domains: [
       ...(isPreview ? [] : ["stillwind.dev"]),
-      { hostname: "preview.stillwind.dev", production: false, previews: true },
+      {
+        hostname: "preview.stillwind.dev",
+        production: false,
+        previews: true,
+      },
     ],
     assets: {
       notFoundHandling: "404-page",

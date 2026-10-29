@@ -28,7 +28,11 @@ test.each(["preview", "production"] as const)(
         workersDev: false,
         domains: [
           ...(isPreview ? [] : ["stillwind.dev"]),
-          { hostname: "preview.stillwind.dev", production: false, previews: true }
+          {
+            hostname: "preview.stillwind.dev",
+            production: false,
+            previews: true,
+          },
         ]
       } });`,
     );
@@ -46,7 +50,11 @@ test.each(["preview", "production"] as const)(
     expect(output.workers.default.config.name).toBe("stillwind-website");
     expect(output.workers.default.config.domains).toEqual([
       ...(deployment === "preview" ? [] : ["stillwind.dev"]),
-      { hostname: "preview.stillwind.dev", production: false, previews: true },
+      {
+        hostname: "preview.stillwind.dev",
+        production: false,
+        previews: true,
+      },
     ]);
     expect(output.workers.default.config.workersDev).toBe(false);
     expect(output.workers.default.bundleDir).toBeUndefined();
