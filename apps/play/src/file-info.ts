@@ -32,13 +32,13 @@ export function getFileInfo(filename: string): FileInfo {
       label: "Stillwind Config",
     };
   }
-  if (/\.jsx$/i.test(filename)) {
+  if (/\.[cm]?jsx$/i.test(filename)) {
     return {
       type: "javascriptreact",
       label: "JavaScript JSX",
     };
   }
-  if (/\.tsx$/i.test(filename)) {
+  if (/\.[cm]?tsx$/i.test(filename)) {
     return {
       type: "typescriptreact",
       label: "TypeScript JSX",
