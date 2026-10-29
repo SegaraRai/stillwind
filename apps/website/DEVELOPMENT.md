@@ -36,6 +36,8 @@ vp run @stillwind-internal/apps-website#verify
 ```
 
 Development and preview use port 4322. The build writes a static site to `dist/`.
+See [Site deployments](../../DEVELOPMENT.md#site-deployments) for CI, Preview,
+production, and the required Cloudflare and GitHub settings.
 The build runs after the Astro checker because both processes write Nimbus's
 prepared content under `.astro/nimbus/`.
 The application supplies emnapi 1.x for Astro's checker; Stillwind's compiler

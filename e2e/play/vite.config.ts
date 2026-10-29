@@ -8,6 +8,10 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "setup:browser": {
+        command: "playwright install --with-deps chrome",
+        cache: false,
+      },
       "test:e2e": {
         command: "vp test --run",
         cache: false,

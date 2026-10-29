@@ -84,6 +84,7 @@ export default defineConfig(({ mode }) => ({
               "packages/vscode-extension/vite.config.ts",
               "plugins/iconify/vite.config.ts",
               "tools/builtin-css/vite.config.ts",
+              "tools/sites/vite.config.ts",
               "tools/tailwind-compat/vite.config.ts",
               "tools/tailwind/vite.config.ts",
             ],
@@ -218,6 +219,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/tools-builtin-css#typecheck",
           "@stillwind-internal/tools-fixture-css#typecheck",
           "@stillwind-internal/tools-projects#typecheck",
+          "@stillwind-internal/tools-sites#typecheck",
           "@stillwind-internal/tools-tailwind-compat#typecheck",
           "@stillwind-internal/tools-tailwind#typecheck",
           "@stillwind-internal/tools-webref#typecheck",
@@ -240,6 +242,20 @@ export default defineConfig(({ mode }) => ({
       verify: {
         command: "",
         dependsOn: ["check", "test"],
+      },
+      "verify:sites": {
+        command: "",
+        dependsOn: [
+          "@stillwind-internal/apps-play#check:examples",
+          "@stillwind-internal/apps-play#test",
+          "@stillwind-internal/apps-play#typecheck",
+          "@stillwind-internal/apps-website#test",
+          "@stillwind-internal/e2e-play#test:e2e",
+          "@stillwind-internal/tools-sites#prepare:play",
+          "@stillwind-internal/tools-sites#prepare:website",
+          "@stillwind-internal/tools-sites#test",
+          "@stillwind-internal/tools-sites#typecheck",
+        ],
       },
       // bench
       "bench:analysis": "vp run @stillwind-internal/benchmarks#bench:analysis",

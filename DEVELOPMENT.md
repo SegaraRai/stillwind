@@ -35,6 +35,92 @@ Before you publish the platform packages of `@stillwind/native`, run
 `packages/native/RUST-THIRD-PARTY-LICENSES` is current and copies it into each
 platform package, where git ignores the copy.
 
+## Site deployments
+
+[Sites](.github/workflows/sites.yml) builds and checks the website and playground
+on pull requests and pushes to `main` and `stable`. Pushes to `main` update the
+`main` Preview of each Worker. Pushes to `stable` deploy production:
+
+| Application | Worker              | Production URL               |
+| ----------- | ------------------- | ---------------------------- |
+| Website     | `stillwind-website` | `https://stillwind.dev`      |
+| Playground  | `stillwind-play`    | `https://play.stillwind.dev` |
+
+Until the first package release, `stable` tracks the selected initial site
+snapshot. It then contains the code and documentation for the published packages. Apply
+documentation fixes there and bring them into `main`. After a package release
+succeeds, advance `stable` to its release commit. If automation updates `stable`
+with `GITHUB_TOKEN`, explicitly dispatch Sites on `stable`: pushes made with that
+token do not start another workflow.
+
+The applications declare their Worker settings in `cloudflare.config.ts`.
+Vite+ builds the static sites and `tools/sites` writes Cloudflare Build Output
+under `.deploy/<app>/.cloudflare/output/v0/`. The build excludes source maps and
+internal build files, checks asset limits, and preserves WASM isolation headers.
+Preview builds add `noindex` and block crawlers in `robots.txt`.
+
+The lockfile fixes the versions of Cloudflare CLI `cf` and its Build Output libraries. Update
+them together and verify both deployment modes when upgrading during the beta.
+The deployment job downloads the checked Build Output and uses `cf` with
+`--prebuilt`. It does not build application code. Only that step receives the
+Cloudflare token. Pull requests run without deployment credentials.
+The GitHub deployments and Actions summary link to the deployed sites.
+HTTP checks verify documentation routes, Preview indexing rules, and WASM headers
+after deployment. The playground acceptance suite tests browser behavior before upload.
+
+### Cloudflare setup
+
+1. Activate the `stillwind.dev` zone in the target Cloudflare account and choose
+   its `workers.dev` subdomain. GitHub Actions manages builds and deployments;
+   leave Workers Builds disconnected from this repository.
+2. Create a token scoped to that account. Grant Workers **Admin** at the product
+   scope for initial Worker creation, plus **Workers Routes Write** for the
+   `stillwind.dev` zone. After provisioning, Workers **Editor** is sufficient
+   when deployments keep the existing Worker and domain connections.
+3. Record the account ID. The first deployment creates the Workers. The first
+   production deployment attaches the configured Custom Domains and provisions
+   their certificates. Preview URLs are enabled in the checked-in configuration.
+
+See [Workers permissions](https://developers.cloudflare.com/workers/authorization/workers/)
+and [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+
+### GitHub setup
+
+1. Enable GitHub Actions and allow the actions pinned in `sites.yml`.
+2. Under **Settings → Environments**, create `sites-preview` and
+   `sites-production`. For each environment, set **Deployment branches and tags**
+   to **Selected branches and tags**. Add a **Branch** rule for `main` in
+   `sites-preview` and a **Branch** rule for `stable` in `sites-production`.
+3. Add `CLOUDFLARE_API_TOKEN` under **Environment secrets** in each environment.
+   Both can initially use the token created above. Add `CLOUDFLARE_ACCOUNT_ID`
+   as a repository variable under **Settings → Secrets and variables → Actions**.
+   Remove any repository secret with the same token name after configuring both
+   environments, so deployments require the environment secret.
+4. Require the `Build and verify` check on pull requests to `main` and `stable`
+   and disable force pushes on `stable`.
+5. Merge the workflow into `main` to deploy Preview. Create `stable` from the
+   reviewed commit and push it to deploy production. Later runs can also be
+   started from **Actions → Sites → Run workflow**, selecting `main` or `stable`.
+
+Both environments deploy automatically after their checks pass. GitHub Pro
+supports environments, environment secrets, and deployment branch rules for
+private repositories. Required reviewers and wait timers on that plan require
+a public repository. See [Managing environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
+
+For local verification, set `SITE_URL=https://stillwind.dev` and set
+`SITE_DEPLOYMENT` to `preview` or `production`, then run `vp run verify:sites`.
+Production output also supports `vp run @stillwind-internal/tools-sites#check:production`,
+which performs a `cf deploy --prebuilt --dry-run` without credentials.
+To deploy prepared output locally, set `CLOUDFLARE_ACCOUNT_ID` and
+`CLOUDFLARE_API_TOKEN`, then run
+`vp run @stillwind-internal/tools-sites#deploy -- website main` or select `play`
+and `stable` as needed. The branch argument must match the prepared mode.
+
+To roll back a site, select the previous version in that Worker's Cloudflare
+Deployments dashboard. Each Worker is deployed and rolled back separately.
+Repository transfers also require reviewing Actions policies and token access
+in the destination organization.
+
 ## Repository layout
 
 | Directory     | Responsibility                                                                 |

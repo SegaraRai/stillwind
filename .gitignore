@@ -5,6 +5,8 @@ dist
 *.node
 
 .cache
+.deploy
+.cloudflare
 .napi-external
 .napi-rs-*
 .*.napi-stage-*

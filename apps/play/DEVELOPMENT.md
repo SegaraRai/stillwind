@@ -25,8 +25,11 @@ vp run @stillwind-internal/apps-play#build
 `build/assets.ts` writes the static assets and the files from `public/` to
 `dist/assets-static`, which Astro uses as its public directory. Serve `dist/site` with
 `Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp`. The generated `_headers` file uses the
-Netlify/Cloudflare Pages format. The threaded WASM compiler requires these headers.
+`Cross-Origin-Embedder-Policy: require-corp`. The generated `_headers` file configures
+these headers for Cloudflare Workers Static Assets. The threaded WASM compiler requires them.
+
+See [Site deployments](../../DEVELOPMENT.md#site-deployments) for CI, Preview,
+production, and the required Cloudflare and GitHub settings.
 
 ## Workspace and preview
 

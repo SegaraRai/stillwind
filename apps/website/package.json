@@ -25,6 +25,7 @@
     "@stillwind/native": "workspace:*",
     "@stillwind/plugin-iconify": "workspace:*",
     "@types/node": "catalog:",
+    "cf": "catalog:",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }
