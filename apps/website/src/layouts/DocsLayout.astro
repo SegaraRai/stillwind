@@ -1,17 +1,18 @@
 ---
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import type { PrevNext, SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
-
-import "@fontsource/instrument-sans/400.css";
-import "@fontsource/instrument-sans/500.css";
-import "@fontsource/instrument-sans/600.css";
 import { style } from "stillwind/astro";
 
-import "../assets/fonts/jetbrains-mono.css";
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
 import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
+import { packageManagers, packageManagerStorageKey } from "../lib/docs/package-managers";
+
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "@fontsource/instrument-sans/600.css";
+import "../assets/fonts/jetbrains-mono.css";
 
 interface Props {
   title: string;
@@ -41,6 +42,21 @@ const paginationLink = style(
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <ThemeHead />
+    <script
+      is:inline
+      define:vars={{
+        key: packageManagerStorageKey,
+        managers: packageManagers.map(({ id }) => id),
+      }}
+    >
+      // Shows the stored package manager's commands before the first paint.
+      try {
+        const manager = localStorage.getItem(key);
+        if (managers.includes(manager)) {
+          document.documentElement.dataset.packageManager = manager;
+        }
+      } catch {}
+    </script>
     <NimbusHead
       title={title}
       description={description}
@@ -248,8 +264,10 @@ const paginationLink = style(
   import { codeCopy } from "@cloudflare/nimbus-docs/client";
 
   import { mountDocsHeader } from "../lib/docs/header";
+  import { mountPackageManagerTabs } from "../lib/docs/package-manager-tabs";
 
   codeCopy();
+  mountPackageManagerTabs();
 
   const slot = document.querySelector<HTMLElement>("[data-header-slot]");
   if (slot) {

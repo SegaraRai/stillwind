@@ -112,6 +112,41 @@ Typography and spacing for Markdown, slots, and Nimbus output.
     @apply absolute top-2 right-2 grid place-items-center size-8 p-1.5 text-muted bg-surface rounded-control border border-border cursor-pointer hover:text-inherit focus-visible:text-inherit data-[state=copied]:text-inherit;
   }
 
+  /*
+  Package manager tabs from packageManagerPlugin. `data-package-manager` on the document root
+  selects the visible commands before and after the tab script starts, so a stored selection
+  does not flash the Vite+ commands. Without the attribute, the Vite+ tab is selected.
+  */
+  & [data-package-managers] [role="tablist"] {
+    @apply flex px-3 gap-1 overflow-x-auto bg-surface-muted rounded-t-panel border border-border border-be-0 max-sidebar:px-2;
+  }
+
+  & [data-package-managers] [role="tab"] {
+    @apply px-2.5 py-2.5 font-mono text-muted text-small border-transparent border-be-2 cursor-pointer hover:text-foreground;
+  }
+
+  :where(:root:not([data-package-manager])) & [role="tab"][data-package-manager="vp"],
+  :where(:root[data-package-manager="vp"]) & [role="tab"][data-package-manager="vp"],
+  :where(:root[data-package-manager="npm"]) & [role="tab"][data-package-manager="npm"],
+  :where(:root[data-package-manager="pnpm"]) & [role="tab"][data-package-manager="pnpm"],
+  :where(:root[data-package-manager="yarn"]) & [role="tab"][data-package-manager="yarn"],
+  :where(:root[data-package-manager="bun"]) & [role="tab"][data-package-manager="bun"] {
+    @apply text-foreground border-accent;
+  }
+
+  :where(:root:not([data-package-manager])) & [role="tabpanel"]:not([data-package-manager="vp"]),
+  :where(:root[data-package-manager="vp"]) & [role="tabpanel"]:not([data-package-manager="vp"]),
+  :where(:root[data-package-manager="npm"]) & [role="tabpanel"]:not([data-package-manager="npm"]),
+  :where(:root[data-package-manager="pnpm"]) & [role="tabpanel"]:not([data-package-manager="pnpm"]),
+  :where(:root[data-package-manager="yarn"]) & [role="tabpanel"]:not([data-package-manager="yarn"]),
+  :where(:root[data-package-manager="bun"]) & [role="tabpanel"]:not([data-package-manager="bun"]) {
+    @apply hidden;
+  }
+
+  & [data-package-managers] [role="tabpanel"] pre {
+    @apply rounded-t-none;
+  }
+
   & .astro-code,
   & .astro-code span {
     @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];

@@ -3,6 +3,7 @@ import { stillwind } from "@stillwind/integration/astro";
 import { defineConfig } from "astro/config";
 
 import { referenceMarkdown } from "./src/components/docs/reference/markdown";
+import { packageManagerPlugin } from "./src/lib/docs/package-managers";
 
 const { componentMap, sourcePlugin } = await referenceMarkdown();
 
@@ -109,7 +110,7 @@ export default defineConfig({
       {
         markdown: {
           componentMap,
-          mdastPlugins: [sourcePlugin],
+          mdastPlugins: [sourcePlugin, packageManagerPlugin],
         },
         rules: {
           "nimbus/frontmatter-shape": "error",
