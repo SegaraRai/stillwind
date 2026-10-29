@@ -28,6 +28,7 @@ export default defineConfig({
         command: "astro build",
         dependsOn: [
           "build:assets",
+          "generate:types",
           "@stillwind/host#build",
           "@stillwind/integration#build",
           "prettier-plugin-stillwind#build",
@@ -35,12 +36,8 @@ export default defineConfig({
       },
       "build:acceptance": {
         command: "astro build --base /play/ --outDir dist/acceptance",
-        dependsOn: [
-          "build:assets",
-          "@stillwind/host#build",
-          "@stillwind/integration#build",
-          "prettier-plugin-stillwind#build",
-        ],
+        // Both Astro builds write .astro, so the production build must finish first.
+        dependsOn: ["build"],
       },
       "build:assets": {
         command: "node build/assets.ts",

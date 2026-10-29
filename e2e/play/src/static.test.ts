@@ -1,4 +1,5 @@
-import { readdir, readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { relative, resolve, sep, extname } from "node:path";
 
@@ -68,11 +69,24 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     expect.fail("Missing static server port");
   }
   const browser = await chromium.launch({ channel: "chrome", headless: true });
+  let pageForEvidence: Page | undefined;
+  const errors: string[] = [];
+  const logs: string[] = [];
+  const failedRequests: string[] = [];
   try {
     const page = await browser.newPage({ permissions: ["clipboard-read", "clipboard-write"] });
+    pageForEvidence = page;
     const buffers = new Map(exampleFiles);
-    const errors: string[] = [];
     const remote: string[] = [];
+    page.on("console", (message) => logs.push(`${message.type()}: ${message.text()}`));
+    page.on("requestfailed", (request) =>
+      failedRequests.push(`${request.url()}: ${request.failure()?.errorText}`),
+    );
+    page.on("response", (response) => {
+      if (response.status() >= 400) {
+        failedRequests.push(`${response.url()}: HTTP ${response.status()}`);
+      }
+    });
     page.on("request", (request) => {
       if (/^https?:/.test(request.url()) && new URL(request.url()).hostname !== "127.0.0.1") {
         remote.push(request.url());
@@ -271,6 +285,28 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     expect(errors).toEqual([]);
     expect(remote).toEqual([]);
     expect(new Set(requests)).toEqual(new Set(["GET"]));
+  } catch (error) {
+    const evidence = resolve(import.meta.dirname, "../results", randomUUID());
+    await mkdir(evidence, { recursive: true });
+    const body = await pageForEvidence
+      ?.locator("body")
+      .innerText()
+      .catch(() => "");
+    const details = {
+      errors,
+      logs,
+      failedRequests,
+      body,
+    };
+    console.error("Playground failure:", JSON.stringify(details, null, 2));
+    await Promise.allSettled([
+      writeFile(resolve(evidence, "browser.json"), JSON.stringify(details, null, 2)),
+      pageForEvidence?.screenshot({
+        path: resolve(evidence, "failure.png"),
+        fullPage: true,
+      }),
+    ]);
+    throw error;
   } finally {
     await browser.close();
     await new Promise<void>((resolve, reject) =>
