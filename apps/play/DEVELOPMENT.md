@@ -13,6 +13,12 @@ Rolldown does not bundle CSS. The build inlines `@import` rules that name worksp
 stylesheets, and it appends imported stylesheets in module order after the Stillwind CSS.
 Other `@import` rules and `url()` references stay unchanged.
 
+The Stillwind and Rolldown WASM loaders each start with 128 MiB of linear memory
+and can grow as needed. Each loader preloads four workers for async work and two
+additional workers. Rolldown has separate loaders for application builds and LSP
+configuration bundles. `pnpm-workspace.yaml` registers the dependency patches that
+configure Rolldown's memory and pool sizes and the browser pool option in NAPI-RS.
+
 ## Local tasks and hosting
 
 Run from the repository root:

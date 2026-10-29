@@ -51,8 +51,10 @@
       "wasm32-wasip1-threads"
     ],
     "wasm": {
+      "initialMemory": 2048,
       "browser": {
-        "errorEvent": true
+        "errorEvent": true,
+        "workerPoolSize": 2
       }
     }
   }

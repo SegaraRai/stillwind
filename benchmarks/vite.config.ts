@@ -75,6 +75,11 @@ export default defineConfig(({ mode }) => ({
         cache: false,
         dependsOn: ["@stillwind/native#collect:local"],
       },
+      "bench:play-memory": {
+        command: "node playground/memory.ts",
+        cache: false,
+        dependsOn: ["@stillwind-internal/apps-play#build:acceptance"],
+      },
       "bench:sorting": {
         command:
           "vp test bench compiler/sorting.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/sorting-native.json",

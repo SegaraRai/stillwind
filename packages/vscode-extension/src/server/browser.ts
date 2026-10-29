@@ -17,6 +17,7 @@ import {
 } from "vscode-languageserver/browser";
 
 import type { BundledModule } from "./bundle.ts";
+import { consumeWorkspaceFiles } from "./inventory.ts";
 import { installLibraries } from "./libraries.ts";
 import { browserPluginHost } from "./plugins.ts";
 
@@ -87,7 +88,7 @@ const server = createLanguageServer(connection, {
       }
       return (await response.json()) as [string, string][];
     });
-    const files = new Map(captured.files.map(([uri, text]) => [virtualPath(uri), text] as const));
+    const files = consumeWorkspaceFiles(captured);
     installLibraries(files, await libraries, workspaceFolders.map(virtualPath));
     workspaces = [];
     const opened = new Map<string, BrowserAnalysisWorkspace>();

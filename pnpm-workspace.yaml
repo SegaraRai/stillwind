@@ -82,3 +82,7 @@ minimumReleaseAgeExclude:
   - "@cloudflare/runtime-types@0.1.18"
   - cf@1.0.0-beta.25
   - miniflare@5.20261023.2-beta
+
+patchedDependencies:
+  "@napi-rs/cli@3.10.9": patches/@napi-rs__cli@3.10.9.patch
+  "@rolldown/browser@1.2.15": patches/@rolldown__browser@1.2.15.patch

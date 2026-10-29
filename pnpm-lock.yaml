@@ -221,6 +221,10 @@ overrides:
   vite@*: npm:@voidzero-dev/vite-plus-core@1.4.0
   vitest@*: 5.0.5
 
+patchedDependencies:
+  '@napi-rs/cli@3.10.9': f212c53791ef577848df95b2aac294ec62f2ae7d2f8c86f060ef6c5d76756cfb
+  '@rolldown/browser@1.2.15': dda3c9ded24f4368d56bf91be798f02dbaf8ba589987eff471d9fb75a7a65b76
+
 importers:
 
   .:
@@ -233,7 +237,7 @@ importers:
         version: 2.0.0-beta.2
       '@napi-rs/cli':
         specifier: ^3.10.9
-        version: 3.10.9(@emnapi/core@2.0.0-beta.2)(@emnapi/runtime@2.0.0-beta.2)(@types/node@26.6.5)(emnapi@2.0.0-beta.2(node-addon-api@7.1.1))(supports-color@8.1.1)
+        version: 3.10.9(patch_hash=f212c53791ef577848df95b2aac294ec62f2ae7d2f8c86f060ef6c5d76756cfb)(@emnapi/core@2.0.0-beta.2)(@emnapi/runtime@2.0.0-beta.2)(@types/node@26.6.5)(emnapi@2.0.0-beta.2(node-addon-api@7.1.1))(supports-color@8.1.1)
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:tools/workspace
@@ -400,7 +404,7 @@ importers:
         version: 5.3.0
       '@rolldown/browser':
         specifier: 'catalog:'
-        version: 1.2.15
+        version: 1.2.15(patch_hash=dda3c9ded24f4368d56bf91be798f02dbaf8ba589987eff471d9fb75a7a65b76)
       '@stillwind/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -3071,7 +3075,7 @@ importers:
     dependencies:
       '@rolldown/browser':
         specifier: 'catalog:'
-        version: 1.2.15
+        version: 1.2.15(patch_hash=dda3c9ded24f4368d56bf91be798f02dbaf8ba589987eff471d9fb75a7a65b76)
       '@stillwind/analysis':
         specifier: workspace:*
         version: link:../analysis
@@ -21086,7 +21090,7 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
-  '@napi-rs/cli@3.10.9(@emnapi/core@2.0.0-beta.2)(@emnapi/runtime@2.0.0-beta.2)(@types/node@26.6.5)(emnapi@2.0.0-beta.2(node-addon-api@7.1.1))(supports-color@8.1.1)':
+  '@napi-rs/cli@3.10.9(patch_hash=f212c53791ef577848df95b2aac294ec62f2ae7d2f8c86f060ef6c5d76756cfb)(@emnapi/core@2.0.0-beta.2)(@emnapi/runtime@2.0.0-beta.2)(@types/node@26.6.5)(emnapi@2.0.0-beta.2(node-addon-api@7.1.1))(supports-color@8.1.1)':
     dependencies:
       '@inquirer/prompts': 8.7.5(@types/node@26.6.5)
       '@napi-rs/cross-toolchain': 1.0.3(supports-color@8.1.1)
@@ -23126,7 +23130,7 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.2.15':
     optional: true
 
-  '@rolldown/browser@1.2.15':
+  '@rolldown/browser@1.2.15(patch_hash=dda3c9ded24f4368d56bf91be798f02dbaf8ba589987eff471d9fb75a7a65b76)':
     dependencies:
       '@emnapi/core': 2.0.0-beta.2
       '@emnapi/runtime': 2.0.0-beta.2

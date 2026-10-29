@@ -1,0 +1,175 @@
+diff --git a/dist/cli.js b/dist/cli.js
+index 3c7c0c17c9d1086dd29521f2ab508f7253473622..58c192128ff943068321c6fea3656b551514b5e6 100644
+--- a/dist/cli.js
++++ b/dist/cli.js
+@@ -7988,7 +7988,8 @@ ${abortDisposalAfterThreadCrash("    ")}\
+ ${rollbackAfterThreadCrash}\
+ `;
+ };
+-const createWasiBrowserBinding = (wasiFilename, initialMemory = 4e3, maximumMemory = 65536, fs = false, asyncInit = false, buffer = false, errorEvent = false, threads = true, platformArchABI = threads ? "wasm32-wasi" : "wasm32-wasip1", asyncRuntime = false) => {
++const createWasiBrowserBinding = (wasiFilename, initialMemory = 4e3, maximumMemory = 65536, fs = false, asyncInit = false, buffer = false, errorEvent = false, threads = true, platformArchABI = threads ? "wasm32-wasi" : "wasm32-wasip1", asyncRuntime = false, workerPoolSize) => {
++	if (workerPoolSize !== undefined && (!Number.isSafeInteger(workerPoolSize) || workerPoolSize < 0)) throw new RangeError("napi.wasm.browser.workerPoolSize must be a nonnegative safe integer");
+ 	const effectiveAsyncInit = asyncInit || threads;
+ 	const asyncRuntimeImport = asyncRuntime ? `import { installCurrentThreadHosts as __installCurrentThreadHosts } from '@napi-rs/async-runtime'\n` : "";
+ 	const installAsyncRuntimeHosts = asyncRuntime ? `  __currentThreadHostsDisposer = __installCurrentThreadHosts(
+@@ -8029,10 +8030,10 @@ const __wasi = new __WASI({
+ 	const emnapiInstantiateImport = effectiveAsyncInit ? `instantiateNapiModule as __emnapiInstantiateNapiModule` : `instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync`;
+ 	const emnapiInstantiateCall = effectiveAsyncInit ? `await __emnapiInstantiateNapiModule` : `__emnapiInstantiateNapiModuleSync`;
+ 	const workerPoolSizeBinding = threads ? `const __asyncWorkPoolSize = 4
+-const __workerPoolSize = Math.max(
++const __workerPoolSize = ${workerPoolSize ?? `Math.max(
+   2,
+   globalThis.navigator?.hardwareConcurrency ?? 4,
+-)
++)`}
+ 
+ ` : "";
+ 	const reuseWorkerOption = threads ? `    reuseWorker: { size: __asyncWorkPoolSize + __workerPoolSize },\n` : "";
+@@ -12807,7 +12808,7 @@ var Builder = class {
+ 		assertBindingTargetIdentFree(idents);
+ 		const exportsCode = [`module.exports = __napiModule.exports`, ...idents.map((ident) => `module.exports.${ident} = __napiModule.exports.${ident}`)].join("\n");
+ 		await writeFileAtomic(bindingPath, createWasiArtifactMetadata(this.options.platform && !this.options.noJsBinding ? this.options.jsBinding ?? "index.js" : null, this.config.binaryName, idents) + createWasiBinding(name, this.config.packageName, initialMemory, maximumMemory, hasThreads, wasiTarget.platformArchABI, `${this.config.binaryName}.${wasiTarget.platformArchABI}`, asyncRuntime) + exportsCode + "\n", "utf8");
+-		await writeFileAtomic(browserBindingPath, createWasiBrowserBinding(name, initialMemory, maximumMemory, (_this$config$wasm2 = this.config.wasm) === null || _this$config$wasm2 === void 0 || (_this$config$wasm2 = _this$config$wasm2.browser) === null || _this$config$wasm2 === void 0 ? void 0 : _this$config$wasm2.fs, (_this$config$wasm3 = this.config.wasm) === null || _this$config$wasm3 === void 0 || (_this$config$wasm3 = _this$config$wasm3.browser) === null || _this$config$wasm3 === void 0 ? void 0 : _this$config$wasm3.asyncInit, (_this$config$wasm4 = this.config.wasm) === null || _this$config$wasm4 === void 0 || (_this$config$wasm4 = _this$config$wasm4.browser) === null || _this$config$wasm4 === void 0 ? void 0 : _this$config$wasm4.buffer, (_this$config$wasm5 = this.config.wasm) === null || _this$config$wasm5 === void 0 || (_this$config$wasm5 = _this$config$wasm5.browser) === null || _this$config$wasm5 === void 0 ? void 0 : _this$config$wasm5.errorEvent, hasThreads, wasiTarget.platformArchABI, asyncRuntime) + `export default __napiModule.exports\n` + idents.map((ident) => `export const ${ident} = __napiModule.exports.${ident}`).join("\n") + "\n", "utf8");
++		await writeFileAtomic(browserBindingPath, createWasiBrowserBinding(name, initialMemory, maximumMemory, (_this$config$wasm2 = this.config.wasm) === null || _this$config$wasm2 === void 0 || (_this$config$wasm2 = _this$config$wasm2.browser) === null || _this$config$wasm2 === void 0 ? void 0 : _this$config$wasm2.fs, (_this$config$wasm3 = this.config.wasm) === null || _this$config$wasm3 === void 0 || (_this$config$wasm3 = _this$config$wasm3.browser) === null || _this$config$wasm3 === void 0 ? void 0 : _this$config$wasm3.asyncInit, (_this$config$wasm4 = this.config.wasm) === null || _this$config$wasm4 === void 0 || (_this$config$wasm4 = _this$config$wasm4.browser) === null || _this$config$wasm4 === void 0 ? void 0 : _this$config$wasm4.buffer, (_this$config$wasm5 = this.config.wasm) === null || _this$config$wasm5 === void 0 || (_this$config$wasm5 = _this$config$wasm5.browser) === null || _this$config$wasm5 === void 0 ? void 0 : _this$config$wasm5.errorEvent, hasThreads, wasiTarget.platformArchABI, asyncRuntime, this.config.wasm?.browser?.workerPoolSize) + `export default __napiModule.exports\n` + idents.map((ident) => `export const ${ident} = __napiModule.exports.${ident}`).join("\n") + "\n", "utf8");
+ 		let bindingTypeDef = metadata.bindingTypeDef;
+ 		if (bindingTypeDef === void 0) {
+ 			var _this$config$wasm6;
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 41ec760195c178303b33822a12ae12ee1fea0abc..fe6fb49c9837c5d97372942e689a7b710ed13878 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -465,6 +465,8 @@ interface UserNapiConfig {
+      * Browser wasm binding configuration
+      */
+     browser?: {
++      /** Additional preloaded workers beyond the async-work pool. Defaults to Math.max(2, navigator.hardwareConcurrency ?? 4). */
++      workerPoolSize?: number;
+       /**
+        * Whether to use fs module in browser
+        */
+diff --git a/dist/index.js b/dist/index.js
+index 31f192be848f5801a332d373ee6eff001923282e..59b5aab993e325676121ae428337d6ef4172c4c7 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -7987,7 +7987,8 @@ ${abortDisposalAfterThreadCrash("    ")}\
+ ${rollbackAfterThreadCrash}\
+ `;
+ };
+-const createWasiBrowserBinding = (wasiFilename, initialMemory = 4e3, maximumMemory = 65536, fs = false, asyncInit = false, buffer = false, errorEvent = false, threads = true, platformArchABI = threads ? "wasm32-wasi" : "wasm32-wasip1", asyncRuntime = false) => {
++const createWasiBrowserBinding = (wasiFilename, initialMemory = 4e3, maximumMemory = 65536, fs = false, asyncInit = false, buffer = false, errorEvent = false, threads = true, platformArchABI = threads ? "wasm32-wasi" : "wasm32-wasip1", asyncRuntime = false, workerPoolSize) => {
++	if (workerPoolSize !== undefined && (!Number.isSafeInteger(workerPoolSize) || workerPoolSize < 0)) throw new RangeError("napi.wasm.browser.workerPoolSize must be a nonnegative safe integer");
+ 	const effectiveAsyncInit = asyncInit || threads;
+ 	const asyncRuntimeImport = asyncRuntime ? `import { installCurrentThreadHosts as __installCurrentThreadHosts } from '@napi-rs/async-runtime'\n` : "";
+ 	const installAsyncRuntimeHosts = asyncRuntime ? `  __currentThreadHostsDisposer = __installCurrentThreadHosts(
+@@ -8028,10 +8029,10 @@ const __wasi = new __WASI({
+ 	const emnapiInstantiateImport = effectiveAsyncInit ? `instantiateNapiModule as __emnapiInstantiateNapiModule` : `instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync`;
+ 	const emnapiInstantiateCall = effectiveAsyncInit ? `await __emnapiInstantiateNapiModule` : `__emnapiInstantiateNapiModuleSync`;
+ 	const workerPoolSizeBinding = threads ? `const __asyncWorkPoolSize = 4
+-const __workerPoolSize = Math.max(
++const __workerPoolSize = ${workerPoolSize ?? `Math.max(
+   2,
+   globalThis.navigator?.hardwareConcurrency ?? 4,
+-)
++)`}
+ 
+ ` : "";
+ 	const reuseWorkerOption = threads ? `    reuseWorker: { size: __asyncWorkPoolSize + __workerPoolSize },\n` : "";
+@@ -12806,7 +12807,7 @@ var Builder = class {
+ 		assertBindingTargetIdentFree(idents);
+ 		const exportsCode = [`module.exports = __napiModule.exports`, ...idents.map((ident) => `module.exports.${ident} = __napiModule.exports.${ident}`)].join("\n");
+ 		await writeFileAtomic(bindingPath, createWasiArtifactMetadata(this.options.platform && !this.options.noJsBinding ? this.options.jsBinding ?? "index.js" : null, this.config.binaryName, idents) + createWasiBinding(name, this.config.packageName, initialMemory, maximumMemory, hasThreads, wasiTarget.platformArchABI, `${this.config.binaryName}.${wasiTarget.platformArchABI}`, asyncRuntime) + exportsCode + "\n", "utf8");
+-		await writeFileAtomic(browserBindingPath, createWasiBrowserBinding(name, initialMemory, maximumMemory, (_this$config$wasm2 = this.config.wasm) === null || _this$config$wasm2 === void 0 || (_this$config$wasm2 = _this$config$wasm2.browser) === null || _this$config$wasm2 === void 0 ? void 0 : _this$config$wasm2.fs, (_this$config$wasm3 = this.config.wasm) === null || _this$config$wasm3 === void 0 || (_this$config$wasm3 = _this$config$wasm3.browser) === null || _this$config$wasm3 === void 0 ? void 0 : _this$config$wasm3.asyncInit, (_this$config$wasm4 = this.config.wasm) === null || _this$config$wasm4 === void 0 || (_this$config$wasm4 = _this$config$wasm4.browser) === null || _this$config$wasm4 === void 0 ? void 0 : _this$config$wasm4.buffer, (_this$config$wasm5 = this.config.wasm) === null || _this$config$wasm5 === void 0 || (_this$config$wasm5 = _this$config$wasm5.browser) === null || _this$config$wasm5 === void 0 ? void 0 : _this$config$wasm5.errorEvent, hasThreads, wasiTarget.platformArchABI, asyncRuntime) + `export default __napiModule.exports\n` + idents.map((ident) => `export const ${ident} = __napiModule.exports.${ident}`).join("\n") + "\n", "utf8");
++		await writeFileAtomic(browserBindingPath, createWasiBrowserBinding(name, initialMemory, maximumMemory, (_this$config$wasm2 = this.config.wasm) === null || _this$config$wasm2 === void 0 || (_this$config$wasm2 = _this$config$wasm2.browser) === null || _this$config$wasm2 === void 0 ? void 0 : _this$config$wasm2.fs, (_this$config$wasm3 = this.config.wasm) === null || _this$config$wasm3 === void 0 || (_this$config$wasm3 = _this$config$wasm3.browser) === null || _this$config$wasm3 === void 0 ? void 0 : _this$config$wasm3.asyncInit, (_this$config$wasm4 = this.config.wasm) === null || _this$config$wasm4 === void 0 || (_this$config$wasm4 = _this$config$wasm4.browser) === null || _this$config$wasm4 === void 0 ? void 0 : _this$config$wasm4.buffer, (_this$config$wasm5 = this.config.wasm) === null || _this$config$wasm5 === void 0 || (_this$config$wasm5 = _this$config$wasm5.browser) === null || _this$config$wasm5 === void 0 ? void 0 : _this$config$wasm5.errorEvent, hasThreads, wasiTarget.platformArchABI, asyncRuntime, this.config.wasm?.browser?.workerPoolSize) + `export default __napiModule.exports\n` + idents.map((ident) => `export const ${ident} = __napiModule.exports.${ident}`).join("\n") + "\n", "utf8");
+ 		let bindingTypeDef = metadata.bindingTypeDef;
+ 		if (bindingTypeDef === void 0) {
+ 			var _this$config$wasm6;
+diff --git a/src/api/build.ts b/src/api/build.ts
+index e6d5bc2477811edc65fbb2268dbd02717f46b26b..985685ab2c07a258dfa6255e434aa379cf1e0696 100644
+--- a/src/api/build.ts
++++ b/src/api/build.ts
+@@ -2947,6 +2947,7 @@ class Builder {
+         hasThreads,
+         wasiTarget.platformArchABI,
+         asyncRuntime,
++        this.config.wasm?.browser?.workerPoolSize,
+       ) +
+         `export default __napiModule.exports\n` +
+         idents
+diff --git a/src/api/templates/load-wasi-template.ts b/src/api/templates/load-wasi-template.ts
+index 3426044b87f832f4b9ca8ad01bda4e3916cdb9e8..63fbb57918e14186a7509f8aa1477379754f60fd 100644
+--- a/src/api/templates/load-wasi-template.ts
++++ b/src/api/templates/load-wasi-template.ts
+@@ -1616,7 +1616,11 @@ export const createWasiBrowserBinding = (
+   // `threads` so callers that predate the parameter keep their identity.
+   platformArchABI = threads ? 'wasm32-wasi' : 'wasm32-wasip1',
+   asyncRuntime = false,
++  workerPoolSize?: number,
+ ) => {
++  if (workerPoolSize !== undefined && (!Number.isSafeInteger(workerPoolSize) || workerPoolSize < 0)) {
++    throw new RangeError("napi.wasm.browser.workerPoolSize must be a nonnegative safe integer")
++  }
+   // Threaded builds always get a pre-created worker pool (see
+   // `reuseWorkerOption` below), and pool pre-creation is asynchronous, so
+   // they always initialize asynchronously.
+@@ -1710,10 +1714,10 @@ const __wasi = new __WASI({
+   // call, the pre-created pool is what those calls draw from anyway.
+   const workerPoolSizeBinding = threads
+     ? `const __asyncWorkPoolSize = 4
+-const __workerPoolSize = Math.max(
++const __workerPoolSize = ${workerPoolSize ?? `Math.max(
+   2,
+   globalThis.navigator?.hardwareConcurrency ?? 4,
+-)
++)`}
+ 
+ `
+     : ''
+diff --git a/src/utils/config.ts b/src/utils/config.ts
+index 6bf3e0f5edc18fe974c050b6b293d322130e3938..f2a4162ddbfd5452f81bc2dc5faa562911bb43fc 100644
+--- a/src/utils/config.ts
++++ b/src/utils/config.ts
+@@ -182,6 +182,8 @@ export interface UserNapiConfig {
+      * Browser wasm binding configuration
+      */
+     browser?: {
++      /** Additional preloaded workers beyond the async-work pool. Defaults to Math.max(2, navigator.hardwareConcurrency ?? 4). */
++      workerPoolSize?: number
+       /**
+        * Whether to use fs module in browser
+        */
+diff --git a/dist/index.cjs b/dist/index.cjs
+index aa577c37..5145514b 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -8013,7 +8013,8 @@ ${abortDisposalAfterThreadCrash("    ")}\
+ ${rollbackAfterThreadCrash}\
+ `;
+ };
+-const createWasiBrowserBinding = (wasiFilename, initialMemory = 4e3, maximumMemory = 65536, fs = false, asyncInit = false, buffer = false, errorEvent = false, threads = true, platformArchABI = threads ? "wasm32-wasi" : "wasm32-wasip1", asyncRuntime = false) => {
++const createWasiBrowserBinding = (wasiFilename, initialMemory = 4e3, maximumMemory = 65536, fs = false, asyncInit = false, buffer = false, errorEvent = false, threads = true, platformArchABI = threads ? "wasm32-wasi" : "wasm32-wasip1", asyncRuntime = false, workerPoolSize) => {
++	if (workerPoolSize !== undefined && (!Number.isSafeInteger(workerPoolSize) || workerPoolSize < 0)) throw new RangeError("napi.wasm.browser.workerPoolSize must be a nonnegative safe integer");
+ 	const effectiveAsyncInit = asyncInit || threads;
+ 	const asyncRuntimeImport = asyncRuntime ? `import { installCurrentThreadHosts as __installCurrentThreadHosts } from '@napi-rs/async-runtime'\n` : "";
+ 	const installAsyncRuntimeHosts = asyncRuntime ? `  __currentThreadHostsDisposer = __installCurrentThreadHosts(
+@@ -8054,10 +8055,10 @@ const __wasi = new __WASI({
+ 	const emnapiInstantiateImport = effectiveAsyncInit ? `instantiateNapiModule as __emnapiInstantiateNapiModule` : `instantiateNapiModuleSync as __emnapiInstantiateNapiModuleSync`;
+ 	const emnapiInstantiateCall = effectiveAsyncInit ? `await __emnapiInstantiateNapiModule` : `__emnapiInstantiateNapiModuleSync`;
+ 	const workerPoolSizeBinding = threads ? `const __asyncWorkPoolSize = 4
+-const __workerPoolSize = Math.max(
++const __workerPoolSize = ${workerPoolSize ?? `Math.max(
+   2,
+   globalThis.navigator?.hardwareConcurrency ?? 4,
+-)
++)`}
+ 
+ ` : "";
+ 	const reuseWorkerOption = threads ? `    reuseWorker: { size: __asyncWorkPoolSize + __workerPoolSize },\n` : "";
+@@ -12832,7 +12833,7 @@ var Builder = class {
+ 		assertBindingTargetIdentFree(idents);
+ 		const exportsCode = [`module.exports = __napiModule.exports`, ...idents.map((ident) => `module.exports.${ident} = __napiModule.exports.${ident}`)].join("\n");
+ 		await writeFileAtomic(bindingPath, createWasiArtifactMetadata(this.options.platform && !this.options.noJsBinding ? this.options.jsBinding ?? "index.js" : null, this.config.binaryName, idents) + createWasiBinding(name, this.config.packageName, initialMemory, maximumMemory, hasThreads, wasiTarget.platformArchABI, `${this.config.binaryName}.${wasiTarget.platformArchABI}`, asyncRuntime) + exportsCode + "\n", "utf8");
+-		await writeFileAtomic(browserBindingPath, createWasiBrowserBinding(name, initialMemory, maximumMemory, (_this$config$wasm2 = this.config.wasm) === null || _this$config$wasm2 === void 0 || (_this$config$wasm2 = _this$config$wasm2.browser) === null || _this$config$wasm2 === void 0 ? void 0 : _this$config$wasm2.fs, (_this$config$wasm3 = this.config.wasm) === null || _this$config$wasm3 === void 0 || (_this$config$wasm3 = _this$config$wasm3.browser) === null || _this$config$wasm3 === void 0 ? void 0 : _this$config$wasm3.asyncInit, (_this$config$wasm4 = this.config.wasm) === null || _this$config$wasm4 === void 0 || (_this$config$wasm4 = _this$config$wasm4.browser) === null || _this$config$wasm4 === void 0 ? void 0 : _this$config$wasm4.buffer, (_this$config$wasm5 = this.config.wasm) === null || _this$config$wasm5 === void 0 || (_this$config$wasm5 = _this$config$wasm5.browser) === null || _this$config$wasm5 === void 0 ? void 0 : _this$config$wasm5.errorEvent, hasThreads, wasiTarget.platformArchABI, asyncRuntime) + `export default __napiModule.exports\n` + idents.map((ident) => `export const ${ident} = __napiModule.exports.${ident}`).join("\n") + "\n", "utf8");
++		await writeFileAtomic(browserBindingPath, createWasiBrowserBinding(name, initialMemory, maximumMemory, (_this$config$wasm2 = this.config.wasm) === null || _this$config$wasm2 === void 0 || (_this$config$wasm2 = _this$config$wasm2.browser) === null || _this$config$wasm2 === void 0 ? void 0 : _this$config$wasm2.fs, (_this$config$wasm3 = this.config.wasm) === null || _this$config$wasm3 === void 0 || (_this$config$wasm3 = _this$config$wasm3.browser) === null || _this$config$wasm3 === void 0 ? void 0 : _this$config$wasm3.asyncInit, (_this$config$wasm4 = this.config.wasm) === null || _this$config$wasm4 === void 0 || (_this$config$wasm4 = _this$config$wasm4.browser) === null || _this$config$wasm4 === void 0 ? void 0 : _this$config$wasm4.buffer, (_this$config$wasm5 = this.config.wasm) === null || _this$config$wasm5 === void 0 || (_this$config$wasm5 = _this$config$wasm5.browser) === null || _this$config$wasm5 === void 0 ? void 0 : _this$config$wasm5.errorEvent, hasThreads, wasiTarget.platformArchABI, asyncRuntime, this.config.wasm?.browser?.workerPoolSize) + `export default __napiModule.exports\n` + idents.map((ident) => `export const ${ident} = __napiModule.exports.${ident}`).join("\n") + "\n", "utf8");
+ 		let bindingTypeDef = metadata.bindingTypeDef;
+ 		if (bindingTypeDef === void 0) {
+ 			var _this$config$wasm6;
