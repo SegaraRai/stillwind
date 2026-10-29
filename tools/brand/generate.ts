@@ -44,11 +44,23 @@ const website: Omit<OgImage, "width" | "height"> = {
 };
 // Each entry is [PNG path, SVG copy in tools/brand/output, content].
 const images: [string, string, OgImage][] = [
-  ["apps/website/public/og.png", "website-og.svg", { ...website, width: 1200, height: 630 }],
+  [
+    "apps/website/public/og.png",
+    "website-og.svg",
+    {
+      ...website,
+      width: 1200,
+      height: 630,
+    },
+  ],
   [
     "apps/website/github-social-preview.png",
     "github-social-preview.svg",
-    { ...website, width: 1280, height: 640 },
+    {
+      ...website,
+      width: 1280,
+      height: 640,
+    },
   ],
   [
     "apps/play/public/og.png",
@@ -67,6 +79,11 @@ for (const [path, copy, image] of images) {
   write(`tools/brand/output/${copy}`, svg);
   write(
     path,
-    await sharp(Buffer.from(svg)).png({ compressionLevel: 9, palette: false }).toBuffer(),
+    await sharp(Buffer.from(svg))
+      .png({
+        compressionLevel: 9,
+        palette: false,
+      })
+      .toBuffer(),
   );
 }
