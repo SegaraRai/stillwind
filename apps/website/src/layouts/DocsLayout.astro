@@ -54,10 +54,10 @@ const paginationLink = style(
       Skip to content
     </a>
     <div {...style("mx-auto px-docs-gutter inline-full max-inline-docs")}>
-      <SiteHeader />
+      <SiteHeader container="docs" />
       <div
         {...style(
-          "grid pbs-12 pbe-20 grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-docs-gutter",
+          "grid pbs-12 grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-docs-gutter",
           {
             "max-docs-outline:": "grid-cols-[var(--container-navigation)_minmax(0,1fr)] gap-stack",
             "max-sidebar:": "pbs-6 grid-cols-[minmax(0,1fr)]",
@@ -69,6 +69,10 @@ const paginationLink = style(
           {...style(
             "docs-navigation",
             navigationTransition.for("docs-navigation"),
+            {
+              [documentRoot("data-floating-header")]:
+                "sidebar:inset-bs-22 sidebar:max-block-[calc(100dvh-120px)]",
+            },
             "max-sidebar:static max-sidebar:pbe-6 max-sidebar:max-block-64 max-sidebar:border-border max-sidebar:border-be",
           )}
         >
@@ -135,7 +139,7 @@ const paginationLink = style(
             })();
           </script>
         </nav>
-        <main id="main-content" {...style("min-inline-0")}>
+        <main id="main-content" {...style("min-inline-0 pbe-15")}>
           <header {...style("mbe-10")}>
             <h1 {...style("font-display text-title tracking-[-0.045em]")}>{title}</h1>
             {description && <p {...style("mbs-5 text-lead text-muted")}>{description}</p>}
@@ -161,13 +165,22 @@ const paginationLink = style(
           <article {...style("docs-prose")} data-pagefind-body>
             <slot />
           </article>
-          <footer
-            {...style("grid mbs-16 pbs-6 gap-6 text-caption text-muted border-border border-bs")}
-          >
+          <footer {...style("grid mbs-16 gap-6 text-caption text-muted")}>
+            {editUrl && (
+              <a href={editUrl} {...style("justify-self-start flex items-center gap-1.5")}>
+                <span
+                  aria-hidden="true"
+                  {...style("icon-simple-icons--github align-middle")}
+                ></span>
+                <span>Edit this page</span>
+              </a>
+            )}
             {(prevNext.prev || prevNext.next) && (
               <nav
                 aria-label="Documentation pages"
-                {...style("grid grid-cols-2 gap-6 text-foreground text-ui font-medium")}
+                {...style(
+                  "grid pbs-6 grid-cols-2 gap-6 text-foreground text-small font-medium border-border border-bs",
+                )}
               >
                 {prevNext.prev && (
                   <a
@@ -199,18 +212,14 @@ const paginationLink = style(
                 )}
               </nav>
             )}
-            {editUrl && (
-              <a href={editUrl} {...style("justify-self-start")}>
-                Edit this page{" "}
-                <span
-                  aria-hidden="true"
-                  {...style("icon-simple-icons--github align-middle")}
-                ></span>
-              </a>
-            )}
           </footer>
         </main>
-        <nav {...style("docs-navigation", "max-docs-outline:hidden")} aria-label="On this page">
+        <nav
+          {...style("docs-navigation", "max-docs-outline:hidden", {
+            [documentRoot("data-floating-header")]: "inset-bs-22 max-block-[calc(100dvh-120px)]",
+          })}
+          aria-label="On this page"
+        >
           <ul {...style("grid p-0 gap-1.5 list-none")}>
             {headings.map((heading) => (
               <li
@@ -236,6 +245,13 @@ const paginationLink = style(
 </html>
 
 <script>
+  import { mountDocsHeader } from "../lib/docs/header";
+
+  const slot = document.querySelector<HTMLElement>("[data-header-slot]");
+  if (slot) {
+    mountDocsHeader(slot);
+  }
+
   const button = document.querySelector<HTMLButtonElement>("[data-copy-markdown]");
   const status = document.querySelector<HTMLElement>("[data-copy-status]");
   if (button && status) {

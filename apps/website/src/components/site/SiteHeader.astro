@@ -4,6 +4,13 @@ import { style } from "stillwind/astro";
 import { URL_DOCS, URL_PLAYGROUND, URL_REPOSITORY } from "../../lib/config";
 import { documentRoot } from "./document";
 
+interface Props {
+  /** Container of the page, which sets the width of the floating header. */
+  container?: "page" | "docs";
+}
+
+const { container = "page" } = Astro.props;
+
 const headerTransition = style.viewTransition({
   group: "duration-300 ease-out",
 });
@@ -15,12 +22,15 @@ const header = style.ref();
   <header
     data-site-header
     {...style(
-      headerTransition.for("site-header"),
+      headerTransition.for("container"),
       header,
       "flex block-16 items-center justify-between gap-4 border-border border-be max-inline:gap-3",
       {
         "data-floating:": [
-          "invisible fixed inset-x-0 inset-bs-0 z-40 mx-auto block-14 [inline-size:calc(min(100%,var(--container-page))-2*var(--spacing-gutter))] bg-background opacity-0",
+          "invisible fixed inset-x-0 inset-bs-0 z-40 mx-auto block-14 bg-background opacity-0",
+          container === "page"
+            ? "[inline-size:calc(min(100%,var(--container-page))-2*var(--spacing-gutter))]"
+            : "[inline-size:calc(min(100%,var(--container-docs))-2*var(--spacing-docs-gutter))]",
           "-translate-y-full [transition:translate_180ms_ease,opacity_180ms_ease,visibility_180ms]",
           {
             "data-visible:": "visible opacity-100 translate-y-0",
@@ -35,6 +45,7 @@ const header = style.ref();
       aria-label="Stillwind home"
       {...style(
         link,
+        headerTransition.for("logo"),
         "text-heading/[inherit] tracking-[-0.045em] max-inline:text-heading-small/[inherit]",
         { [header("data-floating")]: "text-(length:--text-heading-small)" },
       )}
@@ -47,13 +58,13 @@ const header = style.ref();
         "flex items-center gap-7 text-ui/[inherit] max-inline:gap-2 max-inline:text-caption/[inherit]",
       )}
     >
-      <a href={URL_PLAYGROUND} {...link}>
+      <a href={URL_PLAYGROUND} {...style(link, headerTransition.for("playground"))}>
         Playground
       </a>
-      <a href={URL_DOCS} {...link}>
+      <a href={URL_DOCS} {...style(link, headerTransition.for("docs"))}>
         Docs
       </a>
-      <a href={URL_REPOSITORY} {...style(link, "gap-2")}>
+      <a href={URL_REPOSITORY} {...style(link, headerTransition.for("github"), "gap-2")}>
         <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
         GitHub
       </a>
@@ -63,6 +74,7 @@ const header = style.ref();
         aria-label="Color theme"
         hidden
         {...style(
+          headerTransition.for("theme"),
           "inline-flex block-9 inline-9 shrink-0 items-center justify-center text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted [&[hidden]]:hidden",
         )}
       >

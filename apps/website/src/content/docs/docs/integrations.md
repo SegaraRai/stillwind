@@ -50,10 +50,9 @@ Alpine uses the `stillwind` plugin from `stillwind/alpine`. Register it with
 
 Lit uses `html` element bindings such as
 `` html`<button ${applyStyle(style("px-4 py-2"))}>Save</button>` ``.
-Import both helpers from `stillwind/lit`. For shadow roots, import `css` from
-`stillwind/module-css` and use `static styles = unsafeCSS(css)`. Set
-`stillwind({ automatic: false })` when the CSS belongs only in shadow roots.
-The Lit directive supports browser rendering; Lit SSR is unsupported.
+Import both helpers from `stillwind/lit`. To add the styles to a shadow root,
+see [Web Components](/docs/guides/web-components/). The Lit directive supports
+browser rendering; Lit SSR is unsupported.
 
 Gatsby uses `stillwind/react`, and Fresh 2 with Vite uses `stillwind/preact`.
 For Fresh, use Deno 2.9 or newer and register `fresh()` before `stillwind()` from

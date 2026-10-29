@@ -50,7 +50,7 @@ export default defineConfig({
             },
             {
               label: "Integrations",
-              items: ["docs/integrations", "docs/guides/shadow-dom"],
+              items: ["docs/integrations", "docs/guides/web-components"],
             },
             {
               label: "Reference",
@@ -59,19 +59,41 @@ export default defineConfig({
                 "docs/configuration",
                 {
                   label: "Macros",
-                  autogenerate: { directory: "docs/macros" },
+                  items: [
+                    "docs/macros",
+                    "docs/macros/style",
+                    "docs/macros/anchor-scope",
+                    "docs/macros/css",
+                    "docs/macros/cva",
+                    "docs/macros/keyframes",
+                    "docs/macros/media",
+                    "docs/macros/view-transition",
+                    "docs/macros/ref",
+                    "docs/macros/ref/condition",
+                    "docs/macros/ref/in",
+                    "docs/macros/ref/at",
+                    "docs/macros/ref/as-container",
+                    "docs/macros/ref/as-anchor",
+                    "docs/macros/ref/position-anchor",
+                  ],
                 },
                 {
                   label: "At-rules",
-                  autogenerate: { directory: "docs/at-rules" },
+                  autogenerate: {
+                    directory: "docs/at-rules",
+                  },
                 },
                 {
                   label: "Lint rules",
-                  autogenerate: { directory: "docs/lints" },
+                  autogenerate: {
+                    directory: "docs/lints",
+                  },
                 },
                 {
                   label: "Compiler errors",
-                  autogenerate: { directory: "docs/errors" },
+                  autogenerate: {
+                    directory: "docs/errors",
+                  },
                 },
               ],
             },

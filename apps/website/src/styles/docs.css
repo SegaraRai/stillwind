@@ -31,7 +31,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
 @utility docs-prose {
   @apply text-body wrap-anywhere;
 
-  & .astro-code_.diagnostic-annotation {
+  & .astro-code .diagnostic-annotation {
     @apply relative block my-3 px-3 py-2 font-sans text-danger text-body whitespace-pre-wrap bg-danger/10 rounded-control border border-danger/30;
   }
 
@@ -99,7 +99,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
     @apply hidden;
   }
 
-  & .nb-code-figure-titled_ > pre {
+  & .nb-code-figure-titled > pre {
     @apply mbs-0 rounded-t-none;
   }
 
@@ -108,7 +108,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
   }
 
   & .astro-code,
-  & .astro-code_span {
+  & .astro-code span {
     @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
   }
 
@@ -145,7 +145,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
     @apply absolute inset-bs-0 size-2 font-mono text-code border-danger/30 border-s border-bs;
     @apply inset-s-[max(0.75rem,calc(var(--diagnostic-column)*1ch))];
 
-    background-color: color-mix(in_srgb, var(--color-danger) 10%, var(--color-surface));
+    background-color: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
     transform: translate(-50%, -50%) rotate(45deg);
   }
 
@@ -160,6 +160,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
 
 @utility docs-navigation {
   @apply sticky inset-bs-8 overflow-y-auto max-block-[calc(100dvh-64px)] text-ui;
+  @apply [transition:inset-block-start_180ms_ease,max-block-size_180ms_ease] motion-reduce:transition-none;
 }
 
 @utility docs-navigation-list {

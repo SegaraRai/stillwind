@@ -140,7 +140,7 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
 
 @utility code-token {
   @apply code-actor;
-  color: color-mix(in_srgb, var(--from-color), var(--to-color) calc(var(--morph-progress) * 100%));
+  color: color-mix(in srgb, var(--from-color), var(--to-color) calc(var(--morph-progress) * 100%));
 
   @variant data-entering {
     @apply opacity-[max(0,var(--morph-progress)*2-1)];

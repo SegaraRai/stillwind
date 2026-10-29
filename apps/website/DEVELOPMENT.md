@@ -83,8 +83,11 @@ an ID is renamed or retired, keep a redirect or a retirement page at its URL.
 The lint rule and compiler error index pages link every page in their directory.
 
 `astro.config.ts` lists the sidebar explicitly. Add each new page to the group
-that matches its reader task. Directory groups under **Reference** pick up new
-macro, lint, and error pages automatically.
+that matches its reader task. The **Macros** group lists its pages explicitly:
+`style()` comes first, and the other macros follow in alphabetical order.
+`style.ref()` and the ref methods come last. Add each new macro page to
+that list. Directory groups under **Reference** pick up new at-rule, lint, and
+error pages automatically.
 
 Set `SITE_URL` to the deployment origin before building for publication. It
 defaults to `http://localhost:4322` for local previews and controls absolute
@@ -233,6 +236,14 @@ preference. `SiteHeader` and the documentation navigation name themselves with
 `style.viewTransition()`, so the header resizes between the two widths and the
 navigation stays in place between documentation pages. The root element keeps
 its default transition name; removing it would skip the cross-fade of the page.
+
+`SiteHeader` stays in document flow at the top of the page. After it leaves the
+viewport, it floats at the top of the viewport. The landing page shows the floating
+header from the start of the demonstrations. Documentation pages show it while the
+reader scrolls up and hide it after scrolling down, after a jump farther than the
+viewport, and after navigation to a fragment. The root element has
+`data-floating-header` while a floating header is shown, and the documentation
+navigation moves below the header while this attribute is present.
 
 The documentation navigation stores its open groups and scroll position in
 `sessionStorage` when a page is hidden. The next documentation page restores

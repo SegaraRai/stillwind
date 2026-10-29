@@ -1,17 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
   <defs>
-    <path id="s" d="M 12 0 H 47 L 35 60 H 0 Z"/>
-    <path id="w" d="M 12 0 H 112 L 100 60 H 0 Z"/>
+    <path id="s" d="M 12 0 H 47 L 35 60 H 0 Z" />
+    <path id="w" d="M 12 0 H 112 L 100 60 H 0 Z" />
   </defs>
-  <g fill="currentColor" stroke="currentColor" stroke-width="10" stroke-linejoin="round">
-    <use href="#w" x="194" y="130" color="#379988"/>
-    <use href="#s" x="324" y="130" color="#379988"/>
-    <use href="#s" x="389" y="130" color="#379988"/>
-    <use href="#s" x="129" y="220" color="#d9825b"/>
-    <use href="#w" x="194" y="220" color="#d9825b"/>
-    <use href="#s" x="324" y="220" color="#d9825b"/>
-    <use href="#s" x="64" y="310" color="#379988"/>
-    <use href="#s" x="129" y="310" color="#379988"/>
-    <use href="#w" x="194" y="310" color="#379988"/>
+  <g stroke-width="10" stroke-linejoin="round" transform="translate(-50 -50) scale(1.2)">
+    <g fill="#379988" stroke="#379988">
+      <use href="#w" x="194" y="130" />
+      <use href="#s" x="324" y="130" />
+      <use href="#s" x="389" y="130" />
+      <use href="#s" x="64" y="310" />
+      <use href="#s" x="129" y="310" />
+      <use href="#w" x="194" y="310" />
+    </g>
+    <g fill="#d9825b" stroke="#d9825b">
+      <use href="#s" x="129" y="220" />
+      <use href="#w" x="194" y="220" />
+      <use href="#s" x="324" y="220" />
+    </g>
   </g>
 </svg>

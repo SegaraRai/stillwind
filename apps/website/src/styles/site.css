@@ -16,7 +16,7 @@ Cross-document navigation uses the browser's page transition type.
   background: linear-gradient(to right, transparent 29%, currentColor 0);
 }
 
-@variant motion-safe {
+@media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
     types: page;
