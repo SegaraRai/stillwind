@@ -24,8 +24,12 @@ const exampleFiles = new Map(
   ),
 );
 
-test("static files provide document formatting, semantic diagnostics, cross-module builds, and React/CSS HMR", async () => {
-  const directory = resolve(import.meta.dirname, "../../../apps/play/dist/acceptance");
+test("static files provide document formatting, semantic diagnostics, cross-module builds, and React/CSS HMR", async ({
+  onTestFailed,
+}) => {
+  const directory = process.env.STILLWIND_PLAY_TEST_DIRECTORY
+    ? resolve(process.env.STILLWIND_PLAY_TEST_DIRECTORY)
+    : resolve(import.meta.dirname, "../../../apps/play/dist/acceptance");
   const requests: string[] = [];
   const server = createServer(async (request, response) => {
     requests.push(request.method ?? "");
@@ -73,9 +77,35 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
   const errors: string[] = [];
   const logs: string[] = [];
   const failedRequests: string[] = [];
+  let failureEvidence: Promise<void> | undefined;
+  async function saveFailure(): Promise<void> {
+    const evidence = resolve(import.meta.dirname, "../results", randomUUID());
+    await mkdir(evidence, { recursive: true });
+    const details = { errors, logs, failedRequests };
+    console.error("Playground failure:", JSON.stringify(details, null, 2));
+    await Promise.allSettled([
+      (pageForEvidence?.locator("body").innerText({ timeout: 5_000 }) ?? Promise.resolve(""))
+        .catch(() => "")
+        .then((body) =>
+          writeFile(
+            resolve(evidence, "browser.json"),
+            JSON.stringify({ ...details, body }, null, 2),
+          ),
+        ),
+      pageForEvidence?.screenshot({
+        path: resolve(evidence, "failure.png"),
+        fullPage: true,
+        timeout: 5_000,
+      }),
+      pageForEvidence?.context().tracing.stop({ path: resolve(evidence, "trace.zip") }),
+    ]);
+  }
+  onTestFailed(() => (failureEvidence ??= saveFailure()));
   try {
     const page = await browser.newPage({ permissions: ["clipboard-read", "clipboard-write"] });
     pageForEvidence = page;
+    page.setDefaultTimeout(30_000);
+    await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
     const buffers = new Map(exampleFiles);
     const remote: string[] = [];
     page.on("console", (message) => logs.push(`${message.type()}: ${message.text()}`));
@@ -100,6 +130,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
         errors.push(error.message);
       }
     });
+    console.info("Playground: load the preset");
     await page.goto(`http://127.0.0.1:${address.port}/play/#preset=release-checklist`);
     const frame = page.frameLocator('iframe[title="Stillwind Playground Preview"]');
     await frame.getByRole("heading", { name: "Release checklist" }).waitFor({ timeout: 60_000 });
@@ -111,6 +142,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     const task = frame.getByRole("checkbox", { name: "Update the migration guide" });
     await task.click();
     expect(await task.getAttribute("aria-checked")).toBe("true");
+    console.info("Playground: format source");
     await replace(
       page,
       buffers,
@@ -140,6 +172,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     expect(formatted).toContain('export const unsorted = style("flex p-4");');
     buffers.set("/workspace/App.tsx", formatted);
     await replace(page, buffers, "App.tsx", formatted, exampleFiles.get("/workspace/App.tsx")!);
+    console.info("Playground: update the component and request completions");
     await replace(page, buffers, "App.tsx", ">Release checklist</h1>", ">Updated component</h1>");
     await frame.getByRole("heading", { name: "Updated component" }).waitFor();
     expect(await task.getAttribute("aria-checked")).toBe("true");
@@ -163,6 +196,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     expect(await suggestions.allInnerTexts()).not.toContain("flex gap-panel");
     await page.keyboard.press("Escape");
     await replace(page, buffers, "App.tsx", buffers.get("/workspace/App.tsx")!, beforeProbe);
+    console.info("Playground: check compiler diagnostics");
     const main = buffers.get("/workspace/App.tsx")!;
     await replace(
       page,
@@ -189,6 +223,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
         { timeout: 30_000 },
       )
       .toBe("24px");
+    console.info("Playground: recover from a build error");
     const component = buffers.get("/workspace/App.tsx")!;
     const invalidComponent = component + '\nconst broken = "unterminated;';
     await replace(page, buffers, "App.tsx", component, invalidComponent);
@@ -201,6 +236,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     await page.getByRole("status").filter({ hasText: "Ready" }).waitFor();
     expect(await page.locator(".runtime-error").count()).toBe(0);
     expect(await task.getAttribute("aria-checked")).toBe("true");
+    console.info("Playground: load asynchronous configuration and module CSS");
     const config = buffers.get("/workspace/stillwind.config.ts")!;
     await replace(
       page,
@@ -227,6 +263,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       .poll(() => frame.locator("main").getAttribute("data-css-length"), { timeout: 30_000 })
       .toMatch(/^\d{3,}$/);
     expect(await task.getAttribute("aria-checked")).toBe("true");
+    console.info("Playground: update CSS and check language diagnostics");
     await replace(
       page,
       buffers,
@@ -264,12 +301,15 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       .poll(() => page.locator(".diagnostics-output").innerText(), { timeout: 30_000 })
       .toContain("unknown-utility");
     expect(await task.getAttribute("aria-checked")).toBe("true");
+    console.info("Playground: share the workspace");
     await page.getByRole("button", { name: "Share" }).click();
     await page.getByRole("button", { name: "Link copied" }).waitFor();
     const link = page.url();
     expect(link).toMatch(/#code=[\w-]+$/);
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link);
     const restored = await browser.newPage();
+    restored.setDefaultTimeout(30_000);
+    console.info("Playground: restore the shared workspace");
     await restored.goto(link);
     await restored
       .frameLocator('iframe[title="Stillwind Playground Preview"]')
@@ -286,28 +326,10 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     expect(remote).toEqual([]);
     expect(new Set(requests)).toEqual(new Set(["GET"]));
   } catch (error) {
-    const evidence = resolve(import.meta.dirname, "../results", randomUUID());
-    await mkdir(evidence, { recursive: true });
-    const body = await pageForEvidence
-      ?.locator("body")
-      .innerText()
-      .catch(() => "");
-    const details = {
-      errors,
-      logs,
-      failedRequests,
-      body,
-    };
-    console.error("Playground failure:", JSON.stringify(details, null, 2));
-    await Promise.allSettled([
-      writeFile(resolve(evidence, "browser.json"), JSON.stringify(details, null, 2)),
-      pageForEvidence?.screenshot({
-        path: resolve(evidence, "failure.png"),
-        fullPage: true,
-      }),
-    ]);
+    await (failureEvidence ??= saveFailure());
     throw error;
   } finally {
+    console.info("Playground: close the browser and static server");
     await browser.close();
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

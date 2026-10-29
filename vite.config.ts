@@ -245,12 +245,16 @@ export default defineConfig(({ mode }) => ({
       },
       "verify:sites": {
         command: "",
+        dependsOn: ["verify:sites:build", "@stillwind-internal/e2e-play#test:e2e"],
+      },
+      "verify:sites:build": {
+        command: "",
         dependsOn: [
           "@stillwind-internal/apps-play#check:examples",
           "@stillwind-internal/apps-play#test",
           "@stillwind-internal/apps-play#typecheck",
           "@stillwind-internal/apps-website#test",
-          "@stillwind-internal/e2e-play#test:e2e",
+          "@stillwind-internal/apps-play#build:acceptance",
           "@stillwind-internal/tools-sites#prepare:play",
           "@stillwind-internal/tools-sites#prepare:website",
           "@stillwind-internal/tools-sites#test",

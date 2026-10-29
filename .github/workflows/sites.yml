@@ -17,7 +17,7 @@ env:
 
 jobs:
   build:
-    name: Build and verify
+    name: Build sites
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     concurrency:
@@ -35,6 +35,15 @@ jobs:
         run: |
           rustup toolchain install 1.99.1 --profile minimal --target wasm32-wasip1-threads
           rustup default 1.99.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: ${{ runner.os }}-${{ runner.arch }}-sites-rust-1.99.1-wasi-33-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-sites-rust-1.99.1-wasi-33-
       - name: Set up WASI SDK
         # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
         # https://github.com/napi-rs/napi-rs/issues/3491
@@ -48,17 +57,13 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
           echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
       - run: vp i --frozen-lockfile
-      - run: vp run @stillwind-internal/e2e-play#setup:browser
-      - run: vp run --concurrency-limit 1 verify:sites
-      - name: Upload browser failure evidence
-        if: failure()
+      - run: vp run --concurrency-limit 1 verify:sites:build
+      - name: Upload browser assets
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: sites-browser-failure-${{ github.sha }}
-          path: |
-            e2e/play/results/
-            apps/play/dist/acceptance/
-          if-no-files-found: ignore
+          name: sites-browser-${{ github.sha }}
+          path: apps/play/dist/acceptance/
+          if-no-files-found: error
           retention-days: 7
       - name: Validate production deploy
         if: github.ref == 'refs/heads/stable'
@@ -73,9 +78,57 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  browser:
+    name: Browser acceptance
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: sites-browser-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: true
+      - run: vp i --frozen-lockfile --filter @stillwind-internal/e2e-play
+      - run: vp run @stillwind-internal/e2e-play#setup:browser
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sites-browser-${{ github.sha }}
+          path: apps/play/dist/acceptance/
+      - run: vp test --run
+        working-directory: e2e/play
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sites-browser-failure-${{ github.sha }}
+          path: e2e/play/results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  verify:
+    name: Build and verify
+    needs: [build, browser]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require successful builds and browser acceptance
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$BROWSER_RESULT" = success
+
   deploy:
     name: Deploy ${{ matrix.site }}
-    needs: build
+    needs: verify
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
     runs-on: ubuntu-24.04
     timeout-minutes: 15

@@ -66,7 +66,14 @@ The deployment job downloads the checked Build Output and uses `cf` with
 Cloudflare token. Pull requests run without deployment credentials.
 The GitHub deployments and Actions summary link to the deployed sites.
 HTTP checks verify documentation routes, Preview indexing rules, and WASM headers
-after deployment. The playground acceptance suite tests browser behavior before upload.
+after deployment. The playground acceptance suite tests browser behavior before deployment.
+The workflow keeps builds and browser acceptance in separate jobs, so a failed browser
+job can use the same build when retried. `Build and verify` requires both jobs to pass.
+
+To inspect a browser failure, download its evidence artifact and open `trace.zip`
+with Playwright Trace Viewer. To test a downloaded browser assets artifact locally,
+set `STILLWIND_PLAY_TEST_DIRECTORY` to its extracted directory and run `vp test --run`
+from `e2e/play`. This runs the downloaded build without rebuilding it.
 
 ### Cloudflare setup
 
