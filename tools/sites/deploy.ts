@@ -1,10 +1,14 @@
 import { spawn } from "node:child_process";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 
-import { checkPageUrls } from "./check-urls.ts";
+import { readBuildOutput } from "@cloudflare/build-output-utils";
+
+import { checkPageUrls, siteUrls } from "./check-urls.ts";
+import { writeInitialBuild } from "./cloudflare.ts";
 import { parseSite, sites, type Deployment, type Site } from "./prepare.ts";
 
 /**
@@ -21,20 +25,57 @@ export function deploymentForBranch(branch: string | undefined): Deployment {
 }
 
 /**
- * Returns the branch Preview URL from cf's JSON output. Throws when no HTTPS URL was issued.
+ * Returns the configured build origin from cf's branch Preview URLs.
+ * Throws when the origin is not HTTPS or cf did not issue that URL.
  */
-export function previewUrl(output: string): string {
+export function previewUrl(output: string, origin: string): string {
   const entry = JSON.parse(output) as {
     type?: string;
     preview_urls?: string[];
   };
-  if (entry.type === "preview" && entry.preview_urls?.[0]) {
-    const url = new URL(entry.preview_urls[0]);
-    if (url.protocol === "https:") {
-      return url.href;
-    }
+  const url = new URL(origin);
+  if (
+    url.protocol === "https:" &&
+    entry.type === "preview" &&
+    entry.preview_urls?.some((value) => new URL(value).href === url.href)
+  ) {
+    return url.href;
   }
-  throw new Error("cf returned no HTTPS Preview URL; enable workers.dev Preview URLs");
+  throw new Error(`cf did not issue the configured HTTPS Preview URL: ${origin}`);
+}
+
+/**
+ * Uses the account ID and API token to check the named Worker's deployment history.
+ * Returns true when the Worker is absent or its production deployment history is empty.
+ * Throws when Cloudflare cannot confirm the deployment history.
+ */
+export async function needsInitialDeployment(
+  worker: string,
+  account: string,
+  token: string,
+): Promise<boolean> {
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/workers/scripts/${encodeURIComponent(worker)}/deployments`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  const body = (await response.json()) as {
+    success?: boolean;
+    result?: { deployments?: unknown[] };
+    errors?: { code: number }[];
+  };
+  if (response.status === 404 && body.errors?.some((error) => error.code === 10007)) {
+    return true;
+  }
+  if (!response.ok) {
+    throw new Error(`${worker}: cannot read deployment history: HTTP ${response.status}`);
+  }
+  if (!body.success || !Array.isArray(body.result?.deployments)) {
+    throw new Error(`${worker}: Cloudflare returned no deployment history`);
+  }
+  return body.result.deployments.length === 0;
 }
 
 /**
@@ -96,6 +137,8 @@ async function deploy(site: Site, branch: string | undefined, dryRun: boolean): 
     throw new Error("Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN");
   }
   const root = path.resolve(import.meta.dirname, "../..");
+  const directory = path.join(root, ".deploy", site);
+  const { workers } = await readBuildOutput(directory);
   const require = createRequire(import.meta.url);
   const cli = path.join(path.dirname(require.resolve("cf/package.json")), "bin/cf");
   const args = [
@@ -105,34 +148,57 @@ async function deploy(site: Site, branch: string | undefined, dryRun: boolean): 
     deployment,
     ...(dryRun ? ["--dry-run"] : []),
   ];
-  const output = await new Promise<string>((resolve, reject) => {
-    const child = spawn(process.execPath, [cli, ...args], {
-      cwd: path.join(root, ".deploy", site),
-      stdio: ["ignore", "pipe", "inherit"],
-      env: {
-        ...process.env,
-        CF_SEND_TELEMETRY: "false",
-      },
+  const runCli = (args: string[], workingDirectory = directory) =>
+    new Promise<string>((resolve, reject) => {
+      const child = spawn(process.execPath, [cli, ...args], {
+        cwd: workingDirectory,
+        stdio: ["ignore", "pipe", "inherit"],
+        env: {
+          ...process.env,
+          CF_SEND_TELEMETRY: "false",
+        },
+      });
+      let stdout = "";
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => {
+        stdout += chunk;
+        process.stdout.write(chunk);
+      });
+      child.on("error", reject);
+      child.on("exit", (code) => {
+        if (code === 0) {
+          resolve(stdout);
+        } else {
+          reject(new Error(`cf exited with code ${code}`));
+        }
+      });
     });
-    let stdout = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-      process.stdout.write(chunk);
-    });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) {
-        resolve(stdout);
-      } else {
-        reject(new Error(`cf exited with code ${code}`));
-      }
-    });
-  });
+  if (
+    !dryRun &&
+    deployment === "preview" &&
+    (await needsInitialDeployment(
+      workers.default.config.name,
+      process.env.CLOUDFLARE_ACCOUNT_ID!,
+      process.env.CLOUDFLARE_API_TOKEN!,
+    ))
+  ) {
+    const initial = await mkdtemp(path.join(os.tmpdir(), "stillwind-sites-initial-"));
+    try {
+      await writeInitialBuild(directory, initial);
+      console.log(`Initializing ${site} without production routes for Preview Custom Domains`);
+      await runCli(["deploy", "--prebuilt", "--mode", deployment], initial);
+    } finally {
+      await rm(initial, { recursive: true, force: true });
+    }
+  }
+  const output = await runCli(args);
   if (dryRun) {
     return;
   }
-  const url = deployment === "preview" ? previewUrl(output) : new URL(sites[site].origin).href;
+  const url =
+    deployment === "preview"
+      ? previewUrl(output, siteUrls(process.env)[site])
+      : new URL(sites[site].origin).href;
   if (process.env.GITHUB_OUTPUT) {
     await appendFile(process.env.GITHUB_OUTPUT, `url=${url}\n`);
   }

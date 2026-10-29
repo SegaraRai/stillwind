@@ -5,7 +5,7 @@ import path from "node:path";
 import { readBuildOutput } from "@cloudflare/build-output-utils";
 import { afterEach, expect, test } from "vite-plus/test";
 
-import { writeSiteBuild } from "./cloudflare.ts";
+import { writeInitialBuild, writeSiteBuild } from "./cloudflare.ts";
 import { prepareSite } from "./prepare.ts";
 
 const roots: string[] = [];
@@ -25,7 +25,11 @@ test.each(["preview", "production"] as const)(
       path.join(app, "cloudflare.config.ts"),
       `export default ({ isPreview }) => ({ worker: {
         name: "stillwind-website", compatibilityDate: "2026-10-29",
-        domains: isPreview ? [] : ["stillwind.dev"]
+        workersDev: false,
+        domains: [
+          ...(isPreview ? [] : ["stillwind.dev"]),
+          { hostname: "preview.stillwind.dev", production: false, previews: true }
+        ]
       } });`,
     );
     await prepareSite(root, "website", deployment);
@@ -40,14 +44,28 @@ test.each(["preview", "production"] as const)(
       isPreview: deployment === "preview",
     });
     expect(output.workers.default.config.name).toBe("stillwind-website");
-    expect(output.workers.default.config.domains).toEqual(
-      deployment === "preview" ? [] : ["stillwind.dev"],
-    );
+    expect(output.workers.default.config.domains).toEqual([
+      ...(deployment === "preview" ? [] : ["stillwind.dev"]),
+      { hostname: "preview.stillwind.dev", production: false, previews: true },
+    ]);
+    expect(output.workers.default.config.workersDev).toBe(false);
     expect(output.workers.default.bundleDir).toBeUndefined();
     const assets = output.workers.default.assetsDir;
     if (!assets) {
       expect.fail("Missing static assets");
     }
     expect(await readFile(path.join(assets, "index.html"), "utf8")).toContain("Stillwind");
+    const initial = path.join(root, "initial");
+    if (deployment === "preview") {
+      await writeInitialBuild(restored, initial);
+      const build = await readBuildOutput(initial);
+      expect(build.rootConfig.buildContext).toEqual({ mode: "preview", isPreview: false });
+      expect(build.workers.default.config).toEqual(output.workers.default.config);
+      expect(
+        await readFile(path.join(build.workers.default.assetsDir!, "index.html"), "utf8"),
+      ).toContain("Stillwind");
+    } else {
+      await expect(writeInitialBuild(restored, initial)).rejects.toThrow("no production routes");
+    }
   },
 );

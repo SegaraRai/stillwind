@@ -1,3 +1,4 @@
+import { cp } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -10,6 +11,35 @@ import {
 import { loadAndParseConfig } from "@cloudflare/config";
 
 import { parseDeployment, parseSite, prepareSite, type Deployment, type Site } from "./prepare.ts";
+
+/**
+ * Copies Preview Build Output from source into an empty destination for the Worker's first deployment.
+ * Keeps its assets and domains, and rejects builds with production routes.
+ * The caller must remove the destination after deployment.
+ */
+export async function writeInitialBuild(source: string, destination: string): Promise<void> {
+  const output = await readBuildOutput(source);
+  const config = output.workers.default.config;
+  if (
+    !output.rootConfig.buildContext.isPreview ||
+    config.workersDev !== false ||
+    config.domains?.some((domain) => typeof domain === "string" || domain.production) ||
+    config.triggers?.length
+  ) {
+    throw new Error("Initial Preview deployment requires a Worker with no production routes");
+  }
+  await cp(path.join(source, ".cloudflare"), path.join(destination, ".cloudflare"), {
+    recursive: true,
+  });
+  await writeRootConfig(
+    destination,
+    {
+      accountId: output.rootConfig.accountId,
+      complianceRegion: output.rootConfig.complianceRegion,
+    },
+    { mode: output.rootConfig.buildContext.mode, isPreview: false },
+  );
+}
 
 /**
  * Writes and validates Cloudflare Build Output for the prepared assets under .deploy/<site>.

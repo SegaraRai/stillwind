@@ -6,7 +6,10 @@ export default defineConfig(({ isPreview }) => ({
     compatibilityDate: "2026-10-29",
     workersDev: false,
     previewUrls: true,
-    domains: isPreview ? [] : ["stillwind.dev"],
+    domains: [
+      ...(isPreview ? [] : ["stillwind.dev"]),
+      { hostname: "preview.stillwind.dev", production: false, previews: true },
+    ],
     assets: {
       notFoundHandling: "404-page",
     },
