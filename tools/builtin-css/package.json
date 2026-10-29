@@ -1,0 +1,22 @@
+{
+  "name": "@stillwind-internal/tools-builtin-css",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Internal tools for bundling and compacting Stillwind CSS",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./bundle": "./bundle.ts",
+    "./minify": "./minify.ts"
+  },
+  "dependencies": {
+    "css-tree": "^3.2.1"
+  },
+  "devDependencies": {
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@types/css-tree": "^3.2.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

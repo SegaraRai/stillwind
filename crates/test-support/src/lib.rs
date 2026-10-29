@@ -1,7 +1,7 @@
 //! Shared CSS fixtures and assertions for workspace tests.
 //!
 //! `css` constructs source buffers and expands imports from `packages/core`.
-//! `defaults` provides the package CSS in package order.
+//! `defaults` embeds generated bundles of the package CSS in package order.
 //! `assertions` compares CSS tokens after arithmetic evaluation.
 //! `fixtures` reads Markdown cases and catalogs.
 //! `tailwind` maps upstream fixture imports to the standard package.

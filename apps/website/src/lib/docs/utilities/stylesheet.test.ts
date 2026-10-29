@@ -1,4 +1,4 @@
-import { NativeDesignSystemLoader } from "@stillwind/native";
+import { minifyCss, NativeDesignSystemLoader } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
 import { documentationCompiler } from "../reference/compiler";
@@ -9,6 +9,8 @@ test("replays the recorded default stylesheet into the reference design system",
   const recorded = await recordDefaultStylesheet();
   const json = JSON.stringify(recorded);
   const sources = [recorded.root, ...Object.values(recorded.imports)];
+  expect(Object.values(recorded.imports)).toHaveLength(1);
+  expect(Object.values(recorded.imports)[0]!.content).not.toMatch(/@import\b/);
   for (const name of [...sources.map((source) => source.name), ...Object.keys(recorded.imports)]) {
     expect(name).toMatch(/^(?:utilities\.css|stillwind\/)/);
   }
@@ -18,8 +20,16 @@ test("replays the recorded default stylesheet into the reference design system",
   replayStylesheet(loader, JSON.parse(json));
   const replayed = loader.editorQuery();
   const { query } = await documentationCompiler();
-  for (const candidate of ["p-4", "bg-blue-500", "hover:underline", "[padding:16px]"]) {
-    expect(replayed.previewCandidate(candidate)).toBe(query.previewCandidate(candidate));
+  for (const candidate of [
+    "p-4",
+    "space-x-2",
+    "bg-blue-500/50",
+    "hover:underline",
+    "[padding:16px]",
+  ]) {
+    expect(minifyCss(replayed.previewCandidate(candidate)!).css).toBe(
+      minifyCss(query.previewCandidate(candidate)!).css,
+    );
     expect(replayed.canonicalCandidate(candidate)).toBe(query.canonicalCandidate(candidate));
   }
   expect(replayed.completeCandidate("flex")).toEqual(query.completeCandidate("flex"));

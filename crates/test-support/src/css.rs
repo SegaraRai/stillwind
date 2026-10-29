@@ -1,20 +1,21 @@
 //! Explicit CSS fixtures for compiler tests that exercise the standard package. This
 //! module is used by test and example targets rather than production hosts.
 //!
-//! The helpers read the real `packages/core` CSS from disk instead of embedding copies,
-//! so a fixture cannot drift from the package it claims to use. `@import` expansion is
+//! The default stylesheet uses the committed bundle from `crates/test-support/assets`.
+//! Explicit imports read the package sources from disk. `@import` expansion is
 //! intentionally minimal: only `stillwind`, `stillwind/…` and relative paths inside the
 //! fixture directory are supported, and an unsupported tail asserts instead of being
 //! ignored.
 
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use cssparser::{Parser, Token};
 
 use stillwind_css::{CssNodeKind, parse_structure};
 use stillwind_source::{FileId, SourceError, SourceFile};
+
+use crate::defaults::DEFAULT_CSS;
 
 /// Builds a source buffer with `id` from CSS that has the standard package prepended.
 ///
@@ -112,20 +113,15 @@ fn expand_from(css: &str, directory: &Path) -> String {
 
 /// Prepends the expanded default package to CSS that does not import it.
 ///
-/// The defaults are expanded once and cached, because every fixture would otherwise
-/// re-read the package from disk.
-///
 /// Returns expanded `css` when it contains a quoted name starting with `stillwind`.
-/// Otherwise, returns the expanded default package followed by a newline and `css`.
+/// Otherwise, returns the bundled default package followed by a newline and `css`.
 ///
 /// # Panics
 ///
 /// Panics if [`expand`] cannot read an imported file or expand its import tail.
 pub fn with_defaults(css: &str) -> String {
-    static DEFAULTS: OnceLock<String> = OnceLock::new();
     if css.contains("\"stillwind") || css.contains("'stillwind") {
         return expand(css);
     }
-    let defaults = DEFAULTS.get_or_init(|| expand("@import \"stillwind\";"));
-    format!("{defaults}\n{css}")
+    format!("{DEFAULT_CSS}\n{css}")
 }

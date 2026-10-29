@@ -2,19 +2,19 @@
 
 Tasks are defined in each workspace's `vite.config.ts`. Run them with Vite+.
 
-| Root task                       | Scope                                                                                         |
-| ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `vp run check:generated`        | Tailwind fixture expectations and catalogs, Webref data, and both Tailwind ordering outputs   |
-| `vp run check`                  | Formatting, lint, TypeScript checks, Cargo formatting, Clippy, and generated-data consistency |
-| `vp run generate`               | Rust input data, project expectations and viewer catalog, Tailwind catalogs and fixtures      |
-| `vp run test:browser`           | CSS cascade, rendered filters, and ref scopes in Vitest Browser Mode                          |
-| `vp run test:e2e`               | Framework and bundler browser acceptance                                                      |
-| `vp run test:fixtures:projects` | Generated project JS, CSS, diagnostics, source maps, and the viewer catalog                   |
-| `vp run test:performance`       | Performance budgets; `test:performance:full` uses the complete workload                       |
-| `vp run test:tailwind`          | Tailwind differential comparison, property ordering, and numeric domains                      |
-| `vp run test:wasm`              | WASM build, loader contracts, package fallback, production bundling, and Browser Mode         |
-| `vp run test`                   | Rust tests, ordinary JS tests, and project output comparisons                                 |
-| `vp run verify`                 | `check` and `test`                                                                            |
+| Root task                       | Scope                                                                                                             |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `vp run check:generated`        | Built-in CSS bundles, Tailwind fixture expectations and catalogs, Webref data, and both Tailwind ordering outputs |
+| `vp run check`                  | Formatting, lint, TypeScript checks, Cargo formatting, Clippy, and generated-data consistency                     |
+| `vp run generate`               | Rust input data, project expectations and viewer catalog, Tailwind catalogs and fixtures                          |
+| `vp run test:browser`           | CSS cascade, rendered filters, and ref scopes in Vitest Browser Mode                                              |
+| `vp run test:e2e`               | Framework and bundler browser acceptance                                                                          |
+| `vp run test:fixtures:projects` | Generated project JS, CSS, diagnostics, source maps, and the viewer catalog                                       |
+| `vp run test:performance`       | Performance budgets; `test:performance:full` uses the complete workload                                           |
+| `vp run test:tailwind`          | Tailwind differential comparison, property ordering, and numeric domains                                          |
+| `vp run test:wasm`              | WASM build, loader contracts, package fallback, production bundling, and Browser Mode                             |
+| `vp run test`                   | Rust tests, ordinary JS tests, and project output comparisons                                                     |
+| `vp run verify`                 | `check` and `test`                                                                                                |
 
 The root `test.projects` configuration selects ordinary JS projects.
 `vp run test:js` builds their dependencies and runs them together. Use
@@ -68,6 +68,7 @@ runtime contracts.
 
 | Package                                     | Responsibility                                                                              | Stillwind prerequisites |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
+| `@stillwind-internal/tools-builtin-css`     | Bundle CSS for Rust fixtures and compact CSS for browser data                               | None                    |
 | `@stillwind-internal/tools-fixture-css`     | Load CSS for verification consumers                                                         | Core CSS source files   |
 | `@stillwind-internal/tools-projects`        | Generate or compare project expectations and the viewer catalog                             | Host and native builds  |
 | `@stillwind-internal/tools-tailwind-compat` | Compare native output against Tailwind, run browser checks, and report coverage             | Native binding          |
@@ -93,6 +94,7 @@ test prerequisites.
 
 | Task                                                                         | Updates                                             |
 | ---------------------------------------------------------------------------- | --------------------------------------------------- |
+| `vp run generate:builtin-css`                                                | Built-in CSS bundles                                |
 | `vp run generate:fixtures:projects`                                          | Stillwind project expected files and viewer catalog |
 | `vp run generate:fixtures:tailwind`                                          | Tailwind fixture expectations                       |
 | `vp run generate:tailwind-order`                                             | Rust Tailwind property order                        |
@@ -110,6 +112,17 @@ reserved for fetching mutable external inputs. `fmt` writes formatted files;
 Rust-data and fixture generators in `tools/webref`, `tools/tailwind`, and
 `tools/projects` write their outputs by default. Pass `--check` to compare without
 updating their expected files.
+
+`vp run generate:builtin-css` expands imports from `index.css` and `css/builtins.css`
+into `crates/test-support/assets`. The committed bundles preserve comments,
+definition order, and named layers. Regenerate them after changing the built-in CSS.
+The generator runs independently of package builds. `check:generated` compares
+the bundles without updating them, and Rust tests embed them.
+
+The website bundles and compacts the current package sources when it generates
+the JSON for utility searches. The browser loads one library stylesheet from that
+recording. Website examples and the playground use the original package sources.
+
 `utility-order.ts` generates the Rust property table; `utility-order-fixtures.ts`
 generates the ordering fixture used by Rust tests. Native builds depend on the
 Rust generator. The fixture generator runs only when explicitly selected or

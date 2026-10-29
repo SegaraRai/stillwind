@@ -3,7 +3,11 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
   fmt: {
-    ignorePatterns: ["apps/play/examples/**", "packages/native/binding.d.ts"],
+    ignorePatterns: [
+      "apps/play/examples/**",
+      "crates/test-support/assets/*.css",
+      "packages/native/binding.d.ts",
+    ],
     sortImports: true,
     sortPackageJson: true,
     astro: true,
@@ -78,6 +82,7 @@ export default defineConfig(({ mode }) => ({
               "packages/projection/vite.config.ts",
               "packages/vscode-extension/vite.config.ts",
               "plugins/iconify/vite.config.ts",
+              "tools/builtin-css/vite.config.ts",
               "tools/tailwind-compat/vite.config.ts",
               "tools/tailwind/vite.config.ts",
             ],
@@ -89,15 +94,21 @@ export default defineConfig(({ mode }) => ({
         command: "",
         dependsOn: [
           "@stillwind-internal/tools-workspace#generate:lint-config",
+          "generate:builtin-css",
           "generate:fixtures:projects",
           "generate:fixtures:tailwind",
           "generate:tailwind-order",
+          "@stillwind-internal/tools-tailwind#generate:tailwind-banner",
           "generate:webref",
           "@stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order",
         ],
       },
       "generate:fixtures:projects":
         "vp run @stillwind-internal/tools-projects#generate:fixtures:projects",
+      "generate:builtin-css": {
+        command: "",
+        dependsOn: ["@stillwind-internal/tools-builtin-css#generate:builtin-css"],
+      },
       "generate:fixtures:tailwind":
         "vp run @stillwind-internal/tools-tailwind#generate:fixtures:tailwind",
       "generate:tailwind-order":
@@ -173,9 +184,11 @@ export default defineConfig(({ mode }) => ({
         command: "",
         dependsOn: [
           "@stillwind-internal/tools-workspace#check:generated:lint-config",
+          "@stillwind-internal/tools-builtin-css#check:generated:builtin-css",
           "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind-order",
           "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind",
           "@stillwind-internal/tools-tailwind#check:generated:tailwind-order",
+          "@stillwind-internal/tools-tailwind#check:generated:tailwind-banner",
           "@stillwind-internal/tools-webref#check:generated:webref",
         ],
       },
@@ -197,6 +210,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/e2e-iconify-plugin#typecheck",
           "@stillwind-internal/e2e-play#typecheck",
           "@stillwind-internal/e2e-tailwind-plugins#typecheck",
+          "@stillwind-internal/tools-builtin-css#typecheck",
           "@stillwind-internal/tools-fixture-css#typecheck",
           "@stillwind-internal/tools-projects#typecheck",
           "@stillwind-internal/tools-tailwind-compat#typecheck",
@@ -263,6 +277,8 @@ export default defineConfig(({ mode }) => ({
               pattern: "fixtures/tailwind-v4/utility-order.json",
               base: "workspace",
             },
+            { pattern: "packages/core/index.css", base: "workspace" },
+            { pattern: "packages/core/css/**", base: "workspace" },
           ],
         },
         dependsOn: [

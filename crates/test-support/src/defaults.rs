@@ -1,37 +1,7 @@
-//! The standard package's CSS, concatenated for tests.
-//!
-//! The data is `packages/core/css/builtin-{utilities,variants,metadata}/*.css` plus
-//! `builtins.css`, read at compile time with `include_str!`. The list is hand
-//! maintained, so adding or renaming a package CSS file means updating it here. Order
-//! matters and mirrors the package's own layering (registry metadata, then utility
-//! families, then variant families, then the package entry).
+//! Built-in definitions bundled in package order by `vp run generate:builtin-css`.
 
-/// The full CSS of the standard package, in package order.
-pub const PACKAGE_CSS: &str = concat!(
-    include_str!("../../../packages/core/css/builtin-metadata/tw-registry-metadata.css"),
-    include_str!("../../../packages/core/css/builtin-metadata/tw-relationship-metadata.css"),
-    include_str!("../../../packages/core/css/builtin-metadata/tw-legacy-metadata.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-layout.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-spacing-sizing.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-flex-grid.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-typography.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-backgrounds.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-borders.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-effects.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-masks.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-transforms.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-motion.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-interactivity.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/tw-svg.css"),
-    include_str!("../../../packages/core/css/builtin-utilities/sw-motion-contexts.css"),
-    include_str!("../../../packages/core/css/builtin-variants/tw-relationship.css"),
-    include_str!("../../../packages/core/css/builtin-variants/tw-structural.css"),
-    include_str!("../../../packages/core/css/builtin-variants/tw-state.css"),
-    include_str!("../../../packages/core/css/builtin-variants/tw-dynamic-selector.css"),
-    include_str!("../../../packages/core/css/builtin-variants/tw-conditional.css"),
-    include_str!("../../../packages/core/css/builtin-variants/sw-conditional.css"),
-    include_str!("../../../packages/core/css/builtin-variants/sw-document.css"),
-    include_str!("../../../packages/core/css/builtin-metadata/tw-properties.css"),
-    include_str!("../../../packages/core/css/builtin-metadata/sw-motion-properties.css"),
-    include_str!("../../../packages/core/css/builtins.css"),
-);
+/// The standard package's utility, variant, and property definitions without imports.
+pub const PACKAGE_CSS: &str = include_str!("../assets/builtins.css");
+
+/// The complete standard stylesheet, including theme, preflight, and output slots.
+pub(crate) const DEFAULT_CSS: &str = include_str!("../assets/index.css");
