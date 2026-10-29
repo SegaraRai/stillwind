@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use lean_string::LeanStr;
 
-use stillwind_css::{CssOutputTemplate, CustomPropertyDefinition};
+use stillwind_css::{CssBanner, CssOutputTemplate, CustomPropertyDefinition};
 use stillwind_source::Span;
 
 use super::declarations::ThemeValue;
@@ -20,6 +20,8 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub(crate) struct ThemeBuilder {
+    /// Notices declared outside `@theme` and utility definitions, in source order.
+    pub(crate) banners: Vec<CssBanner>,
     /// First declaration offsets after imports are expanded, shared by Tailwind-style
     /// and Stillwind variants.
     pub(crate) variant_positions: BTreeMap<LeanStr, usize>,

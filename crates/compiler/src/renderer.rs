@@ -17,7 +17,8 @@ use crate::compiler::{
 };
 use crate::identifiers::{IdentifierContext, Identifiers, RejectedIdentifier, RejectedNames};
 use crate::{
-    CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet, SymbolOrigin,
+    CompileResult, CompiledModule, CompilerOptions, GeneratedSymbol, MappedStylesheet,
+    SymbolOrigin, finalize_stylesheet,
 };
 
 /// Where a rendered stylesheet is going to be used.
@@ -105,7 +106,7 @@ impl<'a> StylesheetRenderer<'a> {
             match self.render_mapped_stylesheet(&module.css.mapped(), StylesheetPlacement::Document)
             {
                 Ok(css) => {
-                    result.css = css.stylesheet.css;
+                    result.css = finalize_stylesheet(css.stylesheet).css;
                     result.rejected_names =
                         merge_rejected_names(result.rejected_names, css.rejected_names);
                 }
@@ -165,18 +166,12 @@ impl<'a> StylesheetRenderer<'a> {
         &self,
         module_css: &str,
     ) -> Result<RenderedStylesheet, StylesheetRenderError> {
-        self.finish_render(
-            render_stylesheet(
-                self.snapshot.theme(),
-                module_css,
-                &self.options,
-                &self.identifiers,
-            )
-            .map(|css| MappedStylesheet {
-                css: (css),
-                ..MappedStylesheet::default()
-            }),
-        )
+        self.finish_render(render_stylesheet(
+            self.snapshot.theme(),
+            module_css,
+            &self.options,
+            &self.identifiers,
+        ))
     }
 
     /// Renders one producer's CSS and required tokens, keyframes and properties.
@@ -192,18 +187,12 @@ impl<'a> StylesheetRenderer<'a> {
         &self,
         module_css: &str,
     ) -> Result<RenderedStylesheet, StylesheetRenderError> {
-        self.finish_render(
-            render_module_stylesheet(
-                self.snapshot.theme(),
-                module_css,
-                &self.options,
-                &self.identifiers,
-            )
-            .map(|css| MappedStylesheet {
-                css: (css),
-                ..MappedStylesheet::default()
-            }),
-        )
+        self.finish_render(render_module_stylesheet(
+            self.snapshot.theme(),
+            module_css,
+            &self.options,
+            &self.identifiers,
+        ))
     }
 
     /// Renders a producer's CSS with source provenance attached.

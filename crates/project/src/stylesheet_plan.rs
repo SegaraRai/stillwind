@@ -15,7 +15,7 @@ use lean_string::{LeanStr, ToLeanStr};
 use stillwind_compiler::{
     GeneratedRule, MappedStylesheet, ModuleArtifactKey, ModuleResourceReference,
     RejectedIdentifier, StylesheetMapping, StylesheetPlacement, StylesheetRenderError,
-    StylesheetRenderer, merge_rejected_names,
+    StylesheetRenderer, merge_rejected_names, stylesheet_banners,
 };
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
 use stillwind_diagnostics::CompileDiagnostic;
@@ -77,6 +77,8 @@ pub struct StylesheetSelection {
 /// Contains rendered CSS, its placement, and source and producer information.
 #[derive(Clone, Debug)]
 pub struct StylesheetPlan {
+    /// Ordered notices to add when publishing this CSS body.
+    pub banners: Vec<LeanStr>,
     /// Fragments in reference order. Repeated content remains a separate entry.
     pub parts: Vec<StylesheetPart>,
     /// Generated-to-original mappings for the rules that have a source location.
@@ -100,6 +102,8 @@ pub struct StylesheetPlan {
 /// Contains one CSS fragment at a position in a stylesheet plan.
 #[derive(Clone, Debug)]
 pub struct StylesheetPart {
+    /// Ordered notices required by this fragment.
+    pub banners: Vec<LeanStr>,
     /// Maps positions in the whole fragment, including its wrapper, to source
     /// locations.
     pub mappings: Vec<StylesheetMapping>,
@@ -203,6 +207,7 @@ impl ProjectSession {
                 rejected_names: rejected_names.clone(),
             })?;
         Ok(StylesheetPlan {
+            banners: stylesheet_banners(&mapped),
             parts,
             mappings: mapped.mappings,
             resources,
@@ -341,6 +346,13 @@ fn optimize_stylesheet(
             optimized.mappings.push(mapping);
         }
     }
+    // Optimization can merge and move rules, so every notice of the input applies to
+    // the whole optimized output.
+    optimized.banners = utility_css
+        .banners
+        .iter()
+        .map(|(_, banner)| (0..optimized.css.len(), banner.clone()))
+        .collect();
     Ok(optimized)
 }
 
@@ -394,9 +406,28 @@ fn stylesheet_parts(
                     Some(mapped)
                 })
                 .collect();
+            let banners = stylesheet_banners(&MappedStylesheet {
+                banners: reference
+                    .banners
+                    .iter()
+                    .filter(|(used, _)| used.start < range.end && used.end > range.start)
+                    .map(|(_, banner)| (0..css.len(), banner.clone()))
+                    .collect(),
+                css: css.to_string(),
+                ..MappedStylesheet::default()
+            });
+            // Hosts publish each part with its notices, so equal CSS with different
+            // notices needs a different key.
+            let mut identity = css.to_string();
+            for banner in &banners {
+                identity.push_str(&banner.len().to_string());
+                identity.push(':');
+                identity.push_str(banner);
+            }
             let part = StylesheetPart {
+                banners,
                 mappings,
-                key: Fingerprint::of(&css),
+                key: Fingerprint::of(identity),
                 css: (css).into(),
                 producers: owners,
                 slot,
@@ -501,6 +532,7 @@ mod tests {
     use std::sync::Arc;
 
     use stillwind_compiler::{CompilerOptions, Identifiers};
+    use stillwind_css::CssBanner;
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_diagnostics::CompileError;
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
@@ -509,6 +541,24 @@ mod tests {
 
     use super::*;
     use crate::SessionMode;
+
+    #[test]
+    fn partitions_keep_only_the_notices_required_by_their_ranges() {
+        let mut reference = MappedStylesheet {
+            css: ".a{}.b{}".into(),
+            ..MappedStylesheet::default()
+        };
+        reference.banners = vec![
+            (0..4, CssBanner::new("/*! A */").unwrap()),
+            (4..8, CssBanner::new("/*! B */").unwrap()),
+        ];
+        let parts = stylesheet_parts(&reference, &BTreeMap::new(), &BTreeMap::new()).unwrap();
+        assert_eq!(parts.len(), 2);
+        assert!(parts[0].banners.iter().any(|text| text == "/*! A */"));
+        assert!(!parts[0].banners.iter().any(|text| text == "/*! B */"));
+        assert!(parts[1].banners.iter().any(|text| text == "/*! B */"));
+        assert!(!parts[1].banners.iter().any(|text| text == "/*! A */"));
+    }
 
     /// Selects the published producers of `session` without claiming the graph is complete.
     fn observed_selection(session: &ProjectSession) -> StylesheetSelection {

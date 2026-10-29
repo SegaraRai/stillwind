@@ -13,6 +13,7 @@ import type { CompilerHost } from "../compilation/host.ts";
 import { fileSourceKind } from "../compilation/module-source.ts";
 import { CompilationProject } from "../compilation/project.ts";
 import type { ModuleAnalysis } from "../compilation/request.ts";
+import { finalizeCss } from "../css/banners.ts";
 import {
   isStylesheet,
   loadCssGraph,
@@ -65,6 +66,8 @@ export interface BrowserModuleCss extends BrowserStylesheetOutput {
   parts: {
     /** Content fingerprint supplied by the native emission plan. */
     key: string;
+    /** Preserved notices required by this fragment. */
+    banners?: readonly string[];
     /** Fragment CSS including enclosing conditions, after local resources are embedded. */
     css: string;
   }[];
@@ -532,7 +535,7 @@ export class BrowserProject {
       placement: "document",
     });
     return {
-      css: this.#replaceResources(plan.css, [
+      css: this.#replaceResources(finalizeCss(plan), [
         ...this.#resources,
         ...plan.resources.map((resource) => ({
           ...resource,
@@ -680,9 +683,10 @@ export class BrowserProject {
         })),
       ];
       values.set(resolve(this.#options.root, id), {
-        css: this.#replaceResources(plan.css, resources),
+        css: this.#replaceResources(finalizeCss(plan), resources),
         rejectedNames: plan.rejectedNames,
         parts: plan.parts.map((part) => ({
+          banners: part.banners,
           key: part.key,
           css: this.#replaceResources(part.css, resources),
         })),

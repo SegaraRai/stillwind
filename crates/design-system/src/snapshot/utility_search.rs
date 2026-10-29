@@ -199,6 +199,7 @@ mod tests {
             (
                 "tone-*".into(),
                 Arc::new(CustomUtility {
+                    banners: Vec::new(),
                     name: "tone-*".into(),
                     body: "&:hover { border-width:--value(--spacing-*, [length]); }".into(),
                     position: None,
@@ -212,6 +213,7 @@ mod tests {
             (
                 "tone-*".into(),
                 Arc::new(CustomUtility {
+                    banners: Vec::new(),
                     name: "tone-*".into(),
                     body: "border-color:--value(--color-*, [color]);".into(),
                     position: None,
@@ -225,6 +227,7 @@ mod tests {
             (
                 "toned".into(),
                 Arc::new(CustomUtility {
+                    banners: Vec::new(),
                     name: "toned".into(),
                     body: "color:red;".into(),
                     position: None,
@@ -254,6 +257,7 @@ mod tests {
             (
                 "text-*".into(),
                 Arc::new(CustomUtility {
+                    banners: Vec::new(),
                     name: "text-*".into(),
                     body: body.into(),
                     position: None,

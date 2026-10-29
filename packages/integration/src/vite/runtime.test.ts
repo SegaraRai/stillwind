@@ -13,6 +13,7 @@ afterEach(() => {
 
 /**
  * Installs a simulated document and fetch implementation for the development runtime.
+ *
  * @param fetch - Mock that controls snapshot responses and records requests.
  * @returns Runtime operations and the simulated style element whose text records rendered CSS.
  */
@@ -41,6 +42,38 @@ function runtime(fetch: ReturnType<typeof vi.fn>) {
   });
   return { ...api, style };
 }
+
+test("notices follow active producers and disappear when their CSS is pruned", () => {
+  const { apply, register, unregister, style } = runtime(vi.fn());
+  apply({
+    revision: 4,
+    dependencies: {},
+    parts: [
+      {
+        css: ".a{}",
+        producers: ["a"],
+        banners: ["/*! Set A */"],
+      },
+      {
+        css: ".b{}",
+        producers: ["b"],
+        banners: ["/*! Set B */"],
+      },
+    ],
+  });
+  register("a");
+  expect(style.textContent).toBe("/*! Set A */\n.a{}");
+  register("b");
+  expect(style.textContent).toContain("/*! Set B */");
+  unregister("a");
+  expect(style.textContent).toBe("/*! Set B */\n.b{}");
+  apply({
+    revision: 5,
+    dependencies: {},
+    parts: [],
+  });
+  expect(style.textContent).toBe("");
+});
 
 test("a cached runtime fetches current CSS even when its embedded revision satisfies the producer", async () => {
   const fetch = vi.fn().mockResolvedValue({

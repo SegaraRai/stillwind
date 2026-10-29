@@ -153,3 +153,15 @@ The element directive applies props in the browser. Add an SSR path that emits t
 same classes and inline values before adding Lit server acceptance.
 
 Source: [Lit directive](../packages/core/src/frameworks/lit.ts).
+
+## Source maps of combined development CSS values
+
+With `devSourceMaps`, each fragment of an explicit CSS value embeds its own inline map,
+and the value module joins the fragments with `cssText(parts)`. A browser reads only the
+last `sourceMappingURL` comment, so locations in a value with more than one part map to
+the wrong source. Compose the fragment maps into one map for the joined text, as
+`renderCssWithSourceMap` does for the development runtime. `styleSheets` creates one sheet
+for each part and is not affected.
+
+Sources: [virtual modules](../packages/integration/src/vite/virtual-modules.ts),
+[CSS text](../packages/core/src/css.ts).

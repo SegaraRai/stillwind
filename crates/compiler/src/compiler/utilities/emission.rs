@@ -22,7 +22,7 @@ use stillwind_design_system::{
 use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::CssContribution;
-use super::super::stylesheet::expand_authored_directives;
+use super::super::stylesheet::{applied_banners, expand_authored_directives};
 use super::declaration_order::{combine_declarations_for_theme, order_utilities};
 use super::render::render_utility_rule;
 use super::resolve::CompiledUtility;
@@ -64,6 +64,7 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
     // A utility body can apply other utilities, as a Tailwind plugin's `@apply p-4`
     // does. The rendered rules anchor the applications, so variants of the utility
     // also select the applied declarations.
+    let applied_banners = applied_banners(&css, theme);
     if css.contains("@apply") {
         css = expand_authored_directives(&css, theme, &mut required_properties, identifiers)?;
     }
@@ -78,13 +79,20 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
     } else {
         LeanString::new()
     };
+    let banners: Vec<_> = utilities
+        .iter()
+        .flat_map(|utility| utility.banners.clone())
+        .chain(applied_banners)
+        .collect();
     contributions.push(CssContribution {
+        banners: banners.clone(),
         css: (css).into(),
         required_properties,
         keyframes: false,
     });
     if !keyframes.is_empty() {
         contributions.push(CssContribution {
+            banners,
             css: keyframes.into(),
             required_properties: Vec::new(),
             keyframes: true,

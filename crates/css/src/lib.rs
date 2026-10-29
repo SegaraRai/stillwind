@@ -26,7 +26,8 @@
 //! explicit block boundaries, and syntax validation. `custom_properties` discovers
 //! references and registrations. `emission` preserves rule occurrences and optimizes
 //! declaration order. `format` formats editor previews, while the optional `minify`
-//! module processes final assets.
+//! module processes final assets. `banner` retains important comments and masks their
+//! compile-time declarations.
 
 #![cfg_attr(
     not(test),
@@ -40,6 +41,7 @@
     )
 )]
 
+mod banner;
 mod blocks;
 mod colors;
 mod custom_properties;
@@ -60,6 +62,7 @@ mod values;
 #[cfg(feature = "minify")]
 mod minify;
 
+pub use banner::{CssBanner, CssBannerBlock, CssBannerError, banner_blocks, without_banner_blocks};
 pub use blocks::{
     DirectiveBlock, css_comment_ranges, extract_directive_blocks, extract_named_blocks,
     extract_named_statements, extract_order_statements, strip_css_comments, unterminated_block,

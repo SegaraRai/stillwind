@@ -18,7 +18,8 @@ use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{
-    decode_css_escapes, extract_named_blocks, strip_css_comments, whitespace_separated_ranges,
+    CssBanner, banner_blocks, decode_css_escapes, extract_named_blocks, strip_css_comments,
+    whitespace_separated_ranges, without_banner_blocks,
 };
 
 /// Where a definition comes from. Lint checks the declarations that a definition
@@ -56,6 +57,8 @@ impl Default for DefinitionOrigin {
 /// classification for lint policies.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CustomUtility {
+    /// Notices required when the definition contributes declarations.
+    pub banners: Vec<CssBanner>,
     /// Decoded utility name. A trailing `*` marks a prefix pattern.
     pub name: LeanStr,
     /// CSS inside the definition's outer braces, including nested rules and placeholder
@@ -177,7 +180,14 @@ pub fn parse_stillwind_utility_definitions(css: &str) -> Vec<CustomUtility> {
                 role,
                 implementation,
             } = parse_utility_header(&header)?;
+            let banners = banner_blocks(&body)
+                .ok()?
+                .into_iter()
+                .map(|block| block.banner)
+                .collect();
+            let body = without_banner_blocks(&body).ok()?.into();
             Some(CustomUtility {
+                banners,
                 name,
                 body,
                 position: Some(position),
@@ -209,9 +219,16 @@ pub(crate) fn parse_utility_definitions(css: &str) -> Vec<(usize, CustomUtility)
                 role,
                 implementation,
             } = parse_utility_header(strip_css_comments(&header).trim())?;
+            let banners = banner_blocks(&body)
+                .ok()?
+                .into_iter()
+                .map(|block| block.banner)
+                .collect();
+            let body = without_banner_blocks(&body).ok()?;
             Some((
                 offset,
                 CustomUtility {
+                    banners,
                     name,
                     body: strip_css_comments(&body).trim().into(),
                     position: None,

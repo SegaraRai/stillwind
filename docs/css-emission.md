@@ -1,8 +1,48 @@
 # CSS emission
 
-The applied cascade is the contract. CSS bytes, CSSOM rule indices, and the
-physical order of independent declarations are not public API. All transports
-preserve the cascade of the [reference order](css-ordering.md).
+The applied cascade and the preserved notices are the contract. Other CSS bytes,
+CSSOM rule indices, and the physical order of independent declarations are not
+public API. All transports preserve the cascade of the
+[reference order](css-ordering.md).
+
+## Notices
+
+A notice is a `/*! ... */` comment that the output keeps, such as a license.
+A nonempty published stylesheet starts with the Stillwind notice and the Tailwind
+notice. The notices that the output requires follow in lexical order, one per
+line. Each notice appears once per stylesheet and keeps its original text.
+
+Plugins and authored CSS declare a notice with:
+
+```css
+@stillwind-banner {
+  /*! Example Icons | Example Author | MIT | https://example.com/license */
+}
+```
+
+The block must contain exactly one `/*! ... */` comment and optional whitespace.
+Any other content fails compilation. The definition that contains the block
+decides when the output requires the notice:
+
+- Outside definitions, every nonempty stylesheet requires it.
+- Inside `@utility`, output that contains CSS of that utility requires it,
+  including CSS that `@apply` adds.
+- Inside `@theme`, output that uses a value of that block requires it, including
+  values that `@theme inline` substitutes.
+
+Native stylesheet plans keep the CSS body and its `banners` separate. Each part
+also carries the notices that its own body requires. A host adds the notices when
+it publishes a body, so its source map must skip the added lines and its content
+hash must cover them.
+
+Explicit module values expose bodies and notices in `parts`. `cssText(parts)`
+from `stillwind/css` combines the bodies and adds each notice once.
+`styleSheets` adds the notices of each part to its sheet.
+
+The Tailwind notice is generated from the installed `tailwindcss` package. Run
+`vp run @stillwind-internal/tools-tailwind#generate:tailwind-banner` after
+updating it. `check:generated:tailwind-banner` reports a stale notice without
+writing files.
 
 ## Compilation and linking
 

@@ -5,6 +5,8 @@ import { iconToHTML } from "@iconify/utils/lib/svg/html";
 import { svgToURL } from "@iconify/utils/lib/svg/url";
 import { optimize, type Config } from "svgo/browser";
 
+import { iconLicense } from "./license.ts";
+
 /**
  * How an icon utility paints the icon. `mask` paints the element's text color through the icon's
  * shape, and `background` paints the icon's own colors. `auto` selects `mask` for icons whose SVG
@@ -65,7 +67,8 @@ export function iconCss(
   const [, , width, height] = svg.viewBox;
   const html = iconToHTML(svg.body, svg.attributes);
   const url = svgToURL(style.svgo ? optimize(html, style.svgo).data : html);
-  const asset = assetName(url, style.hashLength);
+  const notice = iconLicense(collection.info);
+  const asset = assetName(notice ? `${url}\0${notice}` : url, style.hashLength);
   const mask =
     style.mode === "mask" || (style.mode === "auto" && svg.body.includes("currentColor"));
   // Each mode resets the other mode's image, so a later icon utility on the same element
@@ -87,6 +90,7 @@ export function iconCss(
       ];
   return [
     `@theme default asset {`,
+    ...(notice ? [notice] : []),
     `  ${asset}: ${url};`,
     `}`,
     `@utility ${utility} (implementation) {`,
@@ -102,10 +106,10 @@ export function iconCss(
   ].join("\n");
 }
 
-function assetName(url: string, length: number): string {
+function assetName(content: string, length: number): string {
   let hash = 0x811c9dc5;
-  for (let index = 0; index < url.length; index++) {
-    hash = Math.imul(hash ^ url.charCodeAt(index), 0x01000193);
+  for (let index = 0; index < content.length; index++) {
+    hash = Math.imul(hash ^ content.charCodeAt(index), 0x01000193);
   }
   return `--sw-icon-svg-${(hash >>> 0).toString(36).padStart(length, "0").slice(-length)}`;
 }

@@ -13,6 +13,7 @@
 use lean_string::LeanStr;
 use serde::Serialize;
 
+use stillwind_css::CssBanner;
 use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
 use stillwind_ir::StyleDependency;
 use stillwind_source::SourceFile;
@@ -111,6 +112,8 @@ impl CompileResult {
 /// loses that metadata and is insufficient for reconstructing the generated artifact.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CssContribution {
+    /// Notices required by the definitions represented by this contribution.
+    pub banners: Vec<CssBanner>,
     /// Complete generated rule blocks in emission order.
     pub css: LeanStr,
     /// True when all blocks are generated animation definitions for the keyframes

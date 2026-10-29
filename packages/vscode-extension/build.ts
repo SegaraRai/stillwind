@@ -70,7 +70,10 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   const manifest: Record<string, unknown> = {
     ...extensionManifest,
     files: ["dist/**", "LICENSE"],
-    repository: { type: "git", url: "https://github.com/SegaraRai/stillwind" },
+    repository: {
+      type: "git",
+      url: "https://github.com/SegaraRai/stillwind",
+    },
   };
   manifest.main = "./dist/node/extension.cjs";
   if (!desktop) {

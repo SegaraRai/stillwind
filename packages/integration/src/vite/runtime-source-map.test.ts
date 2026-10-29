@@ -1,9 +1,50 @@
 import { GenMapping, addSegment, setSourceContent, toEncodedMap } from "@jridgewell/gen-mapping";
 import { TraceMap, encodedMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { decodeCssSourceMap } from "@stillwind/host";
+import { cssText } from "stillwind/css";
 import { expect, test } from "vite-plus/test";
 
 import { renderCssWithSourceMap, replaceCssResources } from "./runtime-source-map.ts";
+
+test("joined parts and constructed sheets retain mappings after adding unique notices", () => {
+  const banners = ["/*! 作者\n notice */"];
+  const part = (source: string, css: string) => {
+    const map = new GenMapping();
+    addSegment(map, 0, 0, source, 0, 0);
+    return {
+      css,
+      banners,
+      producers: [],
+      map: toEncodedMap(map),
+    };
+  };
+  const joined = decodeCssSourceMap(
+    renderCssWithSourceMap([part("first.css", ".first{}"), part("second.css", ".second{}")]),
+  );
+  expect(joined.code).toBe("/*! 作者\n notice */\n.first{}.second{}");
+  const trace = new TraceMap(joined.map!);
+  expect(originalPositionFor(trace, { line: 3, column: 0 }).source).toBe("first.css");
+  expect(originalPositionFor(trace, { line: 3, column: 8 }).source).toBe("second.css");
+  // A development fragment embeds its own map, and `cssText` shifts it below the notices.
+  const fragment = renderCssWithSourceMap([
+    {
+      ...part("first.css", ".first{}"),
+      banners: [],
+    },
+  ]);
+  const sheet = decodeCssSourceMap(
+    cssText([
+      {
+        css: fragment,
+        banners,
+      },
+    ]),
+  );
+  expect(sheet.code).toBe("/*! 作者\n notice */\n.first{}");
+  expect(originalPositionFor(new TraceMap(sheet.map!), { line: 3, column: 0 }).source).toBe(
+    "first.css",
+  );
+});
 
 test("joining CSS parts shifts their generated positions and keeps their original positions", () => {
   const firstMap = new GenMapping();

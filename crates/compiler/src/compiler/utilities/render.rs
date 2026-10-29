@@ -348,6 +348,7 @@ mod render_step_tests {
 
     fn utility(selector: Option<&str>, declaration: &str) -> CompiledUtility {
         CompiledUtility {
+            banners: Vec::new(),
             diagnostic_data: CompiledUtilityDiagnosticData::default(),
             context: VariantContext::Element,
             variants: Vec::new(),

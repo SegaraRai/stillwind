@@ -11,7 +11,7 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{CssNodeKind, parse_structure};
+use stillwind_css::{CssBanner, CssNodeKind, banner_blocks, parse_structure};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{FileId, Span, Spanned};
 
@@ -97,6 +97,8 @@ impl ThemeValuePrecedence {
 /// One custom-property declaration from a `@theme` block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeValue {
+    /// Notices required when this value contributes to output.
+    pub banners: Vec<CssBanner>,
     /// Authored custom-property name with its span in the parsed buffer.
     pub name: Spanned<LeanStr>,
     /// Authored value with its span in the parsed buffer.
@@ -130,6 +132,13 @@ pub(crate) fn extract_theme_declarations(
         .checked_add(body.len())
         .ok_or(CompileDiagnostic::CssOffsetTooLarge { offset: body_start })?;
     offset(end)?;
+    let banners: Vec<_> = banner_blocks(body)
+        .map_err(|error| CompileDiagnostic::CssParse {
+            detail: error.to_lean_str(),
+        })?
+        .into_iter()
+        .map(|block| block.banner)
+        .collect();
     let mut tokens = Vec::new();
     for node in parse_structure(body) {
         let CssNodeKind::Declaration {
@@ -147,6 +156,7 @@ pub(crate) fn extract_theme_declarations(
         let name_start = body_start + property.start;
         let value_start = body_start + value_range.start;
         tokens.push(ThemeValue {
+            banners: banners.clone(),
             name: Spanned::new(
                 name.to_lean_str(),
                 Span::new(file, offset(name_start)?, offset(name_start + name.len())?),

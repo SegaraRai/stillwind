@@ -7,6 +7,7 @@
 //! documented.
 
 use stillwind_compiler::{CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform};
+use stillwind_css::strip_css_comments;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind, from_macro_import};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
@@ -166,8 +167,8 @@ export function SaveButton() {
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert_eq!(result.classes.len(), 1);
     assert!(
-        result
-            .css
+        strip_css_comments(&result.css)
+            .trim_start()
             .starts_with("@layer properties, theme, base, components, utilities;")
     );
     assert!(!result.css.contains("@layer properties;"));

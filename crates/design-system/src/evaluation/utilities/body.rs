@@ -15,7 +15,7 @@ use std::collections::HashSet;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::ValueType;
+use stillwind_css::{CssBanner, ValueType};
 use stillwind_source::ReplaceText;
 use stillwind_syntax::Value;
 
@@ -58,6 +58,8 @@ pub(in crate::evaluation) struct UtilityResolution {
     /// Explicit custom-property registration dependencies collected from requirement
     /// directives, independent of textual var references.
     pub(in crate::evaluation) required_properties: Vec<LeanStr>,
+    /// Notices declared by the utility definitions that produced this resolution.
+    pub(in crate::evaluation) banners: Vec<CssBanner>,
     /// Selector template from the body, when the body wrapped its declarations.
     pub(in crate::evaluation) selector: Option<LeanStr>,
     /// Conditional declarations to emit next to the base declaration.
@@ -84,6 +86,7 @@ impl UtilityResolution {
             diagnostic_data: UtilityResolutionDiagnosticData::default(),
             declaration: (declaration).into(),
             required_properties: Vec::new(),
+            banners: Vec::new(),
             selector: None,
             nested: Vec::new(),
             additional: Vec::new(),
@@ -466,6 +469,7 @@ fn resolve_valid_utility_body(
                 ..UtilityResolutionDiagnosticData::default()
             },
             required_properties,
+            banners: utility.banners.clone(),
             declaration: (parent_declaration).into(),
             selector: None,
             nested: parent_nested,
@@ -489,6 +493,7 @@ fn resolve_valid_utility_body(
                 ..UtilityResolutionDiagnosticData::default()
             },
             required_properties,
+            banners: utility.banners.clone(),
             declaration: (declaration).into(),
             selector,
             nested: resolved_nested,

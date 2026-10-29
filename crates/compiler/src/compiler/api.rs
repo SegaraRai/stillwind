@@ -17,7 +17,9 @@ use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnaly
 use stillwind_source::{CssSourceName, ModuleId, SourceFile};
 
 use super::CompileResult;
-use crate::{CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer};
+use crate::{
+    CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer, finalize_stylesheet,
+};
 
 /// Stateless entry points for source compilation and stylesheet rendering.
 pub struct Compiler;
@@ -44,7 +46,7 @@ impl Compiler {
                 .map_err(|error| error.into_compile_error(source.full_span()))?;
         StylesheetRenderer::new(&snapshot, options, &Identifiers::default())
             .render_stylesheet(module_css)
-            .map(|output| output.stylesheet.css)
+            .map(|output| finalize_stylesheet(output.stylesheet).css)
             .map_err(|error| CompileError::new(error.diagnostic, source.full_span()))
     }
 

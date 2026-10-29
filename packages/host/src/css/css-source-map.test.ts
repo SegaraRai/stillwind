@@ -7,6 +7,44 @@ import { expect, test } from "vite-plus/test";
 
 import { cssWithSourceMap, decodeCssSourceMap } from "./css-source-map.ts";
 
+test("multiline Unicode notices remain unmapped before the CSS body", () => {
+  const result = decodeCssSourceMap(
+    cssWithSourceMap(
+      {
+        css: ".a{}",
+        banners: ["/*! 作者\n license */"],
+        sourceMap: {
+          sources: [
+            {
+              sourceMapSource: "input.css",
+              content: ".a{}",
+            },
+          ],
+          entries: [
+            {
+              source: 0,
+              generatedStart: 0,
+              generatedEnd: 4,
+              originalStart: 0,
+              originalEnd: 4,
+              exact: true,
+            },
+          ],
+        },
+      },
+      new Map(),
+    ),
+  );
+  expect(result.code).toBe("/*! 作者\n license */\n.a{}");
+  const trace = new TraceMap(result.map!);
+  expect(originalPositionFor(trace, { line: 1, column: 4 }).source).toBeNull();
+  expect(originalPositionFor(trace, { line: 3, column: 0 })).toMatchObject({
+    source: "input.css",
+    line: 1,
+    column: 0,
+  });
+});
+
 for (const suffix of ["?variant=foo/bar", "#variant=foo/bar"]) {
   test(`CSS producer maps resolve relative sources before the ${suffix} suffix`, () => {
     const id = path.resolve("map-project", "src", "input.ts");

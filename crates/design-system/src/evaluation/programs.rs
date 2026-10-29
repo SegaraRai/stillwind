@@ -78,6 +78,7 @@ mod tests {
             utilities: ["tone-*", "tone-a"]
                 .into_iter()
                 .map(|name| CustomUtility {
+                    banners: Vec::new(),
                     name: name.into(),
                     body: "@stillwind-require-properties invalid; color:red;".into(),
                     position: None,

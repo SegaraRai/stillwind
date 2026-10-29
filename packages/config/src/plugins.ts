@@ -5,6 +5,11 @@
  * The CSS that {@link StillwindPlugin.css} returns replaces the statement, so it can contain
  * `@utility`, `@custom-variant`, `@theme`, and the other Stillwind directives.
  *
+ * A `@stillwind-banner` block contains one `/*!` comment, such as a license notice, that the
+ * output keeps. A block inside `@theme` or `@utility` adds its notice only when the output uses a
+ * value of that `@theme` block or CSS of that utility. A block outside
+ * definitions adds its notice to every nonempty output.
+ *
  * A plugin can also define utilities on demand. Its CSS declares a family with
  * `@stillwind-dynamic <prefix>*;` for named candidates such as `icon-mdi--close`, with
  * `@stillwind-dynamic <prefix>[*];` for bracket candidates such as `icon-[mdi--close]`, or with

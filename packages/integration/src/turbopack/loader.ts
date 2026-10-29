@@ -74,10 +74,11 @@ export default function turbopackLoader(
           null,
           [
             "// Stillwind CSS value (turbopack)\n",
+            'import { cssText } from "stillwind/css";\n',
             ...imports,
             "\n",
-            `export const parts = ${JSON.stringify(plan.parts.map(({ key, css }) => ({ key, css })))}.map((part) => ({ ...part, css: part.css${replacements.join("")} }));\n`,
-            'export const css = parts.map((part) => part.css).join("");\n',
+            `export const parts = ${JSON.stringify(plan.parts.map(({ key, css, banners }) => ({ key, css, banners })))}.map((part) => ({ ...part, css: part.css${replacements.join("")} }));\n`,
+            "export const css = cssText(parts);\n",
             "export default css;\n",
           ].join(""),
         );

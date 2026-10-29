@@ -1,18 +1,21 @@
 import { GenMapping, addSegment, toEncodedMap } from "@jridgewell/gen-mapping";
 import { TraceMap, eachMapping } from "@jridgewell/trace-mapping";
+import { cssBannerPrefix, cssText } from "stillwind/css";
 
 import type { StylesheetPart } from "./runtime.ts";
 
 /**
  * Concatenates ordered CSS parts and combines their mappings without embedding original sources.
+ *
  * @param parts - Partitions in stylesheet order, each with an optional map for its own CSS text.
  * @returns Combined CSS followed by a UTF-8, base64-encoded inline version 3 map.
  * @throws If a supplied source map cannot be decoded.
  */
 export function renderCssWithSourceMap(parts: readonly StylesheetPart[]): string {
   const map = new GenMapping();
-  let line = 0;
-  let column = 0;
+  const prefix = cssBannerPrefix(parts.flatMap((part) => part.banners ?? []));
+  let line = prefix.match(/\r\n|\r|\n/g)?.length ?? 0;
+  let column = prefix.split("\n").at(-1)!.length;
   for (const part of parts) {
     if (part.map) {
       const trace = new TraceMap(part.map);
@@ -45,11 +48,12 @@ export function renderCssWithSourceMap(parts: readonly StylesheetPart[]): string
   delete encodedMap.sourcesContent;
   const bytes = new TextEncoder().encode(JSON.stringify(encodedMap));
   const encoded = btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(""));
-  return `${parts.map((part) => part.css).join("")}\n/*# sourceMappingURL=data:application/json;base64,${encoded} */`;
+  return `${cssText(parts)}\n/*# sourceMappingURL=data:application/json;base64,${encoded} */`;
 }
 
 /**
  * Replaces recorded placeholders and shifts an inline map to the resulting CSS positions.
+ *
  * @param css - Generated CSS with an optional trailing inline map in the format emitted by this module.
  * @param replacements - Placeholder/replacement pairs. First matching pair wins at each original position.
  * @returns Replaced CSS with adjusted mappings when an inline map was present. Replacement text is not rescanned.

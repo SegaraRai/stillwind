@@ -250,6 +250,7 @@ impl<'a> SupportSelection<'a> {
         let mut declarations = MappedStylesheet::default();
         for index in tokens.iter().filter(|index| self.tokens.contains(index)) {
             if let Some(token) = self.theme.values().get(*index) {
+                let start = declarations.css.len();
                 let Some(value) = resolve_theme_value(self.theme, &token.value.value)? else {
                     continue;
                 };
@@ -260,6 +261,12 @@ impl<'a> SupportSelection<'a> {
                     declarations.text(
                         &self.options.rewrite_generated(&lowered.css),
                         resolve_origin(self.sources, Some(token.value.span)),
+                    );
+                    declarations.banners.extend(
+                        token
+                            .banners
+                            .iter()
+                            .map(|banner| (start..declarations.css.len(), banner.clone())),
                     );
                     continue;
                 }
@@ -283,6 +290,12 @@ impl<'a> SupportSelection<'a> {
                 if fallback.is_some() {
                     declarations.text("}", None);
                 }
+                declarations.banners.extend(
+                    token
+                        .banners
+                        .iter()
+                        .map(|banner| (start..declarations.css.len(), banner.clone())),
+                );
             }
         }
         if emit_tokens && !declarations.css.is_empty() {

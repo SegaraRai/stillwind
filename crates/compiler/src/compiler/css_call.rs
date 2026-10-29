@@ -17,7 +17,7 @@ use super::document::{DocumentInput, emit_document_rules};
 use super::style_variants::collect_variant_and_applications;
 use super::stylesheet::render_css_template;
 use crate::identifiers::IdentifierContext;
-use crate::{CompilerOptions, MappedStylesheet};
+use crate::{CompilerOptions, MappedStylesheet, finalize_stylesheet};
 
 /// Name of the template that a call without a `template` option selects.
 const DEFAULT_TEMPLATE: &str = "default";
@@ -92,11 +92,18 @@ pub(crate) fn css_call_text(
     .and_then(|contributions| {
         let mut utilities = MappedStylesheet::default();
         for contribution in contributions {
+            let start = utilities.css.len();
             let lowered = lower(&contribution.css, options.use_css_if, identifiers)?;
             report_skipped_conditionals(lowered.skipped, call.span, lint_settings, lint_findings);
             utilities
                 .css
                 .push_str(&options.rewrite_generated(&lowered.css));
+            utilities.banners.extend(
+                contribution
+                    .banners
+                    .iter()
+                    .map(|banner| (start..utilities.css.len(), banner.clone())),
+            );
             utilities.required_properties.extend(
                 contribution
                     .required_properties
@@ -105,7 +112,7 @@ pub(crate) fn css_call_text(
             );
         }
         if output == CssOutput::Rules {
-            return Ok(utilities.css.into());
+            return Ok(finalize_stylesheet(utilities).css.into());
         }
         let name = call
             .template
@@ -121,10 +128,10 @@ pub(crate) fn css_call_text(
                     .as_ref()
                     .map_or(call.span, |template| template.span),
             ));
-            return Ok(utilities.css.into());
+            return Ok(finalize_stylesheet(utilities).css.into());
         };
         render_css_template(template, theme, &utilities, options, identifiers)
-            .map(|output| LeanStr::from(output.css))
+            .map(|output| LeanStr::from(finalize_stylesheet(output).css))
     });
     match rendered {
         Ok(css) if diagnostics.len() == start => css.to_lean_string(),

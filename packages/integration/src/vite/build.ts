@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { decodeCssSourceMap } from "@stillwind/host";
+import { decodeCssSourceMap, finalizeCss } from "@stillwind/host";
 import type { Plugin } from "vite";
 
 import { emitBuildCss, emitBuildResources } from "./build-assets.ts";
@@ -36,7 +36,9 @@ export interface StylesheetManifest {
   modules: Record<string, string[]>;
 }
 
-/** Emitted CSS references and stylesheet metadata for one Vite environment. */
+/**
+ * Emitted CSS references and stylesheet metadata for one Vite environment.
+ */
 export interface BuildOutput {
   /**
    * Bundler reference ID for the single document CSS asset. Split emission leaves this undefined.
@@ -102,6 +104,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
       const css = resolveResources(plan.originalCss, replacements);
       /**
        * Emits a stylesheet using this build's environment, asset directory, and map settings.
+       *
        * @param text - Final CSS with resource placeholders replaced.
        * @param sourceMap - Optional serialized map for the final CSS.
        * @returns The bundler's reference for the emitted asset.
@@ -110,6 +113,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         emitBuildCss(project, name, this, text, sourceMap);
       /**
        * Builds the stylesheet URL recorded in the document manifest.
+       *
        * @param reference - Asset reference already issued by this build context.
        * @returns The emitted filename prefixed by the configured public base.
        */
@@ -118,6 +122,7 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
         .update(plan.designSystem)
         .update("\0")
         .update(plan.originalCss)
+        .update(JSON.stringify(plan.banners))
         .update("\0")
         .update(JSON.stringify(plan.producers))
         .update("\0")
@@ -131,16 +136,29 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
                 {
                   css: plan.originalCss,
                   sourceMap: plan.sourceMap,
+                  banners: plan.banners,
                 },
                 replacements,
               ),
             )
           : undefined;
-        output.buildCss = await emitCss(css, mapped?.map ? JSON.stringify(mapped.map) : undefined);
+        output.buildCss = await emitCss(
+          mapped?.code ??
+            finalizeCss({
+              css,
+              banners: plan.banners,
+            }),
+          mapped?.map ? JSON.stringify(mapped.map) : undefined,
+        );
         output.manifest = {
           version: 1,
           revision,
-          parts: [{ id: "document", href: href(output.buildCss) }],
+          parts: [
+            {
+              id: "document",
+              href: href(output.buildCss),
+            },
+          ],
           modules: Object.fromEntries(
             plan.producers.map((producer) => [producer.module, ["document"]]),
           ),
@@ -163,12 +181,19 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
             references.set(
               part.key,
               (reference = await emitCss(
-                mapped?.code ?? resolveResources(part.css, replacements),
+                mapped?.code ??
+                  finalizeCss({
+                    css: resolveResources(part.css, replacements),
+                    banners: part.banners,
+                  }),
                 mapped?.map ? JSON.stringify(mapped.map) : undefined,
               )),
             );
           }
-          parts.push({ id: `${index}:${part.key}`, href: href(reference) });
+          parts.push({
+            id: `${index}:${part.key}`,
+            href: href(reference),
+          });
         }
         const dependencies = new Map(
           [...inputs(name).values()].map((input) => [input.moduleId, input.dependencies]),
@@ -193,7 +218,12 @@ export function buildHooks(project: ViteProject): Pick<Plugin, "renderStart" | "
             ];
           }),
         );
-        output.manifest = { version: 1, revision, parts, modules };
+        output.manifest = {
+          version: 1,
+          revision,
+          parts,
+          modules,
+        };
       }
       project.setBuildOutput(name, output);
       this.emitFile({

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, ToLeanString};
 
-use stillwind_css::CssRule;
+use stillwind_css::{CssBanner, CssRule};
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
 use crate::{CssContribution, MappedStylesheet};
@@ -23,6 +23,8 @@ pub struct GeneratedRule {
     keyframes: bool,
     /// Registration dependencies, sorted and unique after construction.
     required_properties: Vec<LeanStr>,
+    /// Notices required by this occurrence, sorted and unique.
+    banners: Vec<CssBanner>,
     /// CSS syntax and its occurrence range in the original contribution.
     syntax: CssRule,
     /// Content identity computed after registration dependencies are normalized.
@@ -54,14 +56,45 @@ impl GeneratedRule {
         Self {
             keyframes,
             required_properties,
+            banners: Vec::new(),
             syntax,
             key,
         }
     }
 
+    /// Replaces the notices of this occurrence and updates its content identity.
+    ///
+    /// `banners` may contain duplicates in any order; the occurrence keeps them sorted
+    /// and unique. Occurrences with equal CSS and different notices have different keys,
+    /// and an empty list restores the key that [`GeneratedRule::new`] computes.
+    #[must_use]
+    pub fn with_banners(mut self, mut banners: Vec<CssBanner>) -> Self {
+        if !self.banners.is_empty() {
+            self = Self::new(self.syntax, self.keyframes, self.required_properties);
+        }
+        banners.sort();
+        banners.dedup();
+        if !banners.is_empty() {
+            let mut content = self.key.0.0.to_lean_string();
+            for banner in &banners {
+                content.push_str(&banner.as_str().len().to_lean_string());
+                content.push(':');
+                content.push_str(banner.as_str());
+            }
+            self.key = RuleKey(Fingerprint::of(content));
+        }
+        self.banners = banners;
+        self
+    }
+
     /// Returns whether this occurrence belongs in the keyframes slot.
     pub fn keyframes(&self) -> bool {
         self.keyframes
+    }
+
+    /// Returns the notices required by this occurrence, sorted and unique.
+    pub fn banners(&self) -> &[CssBanner] {
+        &self.banners
     }
 
     /// Returns registration names in lexical order without duplicates.
@@ -88,12 +121,23 @@ impl GeneratedRule {
         output
             .required_properties
             .extend(self.required_properties.iter().cloned());
+        let start = output.css.len();
         if self.keyframes {
             let mut frames = MappedStylesheet::default();
             frames.text(&self.to_css(), origin);
+            frames.banners.extend(
+                self.banners
+                    .iter()
+                    .map(|banner| (0..frames.css.len(), banner.clone())),
+            );
             output.keyframes.push(frames);
         } else {
             output.text(&self.to_css(), origin);
+            output.banners.extend(
+                self.banners
+                    .iter()
+                    .map(|banner| (start..output.css.len(), banner.clone())),
+            );
         }
     }
 
@@ -118,6 +162,7 @@ impl ModuleCssArtifact {
                 .rules
                 .extend(CssRule::parse(&part.css)?.into_iter().map(|syntax| {
                     GeneratedRule::new(syntax, part.keyframes, part.required_properties.clone())
+                        .with_banners(part.banners.clone())
                 }));
         }
         Ok(artifact)
@@ -143,7 +188,24 @@ impl ModuleCssArtifact {
 
 #[cfg(test)]
 mod tests {
-    use super::{CssRule, GeneratedRule};
+    use super::{CssBanner, CssRule, GeneratedRule};
+
+    #[test]
+    fn content_identity_uses_the_current_notice_set() {
+        let rule = GeneratedRule::new(CssRule::parse(".a{}").unwrap().remove(0), false, Vec::new());
+        let first = CssBanner::new("/*! first */").unwrap();
+        let second = CssBanner::new("/*! second */").unwrap();
+        let direct = rule.clone().with_banners(vec![second.clone()]);
+        let replaced = rule
+            .clone()
+            .with_banners(vec![first])
+            .with_banners(vec![second]);
+        assert_eq!(direct.content_key(), replaced.content_key());
+        assert_eq!(
+            rule.content_key(),
+            direct.with_banners(Vec::new()).content_key()
+        );
+    }
 
     #[test]
     fn content_identity_tracks_css_placement_and_registration_set() {

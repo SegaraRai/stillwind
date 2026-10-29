@@ -1,11 +1,15 @@
-import type { IconifyIcon, IconifyJSON } from "@iconify/types";
+import type { IconifyIcon, IconifyInfo, IconifyJSON } from "@iconify/types";
 import { convertParsedSVG, parseSVGContent } from "@iconify/utils/lib/svg/parse";
 
 import type { CollectionLoadContext, CollectionSource } from "./collections.ts";
 import { ICONIFY_NAME } from "./plugin.ts";
 
-/** Options of {@link svgDirectory}. */
+/**
+ * Options of {@link svgDirectory}.
+ */
 export interface SvgDirectoryOptions {
+  /** Set information used for the CSS attribution notice. */
+  readonly info?: IconifyInfo;
   /**
    * Reads SVG files in subdirectories. The default icon name joins the path segments with `-`,
    * such as `arrows-left` for `arrows/left.svg`. Defaults to `false`.
@@ -27,7 +31,7 @@ export interface SvgDirectoryOptions {
  * removing, or editing an SVG file reloads the design system.
  *
  * @param directory - Absolute directory path, or a path relative to the project directory.
- * @param options - Subdirectory reading, icon names, and SVG rewriting.
+ * @param options - Settings for reading SVGs and describing the set.
  * @returns A source for the `collections` option of `iconify`.
  */
 export function svgDirectory(
@@ -68,6 +72,11 @@ export function svgDirectory(
     return {
       prefix: context.prefix,
       icons,
+      ...(options.info
+        ? {
+            info: options.info,
+          }
+        : {}),
     } satisfies IconifyJSON;
   };
 }

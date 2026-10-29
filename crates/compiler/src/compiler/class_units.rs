@@ -355,6 +355,7 @@ impl<'a> ClassUnits<'a> {
                 self.view_transition_classes[0].class_rules(&self.selector(&name), &slots);
             if !declarations.is_empty() {
                 deferred.push(CssContribution {
+                    banners: Vec::new(),
                     css: (declarations).into(),
                     required_properties: Vec::new(),
                     keyframes: false,
@@ -557,6 +558,7 @@ impl<'a> ClassUnits<'a> {
                 let _ = write!(declaration, "view-transition-name:var({property});");
             }
             let mut utility = CompiledUtility {
+                banners: Vec::new(),
                 diagnostic_data: CompiledUtilityDiagnosticData::default(),
                 context: VariantContext::Element,
                 required_properties: Vec::new(),

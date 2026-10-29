@@ -6,6 +6,7 @@
 //! transition utilities.
 
 use stillwind_compiler::CompilerOptions;
+use stillwind_css::strip_css_comments;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, ModuleId};
@@ -46,8 +47,8 @@ const props = style("bg-accent hover:bg-accent/90 md:px-4 aria-[busy=true]:opaci
 
     assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
     assert!(
-        result
-            .css
+        strip_css_comments(&result.css)
+            .trim_start()
             .starts_with("@layer properties, theme, base, components, utilities;")
     );
     assert!(!result.css.contains("@layer properties;"));

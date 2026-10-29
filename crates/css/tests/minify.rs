@@ -7,6 +7,14 @@ use parcel_sourcemap::{OriginalLocation, SourceMap};
 use stillwind_css::{CssMinifyError, CssMinifyOptions, minify_css};
 
 #[test]
+fn preserves_notice_text_during_minification() {
+    let prefix = "/*! stillwind v0.0.0 */\n/*! 作者\n  license */\n";
+    let css = format!("{prefix}.a {{ color: red; }}");
+    let output = minify_css(&css, &CssMinifyOptions::default()).unwrap();
+    assert_eq!(output.css, format!("{prefix}.a{{color:red}}"));
+}
+
+#[test]
 fn combines_equal_queries_and_retains_conflicting_rule_barriers() {
     let css = ".a{display:grid}@supports (x:revert-rule) and (--a:){.a{display:var(--d,revert-rule)}}@supports (x:revert-rule) and (--a:){.a{opacity:var(--o,revert-rule)}}@supports (x:revert-rule) and (--b:){.a{display:var(--e,revert-rule)}}";
     let output = minify_css(css, &CssMinifyOptions::default()).unwrap();

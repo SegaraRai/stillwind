@@ -26,6 +26,7 @@ use stillwind_css::{
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
 use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
+use super::banners::extract_stylesheet_banners;
 use super::builder::ThemeBuilder;
 use super::declarations::{ThemeValueMode, ThemeValueRole, extract_theme_declarations};
 use super::index::ThemeIndex;
@@ -113,9 +114,11 @@ fn parse_theme_contents(
             detail: error.to_lean_str(),
         },
     })?;
+    let (banner_css, banners) = extract_stylesheet_banners(source.text())?;
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
+    theme.banners = banners;
     let mut skipped = Vec::new();
-    let mut template = parse_output_template(source.text(), &theme.tokens, &mut skipped)?;
+    let mut template = parse_output_template(&banner_css, &theme.tokens, &mut skipped)?;
     template.map_origins(|span| Some(Span::new(source.id(), span.start.0, span.end.0)));
     template.source_identity = source_identity.clone();
     theme.custom_css = (template.authored_css()).into();
@@ -125,7 +128,7 @@ fn parse_theme_contents(
         }
     })?;
     theme.output_template = template;
-    theme.css_templates = parse_css_templates(source.text(), &mut skipped)?;
+    theme.css_templates = parse_css_templates(&banner_css, &mut skipped)?;
     theme.dynamic_utilities = extract_dynamic_utilities(source.text(), &mut skipped);
     theme.important = extract_important(source.text());
     for template in theme.css_templates.values_mut() {
@@ -408,6 +411,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         tokens.extend(declarations);
     }
     Ok(ThemeBuilder {
+        banners: Vec::new(),
         variant_positions: BTreeMap::new(),
         utility_positions: BTreeMap::new(),
         utility_position_base: 0,

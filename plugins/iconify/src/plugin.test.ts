@@ -56,6 +56,32 @@ function assetSvgs(css: string): string[] {
 }
 
 describe("iconify", () => {
+  test("equal SVGs with different attribution retain separate asset identities", async () => {
+    const source = (name: string): IconifyJSON => ({
+      ...collection,
+      info: {
+        name,
+        author: {
+          name: "Author",
+        },
+        license: {
+          title: "MIT",
+        },
+      },
+    });
+    const plugin = iconify({
+      collections: {
+        first: source("First Set"),
+        second: source("Second Set"),
+      },
+    });
+    const css = await plugin.resolve!(["icon-first--close", "icon-second--close"], context());
+    const assets = [...css.matchAll(/--sw-icon-svg-([a-z0-9]+):/g)].map((match) => match[1]);
+    expect(new Set(assets).size).toBe(2);
+    expect(css).toContain("/*! First Set | Author | MIT */");
+    expect(css).toContain("/*! Second Set | Author | MIT */");
+  });
+
   test("shared asset names follow SVG content across aliases and instance settings", async () => {
     const plugin = iconify({
       collections: {
@@ -230,6 +256,18 @@ describe("iconify", () => {
     const files = new Map([
       ["/project/package.json", JSON.stringify({ devDependencies: { "@iconify-json/demo": "1" } })],
       ["/project/node_modules/@iconify-json/demo/icons.json", JSON.stringify(collection)],
+      [
+        "/project/node_modules/@iconify-json/demo/info.json",
+        JSON.stringify({
+          name: "Installed Set",
+          author: {
+            name: "Author",
+          },
+          license: {
+            title: "MIT",
+          },
+        }),
+      ],
     ]);
     const watched: string[] = [];
     const host: PluginContext = {
@@ -237,8 +275,8 @@ describe("iconify", () => {
       root: "/project",
       watch: (path) => watched.push(path),
       resolve: async (specifier) =>
-        specifier === "@iconify-json/demo/icons.json"
-          ? "/project/node_modules/@iconify-json/demo/icons.json"
+        files.has(`/project/node_modules/${specifier}`)
+          ? `/project/node_modules/${specifier}`
           : undefined,
       read: async (path) => files.get(path) ?? expect.fail(`unexpected read of ${path}`),
       list: async (path) => expect.fail(`unexpected list of ${path}`),
@@ -250,6 +288,25 @@ describe("iconify", () => {
     );
     expect(await plugin.catalog!(host, "")).toContain("icon-demo--flag");
     expect(watched).toContain("/project/node_modules/@iconify-json/demo/icons.json");
+    expect(watched).toContain("/project/node_modules/@iconify-json/demo/info.json");
+    expect(await plugin.resolve!(["icon-demo--close"], host)).toContain(
+      "/*! Installed Set | Author | MIT */",
+    );
+    files.set(
+      "/project/node_modules/@iconify-json/demo/info.json",
+      JSON.stringify({
+        name: "Installed Set",
+        author: {
+          name: "Author",
+        },
+        license: {
+          title: "Apache-2.0",
+        },
+      }),
+    );
+    expect(await plugin.resolve!(["icon-demo--close"], { ...host })).toContain(
+      "/*! Installed Set | Author | Apache-2.0 */",
+    );
   });
 
   test("@iconify/json completes set names, then the icons of the set that the input names", async () => {

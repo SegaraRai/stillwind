@@ -1,4 +1,5 @@
 import type { EncodedSourceMap } from "@jridgewell/trace-mapping";
+import { cssText } from "stillwind/css";
 
 type StylesheetSourceMap = Readonly<
   Omit<EncodedSourceMap, "names" | "sources" | "sourcesContent" | "ignoreList">
@@ -11,6 +12,8 @@ type StylesheetSourceMap = Readonly<
 
 /** Ordered CSS partition activated by its producers or included unconditionally. */
 export interface StylesheetPart {
+  /** Preserved notices required by this part. */
+  readonly banners?: readonly string[];
   /** CSS with resources already resolved for the browser. */
   readonly css: string;
   /** Compiler module ids that need this part; an empty list keeps it active unconditionally. */
@@ -100,7 +103,7 @@ export function createDevelopmentRuntime(options: {
       state.style.dataset.stillwind = "";
       document.head.append(state.style);
     }
-    state.style.textContent = renderCss ? renderCss(parts) : parts.map((part) => part.css).join("");
+    state.style.textContent = renderCss ? renderCss(parts) : cssText(parts);
   }
 
   /**

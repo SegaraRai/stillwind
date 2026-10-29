@@ -55,6 +55,7 @@ fn render(
         document,
         &identifiers(),
     )
+    .map(|output| output.css)
 }
 
 /// Renders a mapped stylesheet with the compiler's own names.
@@ -113,7 +114,8 @@ fn a_host_names_the_anonymous_layers_and_the_compiler_appends_the_index() {
         true,
         &identifiers,
     )
-    .unwrap();
+    .unwrap()
+    .css;
     // The generator names the layers of one template, and the compiler keeps them distinct by
     // appending the traversal index.
     assert!(css.contains("@layer app-layer-0{"), "{css}");

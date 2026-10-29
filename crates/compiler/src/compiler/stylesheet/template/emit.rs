@@ -11,11 +11,12 @@ use std::sync::Arc;
 use cssparser::{Parser, Token};
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{CssOutputNode, CssOutputTemplate};
+use stillwind_css::{CssBanner, CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{SourceFile, Span};
 
+use super::super::applied_banners;
 use super::authored::render_authored;
 use super::support::SupportOutput;
 use crate::compiler::RuleBoundaries;
@@ -106,6 +107,18 @@ struct Context<'a> {
 }
 
 impl Context<'_> {
+    /// Returns the notices that authored `css` requires through `@apply` and theme
+    /// value references. `css` must be the text before expansion, which removes
+    /// `@apply`.
+    fn authored_banners(&self, css: &str) -> Vec<CssBanner> {
+        let mut banners = applied_banners(css, self.theme);
+        banners.extend(self.theme.banners_referenced_by(css));
+        banners
+    }
+
+    /// Returns the [`RuleBoundaries`] owner for the authored node at template
+    /// `position`. The template identity and class namespace keep the owner distinct
+    /// from authored nodes of other templates that share the name pool.
     fn boundary_owner(&self, position: usize) -> LeanString {
         format_args!(
             "authored\0{}\0{}\0{position}",
@@ -176,6 +189,11 @@ impl Context<'_> {
                                 .render(&authored)?;
                     }
                     output.text(&authored, resolve_origin(self.sources, *origin));
+                    output.banners.extend(
+                        self.authored_banners(css)
+                            .into_iter()
+                            .map(|banner| (start..output.css.len(), banner)),
+                    );
                 }
                 CssOutputNode::Authored { .. } | CssOutputNode::Theme { .. } => {}
                 CssOutputNode::LayerOrder { css, origin } => {

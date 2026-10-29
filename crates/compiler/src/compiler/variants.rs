@@ -361,6 +361,7 @@ mod tests {
             "&:hover{@media print{color:red;}}&:focus{@media print{color:red;}}"
         );
         let utility = CompiledUtility {
+            banners: Vec::new(),
             diagnostic_data: CompiledUtilityDiagnosticData::default(),
             context: VariantContext::Element,
             required_properties: Vec::new(),

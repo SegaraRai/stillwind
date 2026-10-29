@@ -8,16 +8,23 @@ function missingCompiler(): string {
   throw new Error("stillwind/module-css requires a Stillwind compiler integration");
 }
 
-/** One compiled stylesheet occurrence, used for ordered CSS text and constructed stylesheets. */
+/**
+ * One compiled stylesheet occurrence, used for ordered CSS text and constructed stylesheets.
+ */
 export interface CssPart {
   /**
    * Cache identity for this occurrence. A document reuses its sheet while both key and CSS match.
    */
   readonly key: string;
   /**
-   * Complete CSS text for this occurrence. Consumers concatenate occurrences without separators.
+   * CSS body of this occurrence, without notices. `cssText` from `stillwind/css` combines bodies
+   * and adds their notices.
    */
   readonly css: string;
+  /**
+   * Notices, such as licenses, that this occurrence requires. A missing list means none.
+   */
+  readonly banners?: readonly string[];
 }
 
 /**

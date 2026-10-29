@@ -22,6 +22,16 @@ const root = import.meta.dirname;
 
 const demo: IconifyJSON = {
   prefix: "demo",
+  info: {
+    name: "Demo Icons",
+    author: {
+      name: "Demo Author",
+    },
+    license: {
+      title: "MIT",
+      url: "https://example.com/license",
+    },
+  },
   width: 24,
   height: 24,
   icons: {
@@ -464,4 +474,17 @@ export const before = style("before:icon-demo--close before:icon-[2rem] icon-(--
   expect(css).toContain("--icon-size-lg:1.5rem");
   expect(css).toMatch(/background-image: var\(--sw-icon-svg-[0-9a-z]+\);/);
   expect(css).toMatch(/@property --sw-icon-size \{\s*syntax: "\*";\s*inherits: false;\s*\}/);
+}, 30_000);
+
+test("license notices follow emitted icon assets and are unique per set", async () => {
+  const used = await compile(
+    'import { style } from "stillwind/react"; export const x = style("icon-demo--close icon-demo--flag");',
+  );
+  expect(used.diagnostics).toEqual([]);
+  expect(used.css.match(/\/\*! Demo Icons[^]*?\*\//g)).toHaveLength(1);
+  expect(used.css).toContain("Demo Author | MIT | https://example.com/license");
+  const unused = await compile(
+    'import { style } from "stillwind/react"; export const x = style("flex");',
+  );
+  expect(unused.css).not.toContain("Demo Icons");
 }, 30_000);

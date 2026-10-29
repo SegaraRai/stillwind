@@ -155,6 +155,7 @@ fn resolve_keyframes_use(
     .to_lean_string();
     declaration.push_str(&resolve_options(options, theme, diagnostics, lint_findings));
     CompiledUtility {
+        banners: Vec::new(),
         diagnostic_data: CompiledUtilityDiagnosticData::default(),
         context: VariantContext::Element,
         required_properties: Vec::new(),

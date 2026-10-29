@@ -20,10 +20,18 @@ test.each(["single", "split"] as const)(
     expect(cssAssets).toHaveLength(emission === "single" ? 1 : 2);
     if (emission === "single") {
       expect(manifest.parts).toEqual([
-        { id: "document", href: `/app/${fixture.output()!.buildCss}` },
+        {
+          id: "document",
+          href: `/app/${fixture.output()!.buildCss}`,
+        },
       ]);
-      expect(manifest.modules).toEqual({ entry: ["document"], lazy: ["document"] });
-      expect(cssAssets[0]).toMatchObject({ source: fixture.css });
+      expect(manifest.modules).toEqual({
+        entry: ["document"],
+        lazy: ["document"],
+      });
+      expect(cssAssets[0]).toMatchObject({
+        source: fixture.css,
+      });
     } else {
       expect(fixture.output()!.buildCss).toBeUndefined();
       expect(manifest.parts.map((part) => part.id)).toEqual(["0:red", "1:blue", "2:red"]);
@@ -63,7 +71,15 @@ test("development rendering leaves build output and the document plan untouched"
  */
 function buildFixture(emission: "single" | "split") {
   const events: string[] = [];
-  const inputs = new Map([["/cached.ts", { moduleId: "entry", dependencies: ["lazy"] }]]);
+  const inputs = new Map([
+    [
+      "/cached.ts",
+      {
+        moduleId: "entry",
+        dependencies: ["lazy"],
+      },
+    ],
+  ]);
   /**
    * Creates a partition for exercising build emission and repeated partition keys.
    * @param key - Partition identity shared by repeated entries.
@@ -75,9 +91,13 @@ function buildFixture(emission: "single" | "split") {
     key,
     css,
     producers: [owner],
+    banners: [],
     slot: 0,
     sequence: 0,
-    sourceMap: { sources: [], entries: [] },
+    sourceMap: {
+      sources: [],
+      entries: [],
+    },
   });
   const rawParts = [
     part("red", ".red{color:red}", "entry"),
@@ -87,18 +107,24 @@ function buildFixture(emission: "single" | "split") {
   const css = rawParts.map((part) => part.css).join("");
   const compile = vi.fn(async (_name, _code, id) => {
     events.push(`compile:${id}`);
-    inputs.set(id, { moduleId: "lazy", dependencies: ["entry"] });
+    inputs.set(id, {
+      moduleId: "lazy",
+      dependencies: ["entry"],
+    });
   });
   const documentPlan = vi.fn(async () => {
     events.push("plan");
     return {
       originalCss: css,
+      banners: [],
       designSystem: "design",
       producers: [
         {
           module: "entry",
         },
-        { module: "lazy" },
+        {
+          module: "lazy",
+        },
       ],
       rawParts,
       resources: new Map(),
@@ -132,15 +158,23 @@ function buildFixture(emission: "single" | "split") {
   } as unknown as ViteProject;
   const emitted: Rollup.EmittedFile[] = [];
   const context = {
-    environment: { name: "client" },
+    environment: {
+      name: "client",
+    },
     getModuleIds: () => [runtimeId, "/cached.ts", "/lazy.ts?projection"],
     getModuleInfo: (id: string) => ({
       meta: {
         stillwind:
           id === "/cached.ts"
-            ? { input: "cached input" }
+            ? {
+                input: "cached input",
+              }
             : id === "/lazy.ts?projection"
-              ? { id: "/lazy.ts", input: "lazy input", projection: true }
+              ? {
+                  id: "/lazy.ts",
+                  input: "lazy input",
+                  projection: true,
+                }
               : {},
       },
     }),

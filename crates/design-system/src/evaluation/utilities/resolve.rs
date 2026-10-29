@@ -17,7 +17,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssProperty, inspect_css_value};
+use stillwind_css::{CssBanner, CssProperty, inspect_css_value};
 use stillwind_syntax::{Candidate, Utility, Value, parse_candidate};
 
 use super::super::stillwind::{COMPAT_COLOR_SUPPORT, arbitrary_property_order};
@@ -47,6 +47,8 @@ pub struct ResolvedUtility {
     pub candidate: Candidate,
     /// Registrations explicitly required by the selected utility branches.
     pub required_properties: Vec<LeanStr>,
+    /// Notices required by the selected definitions and inline values.
+    pub banners: Vec<CssBanner>,
     /// Authored position of the matched definition, from the import-expanded stylesheet
     /// when the snapshot orders by authored position and the directive offset of a
     /// `@stillwind-utility` definition otherwise.
@@ -333,6 +335,13 @@ fn resolve_candidate(
             ))
         }
     };
+    let mut banners = resolution.banners;
+    for group in &resolution.diagnostic_data.token_uses {
+        for name in &group.tokens {
+            banners.extend(theme.banners_referenced_by(name));
+        }
+    }
+    banners.extend(theme.banners_referenced_by(&resolution.declaration));
     let declaration = finalize_declaration(resolution.declaration, candidate.important, theme);
     let nested: Vec<NestedUtilityRule> = resolution
         .nested
@@ -421,6 +430,7 @@ fn resolve_candidate(
         },
         order,
         required_properties: resolution.required_properties,
+        banners,
         candidate,
         position: resolution.position,
         declaration: (declaration),

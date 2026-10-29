@@ -10,6 +10,7 @@ import {
 } from "@jridgewell/gen-mapping";
 import remapping, { type SourceMap } from "@jridgewell/remapping";
 import type { EncodedSourceMap as MutableEncodedSourceMap } from "@jridgewell/trace-mapping";
+import { cssBannerPrefix } from "stillwind/css";
 
 /**
  * Producer map used to trace native CSS locations from a transformed script or component back to
@@ -115,6 +116,8 @@ export interface CssLocations {
 
 /** CSS and native source locations before resource URLs and upstream maps are composed. */
 export interface CssSourceMapInput {
+  /** Preserved notices selected for this CSS body. */
+  banners?: readonly string[];
   /** Stylesheet text containing any unresolved resource placeholder tokens. */
   css: string;
   /** Native source locations whose generated offsets count UTF-8 bytes in `css`. */
@@ -163,10 +166,10 @@ export function cssWithSourceMap(
   const names = sourceMap.sources.map(({ sourceMapSource }) => sourceMapSource);
   const map = new GenMapping();
   names.forEach((name, index) => setSourceContent(map, name, sourceMap.sources[index].content));
-  let result = "";
+  let result = cssBannerPrefix(output.banners);
   let byte = 0;
-  let line = 0;
-  let column = 0;
+  let line = result.match(/\r\n|\r|\n/g)?.length ?? 0;
+  let column = result.split("\n").at(-1)!.length;
   let entryIndex = 0;
   const entries = [...sourceMap.entries].sort((a, b) => a.generatedStart - b.generatedStart);
   const edits = [...replacements];

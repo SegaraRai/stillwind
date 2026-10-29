@@ -51,16 +51,18 @@ export function cssValueModule(
     return `import { css as p${index} } from ${JSON.stringify(request)};\n`;
   });
   const entries = parts.map(
-    (part, index) => `  { key: ${JSON.stringify(part.key)}, css: p${index} },\n`,
+    (part, index) =>
+      `  { key: ${JSON.stringify(part.key)}, banners: ${JSON.stringify(part.banners)}, css: p${index} },\n`,
   );
   return [
     "// Stillwind CSS value (webpack)\n",
+    'import { cssText } from "stillwind/css";\n',
     ...imports,
     "\n",
     "export const parts = [\n",
     ...entries,
     "];\n",
-    'export const css = parts.map((part) => part.css).join("");\n',
+    "export const css = cssText(parts);\n",
     "export default css;\n",
   ].join("");
 }

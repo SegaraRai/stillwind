@@ -1,5 +1,6 @@
 import type { AnalysisProjectConfig } from "@stillwind/config";
 import { prepareSource, type PreparedSource } from "@stillwind/projection";
+import { cssText } from "stillwind/css";
 import { expect, test } from "vite-plus/test";
 
 import { fileModuleDescriptor } from "../compilation/index.ts";
@@ -259,7 +260,7 @@ test("browser projects deliver explicit CSS values and resolve captured SVG reso
     const value = project.cssValues().get("/workspace/entry.ts");
     expect(value?.css).toContain("color:red");
     expect(value?.css).toContain("data:image/svg+xml");
-    expect(value?.parts.map((part) => part.css).join("")).toBe(value?.css);
+    expect(cssText(value?.parts ?? [])).toBe(value?.css);
   } finally {
     await project.close();
   }

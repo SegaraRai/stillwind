@@ -6,7 +6,16 @@ export type { CssPart } from "./module-css.ts";
  * Constructed sheets cached by document and part key. A changed CSS value replaces only that key's
  * cached sheet.
  */
-const documents = new WeakMap<Document, Map<string, { css: string; sheet: CSSStyleSheet }>>();
+const documents = new WeakMap<
+  Document,
+  Map<
+    string,
+    {
+      css: string;
+      sheet: CSSStyleSheet;
+    }
+  >
+>();
 
 /**
  * Creates or reuses constructed sheets in the supplied document's Window.
@@ -29,14 +38,15 @@ export function styleSheets(parts: readonly CssPart[], document: Document): CSSS
     documents.set(document, (cache = new Map()));
   }
   return parts.map((part) => {
+    const css = cssText([part]);
     const previous = cache.get(part.key);
-    if (previous?.css === part.css) {
+    if (previous?.css === css) {
       return previous.sheet;
     }
     const sheet = new realm.CSSStyleSheet();
-    sheet.replaceSync(part.css);
+    sheet.replaceSync(css);
     cache!.set(part.key, {
-      css: part.css,
+      css,
       sheet,
     });
     return sheet;
@@ -44,13 +54,43 @@ export function styleSheets(parts: readonly CssPart[], document: Document): CSSS
 }
 
 /**
- * Concatenates CSS parts without removing repeated occurrences or adding separators.
+ * Concatenates CSS bodies in occurrence order and adds their notices once before the result.
+ *
+ * Repeated occurrences remain, and no separators are added between bodies. When the combined
+ * body ends with an inline base64 source map, as development fragments do, the map is shifted
+ * by the lines that the notices add.
  *
  * @param parts - CSS parts in the order required by the cascade.
- * @returns The combined stylesheet text.
+ * @returns The combined stylesheet text, or an empty string when every body is blank.
+ * @throws If the inline source map is not valid JSON.
  */
-export function cssText(parts: readonly CssPart[]): string {
-  return parts.map((part) => part.css).join("");
+export function cssText<Part extends Pick<CssPart, "css" | "banners">>(
+  parts: readonly Part[],
+): string {
+  const body = parts.map((part) => part.css).join("");
+  if (!body.trim()) {
+    return "";
+  }
+  const prefix = cssBannerPrefix(parts.flatMap((part) => part.banners ?? []));
+  const match =
+    prefix &&
+    /\n\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/$/.exec(body);
+  if (!match) {
+    return prefix + body;
+  }
+  const map = JSON.parse(
+    new TextDecoder().decode(Uint8Array.from(atob(match[1]), (char) => char.charCodeAt(0))),
+  );
+  if (typeof map.mappings === "string") {
+    map.mappings = ";".repeat(prefix.match(/\r\n|\r|\n/g)?.length ?? 0) + map.mappings;
+  }
+  const bytes = new TextEncoder().encode(JSON.stringify(map));
+  const encoded = btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(""));
+  return (
+    prefix +
+    body.slice(0, match.index) +
+    `\n/*# sourceMappingURL=data:application/json;base64,${encoded} */`
+  );
 }
 
 /** Build manifest that maps producer modules to stylesheet occurrences in cascade order. */
@@ -100,7 +140,14 @@ export function stylesheetLinks(manifest: StylesheetManifest, modules: readonly 
     }),
   );
   return manifest.parts.flatMap((part, order) =>
-    selected.has(part.id) ? [{ ...part, order }] : [],
+    selected.has(part.id)
+      ? [
+          {
+            ...part,
+            order,
+          },
+        ]
+      : [],
   );
 }
 
@@ -136,10 +183,24 @@ export async function loadStyles(
       }
       const link = previous ?? document.createElement("link");
       const loaded = new Promise<void>((resolve, reject) => {
-        link.addEventListener("load", () => resolve(), { once: true });
-        link.addEventListener("error", () => reject(new Error(`Cannot load ${part.href}`)), {
-          once: true,
-        });
+        link.addEventListener(
+          "load",
+          () => {
+            resolve();
+          },
+          {
+            once: true,
+          },
+        );
+        link.addEventListener(
+          "error",
+          () => {
+            reject(new Error(`Cannot load ${part.href}`));
+          },
+          {
+            once: true,
+          },
+        );
       });
       if (!previous) {
         link.rel = "stylesheet";
@@ -156,4 +217,21 @@ export async function loadStyles(
       return loaded;
     }),
   );
+}
+
+/**
+ * Formats notices as the prefix of a published stylesheet.
+ *
+ * @param banners - Complete preserved comments selected by the compiler, in any order and possibly
+ * repeated.
+ * @returns The Stillwind and Tailwind notices, then the other unique notices in lexical order,
+ * each followed by a newline.
+ */
+export function cssBannerPrefix(banners: readonly string[] = []): string {
+  const priority = (text: string) =>
+    text.startsWith("/*! stillwind v") ? 0 : text.startsWith("/*! tailwindcss v") ? 1 : 2;
+  return [...new Set(banners)]
+    .sort((a, b) => priority(a) - priority(b) || (a < b ? -1 : a > b ? 1 : 0))
+    .map((banner) => banner + "\n")
+    .join("");
 }

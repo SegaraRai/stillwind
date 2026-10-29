@@ -6,6 +6,7 @@ test("partitions retain red-blue-red occurrences and shift UTF-8 source coordina
   const part = (css: string, producers: string[]) => ({
     css,
     producers,
+    banners: [],
     key: css,
     slot: 0,
     sequence: 0,

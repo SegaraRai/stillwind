@@ -10,7 +10,7 @@ use std::sync::{Arc, OnceLock};
 use stillwind_compiler::{
     CompiledModule, CompilerOptions, GeneratedSymbol, Identifiers, ModuleArtifactKey,
     ModuleCompiler, RenderedStylesheet, StyleResolver, StylesheetRenderError, StylesheetRenderer,
-    check_style,
+    check_style, stylesheet_banners,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
@@ -705,8 +705,11 @@ impl ProjectSession {
             return Ok(update);
         }
         let next_css = next.css()?;
-        update.css_changed =
-            !old_css.is_ok_and(|previous| previous.stylesheet.css == next_css.stylesheet.css);
+        update.css_changed = !old_css.is_ok_and(|previous| {
+            previous.stylesheet.css == next_css.stylesheet.css
+                && stylesheet_banners(&previous.stylesheet)
+                    == stylesheet_banners(&next_css.stylesheet)
+        });
         *self = next;
         Ok(update)
     }

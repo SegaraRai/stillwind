@@ -13,6 +13,24 @@ export default defineConfig({
       "prepare:tailwind-source": {
         command: "node prepare-upstream.ts",
       },
+      "generate:tailwind-banner": {
+        command: "node banner.ts",
+        cache: {
+          input: [{ auto: true }, "../../pnpm-lock.yaml"],
+          output: ["../../crates/compiler/src/banner/tailwind.rs"],
+        },
+      },
+      "check:generated:tailwind-banner": {
+        command: "node banner.ts --check",
+        cache: {
+          input: [
+            { auto: true },
+            "../../pnpm-lock.yaml",
+            "../../crates/compiler/src/banner/tailwind.rs",
+          ],
+          output: [],
+        },
+      },
       "generate:tailwind-order": {
         command: "node utility-order.ts",
         cache: fixtureCache,

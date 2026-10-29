@@ -2,6 +2,23 @@ import { expect, test } from "vite-plus/test";
 
 import { cssText, stylesheetLinks, styleSheets } from "./css.ts";
 
+test("CSS text deduplicates notices while preserving repeated rule occurrences", () => {
+  const banners = ["/*! stillwind v1 */", "/*! tailwindcss v4 */", "/*! 作者\n license */"];
+  const part = {
+    css: ".a{}",
+    banners,
+  };
+  expect(cssText([part, part])).toBe(banners.join("\n") + "\n.a{}.a{}");
+  expect(
+    cssText([
+      {
+        css: "",
+        banners,
+      },
+    ]),
+  ).toBe("");
+});
+
 test("manifest selections preserve occurrence positions across reverse requests", () => {
   const manifest = {
     version: 1 as const,

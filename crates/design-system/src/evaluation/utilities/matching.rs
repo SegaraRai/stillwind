@@ -374,6 +374,7 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
     }
     base.additional.extend(next.additional);
     base.required_properties.extend(next.required_properties);
+    base.banners.extend(next.banners);
     base.diagnostic_data
         .token_uses
         .extend(next.diagnostic_data.token_uses);
@@ -491,6 +492,7 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
         merge_out_of_range_alpha(&mut resolution, &branch);
         let diagnostic_data = &mut resolution.diagnostic_data;
         let branch_data = branch.diagnostic_data;
+        resolution.banners.extend(branch.banners);
         resolution
             .required_properties
             .extend(branch.required_properties);
@@ -884,6 +886,7 @@ mod tests {
     #[test]
     fn exact_branches_outrank_wildcards_and_value_types_are_deduplicated() {
         let exact = CustomUtility {
+            banners: Vec::new(),
             name: "w-1".into(),
             body: "width:--value([length]);x:--value([length]);".into(),
             position: None,
@@ -894,6 +897,7 @@ mod tests {
             implementation: false,
         };
         let wildcard = CustomUtility {
+            banners: Vec::new(),
             name: "w-*".into(),
             tw_sort: None,
             role: UtilityRole::default(),

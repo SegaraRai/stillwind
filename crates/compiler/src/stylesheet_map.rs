@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString};
 
+use stillwind_css::CssBanner;
 use stillwind_source::{SourceFile, Span};
 
 /// One generated range and the authored range it came from.
@@ -31,6 +32,9 @@ pub struct StylesheetMapping {
 /// Generated CSS plus the mappings that explain where each part came from.
 #[derive(Clone, Debug, Default)]
 pub struct MappedStylesheet {
+    /// Notices and the byte ranges of `css` that require them. Ranges may overlap, and
+    /// a notice with an empty range is not required.
+    pub banners: Vec<(Range<usize>, CssBanner)>,
     /// Template node identity for each emitted range, stable across producer
     /// selections.
     pub segments: Vec<(Range<usize>, usize)>,
@@ -41,7 +45,7 @@ pub struct MappedStylesheet {
     /// Explicit custom-property registration names. Accumulation preserves encounter
     /// order and permits duplicates; registration selection treats them as a set.
     pub required_properties: Vec<LeanStr>,
-    /// Rule text before slot assembly, or complete CSS after rendering. Pending
+    /// CSS body before or after slot assembly, excluding notice prefixes. Pending
     /// keyframes in `keyframes` are not part of this string.
     pub css: String,
     /// Mappings in output order; ranges never overlap.
@@ -79,6 +83,15 @@ impl MappedStylesheet {
             let start = result.css.len();
             result.css.push_str(replacement);
             if !replacement.is_empty() {
+                for (used, banner) in &self.banners {
+                    if used.start < range.end && used.end > range.start
+                        || range.is_empty() && used.contains(&range.start)
+                    {
+                        result
+                            .banners
+                            .push((start..result.css.len(), banner.clone()));
+                    }
+                }
                 if let Some(mapping) = self
                     .mappings
                     .iter()
@@ -103,6 +116,7 @@ impl MappedStylesheet {
             cursor = range.end;
         }
         self.copy_range(&mut result, cursor..self.css.len());
+        self.banners = result.banners;
         self.css = result.css;
         self.mappings = result.mappings;
         self.segments = result.segments;
@@ -125,6 +139,16 @@ impl MappedStylesheet {
     /// during offset arithmetic after text has already been appended to `output`.
     fn copy_range(&self, output: &mut Self, range: Range<usize>) {
         let offset = output.css.len();
+        for (used, banner) in &self.banners {
+            let start = used.start.max(range.start);
+            let end = used.end.min(range.end);
+            if start < end {
+                output.banners.push((
+                    offset + start - range.start..offset + end - range.start,
+                    banner.clone(),
+                ));
+            }
+        }
         output.css.push_str(&self.css[range.clone()]);
         for mapping in &self.mappings {
             let start = mapping.generated.start.max(range.start);
@@ -163,6 +187,12 @@ impl MappedStylesheet {
         self.required_properties
             .extend(other.required_properties.iter().cloned());
         let offset = self.css.len();
+        self.banners.extend(
+            other
+                .banners
+                .iter()
+                .map(|(range, banner)| (range.start + offset..range.end + offset, banner.clone())),
+        );
         self.segments.extend(
             other
                 .segments

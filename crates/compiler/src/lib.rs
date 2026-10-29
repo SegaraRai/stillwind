@@ -23,9 +23,10 @@
 //! `generated` composes JavaScript fragments with expression provenance. `transforms`
 //! converts their source ranges to UTF-16 mappings for host source-map generation.
 //! `renderer` assembles stylesheet slots, and `stylesheet_map` retains CSS origins.
-//! `query` answers editor requests. `editor_lint` detects canonical spellings and
-//! collects utility literals for `candidate_fixes`, which detects redundant variants
-//! and untyped variables with their fixes.
+//! `banner` adds the preserved notices before a published stylesheet. `query` answers
+//! editor requests. `editor_lint` detects canonical spellings and collects utility
+//! literals for `candidate_fixes`, which detects redundant variants and untyped
+//! variables with their fixes.
 
 #![cfg_attr(
     not(test),
@@ -39,6 +40,7 @@
     )
 )]
 
+mod banner;
 mod candidate_fixes;
 mod compiled_module;
 mod compiler;
@@ -56,6 +58,7 @@ mod style_analysis;
 mod stylesheet_map;
 mod transforms;
 
+pub use banner::{finalize_stylesheet, stylesheet_banners};
 pub use compiled_module::{
     CompilationDependencies, CompiledModule, ModuleArtifactKey, ModuleResourceReference,
     ModuleTransformError,

@@ -5,6 +5,7 @@
  * and retain the corresponding source maps.
  */
 
+export { finalizeCss } from "./banners.ts";
 export {
   cssWithSourceMap,
   decodeCssSourceMap,

@@ -79,6 +79,18 @@ and of the `@iconify-json/*` packages listed in the project's `package.json` dep
 When `@iconify/json` is installed, editors also complete its set names, such as `icon-mdi--`,
 and list the icons of a set after the input names it.
 
+### License notices
+
+The CSS output starts with a license notice for each icon set whose icons it contains, such as
+`/*! Material Design Icons | Pictogrammers | Apache 2.0 | ... */`. The notice contains the set's
+name, author, and license from the set's metadata. A `@iconify-json/<set>` package supplies the
+metadata in its `info.json` file. The `@iconify/json` package and custom JSON sets supply it in
+their `info` field.
+
+A custom set without metadata adds no notice. It does not use the metadata of an installed set
+with the same name. Pass the `info` option to `svgDirectory()` to add a notice for a set of SVG
+files.
+
 ## Options
 
 The options block of the statement sets these options:
@@ -213,6 +225,8 @@ start with `fill` or `stroke`, such as `fill-rule`. It drops the other attribute
 - `name`: maps the file path relative to the directory, without `.svg` and with `/` separators,
   to an icon name. Returning `undefined` skips the file.
 - `transform`: rewrites the SVG text of each file before the plugin parses it.
+- `info`: the set's name, author, and license in the format of the Iconify `info` field. The
+  plugin uses it for the [license notice](#license-notices).
 
 Loading fails when an icon name is invalid, two files have the same icon name, or a file has
 no `viewBox`. The error names the file. Adding, removing, or editing an SVG file reloads the

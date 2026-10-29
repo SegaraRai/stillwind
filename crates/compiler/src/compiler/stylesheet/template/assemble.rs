@@ -33,7 +33,7 @@ pub(in super::super) fn render(
     options: &CompilerOptions,
     document: bool,
     identifiers: &IdentifierContext,
-) -> Result<String, CompileDiagnostic> {
+) -> Result<MappedStylesheet, CompileDiagnostic> {
     render_mapped(
         template,
         theme,
@@ -46,7 +46,6 @@ pub(in super::super) fn render(
         None,
         identifiers,
     )
-    .map(|output| output.css)
 }
 
 /// Renders a stylesheet with source provenance, for a document or a single carrier.
@@ -124,7 +123,7 @@ pub(crate) fn render_mapped(
             return Err(CompileDiagnostic::MissingSupportSlot { slot: name.into() });
         }
     }
-    let (css, slots) = emit(
+    let (mut css, slots) = emit(
         template,
         theme,
         utility_css,
@@ -137,6 +136,12 @@ pub(crate) fn render_mapped(
     if !utility_css.css.is_empty() && slots == 0 {
         return Err(CompileDiagnostic::MissingUtilitiesSlot);
     }
+    css.banners.extend(
+        theme
+            .banners()
+            .iter()
+            .map(|banner| (0..css.css.len(), banner.clone())),
+    );
     Ok(css)
 }
 
@@ -171,7 +176,7 @@ pub(crate) fn render_css_template(
         identifiers,
     )?;
     let support = selection.render(utility_css)?;
-    let (css, _) = emit(
+    let (mut css, _) = emit(
         placement,
         theme,
         utility_css,
@@ -181,6 +186,12 @@ pub(crate) fn render_css_template(
         &support,
         identifiers,
     )?;
+    css.banners.extend(
+        theme
+            .banners()
+            .iter()
+            .map(|banner| (0..css.css.len(), banner.clone())),
+    );
     Ok(css)
 }
 

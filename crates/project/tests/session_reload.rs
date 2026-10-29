@@ -7,13 +7,41 @@ use support::{module, snapshot};
 
 use std::sync::Arc;
 
-use stillwind_compiler::{CompilerOptions, Identifiers};
+use stillwind_compiler::{CompilerOptions, Identifiers, stylesheet_banners};
 use stillwind_design_system::DesignSystemLoadError;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
 use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{DependencyIndex, ProjectSession, SessionMode};
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry};
+
+#[test]
+fn notice_changes_publish_css_without_changing_the_body() {
+    let css = |notice| format!("@stillwind-banner {{ /*! {notice} */ }} .authored{{color:red}}");
+    let mut session = ProjectSession::new(
+        snapshot(&css("first")),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::default(),
+    );
+    let before = session.css().unwrap();
+    let update = session
+        .reload(Ok(snapshot(&css("other"))), session.options().clone())
+        .unwrap();
+    let after = session.css().unwrap();
+    assert!(update.css_changed);
+    assert!(update.transformed_modules.is_empty());
+    assert_eq!(before.stylesheet.css, after.stylesheet.css);
+    assert_ne!(
+        stylesheet_banners(&before.stylesheet),
+        stylesheet_banners(&after.stylesheet)
+    );
+    let unchanged = session
+        .reload(Ok(snapshot(&css("other"))), session.options().clone())
+        .unwrap();
+    assert!(!unchanged.css_changed);
+}
 
 /// One analyzed module whose analysis carries a fatal diagnostic.
 fn failing_module(name: &str) -> ModuleAnalysis {

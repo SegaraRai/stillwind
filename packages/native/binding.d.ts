@@ -2145,6 +2145,8 @@ export interface NativeStylesheetOutput {
 
 /** A CSS fragment at one position in an output plan. */
 export interface NativeStylesheetPart {
+  /** Ordered preserved comments required by this CSS body. */
+  banners: Array<string>
   /** Source locations relative to this wrapped fragment. */
   sourceMap: NativeStylesheetMap
   /** Stable template node ordinal. */
@@ -2164,6 +2166,8 @@ export type NativeStylesheetPlacement = 'document' | 'carrier'
 
 /** A rendered stylesheet with provenance and watch information. */
 export interface NativeStylesheetPlan {
+  /** Ordered preserved comments required by the CSS body. */
+  banners: Array<string>
   /** Ordered occurrences. Repeated payloads retain their positions. */
   parts: Array<NativeStylesheetPart>
   /** The rendered CSS text. */

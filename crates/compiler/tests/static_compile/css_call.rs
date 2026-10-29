@@ -1,6 +1,7 @@
 //! `style.css()` lowering through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
+use stillwind_css::strip_css_comments;
 use stillwind_diagnostics::{LintDiagnostic, LintKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -55,6 +56,8 @@ fn the_default_template_places_used_support_before_the_rules() {
         "{:?}",
         result.lint_findings
     );
+    assert!(css.starts_with("/*! stillwind v"));
+    assert!(css.contains("/*! tailwindcss v"));
     let theme = css.find(":where(:root, :host){").unwrap();
     let initials = css.find("{--tw-translate-x:0;").unwrap();
     let rules = css.find(":host{display:block;}").unwrap();
@@ -92,7 +95,7 @@ fn the_selector_option_targets_utilities_that_select_no_element() {
     let (css, result) = compile(r#"export const sheet = style.css("p-4 [button]:m-2");"#, "");
     assert_eq!(kinds(&result), [LintKind::MissingDocumentTarget]);
     assert_eq!(
-        css,
+        strip_css_comments(&css).trim(),
         ":where(:root, :host){--spacing:0.25rem;}button{margin:calc(var(--spacing) * 2);}"
     );
 }
@@ -107,13 +110,18 @@ fn named_templates_choose_placement_and_omit_missing_slots() {
           .note { color: gray; } \
         }";
     let (css, _) = compile(r#"export const sheet = style.css("host:p-4");"#, templates);
-    assert_eq!(css, ":host{padding:calc(var(--spacing) * 4);}");
+    assert_eq!(
+        strip_css_comments(&css).trim(),
+        ":host{padding:calc(var(--spacing) * 4);}"
+    );
     let (css, _) = compile(
         r#"export const sheet = style.css("host:p-4", { template: "shadow" });"#,
         templates,
     );
     assert!(
-        css.starts_with("@layer theme{:host{--spacing:0.25rem;}}@layer utilities{:host{padding:"),
+        strip_css_comments(&css)
+            .trim_start()
+            .starts_with("@layer theme{:host{--spacing:0.25rem;}}@layer utilities{:host{padding:"),
         "{css}"
     );
     assert!(css.ends_with(".note { color: gray; }"), "{css}");
@@ -133,7 +141,7 @@ fn unsupported_inputs_and_options_are_omitted_with_findings() {
         r#"export const sheet = style.css("host:block", { template: "missing" });"#,
         "",
     );
-    assert_eq!(css, ":host{display:block;}");
+    assert_eq!(strip_css_comments(&css).trim(), ":host{display:block;}");
     assert!(matches!(
         &result.lint_findings[..],
         [finding] if matches!(&finding.diagnostic, LintDiagnostic::InvalidCssOption { reason } if reason.contains("`missing`"))

@@ -24,6 +24,7 @@ export default defineConfig({
           "@stillwind/config#build",
           "@stillwind/native#build",
           "@stillwind/projection#build",
+          "stillwind#build",
         ],
       },
       typecheck: {

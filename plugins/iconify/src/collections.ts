@@ -31,6 +31,8 @@ interface LoadedCollection {
   data?: IconifyJSON;
   /** Absolute path of the JSON file, or undefined for data that options supply. */
   file?: string;
+  /** Metadata file of an individual icon package. */
+  infoFile?: string;
 }
 
 /**
@@ -84,7 +86,10 @@ export class Collections {
       loaded = this.#load(prefix);
       this.#loaded.set(prefix, loaded);
     }
-    const { data, file } = await loaded;
+    const { data, file, infoFile } = await loaded;
+    if (infoFile) {
+      this.#context.watch(infoFile);
+    }
     if (file) {
       this.#context.watch(file);
     }
@@ -186,9 +191,20 @@ export class Collections {
     ]) {
       const file = await this.#context.resolve(request);
       if (file) {
+        const data = await this.#read(file);
+        const infoFile = request.startsWith("@iconify-json/")
+          ? await this.#context.resolve(`@iconify-json/${prefix}/info.json`)
+          : undefined;
+        const info = infoFile ? JSON.parse(await this.#context.read(infoFile)) : data.info;
         return {
-          data: await this.#read(file),
+          data: info
+            ? {
+                ...data,
+                info,
+              }
+            : data,
           file,
+          infoFile,
         };
       }
     }

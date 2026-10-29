@@ -17,7 +17,7 @@ use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{
-    CssNode, CssNodeKind, parse_structure, split_top_level, whitespace_separated_ranges,
+    CssBanner, CssNode, CssNodeKind, parse_structure, split_top_level, whitespace_separated_ranges,
 };
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences, resolve_variant,
@@ -33,6 +33,50 @@ use super::super::utilities::{
 };
 use super::super::variants::{VariantStep, variant_paths};
 use crate::identifiers::IdentifierContext;
+
+/// Returns the notices of the utilities that the `@apply` statements in `css` apply,
+/// including the utilities that their bodies apply in turn.
+///
+/// Candidates that do not resolve add no notices. [`expand_authored_directives`]
+/// reports them.
+pub(crate) fn applied_banners(css: &str, theme: &ThemeIndex) -> Vec<CssBanner> {
+    fn visit(css: &str, theme: &ThemeIndex, seen: &mut Vec<LeanStr>, output: &mut Vec<CssBanner>) {
+        fn nodes(
+            css: &str,
+            items: &[CssNode],
+            theme: &ThemeIndex,
+            seen: &mut Vec<LeanStr>,
+            output: &mut Vec<CssBanner>,
+        ) {
+            for node in items {
+                if let Some(candidates) = apply_candidates(css, node) {
+                    for range in candidates {
+                        let candidate = &css[range];
+                        if seen.iter().any(|name| name == candidate) {
+                            continue;
+                        }
+                        seen.push(candidate.into());
+                        if let Ok(Ok(targets)) =
+                            resolve_utility_targets(candidate, theme, VariantContext::Element)
+                        {
+                            for target in targets {
+                                output.extend(target.banners);
+                                visit(&target.declaration, theme, seen, output);
+                            }
+                        }
+                    }
+                }
+                nodes(css, node.children(), theme, seen, output);
+            }
+        }
+        if css.contains("@apply") {
+            nodes(css, &parse_structure(css), theme, seen, output);
+        }
+    }
+    let mut output = Vec::new();
+    visit(css, theme, &mut Vec::new(), &mut output);
+    output
+}
 
 /// Rewrites every `@apply` statement and `@variant` block in `css`.
 ///

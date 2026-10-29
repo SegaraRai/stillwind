@@ -9,8 +9,8 @@ use std::sync::{Arc, OnceLock};
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{
-    CssOutputTemplate, CustomPropertyDefinition, custom_property_references, find_css_functions,
-    split_once_top_level,
+    CssBanner, CssOutputTemplate, CustomPropertyDefinition, custom_property_references,
+    find_css_functions, split_once_top_level,
 };
 
 use super::builder::ThemeBuilder;
@@ -34,6 +34,7 @@ use crate::{
 /// indexes compares these declarations only, because the lookups derive from them.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ThemeDeclarations {
+    banners: Vec<CssBanner>,
     variant_positions: BTreeMap<LeanStr, usize>,
     utility_positions: BTreeMap<LeanStr, usize>,
     utility_position_base: usize,
@@ -99,10 +100,16 @@ impl PartialEq for ThemeIndex {
 impl Eq for ThemeIndex {}
 
 impl ThemeIndex {
+    /// Returns notices declared outside utility and theme definitions.
+    pub fn banners(&self) -> &[CssBanner] {
+        &self.inner.declarations.banners
+    }
+
     /// Builds an index from parsed declarations, derives the token and utility lookups,
     /// and prepares the utility programs.
     pub(crate) fn new(builder: ThemeBuilder) -> Self {
         let declarations = ThemeDeclarations {
+            banners: builder.banners,
             variant_positions: builder.variant_positions,
             utility_positions: builder.utility_positions,
             utility_position_base: builder.utility_position_base,
@@ -741,6 +748,27 @@ impl ThemeIndex {
                     && !matches!(token.mode, ThemeValueMode::Inline)
             })
             .collect()
+    }
+
+    /// Returns the notices of the effective theme values that `css` names, and of the
+    /// values that those values reference in turn.
+    ///
+    /// Each value contributes its notices once. The result can repeat a notice that
+    /// several values declare.
+    pub fn banners_referenced_by(&self, css: &str) -> Vec<CssBanner> {
+        let mut pending = custom_property_references(css);
+        let mut visited = BTreeSet::new();
+        let mut output = Vec::new();
+        while let Some(name) = pending.pop_first() {
+            if !visited.insert(name.clone()) {
+                continue;
+            }
+            if let Some(token) = self.custom_property(&name) {
+                output.extend(token.banners.iter().cloned());
+                pending.extend(custom_property_references(&token.value.value));
+            }
+        }
+        output
     }
 
     /// Authored CSS outside compile-time definition blocks, retained verbatim.

@@ -33,6 +33,7 @@ export default defineConfig(({ mode }) => ({
           output: [".build/native/index.js", ".build/native/*.node", ".build/native/binding.d.ts"],
         },
         dependsOn: [
+          "@stillwind-internal/tools-tailwind#generate:tailwind-banner",
           "@stillwind-internal/tools-tailwind#generate:tailwind-order",
           "@stillwind-internal/tools-webref#generate:webref",
         ],
@@ -46,6 +47,7 @@ export default defineConfig(({ mode }) => ({
           output: ["dist/wasm/**", "!dist/wasm/**/*.tmp"],
         },
         dependsOn: [
+          "@stillwind-internal/tools-tailwind#generate:tailwind-banner",
           "@stillwind-internal/tools-tailwind#generate:tailwind-order",
           "@stillwind-internal/tools-webref#generate:webref",
         ],

@@ -10,6 +10,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
+use stillwind_css::CssBanner;
 use stillwind_design_system::{
     InvalidPropertyValue, InvalidValueReason, MarkerUse, NestedUtilityRule, ResolvedUtilityTarget,
     ThemeIndex, UtilityArbitraryUse, UtilityDeclaration, UtilityFailure, UtilityFailureReason,
@@ -39,6 +40,8 @@ pub(crate) struct CompiledUtility {
     /// Custom-property registration names required by this utility, independent of CSS
     /// references.
     pub(in crate::compiler) required_properties: Vec<LeanStr>,
+    /// Notices that the output requires when this utility contributes declarations.
+    pub(in crate::compiler) banners: Vec<CssBanner>,
     /// Optional selector template whose ampersands denote the generated class selector.
     pub(in crate::compiler) selector: Option<LeanStr>,
     /// Optional container query prelude without @container or braces.
@@ -150,6 +153,7 @@ pub(crate) fn resolve_utility_targets(
             variant_applications: Vec::new(),
             declaration: target.declaration,
             required_properties: resolved.required_properties.clone(),
+            banners: resolved.banners.clone(),
             selector: target.selector,
             container: None,
             nested: target.nested,

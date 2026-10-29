@@ -11,7 +11,9 @@ use napi::bindgen_prelude::{Env, JsObjectValue};
 use napi::{Error, Status};
 use napi_derive::napi;
 
-use stillwind_compiler::{RenderedStylesheet, StylesheetMapping, StylesheetRenderError};
+use stillwind_compiler::{
+    RenderedStylesheet, StylesheetMapping, StylesheetRenderError, finalize_stylesheet,
+};
 use stillwind_design_system::{CssDependencyKind, CssFileRequest};
 use stillwind_project::{StylesheetCoverage, StylesheetPlan};
 
@@ -206,6 +208,8 @@ pub enum NativeStylesheetPlacement {
 /// A rendered stylesheet with provenance and watch information.
 #[napi(object, object_from_js = false)]
 pub struct NativeStylesheetPlan {
+    /// Ordered preserved comments required by the CSS body.
+    pub banners: Vec<String>,
     /// Ordered occurrences. Repeated payloads retain their positions.
     pub parts: Vec<NativeStylesheetPart>,
     /// The rendered CSS text.
@@ -244,11 +248,13 @@ impl NativeStylesheetPlan {
             },
         };
         Ok(Self {
+            banners: plan.banners.into_iter().map(Into::into).collect(),
             parts: plan
                 .parts
                 .into_iter()
                 .map(|part| {
                     Ok(NativeStylesheetPart {
+                        banners: part.banners.into_iter().map(Into::into).collect(),
                         source_map: stylesheet_locations(if include_source_maps {
                             &part.mappings
                         } else {
@@ -303,6 +309,8 @@ impl NativeStylesheetPlan {
 /// A CSS fragment at one position in an output plan.
 #[napi(object, object_from_js = false)]
 pub struct NativeStylesheetPart {
+    /// Ordered preserved comments required by this CSS body.
+    pub banners: Vec<String>,
     /// Source locations relative to this wrapped fragment.
     pub source_map: NativeStylesheetMap,
     /// Stable template node ordinal.
@@ -362,10 +370,11 @@ impl NativeStylesheetOutput {
         output: RenderedStylesheet,
         include_source_maps: bool,
     ) -> napi::Result<Self> {
+        let stylesheet = finalize_stylesheet(output.stylesheet);
         Ok(Self {
-            css: (output.stylesheet.css).into(),
+            css: (stylesheet.css).into(),
             source_map: stylesheet_locations(if include_source_maps {
-                &output.stylesheet.mappings
+                &stylesheet.mappings
             } else {
                 &[]
             })?,

@@ -122,6 +122,7 @@ export function virtualModuleHooks(project: ViteProject): Pick<Plugin, "resolveI
             {
               css: plan.originalCss,
               sourceMap: plan.sourceMap,
+              banners: plan.banners,
             },
             plan.resourceReplacements,
           ),
@@ -271,7 +272,15 @@ if (import.meta.hot) {
             `import { css as p${index} } from ${JSON.stringify(
               registry.fragment(
                 settings.watching && settings.devSourceMaps
-                  ? cssForBrowser(name, part, new Map())
+                  ? // `cssText` adds the notices once when it combines the fragments.
+                    cssForBrowser(
+                      name,
+                      {
+                        ...part,
+                        banners: [],
+                      },
+                      new Map(),
+                    )
                   : part.css,
                 plan.resources,
               ),
@@ -279,14 +288,16 @@ if (import.meta.hot) {
         );
         return [
           "// Stillwind CSS value (vite)\n",
+          'import { cssText } from "stillwind/css";\n',
           ...imports,
           "\n",
           "export const parts = [",
           ...plan.parts.map(
-            (part, index) => `  { key: ${JSON.stringify(part.key)}, css: p${index} },\n`,
+            (part, index) =>
+              `  { key: ${JSON.stringify(part.key)}, banners: ${JSON.stringify(part.banners)}, css: p${index} },\n`,
           ),
           "];\n",
-          'export const css = parts.map((part) => part.css).join("");\n',
+          "export const css = cssText(parts);\n",
           "export default css;\n",
         ].join("");
       }

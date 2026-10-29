@@ -1,4 +1,9 @@
-import { decodeCssSourceMap, warnRejectedNames, type DecodedCssSourceMap } from "@stillwind/host";
+import {
+  decodeCssSourceMap,
+  finalizeCss,
+  warnRejectedNames,
+  type DecodedCssSourceMap,
+} from "@stillwind/host";
 import type { NativeStylesheetPlan } from "@stillwind/native";
 
 import { cssForBrowser, type BrowserCssSources } from "./browser-css.ts";
@@ -35,6 +40,8 @@ export interface StylesheetPlan extends Omit<NativeStylesheetPlan, "css" | "reso
 
 /** A stylesheet occurrence whose resources and optional map are ready for the browser. */
 export interface ResolvedStylesheetPart {
+  /** Preserved notices required by this occurrence. */
+  banners: string[];
   /** Native content fingerprint used by the runtime to share equal CSS payloads. */
   key: string;
   /** Compiler module identities that activate this occurrence. Empty means shared support CSS. */
@@ -121,14 +128,28 @@ export async function resolveStylesheet(
     originalCss: plan.css,
     resources,
     resourceReplacements: replacements,
-    css: resolveResources(plan.css, replacements),
+    css: finalizeCss({
+      css: resolveResources(plan.css, replacements),
+      banners: plan.banners,
+    }),
     rawParts: plan.parts,
     parts: plan.parts.map((part) => {
       const mapped =
         settings.watching && settings.devSourceMaps
-          ? decodeCssSourceMap(cssForBrowser(sources, part, replacements))
+          ? // The runtime adds the notices of the active parts when it combines them.
+            decodeCssSourceMap(
+              cssForBrowser(
+                sources,
+                {
+                  ...part,
+                  banners: [],
+                },
+                replacements,
+              ),
+            )
           : undefined;
       return {
+        banners: part.banners,
         key: part.key,
         producers: part.producers,
         css: mapped?.code ?? resolveResources(part.css, replacements),

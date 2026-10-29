@@ -4,6 +4,7 @@ import type { NativeStylesheetPart } from "@stillwind/native";
 
 /**
  * Packs adjacent occurrences with identical ordered producer lists without moving any rule.
+ *
  * @param parts - Native partitions in stylesheet order. Input records and source-map arrays are unchanged.
  * @returns New partitions with concatenated CSS, shifted UTF-8 source-map offsets, and content hashes for merged parts.
  */
@@ -26,11 +27,18 @@ export function partitionStylesheet(
         })),
       );
       previous.css += part.css;
-      previous.key = createHash("sha256").update(previous.css).digest("hex");
+      previous.banners = [...new Set([...previous.banners, ...part.banners])];
+      previous.key = createHash("sha256")
+        .update(previous.css)
+        .update(JSON.stringify(previous.banners))
+        .digest("hex");
     } else {
       output.push({
         ...part,
-        sourceMap: { sources: [...part.sourceMap.sources], entries: [...part.sourceMap.entries] },
+        sourceMap: {
+          sources: [...part.sourceMap.sources],
+          entries: [...part.sourceMap.entries],
+        },
       });
     }
   }

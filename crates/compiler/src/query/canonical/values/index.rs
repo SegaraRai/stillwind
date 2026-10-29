@@ -428,6 +428,7 @@ impl CssTemplate {
     /// selections, and implementation classifications do not affect the result.
     fn matches(&self, actual: &ResolvedUtility, value: &str) -> bool {
         let ResolvedUtility {
+            banners: _,
             policy_declarations: _,
             diagnostic_data: _,
             candidate: _,

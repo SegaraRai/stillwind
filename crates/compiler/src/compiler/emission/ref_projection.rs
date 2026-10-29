@@ -207,6 +207,7 @@ pub(super) fn rule_contribution(
     )
     .to_lean_string();
     let mut utility = CompiledUtility {
+        banners: Vec::new(),
         diagnostic_data: CompiledUtilityDiagnosticData::default(),
         context: VariantContext::Element,
         required_properties: Vec::new(),

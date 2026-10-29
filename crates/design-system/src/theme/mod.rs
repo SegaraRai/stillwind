@@ -13,8 +13,10 @@
 //! are mapped. [`index`] owns immutable declarations and evaluation data. [`tokens`]
 //! selects effective declarations after resets. [`declarations`] parses value roles,
 //! modes, and spans, [`namespace`] reads the declared token families, and
-//! [`references`] lowers build-time theme references.
+//! [`references`] lowers build-time theme references. [`banners`] separates notices for
+//! the stylesheet from notices owned by definitions.
 
+mod banners;
 mod builder;
 mod declarations;
 mod index;
