@@ -5,7 +5,6 @@ import type { GeneratedMarkdownComponentTransform } from "@cloudflare/nimbus-doc
 import { lintRules, type LintRule } from "stillwind/config";
 
 import { compilerRevision, documentationCompiler } from "../../../lib/docs/reference/compiler";
-import { loadUtilityCatalog, utilityCatalogMarkdown } from "../../../lib/docs/utilities/catalog";
 import {
   compiledExampleMarkdown,
   compileExample,
@@ -21,11 +20,7 @@ import {
 import { lintRuleSummary, lintSummaryMarkdown } from "./lint-rule-summary";
 
 export async function referenceMarkdown() {
-  const [compiler, catalog, revision] = await Promise.all([
-    documentationCompiler(),
-    loadUtilityCatalog(),
-    compilerRevision(),
-  ]);
+  const [compiler, revision] = await Promise.all([documentationCompiler(), compilerRevision()]);
   const sources = await Promise.all(
     [
       "./markdown.ts",
@@ -89,9 +84,10 @@ export async function referenceMarkdown() {
     throw new Error(failures.join("\n"));
   }
   const componentMap = {
+    // The lookup needs the compiler, so the Markdown version keeps only the page's prose.
     UtilityExplorer: {
-      revision: catalog.revision + componentRevision,
-      render: () => utilityCatalogMarkdown(catalog),
+      revision: componentRevision,
+      render: () => "",
     },
     LintRuleSummary: {
       revision: componentRevision,

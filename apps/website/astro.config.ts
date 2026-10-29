@@ -122,9 +122,18 @@ export default defineConfig({
         external: ["@stillwind/host", "@stillwind/native"],
       },
     },
+    worker: {
+      format: "es",
+    },
   },
   server: {
     port: 4322,
+    // The utility lookup runs the threaded WASM compiler, which needs a cross-origin isolated
+    // page. Deployments set these headers for that page only in public/_headers.
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
   },
   build: {
     inlineStylesheets: "never",

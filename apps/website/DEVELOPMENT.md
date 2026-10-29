@@ -66,15 +66,32 @@ These components are registered in `src/components.ts` and have equivalent
 Markdown renderers in `src/components/docs/reference/markdown.ts`. Edit links point
 to the individual page sources.
 
-The `utilities` content collection uses a loader to read the default registry's
-finite completions and representative numeric samples. The explorer and JSON
-endpoint read that collection through Astro's content API. Its Markdown renderer
-includes the same catalog without browser interaction. Component revisions track
-compiler, theme, metadata, and renderer inputs for Nimbus's Markdown cache.
+Component revisions track compiler, theme, metadata, and renderer inputs for
+Nimbus's Markdown cache.
+
+## Utility lookup
+
+`UtilityExplorer` on `/docs/utilities/` looks up utilities in the browser. Its
+Markdown renderer outputs nothing, so the Markdown version and the LLM indexes
+contain only the page's prose. `lookupUtilities()` in
+`src/lib/docs/utilities/lookup.ts` reads the input in both directions. It resolves
+utilities to their CSS and canonical spelling, converts each CSS declaration to an
+arbitrary property and then to its canonical utility, and lists utilities that
+start with a single word. When the canonical spelling of a utility generates
+other declarations, the spelling as written follows it. `highlightCss()` uses
+sugar-high to highlight the CSS of each result on the server and in the browser.
+
+The build renders the results of the initial input with the native compiler.
+In the browser, a worker runs the WASM compiler. `/docs/utilities/stylesheet.json`
+contains the default stylesheet as the build recorded its load, and the worker
+replays it into a design-system loader without resolving files. The threaded WASM
+compiler needs a cross-origin isolated page. `public/_headers` sets the opener
+and embedder policies for this page and the embedder policy for worker scripts.
+Development and preview servers set both policies for every page.
 
 `tests/documentation.test.ts` compares the lint and error pages with the public
 IDs, their index links, and the recommended severities. Keep tests for interactions
-such as utility search, theme switching, and animation controls beside their code.
+such as utility lookup, theme switching, and animation controls beside their code.
 The compiler packages test compilation and diagnostics. Displayed macro output
 comes from the compiler during the website build.
 

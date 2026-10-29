@@ -1,43 +1,36 @@
 ---
 title: Built-in utilities
-description: Look up the CSS of a built-in utility, or find utilities by the CSS that they produce.
+description: Look up the CSS of a utility, or find the canonical utility for CSS declarations.
 slug: docs/utilities
-sidebar:
-  order: 4
 ---
 
-Type a utility name to see its CSS. To go the other way, switch the direction to
-**CSS → utilities** and type a declaration such as `display: flex`. The URL
-keeps your search, so you can share the results.
+Type a utility to see its CSS, or type CSS declarations to find the utility that
+produces them. Arbitrary values, such as `p-[16px]`, resolve to their canonical
+spelling. The URL keeps your input, so you can share the results.
 
 <UtilityExplorer />
 
-## What the explorer lists
+## Read the results
 
-The explorer lists the utilities of the default theme, with sample values for
-numeric utilities such as spacing and sizes. The compiler generates every
-preview.
+Each result shows one utility and its declarations. `&` stands for the styled
+element. Comments show the resolved theme values and pixel sizes. A result for
+CSS declarations names the declaration that it comes from.
 
-Many utilities accept any number or an arbitrary value, so a utility that the
-explorer does not list can still be valid. For example, `p-123` and `w-[37px]`
-work without a definition. To check such a utility, hover over it in the editor.
-
-The explorer uses the default theme. Utilities from your own `@theme` tokens,
-such as `bg-brand`, do not appear here. See
-[Design systems](/docs/guides/design-systems/) to add them.
-
-## Read a preview
-
-Each preview shows the declarations of one utility. `&` stands for the styled
-element. Comments show the resolved theme values and pixel sizes.
-
-A preview leaves out the theme variables and other supporting CSS that the full
+The results leave out the theme variables and other supporting CSS that the full
 stylesheet contains. The [macro reference](/docs/macros/) shows complete
 generated stylesheets.
 
-When you search by CSS, a result is a candidate. Check its preview before you
-replace your CSS, because variants and shorthand properties can change what a
-utility does.
+A declaration without a matching utility becomes an arbitrary property, such as
+`[hyphens:manual]`. Variants and shorthand properties can change what a utility
+does, so compare its declarations with your CSS before you replace it.
 
-The Markdown version of this page contains the full list, so AI agents can read
-it without the interactive search.
+## What the lookup covers
+
+The lookup runs the Stillwind compiler in your browser with the default theme.
+It downloads the compiler when the page opens. Utilities from your own `@theme`
+tokens, such as `bg-brand`, do not resolve here. See
+[Design systems](/docs/guides/design-systems/) to add them, and hover over a
+utility in the editor to check it in your project.
+
+The editor and the CLI report non-canonical spellings with
+[prefer-canonical-utilities](/docs/lints/prefer-canonical-utilities/).

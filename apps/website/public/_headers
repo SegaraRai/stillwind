@@ -1,0 +1,8 @@
+# The utility lookup runs the threaded WASM compiler, which needs a cross-origin isolated page.
+# Its worker scripts must also carry the embedder policy.
+/docs/utilities/
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+/_astro/*
+  Cross-Origin-Embedder-Policy: require-corp

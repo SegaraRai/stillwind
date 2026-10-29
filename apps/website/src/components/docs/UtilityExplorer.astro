@@ -1,80 +1,76 @@
 ---
-import { getEntry } from "astro:content";
 import { style } from "stillwind/astro";
 
-import type { UtilityCatalog } from "../../lib/docs/utilities/search";
+import { documentationCompiler } from "../../lib/docs/reference/compiler";
+import { highlightCss } from "../../lib/docs/utilities/highlight";
+import { lookupUtilities, matchCaption } from "../../lib/docs/utilities/lookup";
 
-const catalog: UtilityCatalog = (await getEntry("utilities", "default"))!.data;
-const examples = ["p-4", "flex", "text-center", "bg-blue-500"].map((name) =>
-  catalog.records.find((record) => record.name === name)!,
-);
-const metadata = style("text-caption text-muted");
-const field = style("grid min-inline-0 gap-2 text-ui font-medium");
+const initial = "p-4";
+const examples = [
+  "p-4",
+  "p-[16px]",
+  "display: flex",
+  "background-color: #3b82f6",
+  "hover:underline",
+];
+const { matches } = lookupUtilities((await documentationCompiler()).query, initial);
 const control = style(
-  "px-3 block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border",
+  "px-control block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border",
 );
 ---
 
-<div {...style("grid gap-5")} data-utility-explorer data-catalog="/docs/utilities/catalog.json">
-  <p {...metadata}>
-    Stillwind {catalog.version} · {catalog.records.length.toLocaleString("en")} built-in spellings ·
-    Default theme
-  </p>
+<div {...style("grid gap-5")} data-utility-explorer>
   <form
     role="search"
-    aria-label="Built-in utility search"
-    {...style(
-      "grid p-panel grid-cols-[minmax(0,1fr)] items-end gap-control bg-surface rounded-panel border border-border sidebar:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]",
-    )}
+    aria-label="Utility lookup"
+    {...style("grid p-panel gap-control bg-surface rounded-panel border border-border")}
   >
-    <div {...field}>
-      <label for="utility-mode">Search direction</label>
-      <select id="utility-mode" name="mode" {...control}>
-        <option value="utility">Utility to CSS</option>
-        <option value="css">CSS to utilities</option>
-      </select>
+    <label for="utility-query" {...style("text-ui font-medium")}>
+      Utility or CSS
+    </label>
+    <input
+      id="utility-query"
+      name="q"
+      type="search"
+      value={initial}
+      placeholder="p-4 or display: flex"
+      autocomplete="off"
+      spellcheck="false"
+      {...style(control, "font-mono")}
+    />
+    <div {...style("flex flex-wrap items-center gap-2 text-caption text-muted")}>
+      <span>Try</span>
+      {examples.map((example) => (
+        <button
+          type="button"
+          data-example={example}
+          {...style(
+            "px-2 py-0.5 font-mono text-foreground bg-background rounded-inline border border-border cursor-pointer hover:bg-surface-muted",
+          )}
+        >
+          {example}
+        </button>
+      ))}
     </div>
-    <div {...field}>
-      <label for="utility-query">Utility or CSS terms</label>
-      <input
-        id="utility-query"
-        name="q"
-        type="search"
-        value="p-4"
-        placeholder="p-4 or display: flex"
-        autocomplete="off"
-        {...control}
-      />
-    </div>
-    <button
-      type="submit"
-      {...style(
-        "px-4 block-11 text-action-foreground text-ui font-medium bg-action rounded-control cursor-pointer hover:bg-action-hover",
-      )}
-    >
-      Search
-    </button>
   </form>
-  <p role="status" aria-live="polite" {...metadata}>
-    Enable JavaScript to search. Representative examples follow.
+  <p role="status" aria-live="polite" {...style("text-caption text-muted")}>
+    Enable JavaScript to look up other utilities. The results show an example.
   </p>
   <div data-utility-results {...style("grid gap-5")}>
-    {examples.map((record) => (
+    {matches.map((match) => (
       <section {...style("utility-result")}>
-        <h3 {...style("utility-result-title")}>
-          <code>{record.name}</code>
-        </h3>
-        <pre {...style("utility-result-code")}><code>{record.css}</code></pre>
+        <div {...style("utility-result-header")}>
+          <h3 {...style("utility-result-title")}>
+            <code>{match.utility}</code>
+          </h3>
+          {matchCaption(match) && <p {...style("utility-result-caption")}>{matchCaption(match)}</p>}
+        </div>
+        <pre
+          {...style("utility-result-code")}
+        >{match.css ? <code set:html={highlightCss(match.css)} /> : <code>Adds a marker class and no declarations.</code>}</pre>
       </section>
     ))}
   </div>
-  <p {...metadata}>
-    Catalog revision <code>{catalog.revision.slice(0, 12)}</code>.{" "}
-    <a href="/docs/utilities/index.md">
-      Full catalog as Markdown{" "}
-      <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
-    </a>
-  </p>
 </div>
 
 <script>
@@ -82,6 +78,6 @@ const control = style(
 
   const root = document.querySelector<HTMLElement>("[data-utility-explorer]");
   if (root) {
-    void mountUtilityExplorer(root);
+    mountUtilityExplorer(root);
   }
 </script>

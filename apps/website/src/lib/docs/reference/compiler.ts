@@ -8,14 +8,20 @@ import { loadCssGraph } from "@stillwind/host";
 import {
   NativeProjectSession,
   type NativeCompilerOptions,
+  type NativeDesignSystemLoader,
   type NativePreparedSource,
 } from "@stillwind/native";
 
 const require = createRequire(import.meta.url);
 
+/**
+ * Loads `stylesheet` as the reference project's CSS. `suppliedLoader` replaces the loader that the
+ * function would create from `options`, and it must not have received any CSS input.
+ */
 export async function referenceCompiler(
   options: NativeCompilerOptions = {},
   stylesheet = '@import "stillwind";',
+  suppliedLoader?: NativeDesignSystemLoader,
 ) {
   const { loader } = await loadCssGraph(
     resolve(import.meta.dirname, "Reference.css"),
@@ -32,6 +38,7 @@ export async function referenceCompiler(
       watch() {},
     },
     stylesheet,
+    suppliedLoader,
   );
   const source = (code: string): NativePreparedSource => ({
     kind: "direct",

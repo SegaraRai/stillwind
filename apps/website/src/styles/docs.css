@@ -188,10 +188,34 @@ Typography and spacing for Markdown, slots, and Nimbus output.
   @apply min-inline-0;
 }
 
-@utility utility-result-title {
-  @apply mbs-0 mbe-3 text-body;
+/*
+The caption stays on the line of the utility name while it fits, so it reads as a note about
+that utility.
+*/
+@utility utility-result-header {
+  @apply flex mbe-3 flex-wrap items-baseline gap-x-3 gap-y-1;
 }
 
+@utility utility-result-caption {
+  @apply m-0 text-caption text-muted wrap-anywhere;
+}
+
+@utility utility-result-title {
+  @apply m-0 text-body;
+}
+
+/*
+Token colors of highlighted results follow the GitHub themes of the site's code blocks.
+*/
 @utility utility-result-code {
   @apply bg-surface;
+
+  --sh-property: light-dark(#005cc5, #79b8ff);
+  --sh-class: light-dark(#005cc5, #79b8ff);
+  --sh-string: light-dark(#032f62, #9ecbff);
+  --sh-identifier: light-dark(#6f42c1, #b392f0);
+  --sh-keyword: light-dark(#d73a49, #f97583);
+  --sh-entity: light-dark(#22863a, #85e89d);
+  --sh-comment: light-dark(#6a737d, #6a737d);
+  --sh-sign: light-dark(#24292e, #e1e4e8);
 }
