@@ -3,6 +3,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   test: {
     name: "static-play",
+    fileParallelism: false,
     include: ["src/**/*.test.ts"],
     testTimeout: 600_000,
   },

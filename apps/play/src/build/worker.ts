@@ -1,4 +1,4 @@
-import { rolldown, type Plugin } from "@rolldown/browser";
+import type { Plugin } from "@rolldown/browser";
 import type {
   BrowserModuleAnalysis,
   BrowserModuleCss,
@@ -9,6 +9,8 @@ import { resolve } from "pathe";
 
 import { inlineImports } from "./stylesheet.ts";
 
+const rolldownBinding = import("@rolldown/browser");
+
 const replies = new Map<
   number,
   {
@@ -16,6 +18,7 @@ const replies = new Map<
     reject(error: Error): void;
   }
 >();
+
 let sequence = 0;
 
 /**
@@ -57,12 +60,16 @@ self.onmessage = async ({
   }
 
   try {
+    // WASM initialization yields to incoming messages. The listener must already exist at that point.
+    const { rolldown } = await rolldownBinding;
+
     const files = new Map(data.files);
     const transformed = new Map<string, string>();
     const moduleCss = new Map<string, string>();
     const cssValues = new Map<string, Compilation["cssValues"][number][1]>();
     const rejectedNames = new Map<string, BrowserStylesheetOutput["rejectedNames"][number]>();
     const stylesheets = new Map<string, string>();
+
     let css = "";
 
     /**
@@ -242,3 +249,6 @@ self.onmessage = async ({
     });
   }
 };
+
+// Module initialization failures must raise a worker error so the owner can replace this worker.
+await rolldownBinding;
