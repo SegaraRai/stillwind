@@ -36,9 +36,9 @@ export function Card() {
 applies `text-blue-600` while the `<article>` is hovered. Write the variants
 inside the call, such as `card("hover:active")`, to combine states.
 
-The label `"card"` only helps you read the generated class names. Each
-`style.ref()` call creates its own name, so two components can use the label
-`"card"` without affecting each other.
+The label `"card"` is optional and only helps you read the generated class
+names. The compiler creates a unique name for each `style.ref()` call, so two
+components can use the label `"card"` without affecting each other.
 
 ## React to a sibling's state
 

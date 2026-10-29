@@ -39,7 +39,10 @@ Under a variant, the definition replaces every frame. It does not inherit frames
 from the ordinary definition. Use media and `supports-*` variants here. Selector
 and container variants are not supported.
 
-You can export the definition and import it in other modules.
+The declaration can be at the top level of a module, in a function, or in a
+callback. Each `style.keyframes()` call in the source creates one name, and the
+name stays the same in every render and function call. You can export the
+definition and import it in other modules.
 
 ## Apply the animation
 

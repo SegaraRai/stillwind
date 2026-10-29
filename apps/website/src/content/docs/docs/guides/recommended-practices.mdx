@@ -79,9 +79,8 @@ parent and sibling selectors:
 ```tsx
 import { style } from "stillwind/react";
 
-const card = style.ref("card");
-
 export function Card() {
+  const card = style.ref("card");
   return (
     <article {...style(card, "rounded-lg p-4")}>
       <h2 {...style({ [card("hover")]: "text-blue-600" })}>Project</h2>
@@ -99,12 +98,27 @@ containers, and anchors.
 
 Define keyframes with [style.keyframes()](/docs/macros/keyframes) and view
 transitions with [style.viewTransition()](/docs/macros/view-transition) in the
-module that uses them. Do not add global `@keyframes` rules or fixed
+code that uses them. Do not add global `@keyframes` rules or fixed
 `view-transition-name` values. The macros generate unique names, so you can
 add, move, or remove a component without checking other code.
 
-When several components must animate in the same way, export the keyframes or
-the view transition from one module, and import them where you need them.
+## Declare refs and animations in the smallest scope
+
+Declare a ref, keyframes, or a view transition in the smallest scope that
+contains all of its uses, as you would declare any other variable. Place the
+declaration next to those uses:
+
+- A declaration that one component uses belongs in that component's function.
+- A declaration that a callback uses, such as a `map()` callback, belongs in
+  that callback.
+- A declaration that several components of one module use belongs at the top
+  level of that module.
+- When other modules use a declaration, export it from one module, and import
+  it where you need it.
+
+Each declaration creates one name wherever you write it. A smaller scope limits
+where the variable is visible, and it does not create a new name for each render
+or call.
 
 ## Express options with one of a fixed set of values
 
