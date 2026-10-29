@@ -8,5 +8,5 @@ AI agents write much of it.
 contracts, and configuration loading for Stillwind builds and analysis.
 Applications use the helpers through `stillwind/config`.
 
-See [Project configuration](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#shared-project-configuration)
+See [Configuration](https://stillwind.dev/docs/configuration/)
 for settings and resolution rules.

@@ -14,7 +14,7 @@ build integration and editor.
 vp i -D @stillwind/cli
 ```
 
-Create a [Stillwind project configuration](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md#configure-a-project)
+Create a [Stillwind project configuration](https://stillwind.dev/docs/configuration/)
 before running commands. The CLI searches upward from the working directory for
 `stillwind.config.*`. Use `--config path` to select another file.
 

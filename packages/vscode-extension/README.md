@@ -14,7 +14,7 @@ Install the Desktop or Web VSIX with VS Code's **Extensions: Install from VSIX**
 command. Desktop packages target a specific operating system and architecture.
 The extension includes its language server; the CLI is not required.
 
-Add a [Stillwind project configuration](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md#configure-a-project)
+Add a [Stillwind project configuration](https://stillwind.dev/docs/configuration/)
 to the workspace. The extension discovers `stillwind.config.*`; set
 `stillwind.configFile` to select a path relative to the workspace root.
 Use **Stillwind: Restart Language Server** to reload configuration and dependencies.

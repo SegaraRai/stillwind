@@ -21,7 +21,7 @@ Load the plugin in the project stylesheet:
 ```
 
 Set up the stylesheet and build integration with the
-[Stillwind package guide](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md).
+[Getting started](https://stillwind.dev/docs/) guide.
 
 Use `icon-<set>--<icon>` or `icon-[<set>--<icon>]` to select an icon. Variants apply as
 usual. The `prefer-canonical-utilities` lint suggests the named spelling:

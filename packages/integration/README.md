@@ -16,7 +16,7 @@ vp i -D @stillwind/integration
 ```
 
 Create the stylesheet and project configuration described in the
-[Stillwind package guide](https://github.com/SegaraRai/stillwind/blob/main/packages/core/README.md).
+[Getting started](https://stillwind.dev/docs/) guide.
 
 ## Vite
 
@@ -50,15 +50,16 @@ Stillwind.
 | Rsbuild   | `@stillwind/integration/rsbuild`   | `plugins: [pluginStillwind()]`                                            |
 | Turbopack | `@stillwind/integration/turbopack` | Add `stillwindRules({ entries })` to the host's rules                     |
 
-The [integration guide](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md)
-contains complete registration examples, SSR setup, plugin ordering, and host limitations.
+[Framework integrations](https://stillwind.dev/docs/integrations/) shows the registration and plugin order
+for each build tool. The [integration contract](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md) also covers
+SSR setup and host limitations.
 
 ## Configuration and checks
 
 Use `stillwind()` or the equivalent constructor without options to read the project
 configuration. `configFile` selects another file, `project` selects a named project,
 and inline settings override the selected project. Several projects must have an
-unambiguous selection. See [project configuration](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#shared-project-configuration).
+unambiguous selection. See [Several projects](https://stillwind.dev/docs/configuration/#several-projects).
 
 Build integrations report compiler errors and skip lint checks. Run
 `stillwind lint` separately to enforce lint rules.
