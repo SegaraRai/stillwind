@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => ({
     ignorePatterns: [
       "apps/play/examples/**",
       "crates/test-support/assets/*.css",
+      "packages/core/docs/**",
       "packages/native/binding.d.ts",
     ],
     sortImports: true,

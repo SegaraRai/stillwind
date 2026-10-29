@@ -13,6 +13,8 @@ dist
 
 .claude
 
+packages/core/docs/
+
 packages/native/npm/*/index.d.ts
 packages/native/npm/wasm32-wasi/*.wasm
 packages/native/npm/wasm32-wasi/*.cjs

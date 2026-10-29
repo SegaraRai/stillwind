@@ -165,3 +165,18 @@ for each part and is not affected.
 
 Sources: [virtual modules](../packages/integration/src/vite/virtual-modules.ts),
 [CSS text](../packages/core/src/css.ts).
+
+## Documentation for coding agents
+
+Agents install the skills and add `AGENTS_TEMPLATE.md` to the project by hand. Decide
+whether a CLI command should link the skills into the agent's directory and update the
+project's instruction file, as `void init` does.
+
+The migration skill assumes that a project migrates in batches. Confirm whether Tailwind
+CSS and Stillwind can build the same application at the same time, and describe that
+setup in the migration guide if they can. Measure how well agents follow the skills
+with evaluations on sample projects.
+
+Sources: [skills](../packages/core/skills/),
+[agent page](../apps/website/src/content/docs/docs/agents.md),
+[package documentation generator](../apps/website/package-docs.ts).

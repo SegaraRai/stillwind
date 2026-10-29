@@ -53,6 +53,10 @@ export default defineConfig({
         command: "tsc --noEmit",
         dependsOn: ["build"],
       },
+      "prepare-publish": {
+        command: "",
+        dependsOn: ["build", "@stillwind-internal/apps-website#generate:package-docs"],
+      },
       test: {
         command: "vp test --run",
         cache: testCache,

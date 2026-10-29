@@ -1,0 +1,323 @@
+---
+title: Recommended practices
+description: Keep styles next to their elements, reuse them through components, and avoid the mistakes that produce no CSS.
+slug: docs/guides/recommended-practices
+---
+
+This page collects the practices that keep a Stillwind project easy to change.
+It also lists the mistakes that silently produce no CSS. The examples use React.
+
+## Keep styles next to their elements
+
+Write the utilities in a `style()` call on the element that they style. When
+several places need the same styles, reuse them in this order:
+
+1. Extract a component of your framework, and keep the `style()` call on its
+   element. The styles stay next to the markup that they depend on.
+2. Define a custom utility in your stylesheet when a component does not fit,
+   such as for links inside other components' text. A utility is available in
+   every file of the project, so its effect is wider than a component's.
+3. Export a stored `style()` result. The styles then move away from the element
+   that uses them.
+
+When you use an imported style, spread it through `style()`:
+
+```tsx
+import { style } from "stillwind/react";
+
+import { card } from "./card";
+
+export function Panel() {
+  return <section {...style(card)}>…</section>;
+}
+```
+
+`{...style(card)}` shows that the element receives Stillwind styles, and you can
+add utilities in the same call. A plain `{...card}` hides this.
+
+## Spread style() onto the element
+
+Spread the result of `style()` onto the element. Do not read `className`,
+`class`, or `style` out of the result. The result can contain more than one
+prop, and its shape depends on the framework and on the inputs. If code needs a
+class string for another purpose, that code does not need `style()`, and a
+migration can leave it unchanged.
+
+Set custom properties in the `style()` call, such as
+`style("w-(--progress)", { "--progress": value })`. `style()` returns a `style`
+prop when it needs inline values, so a separate `style` prop on the same
+element can conflict with it. Set the `style` prop directly only on elements
+without a `style()` call. You can also use `style()` for an element that has
+custom properties and no utilities.
+
+## Express states with attributes
+
+Keep the same classes on an element, and let its attributes decide which styles
+apply:
+
+- For a state with an attribute, such as `disabled` or `aria-pressed`, use the
+  matching variant.
+- For an option without a matching attribute, set a `data-*` attribute and use
+  a `data-[…]:` variant.
+- For a value from a continuous range, set a custom property in the `style()`
+  call, and read it in a utility such as `w-(--progress)`.
+
+Use a condition such as `selected && "bg-blue-50"` only when no attribute fits.
+[Reusable styles](/docs/guides/reusable-styles/) shows each approach.
+
+Do not track in JavaScript a state that CSS can detect, such as hover, focus,
+or the width of a container. Use the matching variant, and keep component state
+for what the application needs.
+
+## Connect elements with refs
+
+When an element's style depends on another element, such as a hovered parent, a
+sibling, a container, or an anchor, connect them with a ref from
+`style.ref()`. Do not use `group-*`, `peer-*`, named containers, or hand-written
+parent and sibling selectors:
+
+```tsx
+import { style } from "stillwind/react";
+
+const card = style.ref("card");
+
+export function Card() {
+  return (
+    <article {...style(card, "rounded-lg p-4")}>
+      <h2 {...style({ [card("hover")]: "text-blue-600" })}>Project</h2>
+    </article>
+  );
+}
+```
+
+A ref is a variable, so TypeScript reports a misspelled ref, and two components
+cannot collide on the same name. Anchors for anchor positioning use refs too.
+[Element relationships](/docs/guides/element-relationships/) covers siblings,
+containers, and anchors.
+
+## Define animations in their components
+
+Define keyframes with [style.keyframes()](/docs/macros/keyframes/) and view
+transitions with [style.viewTransition()](/docs/macros/view-transition/) in the
+module that uses them. Do not add global `@keyframes` rules or fixed
+`view-transition-name` values. The macros generate unique names, so you can
+add, move, or remove a component without checking other code.
+
+When several components must animate in the same way, export the keyframes or
+the view transition from one module, and import them where you need them.
+
+## Express options with one of a fixed set of values
+
+For a prop that takes one of several values, such as a `type` or a `tone`,
+use one of these forms. Set the value as a `data-*` attribute, and write one
+variant group for each value:
+
+```tsx
+import { style } from "stillwind/react";
+
+export function Alert({ type }: { type: "info" | "warning" | "error" }) {
+  return (
+    <div
+      data-type={type}
+      {...style({
+        "": "rounded-md border p-4",
+        "data-[type=info]:": "border-sky-300 bg-sky-50",
+        "data-[type=warning]:": "border-amber-300 bg-amber-50",
+        "data-[type=error]:": "border-red-300 bg-red-50",
+      })}
+    />
+  );
+}
+```
+
+Or select the utilities with an object lookup:
+
+```tsx
+import { style } from "stillwind/react";
+
+export function Alert({ type }: { type: "info" | "warning" | "error" }) {
+  return (
+    <div
+      {...style(
+        "rounded-md border p-4",
+        {
+          info: "border-sky-300 bg-sky-50",
+          warning: "border-amber-300 bg-amber-50",
+          error: "border-red-300 bg-red-50",
+        }[type],
+      )}
+    />
+  );
+}
+```
+
+The attribute form keeps the classes static and changes a `data-*` attribute.
+The attribute also shows the value in the browser's developer tools and in test
+queries. The lookup form changes the classes and adds no attribute. In both
+forms, each value has its utilities in one place.
+
+The two forms produce different CSS:
+
+- The attribute form compiles into one class. The element always has this
+  class, and the attribute selectors decide which declarations apply.
+- The lookup form generates one class for each value. The lookup selects one of
+  these classes at runtime. In this example, the common styles add one more
+  class, which the element always has.
+
+In both forms, the styles for a value usually win over the common styles. In the
+attribute form, the attribute selector adds specificity, and the variant order
+places the rules after the common styles. In the lookup form, the compiler
+places the utilities that a condition selects after the unconditional
+utilities. More specific selectors and `!important` can still change the
+result. [CSS ordering](/docs/concepts/css-ordering/) describes these rules.
+
+## Group utilities by variant
+
+When several utilities share a variant, group them under one key instead of
+repeating the prefix:
+
+```tsx
+style({
+  "": "rounded-md bg-gray-100 px-4 py-2",
+  "hover:": "bg-gray-200 text-gray-900",
+  "focus-visible:": "outline-2 outline-offset-2 outline-accent",
+});
+
+// Or write the base utilities as a separate string.
+style("rounded-md bg-gray-100 px-4 py-2", {
+  "hover:": "bg-gray-200 text-gray-900",
+  "focus-visible:": "outline-2 outline-offset-2 outline-accent",
+});
+```
+
+The key `""` groups utilities without adding a variant. Each group shows the
+styles of one state, so readers do not need to collect the prefixed utilities
+from a long string.
+
+<Aside type="caution" title='The key "" accepts the same inputs as a variant'>
+  The value of `""` accepts only the inputs that a variant group accepts. Write ref attachments,
+  `class` values, custom properties, and bases directly in the `style()` arguments, outside the
+  object. Otherwise the CLI reports
+  [invalid-rule-group-input](/docs/lints/invalid-rule-group-input/), and the compiler omits the
+  whole group. Ref projections, keyframes uses, and view-transition uses can appear in the group.
+</Aside>
+
+## Keep values in the theme
+
+Define colors, spacing, and breakpoints as `@theme` tokens, and use the
+utilities that they add. Avoid arbitrary values such as `text-[#abcdef]` and
+`max-[768px]:`. [Design systems](/docs/guides/design-systems/) enables lint
+rules that report them.
+
+## Choose how to define themes
+
+When the application has only a light and a dark theme, define each color
+token with `light-dark()`, and let `color-scheme` select the value.
+[Design systems](/docs/guides/design-systems/) shows this setup.
+
+When the application can have more themes, `light-dark()` cannot express them.
+Define the tokens as ordinary values, and override them for each theme with an
+attribute selector. Set `color-scheme` in each theme, so that form controls and
+scroll bars match:
+
+```css
+@theme {
+  --color-surface: #ffffff;
+  --color-foreground: #202b45;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-surface: #1b263b;
+  --color-foreground: #e4edff;
+}
+
+[data-theme="sepia"] {
+  color-scheme: light;
+  --color-surface: #f4ecd8;
+  --color-foreground: #433422;
+}
+```
+
+Set `data-theme` on the root element, or on a container to theme part of the
+page. The utilities, such as `bg-surface`, stay the same in every theme.
+
+When a theme needs styles beyond its tokens, define a variant for it with
+[@custom-variant](/docs/at-rules/custom-variant/), and use the variant instead
+of a hand-written selector:
+
+```css
+@custom-variant theme-sepia (&:where([data-theme="sepia"], [data-theme="sepia"] *));
+```
+
+## Use breakpoints from the theme in JavaScript
+
+When JavaScript needs a breakpoint, get its media query with
+[style.media()](/docs/macros/media/) instead of repeating the value:
+
+```ts
+import { style } from "stillwind/react";
+
+const sidebar = window.matchMedia(style.media("sidebar"));
+```
+
+A query such as `matchMedia("(width >= 52.5rem)")` does not follow a later
+change of the breakpoint in the theme. Prefer a variant when CSS alone can make the
+change. [Responsive styles](/docs/guides/responsive-styles/) shows more uses.
+
+## Define utilities with @apply
+
+Write the body of a custom utility with `@apply`, and write its conditions as
+variants:
+
+```css
+@utility link {
+  @apply text-accent underline-offset-4 hover:underline;
+}
+```
+
+Do not write selectors or media queries by hand. The variants follow your
+theme, and they avoid differences that are easy to miss. For example, the
+`hover:` variant applies only on devices that can hover, while a plain `:hover`
+rule stays active after a tap on a touch screen. Inside a style rule, use
+[@variant](/docs/at-rules/variant/) instead of a condition.
+
+## Avoid separate CSS
+
+Write styles in `style()` calls and custom utilities, not in CSS files with
+your own class names. A custom utility works with every variant, such as
+`hover:link`, and a fixed class name does not. For a reusable condition, define
+a variant with [@custom-variant](/docs/at-rules/custom-variant/) instead of
+writing its selector in several rules.
+
+For HTML that you do not control, such as rendered Markdown, define the styles
+in a custom utility and apply it to the container. A Tailwind plugin such as
+`@tailwindcss/typography` can also work. Test the plugin in your application.
+
+## Run the checks after each change
+
+Run `stillwind lint --fix` and `stillwind fmt` after you change styles, and fix
+the remaining findings. Add a suppression comment only for a deliberate
+exception, and give the reason. See
+[Checks in the editor and CI](/docs/guides/lint-adoption/).
+
+## Mistakes that produce no CSS
+
+The build succeeds in each of these cases, but the styles do not apply. Run
+`stillwind lint` to find most of them.
+
+- A class name outside `style()`, such as in a `className` string, gets no CSS.
+- A utility name that your code builds at runtime, such as `` `bg-${color}-600` ``,
+  gets no CSS. Write complete names, such as
+  `color === "red" ? "bg-red-600" : "bg-blue-600"`.
+- A `style()` call written directly inside another `style()` call contributes
+  nothing. Store the inner style in a variable first.
+- Custom properties in a base do not carry over to the styles that extend it.
+  Set them in the `style()` call that is spread onto the element.
+- Classes in the `class` field pass through without generated CSS.
+- A suppression comment hides a finding only. A misspelled utility still
+  produces no CSS.
+
+The compiler can evaluate the arguments of `style()` in any order, and it can
+skip arguments whose result is not used. Calculate values and perform effects
+before you call `style()`.

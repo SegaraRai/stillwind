@@ -9,7 +9,8 @@ sidebar:
 This guide adds Stillwind to a Vite application that uses React. At the end, a
 button uses Stillwind styles, and the CLI checks them. For another framework or
 build tool, follow the same steps and use the build setup from
-[Framework integrations](/docs/integrations/).
+[Framework integrations](/docs/integrations/). To let a coding agent do the
+setup, see [Coding agents](/docs/agents/).
 
 <Aside type="caution" title="Pre-alpha">
   Stillwind is in pre-alpha. Test your application's build and pages before you release changes.
@@ -128,8 +129,8 @@ Run the CLI in CI to catch such mistakes before you merge them.
 - [Design systems](/docs/guides/design-systems/) restricts colors, spacing, and breakpoints to your theme.
 - [Checks in the editor and CI](/docs/guides/lint-adoption/) adds the CLI to CI and the editor.
 
-## Read with an AI agent
+## Set up with an AI agent
 
-Every documentation page has a **View as Markdown** link. Give your agent the
-[documentation index](/docs/llms.txt), or retrieve the
-[full documentation](/llms-full.txt) in one request.
+[Coding agents](/docs/agents/) gives a prompt that sets up Stillwind or migrates
+an existing project. The `stillwind` package includes this documentation and
+skills for the agent.

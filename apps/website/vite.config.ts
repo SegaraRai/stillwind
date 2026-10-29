@@ -50,6 +50,14 @@ export default defineConfig({
           output: [".astro/**/*.d.ts"],
         },
       },
+      "generate:package-docs": {
+        command: "node package-docs.ts",
+        dependsOn: ["build"],
+        cache: {
+          input: [{ auto: true }, "dist/docs/**/index.md"],
+          output: ["../../packages/core/docs/**"],
+        },
+      },
       typecheck: {
         command: "astro check --noSync",
         dependsOn: ["generate:types"],

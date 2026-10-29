@@ -26,6 +26,10 @@ that use the workspace integration declare `dependsOn: ["@stillwind/integration#
 for their development and build tasks. This prerequisite builds the integration's
 `dist/` files before the application loads them.
 
+Before you publish `stillwind`, run `vp run stillwind#prepare-publish`. It builds the
+package and the website, and it copies the website's Markdown pages into
+`packages/core/docs/`, which git ignores.
+
 ## Repository layout
 
 | Directory     | Responsibility                                                                 |

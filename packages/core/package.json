@@ -6,7 +6,10 @@
   "files": [
     "dist",
     "index.css",
-    "css"
+    "css",
+    "docs",
+    "skills",
+    "AGENTS_TEMPLATE.md"
   ],
   "type": "module",
   "sideEffects": [

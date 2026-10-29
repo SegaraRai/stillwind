@@ -24,7 +24,12 @@ export default defineConfig({
             "docs", // Getting Started
             {
               label: "Introduction",
-              items: ["docs/why", "docs/guides/migrating-from-tailwind"],
+              items: [
+                "docs/why",
+                "docs/guides/migrating-from-tailwind",
+                "docs/guides/migrating-from-css",
+                "docs/agents",
+              ],
             },
             {
               label: "Writing styles",
@@ -34,6 +39,7 @@ export default defineConfig({
                 "docs/guides/responsive-styles",
                 "docs/guides/animations",
                 "docs/guides/view-transitions",
+                "docs/guides/recommended-practices",
               ],
             },
             {
