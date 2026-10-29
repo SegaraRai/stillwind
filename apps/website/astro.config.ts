@@ -12,7 +12,7 @@ export default defineConfig({
   integrations: [
     nimbus(
       defineNimbusConfig({
-        site: process.env.SITE_URL ?? "http://localhost:4322",
+        site: process.env.PUBLIC_WEBSITE_URL ?? "https://stillwind.dev",
         title: "Stillwind",
         description: "Compile component styles, enforce your design system, and ship static CSS.",
         locale: "en",

@@ -1,6 +1,8 @@
 ---
 import { style } from "stillwind/astro";
 
+import { URL_DOCS } from "../site.ts";
+
 import "@fontsource/instrument-sans/400.css";
 import "@fontsource/instrument-sans/500.css";
 import "@fontsource/instrument-sans/600.css";
@@ -103,7 +105,7 @@ const gutter = style("inline-6 shrink-0 text-end text-subtle select-none");
               <span aria-hidden="true" {...style("icon-control icon-lucide--arrow-right")}></span>
             </a>
             <a
-              href="https://stillwind.dev/docs/"
+              href={URL_DOCS}
               {...style(
                 "text-muted text-small underline-offset-4 hover:text-foreground hover:underline",
               )}

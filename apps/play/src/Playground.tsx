@@ -6,6 +6,7 @@ import { ApplicationBuilder, type ApplicationBuild } from "./build/client.ts";
 import { useColorTheme } from "./color-theme.ts";
 import { fileIcon, getFileInfo } from "./file-info.ts";
 import { PreviewChannel, previewDocument } from "./preview/channel.ts";
+import { URL_DOCS, URL_WEBSITE } from "./site.ts";
 import { Explorer } from "./workbench/explorer.tsx";
 import { countProblems, ProblemsPanel, type Problem } from "./workbench/problems.tsx";
 import { ResultPane, selectOutput, type ResultTab, type Viewport } from "./workbench/results.tsx";
@@ -286,7 +287,7 @@ export default function Playground() {
       >
         <span {...style("flex items-center gap-3 text-foreground select-none max-header:order-0")}>
           <a
-            href="https://stillwind.dev/"
+            href={URL_WEBSITE}
             target="_blank"
             aria-label="Stillwind home"
             {...style("inline-flex items-center rounded-control")}
@@ -365,7 +366,7 @@ export default function Playground() {
             })}
           >
             <a
-              href="https://stillwind.dev/docs/"
+              href={URL_DOCS}
               target="_blank"
               {...style(navLink, "max-header:px-2 max-header:block-8")}
             >

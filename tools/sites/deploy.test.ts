@@ -31,10 +31,36 @@ test("verifies Preview indexing, isolation, and the WASM MIME type", async () =>
   vi.stubGlobal(
     "fetch",
     vi.fn(
+      async (url: URL) =>
+        new Response(
+          `<link rel="canonical" href="${url.origin}/">
+          <meta property="og:url" content="${url.origin}/">
+          <meta property="og:image" content="${url.origin}/og.png">
+          <meta name="twitter:image" content="${url.origin}/og.png">`,
+          {
+            headers: {
+              "Content-Type": "application/wasm",
+              "Cross-Origin-Opener-Policy": "same-origin",
+              "Cross-Origin-Embedder-Policy": "require-corp",
+              "X-Robots-Tag": "noindex",
+            },
+          },
+        ),
+    ),
+  );
+  await expect(checkSite("play", "https://preview.example", "preview")).resolves.toBeUndefined();
+  await expect(checkSite("play", "https://preview.example", "production")).rejects.toThrow(
+    "indexing",
+  );
+});
+
+test("rejects metadata that points to another deployment", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
       async () =>
-        new Response(null, {
+        new Response('<link rel="canonical" href="https://other.example/">', {
           headers: {
-            "Content-Type": "application/wasm",
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
             "X-Robots-Tag": "noindex",
@@ -42,9 +68,8 @@ test("verifies Preview indexing, isolation, and the WASM MIME type", async () =>
         }),
     ),
   );
-  await expect(checkSite("play", "https://preview.example", "preview")).resolves.toBeUndefined();
-  await expect(checkSite("play", "https://preview.example", "production")).rejects.toThrow(
-    "indexing",
+  await expect(checkSite("website", "https://preview.example", "preview")).rejects.toThrow(
+    "canonical",
   );
 });
 

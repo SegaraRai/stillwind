@@ -9,6 +9,17 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "check:urls": {
+        command: "node check-urls.ts",
+        cache: {
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+          input: [{ auto: true }, "../../apps/play/dist/site/**", "../../apps/website/dist/**"],
+        },
+        dependsOn: [
+          "@stillwind-internal/apps-play#build",
+          "@stillwind-internal/apps-website#build",
+        ],
+      },
       "prepare:play": {
         command: "node cloudflare.ts play",
         cache: {

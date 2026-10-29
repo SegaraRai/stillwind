@@ -25,7 +25,7 @@ export default defineConfig({
         command: "astro build",
         dependsOn: ["typecheck"],
         cache: {
-          env: ["SITE_URL"],
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
           input: [
             { auto: true },
             {
@@ -47,7 +47,7 @@ export default defineConfig({
         command: "astro sync",
         dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],
         cache: {
-          env: ["SITE_URL"],
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
           input: [{ auto: true }, "!.astro/**", "!.nimbus/**"],
           output: [".astro/**/*.d.ts"],
         },

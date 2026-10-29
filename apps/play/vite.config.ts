@@ -26,6 +26,9 @@ export default defineConfig({
       },
       build: {
         command: "astro build",
+        cache: {
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+        },
         dependsOn: [
           "build:assets",
           "generate:types",
@@ -36,6 +39,9 @@ export default defineConfig({
       },
       "build:acceptance": {
         command: "astro build --base /play/ --outDir dist/acceptance",
+        cache: {
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+        },
         // Both Astro builds write .astro, so the production build must finish first.
         dependsOn: ["build"],
       },
@@ -64,6 +70,7 @@ export default defineConfig({
         command: "astro sync",
         dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],
         cache: {
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
           input: [{ auto: true }, "!.astro/**", "!dist/**"],
           output: [".astro/**/*.d.ts"],
         },
