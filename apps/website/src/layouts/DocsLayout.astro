@@ -245,7 +245,11 @@ const paginationLink = style(
 </html>
 
 <script>
+  import { codeCopy } from "@cloudflare/nimbus-docs/client";
+
   import { mountDocsHeader } from "../lib/docs/header";
+
+  codeCopy();
 
   const slot = document.querySelector<HTMLElement>("[data-header-slot]");
   if (slot) {

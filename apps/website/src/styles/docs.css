@@ -107,6 +107,11 @@ Typography and spacing for Markdown, slots, and Nimbus output.
     @apply p-0 text-code;
   }
 
+  /* codeCopy() from Nimbus appends this button to each code block and sets data-state="copied" after a copy. */
+  & .nb-code-copy {
+    @apply absolute top-2 right-2 grid place-items-center size-8 p-1.5 text-muted bg-surface rounded-control border border-border cursor-pointer hover:text-inherit focus-visible:text-inherit data-[state=copied]:text-inherit;
+  }
+
   & .astro-code,
   & .astro-code span {
     @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
