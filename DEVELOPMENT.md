@@ -46,6 +46,11 @@ on pull requests and pushes to `main` and `stable`. Pushes to `main` update the
 | Website     | `stillwind-website` | `https://stillwind.dev`      |
 | Playground  | `stillwind-play`    | `https://play.stillwind.dev` |
 
+The `main` Preview uses `https://main.preview.stillwind.dev/` for the website
+and `https://main.play-preview.stillwind.dev/` for the playground. Each Worker
+has a dedicated parent domain for Previews. A Preview name becomes its first
+subdomain, so future PR Previews can use names such as `pr-123`.
+
 Until the first package release, `stable` tracks the selected initial site
 snapshot. It then contains the code and documentation for the published packages. Apply
 documentation fixes there and bring them into `main`. After a package release
@@ -70,6 +75,7 @@ The deployment job downloads the checked Build Output and uses `cf` with
 `--prebuilt`. It does not build application code. Only that step receives the
 Cloudflare token. Pull requests run without deployment credentials.
 The GitHub deployments and Actions summary link to the deployed sites.
+Deployments to the same Worker run one at a time across both branches.
 HTTP checks verify documentation routes, Preview indexing rules, and WASM headers
 after deployment. The playground acceptance suite tests browser behavior before deployment.
 The workflow keeps builds and browser acceptance in separate jobs, so a failed browser
@@ -89,12 +95,17 @@ from `e2e/play`. This runs the downloaded build without rebuilding it.
    scope for initial Worker creation, plus **Workers Routes Write** for the
    `stillwind.dev` zone. After provisioning, Workers **Editor** is sufficient
    when deployments keep the existing Worker and domain connections.
-3. Record the account ID. The first deployment creates the Workers. The first
-   production deployment attaches the configured Custom Domains and provisions
-   their certificates. Preview URLs are enabled in the checked-in configuration.
+3. Record the account ID. The first Preview deployment initializes each Worker
+   without production routes, because Custom Domains require an existing deployment.
+   It attaches `preview.stillwind.dev` and `play-preview.stillwind.dev` for Preview
+   traffic only. Cloudflare provisions wildcard DNS records and certificates.
+   Later Preview deployments preserve the existing production deployment.
+   The first deployment from `stable` attaches the production Custom Domains.
+4. Verify HTTPS on both `main` Preview URLs after certificate issuance. Preview
+   builds explicitly send `X-Robots-Tag: noindex` on custom domains.
 
 See [Workers permissions](https://developers.cloudflare.com/workers/authorization/workers/)
-and [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+and [Preview Custom Domains](https://developers.cloudflare.com/workers/previews/custom-domains/).
 
 ### GitHub setup
 
@@ -108,8 +119,8 @@ and [Custom Domains](https://developers.cloudflare.com/workers/configuration/rou
    as a repository variable under **Settings → Secrets and variables → Actions**.
    Add repository variables `SITES_PREVIEW_WEBSITE_URL` and `SITES_PREVIEW_PLAYGROUND_URL`
    with the `main` Preview URL of each Worker. These must be absolute HTTPS origins.
-   For the current account, they are `https://main-stillwind-website.abelia.workers.dev/`
-   and `https://main-stillwind-play.abelia.workers.dev/`.
+   They are `https://main.preview.stillwind.dev/`
+   and `https://main.play-preview.stillwind.dev/`.
    Remove any repository secret with the same token name after configuring both
    environments, so deployments require the environment secret.
 4. Require the `Build and verify` check on pull requests to `main` and `stable`

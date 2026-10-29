@@ -1,8 +1,58 @@
 import { afterEach, expect, test, vi } from "vite-plus/test";
 
-import { checkSite, deploymentForBranch, previewUrl } from "./deploy.ts";
+import { checkSite, deploymentForBranch, needsInitialDeployment, previewUrl } from "./deploy.ts";
 
 afterEach(() => vi.unstubAllGlobals());
+
+test.each([
+  { deployments: [], initialize: true },
+  { deployments: [{ id: "existing-production-deployment" }], initialize: false },
+])(
+  "checks whether the Worker needs its first deployment: %j",
+  async ({ deployments, initialize }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ success: true, result: { deployments } })),
+    );
+    await expect(needsInitialDeployment("stillwind-website", "account", "token")).resolves.toBe(
+      initialize,
+    );
+  },
+);
+
+test("refuses to initialize when deployment history cannot be confirmed", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ success: false }, { status: 403 })),
+  );
+  await expect(needsInitialDeployment("stillwind-website", "account", "token")).rejects.toThrow(
+    "HTTP 403",
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ success: true, result: {} })),
+  );
+  await expect(needsInitialDeployment("stillwind-website", "account", "token")).rejects.toThrow(
+    "no deployment history",
+  );
+});
+
+test("initializes a missing Worker only when Cloudflare confirms that it does not exist", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ success: false, errors: [{ code: 10007 }] }, { status: 404 }),
+    ),
+  );
+  await expect(needsInitialDeployment("stillwind-website", "account", "token")).resolves.toBe(true);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ success: false }, { status: 404 })),
+  );
+  await expect(needsInitialDeployment("stillwind-website", "account", "token")).rejects.toThrow(
+    "HTTP 404",
+  );
+});
 
 test("routes only main to Preview and stable to production", () => {
   expect(deploymentForBranch("main")).toBe("preview");
@@ -10,21 +60,39 @@ test("routes only main to Preview and stable to production", () => {
   expect(() => deploymentForBranch("feature/test")).toThrow("main or stable");
 });
 
-test("reads the branch Preview URL from cf output rather than a temporary deployment URL", () => {
+test("selects the configured origin when cf returns multiple Preview domains", () => {
   expect(
     previewUrl(
       JSON.stringify(
         {
           type: "preview",
-          preview_urls: ["https://main-stillwind-play.example.workers.dev"],
+          preview_urls: [
+            "https://main-stillwind-play.example.workers.dev",
+            "https://main.play-preview.stillwind.dev",
+          ],
           deployment_urls: ["https://123-stillwind-play.example.workers.dev"],
         },
         null,
         2,
       ),
+      "https://main.play-preview.stillwind.dev/",
     ),
-  ).toBe("https://main-stillwind-play.example.workers.dev/");
-  expect(() => previewUrl('{"type":"preview","preview_urls":[]}')).toThrow("Preview URL");
+  ).toBe("https://main.play-preview.stillwind.dev/");
+  expect(() =>
+    previewUrl('{"type":"preview","preview_urls":[]}', "https://main.play-preview.stillwind.dev/"),
+  ).toThrow("Preview URL");
+  expect(() =>
+    previewUrl(
+      '{"type":"preview","preview_urls":["https://other.example/"]}',
+      "https://main.play-preview.stillwind.dev/",
+    ),
+  ).toThrow("Preview URL");
+  expect(() =>
+    previewUrl(
+      '{"type":"preview","preview_urls":["http://main.play-preview.stillwind.dev/"]}',
+      "http://main.play-preview.stillwind.dev/",
+    ),
+  ).toThrow("HTTPS");
 });
 
 test("verifies Preview indexing, isolation, and the WASM MIME type", async () => {
