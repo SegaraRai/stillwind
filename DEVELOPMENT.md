@@ -80,6 +80,12 @@ HTTP checks verify documentation routes, Preview indexing rules, and WASM header
 after deployment. The playground acceptance suite tests browser behavior before deployment.
 The workflow keeps builds and browser acceptance in separate jobs, so a failed browser
 job can use the same build when retried. `Build and verify` requires both jobs to pass.
+Production validation consumes the Build Output prepared earlier in the build job.
+
+The build job restores Vite Task results after installing dependencies. Task fingerprints
+track sources and deployment URLs before reusing outputs. Cargo and Vite Task use a new
+GitHub cache key for each run, so successful builds save their updated caches.
+Cargo archives are saved only when the build changes files under `target/`.
 
 To inspect a browser failure, download its evidence artifact and open `trace.zip`
 with Playwright Trace Viewer. To test a downloaded browser assets artifact locally,

@@ -1,4 +1,4 @@
-import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
+import { astroCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
@@ -25,15 +25,18 @@ export default defineConfig({
         command: "astro build",
         dependsOn: ["typecheck"],
         cache: {
-          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+          ...astroCache,
           input: [
-            { auto: true },
+            ...astroCache.input,
             {
               pattern: "packages/core/css/**",
               base: "workspace",
             },
+            "!.astro",
             "!.astro/**",
+            "!.nimbus",
             "!.nimbus/**",
+            "!dist",
             "!dist/**",
           ],
           output: ["dist/**"],
@@ -47,9 +50,17 @@ export default defineConfig({
         command: "astro sync",
         dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],
         cache: {
-          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
-          input: [{ auto: true }, "!.astro/**", "!.nimbus/**"],
-          output: [".astro/**/*.d.ts"],
+          ...astroCache,
+          input: [
+            ...astroCache.input,
+            "!.astro",
+            "!.astro/**",
+            "!.nimbus",
+            "!.nimbus/**",
+            "!node_modules/.astro",
+            "!node_modules/.astro/**",
+          ],
+          output: [".astro/**", ".nimbus/**", "node_modules/.astro/**"],
         },
       },
       "generate:package-docs": {
@@ -62,6 +73,7 @@ export default defineConfig({
       },
       typecheck: {
         command: "astro check --noSync",
+        cache: astroCache,
         dependsOn: ["generate:types"],
       },
       test: {

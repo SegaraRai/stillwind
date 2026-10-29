@@ -40,14 +40,17 @@ jobs:
         run: |
           rustup toolchain install 1.99.1 --profile minimal --target wasm32-wasip1-threads
           rustup default 1.99.1
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Restore Cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/
             ~/.cargo/git/
             target/
-          key: ${{ runner.os }}-${{ runner.arch }}-sites-rust-1.99.1-wasi-33-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-sites-rust-1.99.1-wasi-33-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-sites-rust-1.99.1-wasi-33-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}-
             ${{ runner.os }}-${{ runner.arch }}-sites-rust-1.99.1-wasi-33-
       - name: Set up WASI SDK
         # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
@@ -62,26 +65,70 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
           echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
       - run: vp i --frozen-lockfile
-      - run: vp run --concurrency-limit 1 verify:sites:build
+      - name: Prepare generated directories for task cache
+        # Directory listings include generated names even when their contents are excluded.
+        run: |
+          mkdir -p packages/native/.build packages/native/dist .deploy
+          mkdir -p node_modules/.vitest-cache node_modules/.vite-temp
+          mkdir -p apps/website/.astro apps/website/.nimbus apps/website/dist apps/website/node_modules/.astro
+          mkdir -p apps/play/.astro apps/play/.nimbus apps/play/dist/site apps/play/dist/acceptance apps/play/node_modules/.astro
+      - name: Restore Vite task cache
+        id: vite-task-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/.vite/task-cache
+          key: ${{ runner.os }}-${{ runner.arch }}-sites-vite-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-sites-vite-v1-
+      - name: Build and check sites
+        run: |
+          touch "$RUNNER_TEMP/sites-cargo-start"
+          vp run --concurrency-limit 1 verify:sites:build
+      - name: Report task cache results
+        run: vp run --last-details
       - name: Upload browser assets
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sites-browser-${{ github.sha }}
           path: apps/play/dist/acceptance/
+          overwrite: true
           if-no-files-found: error
           retention-days: 7
       - name: Validate production deploy
         if: github.ref == 'refs/heads/stable'
-        run: vp run @stillwind-internal/tools-sites#check:production
+        run: |
+          vp run --ignore-depends-on @stillwind-internal/tools-sites#check:production:website
+          vp run --ignore-depends-on @stillwind-internal/tools-sites#check:production:play
+      - name: Save Vite task cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/.vite/task-cache
+          key: ${{ steps.vite-task-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sites-${{ github.sha }}
           path: |
             .deploy/website/.cloudflare/output/v0/
             .deploy/play/.cloudflare/output/v0/
+          overwrite: true
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+      - name: Check Cargo cache changes
+        id: cargo-changes
+        run: |
+          if [ -d target ] && find target -type f -newer "$RUNNER_TEMP/sites-cargo-start" -print -quit | grep -q .; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Save updated Cargo cache
+        if: steps.cargo-changes.outputs.changed == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
 
   browser:
     name: Browser acceptance

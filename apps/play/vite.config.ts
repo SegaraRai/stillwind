@@ -1,4 +1,4 @@
-import { testCache } from "@stillwind-internal/tools-workspace/task-cache";
+import { astroCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { version } from "stillwind/package.json" with { type: "json" };
 import { defineConfig } from "vite-plus";
 
@@ -27,7 +27,19 @@ export default defineConfig({
       build: {
         command: "astro build",
         cache: {
-          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+          ...astroCache,
+          input: [
+            ...astroCache.input,
+            "!.astro",
+            "!.astro/**",
+            "!.nimbus",
+            "!.nimbus/**",
+            "!dist/site",
+            "!dist/site/**",
+            "!dist/acceptance",
+            "!dist/acceptance/**",
+          ],
+          output: ["dist/site/**"],
         },
         dependsOn: [
           "build:assets",
@@ -40,7 +52,19 @@ export default defineConfig({
       "build:acceptance": {
         command: "astro build --base /play/ --outDir dist/acceptance",
         cache: {
-          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+          ...astroCache,
+          input: [
+            ...astroCache.input,
+            "!.astro",
+            "!.astro/**",
+            "!.nimbus",
+            "!.nimbus/**",
+            "!dist/site",
+            "!dist/site/**",
+            "!dist/acceptance",
+            "!dist/acceptance/**",
+          ],
+          output: ["dist/acceptance/**"],
         },
         // Both Astro builds write .astro, so the production build must finish first.
         dependsOn: ["build"],
@@ -70,13 +94,22 @@ export default defineConfig({
         command: "astro sync",
         dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],
         cache: {
-          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
-          input: [{ auto: true }, "!.astro/**", "!dist/**"],
-          output: [".astro/**/*.d.ts"],
+          ...astroCache,
+          input: [
+            ...astroCache.input,
+            "!.astro",
+            "!.astro/**",
+            "!dist",
+            "!dist/**",
+            "!node_modules/.astro",
+            "!node_modules/.astro/**",
+          ],
+          output: [".astro/**", "node_modules/.astro/**"],
         },
       },
       typecheck: {
         command: "astro check --noSync",
+        cache: astroCache,
         dependsOn: [
           "@stillwind/host#build",
           "@stillwind/integration#build",
