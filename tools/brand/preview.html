@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Stillwind Brand Preview</title>
+    <!--
+    Shows the generated files. Serve the repository root over HTTP and open /tools/brand/preview.html,
+    because the logo layers use CSS masks that browsers do not load from file URLs.
+    -->
+    <style>
+      body {
+        margin: 0;
+        font:
+          14px system-ui,
+          sans-serif;
+        color: #20222c;
+        background: #f4f7fc;
+      }
+      section {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 24px;
+        padding: 24px 32px;
+      }
+      h2 {
+        width: 100%;
+        margin: 0;
+        font-size: 15px;
+      }
+      .light {
+        color-scheme: light;
+        background: #fff;
+      }
+      .dark {
+        color-scheme: dark;
+        color: #e9f2fd;
+        background: #16181d;
+      }
+      /* Same layering as the `stillwind-logo` utility in apps/website/src/styles/site.css. */
+      .logo {
+        position: relative;
+        height: var(--size);
+        aspect-ratio: 154 / 32;
+        color: light-dark(#20222c, #e9f2fd);
+        background: linear-gradient(to right, transparent 25%, currentColor 0);
+        mask: url(../../apps/website/src/icons/stillwind/t.svg) 0 0 / 100% 100% no-repeat;
+      }
+      .logo::before,
+      .logo::after {
+        position: absolute;
+        inset: 0;
+        content: "";
+        mask: 0 0 / 100% 100% no-repeat;
+      }
+      .logo::before {
+        background: light-dark(#d9725b, #f1a297);
+        mask-image: url(../../apps/website/src/icons/stillwind/e.svg);
+      }
+      .logo::after {
+        background: light-dark(#354fa2, #b6cdff);
+        mask-image: url(../../apps/website/src/icons/stillwind/o.svg);
+      }
+      img.og {
+        width: min(600px, 100%);
+        border: 1px solid #cad5e8;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="light" id="light"><h2>Light</h2></section>
+    <section class="dark" id="dark"><h2>Dark</h2></section>
+    <section>
+      <h2>Social preview images</h2>
+      <img class="og" src="../../apps/website/public/og.png" alt="Website" />
+      <img class="og" src="../../apps/play/public/og.png" alt="Playground" />
+      <img class="og" src="../../apps/website/github-social-preview.png" alt="GitHub" />
+    </section>
+    <script>
+      for (const id of ["light", "dark"]) {
+        const section = document.getElementById(id);
+        for (const size of [16, 24, 40, 80]) {
+          section.insertAdjacentHTML(
+            "beforeend",
+            `<div class="logo" style="--size:${size}px"></div>`,
+          );
+        }
+        for (const size of [16, 32, 64]) {
+          section.insertAdjacentHTML(
+            "beforeend",
+            `<img src="../../apps/website/public/favicon.svg" width="${size}" height="${size}" alt="" />`,
+          );
+        }
+      }
+    </script>
+  </body>
+</html>

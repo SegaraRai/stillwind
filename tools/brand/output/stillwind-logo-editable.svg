@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="616" height="128" viewBox="-2.065 0 154 32">
+  <title>Stillwind</title>
+  <g stroke-width="1.5" stroke-linejoin="round">
+    <path d="M11.586 2.75L24.289 2.75L22.664 9.25L9.961 9.25Z" fill="#354fa2" stroke="#354fa2" />
+    <path d="M27.836 2.75L31.039 2.75L29.414 9.25L26.211 9.25Z" fill="#354fa2" stroke="#354fa2" />
+    <path d="M7.086 12.75L26.539 12.75L24.914 19.25L5.461 19.25Z" fill="#d9725b" stroke="#d9725b" />
+    <path d="M2.586 22.75L5.789 22.75L4.164 29.25L0.961 29.25Z" fill="#354fa2" stroke="#354fa2" />
+    <path d="M9.336 22.75L22.039 22.75L20.414 29.25L7.711 29.25Z" fill="#354fa2" stroke="#354fa2" />
+  </g>
+  <text x="39.74" y="27.5" fill="#20222c" font-family="Rubik" font-weight="400" font-size="30" letter-spacing="-0.9">Stillwind</text>
+</svg>

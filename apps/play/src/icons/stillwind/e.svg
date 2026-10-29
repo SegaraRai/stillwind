@@ -1,9 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="255.3917" height="48.8163" viewBox="-3.1837 4.3918 255.3917 48.8163"
-  version="1.1">
-  <g fill="currentColor" stroke="currentColor" stroke-width="1.6327" stroke-linejoin="round">
-    <path d="M 14.2041 23.902 H 19.9184 L 17.9592 33.698 H 12.2449 Z" />
-    <path d="M 24.8163 23.902 H 41.1429 L 39.1837 33.698 H 22.8571 Z" />
-    <path d="M 46.0408 23.902 H 51.7551 L 49.7959 33.698 H 44.0816 Z" />
+<svg xmlns="http://www.w3.org/2000/svg" width="616" height="128" viewBox="-2.065 0 154 32">
+  <g fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+    <path d="M7.086 12.75L26.539 12.75L24.914 19.25L5.461 19.25Z" />
   </g>
 </svg>

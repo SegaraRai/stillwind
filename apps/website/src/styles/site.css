@@ -3,8 +3,8 @@ Cross-document navigation uses the browser's page transition type.
 */
 
 @theme {
-  --color-stillwind-logo-e: #d9825b;
-  --color-stillwind-logo-o: #379988;
+  --color-stillwind-logo-e: light-dark(#d9725b, #f1a297);
+  --color-stillwind-logo-o: light-dark(#354fa2, #b6cdff);
   --color-stillwind-logo-t: light-dark(#20222c, #e9f2fd);
 }
 
@@ -13,7 +13,7 @@ Cross-document navigation uses the browser's page transition type.
   @apply before:absolute before:inset-0 before:icon-stillwind--e before:text-stillwind-logo-e;
   @apply after:absolute after:inset-0 after:icon-stillwind--o after:text-stillwind-logo-o;
 
-  background: linear-gradient(to right, transparent 29%, currentColor 0);
+  background: linear-gradient(to right, transparent 25%, currentColor 0);
 }
 
 @media (prefers-reduced-motion: no-preference) {
