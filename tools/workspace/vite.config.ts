@@ -1,8 +1,18 @@
 import { defineConfig } from "vite-plus";
 
+import { testCache } from "./task-cache.ts";
+
 export default defineConfig({
+  test: {
+    name: "workspace",
+    include: ["*.test.ts"],
+  },
   run: {
     tasks: {
+      test: {
+        command: "vp test --run",
+        cache: testCache,
+      },
       "generate:lint-config": {
         command: "node lint-rules.ts",
         cache: {

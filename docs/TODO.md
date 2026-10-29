@@ -99,18 +99,6 @@ Sources: [utility query API](../packages/native/binding.d.ts),
 [compiler error codes](../crates/diagnostics/src/compilation/code.rs),
 [authored reference pages](../apps/website/src/content/docs/docs/macros/style.mdx).
 
-## Website build prerequisites
-
-The website's Utility Explorer imports the browser binding of `@stillwind/native`.
-The standalone website build does not declare the WASM build and artifact collection.
-The aggregate Sites task currently gets these files from playground prerequisites.
-Declare the website's WASM prerequisite before splitting CI into independent site jobs.
-Verify the standalone build in a clean worktree without generated native package files.
-
-Sources: [website tasks](../apps/website/vite.config.ts),
-[utility worker](../apps/website/src/lib/docs/utilities/worker.ts),
-[native tasks](../packages/native/vite.config.ts).
-
 ## Astro cache in CI
 
 Astro's environment loading registers CI metadata as Vite Task dependencies.

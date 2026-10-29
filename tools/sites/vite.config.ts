@@ -9,16 +9,34 @@ export default defineConfig({
   },
   run: {
     tasks: {
+      "check:ci": {
+        command: "",
+        dependsOn: [
+          "test",
+          "typecheck",
+          "@stillwind-internal/tools-workspace#test",
+          "@stillwind-internal/tools-workspace#typecheck",
+        ],
+      },
       "check:urls": {
-        command: "node check-urls.ts",
+        command: "",
+        dependsOn: ["check:urls:website", "check:urls:play"],
+      },
+      "check:urls:website": {
+        command: "node check-urls.ts website",
         cache: {
           env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
-          input: [{ auto: true }, "../../apps/play/dist/site/**", "../../apps/website/dist/**"],
+          input: [{ auto: true }, "../../apps/website/dist/**"],
         },
-        dependsOn: [
-          "@stillwind-internal/apps-play#build",
-          "@stillwind-internal/apps-website#build",
-        ],
+        dependsOn: ["@stillwind-internal/apps-website#build"],
+      },
+      "check:urls:play": {
+        command: "node check-urls.ts play",
+        cache: {
+          env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+          input: [{ auto: true }, "../../apps/play/dist/site/**"],
+        },
+        dependsOn: ["@stillwind-internal/apps-play#build"],
       },
       "prepare:play": {
         command: "node cloudflare.ts play",

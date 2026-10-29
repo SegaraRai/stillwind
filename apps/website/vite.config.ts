@@ -23,7 +23,7 @@ export default defineConfig({
       },
       build: {
         command: "astro build",
-        dependsOn: ["typecheck"],
+        dependsOn: ["typecheck", "@stillwind/native#collect:local"],
         cache: {
           ...astroCache,
           input: [
