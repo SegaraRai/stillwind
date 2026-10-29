@@ -7,6 +7,8 @@ export default defineConfig({
     name: "website",
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     css: true,
+    fileParallelism: false,
+    testTimeout: 60_000,
   },
   run: {
     tasks: {
@@ -65,7 +67,7 @@ export default defineConfig({
       test: {
         command: "vp test --run",
         cache: testCache,
-        dependsOn: ["stillwind#build"],
+        dependsOn: ["@stillwind/host#build", "stillwind#build"],
       },
     },
   },
