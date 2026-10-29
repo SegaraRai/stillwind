@@ -1,0 +1,82 @@
+---
+import instrumentSans from "@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2?url";
+import { style } from "stillwind/astro";
+
+import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
+import { documentRoot } from "../components/site/document";
+import SiteHeader from "../components/site/SiteHeader.astro";
+import ThemeHead from "../components/site/ThemeHead.astro";
+import { URL_REPOSITORY } from "../lib/config";
+
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "../assets/fonts/jetbrains-mono.css";
+
+interface Props {
+  title: string;
+  /** Page summary. The layout emits the social card metadata only when this is present. */
+  description?: string;
+  /** Asks search engines not to index the page. */
+  noindex?: boolean;
+}
+
+const { title, description, noindex = false } = Astro.props;
+const url = new URL(Astro.url.pathname, Astro.site);
+const socialImage = new URL("/og.png", Astro.site);
+---
+
+<!doctype html>
+<html lang="en" {...style(documentRoot, "site-document")}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {noindex && <meta name="robots" content="noindex" />}
+    <ThemeHead />
+    <title>{title}</title>
+    {description && (
+      <>
+        <meta name="description" content={description} />
+        <meta property="og:title" content={title} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Stillwind" />
+        <meta property="og:locale" content="en" />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={url} />
+        <meta property="og:image" content={socialImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={socialImage} />
+      </>
+    )}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={jetbrainsMono} as="font" type="font/woff2" crossorigin />
+  </head>
+  <body {...style("font-sans text-body text-foreground antialiased bg-background")}>
+    <a href="#main" {...style("skip-link")}>
+      Skip to content
+    </a>
+    <div {...style("flex mx-auto px-gutter inline-full max-inline-page min-block-dvh flex-col")}>
+      <SiteHeader />
+
+      <main id="main" {...style("grow")}>
+        <slot />
+      </main>
+
+      <footer
+        {...style(
+          "flex py-panel flex-wrap justify-between gap-4 font-mono text-label text-muted border-border border-bs",
+        )}
+      >
+        <span>Stillwind · Open source · MIT</span>
+        <a href={URL_REPOSITORY} {...style("inline-flex items-center gap-2 nav-link")}>
+          <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
+          Explore the source
+        </a>
+      </footer>
+    </div>
+  </body>
+</html>

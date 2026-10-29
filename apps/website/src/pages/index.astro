@@ -1,22 +1,14 @@
 ---
-import "@fontsource/instrument-sans/400.css";
-import "@fontsource/instrument-sans/500.css";
-import instrumentSans from "@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2?url";
 import { style } from "stillwind/astro";
 
-import "../assets/fonts/jetbrains-mono.css";
-import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
 import Features from "../components/landing/Features.astro";
 import Showcase from "../components/landing/Showcase.astro";
-import { documentRoot } from "../components/site/document";
-import SiteHeader from "../components/site/SiteHeader.astro";
-import ThemeHead from "../components/site/ThemeHead.astro";
-import { URL_DOCS, URL_REPOSITORY } from "../lib/config";
+import HomeLayout from "../layouts/HomeLayout.astro";
+import { URL_DOCS } from "../lib/config";
 
 const title = "Stillwind — Familiar utilities. Enforced rules.";
 const description =
   "Familiar utilities. Enforced rules. Stillwind checks component styles against your design system and compiles static utilities to CSS.";
-const socialImage = new URL("/og.png", Astro.site);
 
 const frameworkLink = style.ref();
 const frameworks = [
@@ -29,209 +21,143 @@ const frameworks = [
 ];
 ---
 
-<!doctype html>
-<html lang="en" {...style(documentRoot, "site-document")}>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <ThemeHead />
-    <meta name="description" content={description} />
-    <title>{title}</title>
-    <meta property="og:title" content={title} />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Stillwind" />
-    <meta property="og:locale" content="en" />
-    <meta property="og:description" content={description} />
-    <meta property="og:url" content={new URL("/", Astro.site)} />
-    <meta property="og:image" content={socialImage} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={socialImage} />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={jetbrainsMono} as="font" type="font/woff2" crossorigin />
-  </head>
-  <body {...style("font-sans text-body text-foreground antialiased bg-background")}>
-    <a href="#main" {...style("skip-link")}>
-      Skip to content
-    </a>
-    <div {...style("mx-auto px-gutter inline-full max-inline-page")}>
-      <SiteHeader />
-
-      <main id="main">
-        <section aria-labelledby="tagline" {...style("py-16 sidebar:py-28")}>
-          <h1 id="tagline" {...style("hero-title")}>
-            Familiar utilities.
-            <span {...style("hero-second-line")}>Enforced rules.</span>
-          </h1>
-          <div
-            {...style(
-              "flex mbs-10 flex-col justify-between gap-9 sidebar:mbs-12 sidebar:flex-row sidebar:items-end",
-            )}
+<HomeLayout title={title} description={description}>
+  <section aria-labelledby="tagline" {...style("py-16 sidebar:py-28")}>
+    <h1 id="tagline" {...style("hero-title")}>
+      Familiar utilities.
+      <span {...style("hero-second-line")}>Enforced rules.</span>
+    </h1>
+    <div
+      {...style(
+        "flex mbs-10 flex-col justify-between gap-9 sidebar:mbs-12 sidebar:flex-row sidebar:items-end",
+      )}
+    >
+      <div>
+        <p
+          {...style(
+            "max-inline-117.5 text-body/[1.55] text-muted inline:text-lead/[1.55] sidebar:text-heading-small/[1.55]",
+          )}
+        >
+          A compiler for component styles. Write familiar utilities, enforce your design system, and
+          ship static CSS.
+        </p>
+        <div {...style("flex mbs-7 flex-wrap items-center gap-7")}>
+          <a
+            href={URL_DOCS}
+            {...style("text-action-foreground bg-action action-link hover:bg-action-hover")}
           >
-            <div>
-              <p
-                {...style(
-                  "max-inline-117.5 text-body/[1.55] text-muted inline:text-lead/[1.55] sidebar:text-heading-small/[1.55]",
-                )}
-              >
-                A compiler for component styles. Write familiar utilities, enforce your design
-                system, and ship static CSS.
-              </p>
-              <div {...style("flex mbs-7 flex-wrap items-center gap-7")}>
-                <a
-                  href={URL_DOCS}
-                  {...style("text-action-foreground bg-action action-link hover:bg-action-hover")}
-                >
-                  Get started{" "}
-                  <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
-                </a>
-                <a href="#examples" {...style("text-small nav-link")}>
-                  See it in practice{" "}
-                  <span
-                    aria-hidden="true"
-                    {...style("icon-lucide--arrow-down ms-3 align-middle")}
-                  ></span>
-                </a>
-              </div>
-            </div>
-            <p {...style("max-inline-64 font-mono text-caption/[1.7] text-muted")}>
-              For people who write code.
-              <br />
-              And agents that write a lot of it.
-            </p>
-          </div>
-        </section>
-
-        <Showcase />
-        <Features />
-
-        <section aria-labelledby="start" {...style("py-16 border-border border-bs sidebar:py-32")}>
-          <div {...style("flex flex-col justify-between gap-8 sidebar:flex-row sidebar:items-end")}>
-            <div>
-              <h2 id="start" {...style("mbe-5 text-title tracking-[-0.04em] sidebar:text-title")}>
-                Start with your framework.
-              </h2>
-              <p {...style("max-inline-122.5 text-muted text-small/relaxed")}>
-                Keep the component model you know. Add Stillwind to your build and import the style
-                API for your framework. Currently in early development.
-              </p>
-            </div>
-            <a
-              href={URL_DOCS}
-              {...style(
-                "shrink-0 text-action-foreground bg-action action-link hover:bg-action-hover",
-              )}
-            >
-              Read the setup guide{" "}
-              <span aria-hidden="true" {...style("icon-lucide--arrow-up-right")}></span>
-            </a>
-          </div>
-          <nav
-            aria-label="Framework integration guides"
-            {...style(
-              "grid my-10 grid-cols-2 gap-x-7 gap-y-6 inline:grid-cols-3 outline:grid-cols-6",
-            )}
-          >
-            {frameworks.map((framework) => (
-              <a
-                href={`/docs/integrations/#${framework.name === "Astro" ? "astro" : "vite"}`}
-                {...style(frameworkLink, "framework-link")}
-              >
-                <span
-                  aria-hidden="true"
-                  {...style(
-                    framework.icon,
-                    "text-muted opacity-70 [transition:color_140ms_ease,opacity_140ms_ease]",
-                    {
-                      [frameworkLink("hover")]: "text-foreground opacity-100",
-                      [frameworkLink("focus-visible")]: "text-foreground opacity-100",
-                    },
-                  )}
-                ></span>
-                <span {...style("flex mbs-5 items-center justify-between text-small")}>
-                  {framework.name}
-                  <span
-                    aria-hidden="true"
-                    {...style("icon-lucide--arrow-up-right text-muted")}
-                  ></span>
-                </span>
-                <span {...style("block mbs-2 font-mono text-label text-muted")}>
-                  stillwind/{framework.name.toLowerCase()}
-                </span>
-              </a>
-            ))}
-          </nav>
-          <div {...style("grid gap-7 sidebar:grid-cols-3 sidebar:gap-12")}>
-            <div>
-              <h3 {...style("mbe-2 text-small")}>Tailwind CSS compatibility</h3>
-              <p {...style("text-caption/relaxed text-muted")}>
-                Use Tailwind CSS v4 utilities, theme variables, and CSS directives. See the{" "}
-                <a href="/docs/guides/migrating-from-tailwind/" {...style("nav-link")}>
-                  migration guide{" "}
-                  <span
-                    aria-hidden="true"
-                    {...style("icon-lucide--arrow-up-right align-middle")}
-                  ></span>
-                </a>{" "}
-                for configuration and plugin compatibility.
-              </p>
-            </div>
-            <div>
-              <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
-              <p {...style("text-caption/relaxed text-muted")}>
-                Utility strings, arrays, and conditions fit existing components.{" "}
-                <a href="/docs/macros/cva/" {...style("nav-link")}>
-                  CVA-compatible factories{" "}
-                  <span
-                    aria-hidden="true"
-                    {...style("icon-lucide--arrow-up-right align-middle")}
-                  ></span>
-                </a>{" "}
-                are available when you need them.
-              </p>
-            </div>
-            <div>
-              <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
-              <p {...style("text-caption/relaxed text-muted")}>
-                Use{" "}
-                <a href="/docs/guides/web-components/" {...style("nav-link")}>
-                  explicit CSS exports{" "}
-                  <span
-                    aria-hidden="true"
-                    {...style("icon-lucide--arrow-up-right align-middle")}
-                  ></span>
-                </a>{" "}
-                to place compiled styles in a Shadow DOM or another scope you control.
-              </p>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer
-        {...style(
-          "flex py-6 flex-wrap justify-between gap-4 font-mono text-label text-muted border-border border-bs",
-        )}
-      >
-        <span>Stillwind · Open source · MIT</span>
-        <a href={URL_REPOSITORY} {...style("inline-flex items-center gap-2 nav-link")}>
-          <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
-          Explore the source
-        </a>
-      </footer>
+            Get started <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
+          </a>
+          <a href="#examples" {...style("text-small nav-link")}>
+            See it in practice{" "}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-down ms-3 align-middle")}></span>
+          </a>
+        </div>
+      </div>
+      <p {...style("max-inline-64 font-mono text-caption/[1.7] text-muted")}>
+        For people who write code.
+        <br />
+        And agents that write a lot of it.
+      </p>
     </div>
-    <script>
-      import { mountHeader } from "../lib/landing/header";
+  </section>
 
-      const slot = document.querySelector<HTMLElement>("[data-header-slot]");
-      const story = document.querySelector<HTMLElement>("[data-story]");
-      if (slot && story) {
-        mountHeader(slot, story);
-      }
-    </script>
-  </body>
-</html>
+  <Showcase />
+  <Features />
+
+  <section aria-labelledby="start" {...style("py-16 border-border border-bs sidebar:py-32")}>
+    <div {...style("flex flex-col justify-between gap-8 sidebar:flex-row sidebar:items-end")}>
+      <div>
+        <h2 id="start" {...style("mbe-5 text-title tracking-[-0.04em] sidebar:text-title")}>
+          Start with your framework.
+        </h2>
+        <p {...style("max-inline-122.5 text-muted text-small/relaxed")}>
+          Keep the component model you know. Add Stillwind to your build and import the style API
+          for your framework. Currently in early development.
+        </p>
+      </div>
+      <a
+        href={URL_DOCS}
+        {...style("shrink-0 text-action-foreground bg-action action-link hover:bg-action-hover")}
+      >
+        Read the setup guide{" "}
+        <span aria-hidden="true" {...style("icon-lucide--arrow-up-right")}></span>
+      </a>
+    </div>
+    <nav
+      aria-label="Framework integration guides"
+      {...style("grid my-10 grid-cols-2 gap-x-7 gap-y-6 inline:grid-cols-3 outline:grid-cols-6")}
+    >
+      {frameworks.map((framework) => (
+        <a
+          href={`/docs/integrations/#${framework.name === "Astro" ? "astro" : "vite"}`}
+          {...style(frameworkLink, "framework-link")}
+        >
+          <span
+            aria-hidden="true"
+            {...style(
+              framework.icon,
+              "text-muted opacity-70 [transition:color_140ms_ease,opacity_140ms_ease]",
+              {
+                [frameworkLink("hover")]: "text-foreground opacity-100",
+                [frameworkLink("focus-visible")]: "text-foreground opacity-100",
+              },
+            )}
+          ></span>
+          <span {...style("flex mbs-5 items-center justify-between text-small")}>
+            {framework.name}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right text-muted")}></span>
+          </span>
+          <span {...style("block mbs-2 font-mono text-label text-muted")}>
+            stillwind/{framework.name.toLowerCase()}
+          </span>
+        </a>
+      ))}
+    </nav>
+    <div {...style("grid gap-7 sidebar:grid-cols-3 sidebar:gap-12")}>
+      <div>
+        <h3 {...style("mbe-2 text-small")}>Tailwind CSS compatibility</h3>
+        <p {...style("text-caption/relaxed text-muted")}>
+          Use Tailwind CSS v4 utilities, theme variables, and CSS directives. See the{" "}
+          <a href="/docs/guides/migrating-from-tailwind/" {...style("nav-link")}>
+            migration guide{" "}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+          </a>{" "}
+          for configuration and plugin compatibility.
+        </p>
+      </div>
+      <div>
+        <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
+        <p {...style("text-caption/relaxed text-muted")}>
+          Utility strings, arrays, and conditions fit existing components.{" "}
+          <a href="/docs/macros/cva/" {...style("nav-link")}>
+            CVA-compatible factories{" "}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+          </a>{" "}
+          are available when you need them.
+        </p>
+      </div>
+      <div>
+        <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
+        <p {...style("text-caption/relaxed text-muted")}>
+          Use{" "}
+          <a href="/docs/guides/web-components/" {...style("nav-link")}>
+            explicit CSS exports{" "}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+          </a>{" "}
+          to place compiled styles in a Shadow DOM or another scope you control.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    import { mountHeader } from "../lib/landing/header";
+
+    const slot = document.querySelector<HTMLElement>("[data-header-slot]");
+    const story = document.querySelector<HTMLElement>("[data-story]");
+    if (slot && story) {
+      mountHeader(slot, story);
+    }
+  </script>
+</HomeLayout>

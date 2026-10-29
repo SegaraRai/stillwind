@@ -1,0 +1,82 @@
+---
+import { style } from "stillwind/astro";
+
+import HomeLayout from "../layouts/HomeLayout.astro";
+import { URL_DOCS, URL_PLAYGROUND } from "../lib/config";
+
+const line = style("flex gap-4");
+const gutter = style("inline-panel shrink-0 text-end text-muted select-none");
+---
+
+<HomeLayout title="Page not found — Stillwind" noindex>
+  <div {...style("py-section sidebar:py-28")}>
+    <h1 {...style("hero-title")}>
+      Nothing compiles
+      <span {...style("hero-second-line")}>at this path.</span>
+    </h1>
+
+    <div
+      {...style(
+        "flex mbs-12 flex-col justify-between gap-10 sidebar:mbs-section sidebar:flex-row sidebar:items-end",
+      )}
+    >
+      <figure
+        aria-label="Diagnostic for the requested address"
+        {...style(
+          "overflow-x-auto p-panel max-inline-160 min-inline-0 font-mono text-code bg-surface rounded-panel border border-border code-font sidebar:grow",
+        )}
+      >
+        <div {...style(line)}>
+          <span>
+            <span {...style("text-danger")}>error</span>: no page matches this address
+          </span>
+        </div>
+        <div {...style(line)}>
+          <span {...style(gutter)}>--&gt;</span>
+          <span
+            data-requested-path
+            {...style("break-all underline decoration-danger decoration-wavy underline-offset-4")}
+          >
+            this URL
+          </span>
+        </div>
+        <div {...style(line)}>
+          <span {...style(gutter)}>=</span>
+          <span {...style("text-muted")}>
+            help: the page may have moved, or the address may contain a typo
+          </span>
+        </div>
+      </figure>
+
+      <nav aria-label="Where to go next" {...style("flex shrink-0 flex-col items-start gap-5")}>
+        <a
+          href={URL_DOCS}
+          {...style("text-action-foreground bg-action action-link hover:bg-action-hover")}
+        >
+          Read the docs <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
+        </a>
+        <div {...style("flex flex-col gap-y-control text-small")}>
+          <a href="/" {...style("nav-link")}>
+            Back to home
+          </a>
+          <a href={URL_PLAYGROUND} {...style("nav-link")}>
+            Open the playground{" "}
+            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+          </a>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <script is:inline>
+    // Cloudflare serves this page for every unknown path, so the requested path exists only at runtime.
+    const target = document.querySelector("[data-requested-path]");
+    if (target) {
+      let path = location.pathname;
+      try {
+        path = decodeURI(path);
+      } catch {}
+      target.textContent = location.host + path;
+    }
+  </script>
+</HomeLayout>

@@ -1,0 +1,130 @@
+---
+import { style } from "stillwind/astro";
+
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "@fontsource/instrument-sans/600.css";
+
+const title = "Page not found — Stillwind Playground";
+const line = style("flex gap-3");
+const gutter = style("inline-6 shrink-0 text-end text-subtle select-none");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+    <script is:inline>
+      try {
+        const preference = localStorage.getItem("stillwind:theme");
+        if (preference === "light" || preference === "dark") {
+          document.documentElement.dataset.theme = preference;
+        }
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <main {...style("grid overflow-auto p-6 block-full place-items-center stage-grid")}>
+      <div
+        {...style(
+          "overflow-hidden inline-full max-inline-tablet bg-surface rounded-panel border border-border shadow-overlay",
+        )}
+      >
+        <header
+          {...style(
+            "flex px-4 block-10 items-center justify-start gap-3 bg-background border-divider border-be",
+          )}
+        >
+          <a
+            href={import.meta.env.BASE_URL}
+            aria-label="Stillwind Playground"
+            {...style("flex items-center gap-2 rounded-control")}
+          >
+            <span aria-hidden="true" {...style("text-heading-small stillwind-logo")}></span>
+            <span {...style("text-muted text-small font-medium")}>Playground</span>
+          </a>
+        </header>
+
+        <div {...style("flex p-6 flex-col gap-5 inline:p-8")}>
+          <div>
+            <h1 {...style("mbe-2 text-heading font-semibold")}>Page not found</h1>
+            <p {...style("text-muted text-small")}>
+              There’s nothing at this path. If someone shared a playground link with you, check that
+              it was copied in full.
+            </p>
+          </div>
+
+          <figure
+            aria-label="Diagnostic for the requested address"
+            {...style(
+              "overflow-x-auto p-4 text-code bg-editor rounded-control border border-divider code-font",
+            )}
+          >
+            <div {...style(line)}>
+              <span>
+                <span {...style("text-danger")}>error</span>: no page matches this address
+              </span>
+            </div>
+            <div {...style(line)}>
+              <span {...style(gutter)}>--&gt;</span>
+              <span
+                data-requested-path
+                {...style(
+                  "break-all underline decoration-danger decoration-wavy underline-offset-4",
+                )}
+              >
+                this URL
+              </span>
+            </div>
+            <div {...style(line)}>
+              <span {...style(gutter)}>=</span>
+              <span {...style("text-muted")}>
+                help: open the playground and start from an example
+              </span>
+            </div>
+          </figure>
+
+          <nav
+            aria-label="Where to go next"
+            {...style("flex flex-wrap items-center gap-x-5 gap-y-3")}
+          >
+            <a
+              href={import.meta.env.BASE_URL}
+              {...style(
+                "inline-flex px-4 block-9 items-center gap-2 text-action-foreground text-small font-medium bg-action rounded-control hover:bg-action-hover",
+              )}
+            >
+              Open the playground
+              <span aria-hidden="true" {...style("icon-control icon-lucide--arrow-right")}></span>
+            </a>
+            <a
+              href="https://stillwind.dev/docs/"
+              {...style(
+                "text-muted text-small underline-offset-4 hover:text-foreground hover:underline",
+              )}
+            >
+              Read the docs
+            </a>
+          </nav>
+        </div>
+      </div>
+    </main>
+
+    <script is:inline>
+      // Cloudflare serves this page for every unknown path, so the requested path exists only at runtime.
+      const target = document.querySelector("[data-requested-path]");
+      if (target) {
+        let path = location.pathname;
+        try {
+          path = decodeURI(path);
+        } catch {}
+        target.textContent = location.host + path;
+      }
+    </script>
+  </body>
+</html>
