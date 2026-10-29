@@ -9,7 +9,7 @@ in order, even when AI agents write much of it.
 [Website](https://stillwind.dev/) · [Documentation](https://stillwind.dev/docs/) ·
 [Playground](https://play.stillwind.dev/) · [Coding agents](https://stillwind.dev/docs/agents/)
 
-> [!CAUTION]
+> [!WARNING]
 > Stillwind is in early development. Test your application's build and pages before you release changes.
 
 ```css
