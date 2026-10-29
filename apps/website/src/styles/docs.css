@@ -63,6 +63,25 @@ Typography and spacing for Markdown, slots, and Nimbus output.
     @apply underline underline-offset-4;
   }
 
+  /*
+  headingAnchors() from Nimbus appends this link to each h2–h4 with an id. On wide layouts, the
+  link sits outside the heading's start edge, so the heading text keeps its position. Narrow
+  layouts have no room in the gutter, so the link follows the heading text there. The link stays
+  visible on touch screens because they cannot hover the heading.
+  */
+  & :is(h2, h3, h4):has(> .heading-anchor) {
+    @apply relative;
+  }
+
+  & .heading-anchor {
+    @apply absolute inset-bs-0 inset-e-full pe-2 text-muted no-underline opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 pointer-coarse:opacity-100 motion-reduce:transition-none;
+    @apply max-sidebar:static max-sidebar:pe-0 max-sidebar:ms-2;
+  }
+
+  & :is(h2, h3, h4):hover > .heading-anchor {
+    @apply opacity-100;
+  }
+
   & :is(ul, ol) {
     @apply ps-6;
   }

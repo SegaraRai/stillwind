@@ -156,7 +156,7 @@ const paginationLink = style(
               <span role="status" data-copy-status {...style("text-muted")}></span>
             </div>
           </header>
-          <article {...style("docs-prose")} data-pagefind-body>
+          <article {...style("docs-prose", { class: "docs-content" })} data-pagefind-body>
             <slot />
           </article>
           <footer {...style("grid mbs-16 gap-6 text-caption text-muted")}>
@@ -239,12 +239,13 @@ const paginationLink = style(
 </html>
 
 <script>
-  import { codeCopy, initNavSidebar, mount } from "@cloudflare/nimbus-docs/client";
+  import { codeCopy, headingAnchors, initNavSidebar, mount } from "@cloudflare/nimbus-docs/client";
 
   import { mountDocsHeader } from "../lib/docs/header";
   import { mountPackageManagerTabs } from "../lib/docs/package-manager-tabs";
 
   codeCopy();
+  headingAnchors();
   mountPackageManagerTabs();
   mount("[data-nb-nav-state]", initNavSidebar);
   mount("[data-docs-page]", (page) =>
