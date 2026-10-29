@@ -52,6 +52,21 @@ export function nextHeaderScroll(
 }
 
 /**
+ * Returns whether following `href` scrolls the document at `current` to a fragment without
+ * loading another page. Both arguments are absolute URLs.
+ */
+export function isFragmentLink(href: string, current: string): boolean {
+  const target = new URL(href);
+  const page = new URL(current);
+  return (
+    target.hash !== "" &&
+    target.origin === page.origin &&
+    target.pathname === page.pathname &&
+    target.search === page.search
+  );
+}
+
+/**
  * Keeps the header in document flow at the top. After the header leaves the viewport, it floats
  * and appears while the reader scrolls up. Navigation to a fragment hides it so that the header
  * does not cover the target. Returns a disposer that releases listeners and clears the states.
@@ -67,17 +82,22 @@ export function mountDocsHeader(slot: HTMLElement): () => void {
     anchor: view.scrollY,
     previous: view.scrollY,
   };
+  // Set when the page scrolls to a fragment. The next update hides the header at the position
+  // after that scroll, so an upward jump shorter than the viewport does not reveal it.
+  let fragmentJump = false;
 
   const update = () => {
     frame = undefined;
     const floating = slot.getBoundingClientRect().bottom <= 0;
-    scroll = floating
-      ? nextHeaderScroll(scroll, view.scrollY, view.innerHeight)
-      : {
-          visible: false,
-          anchor: view.scrollY,
-          previous: view.scrollY,
-        };
+    scroll =
+      floating && !fragmentJump
+        ? nextHeaderScroll(scroll, view.scrollY, view.innerHeight)
+        : {
+            visible: false,
+            anchor: view.scrollY,
+            previous: view.scrollY,
+          };
+    fragmentJump = false;
     setHeaderState(header, floating, !floating || scroll.visible);
   };
 
@@ -86,12 +106,27 @@ export function mountDocsHeader(slot: HTMLElement): () => void {
   };
 
   const hide = () => {
-    scroll = {
-      visible: false,
-      anchor: view.scrollY,
-      previous: view.scrollY,
-    };
+    fragmentJump = true;
     schedule();
+  };
+
+  // The client router handles an in-page link with the History API, which does not fire
+  // `hashchange`. The capturing listener runs before the router and the browser scroll during the
+  // click, and the scheduled update runs after that scroll.
+  const hideForFragmentLink = (event: MouseEvent) => {
+    const link = (event.target as Element | null)?.closest?.("a[href]");
+    if (
+      link instanceof view.HTMLAnchorElement &&
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey &&
+      (!link.target || link.target === "_self") &&
+      isFragmentLink(link.href, view.location.href)
+    ) {
+      hide();
+    }
   };
 
   view.addEventListener("scroll", schedule, {
@@ -103,6 +138,10 @@ export function mountDocsHeader(slot: HTMLElement): () => void {
     signal: abort.signal,
   });
   view.addEventListener("hashchange", hide, {
+    signal: abort.signal,
+  });
+  view.document.addEventListener("click", hideForFragmentLink, {
+    capture: true,
     signal: abort.signal,
   });
 
