@@ -75,6 +75,73 @@ warnings without treating valid cross-component pairing as a collision.
 
 Source: [view-transition analysis](../crates/compiler/src/style_analysis/view_transition.rs).
 
+## Nearest-ancestor ref conditions
+
+A ref condition matches when any ancestor with that ref matches. When a recursive
+component renders the same ref inside itself, a state on an outer element therefore
+reaches the descendants of inner elements. Add `.until(limit)` to bound the region
+of a ref, and lower it to a scope with a limit (`@scope (root) to (limit)`). No
+fallback without `@scope` is planned.
+
+Syntax and meaning:
+
+- `.until()` belongs to the ref that starts the bounded region.
+  `row("hover").until(row)` matches when the nearest `row` ancestor of the target is
+  hovered. `trigger("hover").in(menu.until(menu))` requires the trigger and the target
+  to be in the same nearest `menu`.
+- `limit` accepts only a raw ref, because the limit tests structure, not state.
+- The limit element itself is outside the region. A target that carries the limit ref
+  never matches, and a lint should report this when the same call attaches that ref.
+- `.until()` after `.in()`, such as `.in(menu).until(menu)`, is not supported. When a key
+  uses `.in()`, its subject ref is not an ancestor of the target, so
+  `trigger("hover").until(x).in(menu)` is rejected as a key.
+- `.at()` does not accept `.until()`, because a container name already resolves to the
+  nearest container.
+- Repeated `.in()` calls keep their current meaning: an AND of conditions whose order
+  does not matter. A scope operand may itself use `.in()` to express nesting:
+  `a("s").in(b.in(c))` requires `c` to contain `b`, and `b` to contain `a` and the
+  target. Bounded scopes can nest only through this operand form, because the compiler
+  cannot determine the order of `@scope` blocks for unrelated flat `.in()` operands.
+
+Lowering, as verified in Chromium 152:
+
+- Without `.in()`, put the state in the root selector and repeat the unbounded
+  selector inside an inner scope of the target:
+  `@scope (:where(.row):hover) to (:where(.row)) { @scope (.T) { :scope:is(:where(.row):hover *) { … } } }`.
+  The repeated condition is always true at that point, and it gives the rule the same
+  specificity as the unbounded form. The scope selectors add no specificity.
+- With `.in()`, put the trigger-side bound in the prelude of the inner scope, because
+  `:scope` refers to the parent scope root only there:
+  `@scope (:where(.menu)) to (:where(.menu)) { @scope (:where(:scope):has(:is(:where(.trigger):hover):not(:scope :where(.menu) *)) .T) { :scope:is(:where(.menu):has(:is(:where(.trigger):hover)) *) { … } } }`.
+  In the prelude of the outer scope, `:scope` refers to the document root, and the
+  rule never matches.
+
+Cascade:
+
+- The inner `@scope (.T)` gives every bounded rule a scope proximity of 0. Without it,
+  the rule whose root is nearer would win over a later rule with the same specificity.
+- A rule without a scope has infinite proximity. A bounded rule therefore wins over an
+  unscoped rule with the same specificity regardless of order, for example over a
+  derived style composed after a base with a bounded key. Where Stillwind guarantees
+  order (one call, composition, and unit order inside a module), wrap a later rule
+  that conflicts on a property in `@scope (.T) { :scope… }`. This keeps its
+  specificity and makes order decide again. Document the tie rule for other CSS.
+
+Types: `refs.ts` separates each stage by `refVariantKind`. Add a `bounded` stage, and
+let `RefScope` accept `ScopedRefVariant` and bounded operands. Give `ScopedRefVariant`
+a parameter that records whether its subject is bounded, so `RefScope` can accept that
+form while keys reject it. TypeScript cannot constrain computed keys, so the compiler
+must also diagnose a bounded subject in a key. Decide whether `ScopeIds` needs a tree
+for nested operands or only a set of identities. Collect the stages, their methods, and
+the positions that accept them in one table in the macro contract.
+
+Remaining validation: test the lowering in Firefox and Safari, and test the
+interaction of conditional rules that use `revert-rule` with scoped rules.
+
+Sources: [ref types](../packages/core/src/macro/refs.ts),
+[macro contract](macro-contract.md#ref-attachments-and-providers),
+[ref declarations](../crates/js-oxc/src/visit.rs).
+
 ## Remaining documentation capabilities
 
 The utility explorer searches the default registry's finite completion catalog.
