@@ -3,8 +3,10 @@
   "include": [
     "tests/**/*.ts",
     "collect-local-artifacts.ts",
-    "generate-platform-readmes.ts",
+    "generate-platform-packages.ts",
     "install-binding.ts",
+    "prepare-publish.ts",
+    "rust-licenses.ts",
     "vite.config.ts"
   ]
 }

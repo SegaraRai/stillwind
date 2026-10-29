@@ -35,6 +35,40 @@ export default defineConfig({
           ],
         },
       },
+      "generate:license-copies": {
+        command: "node license-copies.ts",
+        cache: {
+          input: [
+            { auto: true },
+            "../../LICENSE",
+            "../../TAILWINDCSS-MIT-LICENSE",
+            "../../WEBREF-MIT-LICENSE",
+          ],
+          output: [
+            "../../packages/vscode-extension/LICENSE",
+            "../../packages/*/TAILWINDCSS-MIT-LICENSE",
+            "../../packages/native/npm/*/TAILWINDCSS-MIT-LICENSE",
+            "../../packages/native/npm/*/WEBREF-MIT-LICENSE",
+            "../../packages/vscode-extension/WEBREF-MIT-LICENSE",
+          ],
+        },
+      },
+      "check:generated:license-copies": {
+        command: "node license-copies.ts --check",
+        cache: {
+          input: [
+            { auto: true },
+            "../../LICENSE",
+            "../../TAILWINDCSS-MIT-LICENSE",
+            "../../WEBREF-MIT-LICENSE",
+            "../../packages/vscode-extension/LICENSE",
+            "../../packages/*/TAILWINDCSS-MIT-LICENSE",
+            "../../packages/native/npm/*/TAILWINDCSS-MIT-LICENSE",
+            "../../packages/native/npm/*/WEBREF-MIT-LICENSE",
+            "../../packages/vscode-extension/WEBREF-MIT-LICENSE",
+          ],
+        },
+      },
       typecheck: {
         command: "tsc --noEmit",
       },

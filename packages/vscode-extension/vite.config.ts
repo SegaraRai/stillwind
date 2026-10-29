@@ -4,6 +4,8 @@ import path from "node:path";
 import { defineConfig } from "vite-plus";
 import type { PackUserConfig } from "vite-plus/pack";
 
+import { recordBundledPackages } from "./licenses.ts";
+
 const require = createRequire(import.meta.url);
 const rolldownBrowser = path.dirname(require.resolve("@rolldown/browser"));
 
@@ -115,6 +117,13 @@ const pack: PackUserConfig[] = [
   },
 ];
 
+// The build writes the licenses of the npm packages that the runtime bundles include.
+for (const config of pack) {
+  if (config.name?.startsWith("runtime-")) {
+    config.plugins = [recordBundledPackages(config.name)];
+  }
+}
+
 export default defineConfig(({ mode }) => ({
   root: import.meta.dirname,
   test: {
@@ -138,6 +147,10 @@ export default defineConfig(({ mode }) => ({
             "dist/extension/package.json",
             "dist/extension/README.md",
             "dist/extension/LICENSE",
+            "dist/extension/NPM-THIRD-PARTY-LICENSES",
+            "dist/extension/RUST-THIRD-PARTY-LICENSES",
+            "dist/extension/TAILWINDCSS-MIT-LICENSE",
+            "dist/extension/WEBREF-MIT-LICENSE",
             "dist/extension/dist/node/package.json",
             "dist/extension/dist/browser/server.js",
             "dist/extension/dist/browser/stillwind_native.wasm32-wasi.wasm",
@@ -151,7 +164,7 @@ export default defineConfig(({ mode }) => ({
         command: "vp pack",
         cache: {
           input: [{ auto: true }, "!dist/**"],
-          output: ["dist/api/**", "dist/extension/**"],
+          output: ["dist/api/**", "dist/extension/**", "dist/licenses/**"],
         },
         dependsOn: [
           "@stillwind/native#collect:local",

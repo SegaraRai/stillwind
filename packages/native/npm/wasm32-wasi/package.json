@@ -9,7 +9,10 @@
     "stillwind_native.wasi.d.cts",
     "stillwind_native.wasi-browser.js",
     "wasi-worker.mjs",
-    "wasi-worker-browser.mjs"
+    "wasi-worker-browser.mjs",
+    "RUST-THIRD-PARTY-LICENSES",
+    "TAILWINDCSS-MIT-LICENSE",
+    "WEBREF-MIT-LICENSE"
   ],
   "type": "module",
   "main": "stillwind_native.wasi.cjs",
@@ -19,9 +22,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@emnapi/core": "^2.0.0-beta.2",
-    "@emnapi/runtime": "^2.0.0-beta.2",
-    "@napi-rs/wasm-runtime": "^1.2.6"
+    "@emnapi/core": "2.0.0-beta.2",
+    "@emnapi/runtime": "2.0.0-beta.2",
+    "@napi-rs/wasm-runtime": "~1.2.6"
   },
   "engines": {
     "node": "^20.19.0 || ^22.13.0 || >=23.5.0"

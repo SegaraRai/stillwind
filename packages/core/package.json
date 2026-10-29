@@ -9,7 +9,8 @@
     "css",
     "docs",
     "skills",
-    "AGENTS_TEMPLATE.md"
+    "AGENTS_TEMPLATE.md",
+    "TAILWINDCSS-MIT-LICENSE"
   ],
   "type": "module",
   "sideEffects": [

@@ -6,7 +6,8 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    "./task-cache": "./task-cache.ts"
+    "./task-cache": "./task-cache.ts",
+    "./third-party-licenses": "./third-party-licenses.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",

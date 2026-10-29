@@ -4,7 +4,10 @@
   "description": "Native Node-API binding for the Stillwind compiler",
   "license": "MIT",
   "files": [
-    "stillwind_native.win32-x64-msvc.node"
+    "stillwind_native.win32-x64-msvc.node",
+    "RUST-THIRD-PARTY-LICENSES",
+    "TAILWINDCSS-MIT-LICENSE",
+    "WEBREF-MIT-LICENSE"
   ],
   "os": [
     "win32"

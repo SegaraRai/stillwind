@@ -1,5 +1,14 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
 import { fixtureCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
+import {
+  bundledPackages,
+  renderNpmLicenses,
+} from "@stillwind-internal/tools-workspace/third-party-licenses";
 import { defineConfig } from "vite-plus";
+
+const bundled = new Set<string>();
 
 export default defineConfig({
   root: import.meta.dirname,
@@ -55,6 +64,26 @@ export default defineConfig({
       ],
     },
     sourcemap: true,
+    plugins: [
+      // `dist/` includes the packages that `alwaysBundle` selects, so it publishes their
+      // licenses. The JavaScript and declaration builds can each report packages.
+      bundledPackages((directories, outputDirectory) => {
+        for (const directory of directories) {
+          bundled.add(directory);
+        }
+        if (bundled.size) {
+          const output = path.resolve(import.meta.dirname, outputDirectory ?? "dist");
+          mkdirSync(output, { recursive: true });
+          writeFileSync(
+            path.join(output, "NPM-THIRD-PARTY-LICENSES"),
+            renderNpmLicenses(
+              "@stillwind/integration includes the following npm packages.",
+              bundled,
+            ),
+          );
+        }
+      }),
+    ],
     copy: [
       {
         from: "src/turbopack/stillwind-turbopack.css",

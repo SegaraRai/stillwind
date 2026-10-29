@@ -14,9 +14,40 @@ export default defineConfig(({ mode }) => ({
   },
   run: {
     tasks: {
+      "generate:rust-licenses": {
+        command: "node rust-licenses.ts",
+        cache: {
+          input: [
+            { auto: true },
+            { pattern: "Cargo.lock", base: "workspace" },
+            { pattern: "crates/*/Cargo.toml", base: "workspace" },
+          ],
+          output: ["RUST-THIRD-PARTY-LICENSES"],
+        },
+      },
+      "prepare-publish": {
+        command: "node prepare-publish.ts",
+        dependsOn: ["check:generated:rust-licenses"],
+        cache: {
+          input: [{ auto: true }, "RUST-THIRD-PARTY-LICENSES"],
+          output: ["npm/*/RUST-THIRD-PARTY-LICENSES"],
+        },
+      },
+      "check:generated:rust-licenses": {
+        command: "node rust-licenses.ts --check",
+        cache: {
+          input: [
+            { auto: true },
+            { pattern: "Cargo.lock", base: "workspace" },
+            { pattern: "crates/*/Cargo.toml", base: "workspace" },
+            "RUST-THIRD-PARTY-LICENSES",
+          ],
+          output: [],
+        },
+      },
       "generate:platform-packages": {
         command:
-          "napi create-npm-dirs --package-json-path package.json --npm-dir npm && node generate-platform-readmes.ts && vp fmt npm/**",
+          "napi create-npm-dirs --package-json-path package.json --npm-dir npm && node generate-platform-packages.ts && vp fmt npm/**",
         cache: false,
       },
       build: {

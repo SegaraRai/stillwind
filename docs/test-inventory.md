@@ -97,6 +97,7 @@ test prerequisites.
 | `vp run generate:builtin-css`                                                | Built-in CSS bundles                                |
 | `vp run generate:fixtures:projects`                                          | Stillwind project expected files and viewer catalog |
 | `vp run generate:fixtures:tailwind`                                          | Tailwind fixture expectations                       |
+| `vp run @stillwind-internal/tools-workspace#generate:license-copies`         | License copies in published packages                |
 | `vp run generate:tailwind-order`                                             | Rust Tailwind property order                        |
 | `vp run generate:webref`                                                     | Rust Webref property data                           |
 | `vp run @stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order` | Utility-order fixture                               |

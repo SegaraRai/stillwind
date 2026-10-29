@@ -3,14 +3,36 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import process from "node:process";
 
+import { writeExtensionLicenses } from "./licenses.ts";
 import { extensionManifest } from "./src/manifest.ts";
+
+/** License files that the extension publishes, and the files that it copies them from. */
+const licenses = {
+  LICENSE: "LICENSE",
+  "RUST-THIRD-PARTY-LICENSES": "../native/RUST-THIRD-PARTY-LICENSES",
+  "TAILWINDCSS-MIT-LICENSE": "TAILWINDCSS-MIT-LICENSE",
+  "WEBREF-MIT-LICENSE": "WEBREF-MIT-LICENSE",
+};
 
 const root = import.meta.dirname;
 const output = path.join(root, "dist/extension");
 const browser = path.join(output, "dist/browser");
+const typescriptLibrary = path.resolve(root, "../host/node_modules/typescript-6/lib");
 const require = createRequire(import.meta.url);
+
+/**
+ * Packages whose files the build copies without bundling: the Rolldown WebAssembly
+ * binary and the TypeScript library files. The Stillwind binary is covered by the
+ * copied Rust, Tailwind CSS, and Webref licenses.
+ */
+const copiedPackages = [
+  path.dirname(require.resolve("@rolldown/browser/package.json")),
+  path.dirname(typescriptLibrary),
+];
+
 const packaging =
   process.argv.includes("--package-web") || process.argv.includes("--package-desktop");
+
 if (!packaging) {
   await mkdir(browser, { recursive: true });
   await cp(path.join(root, "src/server/bootstrap.js"), path.join(browser, "server.js"));
@@ -24,13 +46,12 @@ if (!packaging) {
     path.join(rolldownBrowser, "rolldown-binding.wasm32-wasi.wasm"),
     path.join(browser, "rolldown-binding.wasm32-wasi.wasm"),
   );
-  const library = path.resolve(root, "../host/node_modules/typescript-6/lib");
   const libraries: [string, string][] = await Promise.all(
-    (await readdir(library))
+    (await readdir(typescriptLibrary))
       .filter((name) => name.endsWith(".d.ts"))
       .map(async (name): Promise<[string, string]> => [
         `/node_modules/typescript/lib/${name}`,
-        await readFile(path.join(library, name), "utf8"),
+        await readFile(path.join(typescriptLibrary, name), "utf8"),
       ]),
   );
   for (const [name, directory] of [
@@ -55,8 +76,16 @@ if (!packaging) {
     ),
   );
   await cp(path.join(root, "README.md"), path.join(output, "README.md"));
-  await cp(path.join(root, "LICENSE"), path.join(output, "LICENSE"));
-  await writeFile(path.join(output, "dist/node/package.json"), JSON.stringify({ type: "module" }));
+  for (const [name, source] of Object.entries(licenses)) {
+    await cp(path.join(root, source), path.join(output, name));
+  }
+  writeExtensionLicenses(output, copiedPackages);
+  await writeFile(
+    path.join(output, "dist/node/package.json"),
+    JSON.stringify({
+      type: "module",
+    }),
+  );
 }
 
 if (process.argv.includes("--package-web") || process.argv.includes("--package-desktop")) {
@@ -69,7 +98,7 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   });
   const manifest: Record<string, unknown> = {
     ...extensionManifest,
-    files: ["dist/**", "LICENSE"],
+    files: ["dist/**", "NPM-THIRD-PARTY-LICENSES", ...Object.keys(licenses)],
     repository: {
       type: "git",
       url: "https://github.com/SegaraRai/stillwind",
@@ -79,12 +108,19 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   if (!desktop) {
     delete manifest.main;
   } else {
+    const copied = new Map<string, string>();
     await copyDependencies(
       path.resolve(root, "../language-server"),
       path.join(stage, "dist/node"),
       "@stillwind/language-server",
-      new Map(),
+      copied,
     );
+    // Some copied dependencies have no license files, so the desktop package lists
+    // the npm packages among them as well. Workspace packages are covered by LICENSE.
+    const installed = [...copied.values()].filter((directory) =>
+      directory.split(path.sep).includes("node_modules"),
+    );
+    writeExtensionLicenses(stage, [...copiedPackages, ...installed]);
   }
   await writeFile(path.join(stage, "package.json"), JSON.stringify(manifest, null, 2));
   const { createVSIX } = await import("@vscode/vsce");
@@ -150,7 +186,10 @@ async function copyDependencies(
       );
     },
   });
-  for (const name of Object.keys({ ...manifest.dependencies, ...manifest.optionalDependencies })) {
+  for (const name of Object.keys({
+    ...manifest.dependencies,
+    ...manifest.optionalDependencies,
+  })) {
     let dependency: string;
     try {
       dependency = await dependencyDirectory(directory, name);

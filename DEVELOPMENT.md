@@ -30,6 +30,11 @@ Before you publish `stillwind`, run `vp run stillwind#prepare-publish`. It build
 package and the website, and it copies the website's Markdown pages into
 `packages/core/docs/`, which git ignores.
 
+Before you publish the platform packages of `@stillwind/native`, run
+`vp run @stillwind/native#prepare-publish`. It checks that
+`packages/native/RUST-THIRD-PARTY-LICENSES` is current and copies it into each
+platform package, where git ignores the copy.
+
 ## Repository layout
 
 | Directory     | Responsibility                                                                 |

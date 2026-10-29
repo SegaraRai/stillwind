@@ -94,14 +94,16 @@ export default defineConfig(({ mode }) => ({
       generate: {
         command: "",
         dependsOn: [
+          "@stillwind-internal/tools-workspace#generate:license-copies",
           "@stillwind-internal/tools-workspace#generate:lint-config",
+          "@stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order",
+          "@stillwind-internal/tools-tailwind#generate:tailwind-banner",
+          "@stillwind/native#generate:rust-licenses",
           "generate:builtin-css",
           "generate:fixtures:projects",
           "generate:fixtures:tailwind",
           "generate:tailwind-order",
-          "@stillwind-internal/tools-tailwind#generate:tailwind-banner",
           "generate:webref",
-          "@stillwind-internal/tools-tailwind#generate:fixtures:tailwind-order",
         ],
       },
       "generate:fixtures:projects":
@@ -184,6 +186,7 @@ export default defineConfig(({ mode }) => ({
       "check:generated": {
         command: "",
         dependsOn: [
+          "@stillwind-internal/tools-workspace#check:generated:license-copies",
           "@stillwind-internal/tools-workspace#check:generated:lint-config",
           "@stillwind-internal/tools-builtin-css#check:generated:builtin-css",
           "@stillwind-internal/tools-tailwind#check:generated:fixtures:tailwind-order",
@@ -191,6 +194,7 @@ export default defineConfig(({ mode }) => ({
           "@stillwind-internal/tools-tailwind#check:generated:tailwind-order",
           "@stillwind-internal/tools-tailwind#check:generated:tailwind-banner",
           "@stillwind-internal/tools-webref#check:generated:webref",
+          "@stillwind/native#check:generated:rust-licenses",
         ],
       },
       // typecheck

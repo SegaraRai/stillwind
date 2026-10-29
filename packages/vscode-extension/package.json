@@ -8,7 +8,9 @@
     "dist/extension",
     "dist/*.vsix",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "TAILWINDCSS-MIT-LICENSE",
+    "WEBREF-MIT-LICENSE"
   ],
   "type": "module",
   "exports": {
