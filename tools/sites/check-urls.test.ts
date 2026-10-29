@@ -21,13 +21,30 @@ test.each([
     website,
     play,
   });
-  for (const url of [website, new URL("docs/", website).href, play]) {
+  for (const url of [website, new URL("docs", website).href, play]) {
     const image = new URL("/og.png", url).href;
     expect(() => checkPageUrls(page(url, image), url, image)).not.toThrow();
     expect(() => checkPageUrls(page(url, "https://other.example/og.png"), url, image)).toThrow(
       "og:image",
     );
   }
+});
+
+test("navigation uses slashless document URLs and preserves root and file links", () => {
+  const url = "https://stillwind.dev/docs";
+  const image = "https://stillwind.dev/og.png";
+  const html = page(url, image);
+  expect(() =>
+    checkPageUrls(
+      `${html}<a href="/">Home</a><a href="/docs/index.md">Markdown</a>
+        <a href="/docs/guides/style#conditions">Style</a>`,
+      url,
+      image,
+    ),
+  ).not.toThrow();
+  expect(() =>
+    checkPageUrls(`${html}<a href="/docs/guides/style/#conditions">Style</a>`, url, image),
+  ).toThrow("trailing slash");
 });
 
 test("builds default to the production origins", () => {

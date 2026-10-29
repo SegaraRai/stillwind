@@ -31,7 +31,8 @@ export function siteUrls(environment: NodeJS.ProcessEnv): SiteUrls {
 }
 
 /**
- * Checks the canonical URL and social card URLs of a rendered page. Throws on missing or wrong URLs.
+ * Checks a rendered page's metadata and links to pages on the same origin.
+ * Throws on missing or wrong metadata URLs, or document URLs with a trailing slash.
  */
 export function checkPageUrls(html: string, pageUrl: string, imageUrl: string): void {
   const values = new Map<string, string>();
@@ -58,6 +59,20 @@ export function checkPageUrls(html: string, pageUrl: string, imageUrl: string): 
       throw new Error(`${pageUrl}: ${name} must be ${expected}, received ${values.get(name)}`);
     }
   }
+  const page = new URL(pageUrl);
+  checkTrailingSlash(page);
+  for (const [, href] of html.matchAll(/<a\b[^>]*\shref="([^"]*)"/g)) {
+    const target = new URL(href!, page);
+    if (target.origin === page.origin) {
+      checkTrailingSlash(target);
+    }
+  }
+}
+
+function checkTrailingSlash(url: URL): void {
+  if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+    throw new Error(`Document URL must omit the trailing slash: ${url.href}`);
+  }
 }
 
 /**
@@ -71,7 +86,7 @@ export async function checkBuiltUrls(root: string, urls: SiteUrls): Promise<void
   for (const file of files) {
     const route = file.split(path.sep).join("/");
     if (route === "index.html" || (route.startsWith("docs/") && route.endsWith("/index.html"))) {
-      const pageUrl = new URL(route.replace(/index\.html$/, ""), urls.website).href;
+      const pageUrl = new URL(route.replace(/\/?index\.html$/, "") || "/", urls.website).href;
       checkPageUrls(
         await readFile(path.join(website, file), "utf8"),
         pageUrl,
@@ -90,16 +105,18 @@ export async function checkBuiltUrls(root: string, urls: SiteUrls): Promise<void
       throw new Error(`website/${file}: missing link to ${urls.play}`);
     }
   }
-  const docsUrl = new URL("docs/", urls.website).href;
+  const docsUrl = new URL("docs", urls.website).href;
   if (!(await readFile(path.join(play, "404.html"), "utf8")).includes(`href="${docsUrl}"`)) {
     throw new Error(`play/404.html: missing link to ${docsUrl}`);
   }
   for (const file of (await readdir(website)).filter((file) => /^sitemap.*\.xml$/.test(file))) {
     const xml = await readFile(path.join(website, file), "utf8");
     for (const [, location] of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
-      if (new URL(location!).origin !== websiteOrigin) {
+      const url = new URL(location!);
+      if (url.origin !== websiteOrigin) {
         throw new Error(`${file}: sitemap URL belongs to another origin: ${location}`);
       }
+      checkTrailingSlash(url);
     }
   }
   for (const [file, expected] of [
@@ -115,9 +132,11 @@ export async function checkBuiltUrls(root: string, urls: SiteUrls): Promise<void
   for (const file of files.filter((file) => path.basename(file) === "llms.txt")) {
     const markdown = await readFile(path.join(website, file), "utf8");
     for (const [, target] of markdown.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) {
-      if (new URL(target!).origin !== websiteOrigin) {
+      const url = new URL(target!);
+      if (url.origin !== websiteOrigin) {
         throw new Error(`${file}: index link belongs to another origin: ${target}`);
       }
+      checkTrailingSlash(url);
     }
   }
   for (const file of [".well-known/ai-catalog.json", ".well-known/ard.json"]) {

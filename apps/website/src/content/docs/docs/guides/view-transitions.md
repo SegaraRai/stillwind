@@ -79,5 +79,5 @@ The CLI reports a `style()` call that applies a transition without `.for()`, a
 call with two `.for()` calls, and transitions split across separate `style()`
 calls. It cannot check that keys are unique across the whole page.
 
-The [style.viewTransition() reference](/docs/macros/view-transition/) covers
+The [style.viewTransition() reference](/docs/macros/view-transition) covers
 dynamic keys and the generated CSS.

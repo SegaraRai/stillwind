@@ -9,7 +9,7 @@ sidebar:
 `style()` takes Tailwind CSS v4 utilities and returns props for an element.
 You spread the props onto the element instead of writing a `className` string.
 This page uses React. For other frameworks, import `style` from the entrypoint
-listed in [Framework integrations](/docs/integrations/).
+listed in [Framework integrations](/docs/integrations).
 
 ## Apply utilities
 
@@ -57,7 +57,7 @@ import { style } from "stillwind/react";
 
 export function Link() {
   return (
-    <a href="/docs/" {...style("text-blue-600", { "hover:": "text-blue-800 underline" })}>
+    <a href="/docs" {...style("text-blue-600", { "hover:": "text-blue-800 underline" })}>
       Documentation
     </a>
   );
@@ -86,7 +86,7 @@ export function SaveButton({ loading }: { loading: boolean }) {
 ```
 
 The element keeps the same classes, and the browser applies the `disabled:`
-styles while the button is disabled. [Reusable styles](/docs/guides/reusable-styles/)
+styles while the button is disabled. [Reusable styles](/docs/guides/reusable-styles)
 shows the same approach with `aria-*` and `data-*` attributes.
 
 When no attribute represents the state, pass a condition and a string, as with `clsx`:
@@ -128,12 +128,12 @@ rules use equally specific selectors. The order of the class names does not
 affect the result. You can export a stored style and use it in other modules.
 
 More specific selectors and `!important` can change which declaration wins.
-See [CSS ordering](/docs/concepts/css-ordering/) for variants, conditions, and multiple
+See [CSS ordering](/docs/concepts/css-ordering) for variants, conditions, and multiple
 bases.
 
 Store the inner style in a variable first. A `style()` call written directly
 inside another, such as `style(style("p-4"), "text-sm")`, is not supported.
-[Reusable styles](/docs/guides/reusable-styles/) covers shared styles and
+[Reusable styles](/docs/guides/reusable-styles) covers shared styles and
 component options in more detail.
 
 ## Use runtime values
@@ -176,7 +176,7 @@ such as state updates or I/O, before you call `style()`.
 
 ## Next steps
 
-- [Reusable styles](/docs/guides/reusable-styles/) shares styles and defines component options.
-- [Responsive styles](/docs/guides/responsive-styles/) names breakpoints and uses them in JavaScript.
-- [Checks in the editor and CI](/docs/guides/lint-adoption/) finds misspelled utilities and other mistakes.
-- [The style() reference](/docs/macros/style/) lists every accepted input.
+- [Reusable styles](/docs/guides/reusable-styles) shares styles and defines component options.
+- [Responsive styles](/docs/guides/responsive-styles) names breakpoints and uses them in JavaScript.
+- [Checks in the editor and CI](/docs/guides/lint-adoption) finds misspelled utilities and other mistakes.
+- [The style() reference](/docs/macros/style) lists every accepted input.

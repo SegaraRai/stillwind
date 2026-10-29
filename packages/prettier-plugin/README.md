@@ -43,7 +43,7 @@ scopes, theme CSS, and `sort` options. Sorting runs independently of the
 `prefer-sorted-utilities` lint severity. Lint suppression comments control lint
 diagnostics and fixes; explicit formatting still sorts.
 
-Create a [Stillwind project configuration](https://stillwind.dev/docs/configuration/)
+Create a [Stillwind project configuration](https://stillwind.dev/docs/configuration)
 before formatting. `stillwindConfig` can select an explicit configuration path relative to the working directory.
 API callers must supply `filepath`; the plugin analyzes the supplied text, including unsaved
 buffers. Files without a discovered configuration or outside its project scopes keep ordinary

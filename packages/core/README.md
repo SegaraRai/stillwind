@@ -2,7 +2,7 @@
 
 Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
 It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it. See the [documentation](https://stillwind.dev/docs/)
+AI agents write much of it. See the [documentation](https://stillwind.dev/docs)
 and try it in the [Playground](https://play.stillwind.dev/).
 
 `stillwind` is the main Stillwind package. It provides CSS defaults, configuration
@@ -44,7 +44,7 @@ export default defineConfig({
 });
 ```
 
-Register the [integration for your build tool](https://stillwind.dev/docs/integrations/).
+Register the [integration for your build tool](https://stillwind.dev/docs/integrations).
 For Vite, add `stillwind()` from `@stillwind/integration/vite` before the framework's
 JSX transform. The integration reads the project configuration and delivers its CSS.
 
@@ -160,7 +160,7 @@ Use `stillwind/config` for project settings and lint presets. `stillwind/css`
 provides helpers for explicit stylesheet placement, and `stillwind/module-css`
 exposes the compiled CSS of a producer module.
 
-- [Macro reference](https://stillwind.dev/docs/macros/): refs, conditions, CVA, keyframes, and composition.
-- [Configuration](https://stillwind.dev/docs/configuration/): scopes, lint rules, sorting, and namespaces.
-- [CSS ordering](https://stillwind.dev/docs/concepts/css-ordering/): precedence when styles are composed.
+- [Macro reference](https://stillwind.dev/docs/macros): refs, conditions, CVA, keyframes, and composition.
+- [Configuration](https://stillwind.dev/docs/configuration): scopes, lint rules, sorting, and namespaces.
+- [CSS ordering](https://stillwind.dev/docs/concepts/css-ordering): precedence when styles are composed.
 - [CSS delivery](https://github.com/SegaraRai/stillwind/blob/main/docs/css-emission.md): SSR, explicit CSS values, and Shadow DOM.

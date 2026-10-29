@@ -63,7 +63,7 @@ apply:
   call, and read it in a utility such as `w-(--progress)`.
 
 Use a condition such as `selected && "bg-blue-50"` only when no attribute fits.
-[Reusable styles](/docs/guides/reusable-styles/) shows each approach.
+[Reusable styles](/docs/guides/reusable-styles) shows each approach.
 
 Do not track in JavaScript a state that CSS can detect, such as hover, focus,
 or the width of a container. Use the matching variant, and keep component state
@@ -92,13 +92,13 @@ export function Card() {
 
 A ref is a variable, so TypeScript reports a misspelled ref, and two components
 cannot collide on the same name. Anchors for anchor positioning use refs too.
-[Element relationships](/docs/guides/element-relationships/) covers siblings,
+[Element relationships](/docs/guides/element-relationships) covers siblings,
 containers, and anchors.
 
 ## Define animations in their components
 
-Define keyframes with [style.keyframes()](/docs/macros/keyframes/) and view
-transitions with [style.viewTransition()](/docs/macros/view-transition/) in the
+Define keyframes with [style.keyframes()](/docs/macros/keyframes) and view
+transitions with [style.viewTransition()](/docs/macros/view-transition) in the
 module that uses them. Do not add global `@keyframes` rules or fixed
 `view-transition-name` values. The macros generate unique names, so you can
 add, move, or remove a component without checking other code.
@@ -169,7 +169,7 @@ attribute form, the attribute selector adds specificity, and the variant order
 places the rules after the common styles. In the lookup form, the compiler
 places the utilities that a condition selects after the unconditional
 utilities. More specific selectors and `!important` can still change the
-result. [CSS ordering](/docs/concepts/css-ordering/) describes these rules.
+result. [CSS ordering](/docs/concepts/css-ordering) describes these rules.
 
 ## Group utilities by variant
 
@@ -198,22 +198,22 @@ from a long string.
   The value of `""` accepts only the inputs that a variant group accepts. Write ref attachments,
   `class` values, custom properties, and bases directly in the `style()` arguments, outside the
   object. Otherwise the CLI reports
-  [invalid-rule-group-input](/docs/lints/invalid-rule-group-input/), and the compiler omits the
-  whole group. Ref projections, keyframes uses, and view-transition uses can appear in the group.
+  [invalid-rule-group-input](/docs/lints/invalid-rule-group-input), and the compiler omits the whole
+  group. Ref projections, keyframes uses, and view-transition uses can appear in the group.
 </Aside>
 
 ## Keep values in the theme
 
 Define colors, spacing, and breakpoints as `@theme` tokens, and use the
 utilities that they add. Avoid arbitrary values such as `text-[#abcdef]` and
-`max-[768px]:`. [Design systems](/docs/guides/design-systems/) enables lint
+`max-[768px]:`. [Design systems](/docs/guides/design-systems) enables lint
 rules that report them.
 
 ## Choose how to define themes
 
 When the application has only a light and a dark theme, define each color
 token with `light-dark()`, and let `color-scheme` select the value.
-[Design systems](/docs/guides/design-systems/) shows this setup.
+[Design systems](/docs/guides/design-systems) shows this setup.
 
 When the application can have more themes, `light-dark()` cannot express them.
 Define the tokens as ordinary values, and override them for each theme with an
@@ -243,7 +243,7 @@ Set `data-theme` on the root element, or on a container to theme part of the
 page. The utilities, such as `bg-surface`, stay the same in every theme.
 
 When a theme needs styles beyond its tokens, define a variant for it with
-[@custom-variant](/docs/at-rules/custom-variant/), and use the variant instead
+[@custom-variant](/docs/at-rules/custom-variant), and use the variant instead
 of a hand-written selector:
 
 ```css
@@ -253,7 +253,7 @@ of a hand-written selector:
 ## Use breakpoints from the theme in JavaScript
 
 When JavaScript needs a breakpoint, get its media query with
-[style.media()](/docs/macros/media/) instead of repeating the value:
+[style.media()](/docs/macros/media) instead of repeating the value:
 
 ```ts
 import { style } from "stillwind/react";
@@ -263,7 +263,7 @@ const sidebar = window.matchMedia(style.media("sidebar"));
 
 A query such as `matchMedia("(width >= 52.5rem)")` does not follow a later
 change of the breakpoint in the theme. Prefer a variant when CSS alone can make the
-change. [Responsive styles](/docs/guides/responsive-styles/) shows more uses.
+change. [Responsive styles](/docs/guides/responsive-styles) shows more uses.
 
 ## Define utilities with @apply
 
@@ -280,14 +280,14 @@ Do not write selectors or media queries by hand. The variants follow your
 theme, and they avoid differences that are easy to miss. For example, the
 `hover:` variant applies only on devices that can hover, while a plain `:hover`
 rule stays active after a tap on a touch screen. Inside a style rule, use
-[@variant](/docs/at-rules/variant/) instead of a condition.
+[@variant](/docs/at-rules/variant) instead of a condition.
 
 ## Avoid separate CSS
 
 Write styles in `style()` calls and custom utilities, not in CSS files with
 your own class names. A custom utility works with every variant, such as
 `hover:link`, and a fixed class name does not. For a reusable condition, define
-a variant with [@custom-variant](/docs/at-rules/custom-variant/) instead of
+a variant with [@custom-variant](/docs/at-rules/custom-variant) instead of
 writing its selector in several rules.
 
 For HTML that you do not control, such as rendered Markdown, define the styles
@@ -299,7 +299,7 @@ in a custom utility and apply it to the container. A Tailwind plugin such as
 Run `stillwind lint --fix` and `stillwind fmt` after you change styles, and fix
 the remaining findings. Add a suppression comment only for a deliberate
 exception, and give the reason. See
-[Checks in the editor and CI](/docs/guides/lint-adoption/).
+[Checks in the editor and CI](/docs/guides/lint-adoption).
 
 ## Mistakes that produce no CSS
 

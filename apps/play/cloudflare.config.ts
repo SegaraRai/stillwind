@@ -15,6 +15,7 @@ export default defineConfig(({ isPreview }) => ({
       },
     ],
     assets: {
+      htmlHandling: "drop-trailing-slash",
       notFoundHandling: "404-page",
     },
   },

@@ -10,7 +10,7 @@ option at build time. Calling the factory selects the compiled classes for the
 chosen options and returns props for an element.
 
 `style.cva()` exists mainly to migrate existing CVA components. For new
-components, see [Reusable styles](/docs/guides/reusable-styles/).
+components, see [Reusable styles](/docs/guides/reusable-styles).
 
 ## Example
 
@@ -66,8 +66,8 @@ variant keys, `true`, `false`, `null`, `undefined`, and custom properties.
 
 They do not accept `&&`, ternaries, stored `style()` results, refs, animations,
 or `class` fields. To choose a style at runtime, pass a different option to the
-factory. [invalid-cva-input](/docs/lints/invalid-cva-input/) reports these
-values, and [invalid-cva-config](/docs/lints/invalid-cva-config/) reports a
+factory. [invalid-cva-input](/docs/lints/invalid-cva-input) reports these
+values, and [invalid-cva-config](/docs/lints/invalid-cva-config) reports a
 malformed configuration.
 
 A custom property value can be an expression. The factory evaluates it once,
@@ -99,5 +99,5 @@ together with the compiled class names. Factory calls stay ordinary JavaScript.
 The development build checks the selected values and the classes from other
 stylesheets.
 
-See [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/#cva) to
+See [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind#cva) to
 convert existing `cva` calls.

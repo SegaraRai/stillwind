@@ -8,6 +8,7 @@ import { packageManagerPlugin } from "./src/lib/docs/package-managers";
 const { componentMap, sourcePlugin } = await referenceMarkdown();
 
 export default defineConfig({
+  trailingSlash: "never",
   compressHTML: "jsx",
   integrations: [
     nimbus(

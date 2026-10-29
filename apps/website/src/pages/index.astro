@@ -90,7 +90,7 @@ const frameworks = [
     >
       {frameworks.map((framework) => (
         <a
-          href={`/docs/integrations/#${framework.name === "Astro" ? "astro" : "vite"}`}
+          href={`/docs/integrations#${framework.name === "Astro" ? "astro" : "vite"}`}
           {...style(frameworkLink, "framework-link")}
         >
           <span
@@ -119,7 +119,7 @@ const frameworks = [
         <h3 {...style("mbe-2 text-small")}>Tailwind CSS compatibility</h3>
         <p {...style("text-caption/relaxed text-muted")}>
           Use Tailwind CSS v4 utilities, theme variables, and CSS directives. See the{" "}
-          <a href="/docs/guides/migrating-from-tailwind/" {...style("nav-link")}>
+          <a href="/docs/guides/migrating-from-tailwind" {...style("nav-link")}>
             migration guide{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
           </a>{" "}
@@ -130,7 +130,7 @@ const frameworks = [
         <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
         <p {...style("text-caption/relaxed text-muted")}>
           Utility strings, arrays, and conditions fit existing components.{" "}
-          <a href="/docs/macros/cva/" {...style("nav-link")}>
+          <a href="/docs/macros/cva" {...style("nav-link")}>
             CVA-compatible factories{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
           </a>{" "}
@@ -141,7 +141,7 @@ const frameworks = [
         <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
         <p {...style("text-caption/relaxed text-muted")}>
           Use{" "}
-          <a href="/docs/guides/web-components/" {...style("nav-link")}>
+          <a href="/docs/guides/web-components" {...style("nav-link")}>
             explicit CSS exports{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
           </a>{" "}

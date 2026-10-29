@@ -12,7 +12,7 @@ The CLI, CI, the editor, and AI agents all use the same rules from
 ## What the build checks
 
 The build stops on compiler errors, such as a JavaScript syntax error or a
-`style()` call that cannot compile. See [Compiler errors](/docs/errors/).
+`style()` call that cannot compile. See [Compiler errors](/docs/errors).
 
 The build does not run lint rules. A misspelled utility such as `bg-acent`
 produces no CSS, and the page still renders without that style. Run the CLI or
@@ -74,8 +74,8 @@ Each rule has a severity. `warn` reports a warning, `deny` reports an error,
 and `off` disables the rule and its fixes. To adopt a new rule, set it to `warn`
 first, fix the existing code, and then change it to `deny`.
 
-[Configuration](/docs/configuration/#lint) describes rule options, and the
-[lint rule reference](/docs/lints/) lists every rule.
+[Configuration](/docs/configuration#lint) describes rule options, and the
+[lint rule reference](/docs/lints) lists every rule.
 
 ## Run the checks in CI
 

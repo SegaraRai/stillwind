@@ -85,7 +85,7 @@ export async function needsInitialDeployment(
 export async function checkSite(site: Site, origin: string, deployment: Deployment): Promise<void> {
   const paths =
     site === "website"
-      ? ["/", "/docs/", "/docs/index.md", "/llms.txt", "/docs/utilities/"]
+      ? ["/", "/docs", "/docs/index.md", "/llms.txt", "/docs/utilities"]
       : [
           "/",
           "/workspace.json",
@@ -95,6 +95,7 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
     const url = new URL(route, origin);
     const response = await fetch(url, {
       method: "HEAD",
+      redirect: "manual",
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) {
@@ -106,7 +107,7 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
     if (deployment === "production" && response.headers.get("x-robots-tag")?.includes("noindex")) {
       throw new Error(`${url}: production response is excluded from indexing`);
     }
-    if ((site === "play" && route === "/") || route === "/docs/utilities/") {
+    if ((site === "play" && route === "/") || route === "/docs/utilities") {
       if (
         response.headers.get("cross-origin-opener-policy") !== "same-origin" ||
         response.headers.get("cross-origin-embedder-policy") !== "require-corp"
@@ -119,11 +120,29 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
     }
   }
   const pageUrl = new URL("/", origin);
-  const page = await fetch(pageUrl, { signal: AbortSignal.timeout(15_000) });
+  const page = await fetch(pageUrl, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!page.ok) {
     throw new Error(`${pageUrl}: HTTP ${page.status}`);
   }
   checkPageUrls(await page.text(), pageUrl.href, new URL("og.png", pageUrl).href);
+  if (site === "website") {
+    for (const route of ["/docs", "/docs/utilities"]) {
+      const url = new URL(`${route}/`, origin);
+      const response = await fetch(url, {
+        method: "HEAD",
+        redirect: "manual",
+        signal: AbortSignal.timeout(15_000),
+      });
+      const location = response.headers.get("location");
+      const expected = new URL(route, origin).href;
+      if (response.status !== 307 || !location || new URL(location, url).href !== expected) {
+        throw new Error(`${url}: expected HTTP 307 redirect to ${expected}`);
+      }
+    }
+  }
 }
 
 async function deploy(site: Site, branch: string | undefined, dryRun: boolean): Promise<void> {

@@ -14,9 +14,9 @@ sidebar:
 
 `@stillwind-undef-variant` removes the matching variant definitions that
 register before it. A removed variant becomes unknown, and
-[unknown-variant](/docs/lints/unknown-variant/) reports its uses. Write it at the
+[unknown-variant](/docs/lints/unknown-variant) reports its uses. Write it at the
 top level of the stylesheet or in a
-[@stillwind-registry](/docs/at-rules/stillwind-registry/) block.
+[@stillwind-registry](/docs/at-rules/stillwind-registry) block.
 
 ## Example
 
@@ -37,6 +37,6 @@ export const toolbar = style("print:hidden");
 `print:hidden` produces no class, because `print` is unknown.
 
 Patterns and registration order work as in
-[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/). A
-[@custom-variant](/docs/at-rules/custom-variant/) after the statement can define
+[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility). A
+[@custom-variant](/docs/at-rules/custom-variant) after the statement can define
 a variant with the removed name again.

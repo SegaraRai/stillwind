@@ -128,8 +128,8 @@ call. You cannot store it in a variable and use it later.
 ## Report group and peer variants
 
 The `stylistic` preset includes
-[prefer-typed-relationships](/docs/lints/prefer-typed-relationships/). The rule
+[prefer-typed-relationships](/docs/lints/prefer-typed-relationships). The rule
 reports `group-*` and `peer-*` variants so that you can replace them with refs.
 
-The [style.ref() reference](/docs/macros/ref/) lists every method and its
+The [style.ref() reference](/docs/macros/ref) lists every method and its
 accepted inputs.

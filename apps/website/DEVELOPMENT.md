@@ -46,7 +46,9 @@ bindings use their own emnapi 2.x dependency.
 ## Documentation
 
 Nimbus reads the `docs` collection from `src/content/docs/`. The `docs/` folder
-inside that collection maps to `/docs/`, while `src/pages/index.astro` owns `/`.
+inside that collection maps to `/docs`, while `src/pages/index.astro` owns `/`.
+HTML page URLs omit trailing slashes. Cloudflare redirects URLs with trailing
+slashes to their canonical form.
 The document layout uses the website's Stillwind theme. Nimbus supplies content
 validation, navigation, Markdown conversion, and agent indexes.
 
@@ -73,7 +75,7 @@ Nimbus's Markdown cache.
 
 ## Utility lookup
 
-`UtilityExplorer` on `/docs/utilities/` looks up utilities in the browser. Its
+`UtilityExplorer` on `/docs/utilities` looks up utilities in the browser. Its
 Markdown renderer outputs nothing, so the Markdown version and the LLM indexes
 contain only the page's prose. `lookupUtilities()` in
 `src/lib/docs/utilities/lookup.ts` reads the input in both directions. It resolves
@@ -129,7 +131,7 @@ Do not explain Tailwind basics. Do explain where Stillwind differs from Tailwind
 
 ### Sidebar groups
 
-Getting started stays at `/docs/` and appears first, outside the sidebar groups.
+Getting started stays at `/docs` and appears first, outside the sidebar groups.
 The groups follow the order in which this reader learns Stillwind:
 
 | Group                   | Reader question                                     |

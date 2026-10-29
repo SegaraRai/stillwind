@@ -38,7 +38,7 @@ export default defineConfig({
         ],
       },
       "build:acceptance": {
-        command: "astro build --base /play/ --outDir dist/acceptance",
+        command: "astro build --outDir dist/acceptance",
         cache: {
           env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
         },

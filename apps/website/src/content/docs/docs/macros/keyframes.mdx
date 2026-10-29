@@ -48,10 +48,10 @@ The argument is a string literal of animation options. Timing utilities set
 animation properties here: `duration-300` sets `animation-duration`, not
 `transition-duration`. A utility that is not an animation option, such as
 `p-4`, produces no CSS, and
-[invalid-animation-option](/docs/lints/invalid-animation-option/) reports it.
+[invalid-animation-option](/docs/lints/invalid-animation-option) reports it.
 
 Write the call directly in `style()`. Storing `fade("duration-300")` in a
-variable causes [SW10004](/docs/errors/SW10004/).
+variable causes [SW10004](/docs/errors/SW10004).
 
 To turn the animation on or off by condition, put the call under a variant, such
 as `{ "motion-safe:": fade("duration-300") }`.
@@ -63,6 +63,6 @@ class names, and the definition variable can become `undefined` in JavaScript.
 The compiler writes every `@keyframes` rule that the calls need, together with
 the theme values that the frames use.
 
-See [Animations](/docs/guides/animations/) for task-based examples, and
-[invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant/) for
+See [Animations](/docs/guides/animations) for task-based examples, and
+[invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant) for
 unsupported variants.

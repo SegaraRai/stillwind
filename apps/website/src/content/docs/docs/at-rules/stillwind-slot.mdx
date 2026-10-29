@@ -13,7 +13,7 @@ sidebar:
 `@stillwind-slot` marks where the compiler writes one kind of generated CSS.
 `@import "stillwind"` already places every slot, so you need this at-rule only
 when you write your own entry stylesheet or a
-[CSS template](/docs/at-rules/stillwind-css-template/).
+[CSS template](/docs/at-rules/stillwind-css-template).
 
 ## Slots
 
@@ -75,12 +75,12 @@ declarations win.
 ## Rules
 
 - A slot with an unknown name, or in a position that cannot contain its output,
-  is skipped. [invalid-css-directive](/docs/lints/invalid-css-directive/) reports
+  is skipped. [invalid-css-directive](/docs/lints/invalid-css-directive) reports
   it.
-- A stylesheet without a `utilities` slot is [SW14001](/docs/errors/SW14001/).
+- A stylesheet without a `utilities` slot is [SW14001](/docs/errors/SW14001).
   A missing slot for other generated CSS that a module needs, such as
-  `keyframes`, is [SW14002](/docs/errors/SW14002/).
+  `keyframes`, is [SW14002](/docs/errors/SW14002).
 - A repeated slot repeats its output at every position.
 
-`@stillwind-slot` places generated CSS. [@slot](/docs/at-rules/slot/) is a
+`@stillwind-slot` places generated CSS. [@slot](/docs/at-rules/slot) is a
 different at-rule for variant definitions.

@@ -39,15 +39,15 @@ separate. You can export a ref, import it, and pass it as an argument.
 
 ## Methods
 
-| Method                                                      | Where to write it           | Effect                                                 |
-| ----------------------------------------------------------- | --------------------------- | ------------------------------------------------------ |
-| `ref`                                                       | A `style()` argument        | Attaches the ref to the element                        |
-| [`ref()`](/docs/macros/ref/condition/)                      | A computed key in `style()` | Matches inside the ref element, optionally in a state  |
-| [`ref().in()`](/docs/macros/ref/in/)                        | After a ref condition       | Matches inside a shared ancestor, such as for siblings |
-| [`ref.at()`](/docs/macros/ref/at/)                          | A computed key in `style()` | Matches a container query on the ref element           |
-| [`ref.asContainer()`](/docs/macros/ref/as-container/)       | A `style()` argument        | Makes the ref element a named container                |
-| [`ref.asAnchor()`](/docs/macros/ref/as-anchor/)             | A `style()` argument        | Makes the ref element a named anchor                   |
-| [`ref.positionAnchor()`](/docs/macros/ref/position-anchor/) | A `style()` argument        | Positions the styled element against the anchor        |
+| Method                                                     | Where to write it           | Effect                                                 |
+| ---------------------------------------------------------- | --------------------------- | ------------------------------------------------------ |
+| `ref`                                                      | A `style()` argument        | Attaches the ref to the element                        |
+| [`ref()`](/docs/macros/ref/condition)                      | A computed key in `style()` | Matches inside the ref element, optionally in a state  |
+| [`ref().in()`](/docs/macros/ref/in)                        | After a ref condition       | Matches inside a shared ancestor, such as for siblings |
+| [`ref.at()`](/docs/macros/ref/at)                          | A computed key in `style()` | Matches a container query on the ref element           |
+| [`ref.asContainer()`](/docs/macros/ref/as-container)       | A `style()` argument        | Makes the ref element a named container                |
+| [`ref.asAnchor()`](/docs/macros/ref/as-anchor)             | A `style()` argument        | Makes the ref element a named anchor                   |
+| [`ref.positionAnchor()`](/docs/macros/ref/position-anchor) | A `style()` argument        | Positions the styled element against the anchor        |
 
 Write each method call directly in `style()`. You cannot store the result of a
 method call in a variable and use it later.
@@ -60,5 +60,5 @@ call chooses among several refs at runtime, the generated code keeps the fields
 that the choice needs. The compiled code reads those fields directly. In
 development, Stillwind checks them first. The code does not watch the DOM.
 
-See [Element relationships](/docs/guides/element-relationships/) for task-based
+See [Element relationships](/docs/guides/element-relationships) for task-based
 examples.

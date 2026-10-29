@@ -36,9 +36,10 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
     const path = resolve(
       directory,
       "." +
-        decodeURIComponent(new URL(request.url!, "http://localhost").pathname)
-          .replace(/^\/play/, "")
-          .replace(/\/$/, "/index.html"),
+        decodeURIComponent(new URL(request.url!, "http://localhost").pathname).replace(
+          /\/$/,
+          "/index.html",
+        ),
     );
     if (!path.startsWith(directory + sep)) {
       response.writeHead(403).end();
@@ -131,7 +132,7 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
       }
     });
     console.info("Playground: load the preset");
-    await page.goto(`http://127.0.0.1:${address.port}/play/#preset=release-checklist`);
+    await page.goto(`http://127.0.0.1:${address.port}/#preset=release-checklist`);
     const frame = page.frameLocator('iframe[title="Stillwind Playground Preview"]');
     await frame.getByRole("heading", { name: "Release checklist" }).waitFor({ timeout: 60_000 });
     await expect

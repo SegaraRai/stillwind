@@ -93,10 +93,10 @@ conditions only. Element states such as `hover` are not media conditions.
 
 ## Report widths outside your breakpoints
 
-The [no-arbitrary-breakpoints](/docs/lints/no-arbitrary-breakpoints/) rule
+The [no-arbitrary-breakpoints](/docs/lints/no-arbitrary-breakpoints) rule
 reports widths written as values, such as `min-[713px]:`. See
-[Design systems](/docs/guides/design-systems/#report-values-outside-the-theme)
+[Design systems](/docs/guides/design-systems#report-values-outside-the-theme)
 to enable it.
 
 To respond to the width of a component instead of the viewport, use a container
-query. See [Element relationships](/docs/guides/element-relationships/#react-to-a-containers-size).
+query. See [Element relationships](/docs/guides/element-relationships#react-to-a-containers-size).

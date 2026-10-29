@@ -54,7 +54,7 @@ around `@slot`.
 selector without `&` selects descendants:
 `@custom-variant expanded ([aria-expanded="true"])` means
 `& [aria-expanded="true"]`.
-[prefer-explicit-nesting-selector](/docs/lints/prefer-explicit-nesting-selector/)
+[prefer-explicit-nesting-selector](/docs/lints/prefer-explicit-nesting-selector)
 reports such a selector, and its fix writes the `&` without changing the
 meaning.
 
@@ -79,12 +79,12 @@ export const css = style.css("shell:block shell:p-4 [button]:rounded-md");
 
 In `style.css()`, the first such variant selects the element that the utility
 styles. In `style()`, the rule stays document-wide, and
-[document-scoped-selector](/docs/lints/document-scoped-selector/) reports it.
+[document-scoped-selector](/docs/lints/document-scoped-selector) reports it.
 
 ## Definitions with the same name
 
 A later variant definition with the same name replaces the earlier one.
-[duplicate-definition](/docs/lints/duplicate-definition/) reports it. To match
+[duplicate-definition](/docs/lints/duplicate-definition) reports it. To match
 several selectors, list them in one definition.
 
 The order of variant definitions decides the output order of rules with

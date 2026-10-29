@@ -30,8 +30,8 @@ Keep your `@theme`, `@utility`, `@custom-variant`, `@variant`, `@apply`, and
 
 Replace the Tailwind build plugin, such as `@tailwindcss/vite`, with the
 Stillwind integration. Then create `stillwind.config.ts`, as described in
-[Getting started](/docs/#configure-the-project), and set up your framework, as
-described in [Framework integrations](/docs/integrations/).
+[Getting started](/docs#configure-the-project), and set up your framework, as
+described in [Framework integrations](/docs/integrations).
 
 ## Move classes into style()
 
@@ -89,8 +89,8 @@ as `"hover:"`. Rewrite each entry as `loading && "opacity-60"`.
 Remove `twMerge()` calls. Store the base style and pass it to another `style()`
 call. The compiler emits the new utilities after the base's CSS. They override
 competing declarations when the other cascade criteria, such as specificity
-and importance, are equal. See [Override a style](/docs/guides/style/#override-a-style)
-and [CSS ordering](/docs/concepts/css-ordering/).
+and importance, are equal. See [Override a style](/docs/guides/style#override-a-style)
+and [CSS ordering](/docs/concepts/css-ordering).
 
 ### cva
 
@@ -120,11 +120,11 @@ export function Button({ tone }: VariantProps<typeof button>) {
 `variants`, `defaultVariants`, and `compoundVariants` work as in
 class-variance-authority. Write each option value as a plain utility string,
 without `&&` or a ternary. The props that the factory returns cannot be passed
-to `style()` as a base. The [style.cva() reference](/docs/macros/cva/) lists the
+to `style()` as a base. The [style.cva() reference](/docs/macros/cva) lists the
 other differences.
 
 For new components, consider state variants and `data-*` attributes instead of
-options. See [Reusable styles](/docs/guides/reusable-styles/).
+options. See [Reusable styles](/docs/guides/reusable-styles).
 
 ## Move configuration
 
@@ -147,7 +147,7 @@ Set `important` in one place only. Setting both `important` and
 `tailwind.important` is an error.
 
 Stillwind ignores `@config` and import options in the stylesheet, and the CLI
-reports them with [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature/).
+reports them with [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature).
 Remove them after you move their settings.
 
 Stillwind loads Tailwind plugins, but not every plugin works. Test the plugins
@@ -155,6 +155,6 @@ that your application uses.
 
 ## Check the migrated code
 
-Run the [CLI checks](/docs/guides/lint-adoption/) over the migrated files. They
+Run the [CLI checks](/docs/guides/lint-adoption) over the migrated files. They
 report utilities that Stillwind cannot resolve and Tailwind features that it
 ignores. Then test the production build and your pages in the browser.

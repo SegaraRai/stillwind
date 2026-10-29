@@ -16,7 +16,7 @@ An arbitrary property is a utility that writes a declaration directly, such as
 `[color:red]`. `@stillwind-undef-arbitrary-property` rejects arbitrary
 properties for the matching CSS properties. A rejected candidate produces no
 CSS. Write the statement at the top level of the stylesheet or in a
-[@stillwind-registry](/docs/at-rules/stillwind-registry/) block.
+[@stillwind-registry](/docs/at-rules/stillwind-registry) block.
 
 ## Example
 
@@ -44,12 +44,12 @@ properties again, so components can still set variables.
 - The last matching statement decides for each property. A property that no
   statement matches is accepted.
 - `@stillwind-arbitrary-property pattern;` accepts the matching properties
-  again. The [registry directives](/docs/at-rules/registry-directives/) describe
+  again. The [registry directives](/docs/at-rules/registry-directives) describe
   its other role.
 - Patterns use the same forms as
-  [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/), with
+  [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility), with
   property names instead of utility names.
 
 To report arbitrary values without rejecting them, use lint rules such as
-[no-arbitrary-colors](/docs/lints/no-arbitrary-colors/) or
-[no-restricted-declarations](/docs/lints/no-restricted-declarations/) instead.
+[no-arbitrary-colors](/docs/lints/no-arbitrary-colors) or
+[no-restricted-declarations](/docs/lints/no-restricted-declarations) instead.
