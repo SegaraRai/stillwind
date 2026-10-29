@@ -2,6 +2,7 @@
  * Draws the landing backdrop: streamlines over a tilted lattice, fixed behind the whole page.
  * The wind calms while the hero leaves the viewport. The backdrop then dims and fades out of the
  * content column, and the streamlines straighten onto lattice rows by the end of the page.
+ * landing.css stops these changes when the reader prefers reduced motion, and shows paths marked data-still.
  * Call mountBackdrop once per page; backdropState and streamlinePath compute the drawing from measurements.
  */
 
@@ -91,7 +92,11 @@ export function streamlinePath(index: number, frame: StreamlineFrame): string {
     [420 * sx, (70 + t * 760 - Math.sin(t * Math.PI) * 90) * sy],
     [820 * sx, (280 + t * 240) * sy],
     [width + 80 * sx, (500 + t * 120) * sy],
-  ].map(([x, y]) => `${x} ${y! + (rowY(x!) - y!) * straightness}`);
+  ].map(([x, y]) => {
+    // A curve skips the lattice, so a lattice measured before its styles load cannot produce NaN.
+    const shifted = straightness === 0 ? y! : y! + (rowY(x!) - y!) * straightness;
+    return `${x} ${shifted}`;
+  });
   return `M ${points[0]} C ${points[1]}, ${points[2]}, ${points[3]}`;
 }
 
@@ -99,6 +104,7 @@ export function streamlinePath(index: number, frame: StreamlineFrame): string {
  * Starts drawing a connected backdrop element and returns a function that stops it.
  * The backdrop must contain an svg, the lattice element marked data-backdrop-lattice, and paths marked
  * data-streamline with their index. Gust paths share the index of their base path.
+ * Paths that also have data-still always keep their curves.
  * landing.css defines the lattice spacing and the --backdrop-tilt angle; this function reads both.
  * The function sets the --backdrop-* custom properties on the backdrop and the playback rate of its animations.
  */
@@ -131,7 +137,14 @@ export function mountBackdrop(backdrop: HTMLElement, hero: HTMLElement): () => v
 
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     for (const path of paths) {
-      path.setAttribute("d", streamlinePath(Number(path.dataset.streamline), shape));
+      const straightness = path.hasAttribute("data-still") ? 0 : state.straightness;
+      path.setAttribute(
+        "d",
+        streamlinePath(Number(path.dataset.streamline), {
+          ...shape,
+          straightness,
+        }),
+      );
     }
     for (const animation of backdrop.getAnimations({ subtree: true })) {
       animation.playbackRate = state.wind;

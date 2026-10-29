@@ -77,8 +77,8 @@ describe("streamlinePath", () => {
     ).toBe(
       streamlinePath(4, {
         ...frame,
-        tilt: 0,
-        spacing: 48,
+        tilt: Number.NaN,
+        spacing: Number.NaN,
         straightness: 0,
       }),
     );
