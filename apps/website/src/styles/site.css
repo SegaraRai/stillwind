@@ -1,5 +1,5 @@
 /*
-Cross-document navigation uses the browser's page transition type.
+Astro's client router animates navigation between pages with view transitions.
 */
 
 @theme {
@@ -16,10 +16,12 @@ Cross-document navigation uses the browser's page transition type.
   background: linear-gradient(to right, transparent 25%, currentColor 0);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  @view-transition {
-    navigation: auto;
-    types: page;
+/* The client router starts view transitions regardless of the motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
   }
 }
 

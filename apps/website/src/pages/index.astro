@@ -155,12 +155,12 @@ const frameworks = [
   </section>
 
   <script>
+    import { mount } from "@cloudflare/nimbus-docs/client";
+
     import { mountHeader } from "../lib/landing/header";
 
-    const slot = document.querySelector<HTMLElement>("[data-header-slot]");
-    const story = document.querySelector<HTMLElement>("[data-story]");
-    if (slot && story) {
-      mountHeader(slot, story);
-    }
+    mount("[data-story]", (story) =>
+      mountHeader(document.querySelector<HTMLElement>("[data-header-slot]")!, story),
+    );
   </script>
 </HomeLayout>

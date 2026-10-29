@@ -692,10 +692,9 @@ const results = [
 </section>
 
 <script>
+  import { mount } from "@cloudflare/nimbus-docs/client";
+
   import { mountShowcase } from "../../lib/landing/showcase";
 
-  const story = document.querySelector<HTMLElement>("[data-story]");
-  if (story) {
-    mountShowcase(story);
-  }
+  mount("[data-story]", mountShowcase);
 </script>

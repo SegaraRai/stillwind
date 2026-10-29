@@ -74,10 +74,9 @@ const control = style(
 </div>
 
 <script>
+  import { mount } from "@cloudflare/nimbus-docs/client";
+
   import { mountUtilityExplorer } from "../../lib/docs/utilities/explorer";
 
-  const root = document.querySelector<HTMLElement>("[data-utility-explorer]");
-  if (root) {
-    mountUtilityExplorer(root);
-  }
+  mount("[data-utility-explorer]", mountUtilityExplorer);
 </script>

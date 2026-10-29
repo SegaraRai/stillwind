@@ -69,14 +69,11 @@ const gusts = streamlines
 </div>
 
 <script>
+  import { mount } from "@cloudflare/nimbus-docs/client";
+
   import { mountBackdrop } from "../../lib/landing/backdrop";
 
-  const backdrop = document.querySelector<HTMLElement>("[data-backdrop]");
-  const hero = document.querySelector<HTMLElement>("[data-backdrop-hero]");
-  if (backdrop && hero) {
-    const dispose = mountBackdrop(backdrop, hero);
-    document.addEventListener("astro:before-swap", dispose, {
-      once: true,
-    });
-  }
+  mount("[data-backdrop]", (backdrop) =>
+    mountBackdrop(backdrop, document.querySelector<HTMLElement>("[data-backdrop-hero]")!),
+  );
 </script>
