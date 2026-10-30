@@ -19,7 +19,7 @@ jobs:
   binaries:
     name: Build ${{ matrix.target }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - target: win32-x64-msvc
@@ -45,6 +45,10 @@ jobs:
         with:
           node-version: "26.13.0"
           cache: true
+          run-install: false
+      # The binding needs no install scripts, and sharp 0.32 from the Gatsby fixture cannot
+      # build on Windows Arm64.
+      - run: vp i --frozen-lockfile --ignore-scripts
       - name: Set up Rust
         shell: bash
         run: |
@@ -73,8 +77,20 @@ jobs:
           cache: true
       - name: Set up Rust
         run: |
-          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-wasip1-threads
           rustup default 1.99.1
+      - name: Set up WASI SDK
+        # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
+        # https://github.com/napi-rs/napi-rs/issues/3491
+        env:
+          WASI_ARCHIVE: wasi-sdk-33.0-x86_64-linux.tar.gz
+          WASI_SHA256: 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce
+        run: |
+          curl --fail --location --retry 3 "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/$WASI_ARCHIVE" -o "$RUNNER_TEMP/$WASI_ARCHIVE"
+          echo "$WASI_SHA256  $RUNNER_TEMP/$WASI_ARCHIVE" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasi-sdk"
+          tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
+          echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
       - run: vp run --concurrency-limit 1 verify
 
   publish:
