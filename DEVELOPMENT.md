@@ -175,6 +175,23 @@ Deployments dashboard. Each Worker is deployed and rolled back separately.
 Repository transfers also require reviewing Actions policies and token access
 in the destination organization.
 
+## Package versions
+
+All publishable packages share one version until `1.0.0`. In `0.x` releases, breaking
+changes use `minor` and other changes use `patch`. `versioning.maxBump: minor` stops an
+accidental `major` bump, so remove that setting when you release `1.0.0`.
+
+After `1.0.0`, `stillwind`, `@stillwind/native` and its platform packages,
+`@stillwind/config`, `@stillwind/projection`, and `@stillwind/host` stay in the fixed
+group. `@stillwind/integration`, `@stillwind/analysis`, `@stillwind/cli`, and
+`@stillwind/language-server` also stay there until they need separate releases.
+
+`@stillwind/plugin-iconify`, `prettier-plugin-stillwind`, and
+`@stillwind/vscode-extension` can leave the fixed group when two conditions hold: the
+public APIs they depend on are stable, and they need releases apart from the other
+packages. A package that leaves the group keeps its current version and declares the
+supported `stillwind` versions in `peerDependencies`.
+
 ## Repository layout
 
 | Directory     | Responsibility                                                                 |
