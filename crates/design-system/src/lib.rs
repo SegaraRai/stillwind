@@ -7,10 +7,11 @@
 //! specifier, or interprets a source name as a path; those decisions stay in the host
 //! (`cli`, Vite, or an editor).
 //!
-//! Two prefixed custom-property namespaces exist and must stay distinct:
-//! Stillwind-owned identifiers use the configurable `--sw-` prefix, and the
-//! Tailwind-compatibility namespace uses the separately configurable `--tw-` prefix.
-//! [`DesignSystemOptions`] validates that they differ and provides
+//! Two prefixed custom-property namespaces exist: Stillwind-owned identifiers use the
+//! configurable `--sw-` prefix, and the Tailwind-compatibility namespace uses the
+//! separately configurable `--tw-` prefix. The package's names in the two namespaces do
+//! not overlap, so the prefixes may be equal.
+//! [`DesignSystemOptions`] validates their shape and provides
 //! [`DesignSystemOptions::rewrite_generated`] for substituting the canonical markers.
 //! The compiler chooses which generated strings to pass through that operation; loading
 //! a design system does not rewrite every authored value to the configured prefixes.

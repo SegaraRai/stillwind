@@ -294,7 +294,6 @@ async function projectConfiguration(source: ExampleSource): Promise<AnalysisProj
 // Native loader exceptions retain the diagnostic message but omit its reporting code.
 const exceptionMessages: Record<string, string> = {
   SW01002: "prefix must start with",
-  SW01003: "prefix must differ from tailwindPrefix and themePrefix",
   SW01004: "hashLength must be between",
   SW01006: "invalid `no-restricted-length-units` lint configuration:",
   SW01008: "the root CSS source cannot be unresolved",
@@ -319,7 +318,7 @@ async function errorDiagnostics(
   try {
     const project =
       first.title === "stillwind.config.ts" ? await projectConfiguration(first) : undefined;
-    if (["SW01002", "SW01003", "SW01004"].includes(code)) {
+    if (["SW01002", "SW01004"].includes(code)) {
       new NativeDesignSystemLoader({
         prefix: project!.prefix,
         tailwindPrefix: project!.tailwindPrefix,

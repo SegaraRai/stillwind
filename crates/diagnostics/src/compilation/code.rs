@@ -102,7 +102,6 @@ define_compile_codes! {
         // 01: compiler options, generated names, and the CSS entry
         FrameworkConstraintConflict => "SW01001",
         InvalidPropertyPrefix { .. } => "SW01002",
-        ConflictingPropertyPrefixes { .. } => "SW01003",
         InvalidHashLength { .. } => "SW01004",
         GeneratedIdentifierCollision { .. } => "SW01005",
         InvalidLintConfiguration { .. } => "SW01006",

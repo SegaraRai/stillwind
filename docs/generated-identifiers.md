@@ -10,8 +10,9 @@ Utility classes retain the producer, style call, and branch identity. Ref, keyfr
 and view-transition declarations retain their own declaration identity. Set
 `classNamespace` when independently built projects share a document, and use the same
 value in client and server builds. Configured property prefixes must start with `--`,
-end with `-`, and contain at least four bytes with no whitespace. `prefix` must differ
-from `tailwindPrefix` and `themePrefix`, and `themePrefix` may equal `tailwindPrefix`.
+end with `-`, and contain at least four bytes with no whitespace. Any of them may be
+equal, because the package's `--sw-*` and `--tw-*` names do not overlap. Compare the two
+sets when `tailwindcss` is updated, because a new upstream name could overlap.
 
 `themePrefix` renames theme variables in finished CSS. Resolution, lint, and editor
 queries keep authored names, and assembly renames each whole CSS identifier that names

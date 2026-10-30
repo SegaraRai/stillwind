@@ -20,8 +20,8 @@ use crate::target::BrowserTargets;
 pub struct DesignSystemOptions {
     /// Prefix of Stillwind-owned generated properties.
     pub prefix: LeanStr,
-    /// Prefix of the Tailwind-compatibility namespace, which stays distinct from
-    /// `prefix` even when both are customized.
+    /// Prefix of the Tailwind-compatibility namespace. It may equal `prefix`, because
+    /// the package's names in the two namespaces do not overlap.
     pub tailwind_prefix: LeanStr,
     /// Prefix that replaces the leading `--` of theme variables in generated CSS, or an
     /// empty string to keep their authored names.
@@ -45,19 +45,16 @@ impl Default for DesignSystemOptions {
 }
 
 impl DesignSystemOptions {
-    /// Validates that the configured namespaces are CSS prefixes and that Stillwind's
-    /// namespace is distinct from the others.
+    /// Validates that the configured namespaces are CSS prefixes.
     ///
     /// A prefix must start with `--`, end with `-`, span at least four bytes, and
     /// contain no whitespace. The error preserves the offending field name and supplied
-    /// value, or the common prefix when two namespaces collide. An empty `theme_prefix`
-    /// is valid, and `theme_prefix` may equal `tailwind_prefix`. Validation does not
-    /// modify any value.
+    /// value. An empty `theme_prefix` is valid, and any prefixes may be equal.
+    /// Validation does not modify any value.
     ///
     /// # Errors
     ///
-    /// Returns [`CompileDiagnostic::InvalidPropertyPrefix`] for malformed prefixes, or
-    /// [`CompileDiagnostic::ConflictingPropertyPrefixes`] for identical namespaces.
+    /// Returns [`CompileDiagnostic::InvalidPropertyPrefix`] for malformed prefixes.
     /// Shape checks do not constitute full CSS identifier validation.
     pub fn validate(&self) -> Result<(), CompileDiagnostic> {
         for (name, value) in [
@@ -78,11 +75,6 @@ impl DesignSystemOptions {
                     value: value.into(),
                 });
             }
-        }
-        if self.prefix == self.tailwind_prefix || self.prefix == self.theme_prefix {
-            return Err(CompileDiagnostic::ConflictingPropertyPrefixes {
-                prefix: self.prefix.clone(),
-            });
         }
         Ok(())
     }
@@ -125,15 +117,23 @@ mod tests {
     use super::{CompileDiagnostic, DesignSystemOptions};
 
     #[test]
-    fn theme_prefix_validation_allows_the_compatibility_namespace() {
-        assert!(
+    fn validation_allows_equal_prefixes() {
+        for options in [
             DesignSystemOptions {
                 theme_prefix: "--tw-".into(),
                 ..DesignSystemOptions::default()
-            }
-            .validate()
-            .is_ok()
-        );
+            },
+            DesignSystemOptions {
+                theme_prefix: "--sw-".into(),
+                ..DesignSystemOptions::default()
+            },
+            DesignSystemOptions {
+                tailwind_prefix: "--sw-".into(),
+                ..DesignSystemOptions::default()
+            },
+        ] {
+            assert!(options.validate().is_ok(), "{options:?}");
+        }
         assert!(matches!(
             DesignSystemOptions {
                 theme_prefix: "tw".into(),
@@ -142,14 +142,6 @@ mod tests {
             .validate(),
             Err(CompileDiagnostic::InvalidPropertyPrefix { option, value })
                 if option == "themePrefix" && value == "tw"
-        ));
-        assert!(matches!(
-            DesignSystemOptions {
-                theme_prefix: "--sw-".into(),
-                ..DesignSystemOptions::default()
-            }
-            .validate(),
-            Err(CompileDiagnostic::ConflictingPropertyPrefixes { .. })
         ));
     }
 
@@ -174,15 +166,6 @@ mod tests {
                 option,
                 value,
             }) if option == "tailwindPrefix" && value == "bad")
-        );
-        let options = DesignSystemOptions {
-            tailwind_prefix: "--sw-".into(),
-            ..DesignSystemOptions::default()
-        };
-        assert!(
-            matches!(options.validate(), Err(CompileDiagnostic::ConflictingPropertyPrefixes {
-                prefix,
-            }) if prefix == "--sw-")
         );
     }
 }

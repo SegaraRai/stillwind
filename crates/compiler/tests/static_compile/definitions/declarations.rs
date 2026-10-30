@@ -273,6 +273,33 @@ export const item = style("bg-(--tw-color-hint) translate-x-1 [--label:'--tw-tex
 }
 
 #[test]
+fn stillwind_and_compatibility_prefixes_may_be_equal() {
+    let result = compile_themed(
+        r#"import { style } from "stillwind/react";
+const card = style.viewTransition({ old: "opacity-0" });
+export const item = style("bg-brand translate-x-1 shadow-md", card);"#,
+        "@theme { --color-brand: red; --spacing-1: .25rem; }",
+        &CompilerOptions {
+            prefix: "--app-".into(),
+            tailwind_prefix: "--app-".into(),
+            theme_prefix: "--app-".into(),
+            ..CompilerOptions::default()
+        },
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("--app-color-brand:red"),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("--app-translate-x"), "{}", result.css);
+    assert!(result.css.contains("--app-shadow"), "{}", result.css);
+    assert!(!result.css.contains("--sw-"), "{}", result.css);
+    assert!(!result.css.contains("--tw-"), "{}", result.css);
+}
+
+#[test]
 fn theme_prefix_rejects_a_variable_with_the_name_of_an_internal_property() {
     let result = compile_themed(
         r#"import { style } from "stillwind/react";

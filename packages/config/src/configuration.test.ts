@@ -190,19 +190,7 @@ test.each([
   ],
   [
     {
-      tailwindPrefix: "--sw-",
-    },
-    "projects[0].tailwindPrefix",
-  ],
-  [
-    {
       themePrefix: "tw",
-    },
-    "projects[0].themePrefix",
-  ],
-  [
-    {
-      themePrefix: "--sw-",
     },
     "projects[0].themePrefix",
   ],

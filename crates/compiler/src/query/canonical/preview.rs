@@ -144,6 +144,10 @@ pub(super) fn normalized_signature(
 pub(in crate::query) struct Composition {
     /// The prefix of internal custom properties in the generated CSS, such as `--tw-`.
     pub(super) prefix: LeanStr,
+    /// Internal custom properties that utility definitions declare or the design system
+    /// registers, with `prefix`. A configured prefix can also name Stillwind's own
+    /// properties, so it does not identify these properties by itself.
+    pub(super) internal: BTreeSet<LeanStr>,
     /// Maps each internal custom property, with `prefix`, to the standard property that
     /// receives the same value in some utility definition.
     pub(super) shadows: BTreeMap<LeanStr, LeanStr>,
@@ -154,6 +158,14 @@ impl Composition {
     fn prepare(query: &QueryContext) -> Self {
         let mut composition = Self {
             prefix: query.options.tailwind_prefix.clone(),
+            internal: query
+                .design_system
+                .theme()
+                .properties()
+                .iter()
+                .filter(|property| property.name.starts_with(PACKAGE_TAILWIND_PREFIX))
+                .map(|property| query.options.rewrite_generated(&property.name))
+                .collect(),
             shadows: BTreeMap::new(),
         };
         for definition in query
@@ -167,6 +179,9 @@ impl Composition {
                     .iter()
                     .filter(|declaration| declaration.property.starts_with(PACKAGE_TAILWIND_PREFIX))
                 {
+                    composition
+                        .internal
+                        .insert(query.options.rewrite_generated(&custom.property));
                     let value = declaration_value(custom);
                     if let Some(standard) = declarations.iter().find(|other| {
                         !other.property.starts_with("--") && declaration_value(other) == value
@@ -303,8 +318,9 @@ pub(super) fn canonical_requirements(
     composition: &Composition,
 ) -> Vec<LeanStr> {
     let prefix = composition.prefix.as_str();
-    let internal =
-        |name: &str| name.starts_with(PACKAGE_TAILWIND_PREFIX) || name.starts_with(prefix);
+    let internal = |name: &str| {
+        name.starts_with(PACKAGE_TAILWIND_PREFIX) || composition.internal.contains(name)
+    };
     if !required.iter().any(|name| internal(name)) {
         return required;
     }

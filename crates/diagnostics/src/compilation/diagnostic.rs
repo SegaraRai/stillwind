@@ -27,12 +27,6 @@ pub enum CompileDiagnostic {
         /// Rejected prefix supplied by the host.
         value: LeanStr,
     },
-    /// Stillwind's generated-property namespace equals another namespace.
-    #[error("prefix must differ from tailwindPrefix and themePrefix")]
-    ConflictingPropertyPrefixes {
-        /// Prefix shared by the namespaces.
-        prefix: LeanStr,
-    },
     /// A configured generated-name hash length cannot spell one request digest.
     #[error("hashLength must be between 1 and {maximum} base-36 digits, not {length}")]
     InvalidHashLength {

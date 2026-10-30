@@ -488,14 +488,21 @@ test("inline overrides validate after merging with the selected project", async 
       tokens: ["--color-*"],
     },
   });
-  await expect(
-    resolveIntegrationConfig(
-      {
-        tailwindPrefix: "--project-",
-      },
-      root,
-    ),
-  ).rejects.toThrow("config.tailwindPrefix");
+  expect(
+    (
+      await resolveIntegrationConfig(
+        {
+          tailwindPrefix: "--project-",
+          themePrefix: "--project-",
+        },
+        root,
+      )
+    ).config,
+  ).toMatchObject({
+    prefix: "--project-",
+    tailwindPrefix: "--project-",
+    themePrefix: "--project-",
+  });
 });
 
 test("missing configuration accepts complete inline options and rejects explicit missing paths", async () => {

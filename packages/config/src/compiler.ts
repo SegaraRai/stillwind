@@ -86,14 +86,13 @@ export interface BaseConfig {
   prefix?: string;
   /**
    * Namespace for Tailwind-compatible custom properties.
-   * Uses the same format as prefix and must differ from it.
+   * Uses the same format as prefix and may equal it.
    * Defaults to --tw-.
    */
   tailwindPrefix?: string;
   /**
    * Replaces the leading -- of theme variables in generated CSS. Uses the same format as
-   * prefix and must differ from it. It may equal tailwindPrefix. Omission keeps the authored
-   * names.
+   * prefix and may equal the other prefixes. Omission keeps the authored names.
    */
   themePrefix?: string;
   /**
@@ -252,40 +251,6 @@ export const compilerEntries = {
 const compilerSchema = strictObject(compilerEntries);
 
 /**
- * Checks namespace collisions after deciding whether defaults can be applied.
- * @param partial - Whether to defer the check when either namespace is absent from an override.
- * @returns A schema check that attributes collisions to `tailwindPrefix`. Complete settings use
- * the default namespace for each omitted field.
- */
-const distinctNamespaces = (partial: boolean) =>
-  v.forward(
-    v.check(
-      (value: v.InferOutput<typeof compilerSchema>) =>
-        (partial && (value.prefix === undefined || value.tailwindPrefix === undefined)) ||
-        (value.prefix ?? "--sw-") !== (value.tailwindPrefix ?? "--tw-"),
-      "must differ from prefix",
-    ),
-    ["tailwindPrefix"],
-  );
-
-/**
- * Checks that theme variables stay out of Stillwind's namespace.
- * @param partial - Whether to defer the check when `prefix` is absent from an override.
- * @returns A schema check that attributes the collision to `themePrefix`.
- */
-const distinctThemeNamespace = (partial: boolean) =>
-  v.forward(
-    v.check(
-      (value: v.InferOutput<typeof compilerSchema>) =>
-        value.themePrefix === undefined ||
-        (partial && value.prefix === undefined) ||
-        (value.prefix ?? "--sw-") !== value.themePrefix,
-      "must differ from prefix",
-    ),
-    ["themePrefix"],
-  );
-
-/**
  * Rejects an `important` field together with `important` in a Tailwind configuration object.
  * A promised configuration is checked after the host awaits it.
  */
@@ -314,16 +279,7 @@ export function validateCompilerConfig(
   location = "config",
   partial = false,
 ): asserts value is BaseConfig {
-  validate(
-    v.pipe(
-      compilerSchema,
-      distinctNamespaces(partial),
-      distinctThemeNamespace(partial),
-      singleImportant,
-    ),
-    value,
-    location,
-  );
+  validate(v.pipe(compilerSchema, singleImportant), value, location);
   if (value.lint !== undefined) {
     validateLintConfig(value.lint, `${location}.lint`, partial);
   }
@@ -333,7 +289,7 @@ export function validateCompilerConfig(
 export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
   /** Validated Stillwind namespace, defaulting to --sw-. */
   prefix: string;
-  /** Validated Tailwind namespace, defaulting to --tw- and distinct from prefix. */
+  /** Validated Tailwind namespace, defaulting to --tw-. */
   tailwindPrefix: string;
   /** Validated theme variable namespace. Omission keeps authored names. */
   themePrefix?: string;

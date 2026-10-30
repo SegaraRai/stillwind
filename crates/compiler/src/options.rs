@@ -6,8 +6,8 @@
 //! [`CompilerOptions::resolved`] pins both prefixes to the snapshot's own
 //! configuration, so a caller that passes stale options still compiles against the
 //! theme it handed over. Every generated text that carries a prefix is substituted by
-//! this module's `rewrite_generated`; the two namespaces must stay distinct, because a
-//! consumer that recognizes one must not match the other.
+//! this module's `rewrite_generated`. The package's names in the two namespaces do not
+//! overlap, so the prefixes may be equal.
 
 use lean_string::{LeanStr, ToLeanStr};
 use serde::{Deserialize, Deserializer, Serialize, de};
