@@ -38,7 +38,7 @@ colors. Their CSS comes after the base's CSS, and their selectors have equal
 specificity. The order of the class names does not affect the result.
 
 A base's `hover:` selector can be more specific than a plain class in the
-derived style. [CSS ordering](/docs/concepts/css-ordering/) explains variants,
+derived style. [CSS ordering](/docs/concepts/css-ordering) explains variants,
 conditions, and multiple bases.
 
 A base passes on its classes only. Custom properties such as
@@ -99,11 +99,11 @@ test queries.
 
 For a value from a continuous range, such as a width or a progress percentage,
 set a custom property instead. See
-[Use runtime values](/docs/guides/style/#use-runtime-values).
+[Use runtime values](/docs/guides/style#use-runtime-values).
 
 ## Migrate CVA components
 
 `style.cva()` accepts the configuration of `cva` from class-variance-authority.
 Use it to migrate existing CVA components. See
-[Replace class helpers](/docs/guides/migrating-from-tailwind/#replace-class-helpers)
-and the [style.cva() reference](/docs/macros/cva/).
+[Replace class helpers](/docs/guides/migrating-from-tailwind#replace-class-helpers)
+and the [style.cva() reference](/docs/macros/cva).

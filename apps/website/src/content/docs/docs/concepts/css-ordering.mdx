@@ -6,7 +6,7 @@ slug: docs/concepts/css-ordering
 
 This page explains Stillwind's detailed CSS ordering rules for developers debugging
 style conflicts or defining custom utilities and variants. It assumes you already
-use [`style()`](/docs/guides/style/) and [reusable styles](/docs/guides/reusable-styles/),
+use [`style()`](/docs/guides/style) and [reusable styles](/docs/guides/reusable-styles),
 and know how the CSS cascade works.
 
 <Aside type="note" title="Prefer styles that do not depend on order">
@@ -44,7 +44,7 @@ class. It does not move a rule ahead of CSS from an earlier file or call.
 The default `utilityOrder` setting is `"authored"`. In this mode, utilities from
 plugins come before utilities defined in the stylesheet. Set `utilityOrder` to
 `"tailwind"` to use Tailwind's property order instead. See
-[Configuration](/docs/configuration/#generated-css).
+[Configuration](/docs/configuration#generated-css).
 
 ### A base's rules come before the new call's rules
 
@@ -124,7 +124,7 @@ style("p-2 p-4");
 style("p-4", "p-2");
 ```
 
-[conflicting-utilities](/docs/lints/conflicting-utilities/) reports this
+[conflicting-utilities](/docs/lints/conflicting-utilities) reports this
 conflict. Remove the unwanted utility instead of rearranging the input.
 
 If two base styles set the same property, do not use their argument order to
@@ -137,8 +137,8 @@ const red = style(blue, "bg-red-600");
 const props = style(red);
 ```
 
-[ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order/) and
-[interfering-imported-style-base](/docs/lints/interfering-imported-style-base/)
+[ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order) and
+[interfering-imported-style-base](/docs/lints/interfering-imported-style-base)
 report calls that combine conflicting bases without saying which is built on
 which.
 
@@ -182,7 +182,7 @@ The browser uses declaration order only when the earlier rules of the
 [CSS cascade](https://www.w3.org/TR/css-cascade-5/#cascade-sort) leave a tie.
 
 To override a shared style, use `style(base, ...)` with the matching variants
-instead of adding `!important`. See [no-important](/docs/lints/no-important/).
+instead of adding `!important`. See [no-important](/docs/lints/no-important).
 
 ## Stylesheet placement
 
@@ -191,5 +191,5 @@ server-rendered pages. A production build may combine or move CSS rules when
 doing so does not change which declaration wins.
 
 If you combine CSS from separate builds, or place the CSS strings returned by
-[`style.css()`](/docs/macros/css/) yourself, you choose which stylesheet comes
+[`style.css()`](/docs/macros/css) yourself, you choose which stylesheet comes
 first.

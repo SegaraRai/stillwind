@@ -6,6 +6,8 @@ import { relative, resolve, sep, extname } from "node:path";
 import { chromium, type Page, type FrameLocator, type Locator } from "playwright";
 import { expect, type TestContext } from "vite-plus/test";
 
+import { editSource } from "./browser.ts";
+
 // The site embeds these files as the Release checklist preset. Vitest stubs CSS imports, so the test
 // reads them from disk instead of importing the playground module.
 const exampleDirectory = resolve(
@@ -46,9 +48,10 @@ export async function withPlayground(
     const path = resolve(
       directory,
       "." +
-        decodeURIComponent(new URL(request.url!, "http://localhost").pathname)
-          .replace(/^\/play/, "")
-          .replace(/\/$/, "/index.html"),
+        decodeURIComponent(new URL(request.url!, "http://localhost").pathname).replace(
+          /\/$/,
+          "/index.html",
+        ),
     );
     if (!path.startsWith(directory + sep)) {
       response.writeHead(403).end();
@@ -145,7 +148,7 @@ export async function withPlayground(
     const page = await openPage();
     const buffers = new Map(exampleFiles);
     console.info("Playground: load the preset");
-    await page.goto(`http://127.0.0.1:${address.port}/play/#preset=release-checklist`);
+    await page.goto(`http://127.0.0.1:${address.port}/#preset=release-checklist`);
     const frame = page.frameLocator('iframe[title="Stillwind Playground Preview"]');
     await frame.getByRole("heading", { name: "Release checklist" }).waitFor({ timeout: 60_000 });
     await expect
@@ -172,7 +175,7 @@ export async function withPlayground(
   }
 }
 
-/** Edits through Monaco's accessible textarea, exercising actual extension synchronization. */
+/** Replaces text in the tracked buffer and synchronizes it through the editor. */
 export async function replace(
   page: Page,
   buffers: Map<string, string>,
@@ -183,11 +186,5 @@ export async function replace(
   const key = `/workspace/${file}`;
   const text = buffers.get(key)!.replace(from, to);
   buffers.set(key, text);
-  await page.getByRole("button", { name: file, exact: true }).click();
-  const input = page
-    .getByRole("region", { name: "Editor" })
-    .locator(".monaco-editor textarea.inputarea");
-  await input.focus();
-  await page.keyboard.press("Control+a");
-  await page.keyboard.insertText(text);
+  await editSource(page, file, text);
 }

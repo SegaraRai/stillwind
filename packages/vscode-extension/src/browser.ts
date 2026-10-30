@@ -37,16 +37,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         "dist/browser/server-module.js",
       ).toString(true),
     });
+    const initializationOptions = {
+      ...editorSettings(),
+      files: await readWorkspace(
+        vscode.workspace.workspaceFolders?.map((folder) => folder.uri.toString()) ?? [],
+      ),
+      configFile:
+        vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
+    };
     client = new LanguageClient("stillwind", "Stillwind", worker, {
       ...options,
-      initializationOptions: {
-        ...editorSettings(),
-        files: await readWorkspace(
-          vscode.workspace.workspaceFolders?.map((folder) => folder.uri.toString()) ?? [],
-        ),
-        configFile:
-          vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
-      },
+      initializationOptions,
     });
     client.onRequest(
       "stillwind/readWorkspace",
@@ -61,7 +62,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
       }),
     );
-    await client.start();
+    try {
+      await client.start();
+    } finally {
+      initializationOptions.files = [];
+    }
   };
 
   context.subscriptions.push(
@@ -71,6 +76,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.commands.registerCommand("stillwind.compile", async (input: unknown) => {
       return client?.sendRequest("stillwind/compile", input);
+    }),
+    vscode.commands.registerCommand("stillwind.readFile", async (input: unknown) => {
+      return client?.sendRequest("stillwind/readFile", input);
     }),
     vscode.commands.registerCommand("stillwind.sortSource", async (input: unknown) => {
       return client?.sendRequest("stillwind/sort", input);

@@ -55,7 +55,7 @@ chooses class names and sets property values.
 | A runtime custom property              | An inline `style` value                     |
 | `style.cva()`                          | A factory that selects compiled class names |
 | `style.media()`                        | A string with the media query               |
-| [`style.css()`](/docs/macros/css/)     | A CSS string that you place yourself        |
+| [`style.css()`](/docs/macros/css)      | A CSS string that you place yourself        |
 
 Development builds import checked versions of the helpers from
 `stillwind/runtime/class-name-object-development`. These versions report invalid values
@@ -69,7 +69,7 @@ compiles. Utilities that no compiled call uses produce no CSS.
 Stillwind fixes the precedence of its generated rules at build time. Class-name
 order and module-loading order do not change it. Production optimizations can
 combine or move rules without changing the cascade. See
-[CSS ordering](/docs/concepts/css-ordering/) for base styles, conditions, and variants.
+[CSS ordering](/docs/concepts/css-ordering) for base styles, conditions, and variants.
 
 ## Delivering CSS to the page
 
@@ -77,7 +77,7 @@ The build integration adds the generated CSS to your application. For Vite and
 the frameworks built on it, the build writes one stylesheet by default.
 The Astro integration also adds the styles to server-rendered pages and islands.
 SvelteKit needs a server hook to add them to server-rendered pages in development.
-See [Framework integrations](/docs/integrations/) for the setup of each framework.
+See [Framework integrations](/docs/integrations) for the setup of each framework.
 
 `style.css()` returns its CSS as a string instead of adding it to this stylesheet.
-To add the styles of a module to a shadow root, see [Web Components](/docs/guides/web-components/).
+To add the styles of a module to a shadow root, see [Web Components](/docs/guides/web-components).

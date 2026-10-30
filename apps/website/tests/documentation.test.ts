@@ -23,7 +23,7 @@ test("documents every lint rule and compiler error at its public URL", async () 
     for (const name of names) {
       const page = await readFile(new URL(`${directory}/${name}.mdx`, content), "utf8");
       expect(page, name).toMatch(new RegExp(`^slug: docs/${directory}/${name}$`, "m"));
-      expect(index, name).toContain(`](/docs/${directory}/${name}/)`);
+      expect(index, name).toContain(`](/docs/${directory}/${name})`);
       if (directory === "lints") {
         expect(page, name).toContain(`<LintRuleSummary name="${name}"`);
       } else {
@@ -71,7 +71,7 @@ test("documents every stylesheet directive that editors suggest", async () => {
     const page = await readFile(new URL(`${name}.mdx`, directory), "utf8");
     expect(page, name).toMatch(new RegExp(`^slug: docs/at-rules/${name}$`, "m"));
     expect(page, name).toMatch(new RegExp(`^title: "@${name}"$`, "m"));
-    expect(index, name).toContain(`[@${name}](/docs/at-rules/${name}/)`);
+    expect(index, name).toContain(`[@${name}](/docs/at-rules/${name})`);
   }
   const registry = await readFile(new URL("registry-directives.mdx", directory), "utf8");
   for (const { name, purpose } of directives) {

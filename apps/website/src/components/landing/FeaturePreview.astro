@@ -536,8 +536,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 {...style(
                   "absolute inset-s-0 inset-bs-0 overflow-clip bg-surface-muted rounded-inline",
                   {
-                    [documentRoot("[&:not(:active-view-transition-type(page))]")]:
-                      article.for("thumbnail"),
+                    [documentRoot("[&:not([data-astro-transition])]")]: article.for("thumbnail"),
                     [features("data-motion-enabled")]:
                       "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
                   },
@@ -550,8 +549,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 data-transition-element="title"
                 {...style("absolute inset-s-0 inset-bs-0 text-lead/[1.4] tracking-[-0.035em]", {
                   "max-inline:": "text-(length:--text-body)",
-                  [documentRoot("[&:not(:active-view-transition-type(page))]")]:
-                    article.for("title"),
+                  [documentRoot("[&:not([data-astro-transition])]")]: article.for("title"),
                   [features("data-motion-enabled")]:
                     "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
                 })}
@@ -563,8 +561,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 {...style(
                   "absolute inset-s-0 inset-bs-0 font-mono text-[9px]/[1.5] text-muted tracking-[0.01em]",
                   {
-                    [documentRoot("[&:not(:active-view-transition-type(page))]")]:
-                      article.for("meta"),
+                    [documentRoot("[&:not([data-astro-transition])]")]: article.for("meta"),
                     [features("data-motion-enabled")]:
                       "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
                   },

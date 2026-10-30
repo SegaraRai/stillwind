@@ -9,9 +9,20 @@ and Quick Fixes. Application builds run separately in a worker with the browser 
 of Rolldown. Its JSX transform adds React Refresh registrations, and React Refresh updates a
 persistent sandboxed iframe. CSS updates replace its stylesheet.
 
+Each application build captures file identities and package manifests. The build worker
+requests other file contents only when it loads them, with the same workspace generation
+and revision. CSS edits update the retained LSP workspace. Configuration and JSON edits
+reload its configuration.
+
 Rolldown does not bundle CSS. The build inlines `@import` rules that name workspace
 stylesheets, and it appends imported stylesheets in module order after the Stillwind CSS.
 Other `@import` rules and `url()` references stay unchanged.
+
+The Stillwind and Rolldown WASM loaders each start with 128 MiB of linear memory
+and can grow as needed. Each loader preloads four workers for async work and two
+additional workers. Rolldown has separate loaders for application builds and LSP
+configuration bundles. `pnpm-workspace.yaml` registers the dependency patches that
+configure Rolldown's memory and pool sizes and the browser pool option in NAPI-RS.
 
 ## Local tasks and hosting
 
@@ -48,7 +59,7 @@ it builds the site. Every preset needs `App.tsx`, which exports `App` or a defau
   a custom variant, custom utilities, refs, container queries, view transitions, and lint rules
   that report values outside the theme.
 
-The workspace bundles the `mdi`, `lucide`, and `fluent-emoji-flat` icon sets.
+The workspace bundles the `lucide` icon set.
 
 Presets must have no Stillwind lint findings and must keep Prettier's default formatting and
 Stillwind's utility order, so the Format and Fix buttons leave them unchanged. `vp fmt` skips
@@ -61,8 +72,8 @@ vp run @stillwind-internal/apps-play#fmt:examples
 
 The repository `check` and `fmt` tasks include them. `e2e/play` opens `release-checklist` and
 edits its files by their text, so update its replacements when that preset changes.
-Its browser scenarios cover formatting and completions, diagnostics, HMR and recovery,
-and shared links. Register new scenarios in `tools/sites/ci.ts`.
+Its browser scenarios cover formatting and completions, diagnostics, HMR, shared links,
+file loading, and worker recovery. Register new scenarios in `tools/sites/ci.ts`.
 CI runs them on separate runners using the same acceptance build. Locally,
 `vp run @stillwind-internal/e2e-play#test:e2e` runs them sequentially.
 To select one scenario without rebuilding existing assets, run

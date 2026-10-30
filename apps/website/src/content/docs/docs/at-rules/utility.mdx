@@ -80,7 +80,7 @@ export const code = style("tab-width-wide text-fluid-lg/tight");
 
 A declaration whose `--value()` matches no form is left out. A candidate that
 matches no declaration produces no CSS, and
-[unknown-utility](/docs/lints/unknown-utility/) reports it.
+[unknown-utility](/docs/lints/unknown-utility) reports it.
 
 ## Definitions with the same name
 
@@ -107,7 +107,7 @@ export const page = style("container");
 A static definition replaces a functional one for its exact name:
 `@utility shadow-lg { ... }` replaces the built-in `shadow-*` for `shadow-lg`
 only. To remove built-in definitions, use
-[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/).
+[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility).
 
 ## Body
 
@@ -121,8 +121,8 @@ The compiler moves `@keyframes` and `@property` rules of a used utility to the
 utility adds no such rules.
 
 To use a registered custom property, register it with
-[@stillwind-property](/docs/at-rules/stillwind-property/) and require it with
-[@stillwind-require-properties](/docs/at-rules/stillwind-require-properties/).
+[@stillwind-property](/docs/at-rules/stillwind-property) and require it with
+[@stillwind-require-properties](/docs/at-rules/stillwind-require-properties).
 
 ## The implementation descriptor
 
@@ -130,12 +130,12 @@ To use a registered custom property, register it with
 utility's implementation. The `checkImplementation` option of a lint rule decides
 whether the rule checks them:
 
-- [prefer-logical-properties](/docs/lints/prefer-logical-properties/) and
-  [no-restricted-length-units](/docs/lints/no-restricted-length-units/) skip them
+- [prefer-logical-properties](/docs/lints/prefer-logical-properties) and
+  [no-restricted-length-units](/docs/lints/no-restricted-length-units) skip them
   unless the option is `true`. The `em` values below are skipped.
-- [no-important](/docs/lints/no-important/),
-  [no-restricted-declarations](/docs/lints/no-restricted-declarations/), and
-  [no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens/) check them
+- [no-important](/docs/lints/no-important),
+  [no-restricted-declarations](/docs/lints/no-restricted-declarations), and
+  [no-restricted-theme-tokens](/docs/lints/no-restricted-theme-tokens) check them
   unless the option is `false`.
 
 <CompiledExample>
@@ -162,5 +162,5 @@ still checked.
 
 A definition inside `@media` or another conditional at-rule keeps its
 declarations, and the compiler ignores the condition.
-[ignored-definition-condition](/docs/lints/ignored-definition-condition/)
+[ignored-definition-condition](/docs/lints/ignored-definition-condition)
 reports it. Write the condition inside the body instead, or use a variant.

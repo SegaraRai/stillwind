@@ -1,0 +1,79 @@
+---
+import { style } from "stillwind/astro";
+
+import { STREAMLINE_COUNT } from "../../lib/landing/backdrop";
+
+const gust = style.keyframes({
+  from: "[stroke-dashoffset:1000]",
+  to: "[stroke-dashoffset:0]",
+});
+
+const streamlines = Array.from({ length: STREAMLINE_COUNT }, (_, index) => index);
+
+// Every third streamline carries a gust, with its own speed and phase.
+const gusts = streamlines
+  .filter((index) => index % 3 === 0)
+  .map((index) => ({
+    index,
+    timing: `animation-duration: ${16 + ((index * 7) % 11)}s; animation-delay: ${-((index * 5.3) % 20)}s`,
+  }));
+---
+
+{/*
+  The wrapper and its ancestors must stay unpositioned. Under reduced motion, the streamline layer is then
+  positioned against the initial containing block, so it covers the first viewport and scrolls away with the hero.
+  */}
+<div aria-hidden="true" data-backdrop>
+  <div {...style("backdrop [--backdrop-still-column-alpha:0.15]")}>
+    <div data-backdrop-lattice {...style("backdrop-rows")}></div>
+    <div {...style("backdrop-columns")}></div>
+  </div>
+  <div {...style("backdrop motion-reduce:absolute")}>
+    <svg preserveAspectRatio="none" {...style("absolute inset-0 block-full inline-full")}>
+      <g {...style("[opacity:var(--backdrop-base-opacity,1)] motion-reduce:hidden")}>
+        {streamlines.map((index) => (
+          <path
+            data-streamline={index}
+            {...style(
+              "fill-none stroke-backdrop-streamline stroke-1 [vector-effect:non-scaling-stroke]",
+            )}
+          />
+        ))}
+      </g>
+      <g {...style("not-motion-reduce:hidden")}>
+        {streamlines.map((index) => (
+          <path
+            data-streamline={index}
+            data-still
+            {...style(
+              "fill-none stroke-backdrop-streamline stroke-1 [vector-effect:non-scaling-stroke]",
+            )}
+          />
+        ))}
+      </g>
+      <g {...style("[opacity:var(--backdrop-gust-opacity,1)] motion-reduce:hidden")}>
+        {gusts.map(({ index, timing }) => (
+          <path
+            data-streamline={index}
+            pathLength="1000"
+            style={timing}
+            {...style(
+              gust("ease-linear infinite"),
+              "fill-none stroke-accent stroke-[1.25] opacity-60 [stroke-linecap:round] [stroke-dasharray:60_940] [vector-effect:non-scaling-stroke]",
+            )}
+          />
+        ))}
+      </g>
+    </svg>
+  </div>
+</div>
+
+<script>
+  import { mount } from "@cloudflare/nimbus-docs/client";
+
+  import { mountBackdrop } from "../../lib/landing/backdrop";
+
+  mount("[data-backdrop]", (backdrop) =>
+    mountBackdrop(backdrop, document.querySelector<HTMLElement>("[data-backdrop-hero]")!),
+  );
+</script>

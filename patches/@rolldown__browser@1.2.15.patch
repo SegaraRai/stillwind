@@ -1,0 +1,22 @@
+diff --git a/dist/rolldown-binding.wasi-browser.js b/dist/rolldown-binding.wasi-browser.js
+index 63650bddcde6552e7eeadfdda24ebd831b04c698..f71644bf383d304f6b77717a12192a9a3ae65ef3 100644
+--- a/dist/rolldown-binding.wasi-browser.js
++++ b/dist/rolldown-binding.wasi-browser.js
+@@ -83,15 +83,12 @@ if (!__wasmResponse.ok) {
+ const __wasmFile = await __wasmResponse.arrayBuffer()
+ 
+ const __sharedMemory = new WebAssembly.Memory({
+-  initial: 16384,
++  initial: 2048,
+   maximum: 65536,
+   shared: true,
+ })
+ const __asyncWorkPoolSize = 4
+-const __workerPoolSize = Math.max(
+-  2,
+-  globalThis.navigator?.hardwareConcurrency ?? 4,
+-)
++const __workerPoolSize = 2
+ 
+ let __emnapiContext
+ 

@@ -104,10 +104,9 @@ const header = style.ref();
 </div>
 
 <script>
+  import { mount } from "@cloudflare/nimbus-docs/client";
+
   import { mountThemeControl } from "../../lib/site/theme";
 
-  const themeButton = document.querySelector<HTMLButtonElement>("[data-theme-toggle]");
-  if (themeButton) {
-    mountThemeControl(themeButton);
-  }
+  mount("[data-theme-toggle]", (button) => mountThemeControl(button as HTMLButtonElement));
 </script>

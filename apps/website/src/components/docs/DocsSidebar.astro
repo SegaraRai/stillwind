@@ -24,7 +24,7 @@ const current = (item: SidebarItem): boolean =>
     <li>
       {item.type === "group" ? (
         <details
-          data-sidebar-group={groupKey(item.label)}
+          data-nb-nav-group={groupKey(item.label)}
           open={current(item) || item.collapsed === false}
         >
           <summary

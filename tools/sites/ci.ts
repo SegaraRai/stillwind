@@ -9,7 +9,14 @@ import {
 } from "../workspace/impact.ts";
 import { type Site } from "./prepare.ts";
 
-export const browserSuites = ["language", "diagnostics", "hmr", "sharing"] as const;
+export const browserSuites = [
+  "language",
+  "diagnostics",
+  "hmr",
+  "sharing",
+  "files",
+  "recovery",
+] as const;
 type BrowserSuite = (typeof browserSuites)[number];
 export interface SitePlan {
   sites: Site[];

@@ -26,13 +26,30 @@ test.each([
     website,
     play,
   });
-  for (const url of [website, new URL("docs/", website).href, play]) {
+  for (const url of [website, new URL("docs", website).href, play]) {
     const image = new URL("/og.png", url).href;
     expect(() => checkPageUrls(page(url, image), url, image)).not.toThrow();
     expect(() => checkPageUrls(page(url, "https://other.example/og.png"), url, image)).toThrow(
       "og:image",
     );
   }
+});
+
+test("navigation uses slashless document URLs and preserves root and file links", () => {
+  const url = "https://stillwind.dev/docs";
+  const image = "https://stillwind.dev/og.png";
+  const html = page(url, image);
+  expect(() =>
+    checkPageUrls(
+      `${html}<a href="/">Home</a><a href="/docs/index.md">Markdown</a>
+        <a href="/docs/guides/style#conditions">Style</a>`,
+      url,
+      image,
+    ),
+  ).not.toThrow();
+  expect(() =>
+    checkPageUrls(`${html}<a href="/docs/guides/style/#conditions">Style</a>`, url, image),
+  ).toThrow("trailing slash");
 });
 
 test("builds default to the production origins", () => {
@@ -57,7 +74,7 @@ test.each(["website", "play"] as const)(
       PUBLIC_PLAYGROUND_URL: "https://play.example/",
     });
     const output = path.join(root, sites[site].source);
-    const link = site === "website" ? urls.play : new URL("docs/", urls.website).href;
+    const link = site === "website" ? urls.play : new URL("docs", urls.website).href;
     const files: Record<string, string> = {
       "index.html":
         page(urls[site], new URL("og.png", urls[site]).href) + `<a href="${link}">Open</a>`,
@@ -65,16 +82,18 @@ test.each(["website", "play"] as const)(
     };
     if (site === "website") {
       Object.assign(files, {
+        "docs/index.html": page(`${urls.website}docs`, `${urls.website}og.png`),
         "sitemap-index.xml": `<loc>${urls.website}sitemap-0.xml</loc>`,
+        "sitemap-0.xml": `<loc>${urls.website}docs</loc>`,
         "llms.txt": `[Full](${urls.website}llms-full.txt)`,
-        "llms-full.txt": `${urls.website}docs/`,
+        "llms-full.txt": `${urls.website}docs`,
         "docs/index.md": `${urls.website}llms.txt`,
         ...Object.fromEntries(
           ["ai-catalog", "ard"].map((name) => [
             `.well-known/${name}.json`,
             JSON.stringify({
               host: { identifier: urls.website, documentationUrl: urls.website },
-              entries: [{ url: `${urls.website}docs/` }],
+              entries: [{ url: `${urls.website}docs` }],
             }),
           ]),
         ),

@@ -30,24 +30,48 @@ export const child = style({
 ## Declare a ref
 
 Write `style.ref()` as the initial value of a variable: `const card = style.ref("card")`.
-The optional label must be a string literal. It appears in generated names and
-helps you read them.
+The declaration can be at the top level of a module, in a function, or in a
+callback such as the one that you pass to `map()`.
 
-Each `style.ref()` call in the source creates one name. Rendering a component
-many times does not create new names, and two refs with the same label stay
-separate. You can export a ref, import it, and pass it as an argument.
+```tsx
+items.map((item) => {
+  const row = style.ref("row");
+  return (
+    <li {...style(row, "p-4")}>
+      <span {...style({ [row("hover")]: "underline" })}>{item}</span>
+    </li>
+  );
+});
+```
+
+The compiler generates a unique name for each `style.ref()` call in the source.
+The name stays the same in every render, loop iteration, and function call. You
+can export a ref, import it, and pass it as an argument.
+
+The argument of `style.ref()`, such as `"row"` in `style.ref("row")`, is a
+label. The label only makes the generated names easier to read, such as in the
+browser's developer tools. It does not make the name unique, and you can omit
+it: `const row = style.ref()`. Two refs with the same label stay separate, and
+so do two refs without a label. When you write a label, it must be a string
+literal.
+
+Because the name stays the same, a ref cannot distinguish nested elements that
+use the same declaration. For example, a tree node can render its child nodes
+inside its ref element. Every level then has the same name, and
+`node("hover")` matches while any ancestor node is hovered, not only the
+nearest one.
 
 ## Methods
 
-| Method                                                      | Where to write it           | Effect                                                 |
-| ----------------------------------------------------------- | --------------------------- | ------------------------------------------------------ |
-| `ref`                                                       | A `style()` argument        | Attaches the ref to the element                        |
-| [`ref()`](/docs/macros/ref/condition/)                      | A computed key in `style()` | Matches inside the ref element, optionally in a state  |
-| [`ref().in()`](/docs/macros/ref/in/)                        | After a ref condition       | Matches inside a shared ancestor, such as for siblings |
-| [`ref.at()`](/docs/macros/ref/at/)                          | A computed key in `style()` | Matches a container query on the ref element           |
-| [`ref.asContainer()`](/docs/macros/ref/as-container/)       | A `style()` argument        | Makes the ref element a named container                |
-| [`ref.asAnchor()`](/docs/macros/ref/as-anchor/)             | A `style()` argument        | Makes the ref element a named anchor                   |
-| [`ref.positionAnchor()`](/docs/macros/ref/position-anchor/) | A `style()` argument        | Positions the styled element against the anchor        |
+| Method                                                     | Where to write it           | Effect                                                 |
+| ---------------------------------------------------------- | --------------------------- | ------------------------------------------------------ |
+| `ref`                                                      | A `style()` argument        | Attaches the ref to the element                        |
+| [`ref()`](/docs/macros/ref/condition)                      | A computed key in `style()` | Matches inside the ref element, optionally in a state  |
+| [`ref().in()`](/docs/macros/ref/in)                        | After a ref condition       | Matches inside a shared ancestor, such as for siblings |
+| [`ref.at()`](/docs/macros/ref/at)                          | A computed key in `style()` | Matches a container query on the ref element           |
+| [`ref.asContainer()`](/docs/macros/ref/as-container)       | A `style()` argument        | Makes the ref element a named container                |
+| [`ref.asAnchor()`](/docs/macros/ref/as-anchor)             | A `style()` argument        | Makes the ref element a named anchor                   |
+| [`ref.positionAnchor()`](/docs/macros/ref/position-anchor) | A `style()` argument        | Positions the styled element against the anchor        |
 
 Write each method call directly in `style()`. You cannot store the result of a
 method call in a variable and use it later.
@@ -60,5 +84,5 @@ call chooses among several refs at runtime, the generated code keeps the fields
 that the choice needs. The compiled code reads those fields directly. In
 development, Stillwind checks them first. The code does not watch the DOM.
 
-See [Element relationships](/docs/guides/element-relationships/) for task-based
+See [Element relationships](/docs/guides/element-relationships) for task-based
 examples.

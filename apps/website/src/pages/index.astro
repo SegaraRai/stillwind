@@ -1,6 +1,7 @@
 ---
 import { style } from "stillwind/astro";
 
+import Backdrop from "../components/landing/Backdrop.astro";
 import Features from "../components/landing/Features.astro";
 import Showcase from "../components/landing/Showcase.astro";
 import HomeLayout from "../layouts/HomeLayout.astro";
@@ -22,7 +23,9 @@ const frameworks = [
 ---
 
 <HomeLayout title={title} description={description}>
-  <section aria-labelledby="tagline" {...style("py-16 sidebar:py-28")}>
+  <Backdrop />
+
+  <section aria-labelledby="tagline" data-backdrop-hero {...style("py-16 sidebar:py-28")}>
     <h1 id="tagline" {...style("hero-title")}>
       Familiar utilities.
       <span {...style("hero-second-line")}>Enforced rules.</span>
@@ -90,7 +93,7 @@ const frameworks = [
     >
       {frameworks.map((framework) => (
         <a
-          href={`/docs/integrations/#${framework.name === "Astro" ? "astro" : "vite"}`}
+          href={`/docs/integrations#${framework.name === "Astro" ? "astro" : "vite"}`}
           {...style(frameworkLink, "framework-link")}
         >
           <span
@@ -119,7 +122,7 @@ const frameworks = [
         <h3 {...style("mbe-2 text-small")}>Tailwind CSS compatibility</h3>
         <p {...style("text-caption/relaxed text-muted")}>
           Use Tailwind CSS v4 utilities, theme variables, and CSS directives. See the{" "}
-          <a href="/docs/guides/migrating-from-tailwind/" {...style("nav-link")}>
+          <a href="/docs/guides/migrating-from-tailwind" {...style("nav-link")}>
             migration guide{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
           </a>{" "}
@@ -130,7 +133,7 @@ const frameworks = [
         <h3 {...style("mbe-2 text-small")}>Room for existing patterns</h3>
         <p {...style("text-caption/relaxed text-muted")}>
           Utility strings, arrays, and conditions fit existing components.{" "}
-          <a href="/docs/macros/cva/" {...style("nav-link")}>
+          <a href="/docs/macros/cva" {...style("nav-link")}>
             CVA-compatible factories{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
           </a>{" "}
@@ -141,7 +144,7 @@ const frameworks = [
         <h3 {...style("mbe-2 text-small")}>CSS for Web Components</h3>
         <p {...style("text-caption/relaxed text-muted")}>
           Use{" "}
-          <a href="/docs/guides/web-components/" {...style("nav-link")}>
+          <a href="/docs/guides/web-components" {...style("nav-link")}>
             explicit CSS exports{" "}
             <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
           </a>{" "}
@@ -152,12 +155,12 @@ const frameworks = [
   </section>
 
   <script>
+    import { mount } from "@cloudflare/nimbus-docs/client";
+
     import { mountHeader } from "../lib/landing/header";
 
-    const slot = document.querySelector<HTMLElement>("[data-header-slot]");
-    const story = document.querySelector<HTMLElement>("[data-story]");
-    if (slot && story) {
-      mountHeader(slot, story);
-    }
+    mount("[data-story]", (story) =>
+      mountHeader(document.querySelector<HTMLElement>("[data-header-slot]")!, story),
+    );
   </script>
 </HomeLayout>

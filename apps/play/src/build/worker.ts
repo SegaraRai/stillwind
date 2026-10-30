@@ -1,21 +1,24 @@
-import { rolldown, type Plugin } from "@rolldown/browser";
+import type { Plugin } from "@rolldown/browser";
 import type {
   BrowserModuleAnalysis,
   BrowserModuleCss,
   BrowserStylesheetOutput,
 } from "@stillwind/host/browser";
-import { resolveVirtualModule } from "@stillwind/host/resolution";
 import { resolve } from "pathe";
 
+import { BuildFiles } from "./files.ts";
 import { inlineImports } from "./stylesheet.ts";
+
+const rolldownBinding = import("@rolldown/browser");
 
 const replies = new Map<
   number,
   {
-    resolve(value: Compilation): void;
+    resolve(value: unknown): void;
     reject(error: Error): void;
   }
 >();
+
 let sequence = 0;
 
 /**
@@ -38,14 +41,14 @@ self.onmessage = async ({
   data,
 }: MessageEvent<{
   id: number;
-  kind: "build" | "compile-reply";
+  kind: "build" | "compile-reply" | "read-reply";
   revision: number;
   generation: number;
-  files: [string, string][];
-  value?: Compilation;
+  files: [string, string | null][];
+  value?: unknown;
   error?: string;
 }>) => {
-  if (data.kind === "compile-reply") {
+  if (data.kind !== "build") {
     const reply = replies.get(data.id);
     replies.delete(data.id);
     if (data.error) {
@@ -57,33 +60,35 @@ self.onmessage = async ({
   }
 
   try {
-    const files = new Map(data.files);
+    // WASM initialization yields to incoming messages. The listener must already exist at that point.
+    const { rolldown } = await rolldownBinding;
+
     const transformed = new Map<string, string>();
     const moduleCss = new Map<string, string>();
     const cssValues = new Map<string, Compilation["cssValues"][number][1]>();
     const rejectedNames = new Map<string, BrowserStylesheetOutput["rejectedNames"][number]>();
     const stylesheets = new Map<string, string>();
+
     let css = "";
 
-    /**
-     * Requests Stillwind compilation of one source from the extension through the main thread.
-     */
-    const compile = (path: string) => {
+    const request = <T>(kind: "compile" | "read", path: string) => {
       const id = ++sequence;
-      return new Promise<Compilation>((resolve, reject) => {
+      return new Promise<T>((resolve, reject) => {
         replies.set(id, {
-          resolve,
+          resolve: (value) => resolve(value as T),
           reject,
         });
         self.postMessage({
-          kind: "compile",
+          kind,
           id,
-          uri: `file://${path}`,
+          uri: `file://${path.split("/").map(encodeURIComponent).join("/")}`,
           revision: data.revision,
           generation: data.generation,
         });
       });
     };
+    const compile = (path: string) => request<Compilation>("compile", path);
+    const files = new BuildFiles(data.files, (path) => request<string>("read", path));
 
     const workspace: Plugin = {
       name: "browser-workspace",
@@ -95,8 +100,8 @@ self.onmessage = async ({
         if (/^(react|react-dom)(\/|$)/.test(source)) {
           return EXTERNAL + source;
         }
-        const file = importer ? resolveVirtualModule(files, source, importer) : source;
-        if (!file || !files.has(file)) {
+        const file = importer ? files.resolve(source, importer) : source;
+        if (!file) {
           throw new Error(`Cannot resolve ${source} from ${importer}`);
         }
         return file;
@@ -118,19 +123,17 @@ self.onmessage = async ({
             moduleType: "js",
           };
         }
-        const code = files.get(id);
-        if (code === undefined) {
-          throw new Error(`Missing virtual file ${id}`);
-        }
         if (id.endsWith(".css")) {
           // Rolldown does not bundle CSS. The build concatenates imported stylesheets in module
           // order after bundling, so the module itself exports nothing.
-          stylesheets.set(id, inlineImports(files, id, new Set()));
+          stylesheets.set(id, await inlineImports(files, id, new Set()));
           return {
             code: "",
             moduleType: "js",
+            moduleSideEffects: "no-treeshake",
           };
         }
+        const code = await files.read(id);
         if (id.endsWith(".json")) {
           return {
             code,
@@ -242,3 +245,6 @@ self.onmessage = async ({
     });
   }
 };
+
+// Module initialization failures must raise a worker error so the owner can replace this worker.
+await rolldownBinding;

@@ -38,7 +38,7 @@ It contains one or more variants. The final colon is optional.
 Only variants that are media conditions are accepted. `hover` and other element
 states, `supports-*`, and container queries are not media conditions. An
 argument that is not a media condition is left out, and
-[invalid-media-query](/docs/lints/invalid-media-query/) reports it. When no
+[invalid-media-query](/docs/lints/invalid-media-query) reports it. When no
 argument remains, the result is `not all`.
 
 Write `style.media()` outside other Stillwind calls.
@@ -52,4 +52,4 @@ When you change a breakpoint in your stylesheet, the string changes the next
 time the module compiles.
 
 `matchMedia()` is a browser API. Call it on the client, and remove its listeners
-when their component unmounts. See [Responsive styles](/docs/guides/responsive-styles/).
+when their component unmounts. See [Responsive styles](/docs/guides/responsive-styles).

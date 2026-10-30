@@ -46,7 +46,9 @@ bindings use their own emnapi 2.x dependency.
 ## Documentation
 
 Nimbus reads the `docs` collection from `src/content/docs/`. The `docs/` folder
-inside that collection maps to `/docs/`, while `src/pages/index.astro` owns `/`.
+inside that collection maps to `/docs`, while `src/pages/index.astro` owns `/`.
+HTML page URLs omit trailing slashes. Cloudflare redirects URLs with trailing
+slashes to their canonical form.
 The document layout uses the website's Stillwind theme. Nimbus supplies content
 validation, navigation, Markdown conversion, and agent indexes.
 
@@ -73,7 +75,7 @@ Nimbus's Markdown cache.
 
 ## Utility lookup
 
-`UtilityExplorer` on `/docs/utilities/` looks up utilities in the browser. Its
+`UtilityExplorer` on `/docs/utilities` looks up utilities in the browser. Its
 Markdown renderer outputs nothing, so the Markdown version and the LLM indexes
 contain only the page's prose. `lookupUtilities()` in
 `src/lib/docs/utilities/lookup.ts` reads the input in both directions. It resolves
@@ -129,7 +131,7 @@ Do not explain Tailwind basics. Do explain where Stillwind differs from Tailwind
 
 ### Sidebar groups
 
-Getting started stays at `/docs/` and appears first, outside the sidebar groups.
+Getting started stays at `/docs` and appears first, outside the sidebar groups.
 The groups follow the order in which this reader learns Stillwind:
 
 | Group                   | Reader question                                     |
@@ -250,12 +252,21 @@ for focus indicators and `danger`, `warning`, and `success` for status. Each col
 uses `light-dark()` so its public name stays the same in both schemes.
 
 The landing page uses the `page` container width, and documentation pages use the
-wider `docs` container width. Navigation between pages uses cross-document view
-transitions of type `page`, which `src/styles/site.css` enables only without a reduced-motion
-preference. `SiteHeader` and the documentation navigation name themselves with
+wider `docs` container width. Both layouts render Astro's `<ClientRouter />`, which
+replaces the page content and runs a view transition on navigation between pages.
+`src/styles/site.css` removes the transition animations when the reader prefers
+reduced motion. `SiteHeader` and the documentation navigation name themselves with
 `style.viewTransition()`, so the header resizes between the two widths and the
 navigation stays in place between documentation pages. The root element keeps
 its default transition name; removing it would skip the cross-fade of the page.
+The router sets `data-astro-transition` on the root element during a navigation,
+and the landing page demonstrations remove their transition names while it is present.
+
+Module scripts run once per visit, so components start through `mount()` from
+`@cloudflare/nimbus-docs/client`. It starts a component on the current page,
+stops it before the router swaps the page, and starts it again on the new page.
+The router also replaces the root element's attributes. The inline head scripts
+apply the stored theme and package manager again on `astro:after-swap`.
 
 `SiteHeader` stays in document flow at the top of the page. After it leaves the
 viewport, it floats at the top of the viewport. The landing page shows the floating
@@ -265,9 +276,10 @@ viewport, and after navigation to a fragment. The root element has
 `data-floating-header` while a floating header is shown, and the documentation
 navigation moves below the header while this attribute is present.
 
-The documentation navigation stores its open groups and scroll position in
-`sessionStorage` when a page is hidden. The next documentation page restores
-them before its first paint. Groups that contain the current page always open.
+The documentation navigation uses Nimbus's `navStateScript` and `initNavSidebar`.
+They store the open groups and the scroll position in `sessionStorage` and restore
+them on the next documentation page before it paints. Groups that contain the
+current page always open.
 
 Links at the end of each page follow the sidebar order. The previous page appears
 on the left, and the next page appears on the right. Nimbus resolves both links

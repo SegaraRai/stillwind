@@ -15,7 +15,7 @@ const packageRoot = path.resolve(import.meta.dirname, "../../packages/core");
 const destination = path.join(packageRoot, "docs");
 const siteOrigin = "https://stillwind.dev";
 
-/** Routes relative to `/docs/`, without slashes at either end. The root page is `""`. */
+/** Routes relative to `/docs`, without slashes at either end. The root page is `""`. */
 async function routes() {
   const found: string[] = [];
   for (const file of await readdir(pages, { recursive: true })) {
@@ -48,8 +48,14 @@ function fileFor(route: string, all: ReadonlySet<string>) {
  * Removes the parts that only make sense on the website and turns site links into
  * relative file links. Links to other site files, such as `llms.txt`, point to the
  * deployed website because the package does not contain those files.
+ * `file` identifies the output file, and `files` maps docs routes to output files.
+ * Throws when the index notice is missing or a page link has no output file.
  */
-function transform(markdown: string, file: string, files: ReadonlyMap<string, string>) {
+export function transformPackageMarkdown(
+  markdown: string,
+  file: string,
+  files: ReadonlyMap<string, string>,
+) {
   const origin = /Fetch the complete documentation index at: (\S+)\/llms\.txt/.exec(markdown)?.[1];
   if (!origin) {
     throw new Error(`${file}: the documentation index notice is missing`);
@@ -61,7 +67,7 @@ function transform(markdown: string, file: string, files: ReadonlyMap<string, st
     .replace(/\n+Source: \S+\s*$/, "\n")
     .replace(/\[([^\]]*)\]\((\/[^)\s]*)\)/g, (_, text: string, target: string) => {
       const [pathname, hash] = target.split("#") as [string, string?];
-      const route = /^\/docs\/(.*?)\/?$/.exec(pathname)?.[1];
+      const route = pathname === "/docs" ? "" : /^\/docs\/(.*?)\/?$/.exec(pathname)?.[1];
       const linked = route === undefined ? undefined : files.get(route);
       if (linked === undefined) {
         if (/\.\w+$/.test(pathname)) {
@@ -72,7 +78,7 @@ function transform(markdown: string, file: string, files: ReadonlyMap<string, st
       const relative = path.posix.relative(path.posix.dirname(file), linked);
       return `[${text}](${relative}${hash === undefined ? "" : `#${hash}`})`;
     });
-  if (body.includes(origin)) {
+  if (origin !== siteOrigin && body.includes(origin)) {
     throw new Error(`${file}: ${origin} remains after the conversion`);
   }
   return body;
@@ -86,7 +92,7 @@ async function generate() {
   for (const route of all) {
     const file = files.get(route)!;
     const source = path.join(pages, route, "index.md");
-    output.set(file, transform(await readFile(source, "utf8"), file, files));
+    output.set(file, transformPackageMarkdown(await readFile(source, "utf8"), file, files));
   }
   return output;
 }
@@ -116,14 +122,16 @@ async function missingReferences(generated: ReadonlyMap<string, string>) {
   return missing;
 }
 
-const generated = await generate();
-const missing = await missingReferences(generated);
-if (missing.length) {
-  throw new Error(`Agent files name missing pages:\n${missing.join("\n")}`);
-}
-await rm(destination, { recursive: true, force: true });
-for (const [file, content] of generated) {
-  const absolute = path.join(destination, file);
-  await mkdir(path.dirname(absolute), { recursive: true });
-  await writeFile(absolute, content);
+if (import.meta.main) {
+  const generated = await generate();
+  const missing = await missingReferences(generated);
+  if (missing.length) {
+    throw new Error(`Agent files name missing pages:\n${missing.join("\n")}`);
+  }
+  await rm(destination, { recursive: true, force: true });
+  for (const [file, content] of generated) {
+    const absolute = path.join(destination, file);
+    await mkdir(path.dirname(absolute), { recursive: true });
+    await writeFile(absolute, content);
+  }
 }

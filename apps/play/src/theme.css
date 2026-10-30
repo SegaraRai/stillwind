@@ -39,8 +39,8 @@ tokens to style Monaco.
   --shadow-overlay:
     0 1.5rem 3rem -1rem light-dark(#1b263b40, #000000a0), 0 0 0 1px light-dark(#1b263b14, #ffffff10);
 
-  --color-stillwind-logo-e: #d9825b;
-  --color-stillwind-logo-o: #379988;
+  --color-stillwind-logo-e: light-dark(#d9725b, #f1a297);
+  --color-stillwind-logo-o: light-dark(#354fa2, #b6cdff);
   --color-stillwind-logo-t: light-dark(#20222c, #e9f2fd);
 
   --color-file-javascriptreact: light-dark(#0e8fb5, #61dafb);

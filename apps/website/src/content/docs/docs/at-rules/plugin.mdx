@@ -32,7 +32,7 @@ use reach the stylesheet.
 The host looks up `name` in the `plugins` field of the project in
 `stillwind.config.ts` first. Otherwise, it imports the package or the local file
 from the stylesheet and uses its default export. See
-[Configuration](/docs/configuration/).
+[Configuration](/docs/configuration).
 
 ## Options
 
@@ -51,9 +51,9 @@ need the `tailwindcss` package.
 Definitions from a plugin register before the definitions of your stylesheet,
 wherever the `@plugin` statement stands. A `@utility` in your stylesheet
 therefore adds to a plugin utility with the same name, and
-[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/) can remove
+[@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility) can remove
 plugin utilities.
 
-[invalid-css-import](/docs/lints/invalid-css-import/) reports a plugin that the
+[invalid-css-import](/docs/lints/invalid-css-import) reports a plugin that the
 host cannot find or load, and invalid options. The stylesheet loads without that
 plugin.

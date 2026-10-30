@@ -61,7 +61,7 @@ export function Panel() {
 When a theme changes, you edit the stylesheet. The components stay the same.
 
 To use a breakpoint in JavaScript, pass its name to `style.media()`. See
-[Responsive styles](/docs/guides/responsive-styles/).
+[Responsive styles](/docs/guides/responsive-styles).
 
 ## Report values outside the theme
 
@@ -88,14 +88,14 @@ export default defineConfig({
 });
 ```
 
-| Rule                                                              | Reports                           | Example        |
-| ----------------------------------------------------------------- | --------------------------------- | -------------- |
-| [no-arbitrary-colors](/docs/lints/no-arbitrary-colors/)           | Colors written as values          | `bg-[#123456]` |
-| [no-arbitrary-spacing](/docs/lints/no-arbitrary-spacing/)         | Margin, padding, and gap values   | `p-[13px]`     |
-| [no-arbitrary-breakpoints](/docs/lints/no-arbitrary-breakpoints/) | Viewport widths written as values | `min-[713px]:` |
+| Rule                                                             | Reports                           | Example        |
+| ---------------------------------------------------------------- | --------------------------------- | -------------- |
+| [no-arbitrary-colors](/docs/lints/no-arbitrary-colors)           | Colors written as values          | `bg-[#123456]` |
+| [no-arbitrary-spacing](/docs/lints/no-arbitrary-spacing)         | Margin, padding, and gap values   | `p-[13px]`     |
+| [no-arbitrary-breakpoints](/docs/lints/no-arbitrary-breakpoints) | Viewport widths written as values | `min-[713px]:` |
 
 No preset enables these rules, so add them yourself. To enforce them, run the
-CLI in CI, as described in [Checks in the editor and CI](/docs/guides/lint-adoption/).
+CLI in CI, as described in [Checks in the editor and CI](/docs/guides/lint-adoption).
 
 ## Reserve the default palette
 
@@ -115,4 +115,4 @@ The rule reports utilities that use a matching token, such as `bg-blue-500`.
 Your role tokens can still use palette colors in their definitions.
 
 For more restrictions, such as banned utilities or length units, see
-[Configuration](/docs/configuration/#rule-options).
+[Configuration](/docs/configuration#rule-options).

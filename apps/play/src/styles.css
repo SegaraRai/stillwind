@@ -112,5 +112,5 @@ contains the document defaults and the utilities that several workbench parts sh
   @apply before:absolute before:inset-0 before:icon-stillwind--e before:text-stillwind-logo-e;
   @apply after:absolute after:inset-0 after:icon-stillwind--o after:text-stillwind-logo-o;
 
-  background: linear-gradient(to right, transparent 29%, currentColor 0);
+  background: linear-gradient(to right, transparent 25%, currentColor 0);
 }

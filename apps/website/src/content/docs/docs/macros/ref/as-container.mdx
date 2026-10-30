@@ -6,7 +6,7 @@ slug: docs/macros/ref/as-container
 
 `card.asContainer(type?)` sets `container-name` on the element, and it sets
 `container-type` when you pass a type. Query the container with
-[`card.at()`](/docs/macros/ref/at/).
+[`card.at()`](/docs/macros/ref/at).
 
 ## Example
 
@@ -36,9 +36,9 @@ its value. A type stored in a variable is not accepted.
 
 Pass `card` and `card.asContainer()` in the same `style()` call. The container
 declarations apply only to an element that has the ref, and
-[missing-ref-attachment](/docs/lints/missing-ref-attachment/) reports a call
+[missing-ref-attachment](/docs/lints/missing-ref-attachment) reports a call
 without it.
 
 When another rule on the element also sets `container-name` or `container-type`,
-[conflicting-provider-properties](/docs/lints/conflicting-provider-properties/)
+[conflicting-provider-properties](/docs/lints/conflicting-provider-properties)
 reports it.

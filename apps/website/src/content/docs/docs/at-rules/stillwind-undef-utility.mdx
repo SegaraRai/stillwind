@@ -14,9 +14,9 @@ sidebar:
 
 `@stillwind-undef-utility` removes the matching utility definitions that
 register before it. A removed utility becomes unknown, and
-[unknown-utility](/docs/lints/unknown-utility/) reports its uses. Write it at the
+[unknown-utility](/docs/lints/unknown-utility) reports its uses. Write it at the
 top level of the stylesheet or in a
-[@stillwind-registry](/docs/at-rules/stillwind-registry/) block.
+[@stillwind-registry](/docs/at-rules/stillwind-registry) block.
 
 ## Example
 
@@ -64,4 +64,4 @@ Outside a block, the statement changes the `default`, `keyframe`, and
 `view-transition` registries.
 
 To report uses of a utility without removing it, use
-[no-restricted-utilities](/docs/lints/no-restricted-utilities/) instead.
+[no-restricted-utilities](/docs/lints/no-restricted-utilities) instead.

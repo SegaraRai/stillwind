@@ -5,7 +5,7 @@ export default defineConfig({
   root: import.meta.dirname,
   test: {
     name: "website",
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    include: ["*.test.ts", "src/**/*.test.ts", "tests/**/*.test.ts"],
     css: true,
     fileParallelism: false,
     testTimeout: 60_000,

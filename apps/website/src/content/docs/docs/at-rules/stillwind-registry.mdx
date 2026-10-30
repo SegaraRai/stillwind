@@ -33,7 +33,7 @@ name it.
 The built-in `keyframe` and `view-transition` registries replace `duration-*`
 with definitions that set animation properties. A top-level `@utility` with a
 name that they replace also reaches those registries, and
-[bypassed-undefinition](/docs/lints/bypassed-undefinition/) reports it. A
+[bypassed-undefinition](/docs/lints/bypassed-undefinition) reports it. A
 `default` block keeps the definition out of them:
 
 <CompiledExample>
@@ -70,17 +70,17 @@ animations instead:
 A block contains only these statements. Another statement is an error.
 
 - `@utility`, `@custom-variant`, and `@variant` definitions
-- [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility/),
-  [@stillwind-undef-variant](/docs/at-rules/stillwind-undef-variant/), and
-  [@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property/)
+- [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility),
+  [@stillwind-undef-variant](/docs/at-rules/stillwind-undef-variant), and
+  [@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property)
 - `@stillwind-arbitrary-property`, `@stillwind-utility`, and
-  `@stillwind-variant` from the [registry directives](/docs/at-rules/registry-directives/)
+  `@stillwind-variant` from the [registry directives](/docs/at-rules/registry-directives)
 - A nested `@stillwind-registry` block. The innermost block decides.
 
 The header names one or more registries, separated by commas. An unknown or
 missing name is an error, and
-[invalid-css-directive](/docs/lints/invalid-css-directive/) reports it.
+[invalid-css-directive](/docs/lints/invalid-css-directive) reports it.
 
-[Animations](/docs/guides/animations/) and
-[View transitions](/docs/guides/view-transitions/) show how utilities such as
+[Animations](/docs/guides/animations) and
+[View transitions](/docs/guides/view-transitions) show how utilities such as
 `duration-300` set animation properties in those registries.

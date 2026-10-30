@@ -42,7 +42,10 @@ animation properties, such as `animation-duration`. Media and `supports-*`
 variants can condition a utility. State and container variants are not
 supported.
 
-You can export the definition and import it in other modules.
+The declaration can be at the top level of a module, in a function, or in a
+callback. Each `style.viewTransition()` call in the source creates one class,
+and the class stays the same in every render and function call. You can export
+the definition and import it in other modules.
 
 ## Name the element
 
@@ -94,9 +97,9 @@ Pass the other definitions without `.for()`, such as `style(fade, slide.for(id))
 
 Transition classes from separate `style()` calls do not combine. Each call sets
 the whole `view-transition-class` list, so one list replaces the other.
-[split-view-transition-class](/docs/lints/split-view-transition-class/) and
-[duplicate-view-transition-name](/docs/lints/duplicate-view-transition-name/)
+[split-view-transition-class](/docs/lints/split-view-transition-class) and
+[duplicate-view-transition-name](/docs/lints/duplicate-view-transition-name)
 report these cases.
 
-See [View transitions](/docs/guides/view-transitions/) to start a transition
+See [View transitions](/docs/guides/view-transitions) to start a transition
 from your application.

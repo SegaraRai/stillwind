@@ -64,6 +64,22 @@ unions checked against Stillwind's built declarations. Measurements start after
 the WASM binding loads and the workspace is created. They exclude LSP transport,
 debounce, UI rendering, and Prettier.
 
+Run `vp run @stillwind-internal/benchmarks#bench:play-memory` to measure the complete
+playground in installed Chrome. Each preset runs three times in a fresh browser.
+Samples follow startup, five source edits, a CSS edit, a configuration edit, and
+recovery after terminating the application build worker. The WASM owner workers
+collect garbage before reporting their initial and current linear memory sizes.
+On Windows, the report also sums private committed bytes and working sets across
+the browser's processes. Working sets can count shared pages more than once.
+These samples describe completed stages and do not capture every transient peak.
+
+`STILLWIND_PLAY_MEMORY_RUNS` changes the repetition count, and
+`STILLWIND_PLAY_MEMORY_PRESETS` selects comma-separated preset IDs.
+`STILLWIND_PLAY_TEST_DIRECTORY` selects an existing static build.
+`STILLWIND_PLAY_MEMORY_OUTPUT` selects the JSON report path; the default is
+`benchmarks/results/playground-memory.json`. Keep the Chrome version, hardware,
+workload, and collection settings the same when comparing builds.
+
 Source-map cases measure the production `cssWithSourceMap` implementation for
 10 through 10,000 rules. They validate resource replacement and retained source
 content, then record an output fingerprint outside the timer.

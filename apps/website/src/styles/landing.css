@@ -177,3 +177,69 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
     @slot;
   }
 }
+
+/*
+The landing backdrop has two layers that stay fixed behind the page: the lattice and the streamlines.
+backdrop.ts reads the lattice spacing and --backdrop-tilt
+to place straightened streamlines on lattice rows, so change them only in these rules.
+backdrop.ts also sets --backdrop-opacity and --backdrop-column-alpha while the page scrolls.
+The mask of each layer keeps the gutters at full alpha and fades the content column to --backdrop-column-alpha.
+When the reader prefers reduced motion, both layers ignore these properties, and the markup lets the streamline
+layer scroll away with the hero. The content column then keeps --backdrop-still-column-alpha, which the lattice
+layer lowers so that the lattice stays faint behind the content.
+*/
+@theme {
+  --color-backdrop-lattice: light-dark(
+    color-mix(in srgb, var(--color-border) 45%, transparent),
+    color-mix(in srgb, var(--color-border) 70%, transparent)
+  );
+  --color-backdrop-streamline: light-dark(
+    color-mix(in srgb, var(--color-border) 85%, transparent),
+    color-mix(in srgb, var(--color-border) 95%, transparent)
+  );
+}
+
+@utility backdrop {
+  --backdrop-edge: calc(
+    (100% - min(var(--container-page), 100%)) / 2 + var(--spacing-gutter) * 0.5
+  );
+  --backdrop-column: rgb(0 0 0 / var(--backdrop-column-alpha, 1));
+
+  @variant motion-reduce {
+    --backdrop-column: rgb(0 0 0 / var(--backdrop-still-column-alpha, 1));
+  }
+
+  @apply fixed inset-0 -z-1 overflow-hidden pointer-events-none opacity-(--backdrop-opacity,1) motion-reduce:opacity-100;
+  mask-image: linear-gradient(
+    to right,
+    #000 0,
+    #000 var(--backdrop-edge),
+    var(--backdrop-column) calc(var(--backdrop-edge) + 10rem),
+    var(--backdrop-column) calc(100% - var(--backdrop-edge) - 10rem),
+    #000 calc(100% - var(--backdrop-edge))
+  );
+}
+
+/*
+Each lattice layer is twice the backdrop size, so the rotated layer still covers every corner.
+Rows rotate by --backdrop-tilt, and columns rotate the opposite way, so both line families rise to the right.
+*/
+@utility backdrop-lattice {
+  --backdrop-tilt: -6deg;
+
+  @apply absolute -inset-1/2;
+  background-size: 4rem 4rem;
+  background-position: -1px -1px;
+}
+
+@utility backdrop-rows {
+  @apply backdrop-lattice;
+  background-image: linear-gradient(to bottom, var(--color-backdrop-lattice) 1px, transparent 1px);
+  transform: rotate(var(--backdrop-tilt));
+}
+
+@utility backdrop-columns {
+  @apply backdrop-lattice;
+  background-image: linear-gradient(to right, var(--color-backdrop-lattice) 1px, transparent 1px);
+  transform: rotate(calc(-1 * var(--backdrop-tilt)));
+}

@@ -11,6 +11,7 @@ const headers = {
 
 export default defineConfig({
   site: process.env.PUBLIC_PLAYGROUND_URL ?? "https://play.stillwind.dev",
+  trailingSlash: "never",
   // `build/assets.ts` generates the static files, including those copied from `public/`.
   publicDir: "dist/assets-static",
   outDir: "dist/site",

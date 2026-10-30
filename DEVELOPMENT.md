@@ -78,10 +78,11 @@ The GitHub deployments and Actions summary link to the deployed sites.
 Deployments to the same Worker run one at a time across both branches.
 HTTP checks verify documentation routes, Preview indexing rules, and WASM headers
 after deployment. The playground acceptance suite tests browser behavior before deployment.
-The workflow builds the selected sites in one job. Four browser jobs cover formatting
-and completions, compiler and TypeScript diagnostics, HMR and error recovery, and shared links. They consume the same
-acceptance build and use independent browser state. A failed scenario can reuse that build
-when retried. `Build and verify` always runs and requires every selected job to succeed.
+The workflow builds the selected sites in one job. Six browser jobs cover formatting and
+completions, compiler and TypeScript diagnostics, HMR, shared links, file loading, and worker
+recovery. They consume the same acceptance build and use independent browser state.
+A failed scenario can reuse that build when retried. `Build and verify` always runs
+and requires every selected job to succeed.
 It accepts a skipped job only when the change plan omitted it.
 Production validation consumes the Build Output prepared earlier in the build job.
 

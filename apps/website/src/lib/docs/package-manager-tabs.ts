@@ -1,16 +1,17 @@
-import { initTabs } from "@cloudflare/nimbus-docs/client";
+import { initTabs, mount } from "@cloudflare/nimbus-docs/client";
 
 import { packageManagerStorageKey } from "./package-managers";
 
 /**
- * Starts the package manager tabs on the page. Selecting a tab selects the same package manager in
- * every block, stores it for later pages, and sets `data-package-manager` on the document root,
- * which the stylesheet uses to show the selected commands.
+ * Starts the package manager tabs on the current page and on each page that the client router
+ * loads later. Selecting a tab selects the same package manager in every block, stores it for
+ * later pages, and sets `data-package-manager` on the document root, which the stylesheet uses
+ * to show the selected commands. Call it once.
  */
 export function mountPackageManagerTabs(): void {
-  for (const container of document.querySelectorAll<HTMLElement>("[data-package-managers]")) {
+  mount("[data-package-managers]", (container) => {
     const tabs = container.querySelectorAll<HTMLElement>("[role=tab]");
-    initTabs({
+    const instance = initTabs({
       container,
       tabSelector: "[role=tab]",
       panelSelector: "[role=tabpanel]",
@@ -22,5 +23,6 @@ export function mountPackageManagerTabs(): void {
         document.documentElement.dataset.packageManager = tabs[index]!.dataset.packageManager;
       },
     });
-  }
+    return () => instance.destroy();
+  });
 }

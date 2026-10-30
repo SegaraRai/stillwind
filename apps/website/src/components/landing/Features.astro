@@ -356,7 +356,7 @@ const stops = featureTopics.flatMap((topic) =>
         ))}
       </div>
       <a
-        href="/docs/macros/"
+        href="/docs/macros"
         {...style("text-caption text-muted nav-link", {
           [features("data-enhanced")]: {
             "max-inline:": "flex min-block-11 items-center",
@@ -407,11 +407,9 @@ const stops = featureTopics.flatMap((topic) =>
 </section>
 
 <script>
+  import { mount } from "@cloudflare/nimbus-docs/client";
+
   import { mountFeatures } from "../../lib/landing/features";
 
-  const features = document.querySelector<HTMLElement>("[data-features]");
-  if (features) {
-    const dispose = mountFeatures(features);
-    document.addEventListener("astro:before-swap", dispose, { once: true });
-  }
+  mount("[data-features]", mountFeatures);
 </script>

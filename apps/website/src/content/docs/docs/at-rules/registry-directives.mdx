@@ -10,8 +10,8 @@ Stillwind defines its built-in utilities and variants in CSS, in the files that
 `@import "stillwind"` loads. These files use registry directives, which describe
 cascade order, theme metadata, and other information that ordinary definitions
 cannot express. Use them when you write a utility library. An application
-stylesheet normally uses [@utility](/docs/at-rules/utility/) and
-[@custom-variant](/docs/at-rules/custom-variant/) instead.
+stylesheet normally uses [@utility](/docs/at-rules/utility) and
+[@custom-variant](/docs/at-rules/custom-variant) instead.
 
 Editors suggest these directives inside definitions and registry blocks. The
 [built-in definitions](https://github.com/SegaraRai/stillwind/tree/main/packages/core/css)
@@ -82,7 +82,7 @@ Places arbitrary-property candidates for the matching properties, such as
 definitions end with `@stillwind-arbitrary-property *;`, so other arbitrary
 properties come after every built-in utility. The statement also accepts the
 matching properties again after
-[@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property/).
+[@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property).
 
 ## Theme metadata
 
@@ -94,7 +94,7 @@ matching properties again after
 
 Declares a theme namespace. The bracketed types limit the arbitrary values and
 typed variables that the namespace accepts.
-[incompatible-theme-value](/docs/lints/incompatible-theme-value/) uses them to
+[incompatible-theme-value](/docs/lints/incompatible-theme-value) uses them to
 check tokens.
 
 `scale()` makes the token with the namespace name, such as `--spacing`, the scale
@@ -156,7 +156,7 @@ also accepts a named modifier, so `group/menu` adds the class `group/menu`.
 
 The classes that the selectors of `@utility` and `@custom-variant` definitions
 name are also marker classes.
-[invalid-marker-use](/docs/lints/invalid-marker-use/) reports a candidate that
+[invalid-marker-use](/docs/lints/invalid-marker-use) reports a candidate that
 names a marker class but cannot add it, such as `hover:group`.
 
 ### @stillwind-marker-source
@@ -177,6 +177,6 @@ that their dynamic utilities use.
 
 Registers a pattern of utility or variant names that relate an element to
 another element, such as `group-*` and `peer-*`.
-[prefer-typed-relationships](/docs/lints/prefer-typed-relationships/) reports
-candidates that match a pattern, because [style.ref()](/docs/macros/ref/) can
+[prefer-typed-relationships](/docs/lints/prefer-typed-relationships) reports
+candidates that match a pattern, because [style.ref()](/docs/macros/ref) can
 express the same relationship. The patterns do not change the generated CSS.

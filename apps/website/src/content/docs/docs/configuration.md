@@ -65,15 +65,15 @@ Paths in `css`, `files`, `exclude`, and `tsconfig` are relative to `root`.
 
 ### Generated CSS
 
-| Field          | Value                                                                                                                        |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `target`       | Minimum browser versions, such as `["chrome111", "safari17"]`; removes fallbacks they do not need                            |
-| `utilityOrder` | `"authored"` orders utilities as your stylesheet defines them; `"tailwind"` orders them as Tailwind does                     |
-| `important`    | `true` makes every utility `!important`; a selector nests utilities under that selector                                      |
-| `tailwind`     | A Tailwind configuration object; see [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/#move-configuration) |
-| `plugins`      | Plugin objects for the `@plugin` rules of your stylesheet                                                                    |
-| `rootFontSize` | Pixels per `rem`, used by lint fixes and editor previews; defaults to 16                                                     |
-| `useCssIf`     | `true` lets runtime CSS conditions use the native CSS `if()` function; defaults to `false`                                   |
+| Field          | Value                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `target`       | Minimum browser versions, such as `["chrome111", "safari17"]`; removes fallbacks they do not need                           |
+| `utilityOrder` | `"authored"` orders utilities as your stylesheet defines them; `"tailwind"` orders them as Tailwind does                    |
+| `important`    | `true` makes every utility `!important`; a selector nests utilities under that selector                                     |
+| `tailwind`     | A Tailwind configuration object; see [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind#move-configuration) |
+| `plugins`      | Plugin objects for the `@plugin` rules of your stylesheet                                                                   |
+| `rootFontSize` | Pixels per `rem`, used by lint fixes and editor previews; defaults to 16                                                    |
+| `useCssIf`     | `true` lets runtime CSS conditions use the native CSS `if()` function; defaults to `false`                                  |
 
 ### Generated names
 
@@ -99,7 +99,7 @@ describes the remaining fields for custom integrations, such as `sources`,
 ## Lint
 
 The `lint` field of a project selects the rules that the CLI and the editor
-report. [Checks in the editor and CI](/docs/guides/lint-adoption/) explains
+report. [Checks in the editor and CI](/docs/guides/lint-adoption) explains
 where the rules run.
 
 ### Presets and severities
@@ -130,7 +130,7 @@ export default defineConfig({
 | `strict`      | Every `recommended` rule as an error, and unused suppression comments  |
 | `stylistic`   | Preferred spellings and utility sorting; combine it with `recommended` |
 
-The [lint rule reference](/docs/lints/) shows the severity of each rule in
+The [lint rule reference](/docs/lints) shows the severity of each rule in
 `recommended`. Each rule page shows its severity in every preset.
 
 Each rule has one of three severities:
@@ -155,7 +155,7 @@ arrays replace earlier arrays. A severity alone, such as `"deny"`, keeps the
 rule's options from the presets.
 
 An unknown rule name is a configuration error. Turning off rules does not turn
-off [compiler errors](/docs/errors/).
+off [compiler errors](/docs/errors).
 
 ### Rule options
 
@@ -183,24 +183,24 @@ const rules = {
 };
 ```
 
-| Rule                         | Options                                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `conflicting-utilities`      | `allowShorthandOverrides`: allows the supported overrides between shorthand and longhand utilities; defaults to `false`                                                                                 |
-| `invalid-marker-use`         | `ignoredClasses`: marker class names that the rule ignores                                                                                                                                              |
-| `no-arbitrary-spacing`       | `properties`: properties to check in addition to margin, padding, and gap                                                                                                                               |
-| `no-restricted-utilities`    | `utilities`: utility patterns, each with an optional message                                                                                                                                            |
-| `no-restricted-declarations` | `rules`: patterns for properties and values; every matching entry applies                                                                                                                               |
-| `no-restricted-length-units` | `rules`: property patterns and the units to `disallow`; the last matching entry applies                                                                                                                 |
-| `no-restricted-theme-tokens` | `tokens`: patterns for theme custom properties; required when the rule is on                                                                                                                            |
-| `prefer-canonical-utilities` | `pxToRem` and `collapse` default to `true`; `logicalToPhysical` defaults to `false`; `preserveSpecificity` defaults to `true`. See the [rule options](/docs/lints/prefer-canonical-utilities/#options). |
-| `prefer-variant-directive`   | `pxToRem`: treats `px` and `rem` in media queries as equal at 16px per `rem`; defaults to `false`                                                                                                       |
+| Rule                         | Options                                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `conflicting-utilities`      | `allowShorthandOverrides`: allows the supported overrides between shorthand and longhand utilities; defaults to `false`                                                                                |
+| `invalid-marker-use`         | `ignoredClasses`: marker class names that the rule ignores                                                                                                                                             |
+| `no-arbitrary-spacing`       | `properties`: properties to check in addition to margin, padding, and gap                                                                                                                              |
+| `no-restricted-utilities`    | `utilities`: utility patterns, each with an optional message                                                                                                                                           |
+| `no-restricted-declarations` | `rules`: patterns for properties and values; every matching entry applies                                                                                                                              |
+| `no-restricted-length-units` | `rules`: property patterns and the units to `disallow`; the last matching entry applies                                                                                                                |
+| `no-restricted-theme-tokens` | `tokens`: patterns for theme custom properties; required when the rule is on                                                                                                                           |
+| `prefer-canonical-utilities` | `pxToRem` and `collapse` default to `true`; `logicalToPhysical` defaults to `false`; `preserveSpecificity` defaults to `true`. See the [rule options](/docs/lints/prefer-canonical-utilities#options). |
+| `prefer-variant-directive`   | `pxToRem`: treats `px` and `rem` in media queries as equal at 16px per `rem`; defaults to `false`                                                                                                      |
 
 Patterns accept `*` for any text and `?` for one character. Utility and theme
 token patterns are case-sensitive. Property and value patterns are not.
 
 ### Definitions of packages and plugins
 
-[incompatible-property-value](/docs/lints/incompatible-property-value/) checks
+[incompatible-property-value](/docs/lints/incompatible-property-value) checks
 the declarations that utility definitions write. By default, it checks only your
 own definitions: your stylesheet, the stylesheets that it imports by a relative
 or absolute path, and the plugin files that it loads by path. Two project-level
@@ -246,9 +246,9 @@ export const badge = style("bg-[#123456]");
 In stylesheets, write the same text in `/* ... */` comments.
 
 A comment hides the finding only. A misspelled utility still produces no CSS.
-[invalid-lint-suppression](/docs/lints/invalid-lint-suppression/) reports a
+[invalid-lint-suppression](/docs/lints/invalid-lint-suppression) reports a
 malformed comment, and
-[unused-lint-suppression](/docs/lints/unused-lint-suppression/) reports a
+[unused-lint-suppression](/docs/lints/unused-lint-suppression) reports a
 comment that suppresses nothing.
 
 ## Sorting
@@ -264,7 +264,7 @@ The `sort` field controls where `stillwind fmt` and the editor sort utilities:
 | `variantBlocks`   | Adjacent `@variant` blocks                         | `false` |
 
 `sort: false` disables sorting, including `stillwind fmt` and the
-[prefer-sorted-utilities](/docs/lints/prefer-sorted-utilities/) rule. Turning off
+[prefer-sorted-utilities](/docs/lints/prefer-sorted-utilities) rule. Turning off
 only that rule keeps `stillwind fmt` working.
 
 The CLI checks the files that `files` selects. File patterns on the command line

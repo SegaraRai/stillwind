@@ -8,7 +8,7 @@ sidebar:
 
 Each application needs two things: the `style` import for its component framework,
 and the Stillwind integration for its build tool. This page assumes that you have
-created the stylesheet and `stillwind.config.ts` from [Getting started](/docs/).
+created the stylesheet and `stillwind.config.ts` from [Getting started](/docs).
 Each integration finds `stillwind.config.ts` in the application root.
 
 ## Import style() for your framework
@@ -51,7 +51,7 @@ Alpine uses the `stillwind` plugin from `stillwind/alpine`. Register it with
 Lit uses `html` element bindings such as
 `` html`<button ${applyStyle(style("px-4 py-2"))}>Save</button>` ``.
 Import both helpers from `stillwind/lit`. To add the styles to a shadow root,
-see [Web Components](/docs/guides/web-components/). The Lit directive supports
+see [Web Components](/docs/guides/web-components). The Lit directive supports
 browser rendering; Lit SSR is unsupported.
 
 Gatsby uses `stillwind/react`, and Fresh 2 with Vite uses `stillwind/preact`.
@@ -188,4 +188,4 @@ standalone Turbopack, list every entry module of the application in `entries`.
 
 The [build integration reference](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md)
 describes every option.
-[How styles compile](/docs/concepts/how-styles-compile/) explains how the CSS reaches the page.
+[How styles compile](/docs/concepts/how-styles-compile) explains how the CSS reaches the page.

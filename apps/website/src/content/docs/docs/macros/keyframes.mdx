@@ -39,7 +39,10 @@ Under a variant, the definition replaces every frame. It does not inherit frames
 from the ordinary definition. Use media and `supports-*` variants here. Selector
 and container variants are not supported.
 
-You can export the definition and import it in other modules.
+The declaration can be at the top level of a module, in a function, or in a
+callback. Each `style.keyframes()` call in the source creates one name, and the
+name stays the same in every render and function call. You can export the
+definition and import it in other modules.
 
 ## Apply the animation
 
@@ -48,10 +51,10 @@ The argument is a string literal of animation options. Timing utilities set
 animation properties here: `duration-300` sets `animation-duration`, not
 `transition-duration`. A utility that is not an animation option, such as
 `p-4`, produces no CSS, and
-[invalid-animation-option](/docs/lints/invalid-animation-option/) reports it.
+[invalid-animation-option](/docs/lints/invalid-animation-option) reports it.
 
 Write the call directly in `style()`. Storing `fade("duration-300")` in a
-variable causes [SW10004](/docs/errors/SW10004/).
+variable causes [SW10004](/docs/errors/SW10004).
 
 To turn the animation on or off by condition, put the call under a variant, such
 as `{ "motion-safe:": fade("duration-300") }`.
@@ -63,6 +66,6 @@ class names, and the definition variable can become `undefined` in JavaScript.
 The compiler writes every `@keyframes` rule that the calls need, together with
 the theme values that the frames use.
 
-See [Animations](/docs/guides/animations/) for task-based examples, and
-[invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant/) for
+See [Animations](/docs/guides/animations) for task-based examples, and
+[invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant) for
 unsupported variants.

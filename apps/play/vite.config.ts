@@ -50,7 +50,7 @@ export default defineConfig({
         ],
       },
       "build:acceptance": {
-        command: "astro build --base /play/ --outDir dist/acceptance",
+        command: "astro build --outDir dist/acceptance",
         cache: {
           ...astroCache,
           input: [

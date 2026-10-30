@@ -2,7 +2,7 @@
  * Runs the browser LSP worker over files captured by the extension's workspace provider.
  * Configurations and `@plugin` packages are bundled from that inventory and evaluated as ESM.
  * Node imports fail resolution. Snapshot, compile, and sort requests require one workspace.
- * Compile requests also require matching document and reload revisions.
+ * Reads and compile requests also require matching document and reload revisions.
  */
 
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
@@ -17,6 +17,7 @@ import {
 } from "vscode-languageserver/browser";
 
 import type { BundledModule } from "./bundle.ts";
+import { consumeWorkspaceFiles, workspaceFileEntries } from "./inventory.ts";
 import { installLibraries } from "./libraries.ts";
 import { browserPluginHost } from "./plugins.ts";
 
@@ -87,7 +88,7 @@ const server = createLanguageServer(connection, {
       }
       return (await response.json()) as [string, string][];
     });
-    const files = new Map(captured.files.map(([uri, text]) => [virtualPath(uri), text] as const));
+    const files = consumeWorkspaceFiles(captured);
     installLibraries(files, await libraries, workspaceFolders.map(virtualPath));
     workspaces = [];
     const opened = new Map<string, BrowserAnalysisWorkspace>();
@@ -143,6 +144,8 @@ connection.onRequest(
   async (input?: {
     /** Whether to recapture workspace files and configuration before returning the snapshot. */
     reload?: boolean;
+    /** Whether only package manifests include text; other file entries contain null. */
+    metadataOnly?: boolean;
   }) => {
     if (input?.reload) {
       await server.reload();
@@ -155,8 +158,37 @@ connection.onRequest(
     return {
       generation,
       revision: workspace.revision,
-      files: [...workspace.files()],
+      files: workspaceFileEntries(workspace.files(), input?.metadataOnly),
     };
+  },
+);
+
+connection.onRequest(
+  "stillwind/readFile",
+  async (input: {
+    /** Original URI of a file listed by stillwind/snapshot. */
+    uri: string;
+    /** Document revision captured by stillwind/snapshot. */
+    revision: number;
+    /** Workspace opening generation captured by stillwind/snapshot. */
+    generation: number;
+  }) => {
+    await server.ready();
+    if (input.generation !== generation) {
+      throw new Error("Obsolete workspace snapshot");
+    }
+    if (workspaces.length !== 1) {
+      throw new Error("Application builds require exactly one opened workspace");
+    }
+    const workspace = workspaces[0];
+    if (input.revision !== workspace.revision) {
+      throw new Error("Obsolete workspace revision");
+    }
+    const text = workspace.readFile(input.uri, input.revision);
+    if (text === undefined) {
+      throw new Error(`Missing virtual file ${input.uri}`);
+    }
+    return text;
   },
 );
 

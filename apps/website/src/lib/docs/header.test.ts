@@ -1,6 +1,6 @@
 import { expect, it } from "vite-plus/test";
 
-import { type HeaderScroll, nextHeaderScroll } from "./header";
+import { type HeaderScroll, isFragmentLink, nextHeaderScroll } from "./header";
 
 function scrollThrough(positions: number[], viewportHeight = 800): boolean[] {
   let state: HeaderScroll = {
@@ -32,4 +32,14 @@ it("ignores movements against the direction up to the tolerance", () => {
 
 it("hides the header after a jump farther than the viewport", () => {
   expect(scrollThrough([3000, 2900, 1000])).toEqual([true, false]);
+});
+
+it("recognizes links to a fragment of the current page", () => {
+  const page = "https://stillwind.dev/docs/guides/style#states";
+  expect(isFragmentLink("https://stillwind.dev/docs/guides/style#values", page)).toBe(true);
+  expect(isFragmentLink("https://stillwind.dev/docs/guides/style#states", page)).toBe(true);
+  expect(isFragmentLink("https://stillwind.dev/docs/guides/style", page)).toBe(false);
+  expect(isFragmentLink("https://stillwind.dev/docs/guides/cva#values", page)).toBe(false);
+  expect(isFragmentLink("https://stillwind.dev/docs/guides/style?tab=vp#values", page)).toBe(false);
+  expect(isFragmentLink("https://example.com/docs/guides/style#values", page)).toBe(false);
 });

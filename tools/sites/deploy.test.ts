@@ -141,6 +141,52 @@ test("rejects metadata that points to another deployment", async () => {
   );
 });
 
+test.each([
+  { route: "/docs/", status: 307, location: "/docs", error: undefined },
+  { route: "/docs/", status: 200, location: undefined, error: "redirect" },
+  { route: "/docs/", status: 307, location: "/docs/", error: "redirect" },
+  { route: "/docs", status: 307, location: "/docs/", error: "HTTP 307" },
+])("checks slashless routes and redirects without following them: %j", async (result) => {
+  const request = vi.fn(async (url: URL, init: RequestInit) => {
+    if (url.pathname === result.route) {
+      return new Response(null, {
+        status: result.status,
+        headers: result.location ? { Location: result.location } : {},
+      });
+    }
+    if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+      return new Response(null, {
+        status: 307,
+        headers: { Location: url.pathname.slice(0, -1) },
+      });
+    }
+    return new Response(
+      init.method === "HEAD"
+        ? null
+        : `<link rel="canonical" href="${url.origin}/">
+          <meta property="og:url" content="${url.origin}/">
+          <meta property="og:image" content="${url.origin}/og.png">
+          <meta name="twitter:image" content="${url.origin}/og.png">`,
+      {
+        headers: {
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "require-corp",
+        },
+      },
+    );
+  });
+  vi.stubGlobal("fetch", request);
+  const check = checkSite("website", "https://stillwind.dev", "production");
+  if (result.error) {
+    await expect(check).rejects.toThrow(result.error);
+  } else {
+    await expect(check).resolves.toBeUndefined();
+    for (const [, init] of request.mock.calls) {
+      expect(init.redirect).toBe("manual");
+    }
+  }
+});
+
 test("rejects a successful HTML fallback for a missing WASM file", async () => {
   vi.stubGlobal(
     "fetch",

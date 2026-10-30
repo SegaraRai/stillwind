@@ -120,7 +120,7 @@ The VS Code extension shows the same findings while you edit.
 The compiler turns static utilities into CSS files and class names at build time.
 These styles need no JavaScript at runtime. Conditions and dynamic values add
 only the small runtime helpers that they use. See
-[How styles compile](/docs/concepts/how-styles-compile/) for the generated code.
+[How styles compile](/docs/concepts/how-styles-compile) for the generated code.
 
 ## What changes from Tailwind
 
@@ -137,6 +137,6 @@ Tailwind CSS remains the better fit when a project has no build tool, or when
 classes come from places that Stillwind does not compile, such as HTML from a
 CMS.
 
-[Getting started](/docs/) adds Stillwind to a new application.
-[Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/) moves an
+[Getting started](/docs) adds Stillwind to a new application.
+[Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind) moves an
 existing Tailwind project.

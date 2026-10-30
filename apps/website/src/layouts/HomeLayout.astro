@@ -1,5 +1,6 @@
 ---
 import instrumentSans from "@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2?url";
+import { ClientRouter } from "astro:transitions";
 import { style } from "stillwind/astro";
 
 import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
@@ -32,6 +33,7 @@ const socialImage = new URL("/og.png", Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     {noindex && <meta name="robots" content="noindex" />}
     <ThemeHead />
+    <ClientRouter />
     <title>{title}</title>
     {!noindex && <link rel="canonical" href={url} />}
     {description && (

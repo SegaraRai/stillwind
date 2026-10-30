@@ -14,7 +14,7 @@ sidebar:
 ```
 
 `@stillwind-css-template` defines a template for the string that
-[style.css()](/docs/macros/css/) returns. The `template` option of the call
+[style.css()](/docs/macros/css) returns. The `template` option of the call
 selects the template by name, and `default` applies when the call names none.
 Write it at the top level of the stylesheet.
 
@@ -109,7 +109,7 @@ can redefine `default` after `@import "stillwind"`.
 - A template must contain a `utilities` slot.
 - A template cannot contain definitions, such as `@theme` or `@utility`.
 - The loader skips a template that breaks these rules, and
-  [invalid-css-directive](/docs/lints/invalid-css-directive/) reports it.
+  [invalid-css-directive](/docs/lints/invalid-css-directive) reports it.
 - A template name that the stylesheet does not define reports
-  [invalid-css-input](/docs/lints/invalid-css-input/) at the call. The call then
+  [invalid-css-input](/docs/lints/invalid-css-input) at the call. The call then
   uses no template, and its string contains only the rules.

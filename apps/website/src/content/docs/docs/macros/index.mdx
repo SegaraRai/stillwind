@@ -8,16 +8,16 @@ Stillwind's API consists of macros: functions that the compiler replaces with
 generated code at build time. Each page lists the inputs that the macro accepts,
 and it shows the generated JavaScript and CSS for its examples.
 
-| Macro                                                   | Use it to                                                        | Guide                                                                |
-| ------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [style()](/docs/macros/style/)                          | Style an element                                                 | [The basics of style()](/docs/guides/style/)                         |
-| [style.ref()](/docs/macros/ref/)                        | Style an element from another element's state, size, or position | [Element relationships](/docs/guides/element-relationships/)         |
-| [style.anchorScope()](/docs/macros/anchor-scope/)       | Limit where an anchor name is visible                            | [Element relationships](/docs/guides/element-relationships/)         |
-| [style.keyframes()](/docs/macros/keyframes/)            | Define an animation in a component                               | [Animations](/docs/guides/animations/)                               |
-| [style.viewTransition()](/docs/macros/view-transition/) | Style view transition snapshots and name each item               | [View transitions](/docs/guides/view-transitions/)                   |
-| [style.media()](/docs/macros/media/)                    | Use a named breakpoint as a media query in JavaScript            | [Responsive styles](/docs/guides/responsive-styles/)                 |
-| [style.css()](/docs/macros/css/)                        | Compile utilities into a CSS string for a shadow root            | [Web Components](/docs/guides/web-components/)                       |
-| [style.cva()](/docs/macros/cva/)                        | Migrate components that use `cva`                                | [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind/) |
+| Macro                                                  | Use it to                                                        | Guide                                                               |
+| ------------------------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------- |
+| [style()](/docs/macros/style)                          | Style an element                                                 | [The basics of style()](/docs/guides/style)                         |
+| [style.ref()](/docs/macros/ref)                        | Style an element from another element's state, size, or position | [Element relationships](/docs/guides/element-relationships)         |
+| [style.anchorScope()](/docs/macros/anchor-scope)       | Limit where an anchor name is visible                            | [Element relationships](/docs/guides/element-relationships)         |
+| [style.keyframes()](/docs/macros/keyframes)            | Define an animation in a component                               | [Animations](/docs/guides/animations)                               |
+| [style.viewTransition()](/docs/macros/view-transition) | Style view transition snapshots and name each item               | [View transitions](/docs/guides/view-transitions)                   |
+| [style.media()](/docs/macros/media)                    | Use a named breakpoint as a media query in JavaScript            | [Responsive styles](/docs/guides/responsive-styles)                 |
+| [style.css()](/docs/macros/css)                        | Compile utilities into a CSS string for a shadow root            | [Web Components](/docs/guides/web-components)                       |
+| [style.cva()](/docs/macros/cva)                        | Migrate components that use `cva`                                | [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind) |
 
 Import the macros from the entrypoint of your framework, such as
 `stillwind/react`. The examples on these pages use React.
@@ -25,5 +25,5 @@ Import the macros from the entrypoint of your framework, such as
 Each example shows the source, the compiled code, and the CSS that it adds to
 the stylesheet. In development, Stillwind also adds checks that report invalid
 values at runtime. The compiled code on these pages leaves them out.
-[How styles compile](/docs/concepts/how-styles-compile/) explains the generated code in
+[How styles compile](/docs/concepts/how-styles-compile) explains the generated code in
 general.

@@ -68,7 +68,7 @@ const gutter = style("inline-panel shrink-0 text-end text-muted select-none");
     </div>
   </div>
 
-  <script is:inline>
+  <script is:inline data-astro-rerun>
     // Cloudflare serves this page for every unknown path, so the requested path exists only at runtime.
     const target = document.querySelector("[data-requested-path]");
     if (target) {

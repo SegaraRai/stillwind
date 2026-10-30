@@ -43,7 +43,7 @@ export function lintSummaryMarkdown(name: LintRule, analysis?: string | boolean)
           options.map(({ option, value }) => [`\`${option}\``, `\`${value}\``]),
         )
       : "",
-    "[Configure lint](/docs/configuration/#lint) to change the severity or options.",
+    "[Configure lint](/docs/configuration#lint) to change the severity or options.",
     analysis === "project" ? projectAnalysisNote : "",
   ]
     .filter(Boolean)

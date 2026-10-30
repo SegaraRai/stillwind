@@ -68,5 +68,5 @@ Export the keyframes from their module, and import them in other components.
 Write the call that applies them, such as `enter("duration-300")`, directly in
 `style()`. You cannot store that call in a variable and use it later.
 
-The [style.keyframes() reference](/docs/macros/keyframes/) shows the generated
+The [style.keyframes() reference](/docs/macros/keyframes) shows the generated
 JavaScript and CSS.
