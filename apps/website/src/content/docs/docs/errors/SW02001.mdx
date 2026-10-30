@@ -1,0 +1,22 @@
+---
+title: "SW02001: Framework constraint conflict"
+description: The prepared source selects a framework that differs from the component format.
+slug: docs/errors/SW02001
+---
+
+This error occurs when a custom integration supplies a source `framework` that
+conflicts with the component's original format. For example, a Vue component
+cannot be projected with an explicit Svelte framework constraint.
+
+## How to fix
+
+Set the prepared source's `framework` field to the component's framework, or omit
+it when the integration does not need a source constraint. The converter must also
+match the component format.
+
+Macro imports select each call's output format independently. A file can import
+several framework macros, including React and vanilla DOM macros.
+
+`framework` is not a project option in `stillwind.config.ts`. If an official
+integration supplies the wrong constraint, report the error with the component
+and the Stillwind package versions.

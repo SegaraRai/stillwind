@@ -11,7 +11,9 @@
 //!
 //! Configuration (01-09):
 //!
-//! - 01: compiler options, generated names, and the CSS entry
+//! - 01: configuration values
+//! - 02: project inputs and the host environment
+//! - 03: generated names
 //!
 //! Authoring (10-29):
 //!
@@ -99,15 +101,17 @@ macro_rules! define_compile_codes {
 
 define_compile_codes! {
     Configuration {
-        // 01: compiler options, generated names, and the CSS entry
-        FrameworkConstraintConflict => "SW01001",
-        InvalidPropertyPrefix { .. } => "SW01002",
-        InvalidHashLength { .. } => "SW01004",
-        GeneratedIdentifierCollision { .. } => "SW01005",
-        InvalidLintConfiguration { .. } => "SW01006",
-        IdentifierGenerationFailed { .. } => "SW01007",
-        UnresolvedCssRoot => "SW01008",
-        ThemePrefixCollision { .. } => "SW01009",
+        // 01: configuration values
+        InvalidPropertyPrefix { .. } => "SW01001",
+        InvalidHashLength { .. } => "SW01002",
+        InvalidLintConfiguration { .. } => "SW01003",
+        // 02: project inputs and the host environment
+        FrameworkConstraintConflict => "SW02001",
+        UnresolvedCssRoot => "SW02002",
+        // 03: generated names
+        GeneratedIdentifierCollision { .. } => "SW03001",
+        IdentifierGenerationFailed { .. } => "SW03002",
+        ThemePrefixCollision { .. } => "SW03003",
     }
     Authoring {
         // 10: JavaScript and component source

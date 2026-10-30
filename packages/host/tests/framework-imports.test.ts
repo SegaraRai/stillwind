@@ -118,7 +118,7 @@ test("Vue SFC with a React macro warns in original coordinates without a framewo
   const literal = "'stillwind/react'";
   const source = `<script setup>\n// 🧭\nimport {style} from ${literal};\nconst props = style("flex");\n</script><template><div v-bind="props" /></template>`;
   const output = await compileFixture(source, "WrongMacro.vue");
-  expect(!output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001")).toBeTruthy();
+  expect(!output.diagnostics.some((diagnostic) => diagnostic.code === "SW02001")).toBeTruthy();
   expect(output.diagnostics).toStrictEqual([]);
   expect(output.code).toBeTruthy();
   expect(output.lintFindings.length).toBe(1);
@@ -136,7 +136,7 @@ test("explicit source framework constraints reject a different component format"
     "react",
   );
   expect(output.code).toBe(null);
-  expect(output.diagnostics.some((diagnostic) => diagnostic.code === "SW01001")).toBeTruthy();
+  expect(output.diagnostics.some((diagnostic) => diagnostic.code === "SW02001")).toBeTruthy();
   expect(output.lintFindings).toStrictEqual([]);
 });
 

@@ -1,22 +1,50 @@
 ---
-title: "SW01001: Framework constraint conflict"
-description: The prepared source selects a framework that differs from the component format.
+title: "SW01001: Invalid property prefix"
+description: The prefix, tailwindPrefix, or themePrefix setting does not start with -- and end with -.
 slug: docs/errors/SW01001
 ---
 
-This error occurs when a custom integration supplies a source `framework` that
-conflicts with the component's original format. For example, a Vue component
-cannot be projected with an explicit Svelte framework constraint.
+This error occurs when `prefix`, `tailwindPrefix`, or `themePrefix` is not a valid prefix for
+custom properties. A prefix must start with `--`, end with `-`, and contain no
+whitespace. The message names the setting.
+
+## Reported
+
+<DiagnosticExample code="SW01001">
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      prefix: "sw",
+    },
+  ],
+});
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.tsx"],
+      prefix: "--sw-",
+    },
+  ],
+});
+```
 
 ## How to fix
 
-Set the prepared source's `framework` field to the component's framework, or omit
-it when the integration does not need a source constraint. The converter must also
-match the component format.
-
-Macro imports select each call's output format independently. A file can import
-several framework macros, including React and vanilla DOM macros.
-
-`framework` is not a project option in `stillwind.config.ts`. If an official
-integration supplies the wrong constraint, report the error with the component
-and the Stillwind package versions.
+- Add `--` at the start and `-` at the end, as in the example.
+- Use the same value in client and server builds that share styles.

@@ -293,10 +293,10 @@ async function projectConfiguration(source: ExampleSource): Promise<AnalysisProj
 
 // Native loader exceptions retain the diagnostic message but omit its reporting code.
 const exceptionMessages: Record<string, string> = {
-  SW01002: "prefix must start with",
-  SW01004: "hashLength must be between",
-  SW01006: "invalid `no-restricted-length-units` lint configuration:",
-  SW01008: "the root CSS source cannot be unresolved",
+  SW01001: "prefix must start with",
+  SW01002: "hashLength must be between",
+  SW01003: "invalid `no-restricted-length-units` lint configuration:",
+  SW02002: "the root CSS source cannot be unresolved",
   SW13001: "CSS parse error:",
   SW13002: "unterminated CSS block at byte",
   SW14001: "generated utilities require an @stillwind-slot utilities;",
@@ -318,13 +318,13 @@ async function errorDiagnostics(
   try {
     const project =
       first.title === "stillwind.config.ts" ? await projectConfiguration(first) : undefined;
-    if (["SW01002", "SW01004"].includes(code)) {
+    if (["SW01001", "SW01002"].includes(code)) {
       new NativeDesignSystemLoader({
         prefix: project!.prefix,
         tailwindPrefix: project!.tailwindPrefix,
         hashLength: project!.hashLength,
       });
-    } else if (code === "SW01006") {
+    } else if (code === "SW01003") {
       const rules = typeof project!.lint === "object" ? project!.lint.rules! : {};
       new NativeDesignSystemLoader({
         lint: Object.fromEntries(
@@ -336,7 +336,7 @@ async function errorDiagnostics(
       });
     } else if (code.startsWith("SW320")) {
       await evaluate(first.code);
-    } else if (code === "SW01008") {
+    } else if (code === "SW02002") {
       const loader = new NativeDesignSystemLoader();
       loader.provideMany([
         {

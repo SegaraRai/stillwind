@@ -1,12 +1,12 @@
 ---
-title: "SW01002: Invalid property prefix"
-description: The prefix, tailwindPrefix, or themePrefix setting does not start with -- and end with -.
+title: "SW01002: Invalid hash length"
+description: The hashLength setting is outside the supported range.
 slug: docs/errors/SW01002
 ---
 
-This error occurs when `prefix`, `tailwindPrefix`, or `themePrefix` is not a valid prefix for
-custom properties. A prefix must start with `--`, end with `-`, and contain no
-whitespace. The message names the setting.
+This error occurs when `hashLength` is not an integer from 1 to 50. The setting
+chooses the number of hash characters in generated names. The message shows the
+value and the maximum.
 
 ## Reported
 
@@ -20,7 +20,7 @@ export default defineConfig({
     {
       css: "./src/stillwind.css",
       files: ["src/**/*.tsx"],
-      prefix: "sw",
+      hashLength: 0,
     },
   ],
 });
@@ -38,7 +38,7 @@ export default defineConfig({
     {
       css: "./src/stillwind.css",
       files: ["src/**/*.tsx"],
-      prefix: "--sw-",
+      hashLength: 5,
     },
   ],
 });
@@ -46,5 +46,6 @@ export default defineConfig({
 
 ## How to fix
 
-- Add `--` at the start and `-` at the end, as in the example.
+- Use an integer from 1 to 50. The default is 5.
+- To shorten names, lower the value. To make collisions less likely, raise it.
 - Use the same value in client and server builds that share styles.
