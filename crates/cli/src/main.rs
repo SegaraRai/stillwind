@@ -166,6 +166,21 @@ fn rebase_resources(
     Ok(css)
 }
 
+/// Reads the compiler options of a `compile` command from its flags.
+fn compiler_options() -> CompilerOptions {
+    CompilerOptions {
+        prefix: (optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned())).into(),
+        tailwind_prefix: (optional_argument("--tailwind-prefix")
+            .unwrap_or_else(|| "--tw-".to_owned()))
+        .into(),
+        theme_prefix: optional_argument("--theme-prefix")
+            .unwrap_or_default()
+            .into(),
+        use_css_if: has_flag("--use-css-if"),
+        ..CompilerOptions::default()
+    }
+}
+
 /// Runs one `compile` command and prints its result.
 ///
 /// Source and theme may be given as text or as paths; a text theme is named
@@ -215,14 +230,7 @@ fn run() -> Result<(), CommandError> {
         )
     };
     let module_id = ModuleId::from(source_path.as_str());
-    let options = CompilerOptions {
-        prefix: (optional_argument("--prefix").unwrap_or_else(|| "--sw-".to_owned())).into(),
-        tailwind_prefix: (optional_argument("--tailwind-prefix")
-            .unwrap_or_else(|| "--tw-".to_owned()))
-        .into(),
-        use_css_if: has_flag("--use-css-if"),
-        ..CompilerOptions::default()
-    };
+    let options = compiler_options();
     options.validate()?;
     let snapshot = load_design_system(&theme, &theme_name, options.design_system(), &mut sources)?;
     let analysis = OxcSourceAnalyzer.finalize(

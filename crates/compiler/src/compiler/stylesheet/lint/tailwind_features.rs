@@ -11,6 +11,9 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 
 use super::analysis::Checker;
 
+/// Replacement that a finding names for Tailwind's `prefix()`.
+const THEME_PREFIX_REPLACEMENT: &str = "Stillwind generates unique class names without a prefix; set the project's `themePrefix` field in stillwind.config.ts to prefix theme variables";
+
 /// Reports every ignored Tailwind feature of the checked source.
 pub(super) fn check_tailwind_features(checker: &mut Checker<'_>, text: &str) {
     if !checker.enabled(LintKind::IgnoredTailwindFeature) {
@@ -18,6 +21,7 @@ pub(super) fn check_tailwind_features(checker: &mut Checker<'_>, text: &str) {
     }
     for feature in ignored_tailwind_features(text) {
         let (name, instead) = match &feature.kind {
+            IgnoredTailwindFeatureKind::ThemePrefix => ("prefix", THEME_PREFIX_REPLACEMENT),
             IgnoredTailwindFeatureKind::Config => (
                 "@config",
                 "set the project's `tailwind` field in stillwind.config.ts instead",
@@ -31,7 +35,7 @@ pub(super) fn check_tailwind_features(checker: &mut Checker<'_>, text: &str) {
                     "source" => {
                         "Stillwind collects utilities from the modules that the project's `files` field selects"
                     }
-                    "prefix" => "Stillwind generates unique class names without a prefix",
+                    "prefix" => THEME_PREFIX_REPLACEMENT,
                     _ => "the file is imported without this modifier",
                 },
             ),

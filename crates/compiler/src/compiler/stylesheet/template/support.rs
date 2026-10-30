@@ -22,6 +22,7 @@ use stillwind_source::Span;
 
 use super::super::keyframes::extract_authored_keyframes;
 use super::super::properties::{PropertyOutput, render_used_properties};
+use super::super::theme_prefix::{check_theme_prefix, prefixed_references};
 use super::authored::render_authored;
 use super::emit::resolve_origin;
 use crate::compiler::conditionals::lower;
@@ -96,6 +97,8 @@ impl<'a> SupportSelection<'a> {
         for frames in &utility_css.keyframes {
             used.push_str(&frames.css);
         }
+        let references = prefixed_references(&used, theme, options);
+        used.push_str(&references);
         let stillwind = stillwind_property_definitions(theme);
         if let Some(name) = explicit.iter().find(|name| {
             !stillwind.iter().chain(theme.properties()).any(|property| {
@@ -105,6 +108,7 @@ impl<'a> SupportSelection<'a> {
             return Err(CompileDiagnostic::UnknownRequiredProperty { name: name.clone() });
         }
         let required = theme.values_required_by(&used, false, stillwind_omit_token_prefixes(theme));
+        check_theme_prefix(required.iter().copied(), theme, options)?;
         let tokens = theme
             .values()
             .iter()

@@ -41,6 +41,9 @@ pub struct CompilerOptions {
     pub prefix: LeanStr,
     /// Prefix for internal custom properties kept for Tailwind compatibility.
     pub tailwind_prefix: LeanStr,
+    /// Prefix that replaces the leading `--` of theme variables in generated CSS, or an
+    /// empty string to keep their authored names.
+    pub theme_prefix: LeanStr,
     /// Strategy for ordering resolved utilities. Defaults to authored definition
     /// positions.
     pub utility_order: UtilityOrderMode,
@@ -82,6 +85,7 @@ impl Default for CompilerOptions {
             lint: LintOverrides::default(),
             prefix: "--sw-".to_lean_str(),
             tailwind_prefix: PACKAGE_TAILWIND_PREFIX.to_lean_str(),
+            theme_prefix: LeanStr::new(),
             utility_order: UtilityOrderMode::default(),
             stylesheet_sort: StylesheetSortOptions::default(),
             target: BrowserTargets::default(),
@@ -100,6 +104,7 @@ impl CompilerOptions {
         DesignSystemOptions {
             prefix: self.prefix.clone(),
             tailwind_prefix: self.tailwind_prefix.clone(),
+            theme_prefix: self.theme_prefix.clone(),
             utility_order: self.utility_order,
             target: self.target.clone(),
         }
@@ -140,6 +145,7 @@ impl CompilerOptions {
         Self {
             prefix: snapshot.config().prefix.clone(),
             tailwind_prefix: snapshot.config().tailwind_prefix.clone(),
+            theme_prefix: snapshot.config().theme_prefix.clone(),
             utility_order: snapshot.config().utility_order,
             target: snapshot.config().target.clone(),
             ..self

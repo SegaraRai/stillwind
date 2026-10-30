@@ -1,0 +1,7 @@
+@import "stillwind";
+
+@plugin "daisyui";
+
+@theme {
+  --color-brand: #123456;
+}

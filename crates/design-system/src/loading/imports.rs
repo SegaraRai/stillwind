@@ -49,7 +49,7 @@ pub(super) struct Import {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IgnoredTailwindFeature {
     /// Byte range of the `@config` statement, including its semicolon, or of the import
-    /// modifier, including its arguments.
+    /// modifier or `@theme` option, including its arguments.
     pub range: Range<usize>,
     /// What the range contains.
     pub kind: IgnoredTailwindFeatureKind,
@@ -67,6 +67,8 @@ pub enum IgnoredTailwindFeatureKind {
         /// `theme`.
         LeanStr,
     ),
+    /// A `prefix()` option of an `@theme` block. The block is loaded without it.
+    ThemePrefix,
 }
 
 /// Lists the Tailwind features of one buffer that the loader ignores, in source order.
@@ -154,6 +156,10 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
             });
             continue;
         }
+        if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("theme")) {
+            theme_prelude(&mut parser, start, &mut scan.ignored)?;
+            continue;
+        }
         if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin")) {
             match plugin(&mut parser, start)? {
                 Ok(import) => {
@@ -206,6 +212,52 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
         }
     }
     Ok(scan)
+}
+
+/// Consumes one `@theme` statement after its keyword and records its `prefix()`
+/// options.
+///
+/// `start` is the statement's offset, which identifies an unbalanced block.
+///
+/// # Errors
+///
+/// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
+fn theme_prelude(
+    parser: &mut Parser<'_>,
+    start: usize,
+    ignored: &mut Vec<IgnoredTailwindFeature>,
+) -> Result<(), CompileDiagnostic> {
+    loop {
+        let option = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            return Ok(());
+        };
+        let prefix = matches!(token, Token::Function(name) if name.eq_ignore_ascii_case("prefix"));
+        let last = matches!(token, Token::CurlyBracketBlock | Token::Semicolon);
+        if matches!(
+            token,
+            Token::CurlyBracketBlock
+                | Token::ParenthesisBlock
+                | Token::SquareBracketBlock
+                | Token::Function(_)
+        ) {
+            parser
+                .parse_nested_block(|nested| {
+                    while nested.next_including_whitespace_and_comments().is_ok() {}
+                    Ok::<_, ParseError<()>>(())
+                })
+                .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
+        }
+        if prefix {
+            ignored.push(IgnoredTailwindFeature {
+                range: option..parser.position().byte_index(),
+                kind: IgnoredTailwindFeatureKind::ThemePrefix,
+            });
+        }
+        if last {
+            return Ok(());
+        }
+    }
 }
 
 /// Consumes tokens through the next top-level semicolon or the end of input. A block
@@ -590,6 +642,13 @@ mod tests {
             ]
         );
         assert_eq!(scan.removed(), [scan.ignored[2].range.clone()]);
+        assert_eq!(
+            ignored_tailwind_features("@theme static prefix(tw) { --a: prefix(b); }")
+                .iter()
+                .map(|feature| feature.kind.clone())
+                .collect::<Vec<_>>(),
+            [IgnoredTailwindFeatureKind::ThemePrefix]
+        );
         assert_eq!(
             wrappers("prefix(tw) reference source(none) print", 0).unwrap(),
             vec!["@media print"]

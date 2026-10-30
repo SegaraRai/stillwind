@@ -960,6 +960,11 @@ export interface NativeCompilerOptions {
   prefix?: string
   /** Prefix for the retained Tailwind-compatibility namespace. */
   tailwindPrefix?: string
+  /**
+   * Prefix that replaces the leading `--` of theme variables. Omission keeps their
+   * authored names.
+   */
+  themePrefix?: string
   /** Ordering strategy: authored or tailwind. Defaults to authored. */
   utilityOrder?: string
   /** Independent CSS sorting targets. Omission sorts only @apply arguments. */

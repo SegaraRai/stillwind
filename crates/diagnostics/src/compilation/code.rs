@@ -108,6 +108,7 @@ define_compile_codes! {
         InvalidLintConfiguration { .. } => "SW01006",
         IdentifierGenerationFailed { .. } => "SW01007",
         UnresolvedCssRoot => "SW01008",
+        ThemePrefixCollision { .. } => "SW01009",
     }
     Authoring {
         // 10: JavaScript and component source

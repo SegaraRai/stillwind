@@ -15,7 +15,7 @@ use stillwind_ir::CssCall;
 use super::conditionals::{lower, report_skipped_conditionals};
 use super::document::{DocumentInput, emit_document_rules};
 use super::style_variants::collect_variant_and_applications;
-use super::stylesheet::render_css_template;
+use super::stylesheet::{prefix_theme_variables, render_css_template};
 use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, MappedStylesheet, finalize_stylesheet};
 
@@ -112,6 +112,7 @@ pub(crate) fn css_call_text(
             );
         }
         if output == CssOutput::Rules {
+            prefix_theme_variables(&mut utilities, theme, options);
             return Ok(finalize_stylesheet(utilities).css.into());
         }
         let name = call

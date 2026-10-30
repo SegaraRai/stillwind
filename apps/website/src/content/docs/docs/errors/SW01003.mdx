@@ -1,12 +1,13 @@
 ---
 title: "SW01003: Conflicting property prefixes"
-description: The prefix and tailwindPrefix settings have the same value.
+description: The prefix setting has the same value as tailwindPrefix or themePrefix.
 slug: docs/errors/SW01003
 ---
 
-This error occurs when `prefix` and `tailwindPrefix` have the same value after
-the defaults apply. Stillwind's own custom properties and the Tailwind-compatible
-ones would then share names.
+This error occurs when `prefix` has the same value as `tailwindPrefix` or
+`themePrefix` after the defaults apply. Stillwind's own custom properties would
+then share names with the Tailwind-compatible properties or the theme variables.
+`themePrefix` may have the same value as `tailwindPrefix`.
 
 ## Reported
 
@@ -46,6 +47,6 @@ export default defineConfig({
 
 ## How to fix
 
-- Give the two settings different values. In the example, `prefix` used the
+- Give `prefix` a different value. In the example, `prefix` used the
   default value of `tailwindPrefix`, `--tw-`.
 - Check the values that the integration options add on top of the file.

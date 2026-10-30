@@ -91,6 +91,12 @@ export interface BaseConfig {
    */
   tailwindPrefix?: string;
   /**
+   * Replaces the leading -- of theme variables in generated CSS. Uses the same format as
+   * prefix and must differ from it. It may equal tailwindPrefix. Omission keeps the authored
+   * names.
+   */
+  themePrefix?: string;
+  /**
    * Stable namespace included in generated class identities. Use the same value for
    * client and server builds. Changing it changes those identities. Defaults to empty.
    */
@@ -195,6 +201,7 @@ export const compilerEntries = {
   tsconfig: v.optional(v.union([nonemptyText, v.literal(false)])),
   prefix: v.optional(namespace),
   tailwindPrefix: v.optional(namespace),
+  themePrefix: v.optional(namespace),
   classNamespace: v.optional(v.string()),
   utilityOrder: v.optional(v.picklist(["authored", "tailwind"])),
   target: v.optional(v.union([browserTarget, v.array(browserTarget)])),
@@ -262,6 +269,23 @@ const distinctNamespaces = (partial: boolean) =>
   );
 
 /**
+ * Checks that theme variables stay out of Stillwind's namespace.
+ * @param partial - Whether to defer the check when `prefix` is absent from an override.
+ * @returns A schema check that attributes the collision to `themePrefix`.
+ */
+const distinctThemeNamespace = (partial: boolean) =>
+  v.forward(
+    v.check(
+      (value: v.InferOutput<typeof compilerSchema>) =>
+        value.themePrefix === undefined ||
+        (partial && value.prefix === undefined) ||
+        (value.prefix ?? "--sw-") !== value.themePrefix,
+      "must differ from prefix",
+    ),
+    ["themePrefix"],
+  );
+
+/**
  * Rejects an `important` field together with `important` in a Tailwind configuration object.
  * A promised configuration is checked after the host awaits it.
  */
@@ -290,7 +314,16 @@ export function validateCompilerConfig(
   location = "config",
   partial = false,
 ): asserts value is BaseConfig {
-  validate(v.pipe(compilerSchema, distinctNamespaces(partial), singleImportant), value, location);
+  validate(
+    v.pipe(
+      compilerSchema,
+      distinctNamespaces(partial),
+      distinctThemeNamespace(partial),
+      singleImportant,
+    ),
+    value,
+    location,
+  );
   if (value.lint !== undefined) {
     validateLintConfig(value.lint, `${location}.lint`, partial);
   }
@@ -302,6 +335,8 @@ export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
   prefix: string;
   /** Validated Tailwind namespace, defaulting to --tw- and distinct from prefix. */
   tailwindPrefix: string;
+  /** Validated theme variable namespace. Omission keeps authored names. */
+  themePrefix?: string;
   /** Namespace shared by client and server class identities, defaulting to an empty string. */
   classNamespace: string;
   /** Ordering policy after applying the authored-order default. */
@@ -356,6 +391,7 @@ export function normalizeCompilerConfig(
     ...compiler,
     prefix: config.prefix ?? "--sw-",
     tailwindPrefix: config.tailwindPrefix ?? "--tw-",
+    ...(config.themePrefix === undefined ? {} : { themePrefix: config.themePrefix }),
     classNamespace: config.classNamespace ?? "",
     utilityOrder: config.utilityOrder ?? "authored",
     target: typeof config.target === "string" ? [config.target] : [...(config.target ?? [])],

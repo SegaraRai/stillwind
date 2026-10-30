@@ -10,6 +10,7 @@ use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};
 use stillwind_diagnostics::CompileDiagnostic;
 
+use super::super::theme_prefix::prefix_theme_variables;
 use super::emit::emit;
 use super::support::SupportSelection;
 use crate::identifiers::IdentifierContext;
@@ -136,6 +137,7 @@ pub(crate) fn render_mapped(
     if !utility_css.css.is_empty() && slots == 0 {
         return Err(CompileDiagnostic::MissingUtilitiesSlot);
     }
+    prefix_theme_variables(&mut css, theme, options);
     css.banners.extend(
         theme
             .banners()
@@ -186,6 +188,7 @@ pub(crate) fn render_css_template(
         &support,
         identifiers,
     )?;
+    prefix_theme_variables(&mut css, theme, options);
     css.banners.extend(
         theme
             .banners()

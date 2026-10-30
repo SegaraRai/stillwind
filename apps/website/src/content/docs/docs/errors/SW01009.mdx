@@ -1,0 +1,35 @@
+---
+title: "SW01009: Theme variable collision"
+description: A theme variable takes the name of a custom property that Stillwind uses internally after themePrefix applies.
+slug: docs/errors/SW01009
+---
+
+This error occurs when `themePrefix` gives a theme variable the same name as a
+custom property that Stillwind registers for its utilities. The two values would
+replace each other, so the utilities that use them would break.
+
+## Reported
+
+With `themePrefix: "--tw-"`, the token below becomes `--tw-blur`. The `blur`
+utility already uses that property for its own value.
+
+```css
+@theme {
+  --blur: 3px;
+}
+```
+
+## Fixed
+
+```css
+@theme {
+  --blur-card: 3px;
+}
+```
+
+## How to fix
+
+- Rename the token so that its output name is free, as in the example.
+- Or set `tailwindPrefix` to another value, so that the internal properties
+  move out of the theme prefix. Plugins that write `--tw-` directly can stop
+  working when the two prefixes differ, so test them.

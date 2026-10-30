@@ -23,6 +23,9 @@ pub struct DesignSystemOptions {
     /// Prefix of the Tailwind-compatibility namespace, which stays distinct from
     /// `prefix` even when both are customized.
     pub tailwind_prefix: LeanStr,
+    /// Prefix that replaces the leading `--` of theme variables in generated CSS, or an
+    /// empty string to keep their authored names.
+    pub theme_prefix: LeanStr,
     /// Strategy for ordering resolved utilities.
     pub utility_order: UtilityOrderMode,
     /// Minimum browser versions used to omit unnecessary color fallbacks.
@@ -34,6 +37,7 @@ impl Default for DesignSystemOptions {
         Self {
             prefix: "--sw-".to_lean_str(),
             tailwind_prefix: "--tw-".to_lean_str(),
+            theme_prefix: LeanStr::new(),
             utility_order: UtilityOrderMode::default(),
             target: BrowserTargets::default(),
         }
@@ -41,11 +45,14 @@ impl Default for DesignSystemOptions {
 }
 
 impl DesignSystemOptions {
-    /// Validates that generated and Tailwind-compatible namespaces are distinct CSS prefixes.
+    /// Validates that the configured namespaces are CSS prefixes and that Stillwind's
+    /// namespace is distinct from the others.
     ///
-    /// A prefix must start with `--`, end with `-`, span at least four bytes, and contain no whitespace. The
-    /// error preserves the offending field name and supplied value, or the common prefix
-    /// when the two namespaces collide. Validation does not modify either value.
+    /// A prefix must start with `--`, end with `-`, span at least four bytes, and
+    /// contain no whitespace. The error preserves the offending field name and supplied
+    /// value, or the common prefix when two namespaces collide. An empty `theme_prefix`
+    /// is valid, and `theme_prefix` may equal `tailwind_prefix`. Validation does not
+    /// modify any value.
     ///
     /// # Errors
     ///
@@ -56,7 +63,11 @@ impl DesignSystemOptions {
         for (name, value) in [
             ("prefix", self.prefix.as_str()),
             ("tailwindPrefix", self.tailwind_prefix.as_str()),
+            ("themePrefix", self.theme_prefix.as_str()),
         ] {
+            if name == "themePrefix" && value.is_empty() {
+                continue;
+            }
             if !value.starts_with("--")
                 || !value.ends_with('-')
                 || value.len() < 4
@@ -68,7 +79,7 @@ impl DesignSystemOptions {
                 });
             }
         }
-        if self.prefix == self.tailwind_prefix {
+        if self.prefix == self.tailwind_prefix || self.prefix == self.theme_prefix {
             return Err(CompileDiagnostic::ConflictingPropertyPrefixes {
                 prefix: self.prefix.clone(),
             });
@@ -95,6 +106,35 @@ impl DesignSystemOptions {
 #[cfg(test)]
 mod tests {
     use super::{CompileDiagnostic, DesignSystemOptions};
+
+    #[test]
+    fn theme_prefix_validation_allows_the_compatibility_namespace() {
+        assert!(
+            DesignSystemOptions {
+                theme_prefix: "--tw-".into(),
+                ..DesignSystemOptions::default()
+            }
+            .validate()
+            .is_ok()
+        );
+        assert!(matches!(
+            DesignSystemOptions {
+                theme_prefix: "tw".into(),
+                ..DesignSystemOptions::default()
+            }
+            .validate(),
+            Err(CompileDiagnostic::InvalidPropertyPrefix { option, value })
+                if option == "themePrefix" && value == "tw"
+        ));
+        assert!(matches!(
+            DesignSystemOptions {
+                theme_prefix: "--sw-".into(),
+                ..DesignSystemOptions::default()
+            }
+            .validate(),
+            Err(CompileDiagnostic::ConflictingPropertyPrefixes { .. })
+        ));
+    }
 
     #[test]
     fn invalid_options_identify_the_option_and_value() {

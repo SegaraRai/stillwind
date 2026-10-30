@@ -136,7 +136,7 @@ Some Tailwind settings move from the stylesheet to `stillwind.config.ts`:
 | `@import "tailwindcss" important` | The `important` field of the project            |
 | `@source` and `source(...)`       | Not needed; the build compiles imported modules |
 | `blocklist`                       | The `no-restricted-utilities` lint rule         |
-| `prefix(tw)`                      | Not supported; write utilities without a prefix |
+| `prefix(tw)`                      | Write utilities without `tw:`; see below        |
 | `theme(...)` on the import        | Not supported; define the tokens in `@theme`    |
 
 The `tailwind` field accepts a Tailwind configuration object. Its `theme`,
@@ -145,6 +145,14 @@ Other keys have no effect. This field requires the `tailwindcss` package.
 
 Set `important` in one place only. Setting both `important` and
 `tailwind.important` is an error.
+
+Stillwind does not need the `tw:` class prefix, because it generates unique class
+names. Theme variables can still collide with other CSS in the page. To keep the
+`--tw-` names of `prefix(tw)`, set `themePrefix: "--tw-"` on the project. The
+prefix applies to the generated CSS, including `var(--color-brand)` in your
+stylesheet and in arbitrary values, so you can keep `var(--tw-color-brand)` or use
+the shorter name. JavaScript that reads or sets a theme variable by name must use
+the prefixed name.
 
 Stillwind ignores `@config` and import options in the stylesheet, and the CLI
 reports them with [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature).

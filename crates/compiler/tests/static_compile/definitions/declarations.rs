@@ -1,5 +1,7 @@
 //! Checks animation declarations, labels, and compatibility prefixes.
 
+use stillwind_compiler::CompileResult;
+
 use super::*;
 
 #[test]
@@ -151,4 +153,111 @@ export const item = style("translate-x-1", card);"#,
     assert!(!result.css.contains("--tw-"));
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("--sw-"));
+}
+
+/// Compiles `source` with `css` and `options` for the theme prefix tests.
+fn compile_themed(source: &str, css: &str, options: &CompilerOptions) -> CompileResult {
+    let component = SourceFile::new(FileId(1), None, None, source).unwrap();
+    let theme = css_source(FileId(2), css).unwrap();
+    Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        options,
+    )
+}
+
+#[test]
+fn theme_prefix_renames_definitions_and_every_reference() {
+    let result = compile_themed(
+        r#"import { style } from "stillwind/react";
+export const item = style("bg-brand bg-[var(--color-arbitrary)] bg-(--tw-color-hint) shadow-md translate-x-1 animate-pulse-once");"#,
+        r#"@theme {
+  --color-brand: red;
+  --color-arbitrary: green;
+  --color-hint: blue;
+  --color-rule: gold;
+  --color-prefixed: pink;
+  --color-unused: black;
+  --animate-pulse-once: pulse-once 1s;
+  @keyframes pulse-once { to { opacity: 0; } }
+}
+.rule { color: var(--color-rule); border-color: var(--tw-color-prefixed); content: "--color-rule"; }"#,
+        &CompilerOptions {
+            theme_prefix: "--tw-".into(),
+            ..CompilerOptions::default()
+        },
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    for expected in [
+        "--tw-color-brand:red",
+        "--tw-color-arbitrary:green",
+        "--tw-color-hint:blue",
+        "--tw-color-rule:gold",
+        "--tw-color-prefixed:pink",
+        "--tw-animate-pulse-once:pulse-once 1s",
+        "var(--tw-color-brand)",
+        "var(--tw-color-arbitrary)",
+        "var(--tw-color-rule)",
+        "var(--tw-color-prefixed)",
+        "@keyframes pulse-once",
+        "\"--color-rule\"",
+        "--tw-translate-x",
+    ] {
+        assert!(result.css.contains(expected), "{expected}: {}", result.css);
+    }
+    assert!(!result.css.contains("--tw-tw-"), "{}", result.css);
+    assert!(!result.css.contains("var(--color-"), "{}", result.css);
+    assert!(!result.css.contains("color-unused"), "{}", result.css);
+}
+
+#[test]
+fn theme_prefix_is_independent_of_the_compatibility_prefix() {
+    let result = compile_themed(
+        r#"import { style } from "stillwind/react";
+export const item = style("bg-brand translate-x-1");"#,
+        "@theme { --color-brand: red; --spacing-1: .25rem; }",
+        &CompilerOptions {
+            tailwind_prefix: "--compat-".into(),
+            theme_prefix: "--tw-".into(),
+            ..CompilerOptions::default()
+        },
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(result.css.contains("--tw-color-brand"), "{}", result.css);
+    assert!(
+        result.css.contains("--compat-translate-x"),
+        "{}",
+        result.css
+    );
+    assert!(!result.css.contains("--tw-translate-x"), "{}", result.css);
+}
+
+#[test]
+fn theme_prefix_rejects_a_variable_with_the_name_of_an_internal_property() {
+    let result = compile_themed(
+        r#"import { style } from "stillwind/react";
+export const item = style("blur");"#,
+        "@theme { --blur: 3px; }",
+        &CompilerOptions {
+            theme_prefix: "--tw-".into(),
+            ..CompilerOptions::default()
+        },
+    );
+
+    assert!(
+        result.diagnostics.iter().any(|diagnostic| matches!(
+            &diagnostic.diagnostic,
+            CompileDiagnostic::ThemePrefixCollision { token, property }
+                if token == "--blur" && property == "--tw-blur"
+        )),
+        "{:#?}",
+        result.diagnostics
+    );
 }

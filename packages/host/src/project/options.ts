@@ -49,6 +49,7 @@ export function compilerOptions(config: BaseConfig): NativeCompilerOptions {
     },
     prefix: resolved.prefix,
     tailwindPrefix: resolved.tailwindPrefix,
+    themePrefix: resolved.themePrefix,
     utilityOrder: resolved.utilityOrder,
     stylesheetSort: {
       applyUtilities: resolved.sort.applyUtilities,

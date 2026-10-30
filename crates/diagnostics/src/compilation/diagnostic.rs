@@ -22,15 +22,15 @@ pub enum CompileDiagnostic {
     /// A configured custom-property prefix fails the required shape or minimum length.
     #[error("{option} must start with `--` and end with `-`")]
     InvalidPropertyPrefix {
-        /// Configuration field name: `prefix` or `tailwindPrefix`.
+        /// Configuration field name: `prefix`, `tailwindPrefix`, or `themePrefix`.
         option: LeanStr,
         /// Rejected prefix supplied by the host.
         value: LeanStr,
     },
-    /// The generated-property namespaces use the same prefix.
-    #[error("prefix and tailwindPrefix must be different")]
+    /// Stillwind's generated-property namespace equals another namespace.
+    #[error("prefix must differ from tailwindPrefix and themePrefix")]
     ConflictingPropertyPrefixes {
-        /// Prefix shared by the two namespaces.
+        /// Prefix shared by the namespaces.
         prefix: LeanStr,
     },
     /// A configured generated-name hash length cannot spell one request digest.
@@ -153,6 +153,14 @@ pub enum CompileDiagnostic {
         utility: LeanStr,
         /// Byte offset within the definition body.
         offset: usize,
+    },
+    /// A prefixed theme variable would replace a registered internal custom property.
+    #[error("theme variable `{token}` becomes `{property}`, which Stillwind uses internally")]
+    ThemePrefixCollision {
+        /// Authored theme variable name, including the leading `--`.
+        token: LeanStr,
+        /// Output name that the variable and the registered property share.
+        property: LeanStr,
     },
     /// An authored requirement names a custom property that nothing registers.
     #[error("required custom property `{name}` has no `@stillwind-property` registration")]

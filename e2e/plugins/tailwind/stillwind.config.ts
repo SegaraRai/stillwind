@@ -16,6 +16,7 @@ export default defineConfig({
     "safe-area",
     "scrollbar-hide",
     "scrollbar",
+    "theme-prefix",
     "tw-animate",
     "typography",
   ].map((name) => ({
@@ -24,5 +25,6 @@ export default defineConfig({
     css: "theme.css",
     files: ["*.ts"],
     typeFacts: false,
+    ...(name === "theme-prefix" ? { themePrefix: "--tw-" } : {}),
   })),
 });

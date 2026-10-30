@@ -663,8 +663,9 @@ Tailwind, this variant replaces a plugin's `dark` variant, and a stylesheet's
 `@custom-variant dark` replaces it.
 
 `config()` returns `prefix` and `blocklist`, but these keys do not change the output.
-Generated class names are unique without `prefix`, and blocked candidates still generate
-CSS. The `no-restricted-utilities` lint rule replaces `blocklist`.
+Generated class names are unique without `prefix`, and the project's `themePrefix` field
+prefixes theme variables. Blocked candidates still generate CSS. The
+`no-restricted-utilities` lint rule replaces `blocklist`.
 
 Editor catalogs list finite candidates without running their callbacks. Selecting a
 completion resolves its CSS without adding that candidate to the application's used CSS.

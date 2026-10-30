@@ -196,6 +196,18 @@ test.each([
   ],
   [
     {
+      themePrefix: "tw",
+    },
+    "projects[0].themePrefix",
+  ],
+  [
+    {
+      themePrefix: "--sw-",
+    },
+    "projects[0].themePrefix",
+  ],
+  [
+    {
       utilityOrder: "unknown",
     },
     "projects[0].utilityOrder",

@@ -19,6 +19,9 @@ pub struct NativeCompilerOptions {
     pub prefix: Option<String>,
     /// Prefix for the retained Tailwind-compatibility namespace.
     pub tailwind_prefix: Option<String>,
+    /// Prefix that replaces the leading `--` of theme variables. Omission keeps their
+    /// authored names.
+    pub theme_prefix: Option<String>,
     /// Ordering strategy: authored or tailwind. Defaults to authored.
     pub utility_order: Option<String>,
     /// Independent CSS sorting targets. Omission sorts only @apply arguments.
@@ -58,6 +61,10 @@ impl TryFrom<NativeCompilerOptions> for CompilerOptions {
                 .tailwind_prefix
                 .map(Into::into)
                 .unwrap_or(defaults.tailwind_prefix),
+            theme_prefix: input
+                .theme_prefix
+                .map(Into::into)
+                .unwrap_or(defaults.theme_prefix),
             utility_order: match input.utility_order.as_deref() {
                 None | Some("authored") => UtilityOrderMode::Authored,
                 Some("tailwind") => UtilityOrderMode::Tailwind,

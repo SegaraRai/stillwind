@@ -82,7 +82,8 @@ Paths in `css`, `files`, `exclude`, and `tsconfig` are relative to `root`.
 | `classNamespace` | Text added to generated class names; use the same value in client and server builds |
 | `hashLength`     | Number of hash characters in generated names, from 1 to 50; defaults to 5           |
 | `prefix`         | Prefix for Stillwind's custom properties; defaults to `--sw-`                       |
-| `tailwindPrefix` | Prefix for Tailwind-compatible custom properties; defaults to `--tw-`               |
+| `tailwindPrefix` | Prefix for Tailwind-compatible internal custom properties; defaults to `--tw-`      |
+| `themePrefix`    | Prefix for theme variables in generated CSS, such as `--tw-`; omit it to keep names |
 | `naming`         | Functions that choose generated names yourself                                      |
 | `namingRevision` | A string that you change whenever you change the `naming` functions                 |
 

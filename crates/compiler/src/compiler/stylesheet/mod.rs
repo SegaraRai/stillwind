@@ -11,9 +11,9 @@
 //! accumulating registration dependencies. [`properties`] selects registration rules
 //! and fallback declarations. [`keyframes`] selects definitions from authored theme
 //! text; generated animations already carry their destination. [`template`] combines
-//! those contributions while retaining source mappings. [`lint`] checks the marked
-//! stylesheets of a snapshot and finds directives through the same structure model as
-//! [`authored_directives`].
+//! those contributions while retaining source mappings. [`theme_prefix`] renames theme
+//! variables in finished output. [`lint`] checks the marked stylesheets of a snapshot
+//! and finds directives through the same structure model as [`authored_directives`].
 
 mod authored_directives;
 mod keyframes;
@@ -21,6 +21,7 @@ mod lint;
 mod properties;
 mod render;
 mod template;
+mod theme_prefix;
 
 pub use lint::{StylesheetLint, lint_stylesheets};
 
@@ -30,6 +31,7 @@ pub(crate) use authored_directives::{
 };
 pub(crate) use render::{render_module_stylesheet, render_stylesheet};
 pub(crate) use template::{render_css_template, render_mapped};
+pub(crate) use theme_prefix::prefix_theme_variables;
 
 pub(super) use authored_directives::expand_authored_directives;
 

@@ -1,10 +1,10 @@
 ---
 title: "SW01002: Invalid property prefix"
-description: The prefix or tailwindPrefix setting does not start with -- and end with -.
+description: The prefix, tailwindPrefix, or themePrefix setting does not start with -- and end with -.
 slug: docs/errors/SW01002
 ---
 
-This error occurs when `prefix` or `tailwindPrefix` is not a valid prefix for
+This error occurs when `prefix`, `tailwindPrefix`, or `themePrefix` is not a valid prefix for
 custom properties. A prefix must start with `--`, end with `-`, and contain no
 whitespace. The message names the setting.
 
@@ -48,4 +48,4 @@ export default defineConfig({
 
 - Add `--` at the start and `-` at the end, as in the example.
 - Use the same value in client and server builds that share styles.
-- Keep `prefix` and `tailwindPrefix` different. See [SW01003](/docs/errors/SW01003).
+- Keep `prefix` different from the other two settings. See [SW01003](/docs/errors/SW01003).
