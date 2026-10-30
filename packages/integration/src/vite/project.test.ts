@@ -258,9 +258,11 @@ describe("invalid or missing CSS imports", () => {
 });
 
 test("a CSS edit during a file read makes both waiting requests receive the newest CSS", async () => {
-  const fixture = await createWatchedProject({ "root.css": definePaint("red") });
+  const fixture = await createWatchedProject({
+    "root.css": definePaint("red"),
+    "added.css": definePaint("blue"),
+  });
   await fixture.waitUntilWatched("root.css");
-  writeFileSync(path.join(fixture.root, "added.css"), definePaint("blue"));
   await fixture.waitUntilWatched("added.css");
   const pausedRead = await pauseFirstRead(path.join(fixture.root, "added.css"));
   onTestFinished(pausedRead.resume);
