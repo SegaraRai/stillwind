@@ -1,5 +1,11 @@
+const nodeCacheExclusions = [
+  { pattern: "!**/node_modules/.vitest-cache", base: "workspace" as const },
+  { pattern: "!**/node_modules/.vitest-cache/**", base: "workspace" as const },
+];
+
 const temporaryInputs = [
   { auto: true },
+  ...nodeCacheExclusions,
   { pattern: "!**/.test-*/**", base: "workspace" as const },
   { pattern: "!**/.review-fixtures/**", base: "workspace" as const },
   { pattern: "!**/node_modules/.vite-temp/**", base: "workspace" as const },
@@ -18,6 +24,12 @@ export const fixtureCache = {
   env: ["NAPI_RS_*"],
   input: temporaryInputs,
   output: [{ auto: true }, { pattern: "!**/.review-fixtures/**", base: "workspace" as const }],
+};
+
+export const astroCache = {
+  env: ["PUBLIC_PLAYGROUND_URL", "PUBLIC_WEBSITE_URL"],
+  untrackedEnv: ["ACTIONS_*"],
+  input: [{ auto: true }, ...nodeCacheExclusions],
 };
 
 /** Tracks Rust sources even when Cargo reuses compiled dependencies. */
@@ -39,6 +51,7 @@ export const rustCache = {
   ],
   input: [
     { auto: true },
+    ...nodeCacheExclusions,
     { pattern: "crates/**", base: "workspace" as const },
     { pattern: "Cargo.toml", base: "workspace" as const },
     { pattern: "Cargo.lock", base: "workspace" as const },

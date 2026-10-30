@@ -60,7 +60,7 @@ export default defineConfig(({ mode }) => ({
           "napi build --release --platform --esm --no-const-enum --manifest-path ../../crates/napi/Cargo.toml --output-dir .build/native --dts binding.d.ts --package-json-path package.json",
         cache: {
           ...rustCache,
-          input: [...rustCache.input, "!dist/**", "!.build/**"],
+          input: [...rustCache.input, "!dist", "!dist/**", "!.build", "!.build/**"],
           output: [".build/native/index.js", ".build/native/*.node", ".build/native/binding.d.ts"],
         },
         dependsOn: [
@@ -74,7 +74,7 @@ export default defineConfig(({ mode }) => ({
           "napi build --release --platform --esm --no-const-enum --target wasm32-wasip1-threads --manifest-path ../../crates/napi/Cargo.toml --output-dir dist/wasm --dts binding.d.ts --package-json-path package.json",
         cache: {
           ...rustCache,
-          input: [...rustCache.input, "!dist/**", "!.build/**"],
+          input: [...rustCache.input, "!dist", "!dist/**", "!.build", "!.build/**"],
           output: ["dist/wasm/**", "!dist/wasm/**/*.tmp"],
         },
         dependsOn: [

@@ -166,6 +166,17 @@ Sources: [utility query API](../packages/native/binding.d.ts),
 [compiler error codes](../crates/diagnostics/src/compilation/code.rs),
 [authored reference pages](../apps/website/src/content/docs/docs/macros/style.mdx).
 
+## Astro cache in CI
+
+Astro's environment loading registers CI metadata as Vite Task dependencies.
+Changing `ACTIONS_ORCHESTRATION_ID` or `GITHUB_RUN_ID` invalidates an otherwise
+unchanged Astro task, including when `cache.untrackedEnv` lists the variable.
+Exclude runner metadata from cooperative tracking while preserving environment
+variables that affect generated files. Verify reuse across separate CI runs.
+
+Sources: [site task caches](../tools/workspace/task-cache.ts),
+[cooperative tracking](https://viteplus.dev/guide/automatic-data-tracking).
+
 ## Measurement coverage
 
 `TypeScriptFactsService` enables checker timing collection but exposes only

@@ -72,6 +72,12 @@ vp run @stillwind-internal/apps-play#fmt:examples
 
 The repository `check` and `fmt` tasks include them. `e2e/play` opens `release-checklist` and
 edits its files by their text, so update its replacements when that preset changes.
+Its browser scenarios cover formatting and completions, diagnostics, HMR, shared links,
+file loading, and worker recovery. Register new scenarios in `tools/sites/ci.ts`.
+CI runs them on separate runners using the same acceptance build. Locally,
+`vp run @stillwind-internal/e2e-play#test:e2e` runs them sequentially.
+To select one scenario without rebuilding existing assets, run
+`vp test --run src/hmr.test.ts` from `e2e/play`.
 
 ## Presets and permalinks
 

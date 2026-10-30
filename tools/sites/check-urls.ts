@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { sites, type Site } from "./prepare.ts";
+import { parseSite, sites, type Site } from "./prepare.ts";
 
 type SiteUrls = Record<Site, string>;
 
@@ -78,92 +78,104 @@ function checkTrailingSlash(url: URL): void {
 /**
  * Checks rendered metadata, navigation, sitemaps, and agent indexes against the build origins.
  */
-export async function checkBuiltUrls(root: string, urls: SiteUrls): Promise<void> {
+export async function checkBuiltUrls(
+  root: string,
+  urls: SiteUrls,
+  selected: readonly Site[] = ["website", "play"],
+): Promise<void> {
   const website = path.resolve(root, sites.website.source);
   const play = path.resolve(root, sites.play.source);
   const websiteOrigin = new URL(urls.website).origin;
-  const files = await readdir(website, { recursive: true });
-  for (const file of files) {
-    const route = file.split(path.sep).join("/");
-    if (route === "index.html" || (route.startsWith("docs/") && route.endsWith("/index.html"))) {
-      const pageUrl = new URL(route.replace(/\/?index\.html$/, "") || "/", urls.website).href;
-      checkPageUrls(
-        await readFile(path.join(website, file), "utf8"),
-        pageUrl,
-        new URL("og.png", urls.website).href,
-      );
-    }
-  }
-  checkPageUrls(
-    await readFile(path.join(play, "index.html"), "utf8"),
-    urls.play,
-    new URL("og.png", urls.play).href,
-  );
-  for (const file of ["index.html", "404.html"]) {
-    const html = await readFile(path.join(website, file), "utf8");
-    if (!html.includes(`href="${urls.play}"`)) {
-      throw new Error(`website/${file}: missing link to ${urls.play}`);
-    }
-  }
   const docsUrl = new URL("docs", urls.website).href;
-  if (!(await readFile(path.join(play, "404.html"), "utf8")).includes(`href="${docsUrl}"`)) {
-    throw new Error(`play/404.html: missing link to ${docsUrl}`);
-  }
-  for (const file of (await readdir(website)).filter((file) => /^sitemap.*\.xml$/.test(file))) {
-    const xml = await readFile(path.join(website, file), "utf8");
-    for (const [, location] of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
-      const url = new URL(location!);
-      if (url.origin !== websiteOrigin) {
-        throw new Error(`${file}: sitemap URL belongs to another origin: ${location}`);
+  if (selected.includes("website")) {
+    const files = await readdir(website, { recursive: true });
+    for (const file of files) {
+      const route = file.split(path.sep).join("/");
+      if (route === "index.html" || (route.startsWith("docs/") && route.endsWith("/index.html"))) {
+        const pageUrl = new URL(route.replace(/\/?index\.html$/, "") || "/", urls.website).href;
+        checkPageUrls(
+          await readFile(path.join(website, file), "utf8"),
+          pageUrl,
+          new URL("og.png", urls.website).href,
+        );
       }
-      checkTrailingSlash(url);
     }
-  }
-  for (const [file, expected] of [
-    ["sitemap-index.xml", new URL("sitemap-0.xml", urls.website).href],
-    ["llms.txt", new URL("llms-full.txt", urls.website).href],
-    ["llms-full.txt", docsUrl],
-    ["docs/index.md", new URL("llms.txt", urls.website).href],
-  ] as const) {
-    if (!(await readFile(path.join(website, file), "utf8")).includes(expected)) {
-      throw new Error(`${file}: missing URL ${expected}`);
-    }
-  }
-  for (const file of files.filter((file) => path.basename(file) === "llms.txt")) {
-    const markdown = await readFile(path.join(website, file), "utf8");
-    for (const [, target] of markdown.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) {
-      const url = new URL(target!);
-      if (url.origin !== websiteOrigin) {
-        throw new Error(`${file}: index link belongs to another origin: ${target}`);
+    for (const file of ["index.html", "404.html"]) {
+      const html = await readFile(path.join(website, file), "utf8");
+      if (!html.includes(`href="${urls.play}"`)) {
+        throw new Error(`website/${file}: missing link to ${urls.play}`);
       }
-      checkTrailingSlash(url);
     }
-  }
-  for (const file of [".well-known/ai-catalog.json", ".well-known/ard.json"]) {
-    const catalog = JSON.parse(await readFile(path.join(website, file), "utf8")) as {
-      host: {
-        identifier: string;
-        documentationUrl: string;
+    for (const file of (await readdir(website)).filter((file) => /^sitemap.*\.xml$/.test(file))) {
+      const xml = await readFile(path.join(website, file), "utf8");
+      for (const [, location] of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+        const url = new URL(location!);
+        if (url.origin !== websiteOrigin) {
+          throw new Error(`${file}: sitemap URL belongs to another origin: ${location}`);
+        }
+        checkTrailingSlash(url);
+      }
+    }
+    for (const [file, expected] of [
+      ["sitemap-index.xml", new URL("sitemap-0.xml", urls.website).href],
+      ["llms.txt", new URL("llms-full.txt", urls.website).href],
+      ["llms-full.txt", docsUrl],
+      ["docs/index.md", new URL("llms.txt", urls.website).href],
+    ] as const) {
+      if (!(await readFile(path.join(website, file), "utf8")).includes(expected)) {
+        throw new Error(`${file}: missing URL ${expected}`);
+      }
+    }
+    for (const file of files.filter((file) => path.basename(file) === "llms.txt")) {
+      const markdown = await readFile(path.join(website, file), "utf8");
+      for (const [, target] of markdown.matchAll(/\]\((https?:\/\/[^)]+)\)/g)) {
+        const url = new URL(target!);
+        if (url.origin !== websiteOrigin) {
+          throw new Error(`${file}: index link belongs to another origin: ${target}`);
+        }
+        checkTrailingSlash(url);
+      }
+    }
+    for (const file of [".well-known/ai-catalog.json", ".well-known/ard.json"]) {
+      const catalog = JSON.parse(await readFile(path.join(website, file), "utf8")) as {
+        host: {
+          identifier: string;
+          documentationUrl: string;
+        };
+        entries: {
+          url: string;
+        }[];
       };
-      entries: {
-        url: string;
-      }[];
-    };
-    if (
-      catalog.host.identifier !== urls.website ||
-      catalog.host.documentationUrl !== urls.website
-    ) {
-      throw new Error(`${file}: catalog host must be ${urls.website}`);
-    }
-    for (const entry of catalog.entries) {
-      if (new URL(entry.url).origin !== websiteOrigin) {
-        throw new Error(`${file}: catalog entry belongs to another origin: ${entry.url}`);
+      if (
+        catalog.host.identifier !== urls.website ||
+        catalog.host.documentationUrl !== urls.website
+      ) {
+        throw new Error(`${file}: catalog host must be ${urls.website}`);
+      }
+      for (const entry of catalog.entries) {
+        if (new URL(entry.url).origin !== websiteOrigin) {
+          throw new Error(`${file}: catalog entry belongs to another origin: ${entry.url}`);
+        }
       }
     }
   }
-  console.log(`Verified build URLs: ${urls.website} and ${urls.play}`);
+  if (selected.includes("play")) {
+    checkPageUrls(
+      await readFile(path.join(play, "index.html"), "utf8"),
+      urls.play,
+      new URL("og.png", urls.play).href,
+    );
+    if (!(await readFile(path.join(play, "404.html"), "utf8")).includes(`href="${docsUrl}"`)) {
+      throw new Error(`play/404.html: missing link to ${docsUrl}`);
+    }
+  }
+  console.log(`Verified build URLs: ${selected.map((site) => urls[site]).join(" and ")}`);
 }
 
 if (import.meta.main) {
-  await checkBuiltUrls(path.resolve(import.meta.dirname, "../.."), siteUrls(process.env));
+  await checkBuiltUrls(
+    path.resolve(import.meta.dirname, "../.."),
+    siteUrls(process.env),
+    process.argv[2] ? [parseSite(process.argv[2])] : undefined,
+  );
 }

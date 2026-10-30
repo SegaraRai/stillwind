@@ -1,6 +1,11 @@
-import { expect, test } from "vite-plus/test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
-import { checkPageUrls, siteUrls } from "./check-urls.ts";
+import { expect, onTestFinished, test } from "vite-plus/test";
+
+import { checkBuiltUrls, checkPageUrls, siteUrls } from "./check-urls.ts";
+import { sites } from "./prepare.ts";
 
 function page(url: string, image: string): string {
   return `<link rel="canonical" href="${url}">
@@ -58,3 +63,48 @@ test("builds default to the production origins", () => {
     }),
   ).toThrow("must be an HTTP(S) origin");
 });
+
+test.each(["website", "play"] as const)(
+  "%s URL checks need only that site's output",
+  async (site) => {
+    const root = await mkdtemp(path.join(tmpdir(), "stillwind-urls-"));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    const urls = siteUrls({
+      PUBLIC_WEBSITE_URL: "https://docs.example/",
+      PUBLIC_PLAYGROUND_URL: "https://play.example/",
+    });
+    const output = path.join(root, sites[site].source);
+    const link = site === "website" ? urls.play : new URL("docs", urls.website).href;
+    const files: Record<string, string> = {
+      "index.html":
+        page(urls[site], new URL("og.png", urls[site]).href) + `<a href="${link}">Open</a>`,
+      "404.html": `<a href="${link}">Open</a>`,
+    };
+    if (site === "website") {
+      Object.assign(files, {
+        "docs/index.html": page(`${urls.website}docs`, `${urls.website}og.png`),
+        "sitemap-index.xml": `<loc>${urls.website}sitemap-0.xml</loc>`,
+        "sitemap-0.xml": `<loc>${urls.website}docs</loc>`,
+        "llms.txt": `[Full](${urls.website}llms-full.txt)`,
+        "llms-full.txt": `${urls.website}docs`,
+        "docs/index.md": `${urls.website}llms.txt`,
+        ...Object.fromEntries(
+          ["ai-catalog", "ard"].map((name) => [
+            `.well-known/${name}.json`,
+            JSON.stringify({
+              host: { identifier: urls.website, documentationUrl: urls.website },
+              entries: [{ url: `${urls.website}docs` }],
+            }),
+          ]),
+        ),
+      });
+    }
+    for (const [file, contents] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(output, file)), { recursive: true });
+      await writeFile(path.join(output, file), contents);
+    }
+    await expect(checkBuiltUrls(root, urls, [site])).resolves.toBeUndefined();
+    await writeFile(path.join(output, "404.html"), '<a href="https://wrong.example/">Open</a>');
+    await expect(checkBuiltUrls(root, urls, [site])).rejects.toThrow("missing link");
+  },
+);

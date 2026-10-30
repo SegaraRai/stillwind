@@ -249,15 +249,27 @@ export default defineConfig(({ mode }) => ({
       },
       "verify:sites:build": {
         command: "",
+        dependsOn: ["verify:sites:website", "verify:sites:play"],
+      },
+      "verify:sites:website": {
+        command: "",
+        dependsOn: [
+          "@stillwind-internal/apps-website#test",
+          "@stillwind-internal/tools-sites#check:urls:website",
+          "@stillwind-internal/tools-sites#prepare:website",
+          "@stillwind-internal/tools-sites#test",
+          "@stillwind-internal/tools-sites#typecheck",
+        ],
+      },
+      "verify:sites:play": {
+        command: "",
         dependsOn: [
           "@stillwind-internal/apps-play#check:examples",
           "@stillwind-internal/apps-play#test",
           "@stillwind-internal/apps-play#typecheck",
-          "@stillwind-internal/apps-website#test",
           "@stillwind-internal/apps-play#build:acceptance",
-          "@stillwind-internal/tools-sites#check:urls",
+          "@stillwind-internal/tools-sites#check:urls:play",
           "@stillwind-internal/tools-sites#prepare:play",
-          "@stillwind-internal/tools-sites#prepare:website",
           "@stillwind-internal/tools-sites#test",
           "@stillwind-internal/tools-sites#typecheck",
         ],

@@ -78,8 +78,33 @@ The GitHub deployments and Actions summary link to the deployed sites.
 Deployments to the same Worker run one at a time across both branches.
 HTTP checks verify documentation routes, Preview indexing rules, and WASM headers
 after deployment. The playground acceptance suite tests browser behavior before deployment.
-The workflow keeps builds and browser acceptance in separate jobs, so a failed browser
-job can use the same build when retried. `Build and verify` requires both jobs to pass.
+The workflow builds the selected sites in one job. Six browser jobs cover formatting and
+completions, compiler and TypeScript diagnostics, HMR, shared links, file loading, and worker
+recovery. They consume the same acceptance build and use independent browser state.
+A failed scenario can reuse that build when retried. `Build and verify` always runs
+and requires every selected job to succeed.
+It accepts a skipped job only when the change plan omitted it.
+Production validation consumes the Build Output prepared earlier in the build job.
+
+`tools/workspace/impact.ts` resolves workspace packages and their transitive consumers.
+The Sites plan adds Rust and generator inputs and selects each application's checks.
+Website-only changes skip the playground build and browser jobs. Browser test changes
+select their scenarios without deploying. Developer documentation and unrelated packages
+skip site work. Unclassified inputs, missing Git history, and manual runs select both sites
+and all scenarios. PRs compare against their base. Pushes compare against the last successful Sites run
+on the branch, so failed or cancelled runs cannot hide unpublished changes. An obsolete
+run fails its deployment head check and cannot become that baseline.
+The plan appears in the Actions summary. It rejects a browser matrix that does not cover
+every playground test file; register new scenarios in `tools/sites/ci.ts`.
+
+`verify:sites:website` and `verify:sites:play` run the corresponding build checks locally.
+Package builds and unit or framework tests can use the same impact helper to select their
+own jobs. The Sites workflow checks only its applications and their required artifacts.
+
+The build job restores Vite Task results after installing dependencies. Task fingerprints
+track sources and deployment URLs before reusing outputs. Cargo and Vite Task use a new
+GitHub cache key for each run, so successful builds save their updated caches.
+Cargo archives are saved only when the build changes files under `target/`.
 
 To inspect a browser failure, download its evidence artifact and open `trace.zip`
 with Playwright Trace Viewer. To test a downloaded browser assets artifact locally,
