@@ -67,6 +67,18 @@ Keep checker propagation separate from the delivery of actual asset definitions.
 Sources: [module graph](../packages/host/src/compilation/module-graph.ts),
 [semantic values](../crates/semantic/src/symbolic.rs).
 
+## Libraries built with Stillwind
+
+The contract for a library that uses Stillwind is undecided. The expected direction is
+that a library ships compiled `style()` calls, so its consumers do not transform the
+package. Build integrations already skip files under `node_modules`. Decide how a
+library builds and publishes its output, how its CSS reaches the consumer, and how its
+theme tokens and generated names coexist with the consumer's. Keep this usage out of
+the public documentation until the contract is decided.
+
+Sources: [Vite transform](../packages/integration/src/vite/transform.ts),
+[webpack rules](../packages/integration/src/webpack/rules.ts).
+
 ## View-transition keys
 
 The linter counts transition-name suppliers but does not detect repeated-render
