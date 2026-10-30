@@ -195,3 +195,108 @@ fn css_wrapped_transitions_merge_into_the_same_conditional_unit() {
     assert!(result.css.contains(":hover"));
     assert!(result.css.contains("view-transition-class:"));
 }
+
+#[test]
+fn static_uses_do_not_retain_runtime_definitions() {
+    for code in [
+        "const a = style.keyframes({from:'x'}); export const b = style(a(''));",
+        "const a = style.viewTransition({old:'x'}); export const b = style(a);",
+        "const a = style.viewTransition({old:'x'}); export const b = style(a.for('key'));",
+    ] {
+        let (source, result) = compile(code, "@utility x { opacity:0; }");
+        let output = result.apply_to_source(&source).unwrap();
+        assert!(output.contains("const a = undefined"), "{output}");
+    }
+}
+
+#[test]
+fn motion_definitions_and_options_carry_the_notices_of_their_utilities() {
+    const CSS: &str = "@custom-variant calm (@media print);
+    @stillwind-registry default, keyframe, animation, view-transition {
+        @utility noticed { @stillwind-banner { /*! notice */ } opacity:0; }
+        @utility plain { opacity:1; }
+    }";
+    for (code, expected) in [
+        (
+            "const a = style.keyframes({from:'noticed'}); export const b = style(a(''));",
+            true,
+        ),
+        (
+            "const a = style.keyframes({from:'plain'}); export const b = style(a('noticed'));",
+            true,
+        ),
+        (
+            "const a = style.viewTransition({old:'noticed'}); export const b = style(a);",
+            true,
+        ),
+        (
+            "const a = style.viewTransition({old:'calm:noticed'}); export const b = style(a);",
+            true,
+        ),
+        (
+            "const a = style.viewTransition({old:'plain'}); export const b = style(a);",
+            false,
+        ),
+    ] {
+        let (_, result) = compile(code, CSS);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result
+                .contributions
+                .iter()
+                .flat_map(|part| &part.banners)
+                .any(|banner| banner.as_str() == "/*! notice */"),
+            expected,
+            "{code}"
+        );
+    }
+}
+
+#[test]
+fn a_checked_use_with_one_candidate_does_not_retain_the_runtime_definition() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "import { style } from 'stillwind/react'; const a=style.viewTransition({old:'x'}); export const b=style(a);",
+    )
+    .unwrap();
+    let scan = OxcSourceAnalyzer.scan(
+        Arc::new(source.clone()),
+        ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    let candidates = scan
+        .summary
+        .assets
+        .iter()
+        .filter(|a| a.identity.kind() == AssetKind::ViewTransition)
+        .map(|a| a.identity.clone())
+        .collect::<Vec<_>>();
+    let start = u32::try_from(source.text().rfind("(a)").unwrap()).unwrap() + 1;
+    let facts = [TypeFact {
+        start,
+        end: start + 1,
+        value: ExportedValue::ViewTransitions(
+            SymbolicValue::finite(AssetKind::ViewTransition, candidates).unwrap(),
+        )
+        .into(),
+    }];
+    let theme = SourceFile::new(
+        FileId(2),
+        None,
+        None,
+        "@utility x { opacity:0; } @stillwind-slot utilities;",
+    )
+    .unwrap();
+    let result = compile_with_type_facts(&source, &theme, &facts);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.css.contains("::view-transition-old"),
+        "{}",
+        result.css
+    );
+    let code = result.apply_to_source(&source).unwrap();
+    assert!(code.contains("const a=undefined"), "{code}");
+}

@@ -3,15 +3,18 @@
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::{RegistryContext, ThemeIndex};
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSettings,
+};
 use stillwind_ir::ViewTransitionDefinition;
 use stillwind_source::{ModuleId, Spanned};
 
 use super::super::CssContribution;
+use super::super::emission::collect_declarations;
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
+    check, combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
     unresolved_utility_finding,
 };
 use super::super::variants::{condition_paths, wrap_conditions};
@@ -21,13 +24,15 @@ use crate::identifiers::IdentifierContext;
 ///
 /// The `group`, `old`, `new`, and `image-pair` pseudo-element rules carry their utility
 /// lists. Every pseudo-element is keyed by the same generated name, which is what pairs
-/// them at runtime.
+/// them at runtime. `settings` selects source policies for each utility.
+#[allow(clippy::too_many_arguments)]
 pub(in crate::compiler) fn emit_view_transition_definition(
     contribution: &mut CssContribution,
     module_id: &ModuleId,
     identifiers: &IdentifierContext,
     transition: &ViewTransitionDefinition,
     theme: &ThemeIndex,
+    settings: &LintSettings,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
@@ -43,7 +48,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
         }
     };
     let class = class.selector();
-    let mut css: LeanString = std::mem::take(&mut contribution.css).into();
+    contribution.definition = true;
     for (pseudo, utilities) in [
         ("group", transition.group.as_ref()),
         ("old", transition.old.as_ref()),
@@ -54,36 +59,37 @@ pub(in crate::compiler) fn emit_view_transition_definition(
             continue;
         };
         emit_view_transition_utilities(
-            &mut css,
+            contribution,
             &format_args!("::view-transition-{pseudo}({class})").to_lean_string(),
             utilities,
             theme,
+            settings,
             diagnostics,
-            &mut contribution.required_properties,
             lint_findings,
         );
     }
-    contribution.css = css.into();
 }
 
-/// Writes one pseudo-element's rules for `selector`, resolving utilities through the
-/// `view-transition` context of `theme`.
+/// Appends one pseudo-element's rules for `selector` to `contribution`, resolving utilities
+/// through the `view-transition` context of `theme`.
 ///
-/// Utilities without variants share one rule. A utility carrying condition variants emits its
-/// own rule per condition path, in source order after the shared rule, so a condition selects
-/// its declarations without changing what the unconditional rule says. Rejected tokens
-/// contribute nothing; successful tokens still append their property requirements, so callers
-/// must check diagnostics before publishing.
+/// Utilities without variants share one rule. A utility carrying condition variants
+/// emits its own rule per condition path, in source order after the shared rule, so a
+/// condition selects its declarations without changing what the unconditional rule
+/// says. Rejected tokens contribute nothing; successful tokens still append their
+/// property requirements and notices, so callers must check diagnostics before
+/// publishing. `settings` selects source policies for successfully resolved utilities.
 pub(crate) fn emit_view_transition_utilities(
-    output: &mut LeanString,
+    contribution: &mut CssContribution,
     selector: &str,
     input: &Spanned<LeanStr>,
     theme: &ThemeIndex,
+    settings: &LintSettings,
     diagnostics: &mut Vec<CompileError>,
-    required_properties: &mut Vec<LeanStr>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
     let theme = theme.context(RegistryContext::ViewTransition);
+    let mut output: LeanString = std::mem::take(&mut contribution.css).into();
     let mut plain = Vec::new();
     let mut conditional = LeanString::new();
     for utility in lex_utilities(input, diagnostics) {
@@ -119,6 +125,9 @@ pub(crate) fn emit_view_transition_utilities(
                 utility.span,
             ));
         }
+        let mut supplies = Vec::new();
+        collect_declarations(&resolved.declaration, "&", &[], false, None, &mut supplies);
+        lint_findings.extend(check(&resolved, &supplies, theme, settings, utility.span));
         if resolved.variants.is_empty() {
             plain.push(resolved);
             continue;
@@ -130,7 +139,10 @@ pub(crate) fn emit_view_transition_utilities(
             ));
             continue;
         };
-        required_properties.extend(resolved.required_properties.clone());
+        contribution
+            .required_properties
+            .extend(resolved.required_properties.clone());
+        contribution.banners.extend(resolved.banners.clone());
         let declaration = combine_declarations_for_theme(&[&resolved], theme);
         for path in paths {
             let rule = format_args!("{selector}{{ {declaration}}}").to_lean_string();
@@ -138,11 +150,12 @@ pub(crate) fn emit_view_transition_utilities(
         }
     }
     if !plain.is_empty() {
-        required_properties.extend(
-            plain
-                .iter()
-                .flat_map(|utility| utility.required_properties.clone()),
-        );
+        for utility in &plain {
+            contribution
+                .required_properties
+                .extend(utility.required_properties.clone());
+            contribution.banners.extend(utility.banners.clone());
+        }
         output.push_str(selector);
         output.push_str("{ ");
         output.push_str(&combine_declarations_for_theme(
@@ -152,6 +165,7 @@ pub(crate) fn emit_view_transition_utilities(
         output.push('}');
     }
     output.push_str(&conditional);
+    contribution.css = output.into();
 }
 
 #[cfg(test)]

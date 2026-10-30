@@ -22,8 +22,8 @@ use crate::style_analysis::DeclarationValue;
 
 impl CallEmitter<'_> {
     /// Lowers one transition use with the conditions in `guard` and variants in
-    /// `wrappers`. It records definition and runtime dependencies, participation, and
-    /// name supplies. `fold` allows its rules to join the base when no region is pending.
+    /// `wrappers`. It records the definition dependency, participation, and name
+    /// supplies. `fold` allows its rules to join the base when no region is pending.
     ///
     /// Returns the class expression together with any dynamic name. The name is written
     /// to inline style unless CSS wrappers require a custom property. The result can be
@@ -40,7 +40,6 @@ impl CallEmitter<'_> {
     ) -> Option<Emitted> {
         self.required_definitions
             .insert(transition.identity.clone());
-        self.runtime_assets.insert(transition.identity.clone());
         let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
             Ok(token) => token,
             Err(failure) => {
@@ -89,8 +88,9 @@ impl CallEmitter<'_> {
     }
 
     /// Lowers all possible receivers for the expression at `value`, with the conditions
-    /// in `guard` and variants in `wrappers`. It records definition and runtime
-    /// dependencies and mutually exclusive participation and name supplies.
+    /// in `guard` and variants in `wrappers`. It records definition dependencies,
+    /// runtime dependencies when the output reads the receiver, and mutually exclusive
+    /// participation and name supplies.
     ///
     /// The returned expression uses the receiver's `v` field to select a class and
     /// keeps any dynamic name alongside it. With one candidate, the rules may join the
@@ -115,8 +115,12 @@ impl CallEmitter<'_> {
             Some(self.view_transition_name_property(value.start.0)?)
         };
         let mut candidates = Vec::new();
+        // One candidate without a key lowers without reading the receiver.
+        let reads_receiver = transitions.len() > 1 || !matches!(name, ViewTransitionName::None);
         for (index, transition) in transitions.iter().enumerate() {
-            self.runtime_assets.insert(transition.identity.clone());
+            if reads_receiver {
+                self.runtime_assets.insert(transition.identity.clone());
+            }
             self.required_definitions
                 .insert(transition.identity.clone());
             let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {

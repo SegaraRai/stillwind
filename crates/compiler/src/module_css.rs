@@ -19,6 +19,8 @@ pub struct RuleKey(pub Fingerprint);
 /// A generated rule and the support required wherever it is used.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedRule {
+    /// Whether a stylesheet keeps one copy of equal occurrences from several producers.
+    definition: bool,
     /// Whether this occurrence belongs in the keyframes slot.
     keyframes: bool,
     /// Registration dependencies, sorted and unique after construction.
@@ -32,10 +34,11 @@ pub struct GeneratedRule {
 }
 
 impl GeneratedRule {
-    /// Creates one occurrence with its template placement and registration dependencies.
-    /// `syntax` supplies CSS tokens and the original contribution range. `keyframes` selects
-    /// the keyframes slot. Registration names are sorted and deduplicated; the renderer
-    /// validates their CSS spelling and whether the template can emit their registrations.
+    /// Creates one occurrence with its template placement and registration
+    /// dependencies. `syntax` supplies CSS tokens and the original contribution range.
+    /// `keyframes` selects the keyframes slot. Registration names are sorted and
+    /// deduplicated; the renderer validates their CSS spelling and whether the template
+    /// can emit their registrations.
     pub fn new(syntax: CssRule, keyframes: bool, mut required_properties: Vec<LeanStr>) -> Self {
         required_properties.sort();
         required_properties.dedup();
@@ -54,6 +57,7 @@ impl GeneratedRule {
             RuleKey(Fingerprint::of(content))
         };
         Self {
+            definition: false,
             keyframes,
             required_properties,
             banners: Vec::new(),
@@ -65,12 +69,14 @@ impl GeneratedRule {
     /// Replaces the notices of this occurrence and updates its content identity.
     ///
     /// `banners` may contain duplicates in any order; the occurrence keeps them sorted
-    /// and unique. Occurrences with equal CSS and different notices have different keys,
-    /// and an empty list restores the key that [`GeneratedRule::new`] computes.
+    /// and unique. Occurrences with equal CSS and different notices have different
+    /// keys, and an empty list restores the key that [`GeneratedRule::new`] computes.
     #[must_use]
     pub fn with_banners(mut self, mut banners: Vec<CssBanner>) -> Self {
         if !self.banners.is_empty() {
+            let definition = self.definition;
             self = Self::new(self.syntax, self.keyframes, self.required_properties);
+            self.definition = definition;
         }
         banners.sort();
         banners.dedup();
@@ -85,6 +91,20 @@ impl GeneratedRule {
         }
         self.banners = banners;
         self
+    }
+
+    /// Sets whether a stylesheet keeps one copy of equal occurrences from several
+    /// producers. The content identity does not change.
+    #[must_use]
+    pub fn with_definition(mut self, definition: bool) -> Self {
+        self.definition = definition;
+        self
+    }
+
+    /// Returns whether a stylesheet keeps one copy of equal occurrences from several
+    /// producers.
+    pub fn definition(&self) -> bool {
+        self.definition
     }
 
     /// Returns whether this occurrence belongs in the keyframes slot.
@@ -102,12 +122,14 @@ impl GeneratedRule {
         &self.required_properties
     }
 
-    /// Borrows CSS tokens and their original contribution range without allowing mutation.
+    /// Borrows CSS tokens and their original contribution range without allowing
+    /// mutation.
     pub fn syntax(&self) -> &CssRule {
         &self.syntax
     }
 
-    /// Returns the stored identity of the CSS, template slot, and registration dependencies.
+    /// Returns the stored identity of the CSS, template slot, and registration
+    /// dependencies.
     pub fn content_key(&self) -> RuleKey {
         self.key.clone()
     }
@@ -163,12 +185,14 @@ impl ModuleCssArtifact {
                 .extend(CssRule::parse(&part.css)?.into_iter().map(|syntax| {
                     GeneratedRule::new(syntax, part.keyframes, part.required_properties.clone())
                         .with_banners(part.banners.clone())
+                        .with_definition(part.definition)
                 }));
         }
         Ok(artifact)
     }
 
-    /// Builds unoptimized template input without source mappings, preserving occurrences.
+    /// Builds unoptimized template input without source mappings, preserving
+    /// occurrences.
     pub fn mapped(&self) -> MappedStylesheet {
         let mut mapped = MappedStylesheet::default();
         for rule in &self.rules {

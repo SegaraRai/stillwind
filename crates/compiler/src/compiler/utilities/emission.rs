@@ -87,6 +87,7 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
     contributions.push(CssContribution {
         banners: banners.clone(),
         css: (css).into(),
+        definition: false,
         required_properties,
         keyframes: false,
     });
@@ -94,6 +95,7 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
         contributions.push(CssContribution {
             banners,
             css: keyframes.into(),
+            definition: false,
             required_properties: Vec::new(),
             keyframes: true,
         });

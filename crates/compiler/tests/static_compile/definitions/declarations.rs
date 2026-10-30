@@ -68,7 +68,7 @@ fn spells_declaration_labels_into_the_generated_names() {
         None,
         r#"import { style } from "stillwind/react";
 const enter = style.keyframes({ label: "fade", from: "opacity-0", to: "opacity-100" });
-const panel = style.viewTransition({ label: "panel", old: "opacity-0" });
+export const panel = style.viewTransition({ label: "panel", old: "opacity-0" });
 export const item = style(panel, enter("duration-180"));"#,
     )
     .unwrap();

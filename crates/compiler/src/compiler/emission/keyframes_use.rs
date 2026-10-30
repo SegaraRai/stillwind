@@ -70,7 +70,8 @@ impl CallEmitter<'_> {
 
     /// Lowers `options` for every possible keyframes receiver at `value`.
     /// `guard` contains the enclosing JavaScript conditions, and `wrappers` contains the
-    /// CSS variants. The function records definition and runtime dependencies.
+    /// CSS variants. The function records definition dependencies, and runtime
+    /// dependencies when the output reads the receiver.
     ///
     /// With multiple candidates, the returned expression selects a class using the
     /// receiver's `k` field. With one candidate, the rules may join the current region
@@ -92,8 +93,12 @@ impl CallEmitter<'_> {
             self.lint_findings,
         )?;
         let mut candidates = Vec::new();
+        // One candidate lowers without reading the receiver.
+        let reads_receiver = keyframes.len() > 1;
         for keyframes in keyframes {
-            self.runtime_assets.insert(keyframes.identity.clone());
+            if reads_receiver {
+                self.runtime_assets.insert(keyframes.identity.clone());
+            }
             self.required_definitions.insert(keyframes.identity.clone());
             let identity = match self.record_definition_name(keyframes, AssetKind::Keyframes) {
                 Ok(identity) => identity,
@@ -153,9 +158,10 @@ fn resolve_keyframes_use(
         }
     )
     .to_lean_string();
-    declaration.push_str(&resolve_options(options, theme, diagnostics, lint_findings));
+    let (resolved, banners) = resolve_options(options, theme, diagnostics, lint_findings);
+    declaration.push_str(&resolved);
     CompiledUtility {
-        banners: Vec::new(),
+        banners,
         diagnostic_data: CompiledUtilityDiagnosticData::default(),
         context: VariantContext::Element,
         required_properties: Vec::new(),

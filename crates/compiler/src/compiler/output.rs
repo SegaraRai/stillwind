@@ -116,6 +116,9 @@ pub struct CssContribution {
     pub banners: Vec<CssBanner>,
     /// Complete generated rule blocks in emission order.
     pub css: LeanStr,
+    /// True when all blocks define a view transition. Each module that uses the
+    /// transition repeats these blocks, and a stylesheet keeps one copy.
+    pub definition: bool,
     /// True when all blocks are generated animation definitions for the keyframes
     /// slot; false when they belong to the utilities contribution.
     pub keyframes: bool,

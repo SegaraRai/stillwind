@@ -2,6 +2,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use stillwind_css::CssBanner;
 use stillwind_design_system::{RegistryContext, ThemeIndex};
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintSettings,
@@ -83,6 +84,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
         contribution
             .required_properties
             .extend(frame_contribution.required_properties);
+        contribution.banners.extend(frame_contribution.banners);
         for path in paths {
             css.push_str(&wrap_conditions(&rule, &path));
         }
@@ -165,7 +167,7 @@ fn emit_frames(
 ) {
     let mut output: LeanString = std::mem::take(&mut contribution.css).into();
     for frame in frames {
-        let (declaration, properties) = resolve_frame(
+        let (declaration, properties, banners) = resolve_frame(
             &frame.utilities,
             theme,
             settings,
@@ -176,6 +178,7 @@ fn emit_frames(
             continue;
         }
         contribution.required_properties.extend(properties);
+        contribution.banners.extend(banners);
         output.push_str(&frame.selector.value);
         output.push('{');
         output.push_str(&declaration);
@@ -189,17 +192,17 @@ fn emit_frames(
 ///
 /// `input.span` locates token diagnostics in the original source or a synthetic query.
 /// Invalid tokens append diagnostics and contribute no declarations; valid tokens still
-/// contribute. Returns the combined declaration body without braces and the required
-/// property names in utility order, including repeated names. `settings` selects source
-/// policies for successfully resolved utilities. These findings retain each utility's
-/// source range.
+/// contribute. Returns the combined declaration body without braces, the required
+/// property names in utility order, including repeated names, and the notices of the
+/// utilities. `settings` selects source policies for successfully resolved utilities.
+/// These findings retain each utility's source range.
 pub(crate) fn resolve_frame(
     input: &Spanned<LeanStr>,
     theme: &ThemeIndex,
     settings: &LintSettings,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
-) -> (LeanString, Vec<LeanStr>) {
+) -> (LeanString, Vec<LeanStr>, Vec<CssBanner>) {
     let theme = theme.context(RegistryContext::Keyframe);
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
@@ -249,8 +252,12 @@ pub(crate) fn resolve_frame(
         .iter()
         .flat_map(|utility| utility.required_properties.clone())
         .collect();
+    let banners = utilities
+        .iter()
+        .flat_map(|utility| utility.banners.clone())
+        .collect();
     let declaration = combine_declarations_for_theme(&utilities.iter().collect::<Vec<_>>(), theme);
-    (declaration, properties)
+    (declaration, properties, banners)
 }
 
 #[cfg(test)]

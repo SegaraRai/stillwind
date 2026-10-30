@@ -15,6 +15,7 @@ use stillwind_syntax::parse_candidate;
 
 use super::DesignSystemQuery;
 use super::resolution::candidate_identifiers;
+use crate::CssContribution;
 use crate::compiler::{
     condition_paths, emit_document_style, emit_view_transition_utilities, expand_authored_variant,
     media_argument_query, resolve_frame, resolve_options, wrap_conditions,
@@ -155,7 +156,7 @@ impl DesignSystemQuery {
         let mut lint_findings = Vec::new();
         let css = match context {
             CandidateContext::KeyframesFrame => {
-                let (declaration, _) = resolve_frame(
+                let (declaration, _, _) = resolve_frame(
                     &input,
                     theme,
                     &LintSettings::default(),
@@ -169,7 +170,7 @@ impl DesignSystemQuery {
                 }
             }
             CandidateContext::AnimationOptions => {
-                let declaration =
+                let (declaration, _) =
                     resolve_options(&input, theme, &mut diagnostics, &mut lint_findings);
                 if declaration.is_empty() {
                     LeanString::new()
@@ -188,17 +189,17 @@ impl DesignSystemQuery {
             )
             .unwrap_or_default(),
             CandidateContext::ViewTransitionUtilities => {
-                let mut css = LeanString::new();
+                let mut contribution = CssContribution::default();
                 emit_view_transition_utilities(
-                    &mut css,
+                    &mut contribution,
                     "&",
                     &input,
                     theme,
+                    &LintSettings::default(),
                     &mut diagnostics,
-                    &mut Vec::new(),
                     &mut lint_findings,
                 );
-                css
+                contribution.css.into()
             }
             CandidateContext::Utility
             | CandidateContext::CssTemplate

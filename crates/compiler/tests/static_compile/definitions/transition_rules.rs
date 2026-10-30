@@ -10,7 +10,7 @@ fn compiles_view_transition_assets_and_keyed_instances() {
         FileId(1), None, None,
         r#"import { style } from "stillwind/react";
 declare const product: { id: string };
-const title = style.viewTransition({ group: "duration-180 ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
+export const title = style.viewTransition({ group: "duration-180 ease-standard", old: "opacity-0 -translate-y-1", new: "opacity-100" });
 const card = style.viewTransition({ old: "opacity-0", new: "opacity-100" });
 const heading = style("text-accent", title);
 const item = style("rounded-md", card.for(product.id));
@@ -52,9 +52,9 @@ const detail = style(title);"#,
     );
     let transformed = result.apply_to_source(&component).unwrap();
     assert!(!transformed.contains("style.viewTransition"));
-    // A declaration is a plain value, and only a runtime key writes a name inline.
+    // An exported declaration is a plain value, and only a runtime key writes a name inline.
     assert!(
-        transformed.contains("const title = {v:\"sw-vt-"),
+        transformed.contains("export const title = {v:\"sw-vt-"),
         "{transformed}"
     );
     assert!(

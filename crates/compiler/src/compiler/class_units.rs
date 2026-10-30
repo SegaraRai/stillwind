@@ -357,6 +357,7 @@ impl<'a> ClassUnits<'a> {
                 deferred.push(CssContribution {
                     banners: Vec::new(),
                     css: (declarations).into(),
+                    definition: false,
                     required_properties: Vec::new(),
                     keyframes: false,
                 });

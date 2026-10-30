@@ -222,6 +222,7 @@ impl CompiledModule {
                 .map(|rule| CssContribution {
                     banners: rule.banners().to_vec(),
                     css: (rule.to_css()),
+                    definition: rule.definition(),
                     keyframes: rule.keyframes(),
                     required_properties: rule.required_properties().to_vec(),
                 })

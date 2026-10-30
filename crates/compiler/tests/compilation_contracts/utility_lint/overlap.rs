@@ -134,3 +134,23 @@ fn suppression_usage_includes_findings_detected_after_source_analysis() {
     });
     assert_eq!(kinds(unused, VALUE_CSS, &off), [] as [LintKind; 0]);
 }
+
+#[test]
+fn motion_definitions_apply_source_policies() {
+    let css = format!("@custom-variant calm (@media print); {VALUE_CSS}");
+    let options = policy_options(LintOverrides {
+        no_arbitrary_colors: Some(LintSeverity::Warn),
+        ..LintOverrides::default()
+    });
+    for code in [
+        "export const a=style.keyframes({from:'paint-[#abc]'});",
+        "export const a=style.viewTransition({old:'paint-[#abc]'});",
+        "export const a=style.viewTransition({old:'calm:paint-[#abc]'});",
+    ] {
+        assert_eq!(
+            kinds(code, &css, &options),
+            [LintKind::NoArbitraryColors],
+            "{code}"
+        );
+    }
+}

@@ -6,6 +6,7 @@
 
 use lean_string::{LeanStr, LeanString};
 
+use stillwind_css::CssBanner;
 use stillwind_design_system::{RegistryContext, ThemeIndex, resolve_utility};
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic, LintFinding};
 use stillwind_source::Spanned;
@@ -14,7 +15,7 @@ use stillwind_syntax::parse_candidate;
 use super::lexer::lex_utilities;
 
 /// Resolves a whitespace-separated option list and returns its declarations in written
-/// order.
+/// order with the notices of the options.
 ///
 /// Each option contributes its own declarations, so writing two durations is not
 /// rejected here but resolves in source order. An option that cannot apply is reported
@@ -27,9 +28,10 @@ pub(crate) fn resolve_options(
     theme: &ThemeIndex,
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
-) -> LeanString {
+) -> (LeanString, Vec<CssBanner>) {
     let theme = theme.context(RegistryContext::Animation);
     let mut declaration = LeanString::new();
+    let mut banners = Vec::new();
     for option in lex_utilities(options, diagnostics) {
         let raw = option.value.raw.clone();
         let unknown = || {
@@ -55,6 +57,7 @@ pub(crate) fn resolve_options(
                     && resolved.additional.is_empty() =>
             {
                 declaration.push_str(&resolved.declaration);
+                banners.extend(resolved.banners);
             }
             Ok(_) => {
                 lint_findings.push(unknown());
@@ -70,7 +73,7 @@ pub(crate) fn resolve_options(
             }
         }
     }
-    declaration
+    (declaration, banners)
 }
 
 #[cfg(test)]
@@ -94,7 +97,8 @@ mod tests {
         );
         let mut diagnostics = Vec::new();
         let mut lint_findings = Vec::new();
-        let declaration = resolve_options(&options, &theme, &mut diagnostics, &mut lint_findings);
+        let (declaration, _) =
+            resolve_options(&options, &theme, &mut diagnostics, &mut lint_findings);
         assert_eq!(diagnostics, [] as [CompileError; 0]);
         (declaration, lint_findings)
     }

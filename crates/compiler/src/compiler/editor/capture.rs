@@ -552,6 +552,7 @@ impl ModuleEditor {
                     &context,
                     definition,
                     self.snapshot.theme(),
+                    &LintSettings::default(),
                     &mut diagnostics,
                     &mut lint_findings,
                 );

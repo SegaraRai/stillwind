@@ -74,22 +74,26 @@ impl ProjectStylesheet {
     /// their sources.
     ///
     /// Producers in the linker order come first. The other producers follow in
-    /// module-identity order, and each producer's rules keep their own order. `origin`
-    /// receives each rule with its owner and returns the source span to map the rule
-    /// to, or `None` to leave it unmapped. This stylesheet is unchanged.
+    /// module-identity order, and each producer's rules keep their own order. Equal
+    /// definitions appear only at their first occurrence. `origin` receives each kept
+    /// rule with its owner and returns the source span to map the rule to, or `None` to
+    /// leave it unmapped. This stylesheet is unchanged.
     pub(crate) fn module_css_with_origins(
         &self,
         mut origin: impl FnMut(&ModuleId, &GeneratedRule) -> Option<(Arc<SourceFile>, Span)>,
     ) -> MappedStylesheet {
         let mut output = MappedStylesheet::default();
         let mut modules = BTreeSet::new();
+        let mut definitions = BTreeSet::new();
         for module in self.order.iter().chain(self.contributions.keys()) {
             if !modules.insert(module) {
                 continue;
             }
             if let Some(artifact) = self.contributions.get(module) {
                 for rule in &artifact.rules {
-                    rule.append_to(&mut output, origin(module, rule));
+                    if !rule.definition() || definitions.insert(rule.content_key()) {
+                        rule.append_to(&mut output, origin(module, rule));
+                    }
                 }
             }
         }
@@ -144,6 +148,35 @@ mod tests {
         assert_eq!(sheet.module_css().unwrap(), ".x{color:red}.x{color:blue}");
         sheet.set_order(vec![ModuleId::from("b"), ModuleId::from("a")]);
         assert_eq!(sheet.module_css().unwrap(), ".x{color:blue}.x{color:red}");
+    }
+
+    #[test]
+    fn equal_definitions_keep_their_first_occurrence_across_producers() {
+        let definition = |css: &str| ModuleCssArtifact {
+            rules: artifact(css)
+                .rules
+                .into_iter()
+                .map(|rule| rule.with_definition(true))
+                .collect(),
+        };
+        let mut sheet = ProjectStylesheet::default();
+        sheet.replace(
+            ModuleId::from("a"),
+            &definition("::view-transition-old(.x){opacity:0}"),
+        );
+        sheet.replace(
+            ModuleId::from("b"),
+            &definition("::view-transition-old(.x){opacity:0}::view-transition-new(.x){opacity:1}"),
+        );
+        assert_eq!(
+            sheet.module_css().unwrap(),
+            "::view-transition-old(.x){opacity:0}::view-transition-new(.x){opacity:1}"
+        );
+        sheet.remove(&ModuleId::from("a"));
+        assert_eq!(
+            sheet.module_css().unwrap(),
+            "::view-transition-old(.x){opacity:0}::view-transition-new(.x){opacity:1}"
+        );
     }
 
     #[test]
