@@ -17,7 +17,7 @@ use stillwind_syntax::{Candidate, parse_candidate};
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{
     RuleBoundaries, emit_utility_rules, lower_conditionals, preview_resource_urls,
-    resolve_utility_targets,
+    resolve_utility_targets, rewrite_generated_css,
 };
 use crate::identifiers::{ClassContext, DEFAULT_HASH_LENGTH, IdentifierContext, PreviewNames};
 use crate::{CssContribution, GeneratedRule, GeneratorSet, IdentifierMode, ModuleCssArtifact};
@@ -249,7 +249,7 @@ impl QueryContext {
             .map(|property| property.name.clone())
             .collect();
         for contribution in &mut contributions {
-            contribution.css = self.options.rewrite_generated(&contribution.css);
+            contribution.css = rewrite_generated_css(&contribution.css, theme, &self.options);
             if preview_selector.is_some() {
                 contribution.css = (preview_resource_urls(
                     std::mem::take(&mut contribution.css).into(),

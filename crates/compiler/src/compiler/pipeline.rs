@@ -42,6 +42,7 @@ use super::symbols::{
 };
 use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
+use crate::compiler::rewrite_generated_css;
 use crate::editor_lint::detect;
 use crate::generated::js_string;
 use crate::identifiers::IdentifierContext;
@@ -500,7 +501,7 @@ impl Compiler {
         }
         if result.diagnostics.is_empty() {
             for contribution in &mut utility_css {
-                contribution.css = options.rewrite_generated(&contribution.css);
+                contribution.css = rewrite_generated_css(&contribution.css, theme, options);
                 for name in &mut contribution.required_properties {
                     *name = options.rewrite_generated(name);
                 }

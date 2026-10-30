@@ -22,7 +22,7 @@ use stillwind_source::Span;
 
 use super::super::keyframes::extract_authored_keyframes;
 use super::super::properties::{PropertyOutput, render_used_properties};
-use super::super::theme_prefix::{check_theme_prefix, prefixed_references};
+use super::super::theme_prefix::{check_theme_prefix, prefixed_references, rewrite_generated_css};
 use super::authored::render_authored;
 use super::emit::resolve_origin;
 use crate::compiler::conditionals::lower;
@@ -263,7 +263,7 @@ impl<'a> SupportSelection<'a> {
                         format_args!("{}:{value};", token.name.value).to_lean_string();
                     let lowered = lower(&declaration, self.options.use_css_if, self.identifiers)?;
                     declarations.text(
-                        &self.options.rewrite_generated(&lowered.css),
+                        &rewrite_generated_css(&lowered.css, self.theme, self.options),
                         resolve_origin(self.sources, Some(token.value.span)),
                     );
                     declarations.banners.extend(
@@ -307,13 +307,15 @@ impl<'a> SupportSelection<'a> {
         }
         if emit_keyframes {
             output.text(
-                &self.options.rewrite_generated(
+                &rewrite_generated_css(
                     &lower(
                         &extract_authored_keyframes(keyframes, &self.animations),
                         self.options.use_css_if,
                         self.identifiers,
                     )?
                     .css,
+                    self.theme,
+                    self.options,
                 ),
                 resolve_origin(self.sources, origin),
             );

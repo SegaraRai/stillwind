@@ -15,7 +15,7 @@ use stillwind_ir::CssCall;
 use super::conditionals::{lower, report_skipped_conditionals};
 use super::document::{DocumentInput, emit_document_rules};
 use super::style_variants::collect_variant_and_applications;
-use super::stylesheet::{prefix_theme_variables, render_css_template};
+use super::stylesheet::{prefix_theme_variables, render_css_template, rewrite_generated_css};
 use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, MappedStylesheet, finalize_stylesheet};
 
@@ -97,7 +97,7 @@ pub(crate) fn css_call_text(
             report_skipped_conditionals(lowered.skipped, call.span, lint_settings, lint_findings);
             utilities
                 .css
-                .push_str(&options.rewrite_generated(&lowered.css));
+                .push_str(&rewrite_generated_css(&lowered.css, theme, options));
             utilities.banners.extend(
                 contribution
                     .banners

@@ -1,4 +1,8 @@
-//! Renames theme variables in finished CSS for the `themePrefix` option.
+//! Applies configured property prefixes to CSS as identifiers.
+//!
+//! [`rewrite_generated_css`] applies `prefix` and `tailwindPrefix` to generated rules.
+//! Strings, comments, URLs, and class names in those rules keep their text.
+//! [`prefix_theme_variables`] applies the `themePrefix` option.
 //!
 //! Resolution, lint, and editor queries keep authored theme variable names. Only the
 //! CSS that leaves assembly carries the configured prefix, so every reference in it
@@ -21,6 +25,49 @@ use crate::{CompilerOptions, MappedStylesheet};
 /// Prefix of the optional variables that the package's preflight reads. The theme does
 /// not need to define them.
 const DEFAULT_VARIABLE_PREFIX: &str = "--default-";
+
+/// Rewrites the `--sw-` and `--tw-` identifiers of generated CSS to the configured
+/// prefixes.
+///
+/// `css` must be lowered. A `--tw-` name that selects a theme variable through
+/// `themePrefix: "--tw-"` stays as written, unless it is a registered property. Single
+/// names and JavaScript use [`CompilerOptions::rewrite_generated`] instead.
+pub(crate) fn rewrite_generated_css(
+    css: &str,
+    theme: &ThemeIndex,
+    options: &CompilerOptions,
+) -> LeanStr {
+    if (options.prefix == "--sw-" || !css.contains("--sw-"))
+        && (options.tailwind_prefix == "--tw-" || !css.contains("--tw-"))
+    {
+        return css.into();
+    }
+    let names = variable_names(theme);
+    let stillwind = stillwind_property_definitions(theme);
+    let registered = stillwind
+        .iter()
+        .chain(theme.properties())
+        .map(|property| property.name.as_str())
+        .collect::<BTreeSet<_>>();
+    let selects_variable = |name: &str| {
+        !options.theme_prefix.is_empty()
+            && !registered.contains(name)
+            && name
+                .strip_prefix(options.theme_prefix.as_str())
+                .is_some_and(|rest| names.contains(format!("--{rest}").as_str()))
+    };
+    let mut output = LeanString::new();
+    let mut cursor = 0;
+    visit_identifiers(css, &mut |name, range| {
+        if (name.starts_with("--sw-") || name.starts_with("--tw-")) && !selects_variable(name) {
+            output.push_str(&css[cursor..range.start]);
+            output.push_str(&options.rewrite_generated(name));
+            cursor = range.end;
+        }
+    });
+    output.push_str(&css[cursor..]);
+    output.as_str().into()
+}
 
 /// Checks that no selected theme variable takes the name of a registered property.
 ///
@@ -126,7 +173,8 @@ fn variable_names(theme: &ThemeIndex) -> BTreeSet<&str> {
 
 /// Calls `visit` with the decoded name and byte range of each `--` identifier in `css`.
 ///
-/// A name after a `.` delimiter is a class name and does not count.
+/// A function name counts without its `(`. A name after a `.` delimiter is a class name
+/// and does not count.
 fn visit_identifiers(css: &str, visit: &mut impl FnMut(&str, Range<usize>)) {
     visit_tokens(&mut Parser::new(css), visit);
 }
@@ -147,14 +195,15 @@ fn visit_tokens(parser: &mut Parser<'_>, visit: &mut impl FnMut(&str, Range<usiz
                 | Token::Function(_)
         );
         let name = match token {
-            Token::Ident(name) if !class && name.starts_with("--") => {
+            Token::Ident(name) | Token::Function(name) if !class && name.starts_with("--") => {
                 Some(LeanStr::from(name.as_ref()))
             }
             _ => None,
         };
+        let parenthesis = usize::from(matches!(token, Token::Function(_)));
         class = matches!(token, Token::Delim('.'));
         if let Some(name) = name {
-            visit(&name, start..parser.position().byte_index());
+            visit(&name, start..parser.position().byte_index() - parenthesis);
         }
         if nested {
             let _ = parser.parse_nested_block(|nested| {
@@ -183,9 +232,9 @@ mod tests {
     fn identifiers_skip_text_that_is_not_a_name() {
         assert_eq!(
             identifiers(
-                r#".--a, .b\(--c\) { --d: var(--e, calc(var(--f) * 2)); content: "--g"; background: url(--h) /* --i */; }"#
+                r#".--a, .b\(--c\) { --d: var(--e, calc(var(--f) * 2)); content: "--g"; background: url(--h) /* --i */; --j: --k(1); }"#
             ),
-            ["--d", "--e", "--f"]
+            ["--d", "--e", "--f", "--j", "--k"]
         );
     }
 }

@@ -29,6 +29,7 @@ use super::super::symbols::named_identity;
 use super::input::{collect_bases, input_plans, replace_text};
 use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
+use crate::compiler::rewrite_generated_css;
 use crate::identifiers::PreviewNames;
 use crate::{CandidateContext, CompilerOptions, CssContribution, Identifiers};
 
@@ -482,22 +483,22 @@ impl ModuleEditor {
         let mut lint_findings = Vec::new();
         let mut contributions = Vec::new();
         let mut dependencies = BTreeSet::new();
-        if let EditorPlan::Css { call, output } = plan {
-            // The text is already lowered and rewritten, so it skips the steps below.
-            let css = css_call_text(
-                call,
-                self.snapshot.theme(),
-                &self.options,
-                &context,
-                *output,
-                &mut diagnostics,
-                &mut lint_findings,
-            );
-            return diagnostics
-                .is_empty()
-                .then(|| (preview_resource_urls(css, &self.snapshot), Vec::new()));
-        }
         match plan {
+            EditorPlan::Css { call, output } => {
+                // The text is already lowered and rewritten, so it skips the steps below.
+                let css = css_call_text(
+                    call,
+                    self.snapshot.theme(),
+                    &self.options,
+                    &context,
+                    *output,
+                    &mut diagnostics,
+                    &mut lint_findings,
+                );
+                return diagnostics
+                    .is_empty()
+                    .then(|| (preview_resource_urls(css, &self.snapshot), Vec::new()));
+            }
             EditorPlan::Call(call) => {
                 for input in &call.inputs {
                     collect_bases(input, &mut dependencies);
@@ -558,7 +559,6 @@ impl ModuleEditor {
                 );
                 contributions.push(contribution);
             }
-            EditorPlan::Css { .. } => {}
         }
         if !diagnostics.is_empty() {
             return None;
@@ -566,8 +566,9 @@ impl ModuleEditor {
         let css = contributions
             .into_iter()
             .map(|part| {
-                lower(&part.css, self.options.use_css_if, &context)
-                    .map(|lowered| self.options.rewrite_generated(&lowered.css))
+                lower(&part.css, self.options.use_css_if, &context).map(|lowered| {
+                    rewrite_generated_css(&lowered.css, self.snapshot.theme(), &self.options)
+                })
             })
             .collect::<Result<LeanString, _>>()
             .ok()?;

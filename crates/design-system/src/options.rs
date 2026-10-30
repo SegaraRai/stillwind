@@ -3,7 +3,7 @@
 //! Snapshot construction validates the supplied namespaces and captures the ordering
 //! strategy before utility evaluation. Generated identifiers use the captured prefixes.
 
-use lean_string::{LeanStr, LeanString, ToLeanStr};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use serde::{Deserialize, Serialize};
 
 use stillwind_diagnostics::CompileDiagnostic;
@@ -87,20 +87,37 @@ impl DesignSystemOptions {
         Ok(())
     }
 
-    /// Rewrites literal `--sw-` and `--tw-` markers in generated CSS to the configured
+    /// Rewrites literal `--sw-` and `--tw-` markers in generated text to the configured
     /// prefixes.
     ///
-    /// Canonical markers are first replaced by private sentinels, then by the configured
-    /// prefixes. This keeps swapped or overlapping prefixes from rewriting one another's
-    /// output. The caller supplies generated text without these reserved sentinel strings;
-    /// the operation is literal substitution rather than CSS-aware identifier rewriting.
+    /// Canonical markers are first replaced by private sentinels, then by the
+    /// configured prefixes. This keeps swapped or overlapping prefixes from rewriting
+    /// one another's output. The caller supplies generated text without these reserved
+    /// sentinel strings. The operation is literal substitution, so it suits JavaScript
+    /// and single property names. CSS that may contain authored strings needs a
+    /// tokenizing caller.
     pub fn rewrite_generated(&self, value: &str) -> LeanString {
-        value
-            .replace_text("--sw-", "\u{e000}stillwind-prefix\u{e001}")
-            .replace_text("--tw-", "\u{e000}tailwind-prefix\u{e001}")
-            .replace_text("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
-            .replace_text("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
+        rewrite_generated_prefixes(&self.prefix, &self.tailwind_prefix, value)
     }
+}
+
+/// Performs [`DesignSystemOptions::rewrite_generated`] for the two configured prefixes.
+///
+/// Returns `value` unchanged when it contains no sentinel and neither marker needs a
+/// different spelling.
+#[must_use]
+pub fn rewrite_generated_prefixes(prefix: &str, tailwind_prefix: &str, value: &str) -> LeanString {
+    if !value.contains('\u{e000}')
+        && (prefix == "--sw-" || !value.contains("--sw-"))
+        && (tailwind_prefix == "--tw-" || !value.contains("--tw-"))
+    {
+        return value.to_lean_string();
+    }
+    value
+        .replace_text("--sw-", "\u{e000}stillwind-prefix\u{e001}")
+        .replace_text("--tw-", "\u{e000}tailwind-prefix\u{e001}")
+        .replace_text("\u{e000}stillwind-prefix\u{e001}", prefix)
+        .replace_text("\u{e000}tailwind-prefix\u{e001}", tailwind_prefix)
 }
 
 #[cfg(test)]

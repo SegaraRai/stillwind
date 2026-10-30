@@ -16,15 +16,18 @@ from `tailwindPrefix` and `themePrefix`, and `themePrefix` may equal `tailwindPr
 `themePrefix` renames theme variables in finished CSS. Resolution, lint, and editor
 queries keep authored names, and assembly renames each whole CSS identifier that names
 a theme variable or starts with `--default-`, the optional variables of the preflight.
-Strings, comments, URLs, and class names keep their text. Generated rules apply
-`tailwindPrefix` earlier, so a theme variable that receives the same prefix is not
-rewritten by a later `tailwindPrefix`. A reference may spell the prefixed name, which
-selects the same variable. With a custom `tailwindPrefix`, a `--tw-` name in an
-arbitrary value is rewritten as an internal property first and no longer selects a
-variable that `themePrefix: "--tw-"` renames. JavaScript that names a theme variable
-is not rewritten. A selected variable whose output name equals a registered property
-is an error, because `@blur` tokens such as `--blur` would otherwise replace the value
-that their own utility stores in `--tw-blur`.
+Strings, comments, URLs, and class names keep their text. A reference may spell the
+prefixed name, which selects the same variable. JavaScript that names a theme variable
+is not rewritten.
+
+`prefix` and `tailwindPrefix` apply earlier, to the lowered CSS of generated rules, and
+they follow the same identifier rules. A `--tw-` name stays as written when it selects a
+theme variable through `themePrefix: "--tw-"`, unless it is a registered property.
+Generated JavaScript and single property names use literal substitution, because they
+contain no CSS strings. Authored rules are not rewritten by these two prefixes. A
+selected variable whose output name equals a registered property is an error, because
+a token such as `--blur` would otherwise replace the value that its own utility stores
+in `--tw-blur`.
 
 `Identifiers` supplies a generator for each name family. The generator receives the
 family's context and its full hash. Returning the default choice preserves the

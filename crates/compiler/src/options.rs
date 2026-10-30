@@ -15,9 +15,9 @@ use serde::{Deserialize, Deserializer, Serialize, de};
 use stillwind_css::is_length_unit;
 use stillwind_design_system::{
     BrowserTargets, DesignSystemOptions, DesignSystemSnapshot, UtilityOrderMode,
+    rewrite_generated_prefixes,
 };
 use stillwind_diagnostics::{CompileDiagnostic, LintConfig, LintKind, LintOverrides, LintSettings};
-use stillwind_source::ReplaceText;
 
 use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 use crate::query::StylesheetSortOptions;
@@ -158,20 +158,7 @@ impl CompilerOptions {
     /// prevent a configured prefix that contains `--sw-` or `--tw-` from being
     /// rewritten again.
     pub(crate) fn rewrite_generated(&self, value: &(impl ToLeanStr + ?Sized)) -> LeanStr {
-        let value = value.to_lean_str();
-        if !value.contains('\u{e000}')
-            && (self.prefix == "--sw-" || !value.contains("--sw-"))
-            && (self.tailwind_prefix == PACKAGE_TAILWIND_PREFIX
-                || !value.contains(PACKAGE_TAILWIND_PREFIX))
-        {
-            return value;
-        }
-        value
-            .replace_text("--sw-", "\u{e000}stillwind-prefix\u{e001}")
-            .replace_text(PACKAGE_TAILWIND_PREFIX, "\u{e000}tailwind-prefix\u{e001}")
-            .replace_text("\u{e000}stillwind-prefix\u{e001}", &self.prefix)
-            .replace_text("\u{e000}tailwind-prefix\u{e001}", &self.tailwind_prefix)
-            .into()
+        rewrite_generated_prefixes(&self.prefix, &self.tailwind_prefix, &value.to_lean_str()).into()
     }
 }
 

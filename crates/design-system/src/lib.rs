@@ -82,7 +82,7 @@ pub use loading::{
     DesignSystemLoader, IgnoredTailwindFeature, IgnoredTailwindFeatureKind,
     ignored_tailwind_features,
 };
-pub use options::{DesignSystemOptions, UtilityOrderMode};
+pub use options::{DesignSystemOptions, UtilityOrderMode, rewrite_generated_prefixes};
 pub use registry::{
     ArbitraryPropertyOrder, BypassedUndefinition, CustomUtility, CustomVariant, DefinitionOrigin,
     LegacyThemeExposure, LegacyThemeKey, MarkerClasses, MarkerForm, MarkerOrigin, RegistryContext,

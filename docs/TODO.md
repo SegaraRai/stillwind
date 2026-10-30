@@ -13,7 +13,7 @@ template inputs and finite macro choices.
 Sources: [style declaration](../packages/core/src/macro/style.ts),
 [input checks](../packages/core/src/macro/input.ts).
 
-## Semantic fingerprints and prefix rewriting
+## Semantic fingerprints
 
 Semantic revisions hash `Debug` representations of facts and asset metadata in
 several entrypoints. Define one deterministic representation shared by those
@@ -23,14 +23,6 @@ making incidental debug formatting part of the cache contract.
 Sources: [project input](../crates/napi/src/api/project.rs),
 [session facts](../crates/napi/src/session/facts.rs),
 [compiler API](../crates/compiler/src/compiler/api.rs).
-
-`DesignSystemOptions::rewrite_generated` and `CompilerOptions::rewrite_generated`
-duplicate literal prefix substitution. Consolidate the responsibility and define
-how generated identifiers stay separate from authored strings. Preserve swapped
-and overlapping configured prefixes and resource references.
-
-Sources: [design-system options](../crates/design-system/src/options.rs),
-[compiler options](../crates/compiler/src/options.rs).
 
 ## Selective CSS reloads
 

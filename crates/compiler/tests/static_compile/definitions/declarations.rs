@@ -240,6 +240,39 @@ export const item = style("bg-brand translate-x-1");"#,
 }
 
 #[test]
+fn compatibility_prefix_keeps_strings_and_variables_that_theme_prefix_selects() {
+    let result = compile_themed(
+        r#"import { style } from "stillwind/react";
+export const item = style("bg-(--tw-color-hint) translate-x-1 [--label:'--tw-text']");"#,
+        "@theme { --color-hint: blue; --spacing-1: .25rem; }",
+        &CompilerOptions {
+            tailwind_prefix: "--compat-".into(),
+            theme_prefix: "--tw-".into(),
+            ..CompilerOptions::default()
+        },
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result.css.contains("--tw-color-hint:blue"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("var(--tw-color-hint)"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result.css.contains("--compat-translate-x"),
+        "{}",
+        result.css
+    );
+    assert!(result.css.contains("--tw-text"), "{}", result.css);
+    assert!(!result.css.contains("--compat-color"), "{}", result.css);
+}
+
+#[test]
 fn theme_prefix_rejects_a_variable_with_the_name_of_an_internal_property() {
     let result = compile_themed(
         r#"import { style } from "stillwind/react";
