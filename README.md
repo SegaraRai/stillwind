@@ -71,9 +71,9 @@ existing styles, it asks how far to go. See [Coding agents](https://stillwind.de
 
 ## Frameworks and build tools
 
-Stillwind supports Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte, vanilla
-JavaScript, and Vue. Its build integration supports Vite, Astro, Fresh, Nuxt,
-SvelteKit, Next.js, webpack, Rspack, Rsbuild, and Turbopack. See
+Stillwind supports Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte, Vue, and
+vanilla JavaScript. Its build integration supports Vite, Astro, Next.js, Nuxt,
+SvelteKit, Fresh, webpack, Rspack, Rsbuild, and Turbopack. See
 [Framework integrations](https://stillwind.dev/docs/integrations).
 
 Stillwind accepts Tailwind CSS v4 utilities, theme variables, CSS directives, and
