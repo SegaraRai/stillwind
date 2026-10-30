@@ -20,7 +20,7 @@ use super::nesting::check_nesting;
 use super::runtime_conditionals::check_runtime_conditionals;
 use super::shadowing::{addresses, shadowed_definitions};
 use super::skipped::check_skipped_statements;
-use super::tailwind_features::check_tailwind_features;
+use super::tailwind_features::{check_tailwind_features, check_theme_paths};
 use super::theme_references::{check_theme_references, check_utility_namespaces};
 use super::theme_values::check_theme_values;
 use super::variant::check_variant_block;
@@ -122,6 +122,7 @@ fn analyze(snapshot: &DesignSystemSnapshot, options: CompilerOptions) -> Stylesh
             check_runtime_conditionals(&mut checker, use_css_if);
             check_theme_values(&mut checker, &nodes);
             check_tailwind_features(&mut checker, source.source.text());
+            check_theme_paths(&mut checker, &nodes);
             check_theme_references(&mut checker, &nodes, false);
             if let Some(index) = &variant_index {
                 check_variant_directives(&mut checker, index, &nodes);

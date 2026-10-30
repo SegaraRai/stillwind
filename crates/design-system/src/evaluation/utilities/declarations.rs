@@ -300,6 +300,8 @@ pub(in crate::evaluation) fn resolve_css_declarations(
     arbitrary_check: ArbitraryValueCheck,
     implementation: bool,
 ) -> Option<ResolvedCssDeclarations> {
+    let dashed = ThemeIndex::dashed_theme_calls(body);
+    let body = dashed.as_deref().unwrap_or(body);
     let lowered;
     let body = if body.contains("--alpha(")
         || theme.namespaces().scales().any(|namespace| {

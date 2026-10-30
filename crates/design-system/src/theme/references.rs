@@ -11,6 +11,10 @@
 //!
 //! A modifier such as `/50` applies 50% opacity to the reference or the fallback. In an
 //! arbitrary value, `theme()` is replaced with the value of the token as written.
+//!
+//! Elsewhere, `theme()` with a custom property behaves as `--theme()`. The v3 path
+//! form, such as `theme(colors.red.500)`, stays unchanged, and stylesheet lint reports
+//! it.
 
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, LeanString, ToLeanStr};
@@ -110,6 +114,27 @@ pub(crate) fn resolve_css_functions(
     None
 }
 
+/// Respells each `theme()` call that names a custom property as `--theme()`, which
+/// utility bodies keep until the stylesheet renders.
+///
+/// Returns `None` when `value` has no such call. A call that reads a v3 path stays
+/// unchanged.
+pub(crate) fn dashed_theme_calls(value: &str) -> Option<LeanString> {
+    let mut output = LeanString::new();
+    let mut cursor = 0;
+    for found in find_css_functions(value, &["theme"], 0) {
+        if value[found.arguments].trim().starts_with("--") {
+            output.push_str(&value[cursor..found.start]);
+            output.push_str("--");
+            cursor = found.start;
+        }
+    }
+    (cursor != 0 || !output.is_empty()).then(|| {
+        output.push_str(&value[cursor..]);
+        output
+    })
+}
+
 /// A malformed `--theme()` reference and its byte offset within a value.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ThemeReferenceError {
@@ -138,8 +163,8 @@ impl ThemeReferenceError {
     }
 }
 
-/// Rewrites every `--theme()` reference in `value`, asking `is_defined` about the
-/// referenced custom property.
+/// Rewrites every `--theme()` reference and every `theme()` reference to a custom
+/// property in `value`, asking `is_defined` about the referenced custom property.
 ///
 /// Scanning respects CSS syntax, so a reference inside a string is left alone. A
 /// `Ok(None)` omits the containing declaration when an undefined token has no usable
@@ -155,10 +180,10 @@ pub(crate) fn resolve_theme_references(
     resolve_references(value, &mut is_defined, 0, 0)
 }
 
-/// Replaces the `--theme()` references in `value` in the same way as
-/// `resolve_theme_references`. `depth` is the nesting level of fallback arguments.
-/// `base_offset` is the offset of `value` in the original input, and error offsets
-/// include it. Returns `Ok(None)` when references are nested deeper than 64 levels.
+/// Replaces the references in `value` in the same way as `resolve_theme_references`.
+/// `depth` is the nesting level of fallback arguments. `base_offset` is the offset of
+/// `value` in the original input, and error offsets include it. Returns `Ok(None)` when
+/// references are nested deeper than 64 levels.
 ///
 /// # Errors
 ///
@@ -176,9 +201,11 @@ fn resolve_references(
     let mut output = LeanString::with_capacity(value.len());
     let mut cursor = 0;
     let mut omitted = false;
-    for found in find_css_functions(value, &["--theme"], 0) {
+    for found in find_css_functions(value, &["--theme", "theme"], 0) {
         let start = found.start;
-        if start < cursor {
+        if start < cursor
+            || (found.name_index == 1 && !value[found.arguments.clone()].trim().starts_with("--"))
+        {
             continue;
         }
         output.push_str(&value[cursor..start]);
@@ -397,6 +424,18 @@ mod tests {
         assert!(resolve_css_functions("--spacing(4)", &scale(None)).is_none());
         assert!(resolve_css_functions("--spacing(", &spacing).is_none());
         assert!(resolve_css_functions("--alpha(red / )", &spacing).is_none());
+    }
+
+    #[test]
+    fn theme_calls_with_custom_properties_become_dashed_calls() {
+        assert_eq!(
+            dashed_theme_calls("theme(--a) --theme(--b) theme(colors.red) theme(--c, red)")
+                .as_deref(),
+            Some("--theme(--a) --theme(--b) theme(colors.red) --theme(--c, red)")
+        );
+        for value in ["red", "--theme(--a)", "theme(colors.red)", "'theme(--a)'"] {
+            assert_eq!(dashed_theme_calls(value), None, "{value}");
+        }
     }
 
     #[test]

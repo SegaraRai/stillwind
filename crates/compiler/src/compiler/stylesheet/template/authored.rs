@@ -85,8 +85,8 @@ fn resolve_theme_references(
 ) -> Result<LeanString, CompileDiagnostic> {
     if !css
         .as_bytes()
-        .windows(b"--theme".len())
-        .any(|window| window.eq_ignore_ascii_case(b"--theme"))
+        .windows(b"theme(".len())
+        .any(|window| window.eq_ignore_ascii_case(b"theme("))
     {
         return Ok(css.to_lean_string());
     }
@@ -146,6 +146,21 @@ mod tests {
     use stillwind_source::{CssSourceName, FileId, SourceFile};
 
     use super::*;
+
+    #[test]
+    fn theme_calls_with_custom_properties_lower_and_paths_stay() {
+        let source =
+            SourceFile::new(FileId(1), None, None, "@theme { --color-red: red; }").unwrap();
+        let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
+        assert_eq!(
+            resolve_theme_references(
+                ".a{color:theme(--color-red);fill:theme(--nope);stroke:theme(colors.red.500)}",
+                &theme,
+            )
+            .unwrap(),
+            ".a{color:var(--color-red);stroke:theme(colors.red.500)}"
+        );
+    }
 
     #[test]
     fn unresolved_references_omit_their_declaration_or_rule() {

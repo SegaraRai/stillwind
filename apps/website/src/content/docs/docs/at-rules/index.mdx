@@ -64,9 +64,11 @@ normally do not need them.
 
 ## Tailwind CSS features that Stillwind ignores
 
-Stillwind reads its settings from `stillwind.config.ts`. It ignores `@config`,
-the `important`, `source`, and `prefix` modifiers of `@import`, and the
-`prefix()` option of `@theme`. [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature) reports them.
+Stillwind reads its settings from `stillwind.config.ts` and generates utilities
+only from `style()` calls. It ignores `@config`, `@source`, `@reference`, the
+`important`, `source`, and `prefix` modifiers of `@import`, and the `prefix()`
+option of `@theme`. [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature)
+reports them.
 
 When the loader cannot use a Stillwind at-rule, it skips the statement and
 compiles the rest of the stylesheet.

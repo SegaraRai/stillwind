@@ -1,12 +1,13 @@
 ---
 title: ignored-tailwind-feature
-description: Reports Tailwind CSS features that Stillwind ignores in the stylesheet, such as @config.
+description: Reports Tailwind CSS features that Stillwind ignores in the stylesheet, such as @config and @source.
 slug: docs/lints/ignored-tailwind-feature
 ---
 
 This rule reports a Tailwind CSS feature in your stylesheet that Stillwind
-ignores, such as `@config` or an option on `@import`. Stillwind reads these
-settings from `stillwind.config.ts`, so the line has no effect.
+ignores, such as `@config`, `@source`, or an option on `@import`. The line has
+no effect, because Stillwind reads its settings from `stillwind.config.ts` and
+generates utilities only from `style()` calls.
 
 ## Reported
 
@@ -41,6 +42,11 @@ export default defineConfig({
 - Move the configuration to the `tailwind` field of the project in
   `stillwind.config.ts`, as in the example, and remove `@config`.
 - Move an `important` option on `@import` to the `important` field.
+- Remove `@source`, and move each utility that it listed into a `style()` call.
+- Replace `@reference` with an `@import` in the stylesheet of the project.
+- Replace a v3 path in `theme()`, such as `theme(colors.red.500)`, with a theme
+  variable: `--theme(--color-red-500)`. Without this change, browsers reject the
+  declaration.
 - [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind#move-configuration)
   lists every replacement.
 

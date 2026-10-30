@@ -130,14 +130,14 @@ options. See [Reusable styles](/docs/guides/reusable-styles).
 
 Some Tailwind settings move from the stylesheet to `stillwind.config.ts`:
 
-| Tailwind                          | Stillwind                                       |
-| --------------------------------- | ----------------------------------------------- |
-| `@config "./tailwind.config.js"`  | The `tailwind` field of the project             |
-| `@import "tailwindcss" important` | The `important` field of the project            |
-| `@source` and `source(...)`       | Not needed; the build compiles imported modules |
-| `blocklist`                       | The `no-restricted-utilities` lint rule         |
-| `prefix(tw)`                      | Write utilities without `tw:`; see below        |
-| `theme(...)` on the import        | Not supported; define the tokens in `@theme`    |
+| Tailwind                          | Stillwind                                    |
+| --------------------------------- | -------------------------------------------- |
+| `@config "./tailwind.config.js"`  | The `tailwind` field of the project          |
+| `@import "tailwindcss" important` | The `important` field of the project         |
+| `@source` and `source(...)`       | Not supported; see below                     |
+| `blocklist`                       | The `no-restricted-utilities` lint rule      |
+| `prefix(tw)`                      | Write utilities without `tw:`; see below     |
+| `theme(...)` on the import        | Not supported; define the tokens in `@theme` |
 
 The `tailwind` field accepts a Tailwind configuration object. Its `theme`,
 `presets`, `plugins`, `darkMode`, and `important` keys work as in Tailwind.
@@ -154,9 +154,16 @@ stylesheet and in arbitrary values, so you can keep `var(--tw-color-brand)` or u
 the shorter name. JavaScript that reads or sets a theme variable by name must use
 the prefixed name.
 
-Stillwind ignores `@config` and import options in the stylesheet, and the CLI
-reports them with [ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature).
-Remove them after you move their settings.
+Stillwind does not support `@source`, including `@source inline()`, or a safelist,
+because only `style()` calls generate utilities. Tailwind classes inside a
+dependency also get no CSS. Write each utility that you need in a `style()` call
+in your own code.
+
+Stillwind ignores `@config`, `@source`, `@reference`, and import options in the
+stylesheet, and the CLI reports them with
+[ignored-tailwind-feature](/docs/lints/ignored-tailwind-feature). Remove them after
+you move their settings. The same rule reports a v3 path in `theme()`, such as
+`theme(colors.red.500)`. Use `--theme(--color-red-500)` instead.
 
 Stillwind loads Tailwind plugins, but not every plugin works. Test the plugins
 that your application uses.

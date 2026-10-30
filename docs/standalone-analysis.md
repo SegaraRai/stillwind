@@ -311,11 +311,15 @@ Other rules check only stylesheets. They check definitions and theme references:
   `--theme()` are not checked. The output does not change.
 - `ignored-tailwind-feature` (hazard, default `warn`) reports Tailwind features that
   loading ignores. The loader removes a top-level `@config` statement, whose
-  replacement is the project's `tailwind` field. It loads an import without the
+  replacement is the project's `tailwind` field. It also removes top-level `@source` and
+  `@reference` statements, because only `style()` calls generate utilities and a
+  referenced file does not load. It loads an import without the
   `important`, `prefix`, `reference`, `source`, and `theme` modifiers, and it reads
   `@theme` without its `prefix()` option. The project's `important` field replaces the
-  `important` modifier, and `themePrefix` replaces the variable part of `prefix()`. The
-  finding covers the statement, the modifier, or the option.
+  `important` modifier, and `themePrefix` replaces the variable part of `prefix()`. A
+  `theme()` call that reads a v3 path, such as `theme(colors.red.500)`, stays in the
+  output, and `--theme()` replaces it. The finding covers the statement, the modifier,
+  the option, or the call.
 - `invalid-css-import` (input, default `deny`) reports an import that loading skipped:
   an `@import` or `@plugin` statement with an invalid specifier, options, or modifiers,
   an import that closes a cycle, and an import that the host cannot resolve or read.

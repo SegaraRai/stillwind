@@ -207,18 +207,6 @@ Measure the browser cost with `vp run bench:compiler:browser`.
 Sources: [registry statements](../crates/design-system/src/registry/contexts.rs),
 [theme index](../crates/design-system/src/theme/index.rs).
 
-## Tailwind syntax without diagnostics
-
-`@source` and `@reference` statements reach the generated CSS unchanged, and no lint rule
-reports them. `theme()` in an ordinary style rule also stays in the output, where browsers
-reject the declaration. Inside `@utility`, only `incompatible-property-value` at the use
-reports it. `--theme()` lowers correctly. Stillwind cannot support `@source` and
-`@source inline()`, because only `style()` calls select utilities. Decide which of these
-forms `ignored-tailwind-feature` reports and which of them the loader removes.
-
-Sources: [Tailwind feature lint](../crates/compiler/src/compiler/stylesheet/lint/tailwind_features.rs),
-[import scan](../crates/design-system/src/loading/imports.rs).
-
 ## Skipped CSS statements
 
 Stylesheet lint reports [skipped statements](css-emission.md#skipped-statements) only

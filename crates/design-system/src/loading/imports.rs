@@ -9,11 +9,11 @@
 //! Classless CSS import modifiers are normalized into the wrapper at-rule text that
 //! expansion emits: `layer(...)`, `supports(...)`, and a trailing media query, in that
 //! order. Tailwind's modifiers that change how the imported file is interpreted
-//! (`theme`, `prefix`, `source`, `reference`, `important`) and its top-level `@config`
-//! statement are skipped and recorded as [`IgnoredTailwindFeature`]s, which stylesheet
-//! lint reports. An `@import` or `@plugin` statement with an invalid specifier,
-//! options, or modifiers is removed from the expansion and recorded as a skipped
-//! statement.
+//! (`theme`, `prefix`, `source`, `reference`, `important`) and its top-level `@config`,
+//! `@source`, and `@reference` statements are skipped and recorded as
+//! [`IgnoredTailwindFeature`]s, which stylesheet lint reports. An `@import` or
+//! `@plugin` statement with an invalid specifier, options, or modifiers is removed from
+//! the expansion and recorded as a skipped statement.
 
 use std::ops::Range;
 
@@ -48,8 +48,8 @@ pub(super) struct Import {
 /// A Tailwind feature in a stylesheet that the loader ignores.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IgnoredTailwindFeature {
-    /// Byte range of the `@config` statement, including its semicolon, or of the import
-    /// modifier or `@theme` option, including its arguments.
+    /// Byte range of the statement, including its semicolon, or of the import modifier
+    /// or `@theme` option, including its arguments.
     pub range: Range<usize>,
     /// What the range contains.
     pub kind: IgnoredTailwindFeatureKind,
@@ -60,6 +60,11 @@ pub struct IgnoredTailwindFeature {
 pub enum IgnoredTailwindFeatureKind {
     /// A top-level `@config` statement. Expansion removes it.
     Config,
+    /// A top-level `@source` statement. Expansion removes it.
+    Source,
+    /// A top-level `@reference` statement. Expansion removes it without loading the
+    /// file.
+    Reference,
     /// An import modifier that changes how Tailwind interprets the imported file. The
     /// import is loaded without it.
     ImportModifier(
@@ -93,13 +98,20 @@ pub(super) struct Scan {
 }
 
 impl Scan {
-    /// Returns the byte ranges that expansion removes, in source order: the `@config`
-    /// statements and the skipped import statements.
+    /// Returns the byte ranges that expansion removes, in source order: the `@config`,
+    /// `@source`, and `@reference` statements and the skipped import statements.
     pub(super) fn removed(&self) -> Vec<Range<usize>> {
         let mut removed = self
             .ignored
             .iter()
-            .filter(|feature| feature.kind == IgnoredTailwindFeatureKind::Config)
+            .filter(|feature| {
+                matches!(
+                    feature.kind,
+                    IgnoredTailwindFeatureKind::Config
+                        | IgnoredTailwindFeatureKind::Source
+                        | IgnoredTailwindFeatureKind::Reference
+                )
+            })
             .map(|feature| feature.range.clone())
             .chain(self.skipped.iter().map(|(range, _)| range.clone()))
             .collect::<Vec<_>>();
@@ -108,10 +120,11 @@ impl Scan {
     }
 }
 
-/// Finds every authored `@import`, `@plugin`, and `@config` at the top level of one
-/// buffer, in source order. Blocks and function arguments are consumed as units, so an
-/// `@import` inside a rule or a parenthesized condition is body text, not a dependency.
-/// Unparsable top-level CSS ends the scan with the statements found so far.
+/// Finds every authored `@import`, `@plugin`, `@config`, `@source`, and `@reference` at
+/// the top level of one buffer, in source order. Blocks and function arguments are
+/// consumed as units, so an `@import` inside a rule or a parenthesized condition is
+/// body text, not a dependency. Unparsable top-level CSS ends the scan with the
+/// statements found so far.
 ///
 /// # Errors
 ///
@@ -142,9 +155,9 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
                 .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
             continue;
         }
-        if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("config")) {
-            // A block, which `@config` never has, ends the statement as well, so the
-            // removed range cannot swallow the rules after it.
+        if let Some(kind) = ignored_statement(token) {
+            // A block, which these statements never have, ends the statement as well,
+            // so the removed range cannot swallow the rules after it.
             while let Ok(token) = parser.next_including_whitespace_and_comments() {
                 if matches!(token, Token::Semicolon | Token::CurlyBracketBlock) {
                     break;
@@ -152,7 +165,7 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
             }
             scan.ignored.push(IgnoredTailwindFeature {
                 range: start..parser.position().byte_index(),
-                kind: IgnoredTailwindFeatureKind::Config,
+                kind,
             });
             continue;
         }
@@ -212,6 +225,22 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
         }
     }
     Ok(scan)
+}
+
+/// Returns the kind of the ignored Tailwind statement that `token` starts, if any.
+fn ignored_statement(token: &Token<'_>) -> Option<IgnoredTailwindFeatureKind> {
+    let Token::AtKeyword(name) = token else {
+        return None;
+    };
+    if name.eq_ignore_ascii_case("config") {
+        Some(IgnoredTailwindFeatureKind::Config)
+    } else if name.eq_ignore_ascii_case("source") {
+        Some(IgnoredTailwindFeatureKind::Source)
+    } else if name.eq_ignore_ascii_case("reference") {
+        Some(IgnoredTailwindFeatureKind::Reference)
+    } else {
+        None
+    }
 }
 
 /// Consumes one `@theme` statement after its keyword and records its `prefix()`
@@ -642,6 +671,28 @@ mod tests {
             ]
         );
         assert_eq!(scan.removed(), [scan.ignored[2].range.clone()]);
+        // A nested statement stays body text.
+        let css = "@source '../x'; .a { @source 'y'; } @source inline('flex'); @reference './a.css'; .b{}";
+        let found = super::scan(css).unwrap();
+        assert_eq!(
+            found
+                .ignored
+                .iter()
+                .map(|feature| (&css[feature.range.clone()], feature.kind.clone()))
+                .collect::<Vec<_>>(),
+            [
+                ("@source '../x';", IgnoredTailwindFeatureKind::Source),
+                (
+                    "@source inline('flex');",
+                    IgnoredTailwindFeatureKind::Source
+                ),
+                (
+                    "@reference './a.css';",
+                    IgnoredTailwindFeatureKind::Reference
+                ),
+            ]
+        );
+        assert_eq!(found.removed().len(), 3);
         assert_eq!(
             ignored_tailwind_features("@theme static prefix(tw) { --a: prefix(b); }")
                 .iter()

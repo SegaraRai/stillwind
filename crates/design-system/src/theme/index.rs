@@ -17,7 +17,9 @@ use super::builder::ThemeBuilder;
 use super::declarations::{ThemeValue, ThemeValueRole};
 use super::namespace::namespace_key_names;
 use super::parser::{DynamicFamily, UtilityImportance};
-use super::references::{inline_theme_functions, resolve_css_functions, resolve_theme_references};
+use super::references::{
+    dashed_theme_calls, inline_theme_functions, resolve_css_functions, resolve_theme_references,
+};
 use super::tokens::TokenLookup;
 use crate::evaluation::{UtilityPrograms, color_fallback};
 use crate::registry::{
@@ -646,6 +648,14 @@ impl ThemeIndex {
             self.token_property(name)
                 .map(|token| token.value.value.as_str())
         })
+    }
+
+    /// Respells each `theme()` call that names a custom property as `--theme()`.
+    ///
+    /// Returns [`None`] when `value` has no such call.
+    #[must_use]
+    pub fn dashed_theme_calls(value: &str) -> Option<LeanString> {
+        dashed_theme_calls(value)
     }
 
     /// Lowers the scale functions of declared namespaces, such as `--spacing(<value>)`,
