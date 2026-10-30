@@ -501,6 +501,17 @@ test("Tailwind export forms and typed options preserve the native plugin contrac
       label: ["a;b", "c,d"],
     },
   ]);
+  options.length = 0;
+  await graph(
+    '@plugin "test" { themes: light --default, dark; --color-primary: #123456; }',
+    extension,
+  );
+  expect(options).toEqual([
+    {
+      themes: ["light --default", "dark"],
+      "--color-primary": "#123456",
+    },
+  ]);
   expect(
     defaultPluginExport(
       {

@@ -446,10 +446,10 @@ export function splitTopLevel(value: string, delimiter: string): string[] {
  * `plugin.withOptions()` factories receive.
  *
  * @param options - Declarations in authored order, such as `prefix` with the value `"x"`.
- * @returns Options by name. A later declaration of a name replaces an earlier one. `true`,
- * `false`, `null`, numbers, and quoted strings become those values, and a comma-separated list
- * becomes an array.
- * @throws If a value is none of these forms.
+ * @returns Options by name, converted as Tailwind converts them. A later declaration of a
+ * name replaces an earlier one. `true`, `false`, `null`, and numeric text become those values.
+ * A quoted string loses its quotes and keeps its backslashes. Other text stays a string, and a
+ * comma-separated list becomes an array.
  */
 export function pluginOptions(options: readonly NativePluginOption[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
@@ -465,24 +465,13 @@ export function pluginOptions(options: readonly NativePluginOption[]): Record<st
       if (value === "null") {
         return null;
       }
-      if (/^[+-]?(?:\d*\.)?\d+(?:e[+-]?\d+)?$/i.test(value)) {
+      if (!Number.isNaN(Number(value))) {
         return Number(value);
       }
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
+      return (value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        return value.slice(1, -1).replace(
-          /\\([\\'"nrt])/g,
-          (_, char: string) =>
-            ({
-              n: "\n",
-              r: "\r",
-              t: "\t",
-            })[char] ?? char,
-        );
-      }
-      throw new Error(`Invalid Tailwind plugin option ${name}: ${value}`);
+        ? value.slice(1, -1)
+        : value;
     });
     result[name] = entries.length === 1 ? entries[0] : entries;
   }

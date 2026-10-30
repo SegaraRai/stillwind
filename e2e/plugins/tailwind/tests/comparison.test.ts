@@ -13,19 +13,67 @@ const require = createRequire(import.meta.url);
 const root = path.resolve(import.meta.dirname, "..");
 const { compile } = require("tailwindcss") as typeof import("tailwindcss");
 const tailwindRoot = path.dirname(require.resolve("tailwindcss/package.json"));
-const typography = require("@tailwindcss/typography") as unknown;
-const daisyui = (require("daisyui") as { default: unknown }).default;
-const tailwindIconify = (
-  (await import(pathToFileURL(require.resolve("@iconify/tailwind4")).href)) as {
-    default: unknown;
-  }
-).default;
 
-/** A plugin, stylesheet, and markup that Tailwind and Stillwind must style the same way. */
+/**
+ * Imports the default export of an installed plugin.
+ *
+ * @param name - Package or subpath of the `@plugin` statement.
+ * @returns The plugin export.
+ */
+async function installed(name: string): Promise<unknown> {
+  return (
+    (await import(pathToFileURL(require.resolve(name)).href)) as {
+      default: unknown;
+    }
+  ).default;
+}
+
+const typography = await installed("@tailwindcss/typography");
+const daisyui = await installed("daisyui");
+const daisyuiTheme = await installed("daisyui/theme");
+const tailwindIconify = await installed("@iconify/tailwind4");
+const forms = await installed("@tailwindcss/forms");
+const scrollbar = await installed("tailwind-scrollbar");
+const animate = await installed("tailwindcss-animate");
+const motion = await installed("tailwindcss-motion");
+const radix = await installed("tailwindcss-radix");
+const reactAria = await installed("tailwindcss-react-aria-components");
+const headless = await installed("@headlessui/tailwindcss");
+
+/** Files of CSS packages, because a package's `style` export condition selects its stylesheet. */
+const stylesheets: Record<string, string> = {
+  "tailwindcss-animated": "tailwindcss-animated/src/index.css",
+  "tailwindcss-intersect": "tailwindcss-intersect/dist/index.css",
+  "tailwindcss-safe-area": "tailwindcss-safe-area/index.css",
+  "tailwind-scrollbar-hide/v4": "tailwind-scrollbar-hide/src/styles.css",
+  "tw-animate-css": "tw-animate-css/dist/tw-animate.css",
+  "preline/variants.css": "preline/variants.css",
+};
+
+/**
+ * Returns the file of a stylesheet request that names a CSS package or a relative path.
+ *
+ * @param request - Import specifier.
+ * @param base - Directory of the importing stylesheet.
+ * @returns The absolute path.
+ */
+function stylesheetFile(request: string, base: string): string {
+  return request.startsWith(".")
+    ? path.resolve(base, request)
+    : path.join(root, "node_modules", stylesheets[request] ?? request);
+}
+
+/**
+ * A plugin, stylesheet, and markup that Tailwind and Stillwind must style the same way.
+ */
 interface ComparisonCase {
   name: string;
   /** Tailwind plugin export of the `@plugin` statement. */
-  extension: unknown;
+  extension?: unknown;
+  /** Declarations of the `@plugin` statement's options block. */
+  options?: string;
+  /** CSS package that an `@import` loads in place of the `@plugin` statement. */
+  stylesheet?: string;
   candidates: string[];
   /** CSS before and after the `@plugin` statement. */
   before?: string;
@@ -45,6 +93,8 @@ interface ComparisonCase {
   focus?: string;
   /** Computed properties of `#target`. */
   properties: string[];
+  /** Values of `properties`, for a case whose empty result would match Tailwind's. */
+  expected?: string[];
   /** Text that neither stylesheet may contain. */
   absent?: string;
   /**
@@ -54,7 +104,9 @@ interface ComparisonCase {
   separate?: boolean;
 }
 
-/** A generated stylesheet and the class attribute for the case's candidates. */
+/**
+ * A generated stylesheet and the class attribute for the case's candidates.
+ */
 interface Output {
   css: string;
   classes: string;
@@ -427,20 +479,219 @@ const cases: ComparisonCase[] = [
   },
 ];
 
+/** Supplies the brand color that the plugin projects use. */
+const brand = "@theme { --color-brand: #123456; }";
+
+const packageCases: ComparisonCase[] = [
+  {
+    name: "@tailwindcss/forms: the class strategy styles form-input",
+    extension: forms,
+    options: 'strategy: "class";',
+    candidates: ["form-input"],
+    html: (classes) => `<input id="target" class="${classes}" />`,
+    properties: [
+      "appearance",
+      "background-color",
+      "border-top-color",
+      "border-top-width",
+      "padding-top",
+      "font-size",
+    ],
+  },
+  {
+    name: "@tailwindcss/forms: focus sets the ring of form-input",
+    extension: forms,
+    options: 'strategy: "class";',
+    candidates: ["form-input"],
+    html: (classes) => `<input id="target" class="${classes}" />`,
+    focus: "#target",
+    properties: ["box-shadow", "border-top-color", "outline-style"],
+  },
+  {
+    name: "@tailwindcss/forms: the base strategy styles elements without classes",
+    extension: forms,
+    options: 'strategy: "base";',
+    candidates: ["block"],
+    html: () => `<input id="target" type="text" />`,
+    properties: ["appearance", "background-color", "border-top-width", "padding-top"],
+  },
+  {
+    name: "@tailwindcss/forms: the base strategy styles checked checkboxes",
+    extension: forms,
+    options: 'strategy: "base";',
+    candidates: ["block"],
+    html: () => `<input id="target" type="checkbox" checked />`,
+    properties: ["appearance", "background-color", "background-image", "height"],
+  },
+  {
+    name: "tailwind-scrollbar: thumb colors use the theme",
+    extension: scrollbar,
+    options: "nocompatible: true;",
+    candidates: ["scrollbar-thin", "scrollbar-thumb-brand"],
+    after: brand,
+    properties: ["scrollbar-width", "scrollbar-color", "--scrollbar-thumb"],
+  },
+  {
+    name: "tailwindcss-animate: enter utilities add to duration",
+    extension: animate,
+    candidates: ["animate-in", "fade-in-50", "duration-300"],
+    properties: [
+      "animation-name",
+      "animation-duration",
+      "transition-duration",
+      "--tw-enter-opacity",
+    ],
+  },
+  {
+    name: "tailwindcss-motion: a preset uses the duration utility",
+    extension: motion,
+    candidates: ["motion-preset-fade", "motion-duration-700"],
+    properties: ["animation-name", "--motion-duration", "--motion-opacity-in-animation"],
+  },
+  {
+    name: "tailwindcss-radix: a state variant selects the attribute",
+    extension: radix,
+    candidates: ["radix-state-open:bg-brand"],
+    after: brand,
+    html: (classes) => `<div id="target" data-state="open" class="${classes}"></div>`,
+    properties: ["background-color"],
+  },
+  {
+    name: "tailwindcss-react-aria-components: a state variant selects the attribute",
+    extension: reactAria,
+    candidates: ["selected:bg-brand"],
+    after: brand,
+    html: (classes) => `<div id="target" data-selected class="${classes}"></div>`,
+    properties: ["background-color"],
+  },
+  {
+    name: "@headlessui/tailwindcss: a state variant selects the attribute",
+    extension: headless,
+    candidates: ["ui-open:bg-brand"],
+    after: brand,
+    html: (classes) => `<div id="target" data-headlessui-state="open" class="${classes}"></div>`,
+    properties: ["background-color"],
+  },
+  {
+    name: "tailwindcss-safe-area: a utility combines the inset and a spacing value",
+    stylesheet: "tailwindcss-safe-area",
+    candidates: ["pt-safe-or-4"],
+    properties: ["padding-top"],
+  },
+  {
+    name: "tailwind-scrollbar-hide: the utility hides the scrollbar",
+    stylesheet: "tailwind-scrollbar-hide/v4",
+    candidates: ["scrollbar-hide"],
+    properties: ["scrollbar-width"],
+  },
+  {
+    name: "tailwindcss-animated: a duration utility changes the animation",
+    stylesheet: "tailwindcss-animated",
+    candidates: ["animate-fade", "animate-duration-700"],
+    properties: ["animation-name", "animation-duration"],
+  },
+  {
+    name: "tw-animate-css: enter utilities add to duration",
+    stylesheet: "tw-animate-css",
+    candidates: ["animate-in", "fade-in-50", "duration-300"],
+    properties: ["animation-name", "animation-duration", "--tw-enter-opacity"],
+  },
+  {
+    name: "tailwindcss-intersect: the variant applies",
+    stylesheet: "tailwindcss-intersect",
+    candidates: ["intersect:bg-brand"],
+    after: brand,
+    properties: ["background-color"],
+  },
+  {
+    name: "preline: a variant selects a dropdown that marker classes open",
+    stylesheet: "preline/variants.css",
+    candidates: ["hs-dropdown", "open", "hs-dropdown-open:bg-brand"],
+    separate: true,
+    after: brand,
+    html: (_, [dropdown, open, menu]) =>
+      `<div class="${dropdown} ${open}"><div id="target" class="${menu}"></div></div>`,
+    properties: ["background-color"],
+  },
+  {
+    name: "@tailwindcss/typography: a size modifier changes descendants",
+    extension: typography,
+    candidates: ["prose", "prose-lg"],
+    html: (_, [article]) => `<article class="${article}"><h2 id="target">x</h2></article>`,
+    properties: ["font-size", "margin-top", "line-height", "color"],
+  },
+  {
+    name: "@tailwindcss/typography: prose-invert changes the colors of descendants",
+    extension: typography,
+    candidates: ["prose", "prose-invert"],
+    html: (_, [article]) => `<article class="${article}"><h2 id="target">x</h2></article>`,
+    properties: ["color"],
+  },
+  {
+    name: "@tailwindcss/typography: an element modifier styles matching descendants",
+    extension: typography,
+    candidates: ["prose", "prose-headings:text-brand"],
+    after: brand,
+    html: (_, [article]) => `<article class="${article}"><h2 id="target">x</h2></article>`,
+    properties: ["color"],
+  },
+  {
+    name: "daisyUI: the themes option selects the theme of data-theme",
+    extension: daisyui,
+    options: "themes: light --default, dark;",
+    candidates: ["btn", "btn-primary"],
+    html: (_, [classes]) =>
+      `<div data-theme="dark"><button id="target" class="${classes}">x</button></div>`,
+    properties: ["background-color", "color"],
+  },
+  {
+    name: "daisyUI: card and badge use the theme",
+    extension: daisyui,
+    separate: true,
+    candidates: ["card", "badge", "badge-secondary"],
+    html: (_, [card, badge, secondary]) =>
+      `<div class="${card}"><span id="target" class="${badge} ${secondary}">x</span></div>`,
+    properties: ["background-color", "color", "height", "border-start-start-radius"],
+  },
+  {
+    name: "daisyUI: the theme plugin defines a custom theme",
+    extension: daisyuiTheme,
+    options: 'name: "brand"; default: true; --color-primary: #123456;',
+    candidates: ["block"],
+    properties: ["--color-primary"],
+    expected: ["#123456"],
+  },
+];
+
+/**
+ * Returns the statement that loads the case's plugin or CSS package and the case's CSS.
+ *
+ * @param entry - Comparison case.
+ * @returns CSS for the framework-independent part of the stylesheet.
+ */
+function statementCss(entry: ComparisonCase): string {
+  const options = entry.options ? ` { ${entry.options} }` : ";";
+  const loading = entry.stylesheet ? `@import "${entry.stylesheet}";` : `@plugin "probe"${options}`;
+  return `${entry.before ?? ""} ${loading} ${entry.after ?? ""}`;
+}
+
 /**
  * Builds a case with Tailwind's compiler and its theme and utilities.
+ *
  * @param entry - Comparison case with a Tailwind plugin.
  * @returns Tailwind's CSS and class names.
  */
 async function tailwind(entry: ComparisonCase): Promise<Output> {
   const imports = `${entry.themeless ? "" : '@import "tailwindcss/theme.css" layer(theme); '}${entry.preflight ? '@import "tailwindcss/preflight.css" layer(base); ' : ""}@import "tailwindcss/utilities.css" layer(utilities);`;
-  const statement = `${entry.before ?? ""} @plugin "probe"; ${entry.after ?? ""}`;
+  const statement = statementCss(entry);
   const compiler = await compile(
     entry.pluginFirst ? `${statement} ${imports}` : `${imports} ${statement}`,
     {
       base: root,
-      loadStylesheet: async (id) => {
-        const file = path.join(tailwindRoot, id.replace("tailwindcss/", ""));
+      loadStylesheet: async (id, base) => {
+        const file = id.startsWith("tailwindcss/")
+          ? path.join(tailwindRoot, id.replace("tailwindcss/", ""))
+          : stylesheetFile(id, base);
         return {
           path: file,
           base: path.dirname(file),
@@ -463,11 +714,12 @@ async function tailwind(entry: ComparisonCase): Promise<Output> {
 
 /**
  * Builds a case with Stillwind's host, its Tailwind plugin adapter, and the native compiler.
+ *
  * @param entry - Comparison case.
  * @returns The project stylesheet and the generated class names.
  */
 async function stillwind(entry: ComparisonCase): Promise<Output> {
-  const statement = `${entry.before ?? ""} @plugin "probe"; ${entry.after ?? ""}`;
+  const statement = statementCss(entry);
   const imports = entry.themeless
     ? '@layer properties, theme, base, components, utilities; @import "stillwind/preflight.css" layer(base); @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css"; @import "stillwind/templates.css"; @layer theme { :root, :host { @stillwind-slot theme; } }'
     : '@import "stillwind";';
@@ -477,7 +729,10 @@ async function stillwind(entry: ComparisonCase): Promise<Output> {
     file,
     {},
     {
-      resolve: async (request, importer) => createRequire(importer).resolve(request),
+      resolve: async (request, importer) =>
+        request in stylesheets
+          ? stylesheetFile(request, path.dirname(importer))
+          : createRequire(importer).resolve(request),
       read: async (id) => (id === file ? css : readFile(id, "utf8")),
       documentUri: (id) => pathToFileURL(id).href,
       sourceMapSource: (id) => id,
@@ -535,6 +790,7 @@ async function stillwind(entry: ComparisonCase): Promise<Output> {
 /**
  * Measures `#target` in Chrome. A shared base layer removes default margins and uses
  * `border-box`, because only Stillwind's stylesheet contains a reset.
+ *
  * @param page - Browser page.
  * @param entry - Comparison case.
  * @param output - Generated stylesheet and classes.
@@ -574,12 +830,15 @@ describe("Tailwind plugin comparison", () => {
     await browser?.close();
   });
 
-  test.for(cases)("$name", async (entry) => {
+  test.for([...cases, ...packageCases])("$name", async (entry) => {
     const actual = await stillwind(entry);
     if (entry.absent) {
       expect(actual.css).not.toContain(entry.absent);
     }
     const values = await measure(page, entry, actual);
+    if (entry.expected) {
+      expect(values).toEqual(entry.expected);
+    }
     const expected = await tailwind(entry);
     if (entry.absent) {
       expect(expected.css).not.toContain(entry.absent);

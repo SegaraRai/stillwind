@@ -567,11 +567,14 @@ completion again.
 
 Tailwind CSS v4 JavaScript plugins use the same `@plugin` statement. The host accepts
 a handler function, an object with `handler` and optional `config`, or a factory from
-`plugin.withOptions()`. Factory options accept quoted strings, numbers, booleans, null,
-and comma-separated lists. Ordinary handlers reject options.
+`plugin.withOptions()`. Factory options convert values as Tailwind does: `true`, `false`,
+`null`, and numeric text become those values, a quoted string loses its quotes, other text
+stays a string, and a comma-separated list becomes an array. Ordinary handlers reject options.
 
 The adapter supports `addBase`, `addUtilities`, `addComponents`, `matchUtilities`,
-`matchComponents`, `addVariant`, `matchVariant`, `theme`, `config`, and `prefix`.
+`matchComponents`, `addVariant`, `matchVariant`, `theme`, `config`, and `prefix`. The
+`prefix` function returns its class name unchanged, because Stillwind has no class prefix.
+`addVariant` and `matchVariant` skip the v3 `:merge()` form, as Tailwind v4 does.
 Dynamic utilities accept named and arbitrary values, type hints, negative values,
 fractions, and slash modifiers. Callbacks receive values and modifiers as Tailwind
 passes them: arbitrary text decoded as in Tailwind, `(type:--name)` as the type hint
@@ -713,10 +716,12 @@ the `not-prose` class of `@tailwindcss/typography`, match through
 without Node APIs.
 
 The projects in [`e2e/plugins/tailwind`](../e2e/plugins/tailwind/stillwind.config.ts)
-exercise installed plugins in development and production. The package's
-[comparison cases](../e2e/plugins/tailwind/tests/comparison.test.ts) build each plugin with
-Tailwind and with Stillwind and compare the computed styles in Chrome. Run them with
-`vp run --filter @stillwind-internal/e2e-tailwind-plugins test:e2e`, or select
+exercise installed plugins and CSS packages in Vite development and production builds and
+in Rspack production builds. The package's
+[comparison cases](../e2e/plugins/tailwind/tests/comparison.test.ts) build every plugin and
+CSS package with Tailwind and with Stillwind and compare the computed styles in Chrome.
+These checks cover CSS only. They do not run the JavaScript of a package, such as Preline.
+Run them with `vp run --filter @stillwind-internal/e2e-tailwind-plugins test:e2e`, or select
 `tailwind-plugins` in the E2E matrix.
 
 The projects in [`e2e/plugins/iconify`](../e2e/plugins/iconify/stillwind.config.ts) check
