@@ -1,12 +1,20 @@
 {
   "name": "@stillwind/vscode-extension",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
   "description": "Stillwind language support for VS Code and browser editors",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "packages/vscode-extension"
+  },
   "files": [
     "dist/api",
     "dist/extension",
-    "dist/*.vsix",
     "README.md",
     "LICENSE",
     "TAILWINDCSS-MIT-LICENSE",

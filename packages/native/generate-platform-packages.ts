@@ -27,6 +27,12 @@ for (const target of config.targets) {
       platformManifest.files.push(license);
     }
   }
+  platformManifest.homepage = manifest.homepage;
+  platformManifest.bugs = manifest.bugs;
+  platformManifest.repository = {
+    ...manifest.repository,
+    directory: `${manifest.repository.directory}/npm/${target.platformArchABI}`,
+  };
   await writeFile(platformManifestPath, `${JSON.stringify(platformManifest, null, 2)}\n`);
 
   const readme = [

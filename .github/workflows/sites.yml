@@ -47,6 +47,8 @@ jobs:
         run: |
           vp exec tsc --noEmit
           vp test --run
+      - name: Check change intents and package versions
+        run: vp exec pnpm change check
       - name: Check site planning and deployment tools
         working-directory: tools/sites
         run: |

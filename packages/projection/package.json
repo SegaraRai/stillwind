@@ -1,7 +1,17 @@
 {
   "name": "@stillwind/projection",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
+  "description": "Source documents and coordinate mappings for Stillwind compilation and TypeScript checks",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "packages/projection"
+  },
   "files": [
     "dist"
   ],
@@ -13,6 +23,9 @@
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@jridgewell/trace-mapping": "catalog:",

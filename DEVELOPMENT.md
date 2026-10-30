@@ -35,6 +35,35 @@ Before you publish the platform packages of `@stillwind/native`, run
 `packages/native/RUST-THIRD-PARTY-LICENSES` is current and copies it into each
 platform package, where git ignores the copy.
 
+## Package releases
+
+All publishable packages release at one shared version. `versioning.fixed` in
+[pnpm-workspace.yaml](pnpm-workspace.yaml) lists them, and `versioning.ignore` lists every
+private package. These lists accept exact names only, so add a new package to one of them.
+
+Record each user-visible package change with `vp exec pnpm change`, and commit the intent
+file with the change. `vp exec pnpm change status` shows the release plan.
+
+To prepare a release, run `vp exec pnpm version -r` on `main` and commit the result. This
+command consumes the intents, updates the `CHANGELOG.md` of each released package, and
+creates no Git tag. The first release of each package does
+not use intents: set its manifest to the intended version and publish it.
+
+To publish, start **Actions → Release → Run workflow** on `main`. The default dry run
+builds and verifies everything without uploading packages. Clear **dry-run** to publish.
+A version with a prerelease suffix receives the npm tag `next`; any other version receives
+`latest`. After a release succeeds, advance `stable` to its commit.
+
+### npm setup
+
+1. Create the `npm-release` GitHub environment with a **Branch** rule for `main`.
+2. For a package that does not exist on npm yet, add a short-lived granular token as the
+   `NPM_TOKEN` environment secret.
+3. After the first publication, add this repository's `release.yml` and the `npm-release`
+   environment as the trusted publisher of each package, then delete `NPM_TOKEN`.
+
+npm adds provenance only to trusted publications from a public repository.
+
 ## Site deployments
 
 [Sites](.github/workflows/sites.yml) builds and checks the website and playground

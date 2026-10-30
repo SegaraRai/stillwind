@@ -1,8 +1,17 @@
 {
   "name": "@stillwind/native-win32-arm64-msvc",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
   "description": "Native Node-API binding for the Stillwind compiler",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "packages/native/npm/win32-arm64-msvc"
+  },
   "files": [
     "stillwind_native.win32-arm64-msvc.node",
     "RUST-THIRD-PARTY-LICENSES",

@@ -1,8 +1,17 @@
 {
   "name": "@stillwind/cli",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
   "description": "Command wrappers for Stillwind tools",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "stillwind": "dist/main.js"
   },

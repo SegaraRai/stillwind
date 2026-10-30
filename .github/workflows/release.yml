@@ -1,0 +1,165 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Run every step, but do not upload packages
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  binaries:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: win32-x64-msvc
+            runner: windows-2025
+          - target: win32-arm64-msvc
+            runner: windows-11-arm
+          - target: darwin-x64
+            runner: macos-15-intel
+          - target: darwin-arm64
+            runner: macos-15
+          # The oldest available image gives the binaries the lowest glibc requirement.
+          - target: linux-x64-gnu
+            runner: ubuntu-22.04
+          - target: linux-arm64-gnu
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: true
+      - name: Set up Rust
+        shell: bash
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup default 1.99.1
+      - name: Build and test the binding
+        run: vp run @stillwind/native#test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-${{ matrix.target }}
+          path: packages/native/.build/native/stillwind_native.${{ matrix.target }}.node
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    name: Check and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: true
+      - name: Set up Rust
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt
+          rustup default 1.99.1
+      - run: vp run --concurrency-limit 1 verify
+
+  publish:
+    name: Publish packages
+    needs: [binaries, verify]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: true
+      - name: Set up Rust
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --target wasm32-wasip1-threads
+          rustup default 1.99.1
+      - name: Set up WASI SDK
+        # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
+        # https://github.com/napi-rs/napi-rs/issues/3491
+        env:
+          WASI_ARCHIVE: wasi-sdk-33.0-x86_64-linux.tar.gz
+          WASI_SHA256: 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce
+        run: |
+          curl --fail --location --retry 3 "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/$WASI_ARCHIVE" -o "$RUNNER_TEMP/$WASI_ARCHIVE"
+          echo "$WASI_SHA256  $RUNNER_TEMP/$WASI_ARCHIVE" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasi-sdk"
+          tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
+          echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: packages/native/dist/
+      - name: Build packages
+        run: vp run --concurrency-limit 1 prepare-publish
+      - name: Require every platform binary
+        # `collect:local` skips a missing binary, which would publish an empty platform package.
+        working-directory: packages/native/npm
+        run: |
+          for directory in *; do
+            main=$(node --print "require('./$directory/package.json').main")
+            test -f "$directory/$main"
+          done
+      - name: Select the npm tag
+        id: tag
+        run: |
+          version=$(node --print "require('./packages/core/package.json').version")
+          case "$version" in
+            *-*) echo 'name=next' >> "$GITHUB_OUTPUT" ;;
+            *) echo 'name=latest' >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Configure the bootstrap token
+        # Trusted publishing needs no token. A package must exist before npm can trust this
+        # workflow, so the first publication of a new package uses NPM_TOKEN.
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' >> "$HOME/.npmrc"
+          fi
+      - name: Publish
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
+          NPM_TAG: ${{ steps.tag.outputs.name }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Branch rules and the job condition replace pnpm's Git checks. Recursive publishing
+        # skips versions that already exist, so a partial release can be run again.
+        run: |
+          arguments=(--no-git-checks --tag "$NPM_TAG" --publish-wait-timeout 600000 --report-summary)
+          if [ "$DRY_RUN" = true ]; then
+            arguments+=(--dry-run)
+          fi
+          vp exec pnpm -r publish "${arguments[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: publish-summary
+          path: pnpm-publish-summary.json
+          if-no-files-found: ignore
+          retention-days: 30

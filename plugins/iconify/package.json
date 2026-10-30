@@ -1,8 +1,17 @@
 {
   "name": "@stillwind/plugin-iconify",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
   "description": "Iconify icons as Stillwind utilities",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "plugins/iconify"
+  },
   "files": [
     "dist"
   ],

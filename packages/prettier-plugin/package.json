@@ -1,8 +1,17 @@
 {
   "name": "prettier-plugin-stillwind",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
   "description": "Stillwind utility sorting for Prettier",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "packages/prettier-plugin"
+  },
   "files": [
     "dist"
   ],

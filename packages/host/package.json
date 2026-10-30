@@ -1,7 +1,17 @@
 {
   "name": "@stillwind/host",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
+  "description": "Host services shared by Stillwind's build integrations and analysis tools",
+  "homepage": "https://stillwind.dev/",
+  "bugs": {
+    "url": "https://github.com/SegaraRai/stillwind/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SegaraRai/stillwind.git",
+    "directory": "packages/host"
+  },
   "files": [
     "dist"
   ],
@@ -24,6 +34,9 @@
       "default": "./dist/resolution.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@jridgewell/gen-mapping": "catalog:",

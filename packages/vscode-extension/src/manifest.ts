@@ -1,11 +1,13 @@
 import { configurationFiles } from "@stillwind/config";
 
+import packageManifest from "../package.json" with { type: "json" };
+
 /** Manifest shared by Marketplace packaging and browser embeddings. */
 export const extensionManifest = {
   name: "stillwind",
   displayName: "Stillwind",
   publisher: "stillwind",
-  version: "0.0.0",
+  version: packageManifest.version,
   description: "Stillwind diagnostics, CSS hover, completion, colors, and utility sorting",
   license: "MIT",
   engines: {

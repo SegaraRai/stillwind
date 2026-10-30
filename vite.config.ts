@@ -238,6 +238,25 @@ export default defineConfig(({ mode }) => ({
           "stillwind#typecheck",
         ],
       },
+      // prepare publish
+      "prepare-publish": {
+        command: "",
+        dependsOn: [
+          "@stillwind/analysis#build",
+          "@stillwind/cli#build",
+          "@stillwind/config#build",
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/language-server#build",
+          "@stillwind/native#collect:local",
+          "@stillwind/native#prepare-publish",
+          "@stillwind/plugin-iconify#build",
+          "@stillwind/projection#build",
+          "@stillwind/vscode-extension#build",
+          "prettier-plugin-stillwind#build",
+          "stillwind#prepare-publish",
+        ],
+      },
       // verify
       verify: {
         command: "",
