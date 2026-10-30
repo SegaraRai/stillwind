@@ -47,11 +47,12 @@ for (const file of ["package.json", "dist/svgo.browser.js"]) {
   ]);
 }
 const require = createRequire(path.join(root, "package.json"));
-// Icon sets need only their manifests and icon data. The hidden workspace manifest lists them so
-// that the Iconify plugin offers their icons as completions.
+// Icon sets need only their manifests, icon data, and the metadata of their license notices. The
+// hidden workspace manifest lists them so that the Iconify plugin offers their icons as
+// completions.
 for (const set of ICON_SETS) {
   const directory = path.dirname(require.resolve(`@iconify-json/${set}/package.json`));
-  for (const file of ["package.json", "icons.json"]) {
+  for (const file of ["package.json", "icons.json", "info.json"]) {
     files.push([
       `/workspace/node_modules/@iconify-json/${set}/${file}`,
       await readFile(path.join(directory, file), "utf8"),
