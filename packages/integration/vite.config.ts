@@ -100,6 +100,12 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     fileParallelism: false,
     testTimeout: 120_000,
+    expect: {
+      // File watchers can take several seconds to report changes while other suites run.
+      poll: {
+        timeout: 10_000,
+      },
+    },
     server: {
       deps: {
         // Rspack loads built loaders through Node; the plugin must share their module state.
