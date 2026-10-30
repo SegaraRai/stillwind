@@ -9,7 +9,8 @@ const main = path.resolve(import.meta.dirname, "../dist/main.js");
  *
  * @param cwd - Working directory of the CLI process.
  * @param args - Command-line arguments after the CLI entry point.
- * @param env - Variables added to the current process environment.
+ * @param env - Variables added to the current process environment. `GITHUB_ACTIONS` is removed
+ * unless this argument sets it, so CI runs use the same default format as local runs.
  * @returns The exit code, which is null when a signal ends the process, and the complete stdout and stderr text.
  * @throws If the process cannot start.
  */
@@ -28,6 +29,7 @@ export async function run(
       windowsHide: true,
       env: {
         ...process.env,
+        GITHUB_ACTIONS: undefined,
         ...env,
       },
     });
