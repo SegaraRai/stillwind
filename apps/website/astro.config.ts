@@ -29,6 +29,7 @@ export default defineConfig({
               items: [
                 "docs/why",
                 "docs/guides/migrating-from-tailwind",
+                "docs/guides/tailwind-compatibility",
                 "docs/guides/migrating-from-css",
                 "docs/agents",
               ],

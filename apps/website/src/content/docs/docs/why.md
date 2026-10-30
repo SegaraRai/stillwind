@@ -135,7 +135,8 @@ them in a different place:
 
 Tailwind CSS remains the better fit when a project has no build tool, or when
 classes come from places that Stillwind does not compile, such as HTML from a
-CMS.
+CMS. [Tailwind CSS compatibility](/docs/guides/tailwind-compatibility) lists the
+tested plugins and the differences.
 
 [Getting started](/docs) adds Stillwind to a new application.
 [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind) moves an

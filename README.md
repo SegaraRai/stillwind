@@ -76,7 +76,8 @@ JavaScript, and Vue. Its build integration supports Vite, Astro, Fresh, Nuxt,
 SvelteKit, Next.js, webpack, Rspack, Rsbuild, and Turbopack. See
 [Framework integrations](https://stillwind.dev/docs/integrations).
 
-Stillwind accepts Tailwind CSS v4 utilities, theme variables, and CSS directives.
+Stillwind accepts Tailwind CSS v4 utilities, theme variables, CSS directives, and
+plugins. See [Tailwind CSS compatibility](https://stillwind.dev/docs/guides/tailwind-compatibility).
 To move an existing project, see
 [Migrating from Tailwind CSS](https://stillwind.dev/docs/guides/migrating-from-tailwind)
 or [Migrating from CSS](https://stillwind.dev/docs/guides/migrating-from-css).

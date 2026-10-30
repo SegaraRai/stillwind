@@ -45,14 +45,27 @@ statements and empty values.
 Tailwind CSS v4 JavaScript plugins use the same statement, including plugins
 that `plugin.withOptions()` creates. The host supports `addBase`,
 `addUtilities`, `addComponents`, `matchUtilities`, `matchComponents`,
-`addVariant`, `matchVariant`, `theme`, `config`, and `prefix`. These plugins
-need the `tailwindcss` package.
+`addVariant`, `matchVariant`, `theme`, `config`, and `prefix`. `prefix` returns
+the class name unchanged, because Stillwind has no class prefix. These plugins need
+the `tailwindcss` package.
+
+The options block converts values as Tailwind does. `true`, `false`, `null`, and
+numeric text become those values. A quoted string loses its quotes, other text stays
+a string, and a comma-separated list becomes an array.
 
 Definitions from a plugin register before the definitions of your stylesheet,
 wherever the `@plugin` statement stands. A `@utility` in your stylesheet
 therefore adds to a plugin utility with the same name, and
 [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility) can remove
 plugin utilities.
+
+A plugin can select elements by fixed class names, such as `not-prose`. `style()`
+keeps these class names, as
+[Tailwind CSS compatibility](/docs/guides/tailwind-compatibility#class-names-that-a-plugins-selectors-use)
+describes. That page also lists the tested plugins.
+
+A CSS package does not use `@plugin`. Load it with `@import`, such as
+`@import "tw-animate-css";`.
 
 [invalid-css-import](/docs/lints/invalid-css-import) reports a plugin that the
 host cannot find or load, and invalid options. The stylesheet loads without that

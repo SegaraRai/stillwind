@@ -13,6 +13,7 @@ https://stillwind.dev/docs/llms.txt, which lists the Markdown version of each pa
 Read these pages before you change code:
 
 - `docs/guides/migrating-from-tailwind.md` or `docs/guides/migrating-from-css.md`
+- `docs/guides/tailwind-compatibility.md` for a Tailwind CSS project
 - `docs/guides/recommended-practices.md`
 - `docs/integrations.md` for the build tool
 

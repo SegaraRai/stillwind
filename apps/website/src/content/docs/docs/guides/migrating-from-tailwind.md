@@ -7,6 +7,8 @@ slug: docs/guides/migrating-from-tailwind
 You want to move an existing Tailwind CSS v4 project to Stillwind. Your utilities,
 variants, theme, and plugins keep working. What changes is where you write them:
 in `style()` calls instead of `className` strings.
+[Tailwind CSS compatibility](/docs/guides/tailwind-compatibility) lists the tested
+plugins and the differences.
 
 Tailwind scans your files for anything that looks like a class name. Stillwind
 generates CSS only for the utilities in `style()` calls. A class in a plain
@@ -165,8 +167,9 @@ stylesheet, and the CLI reports them with
 you move their settings. The same rule reports a v3 path in `theme()`, such as
 `theme(colors.red.500)`. Use `--theme(--color-red-500)` instead.
 
-Stillwind loads Tailwind plugins, but not every plugin works. Test the plugins
-that your application uses.
+Keep your `@plugin` rules and the `@import` rules of CSS packages.
+[Tailwind CSS compatibility](/docs/guides/tailwind-compatibility#plugins-and-css-packages)
+lists the packages that the test suite covers.
 
 ## Check the migrated code
 
