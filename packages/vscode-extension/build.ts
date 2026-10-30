@@ -95,7 +95,7 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   await clean(stage);
   await cp(output, stage, {
     recursive: true,
-    filter: (file) => desktop || file !== path.join(output, "dist/node"),
+    filter: (file) => file !== path.join(output, desktop ? "dist/browser" : "dist/node"),
   });
   const manifest: Record<string, unknown> = {
     ...extensionManifest,
@@ -109,6 +109,7 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   if (!desktop) {
     delete manifest.main;
   } else {
+    delete manifest.browser;
     const copied = new Map<string, string>();
     await copyDependencies(
       path.resolve(root, "../language-server"),
@@ -169,7 +170,6 @@ async function copyDependencies(
     throw new Error(`Conflicting packaged dependency: ${name}`);
   }
   copied.set(target, directory);
-  const published = manifest.files?.map((file) => file.replace(/^\.\//, "").split(/[/*]/)[0]);
   await cp(directory, target, {
     recursive: true,
     dereference: true,
@@ -183,7 +183,8 @@ async function copyDependencies(
         return false;
       }
       return (
-        !published || published.includes(first) || /^(package\.json|readme|license)/i.test(first)
+        /^(package\.json|readme|license)/i.test(first) ||
+        isPublished(relative.split(path.sep).join("/"), manifest.files)
       );
     },
   });
@@ -209,6 +210,28 @@ async function copyDependencies(
       copied,
     );
   }
+}
+
+/**
+ * Returns whether npm would publish a package path according to the `files` field.
+ *
+ * @param relative Path that is relative to the package root and uses `/` separators.
+ * @param files Patterns from the `files` field. A package without this field publishes every path.
+ * @returns `true` for a published path and for a directory that contains a positive pattern's path.
+ */
+function isPublished(relative: string, files: string[] | undefined): boolean {
+  if (!files) {
+    return true;
+  }
+  const patterns = files.map((file) => file.replace(/^!/, "").replace(/^\.\//, ""));
+  const matches = (pattern: string) =>
+    path.posix.matchesGlob(relative, pattern) || path.posix.matchesGlob(relative, `${pattern}/**`);
+  return (
+    patterns.some(
+      (pattern, index) =>
+        !files[index].startsWith("!") && (matches(pattern) || pattern.startsWith(`${relative}/`)),
+    ) && !patterns.some((pattern, index) => files[index].startsWith("!") && matches(pattern))
+  );
 }
 
 async function dependencyDirectory(directory: string, name: string): Promise<string> {
