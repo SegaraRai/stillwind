@@ -23,12 +23,19 @@ test.each(["minimal", "release-checklist"])(
     );
     let browser: Browser | undefined;
     let resumeInitialization: (() => void) | undefined;
+    const errors: string[] = [];
     try {
       browser = await chromium.launch({
         channel: "chrome",
         headless: true,
       });
       const page = await browser.newPage();
+      page.on("pageerror", (error) => errors.push(String(error)));
+      page.on("console", (message) => {
+        if (message.type() === "error") {
+          errors.push(message.text());
+        }
+      });
       page.setDefaultTimeout(90_000);
       await installBuildProbe(page);
       await page.goto(`${server.origin}/#preset=${preset}`);
@@ -40,6 +47,15 @@ test.each(["minimal", "release-checklist"])(
       const app = await presetSource(preset, "App.tsx");
       const css = await presetSource(preset, "stillwind.css");
       const config = await presetSource(preset, "stillwind.config.ts");
+      const inventory = (await (
+        await page.request.get(`${server.origin}/workspace.json`)
+      ).json()) as [string, string][];
+      const manifest = JSON.parse(
+        inventory.find(([id]) => id === "/workspace/package.json")![1],
+      ) as {
+        devDependencies: Record<string, string>;
+      };
+      expect(Object.keys(manifest.devDependencies)).toEqual(["@iconify-json/lucide"]);
       for (const revision of [1, 2, 3]) {
         const before = await buildProbe(page);
         await editSource(page, "App.tsx", editedApp(app, revision));
@@ -50,12 +66,20 @@ test.each(["minimal", "release-checklist"])(
           .toBe(`${4 * (revision + 1)}px`);
       }
       let before = await buildProbe(page);
-      await editSource(
-        page,
-        "stillwind.css",
-        `${css}\nmain { outline: 3px solid rgb(1, 2, 3); }\n`,
-      );
-      await waitForBuild(page, before.builds);
+      const generation = before.snapshots.at(-1)!.generation;
+      for (const revision of [1, 2, 3]) {
+        before = await buildProbe(page);
+        await editSource(
+          page,
+          "stillwind.css",
+          `${css.replace(/--color-canvas:[^;]+;/, `--color-canvas: rgb(${revision}, 2, 3);`)}\nmain { outline: 3px solid rgb(1, 2, 3); }\n`,
+        );
+        await waitForBuild(page, before.builds);
+        expect((await buildProbe(page)).snapshots.at(-1)!.generation).toBe(generation);
+        await expect
+          .poll(() => main.evaluate((element) => getComputedStyle(element).backgroundColor))
+          .toBe(`rgb(${revision}, 2, 3)`);
+      }
       await expect
         .poll(() => main.evaluate((element) => getComputedStyle(element).outlineColor))
         .toBe("rgb(1, 2, 3)");
@@ -68,6 +92,7 @@ test.each(["minimal", "release-checklist"])(
           .replace(/\}\);\s*$/, "}));\n"),
       );
       await waitForBuild(page, before.builds);
+      expect((await buildProbe(page)).snapshots.at(-1)!.generation).toBeGreaterThan(generation);
       expect(await main.getAttribute("data-build")).toBe("3");
       before = await buildProbe(page);
       const wasmUrl = /\/_astro\/rolldown-binding.*\.wasm$/;
@@ -97,10 +122,26 @@ test.each(["minimal", "release-checklist"])(
       await expect.poll(() => main.getAttribute("data-build")).toBe("5");
       expect((await buildProbe(page)).workers).toBe(before.workers + 1);
       expect(await page.locator(".runtime-error").count()).toBe(0);
+      const transferred = await buildProbe(page);
+      expect(transferred.snapshots.every((snapshot) => snapshot.deferred > 0)).toBe(true);
+      expect(
+        Math.max(...transferred.snapshots.map((snapshot) => snapshot.characters)),
+      ).toBeLessThan(100_000);
       expect(await main.evaluate((element) => getComputedStyle(element).outlineColor)).toBe(
         "rgb(1, 2, 3)",
       );
       await page.unroute(wasmUrl);
+      before = await buildProbe(page);
+      const tsconfig = JSON.parse(await presetSource(preset, "tsconfig.json")) as {
+        compilerOptions: Record<string, unknown>;
+      };
+      tsconfig.compilerOptions.resolveJsonModule = true;
+      await editSource(page, "tsconfig.json", `${JSON.stringify(tsconfig, null, 2)}\n`);
+      await waitForBuild(page, before.builds);
+      expect((await buildProbe(page)).snapshots.at(-1)!.generation).toBeGreaterThan(
+        before.snapshots.at(-1)!.generation,
+      );
+      expect(await main.getAttribute("data-build")).toBe("5");
       before = await buildProbe(page);
       await failNextBuild(page);
       await editSource(page, "App.tsx", editedApp(app, 6));
@@ -117,6 +158,20 @@ test.each(["minimal", "release-checklist"])(
       await expect.poll(() => main.getAttribute("data-build")).toBe("8");
       expect((await buildProbe(page)).workers).toBe(initializationFailed.workers + 1);
       expect(await page.locator(".runtime-error").count()).toBe(0);
+    } catch (error) {
+      const page = browser?.contexts().flatMap((context) => context.pages())[0];
+      console.error(
+        "Playground recovery failure",
+        JSON.stringify({
+          preset,
+          errors,
+          status: await page?.getByRole("status").allTextContents(),
+          error: await page?.locator(".runtime-error").allTextContents(),
+          diagnostics: await page?.locator(".diagnostics-output").allTextContents(),
+          probe: page ? await buildProbe(page).catch(() => undefined) : undefined,
+        }),
+      );
+      throw error;
     } finally {
       resumeInitialization?.();
       await browser?.close();

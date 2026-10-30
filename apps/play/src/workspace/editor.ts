@@ -182,7 +182,9 @@ export class PlaygroundWorkspace {
     await (await getService(IExtensionService)).activateByEvent("onLanguage:typescriptreact");
     await extension.whenReady();
     await (await getService(IExtensionService)).activateByEvent("onCommand:stillwind.snapshot");
-    await api.commands.executeCommand("stillwind.snapshot");
+    await api.commands.executeCommand("stillwind.snapshot", {
+      metadataOnly: true,
+    });
     return workspace;
   }
 
@@ -303,7 +305,7 @@ export class PlaygroundWorkspace {
   /**
    * Saves dirty configuration and theme buffers before evaluation.
    *
-   * @returns Whether any saved settings require workspace configuration to be reloaded.
+   * @returns Whether configuration or JSON changed and needs reevaluation. CSS uses open buffers.
    */
   async saveSettings(): Promise<boolean> {
     let reload = false;
@@ -315,7 +317,7 @@ export class PlaygroundWorkspace {
           configurationFiles.some((name) => file.endsWith(`/${name}`)))
       ) {
         await reference.object.save();
-        reload = true;
+        reload ||= !file.endsWith(".css");
       }
     }
     return reload;

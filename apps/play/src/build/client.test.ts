@@ -241,8 +241,8 @@ test("retries an obsolete snapshot with the current worker without reloading set
   await vi.waitFor(() => expect(workers[0].postMessage).toHaveBeenCalledTimes(2));
   const retried = workers[0].postMessage.mock.calls[1][0];
   expect(executeCommand.mock.calls).toEqual([
-    ["stillwind.snapshot", { reload: true }],
-    ["stillwind.snapshot", { reload: false }],
+    ["stillwind.snapshot", { reload: true, metadataOnly: true }],
+    ["stillwind.snapshot", { reload: false, metadataOnly: true }],
   ]);
   await workers[0].receive({
     kind: "built",
@@ -251,3 +251,40 @@ test("retries an obsolete snapshot with the current worker without reloading set
   });
   await expect(pending).resolves.toMatchObject(output);
 });
+
+test.each([
+  ["read", "stillwind.readFile"],
+  ["compile", "stillwind.compile"],
+])(
+  "forwards %s requests with the captured revision and replies to the owning worker",
+  async (kind, command) => {
+    const { builder, workers, executeCommand } = setup();
+    const build = builder.build();
+    const request = await buildRequest(workers[0]);
+    executeCommand.mockResolvedValueOnce("requested contents");
+    const input = {
+      kind,
+      id: 37,
+      uri: "file:///workspace/data.json",
+      revision: 3,
+      generation: 2,
+    };
+    await workers[0].receive(input);
+    expect(executeCommand).toHaveBeenLastCalledWith(command, {
+      uri: input.uri,
+      revision: 3,
+      generation: 2,
+    });
+    expect(workers[0].postMessage).toHaveBeenLastCalledWith({
+      ...input,
+      kind: `${kind}-reply`,
+      value: "requested contents",
+    });
+    await workers[0].receive({
+      kind: "built",
+      id: request.id,
+      ...output,
+    });
+    await expect(build).resolves.toEqual(expect.objectContaining(output));
+  },
+);

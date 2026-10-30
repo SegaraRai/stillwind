@@ -18,8 +18,11 @@ configuration evaluation.
 
 Desktop, Web VS Code, and the static Playground share hover, completion, colors,
 and edit plans through the language server. The Web extension also registers hidden
-commands for the Playground: `stillwind.snapshot` and `stillwind.compile` build the
-application, and `stillwind.sortSource` returns sort edits for a buffer that the
+commands for the Playground. `stillwind.snapshot` captures workspace files.
+Its `metadataOnly` option defers text except package manifests. `stillwind.readFile`
+reads requested file text, and `stillwind.compile` transforms application sources.
+Reads and compilation require the snapshot's generation and revision.
+`stillwind.sortSource` returns sort edits for a buffer that the
 browser entry of `prettier-plugin-stillwind` formats. `stillwind.sortSource` rejects
 text that differs from the server's current buffer. Transport and analysis embedding
 contracts are maintained in [Standalone analysis](../../docs/standalone-analysis.md#embedding-the-language-server).

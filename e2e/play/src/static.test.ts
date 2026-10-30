@@ -6,6 +6,8 @@ import { relative, resolve, sep, extname } from "node:path";
 import { chromium, type Page } from "playwright";
 import { expect, test } from "vite-plus/test";
 
+import { editSource } from "./browser.ts";
+
 // The site embeds these files as the Release checklist preset. Vitest stubs CSS imports, so the test
 // reads them from disk instead of importing the playground module.
 const exampleDirectory = resolve(
@@ -338,7 +340,9 @@ test("static files provide document formatting, semantic diagnostics, cross-modu
   }
 });
 
-/** Edits through Monaco's accessible textarea, exercising actual extension synchronization. */
+/**
+ * Replaces text in the tracked buffer and synchronizes it through the editor.
+ */
 async function replace(
   page: Page,
   buffers: Map<string, string>,
@@ -349,11 +353,5 @@ async function replace(
   const key = `/workspace/${file}`;
   const text = buffers.get(key)!.replace(from, to);
   buffers.set(key, text);
-  await page.getByRole("button", { name: file, exact: true }).click();
-  const input = page
-    .getByRole("region", { name: "Editor" })
-    .locator(".monaco-editor textarea.inputarea");
-  await input.focus();
-  await page.keyboard.press("Control+a");
-  await page.keyboard.insertText(text);
+  await editSource(page, file, text);
 }

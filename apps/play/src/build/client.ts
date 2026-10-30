@@ -53,22 +53,25 @@ export class ApplicationBuilder {
       if (this.#worker !== worker) {
         return;
       }
-      if (data.kind === "compile") {
+      if (data.kind === "compile" || data.kind === "read") {
         try {
-          const value = await this.#api.commands.executeCommand("stillwind.compile", {
-            uri: data.uri,
-            revision: data.revision,
-            generation: data.generation,
-          });
+          const value = await this.#api.commands.executeCommand(
+            data.kind === "compile" ? "stillwind.compile" : "stillwind.readFile",
+            {
+              uri: data.uri,
+              revision: data.revision,
+              generation: data.generation,
+            },
+          );
           this.#post(worker, {
             ...data,
-            kind: "compile-reply",
+            kind: `${data.kind}-reply`,
             value,
           });
         } catch (error) {
           this.#post(worker, {
             ...data,
-            kind: "compile-reply",
+            kind: `${data.kind}-reply`,
             error: String(error),
           });
         }
@@ -121,7 +124,8 @@ export class ApplicationBuilder {
   }
 
   /**
-   * Captures saved files and open buffers before bundling. Obsolete snapshots are retried twice.
+   * Captures file identities and package manifests, then reads runtime files on demand.
+   * Obsolete snapshots are retried twice.
    * A worker failure rejects unfinished builds. A later build starts a replacement worker.
    *
    * @param reload - Reevaluate configuration before capturing the first snapshot.
@@ -153,11 +157,12 @@ export class ApplicationBuilder {
       });
       const capture = async () => {
         const snapshot = await this.#api.commands.executeCommand<{
-          files: [string, string][];
+          files: [string, string | null][];
           revision: number;
           generation: number;
         }>("stillwind.snapshot", {
           reload,
+          metadataOnly: true,
         });
         if (!snapshot) {
           throw new Error("Stillwind extension has not opened the workspace");

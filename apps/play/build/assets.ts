@@ -5,8 +5,7 @@ import path from "node:path";
 import { build } from "rolldown";
 
 const root = path.resolve(import.meta.dirname, "..");
-/** Iconify sets available in the playground: two monochrome sets and one colored set. */
-const ICON_SETS = ["mdi", "lucide", "fluent-emoji-flat"];
+const ICON_SETS = ["lucide"];
 const output = path.join(root, "dist/assets-static");
 if (path.dirname(output) !== path.join(root, "dist")) {
   throw new Error("Invalid generated asset directory");

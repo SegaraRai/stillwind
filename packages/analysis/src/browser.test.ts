@@ -162,9 +162,13 @@ test("browser workspace captures configuration and files across inventory revisi
     projects.length = 0;
     files.clear();
     expect(workspace.files().get(id)).toBe(code);
+    const revision = workspace.revision;
+    expect(workspace.readFile(uri, revision)).toBe(code);
     const cached = await workspace.compile(uri, workspace.revision);
     expect(cached.css).toBe(first.css);
     workspace.update(uri, code.replace("card", "updated"), 1);
+    expect(() => workspace.readFile(uri, revision)).toThrow("obsolete");
+    expect(workspace.readFile(uri, workspace.revision)).toBe(code.replace("card", "updated"));
     const updated = await workspace.compile(uri, workspace.revision);
     expect(updated.css).toContain("display:block");
     expect(updated.graph.generation).toBe("complete");

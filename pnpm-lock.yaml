@@ -442,15 +442,9 @@ importers:
       '@emnapi/runtime':
         specifier: ^1.11.3
         version: 1.11.3
-      '@iconify-json/fluent-emoji-flat':
-        specifier: ^1.2.6
-        version: 1.2.6
       '@iconify-json/lucide':
         specifier: ^1.2.148
         version: 1.2.148
-      '@iconify-json/mdi':
-        specifier: ^1.2.3
-        version: 1.2.3
       '@iconify-json/simple-icons':
         specifier: ^1.2.101
         version: 1.2.101

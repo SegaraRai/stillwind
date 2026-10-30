@@ -17,3 +17,20 @@ export function consumeWorkspaceFiles(captured: {
   captured.files = [];
   return files;
 }
+
+/**
+ * Lists captured files and optionally defers text that runtime resolution does not need.
+ *
+ * @param files - Saved inventory with open buffers applied at the captured revision.
+ * @param metadataOnly - Whether only package.json files include text. Other entries contain null.
+ * @returns Every file identity, including dependencies that a build may request later.
+ */
+export function workspaceFileEntries(
+  files: ReadonlyMap<string, string>,
+  metadataOnly = false,
+): [string, string | null][] {
+  return [...files].map(([id, text]) => [
+    id,
+    !metadataOnly || id.endsWith("/package.json") ? text : null,
+  ]);
+}

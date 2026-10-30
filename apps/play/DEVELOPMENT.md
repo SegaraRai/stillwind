@@ -9,6 +9,11 @@ and Quick Fixes. Application builds run separately in a worker with the browser 
 of Rolldown. Its JSX transform adds React Refresh registrations, and React Refresh updates a
 persistent sandboxed iframe. CSS updates replace its stylesheet.
 
+Each application build captures file identities and package manifests. The build worker
+requests other file contents only when it loads them, with the same workspace generation
+and revision. CSS edits update the retained LSP workspace. Configuration and JSON edits
+reload its configuration.
+
 Rolldown does not bundle CSS. The build inlines `@import` rules that name workspace
 stylesheets, and it appends imported stylesheets in module order after the Stillwind CSS.
 Other `@import` rules and `url()` references stay unchanged.
@@ -54,7 +59,7 @@ it builds the site. Every preset needs `App.tsx`, which exports `App` or a defau
   a custom variant, custom utilities, refs, container queries, view transitions, and lint rules
   that report values outside the theme.
 
-The workspace bundles the `mdi`, `lucide`, and `fluent-emoji-flat` icon sets.
+The workspace bundles the `lucide` icon set.
 
 Presets must have no Stillwind lint findings and must keep Prettier's default formatting and
 Stillwind's utility order, so the Format and Fix buttons leave them unchanged. `vp fmt` skips

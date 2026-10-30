@@ -16,7 +16,9 @@ import type {
   WorkspaceResult,
 } from "./workspace.ts";
 
-/** Browser workspace with original URIs and a complete virtual dependency inventory. */
+/**
+ *  Browser workspace with original URIs and a complete virtual dependency inventory.
+ */
 export interface BrowserWorkspaceOptions {
   /** Configuration URI used to identify diagnostic groups. */
   config: string;
@@ -38,7 +40,9 @@ export interface BrowserWorkspaceOptions {
   plugins?: PluginHost;
 }
 
-/** Shares snapshot compilation between LSP analysis and application builds. */
+/**
+ * Shares snapshot compilation between LSP analysis and application builds.
+ */
 export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   /** Owned settings and saved inventory fixed when this service is created. */
   readonly #options: BrowserWorkspaceOptions;
@@ -184,6 +188,22 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
   }
 
   /**
+   * Reads one file without copying the inventory.
+   *
+   * @param uri - Original URI identifying a saved file or open buffer.
+   * @param revision - Revision captured when the application build started.
+   * @returns Current buffer text, saved text, or undefined for an absent file.
+   * @throws If the service is closed or the captured revision is obsolete.
+   */
+  readFile(uri: string, revision: number): string | undefined {
+    if (this.#closed || revision !== this.#revision) {
+      throw new Error("Browser build snapshot is obsolete");
+    }
+    const id = virtualPath(uri);
+    return this.#documents.get(id)?.source ?? this.#options.files.get(id);
+  }
+
+  /**
    * Analyzes the current buffers in each matching project, one queued request at a time.
    * Stylesheets match projects that lint them and return only stylesheet lint findings.
    *
@@ -205,6 +225,7 @@ export class BrowserAnalysisWorkspace implements AnalysisWorkspaceService {
 
       /**
        * Classifies work that can no longer publish results from the captured revision.
+       *
        * @returns `cancelled` for an aborted signal, `stale` for a newer revision, or undefined.
        */
       const obsolete = () =>
