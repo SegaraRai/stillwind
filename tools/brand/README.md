@@ -20,6 +20,7 @@ This directory contains the sources of the Stillwind logo, the favicons, and the
   An embedded `prefers-color-scheme` media query selects the light or dark colors.
 - `apps/website/logo-shape-only.svg` and `apps/website/logo-with-text.svg`: the mark and the lockup with outlined text.
 - `apps/website/public/og.png`, `apps/play/public/og.png`, and `apps/website/github-social-preview.png`.
+- `packages/vscode-extension/icon.png`: the mark with the light colors and a transparent background.
 - `tools/brand/output/`: the lockup with outlined and editable text, and SVG copies of the social preview images.
 
 ## Logo construction

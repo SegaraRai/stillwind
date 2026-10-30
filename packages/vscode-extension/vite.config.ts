@@ -146,6 +146,7 @@ export default defineConfig(({ mode }) => ({
           output: [
             "dist/extension/package.json",
             "dist/extension/README.md",
+            "dist/extension/icon.png",
             "dist/extension/LICENSE",
             "dist/extension/NPM-THIRD-PARTY-LICENSES",
             "dist/extension/RUST-THIRD-PARTY-LICENSES",

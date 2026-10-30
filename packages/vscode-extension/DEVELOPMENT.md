@@ -2,7 +2,8 @@
 
 See [repository setup](../../DEVELOPMENT.md) for workspace prerequisites. The shared
 manifest and extension sources produce both Desktop and Web packages.
-`build.ts` copies the user README and license into the extension output.
+`build.ts` copies the user README, license, and `icon.png` into the extension output.
+`tools/brand` generates `icon.png`.
 
 ## Runtime and browser embedding
 

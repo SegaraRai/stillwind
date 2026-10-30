@@ -7,6 +7,7 @@ export const extensionManifest = {
   name: "stillwind",
   displayName: "Stillwind",
   publisher: "stillwind",
+  icon: "icon.png",
   version: packageManifest.version,
   description: "Stillwind diagnostics, CSS hover, completion, colors, and utility sorting",
   license: "MIT",

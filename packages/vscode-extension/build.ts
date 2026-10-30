@@ -76,6 +76,7 @@ if (!packaging) {
     ),
   );
   await cp(path.join(root, "README.md"), path.join(output, "README.md"));
+  await cp(path.join(root, "icon.png"), path.join(output, "icon.png"));
   for (const [name, source] of Object.entries(licenses)) {
     await cp(path.join(root, source), path.join(output, name));
   }
@@ -98,7 +99,7 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   });
   const manifest: Record<string, unknown> = {
     ...extensionManifest,
-    files: ["dist/**", "NPM-THIRD-PARTY-LICENSES", ...Object.keys(licenses)],
+    files: ["dist/**", "icon.png", "NPM-THIRD-PARTY-LICENSES", ...Object.keys(licenses)],
     repository: {
       type: "git",
       url: "https://github.com/SegaraRai/stillwind",

@@ -36,6 +36,21 @@ write("apps/website/logo-shape-only.svg", markOnly(logo));
 write("apps/website/logo-with-text.svg", lockupOutlined(logo));
 write("tools/brand/output/stillwind-logo-outlined.svg", lockupOutlined(logo));
 write("tools/brand/output/stillwind-logo-editable.svg", lockupEditable(logo, LOCKUP.tracking));
+// The extension icon is drawn at 8x and scaled down so that its small tile gaps stay sharp.
+write(
+  "packages/vscode-extension/icon.png",
+  await sharp(Buffer.from(markOnly(logo)), {
+    density: 72 * 8,
+  })
+    .resize(128, 128, {
+      kernel: "lanczos3",
+    })
+    .png({
+      compressionLevel: 9,
+      palette: false,
+    })
+    .toBuffer(),
+);
 
 const website: Omit<OgImage, "width" | "height"> = {
   title: ["Keep your styles in order —", "even when AI writes them."],
