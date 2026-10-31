@@ -14,18 +14,23 @@ import {
   renderNpmLicenses,
 } from "@stillwind-internal/tools-workspace/third-party-licenses";
 
-const records = path.join(import.meta.dirname, "dist/licenses");
+const root = import.meta.dirname;
+const records = path.join(root, "dist/licenses");
 
 /**
  * Returns a Rolldown plugin that writes the npm package directories of the bundle to
- * `dist/licenses/<name>.json`.
+ * `dist/licenses/<name>.json`. The paths are relative to this package because Desktop
+ * packaging can read the records in a different checkout directory.
  *
  * @param name A name that is unique among the bundle configurations.
  */
 export function recordBundledPackages(name: string) {
   return bundledPackages((directories) => {
     mkdirSync(records, { recursive: true });
-    writeFileSync(path.join(records, `${name}.json`), JSON.stringify(directories));
+    writeFileSync(
+      path.join(records, `${name}.json`),
+      JSON.stringify(directories.map((directory) => path.relative(root, directory))),
+    );
   });
 }
 
@@ -44,7 +49,7 @@ export function writeExtensionLicenses(output: string, extra: string[]) {
   const directories = new Set(extra);
   for (const file of files) {
     for (const directory of JSON.parse(readFileSync(path.join(records, file), "utf8"))) {
-      directories.add(directory);
+      directories.add(path.resolve(root, directory));
     }
   }
   writeFileSync(
