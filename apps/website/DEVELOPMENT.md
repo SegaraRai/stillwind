@@ -60,6 +60,11 @@ Each page has an `index.md` alternate and an `index.mdx` source alternate.
 `/llms.txt` links to `/docs/llms.txt`, which lists the documentation pages.
 `/llms-full.txt` contains all discoverable documentation. These endpoints use
 Nimbus's helpers and the same content collection as HTML.
+`public/_headers` keeps the Markdown alternates out of search indexes.
+
+`/robots.txt` points crawlers to the sitemap. Nimbus adds `WebPage` structured data
+to documentation pages, and `DocsLayout` adds a `BreadcrumbList`. `src/pages/index.astro`
+defines the structured data of the landing page.
 
 Each macro, lint rule, and compiler error has an authored page under
 `src/content/docs/docs/`. Keep explanations, constraints, examples, and recovery

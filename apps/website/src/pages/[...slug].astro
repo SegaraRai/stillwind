@@ -1,5 +1,6 @@
 ---
 import {
+  getBreadcrumbs,
   getDocsPage,
   getDocsStaticPaths,
   getEditUrl,
@@ -20,11 +21,17 @@ if (page instanceof Response) {
 
 const { entry, Content, headings, markdownUrl } = page;
 const sidebar = await getSidebar(Astro.url.pathname);
+const breadcrumbs = await getBreadcrumbs(Astro.url.pathname, {
+  collection: entry.collection,
+});
 const toc = getTOC(headings);
 const editUrl = await getEditUrl(entry);
 const prevNext = await getPrevNext(Astro.url.pathname, {
   sidebarTree: sidebar,
-  overrides: { prev: entry.data.prev, next: entry.data.next },
+  overrides: {
+    prev: entry.data.prev,
+    next: entry.data.next,
+  },
 });
 ---
 
@@ -34,6 +41,7 @@ const prevNext = await getPrevNext(Astro.url.pathname, {
   entryId={entry.id}
   markdownUrl={markdownUrl}
   sidebar={sidebar}
+  breadcrumbs={breadcrumbs}
   headings={toc}
   editUrl={editUrl}
   prevNext={prevNext}

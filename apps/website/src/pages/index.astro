@@ -5,11 +5,34 @@ import Backdrop from "../components/landing/Backdrop.astro";
 import Features from "../components/landing/Features.astro";
 import Showcase from "../components/landing/Showcase.astro";
 import HomeLayout from "../layouts/HomeLayout.astro";
-import { URL_DOCS } from "../lib/config";
+import { URL_DOCS, URL_REPOSITORY } from "../lib/config";
 
-const title = "Stillwind — Familiar utilities. Enforced rules.";
+const title = "Stillwind — CSS compiler for Tailwind-style utilities";
 const description =
-  "Familiar utilities. Enforced rules. Stillwind checks component styles against your design system and compiles static utilities to CSS.";
+  "Stillwind compiles Tailwind-style utilities in your components to static CSS and checks them against your design system.";
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      name: "Stillwind",
+      description,
+      url: new URL("/", Astro.site).href,
+      inLanguage: "en",
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "Stillwind",
+      description,
+      url: new URL("/", Astro.site).href,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Windows, macOS, Linux",
+      license: "https://spdx.org/licenses/MIT.html",
+      sameAs: URL_REPOSITORY,
+      softwareHelp: new URL(URL_DOCS, Astro.site).href,
+    },
+  ],
+};
 
 const frameworkLink = style.ref();
 const frameworks = [
@@ -22,7 +45,7 @@ const frameworks = [
 ];
 ---
 
-<HomeLayout title={title} description={description}>
+<HomeLayout title={title} description={description} structuredData={structuredData}>
   <Backdrop />
 
   <section aria-labelledby="tagline" data-backdrop-hero {...style("py-16 sidebar:py-28")}>

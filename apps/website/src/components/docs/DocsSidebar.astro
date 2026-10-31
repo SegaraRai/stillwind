@@ -5,7 +5,7 @@ import { style } from "stillwind/astro";
 import DocsSidebar from "./DocsSidebar.astro";
 
 interface Props {
-  items: SidebarItem[];
+  items: readonly SidebarItem[];
   /** Key of the enclosing group; nested group keys join the labels with "/". */
   parent?: string;
 }

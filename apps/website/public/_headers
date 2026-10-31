@@ -4,5 +4,17 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
 
+# Asset file names contain a content hash, so a changed file always has a new URL.
 /_astro/*
   Cross-Origin-Embedder-Policy: require-corp
+  Cache-Control: public, max-age=31536000, immutable
+
+# Markdown alternates repeat the HTML pages. Search results must link to the HTML pages.
+/index.md
+  X-Robots-Tag: noindex
+
+/*/index.md
+  X-Robots-Tag: noindex
+
+/*/index.mdx
+  X-Robots-Tag: noindex

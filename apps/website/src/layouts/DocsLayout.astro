@@ -1,7 +1,7 @@
 ---
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import { navStateScript } from "@cloudflare/nimbus-docs/runtime";
-import type { PrevNext, SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
+import type { Breadcrumb, PrevNext, SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
 import { ClientRouter } from "astro:transitions";
 import { style } from "stillwind/astro";
 
@@ -10,6 +10,7 @@ import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
 import { packageManagers, packageManagerStorageKey } from "../lib/docs/package-managers";
+import { breadcrumbList, serializeStructuredData } from "../lib/site/structured-data";
 
 import "@fontsource/instrument-sans/400.css";
 import "@fontsource/instrument-sans/500.css";
@@ -21,14 +22,24 @@ interface Props {
   description?: string;
   entryId: string;
   markdownUrl: string;
-  sidebar: SidebarItem[];
-  headings: TOCItem[];
+  sidebar: readonly SidebarItem[];
+  breadcrumbs: readonly Breadcrumb[];
+  headings: readonly TOCItem[];
   editUrl?: string;
   prevNext: PrevNext;
 }
 
-const { title, description, entryId, markdownUrl, sidebar, headings, editUrl, prevNext } =
-  Astro.props;
+const {
+  title,
+  description,
+  entryId,
+  markdownUrl,
+  sidebar,
+  breadcrumbs,
+  headings,
+  editUrl,
+  prevNext,
+} = Astro.props;
 
 const navigationTransition = style.viewTransition({
   group: "duration-300 ease-out",
@@ -71,6 +82,15 @@ const paginationLink = style(
       markdownUrl={markdownUrl}
       collection="docs"
       entryId={entryId}
+      head={[
+        {
+          tag: "script",
+          attrs: {
+            type: "application/ld+json",
+          },
+          content: serializeStructuredData(breadcrumbList(breadcrumbs, Astro.site!)),
+        },
+      ]}
     />
   </head>
   <body {...style("font-sans text-body text-foreground antialiased bg-background")}>

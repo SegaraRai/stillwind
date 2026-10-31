@@ -8,6 +8,7 @@ import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
 import { URL_REPOSITORY } from "../lib/config";
+import { serializeStructuredData } from "../lib/site/structured-data";
 
 import "@fontsource/instrument-sans/400.css";
 import "@fontsource/instrument-sans/500.css";
@@ -19,9 +20,11 @@ interface Props {
   description?: string;
   /** Asks search engines not to index the page. */
   noindex?: boolean;
+  /** JSON-LD object that describes the page. */
+  structuredData?: object;
 }
 
-const { title, description, noindex = false } = Astro.props;
+const { title, description, noindex = false, structuredData } = Astro.props;
 const url = new URL(Astro.url.pathname, Astro.site);
 const socialImage = new URL("/og.png", Astro.site);
 ---
@@ -42,7 +45,7 @@ const socialImage = new URL("/og.png", Astro.site);
         <meta property="og:title" content={title} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Stillwind" />
-        <meta property="og:locale" content="en" />
+        <meta property="og:locale" content="en_US" />
         <meta property="og:description" content={description} />
         <meta property="og:url" content={url} />
         <meta property="og:image" content={socialImage} />
@@ -53,6 +56,9 @@ const socialImage = new URL("/og.png", Astro.site);
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={socialImage} />
       </>
+    )}
+    {structuredData && (
+      <script type="application/ld+json" set:html={serializeStructuredData(structuredData)} />
     )}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
