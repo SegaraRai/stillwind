@@ -5,7 +5,12 @@ import { expect, onTestFinished, test } from "vite-plus/test";
 
 import { resolveBrowserConfig } from "./browser.ts";
 import { lintPresets } from "./lint-presets.ts";
-import { findConfiguration, loadConfiguration, resolveIntegrationConfig } from "./node.ts";
+import {
+  findConfiguration,
+  findDocumentConfiguration,
+  loadConfiguration,
+  resolveIntegrationConfig,
+} from "./node.ts";
 
 /**
  * Creates an isolated configuration directory and registers its removal after the test.
@@ -74,6 +79,21 @@ test("references accept files, directories, and globs with exclusions", async ()
   ]);
   expect(config.projects[2].root).toBeUndefined();
   expect(dependencies).toEqual(expect.arrayContaining([configFile, custom, web, docs]));
+});
+
+test("document discovery stays in the workspace folder and outside node_modules", async () => {
+  const { root } = await fixture();
+  const workspace = path.join(root, "workspace");
+  const app = await writeProject(path.join(workspace, "apps/web"));
+  const dependency = await writeProject(path.join(workspace, "node_modules/dependency"));
+  await writeProject(root);
+  await mkdir(path.join(workspace, "tools"));
+  const find = (file: string) => findDocumentConfiguration(path.join(workspace, file), [workspace]);
+
+  expect(find("apps/web/src/App.tsx")).toBe(app);
+  expect(find("tools/script.ts")).toBeUndefined();
+  expect(find(path.relative(workspace, path.join(dependency, "../index.ts")))).toBeUndefined();
+  expect(findDocumentConfiguration(path.join(root, "index.ts"), [workspace])).toBeUndefined();
 });
 
 test("build integrations select referenced projects by root and name", async () => {

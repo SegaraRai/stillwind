@@ -13,6 +13,7 @@ export type {
   AnalysisResult,
   AnalysisWorkspaceContext,
   AnalysisWorkspaceService,
+  DiscoverWorkspace,
   OpenAnalysisWorkspaces,
   OpenWorkspaces,
   WorkspaceEditorResult,

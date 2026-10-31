@@ -6,9 +6,10 @@
  */
 
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
-import { loadBrowserConfig } from "@stillwind/config/browser";
+import { documentConfiguration, loadBrowserConfig } from "@stillwind/config/browser";
 import { virtualPath } from "@stillwind/host/browser";
 import { createLanguageServer } from "@stillwind/language-server";
+import * as paths from "pathe";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
@@ -32,9 +33,14 @@ let initial = true;
 /** Counts workspace openings so compile requests can reject snapshots captured before a reload. */
 let generation = 0;
 let libraries: Promise<[string, string][]> | undefined;
+/** Files of the latest workspace opening, which discovery searches for configurations. */
+let inventory: Map<string, string> | undefined;
+/** Explicit configuration path of the latest workspace opening. It disables discovery. */
+let explicitConfig: string | undefined;
 
 /**
  * Bundles a module of the captured inventory. The bundler loads on first use.
+ *
  * @param files - Virtual absolute paths and text.
  * @param entry - Module path present in `files`.
  * @returns One ESM source and the files that it contains.
@@ -46,6 +52,7 @@ async function bundle(files: ReadonlyMap<string, string>, entry: string): Promis
 
 /**
  * Evaluates an ESM source through a Blob URL.
+ *
  * @param code - Bundled module source.
  * @returns The module namespace.
  * @throws If evaluation fails.
@@ -63,7 +70,83 @@ async function evaluate(code: string): Promise<unknown> {
   }
 }
 
+/**
+ * Evaluates a configuration from the captured inventory and opens its service.
+ *
+ * @param directory - Virtual directory where discovery starts.
+ * @param rootUri - Workspace folder URI that supplies the document URI scheme and authority.
+ * @param files - Captured inventory.
+ * @param configFile - Explicit configuration path, or omission for upward discovery.
+ * @returns The configuration identity and service, or undefined when discovery finds no file.
+ * @throws If evaluation fails or the configuration is invalid.
+ */
+async function openWorkspace(
+  directory: string,
+  rootUri: string,
+  files: Map<string, string>,
+  configFile?: string,
+): Promise<[string, BrowserAnalysisWorkspace] | undefined> {
+  const config = await loadBrowserConfig(
+    directory,
+    {
+      exists: (id) => files.has(id),
+      list: () => files.keys(),
+      evaluate: async (id) =>
+        (
+          (await evaluate((await bundle(files, id)).code)) as {
+            default?: unknown;
+          }
+        ).default,
+    },
+    configFile,
+  );
+  if (!config) {
+    return undefined;
+  }
+  const service = new BrowserAnalysisWorkspace({
+    config: config.configFile ?? rootUri,
+    projects: config.projects,
+    files,
+    plugins: browserPluginHost(files, bundle, evaluate),
+    documentUri: (id) => {
+      const uri = new URL(rootUri);
+      uri.pathname = id;
+      return uri.href;
+    },
+  });
+  workspaces.push(service);
+  return [config.configFile ?? rootUri, service];
+}
+
 const server = createLanguageServer(connection, {
+  discoverWorkspace: async (uri, { workspaceFolders }, known) => {
+    const files = inventory;
+    if (!files || explicitConfig) {
+      return undefined;
+    }
+    const id = virtualPath(uri);
+    const config = documentConfiguration(
+      id,
+      workspaceFolders.map(virtualPath),
+      (file) => files.has(file),
+      paths,
+    );
+    const rootUri = workspaceFolders.find((folder) => id.startsWith(`${virtualPath(folder)}/`));
+    if (!config || !rootUri || known.has(config)) {
+      return undefined;
+    }
+    try {
+      const opened = await openWorkspace(paths.dirname(config), rootUri, files);
+      return {
+        workspaces: new Map(opened ? [opened] : []),
+      };
+    } catch (error) {
+      return {
+        workspaces: new Map(),
+        errors: new Map([[config, String(error)]]),
+      };
+    }
+  },
   openWorkspaces: async ({ workspaceFolders, initializationOptions }) => {
     generation++;
     const captured = initial
@@ -90,42 +173,22 @@ const server = createLanguageServer(connection, {
     });
     const files = consumeWorkspaceFiles(captured);
     installLibraries(files, await libraries, workspaceFolders.map(virtualPath));
+    inventory = files;
+    explicitConfig = captured.configFile;
     workspaces = [];
     const opened = new Map<string, BrowserAnalysisWorkspace>();
     const errors = new Map<string, string>();
     for (const rootUri of workspaceFolders) {
-      const root = virtualPath(rootUri);
       try {
-        const config = await loadBrowserConfig(
-          root,
-          {
-            exists: (id) => files.has(id),
-            list: () => files.keys(),
-            evaluate: async (id) =>
-              (
-                (await evaluate((await bundle(files, id)).code)) as {
-                  default?: unknown;
-                }
-              ).default,
-          },
+        const workspace = await openWorkspace(
+          virtualPath(rootUri),
+          rootUri,
+          files,
           captured.configFile,
         );
-        if (!config) {
-          throw new Error(`Cannot find Stillwind configuration in ${rootUri}`);
+        if (workspace) {
+          opened.set(...workspace);
         }
-        const service = new BrowserAnalysisWorkspace({
-          config: config.configFile ?? rootUri,
-          projects: config.projects,
-          files,
-          plugins: browserPluginHost(files, bundle, evaluate),
-          documentUri: (id) => {
-            const uri = new URL(rootUri);
-            uri.pathname = id;
-            return uri.href;
-          },
-        });
-        workspaces.push(service);
-        opened.set(config.configFile ?? rootUri, service);
       } catch (error) {
         errors.set(rootUri, String(error));
       }

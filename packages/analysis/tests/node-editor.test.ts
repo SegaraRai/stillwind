@@ -1,11 +1,40 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { fingerprint } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
-import { openNodeWorkspaces } from "../dist/node.js";
+import { discoverNodeWorkspace, openNodeWorkspaces } from "../dist/node.js";
+
+test("a folder without a configuration opens nothing until a document selects a package", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-node-discovery-"));
+  const context = {
+    workspaceFolders: [pathToFileURL(root).href],
+  };
+  const app = path.join(root, "apps/web");
+  const config = path.join(app, "stillwind.config.ts");
+  const uri = pathToFileURL(path.join(app, "App.tsx")).href;
+  let discovered: Awaited<ReturnType<typeof discoverNodeWorkspace>>;
+  try {
+    await mkdir(app, { recursive: true });
+    await writeFile(config, 'export default {projects:[{css:"theme.css",files:["*.tsx"]}]}');
+    await writeFile(path.join(app, "theme.css"), "@theme { --color-brand:red; }");
+
+    const opened = await openNodeWorkspaces(context);
+    expect([...opened.workspaces.keys()]).toEqual([]);
+    expect([...(opened.errors ?? [])]).toEqual([]);
+
+    expect(await discoverNodeWorkspace(uri, context, new Set([config]))).toBeUndefined();
+    discovered = await discoverNodeWorkspace(uri, context, new Set());
+    expect([...(discovered?.workspaces.keys() ?? [])]).toEqual([config]);
+  } finally {
+    for (const workspace of discovered?.workspaces.values() ?? []) {
+      await workspace.close();
+    }
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("Node workers answer editor queries from unsaved source and stylesheet buffers", async () => {
   const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-node-editor-"));

@@ -102,6 +102,50 @@ export function configurationCandidates(directory: string, paths: ConfigPaths): 
 }
 
 /**
+ * Tests whether a directory contains a path.
+ *
+ * @param directory - Absolute directory.
+ * @param target - Absolute path in the same syntax.
+ * @param paths - Host path operations.
+ * @returns True for the directory itself and for its descendants.
+ */
+function containsPath(directory: string, target: string, paths: ConfigPaths): boolean {
+  const relative = paths.relative(directory, target).replaceAll("\\", "/");
+  return (
+    relative === "" ||
+    (!paths.isAbsolute(relative) && relative !== ".." && !relative.startsWith("../"))
+  );
+}
+
+/**
+ * Finds the nearest configuration of a document in a workspace folder. Evaluating a configuration
+ * runs its code, so this skips files that the user did not place in the workspace.
+ *
+ * @param file - Absolute document path.
+ * @param folders - Absolute workspace folders.
+ * @param exists - Tests whether a file exists.
+ * @param paths - Host path operations.
+ * @returns The nearest configuration path inside the folder that contains the document, or
+ * undefined when the document lies outside the folders or in `node_modules`, or no such file exists.
+ */
+export function documentConfiguration(
+  file: string,
+  folders: readonly string[],
+  exists: (file: string) => boolean,
+  paths: ConfigPaths,
+): string | undefined {
+  const folder = folders.find((candidate) => containsPath(candidate, file, paths));
+  if (
+    !folder ||
+    paths.relative(folder, file).replaceAll("\\", "/").split("/").includes("node_modules")
+  ) {
+    return undefined;
+  }
+  const found = configurationCandidates(paths.dirname(file), paths).find(exists);
+  return found && containsPath(folder, found, paths) ? found : undefined;
+}
+
+/**
  * File access that expandProjects uses to follow references in a host's filesystem or virtual workspace.
  */
 export interface ProjectReferenceHost {
@@ -362,13 +406,7 @@ export function selectProject(
     selected = projects;
   } else {
     const target = paths.resolve(applicationRoot, inline.root ?? ".");
-    const matches = projects.filter((project) => {
-      const relative = paths.relative(project.root, target).replaceAll("\\", "/");
-      return (
-        relative === "" ||
-        (!paths.isAbsolute(relative) && relative !== ".." && !relative.startsWith("../"))
-      );
-    });
+    const matches = projects.filter((project) => containsPath(project.root, target, paths));
     const depth = Math.max(...matches.map((project) => project.root.length));
     selected = matches.filter((project) => project.root.length === depth);
   }

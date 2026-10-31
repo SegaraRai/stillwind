@@ -16,6 +16,8 @@ import {
   type InlineConfig,
 } from "./resolution.ts";
 
+export { documentConfiguration } from "./resolution.ts";
+
 /** Configuration evaluation supplied by a browser module runtime. */
 export interface BrowserConfigHost {
   /**

@@ -1,5 +1,6 @@
 import { PassThrough } from "node:stream";
 
+import type { AnalysisWorkspaceService } from "@stillwind/analysis";
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
 import { expect, test } from "vite-plus/test";
 import type {
@@ -20,6 +21,93 @@ import {
 } from "vscode-languageserver/node";
 
 import { createLanguageServer } from "./server.ts";
+
+/**
+ * Creates a service that reports one result for each document in its scope.
+ *
+ * @param covers - Document URIs that this service analyzes.
+ * @returns A service with no editor queries.
+ */
+function coveringService(covers: readonly string[]): AnalysisWorkspaceService {
+  return {
+    update: () => {},
+    closeDocument: () => {},
+    close: async () => {},
+    analyze: async (uri) =>
+      covers.includes(uri)
+        ? [
+            {
+              project: 0,
+              config: "config",
+              result: {
+                entry: uri,
+                revision: 0,
+                status: "complete",
+                reports: [],
+              },
+            },
+          ]
+        : [],
+  };
+}
+
+test.each([
+  {
+    name: "opens a configuration for an uncovered document",
+    eager: [],
+    calls: 1,
+  },
+  {
+    name: "keeps a document that an open service covers",
+    eager: ["file:///workspace/apps/web/App.tsx"],
+    calls: 0,
+  },
+])("LSP discovery $name", async ({ eager, calls }) => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/apps/web/App.tsx";
+  const discovered: string[] = [];
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map(eager.length ? [["root", coveringService(eager)]] : []),
+    }),
+    discoverWorkspace: async (document) => {
+      discovered.push(document);
+      return {
+        workspaces: new Map([["app", coveringService([document])]]),
+      };
+    },
+  });
+  server.listen();
+  client.listen();
+  try {
+    const initialized = await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    expect(initialized.capabilities.hoverProvider).toBe(true);
+    await client.sendNotification("initialized", {});
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "typescriptreact",
+        version: 1,
+        text: "",
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await service.ready();
+    expect(discovered).toHaveLength(calls);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
 
 test("LSP definition requests navigate CSS asset references using original UTF-16 ranges", async () => {
   const input = new PassThrough();

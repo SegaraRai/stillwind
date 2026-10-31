@@ -1,5 +1,7 @@
 import type {
   AnalysisWorkspaceService,
+  DiscoverWorkspace,
+  OpenAnalysisWorkspaces,
   OpenWorkspaces,
   WorkspaceEditorResult,
   WorkspaceResult,
@@ -33,6 +35,12 @@ export interface LanguageServerOptions {
    * or workspace folder changes. Previous services are closed first. Open buffers are replayed.
    */
   openWorkspaces: OpenWorkspaces;
+  /**
+   * Opens a configuration for an open document that no service analyzes. The server calls this once
+   * for each document until services reopen. Supplying it advertises editor features before any
+   * service exists. Omission leaves such documents without analysis.
+   */
+  discoverWorkspace?: DiscoverWorkspace;
   /**
    * Handles the LSP exit notification using the embedding's transport or process policy.
    *
@@ -80,6 +88,8 @@ export function createLanguageServer(
   const errors = new Map<string, string>();
   const cache = new Map<string, WorkspaceResult[]>();
   const published = new Set<string>();
+  /** Documents already passed to discovery, which keeps later analysis passes from searching again. */
+  const discovered = new Set<string>();
 
   let roots: string[] = [];
   let initializationOptions: unknown;
@@ -113,6 +123,25 @@ export function createLanguageServer(
   };
 
   /**
+   * Takes ownership of opened services and replays every open buffer into them.
+   *
+   * @param opened - Services and initialization errors from the workspace factory or discovery.
+   * @returns Completion of buffer replay.
+   * @throws If buffer replay fails.
+   */
+  const adopt = async (opened: OpenAnalysisWorkspaces) => {
+    for (const [id, error] of opened.errors ?? []) {
+      errors.set(id, error);
+    }
+    for (const [id, workspace] of opened.workspaces) {
+      workspaces.set(id, workspace);
+      for (const document of documents.all()) {
+        await workspace.update(document.uri, document.getText(), document.version);
+      }
+    }
+  };
+
+  /**
    * Closes existing services, opens the current roots, and replays every open buffer.
    *
    * @returns Completion of service replacement and buffer replay.
@@ -122,17 +151,37 @@ export function createLanguageServer(
     await Promise.all([...workspaces.values()].map((workspace) => workspace.close()));
     workspaces.clear();
     errors.clear();
-    const opened = await options.openWorkspaces({
-      workspaceFolders: roots,
-      initializationOptions,
-    });
-    for (const [id, error] of opened.errors ?? []) {
-      errors.set(id, error);
-    }
-    for (const [id, workspace] of opened.workspaces) {
-      workspaces.set(id, workspace);
-      for (const document of documents.all()) {
-        await workspace.update(document.uri, document.getText(), document.version);
+    discovered.clear();
+    await adopt(
+      await options.openWorkspaces({
+        workspaceFolders: roots,
+        initializationOptions,
+      }),
+    );
+  };
+
+  /**
+   * Opens configurations for documents that the last analysis pass left without results.
+   *
+   * @param uris - Document URIs. A document closed in the meantime is skipped.
+   * @returns Completion of discovery and buffer replay.
+   * @throws If discovery or buffer replay fails.
+   */
+  const discover = async (uris: readonly string[]) => {
+    for (const uri of uris) {
+      if (!documents.get(uri)) {
+        continue;
+      }
+      const opened = await options.discoverWorkspace?.(
+        uri,
+        {
+          workspaceFolders: roots,
+          initializationOptions,
+        },
+        new Set([...workspaces.keys(), ...errors.keys()]),
+      );
+      if (opened) {
+        await adopt(opened);
       }
     }
   };
@@ -289,6 +338,18 @@ export function createLanguageServer(
         cache.set(uri, result);
       }
       publish();
+      const uncovered = options.discoverWorkspace
+        ? [...next].flatMap(([uri, results]) =>
+            results.length || discovered.has(uri) ? [] : [uri],
+          )
+        : [];
+      if (uncovered.length) {
+        for (const uri of uncovered) {
+          discovered.add(uri);
+        }
+        control(() => discover(uncovered));
+        schedule();
+      }
     }
   };
 
@@ -368,7 +429,9 @@ export function createLanguageServer(
       params.workspaceFolders?.map((folder) => folder.uri) ??
       (params.rootUri ? [params.rootUri] : []);
     await open();
-    const editor = [...workspaces.values()].some((workspace) => workspace.query != null);
+    const editor =
+      options.discoverWorkspace != null ||
+      [...workspaces.values()].some((workspace) => workspace.query != null);
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Incremental,
@@ -444,13 +507,18 @@ export function createLanguageServer(
     schedule();
   });
   /**
-   * Reopens the workspaces if any service cannot reuse its current buffers after a save or file change.
+   * Reopens the workspaces if any service cannot reuse its current buffers after a save or file
+   * change. Without services, reopening lets a new or corrected configuration take effect.
    *
    * @param uris - Document URIs from the save or watch notification.
    * @returns Completion of the checks and any required workspace replacement.
    * @throws If a service check or workspace replacement fails.
    */
   const refresh = async (uris: readonly string[]) => {
+    if (!workspaces.size) {
+      await open();
+      return;
+    }
     for (const workspace of workspaces.values()) {
       if (!(await workspace.refresh?.(uris))) {
         await open();

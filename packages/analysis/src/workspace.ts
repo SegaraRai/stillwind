@@ -157,3 +157,18 @@ export interface OpenAnalysisWorkspaces {
  * usable when another workspace cannot be opened.
  */
 export type OpenWorkspaces = (context: AnalysisWorkspaceContext) => Promise<OpenAnalysisWorkspaces>;
+
+/**
+ * Opens the nearest configuration of a document that no open service covers.
+ *
+ * @param uri - Document URI. Implementations must skip documents outside the workspace folders and
+ * documents in `node_modules`, because opening a configuration runs its code.
+ * @param context - Current workspace directory URIs, possibly empty.
+ * @param known - Configuration identities that the consumer already opened or tried to open.
+ * @returns The new service and any initialization error, or undefined when nothing new can open.
+ */
+export type DiscoverWorkspace = (
+  uri: string,
+  context: AnalysisWorkspaceContext,
+  known: ReadonlySet<string>,
+) => Promise<OpenAnalysisWorkspaces | undefined>;

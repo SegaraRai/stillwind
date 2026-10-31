@@ -62,6 +62,11 @@ The build integration searches from the application root upward. The CLI and
 the editor search from the working directory or the workspace upward. The file
 in the nearest directory wins.
 
+The editor also searches from each file that you open. A monorepo therefore
+works without a configuration file at its root: when no open project includes
+the file, the editor uses the nearest configuration file inside the workspace.
+Setting an explicit configuration file turns this search off.
+
 Stillwind accepts `stillwind.config.ts`, `.mts`, `.cts`, `.js`, `.mjs`, `.cjs`,
 and `.json`. In one directory, it uses the first of these that exists.
 

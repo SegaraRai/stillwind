@@ -20,6 +20,7 @@ import { resolveConfig, type AnalysisProjectConfig } from "./configuration.ts";
 import {
   configurationCandidates as candidates,
   compilerConfig,
+  documentConfiguration,
   expandProjects,
   resolveCompilerSettings,
   resolveProjectPaths,
@@ -76,6 +77,21 @@ export interface ResolvedIntegrationConfig {
  */
 export function findConfiguration(directory: string): string | undefined {
   return candidates(directory, path).find((file) => existsSync(file));
+}
+
+/**
+ * Finds the nearest configuration of a document in a workspace folder, without evaluating it.
+ *
+ * @param file - Absolute document path.
+ * @param folders - Absolute workspace folders.
+ * @returns The configuration path, or undefined when the document lies outside the folders or in
+ * `node_modules`, or the folder has no configuration at or above the document.
+ */
+export function findDocumentConfiguration(
+  file: string,
+  folders: readonly string[],
+): string | undefined {
+  return documentConfiguration(file, folders, existsSync, path);
 }
 
 /**

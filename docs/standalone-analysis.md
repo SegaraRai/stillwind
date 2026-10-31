@@ -203,7 +203,12 @@ rewrite guarantees, exit codes, and output formats are documented in the
 
 ## Editor behavior
 
-The language server discovers configuration from each workspace folder.
+The language server discovers configuration from each workspace folder. A folder
+without a configuration is not an error. When no service analyzes an open document,
+the server opens the nearest configuration above that document, within the same
+workspace folder. It skips documents in `node_modules`, because opening a
+configuration runs its code. An explicit configuration path disables this discovery.
+
 The language server keeps unsaved buffers for dependencies as well as targets.
 Each project serializes analysis and reuses its checker. A changed revision
 discards stale results. Document changes recheck open targets, including their
