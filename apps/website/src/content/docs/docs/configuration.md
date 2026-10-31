@@ -121,9 +121,9 @@ Paths in `css`, `files`, `exclude`, and `tsconfig` are relative to `root`.
 
 ### Editor
 
-| Field     | Value                                                                                       |
-| --------- | ------------------------------------------------------------------------------------------- |
-| `preview` | Which comments CSS previews show: `themeValues`, `pixelEquivalents`, and `colorEquivalents` |
+| Field     | Value                                                                                                                 |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
+| `preview` | Which comments [CSS previews](/docs/editors#settings) show: `themeValues`, `pixelEquivalents`, and `colorEquivalents` |
 
 The [shared configuration API](https://github.com/SegaraRai/stillwind/blob/main/packages/config/src/compiler.ts)
 describes the remaining fields for custom integrations, such as `sources`,
@@ -286,7 +286,8 @@ comment that suppresses nothing.
 
 ## Sorting
 
-The `sort` field controls where `stillwind fmt` and the editor sort utilities:
+The `sort` field controls where `stillwind fmt`, the editor, and the
+[Prettier plugin](/docs/formatters#prettier) sort utilities:
 
 | Option            | Sorts                                              | Default |
 | ----------------- | -------------------------------------------------- | ------- |

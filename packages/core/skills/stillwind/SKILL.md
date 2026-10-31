@@ -30,7 +30,10 @@ which lists the Markdown version of each page.
 | Custom utilities and variants                          | `docs/at-rules/index.md`, then the page of the at-rule              |
 | Available utilities                                    | `docs/utilities.md`                                                 |
 | `stillwind.config.ts`                                  | `docs/configuration.md`                                             |
-| CLI, CI, and lint presets                              | `docs/guides/lint-adoption.md`                                      |
+| CLI, CI, and lint presets                              | `docs/guides/lint-adoption.md`, `docs/cli.md`                       |
+| Editor setup and language server                       | `docs/editors.md`                                                   |
+| Prettier and other formatters                          | `docs/formatters.md`                                                |
+| Official plugins and Iconify icons                     | `docs/plugins/index.md`, `docs/plugins/iconify.md`                  |
 | A lint finding                                         | `docs/lints/<rule>.md`                                              |
 | A compiler error such as `SW01001`                     | `docs/errors/<code>.md`                                             |
 | Shadow DOM and Web Components                          | `docs/guides/web-components.md`                                     |

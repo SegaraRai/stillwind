@@ -1,0 +1,27 @@
+---
+title: Official plugins
+slug: docs/plugins
+description: Add utilities to your stylesheet with the plugins that the Stillwind project maintains.
+sidebar:
+  order: 0
+---
+
+A plugin adds utilities and variants to your stylesheet. Each project that loads
+a plugin can use its definitions in `style()`, and the editor and the CLI check them
+like your own definitions.
+
+| Plugin                                               | Adds                       |
+| ---------------------------------------------------- | -------------------------- |
+| [`@stillwind/plugin-iconify`](/docs/plugins/iconify) | Iconify icons as utilities |
+
+Install the package, and load it in your stylesheet with
+[@plugin](/docs/at-rules/plugin):
+
+```css
+@import "stillwind";
+@plugin "@stillwind/plugin-iconify";
+```
+
+Tailwind CSS v4 JavaScript plugins use the same statement.
+[Tailwind CSS compatibility](/docs/guides/tailwind-compatibility) lists the tested
+plugins.

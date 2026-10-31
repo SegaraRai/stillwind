@@ -113,7 +113,7 @@ stillwind fmt
 ```
 
 AI agents can run the same commands as you, and CI can run them on every change.
-The VS Code extension shows the same findings while you edit.
+The [VS Code extension](/docs/editors) shows the same findings while you edit.
 
 ## Ship static CSS
 

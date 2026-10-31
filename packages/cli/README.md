@@ -26,7 +26,7 @@ stillwind lint --fix
 
 `fmt` sorts utility inputs and preserves source layout and token spellings. Run a
 general formatter afterward, or use
-[prettier-plugin-stillwind](https://github.com/SegaraRai/stillwind/blob/main/packages/prettier-plugin/README.md).
+[prettier-plugin-stillwind](https://stillwind.dev/docs/formatters).
 `lint` reports findings; `lint --fix` applies enabled automatic fixes. Only changed
 files are saved.
 
@@ -57,5 +57,5 @@ Warnings alone return `0` when no limit is set. `stillwind --help` lists command
 `stillwind <command> --help` lists options. `stillwind lsp --stdio` starts the
 language server for clients using the Language Server Protocol.
 
-See the [CLI reference](https://github.com/SegaraRai/stillwind/blob/main/docs/cli.md)
+See the [CLI reference](https://stillwind.dev/docs/cli)
 for configuration discovery, saving guarantees, output formats, and the JSON schema.

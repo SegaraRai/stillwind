@@ -98,18 +98,9 @@ agent or a script reads the results.
 
 ## Check while you edit
 
-The [VS Code extension](https://github.com/SegaraRai/stillwind/blob/main/packages/vscode-extension/README.md)
-shows findings as you type, including in unsaved files. It also offers the
-automatic fixes as Quick Fixes. To fix and sort on save, add these settings:
-
-```json
-{
-  "editor.codeActionsOnSave": {
-    "source.fixAll.stillwind": "explicit",
-    "source.sort.stillwind": "explicit"
-  }
-}
-```
+The VS Code extension shows findings as you type, including in unsaved files. It also offers the
+automatic fixes as Quick Fixes, and it can fix and sort on save. See [Editors](/docs/editors) for
+the setup.
 
 ## Allow an exception
 

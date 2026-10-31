@@ -58,6 +58,10 @@ vp i -D @stillwind/integration @stillwind/cli
 Then follow [Getting started](https://stillwind.dev/docs) to add a stylesheet,
 configure the project, and register the build integration.
 
+To see diagnostics and completion while you edit, install the VS Code extension from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=stillwind.stillwind)
+or [Open VSX](https://open-vsx.org/extension/stillwind/stillwind).
+
 To let a coding agent do the setup, give it this prompt:
 
 ```text

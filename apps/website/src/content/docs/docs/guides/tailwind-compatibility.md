@@ -58,6 +58,9 @@ Load these packages with `@plugin`:
 | `@headlessui/tailwindcss`           | `ui-open:`                                  |
 | `@iconify/tailwind4`                | `icon-[lucide--home]`                       |
 
+For Iconify icons, Stillwind also provides the
+[`@stillwind/plugin-iconify`](/docs/plugins/iconify) plugin.
+
 Load these packages with `@import`:
 
 | Package                      | Example                                |

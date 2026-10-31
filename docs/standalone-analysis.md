@@ -199,7 +199,7 @@ snapshot for its current document revision.
 Each target's cross-module analysis follows the semantic imports needed by its
 type probes; results report `coverage: "observed"`. CLI discovery, file selection,
 rewrite guarantees, exit codes, and output formats are documented in the
-[CLI reference](cli.md).
+[CLI reference](../apps/website/src/content/docs/docs/cli.md).
 
 ## Editor behavior
 
@@ -483,7 +483,8 @@ need a command-line parser. `SourceFormatter` sorts unsaved buffers without savi
 refreshes configuration for each request.
 `lintReports(results)` from `@stillwind/analysis` collects distinct reports per project without
 discarding report fields or loading a compiler binding.
-The CLI uses a smaller JSON projection described in its [README](../packages/cli/README.md);
+The CLI uses a smaller JSON projection described in its
+[CLI reference](../apps/website/src/content/docs/docs/cli.md#json-output);
 the analysis APIs retain complete workspace results and graphs.
 
 For a Web Extension or a static editor site, start the browser entrypoint in a

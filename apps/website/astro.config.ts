@@ -59,13 +59,25 @@ export default defineConfig({
             },
             {
               label: "Integrations",
-              items: ["docs/integrations", "docs/guides/web-components"],
+              items: [
+                "docs/integrations",
+                "docs/guides/web-components",
+                "docs/editors",
+                "docs/formatters",
+              ],
+            },
+            {
+              label: "Plugins",
+              autogenerate: {
+                directory: "docs/plugins",
+              },
             },
             {
               label: "Reference",
               items: [
                 "docs/utilities",
                 "docs/configuration",
+                "docs/cli",
                 {
                   label: "Macros",
                   items: [

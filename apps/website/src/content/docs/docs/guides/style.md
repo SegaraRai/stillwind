@@ -176,7 +176,7 @@ such as state updates or I/O, before you call `style()`.
 
 ## Next steps
 
-- [Reusable styles](/docs/guides/reusable-styles) shares styles and defines component options.
-- [Responsive styles](/docs/guides/responsive-styles) names breakpoints and uses them in JavaScript.
-- [Checks in the editor and CI](/docs/guides/lint-adoption) finds misspelled utilities and other mistakes.
-- [The style() reference](/docs/macros/style) lists every accepted input.
+- [Reusable styles](/docs/guides/reusable-styles): how to share styles and define component options
+- [Responsive styles](/docs/guides/responsive-styles): how to name breakpoints and use them in JavaScript
+- [Checks in the editor and CI](/docs/guides/lint-adoption): how to find misspelled utilities and other mistakes
+- [The style() reference](/docs/macros/style): every accepted input

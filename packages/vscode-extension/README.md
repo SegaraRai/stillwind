@@ -9,7 +9,9 @@ color pickers, and sorting.
 
 ## Get started
 
-Install **Stillwind** from the Visual Studio Marketplace or Open VSX.
+Install **Stillwind** from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=stillwind.stillwind)
+or [Open VSX](https://open-vsx.org/extension/stillwind/stillwind).
 
 Desktop VS Code runs the `@stillwind/cli` version that the workspace installs, so
 editor diagnostics match that version's compiler. If the workspace has no CLI, or
