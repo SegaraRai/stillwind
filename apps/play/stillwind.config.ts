@@ -9,6 +9,7 @@ export default defineConfig({
       lint: {
         extends: [lintPresets.strict, lintPresets.stylistic],
         rules: {
+          "prefer-logical-properties": "off",
           "unknown-utility": "deny",
           "invalid-utility": "deny",
           "no-arbitrary-breakpoints": "deny",

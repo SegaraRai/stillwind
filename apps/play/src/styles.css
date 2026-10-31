@@ -107,7 +107,7 @@ contains the document defaults and the utilities that several workbench parts sh
 }
 
 /* Stillwind logo. The pseudo-elements overlay the colored parts of the mark on the `t` icon. */
-@utility stillwind-logo {
+@utility stillwind-logo (implementation) {
   @apply relative icon-stillwind--t text-stillwind-logo-t;
   @apply before:absolute before:inset-0 before:icon-stillwind--e before:text-stillwind-logo-e;
   @apply after:absolute after:inset-0 after:icon-stillwind--o after:text-stillwind-logo-o;
