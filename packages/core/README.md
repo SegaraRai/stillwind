@@ -50,18 +50,18 @@ JSX transform. The integration reads the project configuration and delivers its 
 
 Import `style` from the entrypoint for your framework:
 
-| Framework | Import              | Applying props               |
-| --------- | ------------------- | ---------------------------- |
-| Alpine    | `stillwind/alpine`  | `x-sw="props"`               |
-| Astro     | `stillwind/astro`   | `{...props}`                 |
-| Lit       | `stillwind/lit`     | `${applyStyle(props)}`       |
-| Preact    | `stillwind/preact`  | `{...props}`                 |
-| Qwik      | `stillwind/qwik`    | `{...props}`                 |
-| React     | `stillwind/react`   | `{...props}`                 |
-| Solid     | `stillwind/solid`   | `{...props}`                 |
-| Svelte    | `stillwind/svelte`  | `{...props}`                 |
-| Vanilla   | `stillwind/vanilla` | `applyStyle(element, props)` |
-| Vue       | `stillwind/vue`     | `v-bind="props"`             |
+| Framework  | Import              | Applying props               |
+| ---------- | ------------------- | ---------------------------- |
+| Alpine     | `stillwind/alpine`  | `x-sw="props"`               |
+| Astro      | `stillwind/astro`   | `{...props}`                 |
+| Lit        | `stillwind/lit`     | `${applyStyle(props)}`       |
+| Preact     | `stillwind/preact`  | `{...props}`                 |
+| Qwik       | `stillwind/qwik`    | `{...props}`                 |
+| React      | `stillwind/react`   | `{...props}`                 |
+| Solid      | `stillwind/solid`   | `{...props}`                 |
+| Svelte     | `stillwind/svelte`  | `{...props}`                 |
+| Vue        | `stillwind/vue`     | `v-bind="props"`             |
+| Vanilla JS | `stillwind/vanilla` | `applyStyle(element, props)` |
 
 Gatsby uses `stillwind/react`. Fresh 2 with Vite uses `stillwind/preact`.
 
