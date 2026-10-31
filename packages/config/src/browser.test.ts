@@ -9,6 +9,7 @@ test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
     const file = `/workspace/app/stillwind.config.${extension}`;
     const loaded = await loadBrowserConfig("/workspace/app/src", {
       exists: (id) => id === file || id === "/workspace/stillwind.config.ts",
+      list: () => [],
       evaluate: async (id) => {
         expect(id).toBe(file);
         return {
@@ -29,6 +30,7 @@ test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
 test("browser discovery evaluates async factories and merges selected project overrides", async () => {
   const host = {
     exists: (id: string) => id === "/workspace/stillwind.config.ts",
+    list: () => [],
     evaluate: async () =>
       defineConfig(async () => ({
         projects: [
@@ -75,4 +77,64 @@ test("browser discovery evaluates async factories and merges selected project ov
       })
     ).config.css,
   ).toBe("/workspace/inline.css");
+});
+
+test("browser references expand through the captured file inventory", async () => {
+  const settings: Record<string, unknown> = {
+    "/workspace/stillwind.config.ts": {
+      projects: ["packages/*", "!packages/legacy", "tools/custom.ts"],
+    },
+    "/workspace/packages/web/stillwind.config.ts": {
+      projects: [
+        {
+          name: "web",
+          css: "theme.css",
+          files: ["*.tsx"],
+        },
+      ],
+    },
+    "/workspace/packages/web/stillwind.config.json": {
+      projects: [
+        {
+          name: "unused",
+          css: "unused.css",
+          files: ["*.tsx"],
+        },
+      ],
+    },
+    "/workspace/packages/legacy/stillwind.config.ts": {
+      projects: [
+        {
+          name: "legacy",
+          css: "theme.css",
+          files: ["*.tsx"],
+        },
+      ],
+    },
+    "/workspace/tools/custom.ts": {
+      projects: [
+        {
+          root: "site",
+          css: "theme.css",
+          files: ["*.tsx"],
+        },
+      ],
+    },
+  };
+  const loaded = await loadBrowserConfig("/workspace", {
+    exists: (id) => id in settings,
+    list: () => [...Object.keys(settings), "/workspace/packages/web/README.md"],
+    evaluate: async (id) => settings[id],
+  });
+  expect(loaded?.projects).toMatchObject([
+    {
+      name: "web",
+      root: "/workspace/packages/web",
+      css: "/workspace/packages/web/theme.css",
+    },
+    {
+      root: "/workspace/tools/site",
+      css: "/workspace/tools/site/theme.css",
+    },
+  ]);
 });

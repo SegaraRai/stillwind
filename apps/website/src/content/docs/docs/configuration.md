@@ -22,7 +22,39 @@ export default defineConfig({
 
 Each entry in `projects` selects a stylesheet and the files that belong to it.
 Most applications need one project. A monorepo can list one project for each
-application.
+application, or keep a configuration file in each package and reference those
+files.
+
+## Reference other configuration files
+
+A string in `projects` references other configuration files, relative to the
+file that declares it. Strings and project objects can appear in the same list.
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: ["apps/*", "!apps/legacy", "packages/ui", "tools/site.stillwind.ts"],
+});
+```
+
+| Entry                     | Selects                                                                  |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `tools/site.stillwind.ts` | That configuration file, with any name                                   |
+| `packages/ui`             | The `stillwind.config.*` file in that directory                          |
+| `apps/*`                  | `stillwind.config.*` files that the glob matches or finds in directories |
+| `!apps/legacy`            | Removes a path or a glob from the matches of glob entries                |
+
+A path or a directory that is missing causes an error. A glob skips directories
+that have no configuration file, and it does not search `node_modules` or `.git`.
+Stillwind reports an error only when no project remains in the list.
+
+A relative `root` in a referenced file uses the directory of that file, so
+packages keep working on their own. Referenced files must list project objects
+because references do not nest. Project names must be unique across all files.
+
+Build tools watch the referenced files, but they do not notice a new file that a
+glob would match. Restart the build after you add a package.
 
 ## Where Stillwind finds the file
 

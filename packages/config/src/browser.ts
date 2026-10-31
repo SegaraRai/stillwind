@@ -1,12 +1,14 @@
 /** Evaluates and selects configuration from virtual paths through an embedding's captured files and module runtime. */
 
+import { minimatch } from "minimatch";
 import * as paths from "pathe";
-import { dirname, resolve } from "pathe";
+import { dirname, relative, resolve } from "pathe";
 
 import { resolveConfig, type AnalysisProjectConfig } from "./configuration.ts";
 import {
   compilerConfig,
   configurationCandidates,
+  expandProjects,
   resolveCompilerSettings,
   resolveProjectPaths,
   selectProject,
@@ -18,12 +20,20 @@ import {
 export interface BrowserConfigHost {
   /**
    * Tests whether a configuration candidate exists in the captured workspace.
+   *
    * @param id - Absolute virtual path supplied by discovery or an explicit file selection.
    * @returns Whether the evaluator can load this path from the captured inventory.
    */
   exists(id: string): boolean;
   /**
+   * Enumerates the captured workspace for glob references in configuration.
+   *
+   * @returns Absolute virtual paths of captured files.
+   */
+  list(): Iterable<string>;
+  /**
    * Evaluates a configuration module without invoking its exported factory.
+   *
    * @param id - Existing absolute virtual path selected from the same captured inventory.
    * @returns The module's default export, which resolveConfig subsequently evaluates and validates.
    * @throws If loading or evaluating the module fails.
@@ -33,6 +43,7 @@ export interface BrowserConfigHost {
 
 /**
  * Discovers and evaluates browser configuration using the same export contract as Node.
+ *
  * @param root - Absolute virtual application directory.
  * @param host - Captured file inventory and browser module evaluator.
  * @param inline - Explicit file, project selection, and compiler overrides.
@@ -102,12 +113,15 @@ export async function resolveBrowserConfig(
 
 /**
  * Loads every configured project for analysis across a workspace.
+ *
  * @param root - Absolute virtual directory where discovery starts.
  * @param host - Captured files and module evaluator.
  * @param requested - Absolute path or nonempty path relative to root. False disables loading, and
  * omission searches root and its ancestors in configurationFiles order within each directory.
- * @returns Evaluated projects with absolute roots, or undefined when loading is disabled or discovery finds no file.
- * @throws If an explicit path is invalid or missing, or evaluation or validation fails.
+ * @returns Evaluated projects with absolute roots, including the projects of referenced files, or
+ * undefined when loading is disabled or discovery finds no file.
+ * @throws If an explicit path is invalid or missing, or evaluation, validation, or reference
+ * expansion fails.
  */
 export async function loadBrowserConfig(
   root: string,
@@ -144,9 +158,33 @@ export async function loadBrowserConfig(
     return undefined;
   }
 
-  const config = await resolveConfig(await host.evaluate(file));
+  /**
+   * Evaluates one captured configuration file.
+   *
+   * @param id - Existing absolute virtual path.
+   * @returns Validated settings.
+   * @throws If module evaluation or configuration validation fails.
+   */
+  const load = async (id: string) => resolveConfig(await host.evaluate(id));
+  const projects = await expandProjects(
+    await load(file),
+    file,
+    {
+      isFile: (id) => host.exists(id),
+      glob: async (patterns, ignore, directory) =>
+        [...host.list()].filter((id) => {
+          const name = relative(directory, id);
+          return (
+            patterns.some((pattern) => minimatch(name, pattern)) &&
+            !ignore.some((pattern) => minimatch(name, pattern))
+          );
+        }),
+      load,
+    },
+    paths,
+  );
   return {
     configFile: file,
-    projects: config.projects.map((project) => resolveProjectPaths(project, dirname(file!), paths)),
+    projects: projects.map((project) => resolveProjectPaths(project, dirname(file!), paths)),
   };
 }

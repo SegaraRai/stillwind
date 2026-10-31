@@ -22,7 +22,7 @@ async function fixture() {
    * @returns Completion of writing the TypeScript configuration.
    * @throws If serialization or file writing fails.
    */
-  const write = (projects: object[]) =>
+  const write = (projects: (object | string)[]) =>
     writeFile(configFile, `export default ${JSON.stringify({ projects })}`);
   return {
     root,
@@ -30,6 +30,97 @@ async function fixture() {
     write,
   };
 }
+
+/**
+ * Writes a configuration file with one project in a new or existing directory.
+ * @param directory - Directory that receives the file.
+ * @param project - Project fields added to the required CSS and file settings.
+ * @returns The absolute configuration path.
+ * @throws If creating the directory or writing the file fails.
+ */
+async function writeProject(directory: string, project: object = {}) {
+  await mkdir(directory, { recursive: true });
+  const file = path.join(directory, "stillwind.config.ts");
+  await writeFile(
+    file,
+    `export default ${JSON.stringify({ projects: [{ css: "theme.css", files: ["*.tsx"], ...project }] })}`,
+  );
+  return file;
+}
+
+test("references accept files, directories, and globs with exclusions", async () => {
+  const { root, write, configFile } = await fixture();
+  const web = await writeProject(path.join(root, "apps/web"), { name: "web" });
+  await writeProject(path.join(root, "apps/old"), { name: "old" });
+  await mkdir(path.join(root, "apps/empty"));
+  await writeProject(path.join(root, "apps/node_modules/dependency"));
+  const docs = await writeProject(path.join(root, "docs"), { root: "site" });
+  const custom = path.join(root, "custom.config.ts");
+  await writeFile(custom, 'export default {projects:[{css:"custom.css",files:["*.tsx"]}]}');
+
+  await write([
+    "custom.config.ts",
+    "apps/*",
+    "!apps/old",
+    { css: "own.css", files: ["*.ts"] },
+    "./docs/",
+  ]);
+  const { config, dependencies } = await loadConfiguration(configFile);
+  expect(config.projects).toMatchObject([
+    { root, css: "custom.css" },
+    { name: "web", root: path.join(root, "apps/web"), css: "theme.css" },
+    { css: "own.css" },
+    { root: path.join(root, "docs/site"), css: "theme.css" },
+  ]);
+  expect(config.projects[2].root).toBeUndefined();
+  expect(dependencies).toEqual(expect.arrayContaining([configFile, custom, web, docs]));
+});
+
+test("build integrations select referenced projects by root and name", async () => {
+  const { root, write } = await fixture();
+  await writeProject(path.join(root, "apps/web"));
+  await writeProject(path.join(root, "apps/admin"), { name: "admin" });
+  await write(["apps/*"]);
+  expect((await resolveIntegrationConfig({}, path.join(root, "apps/web"))).config.css).toBe(
+    path.join(root, "apps/web/theme.css"),
+  );
+  expect((await resolveIntegrationConfig({ project: "admin" }, root)).config.css).toBe(
+    path.join(root, "apps/admin/theme.css"),
+  );
+});
+
+test("overlapping references load each file once and skip the declaring file", async () => {
+  const { root, write, configFile } = await fixture();
+  await writeProject(path.join(root, "apps/web"), { name: "web" });
+  await write(["apps/web", "apps/*", "*", { css: "own.css", files: ["*.ts"] }]);
+  expect((await loadConfiguration(configFile)).config.projects).toMatchObject([
+    { name: "web" },
+    { css: "own.css" },
+  ]);
+});
+
+test("references reject missing paths, nesting, empty results, and duplicate names", async () => {
+  const { root, write, configFile } = await fixture();
+  await write(["absent"]);
+  await expect(loadConfiguration(configFile)).rejects.toThrow(
+    "Cannot find Stillwind configuration",
+  );
+
+  await write(["apps/*"]);
+  await expect(loadConfiguration(configFile)).rejects.toThrow("selects no project");
+
+  await writeProject(path.join(root, "apps/first"), { name: "same" });
+  await writeProject(path.join(root, "apps/second"), { name: "same" });
+  await expect(loadConfiguration(configFile)).rejects.toThrow(
+    "Duplicate Stillwind project name: same",
+  );
+
+  await writeFile(
+    path.join(root, "apps/second/stillwind.config.ts"),
+    'export default {projects:["../first"]}',
+  );
+  await expect(loadConfiguration(configFile)).rejects.toThrow("cannot contain references");
+});
 
 test("adapter targets are defaults below project and inline targets, including empty lists", async () => {
   const { root, write } = await fixture();
@@ -165,6 +256,7 @@ test("Node and browser compose imported presets and keep project defaults throug
     root.replaceAll("\\", "/"),
     {
       exists: (id) => id === configFile.replaceAll("\\", "/"),
+      list: () => [],
       evaluate: async () => ({
         projects: [
           {
@@ -295,6 +387,7 @@ test("Node and browser preserve file-authored paths when inline root changes", a
     virtualRoot,
     {
       exists: (file) => file === configFile.replaceAll("\\", "/"),
+      list: () => [],
       evaluate: async () => ({
         projects: [settings],
       }),
@@ -401,6 +494,7 @@ test("Node and browser preserve disabling and reenable explicit lint and sort op
       root.replaceAll("\\", "/"),
       {
         exists: (file) => file === configFile.replaceAll("\\", "/"),
+        list: () => [],
         evaluate: async () => ({
           projects: [project],
         }),

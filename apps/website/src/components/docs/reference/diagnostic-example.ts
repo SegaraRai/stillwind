@@ -285,10 +285,11 @@ async function evaluate(source: string) {
 
 async function projectConfiguration(source: ExampleSource): Promise<AnalysisProjectConfig> {
   const config: StillwindConfig = await evaluate(source.code);
-  if (config.projects.length !== 1) {
+  const [project] = config.projects;
+  if (config.projects.length !== 1 || typeof project !== "object") {
     throw new Error("A diagnostic example must configure exactly one project");
   }
-  return config.projects[0]!;
+  return project;
 }
 
 // Native loader exceptions retain the diagnostic message but omit its reporting code.

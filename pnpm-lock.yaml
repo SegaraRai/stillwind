@@ -2654,12 +2654,18 @@ importers:
       jiti:
         specifier: ^2.7.0
         version: 2.7.0
+      minimatch:
+        specifier: ^11.0.3
+        version: 11.0.3
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
       rolldown:
         specifier: 'catalog:'
         version: 1.2.16
+      tinyglobby:
+        specifier: ^0.2.17
+        version: 0.2.17
       valibot:
         specifier: ^1.5.0
         version: 1.5.0(typescript@6.0.3)

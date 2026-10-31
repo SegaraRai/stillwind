@@ -38,8 +38,10 @@
     "@stillwind/native": "workspace:*",
     "@stillwind/projection": "workspace:*",
     "jiti": "^2.7.0",
+    "minimatch": "^11.0.3",
     "pathe": "catalog:",
     "rolldown": "catalog:",
+    "tinyglobby": "^0.2.17",
     "valibot": "^1.5.0"
   },
   "devDependencies": {

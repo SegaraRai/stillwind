@@ -5,7 +5,7 @@
  * retaining compiler state use the returned dependency paths for change tracking.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
@@ -13,16 +13,14 @@ import { pathToFileURL } from "node:url";
 
 import { createJiti } from "jiti";
 import { rolldown } from "rolldown";
+import { glob } from "tinyglobby";
 
 import type { BaseConfig, NormalizedCompilerConfig } from "./compiler.ts";
-import {
-  resolveConfig,
-  type AnalysisProjectConfig,
-  type StillwindConfig,
-} from "./configuration.ts";
+import { resolveConfig, type AnalysisProjectConfig } from "./configuration.ts";
 import {
   configurationCandidates as candidates,
   compilerConfig,
+  expandProjects,
   resolveCompilerSettings,
   resolveProjectPaths,
   selectProject,
@@ -30,17 +28,30 @@ import {
   type InlineConfig,
 } from "./resolution.ts";
 
-/** Evaluated settings and files that consumers must watch when retaining a compiler session. */
+/**
+ * Evaluated settings and files that consumers must watch when retaining a compiler session.
+ */
 export interface LoadedConfiguration {
   /** Validated settings after awaiting the module export and invoking its factory, if supplied. */
-  config: StillwindConfig;
+  config: {
+    /**
+     * Projects in authored order with references replaced. Referenced projects have an absolute
+     * root. Other projects keep their authored paths.
+     */
+    projects: AnalysisProjectConfig[];
+  };
   /** Absolute path of the evaluated configuration file. */
   configFile: string;
-  /** Distinct absolute paths of the configuration, bundled local imports, and resolved external imports. */
+  /**
+   * Distinct absolute paths of the configuration, referenced configurations, bundled local imports,
+   * and resolved external imports. A file that a glob reference would newly match is not included.
+   */
   dependencies: string[];
 }
 
-/** Settings for one build integration after project selection and inline overrides. */
+/**
+ * Settings for one build integration after project selection and inline overrides.
+ */
 export interface ResolvedIntegrationConfig {
   /** Selected compiler settings after inline overrides and defaults. Filesystem paths are absolute. */
   config: NormalizedCompilerConfig & {
@@ -67,7 +78,9 @@ export function findConfiguration(directory: string): string | undefined {
   return candidates(directory, path).find((file) => existsSync(file));
 }
 
-/** An evaluated module and the files that its evaluation read. */
+/**
+ * An evaluated module and the files that its evaluation read.
+ */
 export interface EvaluatedModule {
   /** Default export, or the module value when it has no default export. */
   exported: unknown;
@@ -121,6 +134,7 @@ export async function evaluateModule(file: string): Promise<EvaluatedModule> {
         name: "stillwind-module",
         /**
          * Resolves external packages from their importer and records their paths for watching.
+         *
          * @param id - Import request before resolution.
          * @param importer - Importing file, or undefined for the entry.
          * @param options - Import kind used to select package export conditions.
@@ -152,6 +166,7 @@ export async function evaluateModule(file: string): Promise<EvaluatedModule> {
         },
         /**
          * Reads a bundled local file and records its text.
+         *
          * @param id - Absolute path of a local file, or a virtual module ID.
          * @returns The file's text, or undefined for a virtual module.
          */
@@ -169,6 +184,7 @@ export async function evaluateModule(file: string): Promise<EvaluatedModule> {
           },
           /**
            * Keeps file location expressions relative to each original source.
+           *
            * @param code - Local module source.
            * @param id - Absolute source path.
            * @returns Source with its file location constants before ordinary syntax lowering.
@@ -222,21 +238,59 @@ ${code}`;
 }
 
 /**
- * Evaluates a configuration module with {@link evaluateModule} and validates its settings.
- * Configuration runs as trusted Node code and can perform side effects.
+ * Evaluates a configuration module with {@link evaluateModule}, validates its settings, and
+ * evaluates the configuration files that it references. Configuration runs as trusted Node code
+ * and can perform side effects.
  *
  * @param file - JS, TS, or JSON configuration path. Relative paths use the process working directory.
  * @returns Evaluated settings and the file paths observed while resolving and bundling imports.
  * Runtime file reads and imports that cannot be statically resolved are not added to dependencies.
- * @throws If bundling, module evaluation, factory execution, or configuration validation fails.
+ * @throws If bundling, module evaluation, factory execution, configuration validation, or reference
+ * expansion fails.
  */
 export async function loadConfiguration(file: string): Promise<LoadedConfiguration> {
   file = path.resolve(file);
-  const { exported, dependencies } = await evaluateModule(file);
+
+  const dependencies = new Set<string>();
+  /**
+   * Evaluates one configuration file and records the files that its evaluation read.
+   *
+   * @param id - Absolute configuration path.
+   * @returns Validated settings.
+   * @throws If module evaluation or configuration validation fails.
+   */
+  const load = async (id: string) => {
+    const evaluated = await evaluateModule(id);
+    for (const dependency of evaluated.dependencies) {
+      dependencies.add(dependency);
+    }
+    return resolveConfig(evaluated.exported);
+  };
+
+  const projects = await expandProjects(
+    await load(file),
+    file,
+    {
+      isFile: (id) => statSync(id, { throwIfNoEntry: false })?.isFile() ?? false,
+      glob: async (patterns, ignore, directory) =>
+        (
+          await glob(patterns, {
+            cwd: directory,
+            absolute: true,
+            expandDirectories: false,
+            ignore,
+          })
+        ).map((match) => path.resolve(match)),
+      load,
+    },
+    path,
+  );
   return {
-    config: await resolveConfig(exported),
+    config: {
+      projects,
+    },
     configFile: file,
-    dependencies,
+    dependencies: [...dependencies],
   };
 }
 
@@ -330,6 +384,7 @@ export async function resolveIntegrationConfig(
 
 /**
  * Enumerates Node configuration candidates without checking existence.
+ *
  * @param directory - Starting directory. Relative paths use the process working directory.
  * @returns Absolute paths ordered from the nearest directory to the filesystem root, with
  * configurationFiles precedence within each directory.

@@ -211,8 +211,14 @@ export type ProjectionProvider =
 
 /** Configuration file settings evaluated by build integrations and analysis hosts. */
 export interface StillwindConfig {
-  /** Nonempty project list. Projects keep independent scopes and design systems. Supplied names must be unique. */
-  projects: AnalysisProjectConfig[];
+  /**
+   * Nonempty list of projects and references. Projects keep independent scopes and design systems.
+   * Supplied names must be unique. A string references other configuration files, relative to this
+   * file: a file path, a directory that contains stillwind.config.*, or a glob that selects those
+   * files or directories. A `!` prefix removes paths from glob matches. Referenced files must list
+   * project objects only, and a relative project root in them uses their own directory.
+   */
+  projects: (AnalysisProjectConfig | string)[];
 }
 
 /** Called without arguments during configuration evaluation. Returns settings directly or asynchronously. */
@@ -299,7 +305,15 @@ const projectSchema = strictObject({
 
 const configurationSchema = v.pipe(
   strictObject({
-    projects: v.pipe(v.array(projectSchema), v.minLength(1, "must be a nonempty projects array")),
+    projects: v.pipe(
+      v.array(
+        // A union would replace the field paths of project issues with one generic message.
+        v.lazy((entry): v.GenericSchema<unknown, string | v.InferOutput<typeof projectSchema>> =>
+          typeof entry === "string" ? nonemptyText : projectSchema,
+        ),
+      ),
+      v.minLength(1, "must be a nonempty projects array"),
+    ),
   }),
   v.rawCheck(({ dataset, addIssue }) => {
     if (!dataset.typed) {
@@ -307,7 +321,7 @@ const configurationSchema = v.pipe(
     }
     const names = new Set<string>();
     for (const [index, project] of dataset.value.projects.entries()) {
-      if (project.name === undefined) {
+      if (typeof project === "string" || project.name === undefined) {
         continue;
       }
       if (names.has(project.name)) {
@@ -344,9 +358,10 @@ const configurationSchema = v.pipe(
 );
 
 /**
- * Validates evaluated projects and their compiler settings without running providers or resolving paths.
- * @param value - Evaluated settings with a nonempty project list, required CSS paths and file globs,
- * and unique names when names are supplied.
+ * Validates evaluated projects and their compiler settings without running providers, resolving
+ * paths, or reading referenced configuration files.
+ * @param value - Evaluated settings with a nonempty list of projects and references, required CSS
+ * paths and file globs, and unique names when names are supplied.
  * @returns The supplied settings with object and callback identities preserved.
  * @throws If a field, project name, effective lint policy, or compiler namespace is invalid.
  * Validation errors include the authored field path.
@@ -355,6 +370,9 @@ export function validateConfig(value: unknown): StillwindConfig {
   validate(configurationSchema, value, "config");
 
   for (const [index, project] of value.projects.entries()) {
+    if (typeof project === "string") {
+      continue;
+    }
     const {
       automatic: _automatic,
       name: _name,

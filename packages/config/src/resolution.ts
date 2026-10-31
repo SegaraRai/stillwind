@@ -1,4 +1,6 @@
-/** Selects projects and resolves compiler settings through host-supplied path operations, without reading files. */
+/**
+ * Selects projects and resolves compiler settings through host-supplied path operations, without reading files.
+ */
 
 import * as v from "valibot";
 
@@ -11,15 +13,19 @@ import {
   type BuildOptions,
   type NormalizedCompilerConfig,
 } from "./compiler.ts";
-import type { AnalysisProjectConfig } from "./configuration.ts";
+import type { AnalysisProjectConfig, StillwindConfig } from "./configuration.ts";
 import { mergeLintConfig } from "./lint.ts";
 import { mergeConfig } from "./merge.ts";
 import { nonemptyText, strictObject, validate } from "./validation.ts";
 
-/** Inline options that can pass through isolated loader workers. */
+/**
+ * Inline options that can pass through isolated loader workers.
+ */
 export type SerializableInlineConfig = Omit<InlineConfig, "naming" | "plugins" | "tailwind">;
 
-/** Build overrides and the selection of a configuration file and project. */
+/**
+ * Build overrides and the selection of a configuration file and project.
+ */
 export interface InlineConfig extends BuildConfig {
   /**
    * Configuration file path, absolute or relative to the application root. An explicit path must
@@ -33,22 +39,27 @@ export interface InlineConfig extends BuildConfig {
   project?: string;
 }
 
-/** Path operations supplied by the host's filesystem or virtual workspace. */
+/**
+ * Path operations supplied by the host's filesystem or virtual workspace.
+ */
 export interface ConfigPaths {
   /**
    * Combines path segments and removes relative traversal segments.
+   *
    * @param paths - Path segments interpreted using the host's path syntax and working directory.
    * @returns A normalized absolute path. An absolute segment replaces preceding segments.
    */
   resolve(...paths: string[]): string;
   /**
    * Gets the parent directory used to walk configuration candidates.
+   *
    * @param path - Normalized absolute path in the same syntax accepted by resolve.
    * @returns Its absolute parent directory. A filesystem root must return itself to end traversal.
    */
   dirname(path: string): string;
   /**
    * Computes the path used to determine project containment.
+   *
    * @param from - Absolute project root.
    * @param to - Absolute application directory.
    * @returns A relative path, or an absolute path when the host cannot express a relative path.
@@ -57,6 +68,7 @@ export interface ConfigPaths {
   relative(from: string, to: string): string;
   /**
    * Recognizes absolute paths using the same syntax as the other operations.
+   *
    * @param path - Path returned by a path operation or supplied by configuration.
    * @returns Whether the path is absolute for this host.
    */
@@ -70,6 +82,7 @@ export const configurationFiles = ["ts", "mts", "cts", "js", "mjs", "cjs", "json
 
 /**
  * Enumerates configuration candidates from the nearest directory to the host's root.
+ *
  * @param directory - Starting directory, normalized with the supplied resolve operation.
  * @param paths - Consistent host path operations. dirname must return the root unchanged.
  * @returns Absolute candidate paths in directory order, then configurationFiles order within each
@@ -89,7 +102,169 @@ export function configurationCandidates(directory: string, paths: ConfigPaths): 
 }
 
 /**
+ * File access that expandProjects uses to follow references in a host's filesystem or virtual workspace.
+ */
+export interface ProjectReferenceHost {
+  /**
+   * Tests whether a path identifies an existing file.
+   *
+   * @param file - Normalized absolute path.
+   * @returns False for directories and missing paths.
+   */
+  isFile(file: string): boolean;
+  /**
+   * Enumerates existing files that match any pattern.
+   *
+   * @param patterns - Globs relative to directory. Dotted path segments do not match wildcards.
+   * @param ignore - Globs relative to directory that remove matches.
+   * @param directory - Absolute directory of the configuration that declares the patterns.
+   * @returns Absolute paths in the syntax that the host's path operations produce.
+   */
+  glob(
+    patterns: readonly string[],
+    ignore: readonly string[],
+    directory: string,
+  ): Promise<string[]>;
+  /**
+   * Evaluates and validates a referenced configuration file.
+   *
+   * @param file - Existing absolute path.
+   * @returns Validated settings.
+   * @throws If evaluation or validation fails.
+   */
+  load(file: string): Promise<StillwindConfig>;
+}
+
+/**
+ * Finds the configuration files that a reference string selects.
+ *
+ * @param reference - Path or glob relative to directory, without a `!` prefix. An existing path
+ * takes precedence over its glob meaning, so a directory such as `apps/(web)` stays usable.
+ * @param negated - Paths and globs from `!` entries, relative to directory.
+ * @param directory - Absolute directory of the configuration that declares the reference.
+ * @param host - File access for the configuration's filesystem or virtual workspace.
+ * @param paths - Host path operations.
+ * @returns Absolute configuration paths. A glob returns at most one file per directory, chosen in
+ * configurationFiles order, and skips directories that have no configuration file.
+ * @throws If a reference without glob syntax does not identify a file or a configured directory.
+ */
+async function referencedFiles(
+  reference: string,
+  negated: readonly string[],
+  directory: string,
+  host: ProjectReferenceHost,
+  paths: ConfigPaths,
+): Promise<string[]> {
+  const target = paths.resolve(directory, reference);
+  const direct = [target, ...configurationFiles.map((file) => paths.resolve(target, file))].find(
+    (file) => host.isFile(file),
+  );
+  if (direct) {
+    return [direct];
+  }
+  if (!/[*?[\]{}()]/.test(reference)) {
+    throw new Error(`Cannot find Stillwind configuration: ${target}`);
+  }
+
+  const pattern = globPath(reference);
+  const matches = new Set(
+    await host.glob(
+      [pattern, ...configurationFiles.map((file) => `${pattern}/${file}`)],
+      [
+        "**/node_modules/**",
+        "**/.git/**",
+        ...negated.flatMap((path) => [globPath(path), `${globPath(path)}/**`]),
+      ],
+      directory,
+    ),
+  );
+  return [...new Set([...matches].map((file) => paths.dirname(file)))].sort().flatMap((match) => {
+    const file = configurationFiles
+      .map((name) => paths.resolve(match, name))
+      .find((candidate) => matches.has(candidate));
+    return file ? [file] : [];
+  });
+}
+
+/**
+ * Removes path spellings that glob matchers would treat as literal segments.
+ *
+ * @param path - Authored relative path or glob.
+ * @returns The path without leading `./` segments or trailing slashes.
+ */
+function globPath(path: string): string {
+  return path.replace(/^(?:\.\/)+/, "").replace(/\/+$/, "");
+}
+
+/**
+ * Replaces references with the projects of the files that they select.
+ *
+ * @param config - Validated settings of the configuration file.
+ * @param file - Normalized absolute path of the configuration file.
+ * @param host - File access for following references.
+ * @param paths - Host path operations.
+ * @returns Projects in authored order. Project objects of config keep their identity and relative
+ * paths. Referenced projects are copies with an absolute root, so their relative paths stay valid
+ * against any configuration directory. Each file contributes once, even if several references
+ * select it, and a reference to file itself adds nothing.
+ * @throws If a reference selects no file, a referenced file contains references, evaluation fails,
+ * no project remains, or two projects share a name.
+ */
+export async function expandProjects(
+  config: StillwindConfig,
+  file: string,
+  host: ProjectReferenceHost,
+  paths: ConfigPaths,
+): Promise<AnalysisProjectConfig[]> {
+  const directory = paths.dirname(file);
+  const negated = config.projects.flatMap((entry) =>
+    typeof entry === "string" && entry.startsWith("!") ? [entry.slice(1)] : [],
+  );
+  const visited = new Set([file]);
+  const projects: AnalysisProjectConfig[] = [];
+  for (const entry of config.projects) {
+    if (typeof entry !== "string") {
+      projects.push(entry);
+      continue;
+    }
+    if (entry.startsWith("!")) {
+      continue;
+    }
+    for (const referenced of await referencedFiles(entry, negated, directory, host, paths)) {
+      if (visited.has(referenced)) {
+        continue;
+      }
+      visited.add(referenced);
+      const base = paths.dirname(referenced);
+      for (const project of (await host.load(referenced)).projects) {
+        if (typeof project === "string") {
+          throw new Error(
+            `Stillwind configuration ${referenced} cannot contain references because ${file} references it`,
+          );
+        }
+        projects.push({ ...project, root: paths.resolve(base, project.root ?? ".") });
+      }
+    }
+  }
+
+  if (!projects.length) {
+    throw new Error(`Stillwind configuration ${file}: projects selects no project`);
+  }
+  const names = new Set<string>();
+  for (const { name } of projects) {
+    if (name !== undefined && names.has(name)) {
+      throw new Error(`Duplicate Stillwind project name: ${name}`);
+    }
+    if (name !== undefined) {
+      names.add(name);
+    }
+  }
+  return projects;
+}
+
+/**
  * Resolves project paths from their authored root without changing the supplied settings.
+ *
  * @param project - Validated project with a required CSS path and optional root and tsconfig paths.
  * @param directory - Absolute configuration directory used for a relative or omitted project root.
  * @param paths - Host operations used to resolve each path.
@@ -119,6 +294,7 @@ export function resolveProjectPaths(
 
 /**
  * Removes analysis scope and providers while preserving compiler and delivery settings.
+ *
  * @param project - Evaluated project whose names, file scopes, and providers are no longer needed.
  * @returns A shallow copy containing compiler fields and automatic CSS delivery settings. Paths
  * and retained nested objects are unchanged.
@@ -145,6 +321,7 @@ const inlineSchema = strictObject({
 
 /**
  * Validates inline selectors and compiler overrides before selection or path resolution.
+ *
  * @param inline - File and project selectors with compiler and delivery overrides.
  * @throws If a field is unknown or invalid, or a lint preset has a cycle. Namespace collisions
  * and required effective lint options can remain deferred until settings are merged.
@@ -158,6 +335,7 @@ export function validateInlineConfig(inline: InlineConfig): void {
 
 /**
  * Selects a named project, the sole project, or the unique deepest containing project root.
+ *
  * @param projects - Evaluated projects with normalized absolute roots. Entries are not modified.
  * @param applicationRoot - Absolute application directory used for containment when no name is supplied.
  * @param inline - Project name and optional root override. The override changes the directory tested for containment.
@@ -206,6 +384,7 @@ export function selectProject(
 
 /**
  * Applies overrides and defaults, then resolves inline paths from the resulting project root.
+ *
  * @param base - Project settings with file-authored root, CSS, and tsconfig paths already resolved.
  * @param inline - Validated selectors and compiler overrides. Selectors are discarded before merging.
  * @param applicationRoot - Absolute base directory for an inline root override or omitted project root.

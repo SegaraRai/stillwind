@@ -100,6 +100,7 @@ const server = createLanguageServer(connection, {
           root,
           {
             exists: (id) => files.has(id),
+            list: () => files.keys(),
             evaluate: async (id) =>
               (
                 (await evaluate((await bundle(files, id)).code)) as {
