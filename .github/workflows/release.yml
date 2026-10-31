@@ -122,7 +122,7 @@ jobs:
           TASK: ${{ matrix.task }}
 
   publish:
-    name: Publish packages
+    name: Stage packages
     needs: [binaries, verify]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -187,19 +187,20 @@ jobs:
           if [ -n "$NPM_TOKEN" ]; then
             echo '//registry.npmjs.org/:_authToken=${NPM_TOKEN}' >> "$HOME/.npmrc"
           fi
-      - name: Publish
+      - name: Stage
         env:
           DRY_RUN: ${{ inputs.dry-run }}
           NPM_TAG: ${{ steps.tag.outputs.name }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # Branch rules and the job condition replace pnpm's Git checks. Recursive publishing
-        # skips versions that already exist, so a partial release can be run again.
+        # Branch rules and the job condition replace pnpm's Git checks. Recursive staging skips
+        # versions that already exist on npm. A maintainer publishes the staged versions by
+        # approving them with 2FA.
         run: |
-          arguments=(--no-git-checks --tag "$NPM_TAG" --publish-wait-timeout 600000 --report-summary)
+          arguments=(--no-git-checks --tag "$NPM_TAG" --report-summary)
           if [ "$DRY_RUN" = true ]; then
             arguments+=(--dry-run)
           fi
-          vp exec pnpm -r publish "${arguments[@]}"
+          vp exec pnpm stage publish -r "${arguments[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

@@ -50,9 +50,16 @@ creates no Git tag. The first release of each package does
 not use intents: set its manifest to the intended version and publish it.
 
 To publish, start **Actions → Release → Run workflow** on `main`. The default dry run
-builds and verifies everything without uploading packages. Clear **dry-run** to publish.
-A version with a prerelease suffix receives the npm tag `next`; any other version receives
-`latest`. After a release succeeds, advance `stable` to its commit.
+builds and verifies everything without uploading packages. Clear **dry-run** to upload
+the packages to npm's staging area. A version with a prerelease suffix receives the npm
+tag `next`; any other version receives `latest`.
+
+Staged versions are not installable until a maintainer approves them with 2FA. Review them
+with `vp exec pnpm stage list`, then run `vp exec pnpm stage approve` and select every
+package. pnpm approves packages in dependency order and skips a package when one of its
+workspace dependencies is not approved. Use `vp exec pnpm stage reject <stage-id>` to
+remove a staged version. After the approval succeeds, advance `stable` to the release
+commit.
 
 ### npm setup
 
@@ -60,7 +67,8 @@ A version with a prerelease suffix receives the npm tag `next`; any other versio
 2. For a package that does not exist on npm yet, add a short-lived granular token as the
    `NPM_TOKEN` environment secret.
 3. After the first publication, add this repository's `release.yml` and the `npm-release`
-   environment as the trusted publisher of each package, then delete `NPM_TOKEN`.
+   environment as the trusted publisher of each package, allow staged publishing for it,
+   then delete `NPM_TOKEN`.
 
 npm adds provenance only to trusted publications from a public repository.
 
