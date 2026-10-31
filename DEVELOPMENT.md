@@ -49,9 +49,9 @@ package, and creates no Git tag. The first release of each package does not use 
 set its manifest to the intended version and publish it.
 
 When `.changeset/` changes on `main`, the Version PR workflow runs `pnpm version -r` and
-keeps the result in a pull request from `version/main`. `GITHUB_TOKEN` creates this pull
-request, so GitHub does not start the Sites workflow for it. Merge it with **Squash and
-merge**.
+keeps the result in a pull request from `version/main`. `github-actions[bot]` creates this
+pull request, so its Sites run waits for a maintainer to approve it in the Actions tab.
+Merge the pull request with **Squash and merge**.
 
 The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
 workflow, which builds and verifies everything and uploads the packages to npm's staging
