@@ -1139,7 +1139,7 @@ is itself the sort key.
 
 /* MARK: Screen reader visibility */
 
-@stillwind-utility sr-only {
+@stillwind-utility sr-only (implementation) {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1151,7 +1151,7 @@ is itself the sort key.
   border-width: 0;
 }
 
-@stillwind-utility not-sr-only {
+@stillwind-utility not-sr-only (implementation) {
   position: static;
   width: auto;
   height: auto;

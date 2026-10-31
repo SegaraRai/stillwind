@@ -97,6 +97,7 @@ fn logical_policy_checks_properties_directional_values_and_asymmetric_shorthands
         "[text-align:left]",
         "[float:right]",
         "[width:10rem]",
+        "[overflow:hidden_auto]",
     ] {
         assert!(
             kinds(&format!("const x=style('{candidate}');"), "", &options)
@@ -110,6 +111,7 @@ fn logical_policy_checks_properties_directional_values_and_asymmetric_shorthands
         "[text-align:start]",
         "[inline-size:10rem]",
         "[border:1px_solid_red]",
+        "[overflow:hidden]",
     ] {
         assert!(
             kinds(&format!("const x=style('{candidate}');"), "", &options).is_empty(),
@@ -171,6 +173,31 @@ fn implementation_declarations_are_optional_without_disabling_source_policies() 
             kinds("const x=style('[width:20px]');", theme, &options)
                 .contains(&LintKind::NoRestrictedLengthUnits)
         );
+    }
+}
+
+#[test]
+fn built_in_screen_reader_utilities_skip_implementation_policies() {
+    for check_implementation in [false, true] {
+        let options = policy_options(LintOverrides {
+            prefer_logical_properties: Some(LogicalPropertiesOverride {
+                check_implementation: Some(check_implementation),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        for candidate in ["sr-only", "not-sr-only"] {
+            assert_eq!(
+                kinds(
+                    &format!("const x=style('{candidate}');"),
+                    stillwind_test_support::PACKAGE_CSS,
+                    &options
+                )
+                .contains(&LintKind::PreferLogicalProperties),
+                check_implementation,
+                "{candidate}"
+            );
+        }
     }
 }
 

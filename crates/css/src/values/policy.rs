@@ -13,7 +13,7 @@ use lightningcss::stylesheet::{ParserOptions, PrinterOptions};
 use lightningcss::traits::Parse;
 use lightningcss::values::color::CssColor;
 
-use super::webref::{is_logical, webref_property};
+use super::webref::{is_logical, physical_group_longhands, webref_property};
 
 /// Matches an entire string using `*` for any sequence and `?` for one character.
 /// Matching is case-sensitive; callers normalize CSS property and unit names.
@@ -335,8 +335,10 @@ pub fn is_length_unit(unit: &str) -> bool {
     )
 }
 
-/// Returns whether a declaration uses physical directions that have logical counterparts.
-/// Uniform four-side shorthands are exempt because their values do not depend on writing mode.
+/// Returns whether a declaration uses physical directions that have logical
+/// counterparts. A shorthand is exempt when it gives every physical longhand of a
+/// logical group the same value, as in `padding: 1rem` and `overflow: hidden`, because
+/// the result does not depend on writing mode.
 pub fn declaration_is_physical(property: &str, value: &str) -> bool {
     let value = value
         .rsplit_once('!')
@@ -368,9 +370,10 @@ pub fn declaration_is_physical(property: &str, value: &str) -> bool {
             groups.entry(group).or_default().push(value);
         }
     }
-    groups
-        .values()
-        .any(|values| values.len() != 4 || values.iter().any(|value| *value != values[0]))
+    groups.iter().any(|(group, values)| {
+        values.len() != physical_group_longhands(group).len()
+            || values.iter().any(|value| *value != values[0])
+    })
 }
 
 #[cfg(test)]
@@ -482,5 +485,8 @@ mod tests {
         assert!(declaration_is_physical("text-align", "LEFT!important"));
         assert!(declaration_is_physical("border-top", "1px solid red"));
         assert!(!declaration_is_physical("border", "1px solid red"));
+        assert!(!declaration_is_physical("overflow", "hidden"));
+        assert!(declaration_is_physical("overflow", "hidden auto"));
+        assert!(declaration_is_physical("overflow-x", "hidden"));
     }
 }

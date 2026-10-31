@@ -816,9 +816,10 @@ attachment target. Internal selectors authored in utility definitions are allowe
 Selectors the compiler cannot classify are skipped.
 
 `prefer-logical-properties` checks emitted declarations with logical counterparts,
-including `text-align: left`, `float: right`, and asymmetric four-side shorthands.
-Uniform four-side shorthands are allowed. The rule does not rewrite declarations
-because their meaning depends on writing mode.
+including `text-align: left`, `float: right`, and asymmetric shorthands such as
+`padding: 1rem 2rem`. A shorthand is allowed when it gives every physical longhand of
+a logical group the same value, as in `padding: 1rem` and `overflow: hidden`. The rule
+does not rewrite declarations because their meaning depends on writing mode.
 
 `prefer-logical-properties` and `no-restricted-length-units` accept
 `checkImplementation`, which defaults to `false`. Fixed declarations from an

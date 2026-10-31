@@ -126,14 +126,19 @@ pub fn property_covers(wider: &str, narrower: &str) -> bool {
     let Some(group) = leaves.first().and_then(|name| logical_group(name)) else {
         return false;
     };
-    let physical: BTreeSet<_> = WEBREF_PROPERTIES
-        .iter()
-        .filter(|p| p.logical_group == Some(group) && p.longhands.is_empty() && !is_logical(p.name))
-        .map(|p| p.name)
-        .collect();
+    let physical = physical_group_longhands(group);
     physical.len() == 4
         && physical.iter().all(|name| wide.contains(*name))
         && leaves.iter().all(|name| logical_group(name) == Some(group))
+}
+
+/// Returns the physical longhands of one Webref logical group.
+pub(super) fn physical_group_longhands(group: &str) -> BTreeSet<&'static str> {
+    WEBREF_PROPERTIES
+        .iter()
+        .filter(|p| p.logical_group == Some(group) && p.longhands.is_empty() && !is_logical(p.name))
+        .map(|p| p.name)
+        .collect()
 }
 
 /// Returns the longhands that the declaration `property: value` sets to `value` itself.
