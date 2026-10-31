@@ -1,12 +1,22 @@
 import { spawn } from "node:child_process";
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { expect, test } from "vite-plus/test";
 
+import { extensionManifest } from "../src/manifest.ts";
 import { cliServer } from "../src/project-cli.ts";
+
+test("packaged extension contains its CSS custom data", async () => {
+  for (const file of extensionManifest.contributes.css.customData) {
+    const data = await readFile(resolve(import.meta.dirname, "../dist/desktop", file), "utf8");
+    expect(JSON.parse(data).atDirectives).toContainEqual({
+      name: "@utility",
+    });
+  }
+});
 
 test("packaged desktop server analyzes a workspace without repository dependencies", async () => {
   const directory = await mkdtemp(join(tmpdir(), "stillwind-extension-"));

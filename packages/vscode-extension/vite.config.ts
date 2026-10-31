@@ -152,6 +152,7 @@ export default defineConfig(({ mode }) => ({
             "dist/extension/RUST-THIRD-PARTY-LICENSES",
             "dist/extension/TAILWINDCSS-MIT-LICENSE",
             "dist/extension/WEBREF-MIT-LICENSE",
+            "dist/extension/dist/css-data.json",
             "dist/extension/dist/node/package.json",
             "dist/extension/dist/browser/server.js",
             "dist/extension/dist/browser/stillwind_native.wasm32-wasi.wasm",

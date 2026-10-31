@@ -31,8 +31,15 @@ Use **Stillwind: Restart Language Server** to reload configuration and dependenc
 - Inspect colors and use color pickers in utilities and theme references.
 - Apply compiler Quick Fixes or run **Stillwind: Sort Utilities**.
 
-CSS at-rule completion normally offers application and theme authoring syntax.
-Enable `stillwind.completion.registryDirectives` when editing utility libraries.
+The extension declares Stillwind at-rules to VS Code's built-in CSS language
+service, so the service does not report them as unknown. At the top level of a
+stylesheet, the service also completes every declared at-rule, whatever the settings
+below select. These entries appear in addition to Stillwind's entries, which show
+the audience and the syntax provenance as their details.
+
+Stillwind's CSS at-rule completion normally offers application and theme authoring
+syntax. Enable `stillwind.completion.registryDirectives` when editing utility
+libraries.
 The project `preview` settings control theme values, pixel equivalents, and colors
 shown in CSS previews. See [Editor previews](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#editor-previews)
 for their options.

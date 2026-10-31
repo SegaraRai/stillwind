@@ -37,6 +37,9 @@ export const extensionManifest = {
     },
   },
   contributes: {
+    css: {
+      customData: ["./dist/css-data.json"],
+    },
     commands: [
       {
         command: "stillwind.restart",

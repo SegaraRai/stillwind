@@ -75,6 +75,7 @@ if (!packaging) {
       2,
     ),
   );
+  await cp(path.join(root, "css-data.json"), path.join(output, "dist/css-data.json"));
   await cp(path.join(root, "README.md"), path.join(output, "README.md"));
   await cp(path.join(root, "icon.png"), path.join(output, "icon.png"));
   for (const [name, source] of Object.entries(licenses)) {
