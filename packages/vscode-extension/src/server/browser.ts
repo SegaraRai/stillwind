@@ -6,7 +6,11 @@
  */
 
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
-import { documentConfiguration, loadBrowserConfig } from "@stillwind/config/browser";
+import {
+  ConfigurationLoadError,
+  documentConfiguration,
+  loadBrowserConfig,
+} from "@stillwind/config/browser";
 import { virtualPath } from "@stillwind/host/browser";
 import { createLanguageServer } from "@stillwind/language-server";
 import * as paths from "pathe";
@@ -21,6 +25,7 @@ import type { BundledModule } from "./bundle.ts";
 import { consumeWorkspaceFiles, workspaceFileEntries } from "./inventory.ts";
 import { installLibraries } from "./libraries.ts";
 import { browserPluginHost } from "./plugins.ts";
+import { selectWorkspace } from "./select-workspace.ts";
 
 const connection = createConnection(
   ProposedFeatures.all,
@@ -28,7 +33,8 @@ const connection = createConnection(
   new BrowserMessageWriter(self),
 );
 
-let workspaces: BrowserAnalysisWorkspace[] = [];
+/** Opened workspaces, keyed by configuration identity. */
+let workspaces = new Map<string, BrowserAnalysisWorkspace>();
 let initial = true;
 /** Counts workspace openings so compile requests can reject snapshots captured before a reload. */
 let generation = 0;
@@ -37,6 +43,8 @@ let libraries: Promise<[string, string][]> | undefined;
 let inventory: Map<string, string> | undefined;
 /** Explicit configuration path of the latest workspace opening. It disables discovery. */
 let explicitConfig: string | undefined;
+/** Error messages of configurations that failed to open, keyed by file or workspace folder. */
+let failures = new Map<string, string>();
 
 /**
  * Bundles a module of the captured inventory. The bundler loads on first use.
@@ -114,11 +122,31 @@ async function openWorkspace(
       return uri.href;
     },
   });
-  workspaces.push(service);
+  workspaces.set(config.configFile ?? rootUri, service);
   return [config.configFile ?? rootUri, service];
 }
 
+/**
+ * Selects the identity that reports a failure to open a configuration.
+ *
+ * @param error - Failure from opening a configuration.
+ * @param fallback - Identity to use when the failure names no configuration file.
+ * @returns The path of the file that failed, or fallback.
+ */
+function failureId(error: unknown, fallback: string): string {
+  return error instanceof ConfigurationLoadError ? error.configFile : fallback;
+}
+
 const server = createLanguageServer(connection, {
+  configurationUri: (id, folders) => {
+    const rootUri = folders.find((folder) => id.startsWith(`${virtualPath(folder)}/`));
+    if (!rootUri) {
+      return undefined;
+    }
+    const uri = new URL(rootUri);
+    uri.pathname = id;
+    return uri.href;
+  },
   discoverWorkspace: async (uri, { workspaceFolders }, known) => {
     const files = inventory;
     if (!files || explicitConfig) {
@@ -141,9 +169,11 @@ const server = createLanguageServer(connection, {
         workspaces: new Map(opened ? [opened] : []),
       };
     } catch (error) {
+      const id = failureId(error, config);
+      failures.set(id, String(error));
       return {
         workspaces: new Map(),
-        errors: new Map([[config, String(error)]]),
+        errors: new Map([[id, String(error)]]),
       };
     }
   },
@@ -175,9 +205,9 @@ const server = createLanguageServer(connection, {
     installLibraries(files, await libraries, workspaceFolders.map(virtualPath));
     inventory = files;
     explicitConfig = captured.configFile;
-    workspaces = [];
+    workspaces = new Map();
+    failures = new Map();
     const opened = new Map<string, BrowserAnalysisWorkspace>();
-    const errors = new Map<string, string>();
     for (const rootUri of workspaceFolders) {
       try {
         const workspace = await openWorkspace(
@@ -190,12 +220,12 @@ const server = createLanguageServer(connection, {
           opened.set(...workspace);
         }
       } catch (error) {
-        errors.set(rootUri, String(error));
+        failures.set(failureId(error, rootUri), String(error));
       }
     }
     return {
       workspaces: opened,
-      errors,
+      errors: new Map(failures),
     };
   },
   onExit: () => {
@@ -206,6 +236,8 @@ const server = createLanguageServer(connection, {
 connection.onRequest(
   "stillwind/snapshot",
   async (input?: {
+    /** Configuration identity of the workspace to capture. Omission requires one open workspace. */
+    config?: string;
     /** Whether to recapture workspace files and configuration before returning the snapshot. */
     reload?: boolean;
     /** Whether only package manifests include text; other file entries contain null. */
@@ -215,11 +247,14 @@ connection.onRequest(
       await server.reload();
     }
     await server.ready();
-    if (workspaces.length !== 1) {
-      throw new Error("Application builds require exactly one opened workspace");
-    }
-    const workspace = workspaces[0];
+    const [config, workspace] = selectWorkspace(
+      workspaces,
+      failures,
+      "Application build",
+      input?.config,
+    );
     return {
+      config,
       generation,
       revision: workspace.revision,
       files: workspaceFileEntries(workspace.files(), input?.metadataOnly),
@@ -230,6 +265,8 @@ connection.onRequest(
 connection.onRequest(
   "stillwind/readFile",
   async (input: {
+    /** Configuration identity returned by stillwind/snapshot. Omission requires one open workspace. */
+    config?: string;
     /** Original URI of a file listed by stillwind/snapshot. */
     uri: string;
     /** Document revision captured by stillwind/snapshot. */
@@ -241,10 +278,7 @@ connection.onRequest(
     if (input.generation !== generation) {
       throw new Error("Obsolete workspace snapshot");
     }
-    if (workspaces.length !== 1) {
-      throw new Error("Application builds require exactly one opened workspace");
-    }
-    const workspace = workspaces[0];
+    const [, workspace] = selectWorkspace(workspaces, failures, "Application build", input.config);
     if (input.revision !== workspace.revision) {
       throw new Error("Obsolete workspace revision");
     }
@@ -259,7 +293,9 @@ connection.onRequest(
 connection.onRequest(
   "stillwind/compile",
   async (input: {
-    /** Original document URI to compile within the sole opened workspace. */
+    /** Configuration identity returned by stillwind/snapshot. Omission requires one open workspace. */
+    config?: string;
+    /** Original document URI to compile within the selected workspace. */
     uri: string;
     /** Workspace revision captured by stillwind/snapshot, including open-buffer updates. */
     revision: number;
@@ -270,17 +306,15 @@ connection.onRequest(
     if (input.generation !== generation) {
       throw new Error("Obsolete workspace snapshot");
     }
-    if (workspaces.length !== 1) {
-      throw new Error("Application builds require exactly one opened workspace");
-    }
-    return workspaces[0].compile(input.uri, input.revision);
+    const [, workspace] = selectWorkspace(workspaces, failures, "Application build", input.config);
+    return workspace.compile(input.uri, input.revision);
   },
 );
 
 connection.onRequest(
   "stillwind/sort",
   async (input: {
-    /** Original document URI within the sole opened workspace. */
+    /** Original document URI. Every open workspace whose projects include it answers. */
     uri: string;
     /** Text that the caller formats. It must equal the server's current buffer for the URI. */
     source: string;
@@ -291,17 +325,21 @@ connection.onRequest(
     }[];
   }) => {
     await server.ready();
-    if (workspaces.length !== 1) {
-      throw new Error("Sorting requires exactly one opened workspace");
+    if (!workspaces.size) {
+      selectWorkspace(workspaces, failures, "Sorting");
     }
-    const workspace = workspaces[0];
-    if (workspace.files().get(virtualPath(input.uri)) !== input.source) {
-      throw new Error("Obsolete document buffer");
+    const entries = [];
+    for (const workspace of workspaces.values()) {
+      if (workspace.files().get(virtualPath(input.uri)) !== input.source) {
+        throw new Error("Obsolete document buffer");
+      }
+      entries.push(
+        ...(await workspace.query(input.uri, {
+          kind: "sort",
+          protectedRanges: input.protectedRanges,
+        })),
+      );
     }
-    const entries = await workspace.query(input.uri, {
-      kind: "sort",
-      protectedRanges: input.protectedRanges,
-    });
     const answers = new Set(entries.map((entry) => JSON.stringify(entry.result.edits ?? [])));
     if (answers.size > 1) {
       throw new Error("Stillwind projects disagree on the sort order of this document");

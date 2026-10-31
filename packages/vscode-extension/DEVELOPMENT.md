@@ -30,6 +30,10 @@ commands for the Playground. `stillwind.snapshot` captures workspace files.
 Its `metadataOnly` option defers text except package manifests. `stillwind.readFile`
 reads requested file text, and `stillwind.compile` transforms application sources.
 Reads and compilation require the snapshot's generation and revision.
+`stillwind.snapshot` accepts a `config` option that selects a workspace, and it returns the
+`config` of the captured workspace. Reads and compilation accept the same option. Omitting
+`config` requires exactly one open workspace, and the number of open workspaces can grow when
+language server discovery opens the configuration of another package.
 `stillwind.sortSource` returns sort edits for a buffer that the
 browser entry of `prettier-plugin-stillwind` formats. `stillwind.sortSource` rejects
 text that differs from the server's current buffer. Transport and analysis embedding

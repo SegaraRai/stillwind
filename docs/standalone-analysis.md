@@ -220,8 +220,10 @@ Reports retain UTF-16 ranges, related labels, and document scope. Quick fixes ar
 offered only when every edited document is open and its native content revision
 still matches. Edits carry LSP document versions. The server forwards actions
 provided by the compiler; it does not invent replacements for findings without
-actions. Initialization failures produce `SW_HOST` errors. Unavailable semantic checks produce
-`SW_UNVERIFIED` information diagnostics, alongside the verified source findings.
+actions. Service failures produce `SW_HOST` errors on the configuration file, a log
+entry, and one notification for each distinct message. Source documents do not show
+these errors. Unavailable semantic checks produce `SW_UNVERIFIED` information
+diagnostics, alongside the verified source findings.
 
 ## Editor previews
 

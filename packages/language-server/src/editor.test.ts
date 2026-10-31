@@ -2,16 +2,18 @@ import { PassThrough } from "node:stream";
 
 import type { AnalysisWorkspaceService } from "@stillwind/analysis";
 import { BrowserAnalysisWorkspace } from "@stillwind/analysis/browser";
-import { expect, test } from "vite-plus/test";
+import { expect, test, vi } from "vite-plus/test";
 import type {
   CodeAction,
   ColorInformation,
   ColorPresentation,
   CompletionItem,
+  Diagnostic,
   DocumentLink,
   Hover,
   InitializeResult,
   Location,
+  PublishDiagnosticsParams,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
@@ -100,6 +102,64 @@ test.each([
     await new Promise((resolve) => setTimeout(resolve, 200));
     await service.ready();
     expect(discovered).toHaveLength(calls);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
+
+test("configuration errors appear on the configuration file and notify once", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///workspace/App.tsx";
+  const configUri = "file:///workspace/stillwind.config.ts";
+  const diagnostics = new Map<string, Diagnostic[]>();
+  const messages: string[] = [];
+  client.onNotification("textDocument/publishDiagnostics", (params: PublishDiagnosticsParams) => {
+    diagnostics.set(params.uri, params.diagnostics);
+  });
+  client.onNotification("window/showMessage", ({ message }: { message: string }) => {
+    messages.push(message);
+  });
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map(),
+      errors: new Map([["/workspace/stillwind.config.ts", "broken"]]),
+    }),
+    configurationUri: (id) => `file://${id}`,
+  });
+  server.listen();
+  client.listen();
+  try {
+    await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    await client.sendNotification("initialized", {});
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "typescriptreact",
+        version: 1,
+        text: "",
+      },
+    });
+    await vi.waitFor(() => expect(diagnostics.get(uri)).toEqual([]));
+    await service.reload();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(diagnostics.get(configUri)).toMatchObject([
+      {
+        code: "SW_HOST",
+        message: "broken",
+      },
+    ]);
+    expect(diagnostics.get(uri)).toEqual([]);
+    expect(messages).toHaveLength(1);
   } finally {
     await service.dispose();
     client.dispose();

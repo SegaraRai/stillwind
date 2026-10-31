@@ -18,6 +18,23 @@ import {
 
 export { documentConfiguration } from "./resolution.ts";
 
+/**
+ * Reports the configuration file that failed to load, keeping the message of the original failure.
+ */
+export class ConfigurationLoadError extends Error {
+  /** Absolute virtual path of the file that failed. A referenced file names itself. */
+  readonly configFile: string;
+
+  /**
+   * @param configFile - Absolute virtual path of the file that failed.
+   * @param cause - Failure from evaluation, validation, or reference expansion.
+   */
+  constructor(configFile: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.configFile = configFile;
+  }
+}
+
 /** Configuration evaluation supplied by a browser module runtime. */
 export interface BrowserConfigHost {
   /**
@@ -122,8 +139,8 @@ export async function resolveBrowserConfig(
  * omission searches root and its ancestors in configurationFiles order within each directory.
  * @returns Evaluated projects with absolute roots, including the projects of referenced files, or
  * undefined when loading is disabled or discovery finds no file.
- * @throws If an explicit path is invalid or missing, or evaluation, validation, or reference
- * expansion fails.
+ * @throws If an explicit path is invalid or missing. A {@link ConfigurationLoadError} if evaluation,
+ * validation, or reference expansion fails.
  */
 export async function loadBrowserConfig(
   root: string,
@@ -167,26 +184,36 @@ export async function loadBrowserConfig(
    * @returns Validated settings.
    * @throws If module evaluation or configuration validation fails.
    */
-  const load = async (id: string) => resolveConfig(await host.evaluate(id));
-  const projects = await expandProjects(
-    await load(file),
-    file,
-    {
-      isFile: (id) => host.exists(id),
-      glob: async (patterns, ignore, directory) =>
-        [...host.list()].filter((id) => {
-          const name = relative(directory, id);
-          return (
-            patterns.some((pattern) => minimatch(name, pattern)) &&
-            !ignore.some((pattern) => minimatch(name, pattern))
-          );
-        }),
-      load,
-    },
-    paths,
-  );
-  return {
-    configFile: file,
-    projects: projects.map((project) => resolveProjectPaths(project, dirname(file!), paths)),
+  const load = async (id: string) => {
+    try {
+      return await resolveConfig(await host.evaluate(id));
+    } catch (error) {
+      throw new ConfigurationLoadError(id, error);
+    }
   };
+  try {
+    const projects = await expandProjects(
+      await load(file),
+      file,
+      {
+        isFile: (id) => host.exists(id),
+        glob: async (patterns, ignore, directory) =>
+          [...host.list()].filter((id) => {
+            const name = relative(directory, id);
+            return (
+              patterns.some((pattern) => minimatch(name, pattern)) &&
+              !ignore.some((pattern) => minimatch(name, pattern))
+            );
+          }),
+        load,
+      },
+      paths,
+    );
+    return {
+      configFile: file,
+      projects: projects.map((project) => resolveProjectPaths(project, dirname(file!), paths)),
+    };
+  } catch (error) {
+    throw error instanceof ConfigurationLoadError ? error : new ConfigurationLoadError(file, error);
+  }
 }

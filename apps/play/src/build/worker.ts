@@ -42,6 +42,7 @@ self.onmessage = async ({
 }: MessageEvent<{
   id: number;
   kind: "build" | "compile-reply" | "read-reply";
+  config: string;
   revision: number;
   generation: number;
   files: [string, string | null][];
@@ -81,6 +82,7 @@ self.onmessage = async ({
         self.postMessage({
           kind,
           id,
+          config: data.config,
           uri: `file://${path.split("/").map(encodeURIComponent).join("/")}`,
           revision: data.revision,
           generation: data.generation,

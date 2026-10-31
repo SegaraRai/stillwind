@@ -58,6 +58,7 @@ export class ApplicationBuilder {
           const value = await this.#api.commands.executeCommand(
             data.kind === "compile" ? "stillwind.compile" : "stillwind.readFile",
             {
+              config: data.config,
               uri: data.uri,
               revision: data.revision,
               generation: data.generation,
@@ -157,6 +158,7 @@ export class ApplicationBuilder {
       });
       const capture = async () => {
         const snapshot = await this.#api.commands.executeCommand<{
+          config: string;
           files: [string, string | null][];
           revision: number;
           generation: number;

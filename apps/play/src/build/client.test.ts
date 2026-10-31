@@ -13,6 +13,7 @@ afterEach(() => {
 });
 
 const snapshot = {
+  config: "/workspace/stillwind.config.ts",
   files: [["/workspace/App.tsx", "export default () => null"]],
   revision: 1,
   generation: 1,
@@ -265,12 +266,14 @@ test.each([
     const input = {
       kind,
       id: 37,
+      config: "/workspace/stillwind.config.ts",
       uri: "file:///workspace/data.json",
       revision: 3,
       generation: 2,
     };
     await workers[0].receive(input);
     expect(executeCommand).toHaveBeenLastCalledWith(command, {
+      config: input.config,
       uri: input.uri,
       revision: 3,
       generation: 2,

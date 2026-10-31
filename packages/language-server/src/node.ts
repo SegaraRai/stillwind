@@ -1,4 +1,6 @@
+import path from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import { discoverNodeWorkspace, openNodeWorkspaces } from "@stillwind/analysis/node";
 import { createConnection, ProposedFeatures } from "vscode-languageserver/node";
@@ -18,6 +20,7 @@ export function startLanguageServer(config?: string): void {
   createLanguageServer(connection, {
     ...(config ? {} : { discoverWorkspace: discoverNodeWorkspace }),
     openWorkspaces: (context) => openNodeWorkspaces(context, config),
+    configurationUri: (id) => (path.isAbsolute(id) ? pathToFileURL(id).href : undefined),
     onExit: (shutdown) => {
       process.exit(shutdown ? 0 : 1);
     },

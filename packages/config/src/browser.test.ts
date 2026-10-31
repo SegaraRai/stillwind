@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 
-import { loadBrowserConfig, resolveBrowserConfig } from "./browser.ts";
+import { ConfigurationLoadError, loadBrowserConfig, resolveBrowserConfig } from "./browser.ts";
 import { defineConfig } from "./configuration.ts";
 
 test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
@@ -77,6 +77,56 @@ test("browser discovery evaluates async factories and merges selected project ov
       })
     ).config.css,
   ).toBe("/workspace/inline.css");
+});
+
+test("browser load failures name the file that failed", async () => {
+  const root = "/workspace/stillwind.config.ts";
+  const referenced = "/workspace/app/stillwind.config.ts";
+  const load = (settings: Record<string, unknown>) =>
+    loadBrowserConfig("/workspace", {
+      exists: (id) => id in settings,
+      list: () => Object.keys(settings),
+      evaluate: async (id) => {
+        if (settings[id] instanceof Error) {
+          throw settings[id];
+        }
+        return settings[id];
+      },
+    });
+  const failure = new Error("evaluation failed");
+
+  await expect(load({ [root]: failure })).rejects.toMatchObject({
+    configFile: root,
+    message: "evaluation failed",
+    cause: failure,
+  });
+  await expect(
+    load({
+      [root]: {
+        projects: ["app"],
+      },
+      [referenced]: failure,
+    }),
+  ).rejects.toBeInstanceOf(ConfigurationLoadError);
+  await expect(
+    load({
+      [root]: {
+        projects: ["app"],
+      },
+      [referenced]: failure,
+    }),
+  ).rejects.toMatchObject({
+    configFile: referenced,
+  });
+  await expect(
+    load({
+      [root]: {
+        projects: ["absent"],
+      },
+    }),
+  ).rejects.toMatchObject({
+    configFile: root,
+  });
 });
 
 test("browser references expand through the captured file inventory", async () => {

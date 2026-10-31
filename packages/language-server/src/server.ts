@@ -10,6 +10,8 @@ import {
   CodeActionKind,
   DiagnosticSeverity,
   DidChangeWatchedFilesNotification,
+  MessageType,
+  ShowMessageNotification,
   TextDocuments,
   TextDocumentSyncKind,
   type CancellationToken,
@@ -41,6 +43,16 @@ export interface LanguageServerOptions {
    * service exists. Omission leaves such documents without analysis.
    */
   discoverWorkspace?: DiscoverWorkspace;
+  /**
+   * Converts a service identity to the URI of its configuration file, where the server publishes
+   * that service's errors.
+   *
+   * @param id - Key from a workspace map or an error map.
+   * @param folders - Current workspace directory URIs.
+   * @returns The file URI, or undefined when the identity names no file. The server then only logs
+   * the error and notifies the user. Omitting this option has the same effect.
+   */
+  configurationUri?(id: string, folders: readonly string[]): string | undefined;
   /**
    * Handles the LSP exit notification using the embedding's transport or process policy.
    *
@@ -90,6 +102,8 @@ export function createLanguageServer(
   const published = new Set<string>();
   /** Documents already passed to discovery, which keeps later analysis passes from searching again. */
   const discovered = new Set<string>();
+  /** Current error messages that the user has seen, which keeps each from notifying again. */
+  const reported = new Set<string>();
 
   let roots: string[] = [];
   let initializationOptions: unknown;
@@ -256,15 +270,32 @@ export function createLanguageServer(
         }
       }
     }
-    for (const document of documents.all()) {
-      for (const [file, error] of errors) {
-        add(document.uri, {
+    const current = new Set<string>();
+    for (const [file, error] of errors) {
+      const message = `${file}: ${error}`;
+      const uri = options.configurationUri?.(file, roots);
+      if (uri) {
+        add(uri, {
           range: range(),
           severity: DiagnosticSeverity.Error,
           source: "stillwind",
           code: "SW_HOST",
-          message: `${file}: ${error}`,
+          message: error,
         });
+      }
+      current.add(message);
+      if (!reported.has(message)) {
+        reported.add(message);
+        connection.console.error(message);
+        void connection.sendNotification(ShowMessageNotification.type, {
+          type: MessageType.Warning,
+          message: `Stillwind: ${message}`,
+        });
+      }
+    }
+    for (const message of reported) {
+      if (!current.has(message)) {
+        reported.delete(message);
       }
     }
     for (const uri of new Set([
