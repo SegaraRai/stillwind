@@ -64,7 +64,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       {
         module: context.asAbsolutePath("dist/node/server.js"),
         transport: TransportKind.stdio,
-        args: config ? [config] : [],
+        args: config ? ["--config", config] : [],
       },
       options,
     );
