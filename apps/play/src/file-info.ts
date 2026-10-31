@@ -26,7 +26,7 @@ export interface FileInfo {
 }
 
 export function getFileInfo(filename: string): FileInfo {
-  if (/(?:^|\/)stillwind\.config\.[cm]?[jt]s$/i.test(filename)) {
+  if (/(?:^|\/)stillwind\.config\.(?:[cm]?[jt]s|json)$/i.test(filename)) {
     return {
       type: "stillwind",
       label: "Stillwind Config",
