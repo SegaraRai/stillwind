@@ -1,5 +1,12 @@
 # prettier-plugin-stillwind
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/analysis@0.2.0
+
 ## 0.1.0
 
 ### Patch Changes
