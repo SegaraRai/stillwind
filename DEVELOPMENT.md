@@ -112,7 +112,41 @@ on pull requests and pushes to `main` and `stable`. Pushes to `main` update the
 The `main` Preview uses `https://main.preview.stillwind.dev/` for the website
 and `https://main.play-preview.stillwind.dev/` for the playground. Each Worker
 has a dedicated parent domain for Previews. A Preview name becomes its first
-subdomain, so future PR Previews can use names such as `pr-123`.
+subdomain, so pull request 123 uses `https://pr-123.preview.stillwind.dev/`
+and `https://pr-123.play-preview.stillwind.dev/`.
+
+### Pull request Previews
+
+Pull requests do not publish Previews by default. Two controls request one:
+
+| Control                  | Who can use it            | Pull requests            | Effect                          |
+| ------------------------ | ------------------------- | ------------------------ | ------------------------------- |
+| `preview` label          | People with triage access | This repository          | Publishes each new commit       |
+| `/preview` comment       | People with write access  | This repository          | Publishes the current head once |
+| `/preview <sha>` comment | People with write access  | This repository or forks | Publishes that head commit once |
+
+The `<sha>` value must be the full SHA of the current head commit. The label has no
+effect on a fork, because a fork can add commits after a maintainer reviews it. A fork's
+Sites run also needs approval, and that run must finish before `/preview <sha>`.
+
+Sites builds each pull request with these Preview origins for the sites in its change
+plan. Links to other sites use the `main` Preview. The
+[Site Preview](.github/workflows/site-preview.yml) workflow publishes that build without
+rebuilding it, so a Preview requires a build from the last 7 days. It accepts builds
+from failed runs, because a Preview can help to investigate the failure.
+
+Site Preview runs from the default branch and holds the Cloudflare token, so it never
+executes pull request code. Workflow files in a pull request can change what its runs
+report and upload. The workflow therefore reads labels, head commits, and permissions
+from the GitHub API. It takes only static assets from the artifact, and it writes the Worker
+configuration from the default branch. [Site Preview Request](.github/workflows/site-preview-request.yml)
+only starts Site Preview after labeling, because public repositories disable
+`pull_request_target` by default.
+
+The workflow reports the URLs in one comment on the pull request and adds the
+`preview:active` label. A daily run deletes the Previews of closed pull requests that
+have this label. Removing the `preview` label stops updates and keeps the Preview until
+the pull request closes.
 
 Until the first package release, `stable` tracks the selected initial site
 snapshot. It then contains the code and documentation for the published packages. Apply
@@ -128,7 +162,8 @@ internal build files, checks asset limits, and preserves WASM isolation headers.
 Preview builds add `noindex` and block crawlers in `robots.txt`.
 `PUBLIC_WEBSITE_URL` and `PUBLIC_PLAYGROUND_URL` select the two origins used by
 metadata, sitemaps, agent indexes, and navigation between the sites. CI uses the
-configured Preview URLs on `main` and pull requests, and the production URLs on `stable`.
+configured Preview URLs on `main`, the production URLs on `stable`, and the URLs
+described in [Pull request Previews](#pull-request-previews) on pull requests.
 `check:urls` checks the generated files before deployment. The deployment checks also
 compare the published canonical and social card URLs with the actual deployment URL.
 
@@ -136,7 +171,7 @@ The lockfile fixes the versions of Cloudflare CLI `cf` and its Build Output libr
 them together and verify both deployment modes when upgrading during the beta.
 The deployment job downloads the checked Build Output and uses `cf` with
 `--prebuilt`. It does not build application code. Only that step receives the
-Cloudflare token. Pull requests run without deployment credentials.
+Cloudflare token. Pull request runs have no deployment credentials.
 The GitHub deployments and Actions summary link to the deployed sites.
 Deployments to the same Worker run one at a time across both branches.
 HTTP checks verify documentation routes, Preview indexing rules, and WASM headers
@@ -198,12 +233,13 @@ and [Preview Custom Domains](https://developers.cloudflare.com/workers/previews/
 ### GitHub setup
 
 1. Enable GitHub Actions and allow the actions pinned in `sites.yml`.
-2. Under **Settings → Environments**, create `sites-preview` and
+2. Under **Settings → Environments**, create `sites-preview`, `sites-pr-preview`, and
    `sites-production`. For each environment, set **Deployment branches and tags**
    to **Selected branches and tags**. Add a **Branch** rule for `main` in
-   `sites-preview` and a **Branch** rule for `stable` in `sites-production`.
+   `sites-preview` and `sites-pr-preview`, and a **Branch** rule for `stable` in
+   `sites-production`. Create the `preview` and `preview:active` labels.
 3. Add `CLOUDFLARE_API_TOKEN` under **Environment secrets** in each environment.
-   Both can initially use the token created above. Add `CLOUDFLARE_ACCOUNT_ID`
+   All can initially use the token created above. Add `CLOUDFLARE_ACCOUNT_ID`
    as a repository variable under **Settings → Secrets and variables → Actions**.
    Add repository variables `SITES_PREVIEW_WEBSITE_URL` and `SITES_PREVIEW_PLAYGROUND_URL`
    with the `main` Preview URL of each Worker. These must be absolute HTTPS origins.

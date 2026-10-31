@@ -4,7 +4,13 @@ import path from "node:path";
 
 import { expect, test } from "vite-plus/test";
 
-import { browserSuites, checkBrowserSuites, planSites, requireSiteChecks } from "./ci.ts";
+import {
+  browserSuites,
+  buildUrls,
+  checkBrowserSuites,
+  planSites,
+  requireSiteChecks,
+} from "./ci.ts";
 
 const packages = [
   { name: "@stillwind/native", directory: "packages/native", dependencies: [] },
@@ -86,6 +92,18 @@ test("shared browser infrastructure selects all scenarios, and unit tests do not
     browser: [],
     deploy: [],
   });
+});
+
+test("pull request builds use their Preview origin only for planned sites", () => {
+  const configured = {
+    website: "https://main.preview.stillwind.dev/",
+    play: "https://main.play-preview.stillwind.dev/",
+  };
+  expect(buildUrls(["website"], 123, configured)).toEqual({
+    website: "https://pr-123.preview.stillwind.dev/",
+    play: "https://main.play-preview.stillwind.dev/",
+  });
+  expect(buildUrls(["website", "play"], undefined, configured)).toEqual(configured);
 });
 
 test.each([

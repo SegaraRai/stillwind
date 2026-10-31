@@ -7,7 +7,7 @@ import {
   workspaceImpact,
   type WorkspacePackage,
 } from "../workspace/impact.ts";
-import { type Site } from "./prepare.ts";
+import { previewOrigin, type Site } from "./prepare.ts";
 
 export const browserSuites = [
   "language",
@@ -84,6 +84,24 @@ export function planSites(
   };
 }
 
+/**
+ * Selects the origin embedded in each site's build.
+ * A pull request build uses its own Preview origin for each planned site, so one build can be
+ * published without rebuilding. An unplanned site has no pull request Preview, so links to it
+ * keep the configured origin.
+ */
+export function buildUrls(
+  plannedSites: readonly Site[],
+  pull: number | undefined,
+  configured: Record<Site, string>,
+): Record<Site, string> {
+  const select = (site: Site) =>
+    pull !== undefined && plannedSites.includes(site)
+      ? previewOrigin(site, `pr-${pull}`)
+      : configured[site];
+  return { website: select("website"), play: select("play") };
+}
+
 /** Rejects a browser matrix that would omit a test file or execute a missing scenario. */
 export async function checkBrowserSuites(directory: string): Promise<void> {
   const files = (await readdir(directory, { recursive: true }))
@@ -98,7 +116,10 @@ export async function checkBrowserSuites(directory: string): Promise<void> {
   }
 }
 
-type JobResult = { result: string; outputs?: Record<string, string> };
+type JobResult = {
+  result: string;
+  outputs?: Record<string, string>;
+};
 
 /** Requires every selected job to succeed and every unselected job to be skipped. */
 export function requireSiteChecks(needs: Record<string, JobResult>): void {
@@ -150,8 +171,18 @@ if (import.meta.main) {
     const plan = planSites(packages, files);
     console.log(JSON.stringify(plan, null, 2));
     if (process.env.GITHUB_OUTPUT) {
+      const urls = buildUrls(
+        plan.sites,
+        process.env.GITHUB_EVENT_NAME === "pull_request" ? event.number : undefined,
+        {
+          website: process.env.PUBLIC_WEBSITE_URL ?? "",
+          play: process.env.PUBLIC_PLAYGROUND_URL ?? "",
+        },
+      );
       const outputs = {
         plan: JSON.stringify(plan),
+        website_url: urls.website,
+        play_url: urls.play,
         build: String(plan.sites.length > 0),
         website: String(plan.sites.includes("website")),
         play: String(plan.sites.includes("play")),

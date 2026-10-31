@@ -1,4 +1,4 @@
-import { cp } from "node:fs/promises";
+import { cp, realpath, rm } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -10,7 +10,14 @@ import {
 } from "@cloudflare/build-output-utils";
 import { loadAndParseConfig } from "@cloudflare/config";
 
-import { parseDeployment, parseSite, prepareSite, type Deployment, type Site } from "./prepare.ts";
+import {
+  parseDeployment,
+  parseSite,
+  prepareSite,
+  sites,
+  type Deployment,
+  type Site,
+} from "./prepare.ts";
 
 /**
  * Copies Preview Build Output from source into an empty destination for the Worker's first deployment.
@@ -87,10 +94,39 @@ export async function writeSiteBuild(
   await readBuildOutput(output);
 }
 
+/**
+ * Writes Preview Build Output from a pull request's Build Output under `artifact`.
+ * A pull request controls that Build Output, including its Worker configuration. This function
+ * therefore reads only its static assets, and the configuration comes from `root`.
+ * Replaces the site's build directory under `root`, which must be a trusted checkout.
+ * Throws when the assets are missing, leave `artifact` through a symlink, contain symlinks,
+ * or exceed the limits that prepareSite checks.
+ */
+export async function writePullRequestBuild(
+  root: string,
+  site: Site,
+  artifact: string,
+): Promise<void> {
+  const assets = path.join(artifact, ".cloudflare/output/v0/workers/default/assets");
+  const expected = path.join(await realpath(artifact), path.relative(artifact, assets));
+  if ((await realpath(assets)) !== expected) {
+    throw new Error(`Static assets must not be reached through a symlink: ${assets}`);
+  }
+  const source = path.resolve(root, sites[site].source);
+  await rm(source, { recursive: true, force: true });
+  await cp(assets, source, { recursive: true, verbatimSymlinks: true });
+  await prepareSite(root, site, "preview");
+  await writeSiteBuild(root, site, "preview");
+}
+
 if (import.meta.main) {
   const root = path.resolve(import.meta.dirname, "../..");
   const site = parseSite(process.argv[2]);
-  const deployment = parseDeployment(process.env.SITE_DEPLOYMENT);
-  await prepareSite(root, site, deployment);
-  await writeSiteBuild(root, site, deployment);
+  if (process.argv[3]) {
+    await writePullRequestBuild(root, site, path.resolve(process.argv[3]));
+  } else {
+    const deployment = parseDeployment(process.env.SITE_DEPLOYMENT);
+    await prepareSite(root, site, deployment);
+    await writeSiteBuild(root, site, deployment);
+  }
 }

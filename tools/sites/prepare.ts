@@ -5,16 +5,27 @@ export const sites = {
   website: {
     source: "apps/website/dist",
     origin: "https://stillwind.dev",
+    previewDomain: "preview.stillwind.dev",
+    worker: "stillwind-website",
   },
   play: {
     source: "apps/play/dist/site",
     origin: "https://play.stillwind.dev",
+    previewDomain: "play-preview.stillwind.dev",
+    worker: "stillwind-play",
   },
 } as const;
 
 export type Site = keyof typeof sites;
 
 export type Deployment = "preview" | "production";
+
+/**
+ * Returns the origin that a named Preview receives on the site's Preview domain.
+ */
+export function previewOrigin(site: Site, preview: string): string {
+  return `https://${preview}.${sites[site].previewDomain}/`;
+}
 
 /**
  * Accepts a site identifier used by the deployment tasks. Throws for unknown sites.

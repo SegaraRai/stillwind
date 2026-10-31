@@ -9,19 +9,27 @@ import { readBuildOutput } from "@cloudflare/build-output-utils";
 
 import { checkPageUrls, siteUrls } from "./check-urls.ts";
 import { writeInitialBuild } from "./cloudflare.ts";
-import { parseSite, sites, type Deployment, type Site } from "./prepare.ts";
+import { parseSite, previewOrigin, sites, type Deployment, type Site } from "./prepare.ts";
 
 /**
- * Maps the two deployment branches to their destination. Throws for other refs.
+ * Returns whether a deployment name identifies a pull request's Preview, such as `pr-123`.
+ */
+export function isPullRequestPreview(name: string | undefined): boolean {
+  return /^pr-[1-9]\d*$/.test(name ?? "");
+}
+
+/**
+ * Maps the two deployment branches and pull request Previews to their destination.
+ * Throws for other names.
  */
 export function deploymentForBranch(branch: string | undefined): Deployment {
-  if (branch === "main") {
+  if (branch === "main" || isPullRequestPreview(branch)) {
     return "preview";
   }
   if (branch === "stable") {
     return "production";
   }
-  throw new Error("Site deployments require the main or stable branch");
+  throw new Error("Site deployments require the main or stable branch, or a pr-<number> Preview");
 }
 
 /**
@@ -76,6 +84,32 @@ export async function needsInitialDeployment(
     throw new Error(`${worker}: Cloudflare returned no deployment history`);
   }
   return body.result.deployments.length === 0;
+}
+
+/**
+ * Uses the account ID and API token to delete the named Preview of a Worker.
+ * A Preview that does not exist counts as deleted, because a pull request may publish only one site.
+ * Throws when Cloudflare reports another failure.
+ */
+export async function deletePreview(
+  worker: string,
+  preview: string,
+  account: string,
+  token: string,
+): Promise<void> {
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/workers/workers/${encodeURIComponent(worker)}/previews/${encodeURIComponent(preview)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`${worker}: cannot delete Preview ${preview}: HTTP ${response.status}`);
+  }
 }
 
 /**
@@ -145,8 +179,9 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
   }
 }
 
-async function deploy(site: Site, branch: string | undefined, dryRun: boolean): Promise<void> {
+async function deploy(site: Site, branch: string, dryRun: boolean): Promise<void> {
   const deployment = deploymentForBranch(branch);
+  const pullRequest = isPullRequestPreview(branch);
   if (dryRun && deployment === "preview") {
     throw new Error(
       "cf previews deploy has no dry run; Preview builds are validated with their schema",
@@ -161,7 +196,7 @@ async function deploy(site: Site, branch: string | undefined, dryRun: boolean): 
   const require = createRequire(import.meta.url);
   const cli = path.join(path.dirname(require.resolve("cf/package.json")), "bin/cf");
   const args = [
-    ...(deployment === "preview" ? ["previews", "deploy", "main"] : ["deploy"]),
+    ...(deployment === "preview" ? ["previews", "deploy", branch] : ["deploy"]),
     "--prebuilt",
     "--mode",
     deployment,
@@ -192,9 +227,11 @@ async function deploy(site: Site, branch: string | undefined, dryRun: boolean): 
         }
       });
     });
+  // A pull request Preview must never become the Worker's first production deployment.
   if (
     !dryRun &&
     deployment === "preview" &&
+    !pullRequest &&
     (await needsInitialDeployment(
       workers.default.config.name,
       process.env.CLOUDFLARE_ACCOUNT_ID!,
@@ -216,15 +253,16 @@ async function deploy(site: Site, branch: string | undefined, dryRun: boolean): 
   }
   const url =
     deployment === "preview"
-      ? previewUrl(output, siteUrls(process.env)[site])
+      ? previewUrl(output, pullRequest ? previewOrigin(site, branch) : siteUrls(process.env)[site])
       : new URL(sites[site].origin).href;
   if (process.env.GITHUB_OUTPUT) {
-    await appendFile(process.env.GITHUB_OUTPUT, `url=${url}\n`);
+    await appendFile(process.env.GITHUB_OUTPUT, `url=${url}\n${site}_url=${url}\n`);
   }
   if (process.env.GITHUB_STEP_SUMMARY) {
+    const commit = process.env.PREVIEW_SHA ?? process.env.GITHUB_SHA ?? "local";
     await appendFile(
       process.env.GITHUB_STEP_SUMMARY,
-      `- ${site} (${deployment}): [${url}](${url}) — ${process.env.GITHUB_SHA ?? "local"}\n`,
+      `- ${site} (${deployment}): [${url}](${url}) — ${commit}\n`,
     );
   }
   for (let attempt = 0; ; attempt++) {
@@ -244,8 +282,23 @@ async function deploy(site: Site, branch: string | undefined, dryRun: boolean): 
 
 if (import.meta.main) {
   const args = process.argv.slice(process.argv[2] === "--" ? 3 : 2);
-  if (args.length < 2 || args.length > 3 || (args[2] && args[2] !== "--dry-run")) {
-    throw new Error("Usage: deploy <website|play> <main|stable> [--dry-run]");
+  if (args[0] === "delete") {
+    if (!isPullRequestPreview(args[2])) {
+      throw new Error("Usage: deploy delete <website|play> <pr-number>");
+    }
+    if (!process.env.CLOUDFLARE_ACCOUNT_ID || !process.env.CLOUDFLARE_API_TOKEN) {
+      throw new Error("Set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN");
+    }
+    await deletePreview(
+      sites[parseSite(args[1])].worker,
+      args[2]!,
+      process.env.CLOUDFLARE_ACCOUNT_ID,
+      process.env.CLOUDFLARE_API_TOKEN,
+    );
+  } else {
+    if (args.length < 2 || args.length > 3 || (args[2] && args[2] !== "--dry-run")) {
+      throw new Error("Usage: deploy <website|play> <main|stable|pr-number> [--dry-run]");
+    }
+    await deploy(parseSite(args[0]), args[1]!, args[2] === "--dry-run");
   }
-  await deploy(parseSite(args[0]), args[1], args[2] === "--dry-run");
 }

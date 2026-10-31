@@ -1,6 +1,12 @@
 import { afterEach, expect, test, vi } from "vite-plus/test";
 
-import { checkSite, deploymentForBranch, needsInitialDeployment, previewUrl } from "./deploy.ts";
+import {
+  checkSite,
+  deletePreview,
+  deploymentForBranch,
+  needsInitialDeployment,
+  previewUrl,
+} from "./deploy.ts";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -54,10 +60,31 @@ test("initializes a missing Worker only when Cloudflare confirms that it does no
   );
 });
 
-test("routes only main to Preview and stable to production", () => {
+test("routes main and pull request Previews to Preview and stable to production", () => {
   expect(deploymentForBranch("main")).toBe("preview");
+  expect(deploymentForBranch("pr-123")).toBe("preview");
   expect(deploymentForBranch("stable")).toBe("production");
   expect(() => deploymentForBranch("feature/test")).toThrow("main or stable");
+  expect(() => deploymentForBranch("pr-0")).toThrow("main or stable");
+});
+
+test("treats a missing Preview as deleted and reports other failures", async () => {
+  const request = vi.fn(async () => new Response(null, { status: 404 }));
+  vi.stubGlobal("fetch", request);
+  await expect(
+    deletePreview("stillwind-play", "pr-123", "account", "token"),
+  ).resolves.toBeUndefined();
+  expect(request).toHaveBeenCalledWith(
+    "https://api.cloudflare.com/client/v4/accounts/account/workers/workers/stillwind-play/previews/pr-123",
+    expect.objectContaining({ method: "DELETE" }),
+  );
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(null, { status: 403 })),
+  );
+  await expect(deletePreview("stillwind-play", "pr-123", "account", "token")).rejects.toThrow(
+    "HTTP 403",
+  );
 });
 
 test("selects the configured origin when cf returns multiple Preview domains", () => {

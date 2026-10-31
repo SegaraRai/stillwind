@@ -27,6 +27,8 @@ jobs:
     timeout-minutes: 10
     outputs:
       plan: ${{ steps.plan.outputs.plan }}
+      website_url: ${{ steps.plan.outputs.website_url }}
+      play_url: ${{ steps.plan.outputs.play_url }}
       build: ${{ steps.plan.outputs.build }}
       website: ${{ steps.plan.outputs.website }}
       play: ${{ steps.plan.outputs.play }}
@@ -80,6 +82,9 @@ jobs:
     concurrency:
       group: sites-build-${{ github.ref }}
       cancel-in-progress: true
+    env:
+      PUBLIC_WEBSITE_URL: ${{ needs.changes.outputs.website_url }}
+      PUBLIC_PLAYGROUND_URL: ${{ needs.changes.outputs.play_url }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
