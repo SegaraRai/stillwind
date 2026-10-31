@@ -4,6 +4,7 @@ contains rules for every page, and landing.css and docs.css contain rules for ea
 */
 
 @import "stillwind";
+@import "stillwind/logical/overflow.css";
 
 @import "./styles/theme.css";
 @import "./styles/site.css";

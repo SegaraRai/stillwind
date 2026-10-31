@@ -4,6 +4,7 @@ contains the document defaults and the utilities that several workbench parts sh
 */
 
 @import "stillwind";
+@import "stillwind/logical/overflow.css";
 
 @import "./theme.css";
 

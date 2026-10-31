@@ -100,7 +100,7 @@ export const featureTopics = [
           'style("grid gap-4 justify-items-center text-center", {',
           '  [box.at("width >= 13rem")]: [',
           '    "grid-cols-[3rem_1fr]",',
-          '    "justify-items-start text-left",',
+          '    "justify-items-start text-start",',
           "  ],",
           "});",
         ].join("\n"),
