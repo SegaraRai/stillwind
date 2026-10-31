@@ -91,3 +91,16 @@ test("reports source map limitations separately from high priority CSS contracts
   expect(doc).toContain("[issue](https://example.com/issues/1)");
   expect(doc).not.toContain("| next | turbopack | sourceMaps (production)");
 });
+
+test("reports platforms that cannot build a fixture", () => {
+  const doc = supportDocument([
+    {
+      ...fixture,
+      platformFailure: {
+        platforms: ["linux", "darwin"],
+        reason: "Runtime lacks pipe descriptors",
+      },
+    },
+  ]);
+  expect(doc).toContain("| next | webpack | all contracts | linux, darwin | Runtime lacks pipe");
+});

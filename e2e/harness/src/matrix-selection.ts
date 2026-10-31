@@ -62,7 +62,8 @@ export function selectedProfiles(
 
 /** Produces a deterministic support inventory from manifests, including profile overrides and known map limitations. */
 export function supportDocument(
-  manifests: (FixtureManifest & Partial<Pick<Fixture, "sourceMaps" | "edits">>)[],
+  manifests: (FixtureManifest &
+    Partial<Pick<Fixture, "sourceMaps" | "edits" | "platformFailure">>)[],
 ) {
   const rows = manifests.flatMap((manifest) =>
     manifest.profiles.map(
@@ -80,6 +81,13 @@ export function supportDocument(
           );
         }
       };
+      if (manifest.platformFailure) {
+        add(
+          "all contracts",
+          manifest.platformFailure.platforms.join(", "),
+          manifest.platformFailure,
+        );
+      }
       for (const map of manifest.sourceMaps ?? []) {
         add(
           "sourceMaps (development)",
@@ -119,7 +127,7 @@ ${Object.entries(contractPolicy)
 
 ## Expected failures
 
-Each declaration keeps its original assertion. An unexpected pass fails the test. Production declarations run in both cold and warm builds.
+Each declaration keeps its original assertion. An unexpected pass fails the test. Production declarations run in both cold and warm builds. A row for all contracts names platforms that run one build case instead of the fixture contracts.
 
 | Fixture | Profile | Contract | Target | Reason |
 | --- | --- | --- | --- | --- |

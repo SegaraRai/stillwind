@@ -53,6 +53,14 @@ export function registerFixture(input: Fixture, packageUrl: URL): void {
       afterEach(({ task }) => app.closeCase(Boolean(task.result?.errors?.length)));
       afterAll(() => app.dispose());
 
+      if (fixture.platformFailure?.platforms.includes(process.platform)) {
+        afterAll(() => app.stop());
+        declareCase("cssRendering", "builds the application", () => app.build("cold"), {
+          expectedFailure: fixture.platformFailure,
+        });
+        return;
+      }
+
       const renderingCases = () => {
         declareCase("cssRendering", "applies initial CSS", contract.initialCss);
         if (fixture.shadowDom) {

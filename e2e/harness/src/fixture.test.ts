@@ -61,6 +61,15 @@ test("rejects contradictory capabilities and incomplete edit expectations before
   expect(() =>
     defineFixture({
       ...fixture,
+      platformFailure: {
+        platforms: [],
+        reason: "Runtime lacks pipe descriptors",
+      },
+    }),
+  ).toThrow("requires a platform");
+  expect(() =>
+    defineFixture({
+      ...fixture,
       ssr: {
         status: "not-applicable",
         reason: " ",

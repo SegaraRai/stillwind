@@ -3,11 +3,15 @@ import { defineFixture } from "@stillwind-internal/e2e-harness";
 export default defineFixture({
   id: "fresh2-vite7-preact10",
   support: {
-    tier: "primary",
+    tier: "compatibility",
   },
   semantics: [{ id: "main", interactive: true }],
   driver: "fresh",
   versions: ["preact"],
+  platformFailure: {
+    platforms: ["linux", "darwin"],
+    reason: "Deno pipe handles do not expose descriptors for the TypeScript checker",
+  },
   profiles: ["default"],
   page: {
     path: "/",

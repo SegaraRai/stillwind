@@ -3,6 +3,18 @@ import { defineConfig } from "vite-plus";
 
 import { fixtureTypechecks } from "./src/config.ts";
 
+// Fixture copies exclude generated directories, and their tsconfig files extend the generated
+// types in the fixture package.
+const acceptanceDependencies = [
+  "@stillwind-internal/e2e-nuxt4-vue3#generate:types",
+  "@stillwind-internal/e2e-sveltekit2-svelte5#generate:types",
+  "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
+  "@stillwind/integration#build",
+  "@stillwind/native#collect:local",
+  "@stillwind/plugin-iconify#build",
+  "stillwind#build",
+];
+
 export default defineConfig({
   root: import.meta.dirname,
   test: {
@@ -32,35 +44,17 @@ export default defineConfig({
       "test:e2e": {
         command: "node src/matrix.ts",
         cache: false,
-        dependsOn: [
-          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
-          "@stillwind/integration#build",
-          "@stillwind/native#collect:local",
-          "@stillwind/plugin-iconify#build",
-          "stillwind#build",
-        ],
+        dependsOn: acceptanceDependencies,
       },
       "test:e2e:compatibility": {
         command: "node src/matrix.ts --support compatibility",
         cache: false,
-        dependsOn: [
-          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
-          "@stillwind/integration#build",
-          "@stillwind/native#collect:local",
-          "@stillwind/plugin-iconify#build",
-          "stillwind#build",
-        ],
+        dependsOn: acceptanceDependencies,
       },
       "test:e2e:primary": {
         command: "node src/matrix.ts --support primary",
         cache: false,
-        dependsOn: [
-          "@stillwind-internal/e2e-sveltekit3-svelte5#generate:types",
-          "@stillwind/integration#build",
-          "@stillwind/native#collect:local",
-          "@stillwind/plugin-iconify#build",
-          "stillwind#build",
-        ],
+        dependsOn: acceptanceDependencies,
       },
     },
   },

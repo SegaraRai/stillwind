@@ -4,6 +4,18 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
+## Type facts under Deno on Linux
+
+The synchronous TypeScript 7 API passes `child.stdin._handle.fd` to `fs.writeSync` on
+POSIX systems. Under Deno, this value is not an operating system file descriptor, so
+the Fresh fixture fails with `Bad file descriptor (os error 9)`. macOS uses the same
+code path, so the fixture expects this failure there, but this needs testing. Find a Deno or TypeScript API that exchanges checker
+messages synchronously, then remove `platformFailure` from the Fresh fixture and return
+it to the `primary` tier.
+
+Sources: [checker](../packages/host/src/semantics/node/checker.ts),
+[Fresh fixture](../e2e/frameworks/fresh2-vite7-preact10/fixture.ts).
+
 ## Conditional utility completions
 
 Utility strings in `style()` conjunctions, such as `style(enabled && "opacity-50")`,

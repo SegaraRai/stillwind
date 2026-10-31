@@ -26,9 +26,6 @@ export default defineConfig({
   server: {
     port: Number(process.env.STILLWIND_E2E_PORT || 5173),
     strictPort: true,
-    fs: {
-      allow: [process.cwd()],
-    },
   },
   build: {
     sourcemap: true,

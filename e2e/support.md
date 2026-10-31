@@ -12,7 +12,7 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 | astro7-preact10-solid1                 | split      | primary       |
 | astro7-react19-svelte5-vue3            | default    | primary       |
 | astro7-react19-svelte5-vue3            | split      | primary       |
-| fresh2-vite7-preact10                  | default    | primary       |
+| fresh2-vite7-preact10                  | default    | compatibility |
 | gatsby5-react19                        | default    | primary       |
 | next16-react19                         | turbopack  | primary       |
 | next16-react19                         | webpack    | primary       |
@@ -90,10 +90,11 @@ Primary combinations receive priority for ordinary CSS rendering, updates and SS
 
 ## Expected failures
 
-Each declaration keeps its original assertion. An unexpected pass fails the test. Production declarations run in both cold and warm builds.
+Each declaration keeps its original assertion. An unexpected pass fails the test. Production declarations run in both cold and warm builds. A row for all contracts names platforms that run one build case instead of the fixture contracts.
 
-| Fixture       | Profile    | Contract                 | Target                                            | Reason                                                                                                                      |
-| ------------- | ---------- | ------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| rsbuild2-vue3 | default    | sourceMaps (development) | src/App.vue: style('p-[7px]')                     | Vue script map composition remounts components on template edits; the bridge preserves HMR and leaves script maps unchanged |
-| rsbuild2-vue3 | unminified | sourceMaps (development) | src/App.vue: style('p-[7px]')                     | Vue script map composition remounts components on template edits; the bridge preserves HMR and leaves script maps unchanged |
-| webpack5-vue3 | default    | sourceMaps (production)  | src/App.vue: style(shared, 'text-probe p-[12px]') | webpack CSS minification loses selector mappings                                                                            |
+| Fixture               | Profile    | Contract                 | Target                                            | Reason                                                                                                                      |
+| --------------------- | ---------- | ------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| fresh2-vite7-preact10 | default    | all contracts            | linux, darwin                                     | Deno pipe handles do not expose descriptors for the TypeScript checker                                                      |
+| rsbuild2-vue3         | default    | sourceMaps (development) | src/App.vue: style('p-[7px]')                     | Vue script map composition remounts components on template edits; the bridge preserves HMR and leaves script maps unchanged |
+| rsbuild2-vue3         | unminified | sourceMaps (development) | src/App.vue: style('p-[7px]')                     | Vue script map composition remounts components on template edits; the bridge preserves HMR and leaves script maps unchanged |
+| webpack5-vue3         | default    | sourceMaps (production)  | src/App.vue: style(shared, 'text-probe p-[12px]') | webpack CSS minification loses selector mappings                                                                            |

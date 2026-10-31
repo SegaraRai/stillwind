@@ -17,6 +17,14 @@ export interface ExpectedFailure {
   issue?: string;
 }
 
+/**
+ * Declares that a fixture cannot build on the listed values of `process.platform`.
+ * These platforms run one expected-failure build case instead of the fixture contracts.
+ */
+export interface PlatformFailure extends ExpectedFailure {
+  platforms: NodeJS.Platform[];
+}
+
 /** Returns the declared support tier for a profile; rejects unknown profiles and tiers. */
 export function fixtureSupport(fixture: FixtureManifest, profile: string): SupportTier {
   if (!fixture.profiles.includes(profile)) {
@@ -125,6 +133,7 @@ export interface Fixture extends FixtureManifest {
     document: "preserve" | "reload";
   };
   production?: boolean;
+  platformFailure?: PlatformFailure;
   cachedProducer?: string;
   sourceMaps?: {
     file: string;
@@ -179,6 +188,12 @@ export function defineFixture(fixture: Fixture): Fixture {
     }
     if (!fixture.page.counters.length && edit.state !== "not-applicable") {
       throw new Error(`Edit ${name} requires a counter`);
+    }
+  }
+  if (fixture.platformFailure) {
+    failureReason(fixture.platformFailure);
+    if (!fixture.platformFailure.platforms.length) {
+      throw new Error("A platform failure requires a platform");
     }
   }
   for (const mapping of fixture.sourceMaps ?? []) {
