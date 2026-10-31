@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/integration",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Build tool integrations for Stillwind",
   "homepage": "https://stillwind.dev/",
   "bugs": {

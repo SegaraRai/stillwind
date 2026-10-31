@@ -1,0 +1,4 @@
+stillwind@0.1.0:
+  dir: packages/core
+  intents:
+    - kind-geckos-rush
