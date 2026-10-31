@@ -98,6 +98,9 @@ fn logical_policy_checks_properties_directional_values_and_asymmetric_shorthands
         "[float:right]",
         "[width:10rem]",
         "[overflow:hidden_auto]",
+        "[border-top:var(--border)]",
+        "[padding:var(--a)_1rem]",
+        "[size:10px_20px]",
     ] {
         assert!(
             kinds(&format!("const x=style('{candidate}');"), "", &options)

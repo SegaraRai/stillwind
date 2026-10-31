@@ -13,7 +13,11 @@ use lightningcss::stylesheet::{ParserOptions, PrinterOptions};
 use lightningcss::traits::Parse;
 use lightningcss::values::color::CssColor;
 
-use super::webref::{is_logical, physical_group_longhands, webref_property};
+use super::webref::{
+    assigns_physical_longhands_by_position, is_logical, sets_part_of_physical_group,
+    webref_property,
+};
+use crate::lists::whitespace_separated_ranges;
 
 /// Matches an entire string using `*` for any sequence and `?` for one character.
 /// Matching is case-sensitive; callers normalize CSS property and unit names.
@@ -339,6 +343,11 @@ pub fn is_length_unit(unit: &str) -> bool {
 /// counterparts. A shorthand is exempt when it gives every physical longhand of a
 /// logical group the same value, as in `padding: 1rem` and `overflow: hidden`, because
 /// the result does not depend on writing mode.
+///
+/// A shorthand that sets only some sides, such as `border-top`, is physical for every
+/// value. A value that Lightning CSS cannot expand is compared by position when the
+/// syntax assigns longhands by position, as in `padding: var(--a) 1rem`. Otherwise the
+/// function returns `false`, because one `var()` may hold values for several sides.
 pub fn declaration_is_physical(property: &str, value: &str) -> bool {
     let value = value
         .rsplit_once('!')
@@ -359,7 +368,13 @@ pub fn declaration_is_physical(property: &str, value: &str) -> bool {
     if definition.longhands.is_empty() {
         return definition.logical_group.is_some();
     }
+    if sets_part_of_physical_group(property) {
+        return true;
+    }
     let domains = property_value_domains(property, value);
+    if domains.len() == 1 {
+        return assigns_physical_longhands_by_position(property) && values_differ(value);
+    }
     let mut groups = BTreeMap::<_, Vec<_>>::new();
     for (name, value) in &domains {
         if let Some(p) = webref_property(name)
@@ -370,10 +385,17 @@ pub fn declaration_is_physical(property: &str, value: &str) -> bool {
             groups.entry(group).or_default().push(value);
         }
     }
-    groups.iter().any(|(group, values)| {
-        values.len() != physical_group_longhands(group).len()
-            || values.iter().any(|value| *value != values[0])
-    })
+    groups
+        .values()
+        .any(|values| values.iter().any(|value| *value != values[0]))
+}
+
+/// Returns whether the top-level whitespace-separated components of `value` differ.
+fn values_differ(value: &str) -> bool {
+    let components = whitespace_separated_ranges(value);
+    components
+        .iter()
+        .any(|component| value[component.clone()] != value[components[0].clone()])
 }
 
 #[cfg(test)]
@@ -488,5 +510,70 @@ mod tests {
         assert!(!declaration_is_physical("overflow", "hidden"));
         assert!(declaration_is_physical("overflow", "hidden auto"));
         assert!(declaration_is_physical("overflow-x", "hidden"));
+    }
+
+    #[test]
+    fn shorthands_for_some_sides_are_physical_for_every_value() {
+        for (property, value) in [
+            ("border-top", "var(--border)"),
+            ("border-top", "inherit"),
+            ("border-left-radius", "1px"),
+            ("corner-top-left", "1px round"),
+            ("corner-top-shape", "round"),
+            ("border-top", "1px solid red !important"),
+        ] {
+            assert!(declaration_is_physical(property, value), "{property}");
+        }
+    }
+
+    #[test]
+    fn unexpanded_shorthands_compare_values_by_position() {
+        for (property, value) in [
+            ("padding", "var(--a) 1rem"),
+            ("margin", "var(--a) calc(1px + 2px) var(--a)"),
+            ("overflow", "hidden var(--y)"),
+            ("size", "10px 20px"),
+            ("min-size", "10px 20px"),
+            ("max-size", "10px var(--height)"),
+            ("overscroll-behavior", "auto contain"),
+            ("corner-shape", "round bevel"),
+        ] {
+            assert!(
+                declaration_is_physical(property, value),
+                "{property}: {value}"
+            );
+        }
+        for (property, value) in [
+            ("padding", "var(--a)"),
+            ("padding", "var(--a) var(--a)"),
+            ("padding", "var(--a, 1px 2px)"),
+            ("padding", "inherit"),
+            ("size", "10px"),
+            ("size", "var(--size)"),
+            ("overscroll-behavior", "contain contain"),
+            ("corner-shape", "round"),
+        ] {
+            assert!(
+                !declaration_is_physical(property, value),
+                "{property}: {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn unexpanded_shorthands_without_positions_are_not_physical() {
+        for (property, value) in [
+            ("contain-intrinsic-size", "auto 10px"),
+            ("overflow-clip-margin", "content-box 1px"),
+            ("border-clip", "1px 2px"),
+            ("gap", "var(--a) 1rem"),
+            ("columns", "var(--a) 2"),
+            ("border", "var(--a) solid red"),
+        ] {
+            assert!(
+                !declaration_is_physical(property, value),
+                "{property}: {value}"
+            );
+        }
     }
 }

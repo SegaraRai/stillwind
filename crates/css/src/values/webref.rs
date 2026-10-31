@@ -141,6 +141,49 @@ pub(super) fn physical_group_longhands(group: &str) -> BTreeSet<&'static str> {
         .collect()
 }
 
+/// Returns whether the shorthand sets only some physical longhands of a logical group.
+///
+/// The physical sides are then visible from the name alone, as in `border-top` and
+/// `corner-top-shape`, so the caller does not need to read the value.
+pub(super) fn sets_part_of_physical_group(property: &str) -> bool {
+    let family = longhand_family(property);
+    family
+        .iter()
+        .filter_map(|name| logical_group(name))
+        .any(|group| {
+            !physical_group_longhands(group)
+                .iter()
+                .all(|name| family.contains(*name))
+        })
+}
+
+/// Returns whether each value of the shorthand assigns one physical longhand.
+///
+/// The syntax must repeat one single-word value, as in `<'margin-top'>{1,4}`, or list
+/// two longhands, as in `<'width'> <'height'>?`, and the shorthand must set a logical
+/// group. `contain-intrinsic-size` does not qualify because `auto 10px` is one value
+/// for one axis.
+pub(super) fn assigns_physical_longhands_by_position(property: &str) -> bool {
+    let Some(definition) = webref_property(property) else {
+        return false;
+    };
+    let repeats_value =
+        repeated_syntax(definition.syntax).is_some_and(|(repeated, _)| !repeated.contains('?'));
+    let lists_longhands = matches!(
+        definition.longhands,
+        [first, second] if definition.syntax == format!("<'{first}'> <'{second}'>?")
+    );
+    (repeats_value || lists_longhands)
+        && longhand_family(property)
+            .iter()
+            .any(|name| logical_group(name).is_some())
+}
+
+/// Splits a syntax that ends in `{1,n}` into the repeated part and `n`.
+fn repeated_syntax(syntax: &str) -> Option<(&str, &str)> {
+    syntax.strip_suffix('}')?.rsplit_once("{1,")
+}
+
 /// Returns the longhands that the declaration `property: value` sets to `value` itself.
 ///
 /// The result is not empty only when `property` repeats one longhand syntax for each of
@@ -164,11 +207,7 @@ pub fn repeated_longhands(property: &str, value: &str) -> &'static [&'static str
     let Some(first) = longhands.first() else {
         return &[];
     };
-    let Some((repeated, count)) = definition
-        .syntax
-        .strip_suffix('}')
-        .and_then(|syntax| syntax.rsplit_once("{1,"))
-    else {
+    let Some((repeated, count)) = repeated_syntax(definition.syntax) else {
         return &[];
     };
     if count.parse() != Ok(longhands.len()) {
