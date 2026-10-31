@@ -1,5 +1,20 @@
 # stillwind
 
+## 0.3.0
+
+### Minor Changes
+
+- The `recommended` preset now reports `unknown-utility` and `unknown-variant` as errors, so `stillwind lint` fails on a misspelled utility or variant. Set a rule to `warn` in `lint.rules` to keep the previous severity.
+
+  `prefer-explicit-nesting-selector` is now `implicit-nesting-selector`, and its category changes from `style` to `hazard`. Update the rule name in `lint.rules` and in `swlint-*` comments.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.3.0
+  - @stillwind/native@0.3.0
+  - @stillwind/projection@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
