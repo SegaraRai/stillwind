@@ -2,7 +2,7 @@
  * Renders the licenses of the npm packages that the extension includes.
  *
  * Each runtime bundle configuration adds {@link recordBundledPackages}, which records
- * the package directories of its bundled modules in `dist/licenses/`. `build.ts` then
+ * the licenses of its bundled packages in `dist/licenses/`. `build.ts` then
  * calls {@link writeExtensionLicenses} to combine the records into one license file.
  */
 
@@ -11,26 +11,25 @@ import path from "node:path";
 
 import {
   bundledPackages,
-  renderNpmLicenses,
+  npmPackage,
+  renderThirdPartyLicenses,
+  type ThirdPartyPackage,
 } from "@stillwind-internal/tools-workspace/third-party-licenses";
 
-const root = import.meta.dirname;
-const records = path.join(root, "dist/licenses");
+const records = path.join(import.meta.dirname, "dist/licenses");
 
 /**
- * Returns a Rolldown plugin that writes the npm package directories of the bundle to
- * `dist/licenses/<name>.json`. The paths are relative to this package because Desktop
- * packaging can read the records in a different checkout directory.
+ * Returns a Rolldown plugin that writes the npm package licenses of the bundle to
+ * `dist/licenses/<name>.json`. The records contain the license data because pnpm names
+ * package directories differently on each platform, and Desktop packaging can run on a
+ * different platform from the bundling.
  *
  * @param name A name that is unique among the bundle configurations.
  */
 export function recordBundledPackages(name: string) {
   return bundledPackages((directories) => {
     mkdirSync(records, { recursive: true });
-    writeFileSync(
-      path.join(records, `${name}.json`),
-      JSON.stringify(directories.map((directory) => path.relative(root, directory))),
-    );
+    writeFileSync(path.join(records, `${name}.json`), JSON.stringify(directories.map(npmPackage)));
   });
 }
 
@@ -46,17 +45,20 @@ export function writeExtensionLicenses(output: string, extra: string[]) {
   if (!files.length) {
     throw new Error(`${records} has no package records. Run vp pack first.`);
   }
-  const directories = new Set(extra);
-  for (const file of files) {
-    for (const directory of JSON.parse(readFileSync(path.join(records, file), "utf8"))) {
-      directories.add(path.resolve(root, directory));
-    }
+  const packages = new Map<string, ThirdPartyPackage>();
+  for (const entry of [
+    ...extra.map(npmPackage),
+    ...files.flatMap((file): ThirdPartyPackage[] =>
+      JSON.parse(readFileSync(path.join(records, file), "utf8")),
+    ),
+  ]) {
+    packages.set(`${entry.name}@${entry.version}`, entry);
   }
   writeFileSync(
     path.join(output, "NPM-THIRD-PARTY-LICENSES"),
-    renderNpmLicenses(
+    renderThirdPartyLicenses(
       "The Stillwind VS Code extension includes the following npm packages.",
-      directories,
+      [...packages.values()],
     ),
   );
 }
