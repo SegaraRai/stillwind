@@ -47,8 +47,13 @@ const gutter = style("inline-6 shrink-0 text-end text-subtle select-none");
             aria-label="Stillwind Playground"
             {...style("flex items-center gap-2 rounded-control")}
           >
-            <span aria-hidden="true" {...style("text-heading-small stillwind-logo")}></span>
-            <span {...style("text-muted text-small font-medium")}>Playground</span>
+            <span
+              aria-label="Stillwind"
+              role="img"
+              {...style("text-heading-small stillwind-logo")}
+            ></span>
+            <span aria-hidden="true" {...style("block-5 border-border border-s")} />
+            <span {...style("text-muted text-base font-medium")}>Playground</span>
           </a>
         </header>
 

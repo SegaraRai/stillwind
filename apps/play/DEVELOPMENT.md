@@ -3,11 +3,12 @@
 The playground is a static Astro site. `src/pages/index.astro` renders the document head,
 including the title, description, canonical URL, and Open Graph and Twitter card tags, and it
 mounts `src/Playground.tsx` with `client:only="react"`. The playground reads browser state while
-rendering, so the build emits no HTML for it. Monaco uses VS Code services and the built-in
-TypeScript and CSS extensions. The public Stillwind Web extension supplies compiler diagnostics
-and Quick Fixes. Application builds run separately in a worker with the browser build
-of Rolldown. Its JSX transform adds React Refresh registrations, and React Refresh updates a
-persistent sandboxed iframe. CSS updates replace its stylesheet.
+rendering, so the build emits only a loading screen, which the playground replaces when it mounts.
+The loading screen appears after one second, or immediately when scripting is disabled. Monaco
+uses VS Code services and the built-in TypeScript and CSS extensions. The public Stillwind Web
+extension supplies compiler diagnostics and Quick Fixes. Application builds run separately in a
+worker with the browser build of Rolldown. Its JSX transform adds React Refresh registrations, and
+React Refresh updates a persistent sandboxed iframe. CSS updates replace its stylesheet.
 
 Each application build captures file identities and package manifests. The build worker
 requests other file contents only when it loads them, with the same workspace generation
@@ -36,8 +37,8 @@ vp run @stillwind-internal/apps-play#build
 `build/assets.ts` writes the static assets and the files from `public/` to
 `dist/assets-static`, which Astro uses as its public directory. Serve `dist/site` with
 `Cross-Origin-Opener-Policy: same-origin` and
-`Cross-Origin-Embedder-Policy: require-corp`. The generated `_headers` file configures
-these headers for Cloudflare Workers Static Assets. The threaded WASM compiler requires them.
+`Cross-Origin-Embedder-Policy: require-corp`. The threaded WASM compiler requires them.
+`public/_headers` configures these headers for Cloudflare Workers Static Assets.
 
 See [Site deployments](../../DEVELOPMENT.md#site-deployments) for CI, Preview,
 production, and the required Cloudflare and GitHub settings.

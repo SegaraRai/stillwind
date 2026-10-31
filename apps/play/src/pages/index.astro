@@ -2,6 +2,7 @@
 import { style } from "stillwind/astro";
 
 import Playground from "../Playground.tsx";
+import { URL_DOCS, URL_WEBSITE } from "../site.ts";
 
 import "@fontsource/instrument-sans/400.css";
 import "@fontsource/instrument-sans/500.css";
@@ -12,6 +13,11 @@ const description =
   "Write React components with Stillwind utilities in your browser, and inspect the generated CSS, compiled code, and diagnostics as you type.";
 const canonical = new URL(import.meta.env.BASE_URL, Astro.site).href;
 const image = new URL(`${import.meta.env.BASE_URL}og.png`, Astro.site).href;
+
+// A fast load replaces the fallback before the delay ends, so the fallback never flashes.
+const delayedReveal = style.keyframes({
+  from: "invisible",
+});
 ---
 
 <!doctype html>
@@ -46,12 +52,46 @@ const image = new URL(`${import.meta.env.BASE_URL}og.png`, Astro.site).href;
     </script>
   </head>
   <body>
-    <Playground client:only="react" />
-    <noscript>
-      <p {...style("p-4 text-small")}>
-        {title} runs the Stillwind compiler, the editor, and the preview in your browser. Enable
-        JavaScript to use it.
-      </p>
-    </noscript>
+    <Playground client:only="react">
+      <main
+        slot="fallback"
+        {...style(
+          "grid block-dvh p-4 place-content-center justify-items-center gap-3 text-small text-center",
+          { "not-noscript:": delayedReveal("delay-1000 backwards") },
+        )}
+      >
+        <h1 {...style("flex items-center gap-3 text-foreground select-none")}>
+          <a
+            href={URL_WEBSITE}
+            target="_blank"
+            aria-label="Stillwind home"
+            {...style("inline-flex items-center rounded-control")}
+          >
+            <span
+              aria-label="Stillwind"
+              role="img"
+              {...style("text-heading stillwind-logo")}
+            ></span>
+          </a>
+          <span aria-hidden="true" {...style("block-5 border-border border-s")}></span>
+          <span {...style("text-heading-small text-muted font-medium")}>Playground</span>
+        </h1>
+        <p {...style("max-inline-120")}>{description}</p>
+        <p role="status" {...style("text-muted noscript:hidden")}>
+          Loading the playground…
+        </p>
+        <noscript>
+          <p {...style("max-inline-120")}>
+            The playground runs the Stillwind compiler, the editor, and the preview in your browser.
+            Enable JavaScript to use it.
+          </p>
+        </noscript>
+        <nav aria-label="Main navigation" {...style("flex gap-4 underline")}>
+          <a href={URL_WEBSITE}>Website</a>
+          <a href={URL_DOCS}>Docs</a>
+          <a href="https://github.com/SegaraRai/stillwind">GitHub</a>
+        </nav>
+      </main>
+    </Playground>
   </body>
 </html>

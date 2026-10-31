@@ -1,0 +1,8 @@
+# The threaded WASM compiler needs a cross-origin isolated page.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+# Asset file names contain a content hash, so a changed file always has a new URL.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -7,9 +7,6 @@ import { build } from "rolldown";
 const root = path.resolve(import.meta.dirname, "..");
 const ICON_SETS = ["lucide"];
 const output = path.join(root, "dist/assets-static");
-if (path.dirname(output) !== path.join(root, "dist")) {
-  throw new Error("Invalid generated asset directory");
-}
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await build({
@@ -78,6 +75,7 @@ await cp(
   {
     recursive: true,
     filter: (file) =>
+      !file.endsWith(".map") &&
       file !== path.resolve(root, "../../packages/vscode-extension/dist/extension/dist/node"),
   },
 );
@@ -92,16 +90,18 @@ await build({
     minify: true,
   },
 });
-await writeFile(
-  path.join(output, "_headers"),
-  "/*\n  Cross-Origin-Opener-Policy: same-origin\n  Cross-Origin-Embedder-Policy: require-corp\n",
-);
 
-/** Captures package text for the browser's filesystem, excluding tools and development sources. */
+/**
+ * Captures package text for the browser's filesystem. Excludes tools, development sources, and
+ * builds that the workspace cannot load: it resolves packages as ES modules with the current
+ * TypeScript version.
+ */
 async function collect(directory: string, virtual: string): Promise<void> {
   for (const entry of await readdir(directory)) {
     if (
-      ["node_modules", ".git", ".cache", "src", "tests", "typecheck", "dist"].includes(entry) &&
+      ["node_modules", ".git", ".cache", "src", "tests", "typecheck", "dist", "ts5.0"].includes(
+        entry,
+      ) &&
       (entry !== "dist" || virtual.includes("/dist"))
     ) {
       continue;
@@ -110,7 +110,11 @@ async function collect(directory: string, virtual: string): Promise<void> {
     const info = await stat(file);
     if (info.isDirectory()) {
       await collect(file, `${virtual}/${entry}`);
-    } else if (/\.(?:[cm]?js|[cm]?ts|tsx|json|css)$/.test(entry) && !entry.endsWith(".map")) {
+    } else if (
+      /\.(?:[cm]?js|[cm]?ts|tsx|json|css)$/.test(entry) &&
+      !/\.(?:cjs|cts|min\.[cm]?js)$/.test(entry) &&
+      !["tsconfig.json", "vite.config.ts"].includes(entry)
+    ) {
       files.push([`${virtual}/${entry}`, await readFile(file, "utf8")]);
     }
   }
