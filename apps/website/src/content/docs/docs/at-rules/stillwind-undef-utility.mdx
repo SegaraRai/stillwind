@@ -60,6 +60,11 @@ source order. An undefinition removes only definitions that register before it:
 - It does not remove a `@utility` that comes after it, so you can remove a
   built-in utility and define your own utility with the same name.
 
+A replacement with the same name keeps the cascade position of the removed
+definition, so it wins against the same utilities as before. A definition with
+another name takes the position where you write it. A definition without `*`
+does not take the position of a removed `prefix-*` definition.
+
 Outside a block, the statement changes the `default`, `keyframe`, and
 `view-transition` registries.
 

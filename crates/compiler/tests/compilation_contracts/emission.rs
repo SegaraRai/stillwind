@@ -189,6 +189,40 @@ fn utility_precedence_is_independent_of_literal_and_array_order() {
 }
 
 #[test]
+fn utility_position_belongs_to_the_definition_name_across_undefinitions() {
+    let replaced = "@stillwind-utility t { color:red; } @utility mid { color:blue; } \
+                    @stillwind-undef-utility t;";
+    let family = "@stillwind-utility t-* { color:red; } @utility mid { color:blue; } \
+                  @stillwind-undef-utility t-*;";
+    for (css, input, expected) in [
+        (
+            format!("{replaced} @utility t {{ color:green; }}"),
+            "'mid t'",
+            "{color:green;color:blue;}",
+        ),
+        (
+            format!("{replaced} @stillwind-utility t {{ color:green; }}"),
+            "'mid t'",
+            "{color:green;color:blue;}",
+        ),
+        (
+            format!("{replaced} @utility renamed {{ color:green; }}"),
+            "'renamed mid'",
+            "{color:blue;color:green;}",
+        ),
+        (
+            format!("{family} @utility t-a {{ color:green; }}"),
+            "'t-a mid'",
+            "{color:blue;color:green;}",
+        ),
+    ] {
+        let (_, result) = compile(&format!("export const x = style({input});"), &css);
+        assert!(result.diagnostics.is_empty(), "{result:#?}");
+        assert!(result.css.ends_with(expected), "{css}: {}", result.css);
+    }
+}
+
+#[test]
 fn recursive_theme_macros_reject_the_candidate_without_partial_output() {
     for value in ["--value(--color-*)", "calc(--value(--color-*) + 1)"] {
         let (_, result) = compile(

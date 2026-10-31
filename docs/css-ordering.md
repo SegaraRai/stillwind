@@ -68,6 +68,12 @@ Rule:
 - A `@utility` definition keeps the source position of its name. `@stillwind-utility`
   definitions are reordered only among the slots they already occupy, so a `@utility`
   definition never moves.
+- A position belongs to a definition name, and the first definition of a name decides
+  it. A definition keeps that position after `@stillwind-undef-utility` removes the
+  earlier definitions of the same name, so a replacement stays where the removed
+  definition was. A definition with a different name takes its own position, even when
+  an undefinition pattern removes the definitions it replaces: `t-a` does not inherit
+  the position of `t-*`.
 - Utilities that `@plugin` statements define come before every `@stillwind-utility` and
   stylesheet utility, in their source order, wherever the statements appear. A plugin
   supplies defaults, so `size-full` overrides the size of an icon utility from an

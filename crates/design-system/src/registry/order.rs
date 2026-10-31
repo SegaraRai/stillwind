@@ -17,8 +17,9 @@ use stillwind_css::{
 
 use super::variants::parse_variant_name;
 
-/// First registration offsets in the import-expanded stylesheet; redefinitions retain
-/// their slot.
+/// First registration offsets in the import-expanded stylesheet. Each name keeps its
+/// slot across redefinitions, including a redefinition after an undefinition of that
+/// name.
 ///
 /// Only definitions that can register a name reserve a slot: `@variant` blocks must
 /// carry an `@slot`, and `@custom-variant` also registers from its statement form. The
