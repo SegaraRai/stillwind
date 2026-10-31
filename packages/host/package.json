@@ -45,7 +45,7 @@
     "@stillwind/config": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@stillwind/projection": "workspace:*",
-    "minimatch": "^10.2.6",
+    "minimatch": "^11.0.3",
     "oxc-resolver": "^11.24.2",
     "pathe": "catalog:",
     "tinyglobby": "^0.2.17",

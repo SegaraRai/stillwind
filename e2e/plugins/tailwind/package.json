@@ -5,9 +5,9 @@
   "type": "module",
   "devDependencies": {
     "@headlessui/tailwindcss": "0.2.2",
-    "@iconify-json/lucide": "^1.2.148",
+    "@iconify-json/lucide": "^1.2.149",
     "@iconify/tailwind4": "1.2.3",
-    "@rspack/core": "2.2.9",
+    "@rspack/core": "2.3.0",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",

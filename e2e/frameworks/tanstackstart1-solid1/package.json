@@ -6,14 +6,14 @@
   "dependencies": {
     "@tanstack/solid-router": "1.170.43",
     "@tanstack/solid-start": "1.169.4",
-    "solid-js": "1.9.17",
+    "solid-js": "1.9.18",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
-    "nitro": "3.0.260903-beta",
+    "nitro": "3.0.261029-rc",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plugin-solid": "2.11.14",

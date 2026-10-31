@@ -17,9 +17,9 @@ hashbrown 0.17.1 (MIT OR Apache-2.0) https://github.com/rust-lang/hashbrown
 indexmap 2.14.2 (Apache-2.0 OR MIT) https://github.com/indexmap-rs/indexmap
 itertools 0.10.5 (MIT/Apache-2.0) https://github.com/rust-itertools/itertools
 itertools 0.15.0 (MIT OR Apache-2.0) https://github.com/rust-itertools/itertools
-js-sys 0.3.106 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys
+js-sys 0.3.107 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys
 lazy_static 1.5.1 (MIT OR Apache-2.0) https://github.com/rust-lang-nursery/lazy-static.rs
-log 0.4.34 (MIT OR Apache-2.0) https://github.com/rust-lang/log
+log 0.4.35 (MIT OR Apache-2.0) https://github.com/rust-lang/log
 num-bigint 0.5.1 (MIT OR Apache-2.0) https://github.com/rust-num/num-bigint
 num-integer 0.1.47 (MIT OR Apache-2.0) https://github.com/rust-num/num-integer
 num-traits 0.2.19 (MIT OR Apache-2.0) https://github.com/rust-num/num-traits
@@ -35,8 +35,8 @@ uuid 1.29.0 (Apache-2.0 OR MIT) https://github.com/uuid-rs/uuid
 vlq 0.5.1 (Apache-2.0/MIT) https://github.com/tromey/vlq
 wasi 0.11.1+wasi-snapshot-preview1 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) https://github.com/bytecodealliance/wasi
 wasip2 1.0.4+wasi-0.2.12 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) https://github.com/bytecodealliance/wasi-rs
-wasm-bindgen 0.2.129 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen
-wasm-bindgen-shared 0.2.129 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared
+wasm-bindgen 0.2.130 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen
+wasm-bindgen-shared 0.2.130 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared
 wit-bindgen 0.57.1 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) https://github.com/bytecodealliance/wit-bindgen
 ================================================================================
 
@@ -600,7 +600,7 @@ SOFTWARE.
 
 ================================================================================
 bitflags 2.13.2 (MIT OR Apache-2.0) https://github.com/bitflags/bitflags
-log 0.4.34 (MIT OR Apache-2.0) https://github.com/rust-lang/log
+log 0.4.35 (MIT OR Apache-2.0) https://github.com/rust-lang/log
 num-bigint 0.5.1 (MIT OR Apache-2.0) https://github.com/rust-num/num-bigint
 num-integer 0.1.47 (MIT OR Apache-2.0) https://github.com/rust-num/num-integer
 num-traits 0.2.19 (MIT OR Apache-2.0) https://github.com/rust-num/num-traits
@@ -1516,9 +1516,9 @@ SOFTWARE.
 
 ================================================================================
 cfg-if 1.0.5 (MIT OR Apache-2.0) https://github.com/rust-lang/cfg-if
-js-sys 0.3.106 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys
-wasm-bindgen 0.2.129 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen
-wasm-bindgen-shared 0.2.129 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared
+js-sys 0.3.107 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/js-sys
+wasm-bindgen 0.2.130 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen
+wasm-bindgen-shared 0.2.130 (MIT OR Apache-2.0) https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/shared
 ================================================================================
 
 Copyright (c) 2014 Alex Crichton
@@ -2686,7 +2686,8 @@ self_cell 1.3.0 (Apache-2.0 OR GPL-2.0-only) https://github.com/Voultapher/self_
 siphasher 1.0.4 (MIT OR Apache-2.0) https://github.com/jedisct1/rust-siphash
 static_assertions 1.1.0 (MIT OR Apache-2.0) https://github.com/nvzqz/static-assertions-rs
 tinyvec 1.13.3 (Zlib OR Apache-2.0 OR MIT) https://github.com/Lokathor/tinyvec
-utf8_iter 1.0.4 (Apache-2.0 OR MIT) https://github.com/hsivonen/utf8_iter
+utf_types 1.0.0 (Apache-2.0 OR MIT) https://github.com/hsivonen/utf_types
+utf8_iter 1.1.0 (Apache-2.0 OR MIT) https://github.com/hsivonen/utf8_iter
 ================================================================================
 
 Apache License
@@ -4171,7 +4172,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 
 ================================================================================
-napi 3.15.0 (MIT) https://github.com/napi-rs/napi-rs
+napi 3.16.0 (MIT) https://github.com/napi-rs/napi-rs
 ================================================================================
 
 MIT License
@@ -6320,7 +6321,8 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-utf8_iter 1.0.4 (Apache-2.0 OR MIT) https://github.com/hsivonen/utf8_iter
+utf_types 1.0.0 (Apache-2.0 OR MIT) https://github.com/hsivonen/utf_types
+utf8_iter 1.1.0 (Apache-2.0 OR MIT) https://github.com/hsivonen/utf8_iter
 ================================================================================
 
 Copyright Mozilla Foundation

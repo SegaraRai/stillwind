@@ -8,7 +8,7 @@
     "vue": "3.5.44"
   },
   "devDependencies": {
-    "@rspack/core": "2.2.9",
+    "@rspack/core": "2.3.0",
     "@rspack/dev-server": "2.2.2",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

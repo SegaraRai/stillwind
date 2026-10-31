@@ -9,7 +9,7 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@rsbuild/core": "2.2.14",
+    "@rsbuild/core": "2.3.0",
     "@rsbuild/plugin-react": "2.1.1",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

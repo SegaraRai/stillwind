@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "solid-js": "1.9.17",
+    "solid-js": "1.9.18",
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@babel/core": "8.0.9",
+    "@babel/core": "8.0.10",
     "@babel/preset-typescript": "8.0.7",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

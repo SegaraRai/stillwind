@@ -13,7 +13,7 @@
     "@types/node": "catalog:",
     "@vitest/ui": "catalog:",
     "@volar/typescript": "^2.4.30",
-    "@vue/language-core": "^3.3.13",
+    "@vue/language-core": "^3.3.14",
     "emnapi": "^2.0.0-beta.2",
     "typescript": "catalog:",
     "vite": "catalog:",

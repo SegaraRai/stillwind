@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "astro": "7.4.2",
+    "astro": "7.4.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "stillwind": "workspace:*",
@@ -12,8 +12,8 @@
     "vue": "3.5.44"
   },
   "devDependencies": {
-    "@astrojs/react": "7.1.1",
-    "@astrojs/svelte": "9.1.1",
+    "@astrojs/react": "7.1.2",
+    "@astrojs/svelte": "9.1.2",
     "@astrojs/vue": "7.1.2",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",

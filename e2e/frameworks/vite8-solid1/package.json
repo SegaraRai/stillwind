@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "solid-js": "1.9.17",
+    "solid-js": "1.9.18",
     "stillwind": "workspace:*"
   },
   "devDependencies": {

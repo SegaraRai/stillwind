@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.148",
+    "@iconify-json/lucide": "^1.2.149",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/config": "workspace:*",
     "@stillwind/integration": "workspace:*",

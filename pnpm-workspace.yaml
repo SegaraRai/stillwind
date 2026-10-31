@@ -34,15 +34,15 @@ catalogs:
     "@jridgewell/gen-mapping": ^0.3.13
     "@jridgewell/remapping": ^2.3.5
     "@jridgewell/trace-mapping": ^0.3.31
-    "@rolldown/browser": ^1.2.15
-    "@types/node": ^26.6.5
+    "@rolldown/browser": ^1.2.16
+    "@types/node": ^26.6.6
     "@vitest/browser-playwright": 5.0.5
     "@vitest/ui": 5.0.5
     "@webref/css": 8.7.8
-    cf: ^1.0.0-beta.25
+    cf: ^1.0.0-beta.26
     pathe: ^2.0.3
     playwright: ^1.64.1
-    rolldown: ^1.2.15
+    rolldown: ^1.2.16
     tailwindcss: 4.3.3
     typescript: ^6.0.3
     vite: npm:@voidzero-dev/vite-plus-core@1.4.0
@@ -54,7 +54,7 @@ overrides:
   "@rolldown/browser>@emnapi/core": 2.0.0-beta.2
   "@rolldown/browser>@emnapi/runtime": 2.0.0-beta.2
   # Vue's language plugin and its TypeScript augmentation share one Volar version.
-  "@vue/language-core@3.3.13>@volar/language-core": 2.4.30
+  "@vue/language-core@3.3.14>@volar/language-core": 2.4.30
   "@vitest/ui": "catalog:"
   vite@*: "catalog:"
   vitest@*: "catalog:"
@@ -67,25 +67,9 @@ peerDependencyRules:
     vite: "*"
     vitest: "*"
 
-minimumReleaseAgeExclude:
-  - "@iconify-json/lucide@1.2.148"
-  - "@solidjs/signals@2.0.0-rc.19"
-  - "@solidjs/web@2.0.0-rc.19"
-  - solid-js@2.0.0-rc.19
-  - "@astrojs/react@7.1.2"
-  - "@astrojs/markdown-satteri@0.4.6"
-  - "@astrojs/prism@4.1.2"
-  - "@astrojs/telemetry@3.4.2"
-  - astro@7.4.3
-  - "@cloudflare/build-output-utils@0.9.6"
-  - "@cloudflare/config@0.29.0"
-  - "@cloudflare/runtime-types@0.1.18"
-  - cf@1.0.0-beta.25
-  - miniflare@5.20261023.2-beta
-
 patchedDependencies:
   "@napi-rs/cli@3.10.9": patches/@napi-rs__cli@3.10.9.patch
-  "@rolldown/browser@1.2.15": patches/@rolldown__browser@1.2.15.patch
+  "@rolldown/browser@1.2.16": patches/@rolldown__browser@1.2.16.patch
 
 versioning:
   maxBump: minor

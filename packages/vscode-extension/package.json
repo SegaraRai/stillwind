@@ -46,7 +46,7 @@
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@types/vscode": "latest",
-    "@vscode/vsce": "^4.0.0",
+    "@vscode/vsce": "^4.1.0",
     "playwright": "catalog:",
     "rolldown": "catalog:",
     "typescript": "catalog:",

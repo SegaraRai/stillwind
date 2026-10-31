@@ -8,14 +8,14 @@
   "dependencies": {
     "@cloudflare/nimbus-docs": "^0.19.1",
     "@fontsource/instrument-sans": "^5.3.0",
-    "astro": "^7.4.3",
+    "astro": "^7.4.4",
     "stillwind": "workspace:*",
     "sugar-high": "^2.6.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@emnapi/runtime": "^1.11.3",
-    "@iconify-json/lucide": "^1.2.148",
+    "@iconify-json/lucide": "^1.2.149",
     "@iconify-json/simple-icons": "^1.2.101",
     "@stillwind-internal/tools-builtin-css": "workspace:*",
     "@stillwind-internal/tools-workspace": "workspace:*",

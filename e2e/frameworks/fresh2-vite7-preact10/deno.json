@@ -14,6 +14,6 @@
   "compilerOptions": {
     "jsx": "precompile",
     "jsxImportSource": "preact",
-    "types": ["npm:@types/node@26.6.5", "npm:vite@7.3.7/client"]
+    "types": ["npm:@types/node@26.6.6", "npm:vite@7.3.7/client"]
   }
 }
