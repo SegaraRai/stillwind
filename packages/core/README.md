@@ -1,13 +1,11 @@
 # Stillwind
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it. See the [documentation](https://stillwind.dev/docs)
-and try it in the [Playground](https://play.stillwind.dev/).
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
+See the [documentation](https://stillwind.dev/docs) and try it in the [Playground](https://play.stillwind.dev/).
 
-`stillwind` is the main Stillwind package. It provides CSS defaults, configuration
-helpers, and style APIs for Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte,
-vanilla JavaScript, and Vue.
+`stillwind` is the main Stillwind package. It provides CSS defaults, configuration helpers, and style APIs for
+Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte, Vue, and vanilla JavaScript.
 
 ## Install
 

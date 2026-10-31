@@ -1,8 +1,7 @@
 # Stillwind Prettier plugin
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
 `prettier-plugin-stillwind` is Stillwind's Prettier plugin. It sorts recognized
 Stillwind inputs before Prettier formats a document.

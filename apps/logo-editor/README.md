@@ -1,8 +1,7 @@
 # Shape Lab
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
 This package contains Shape Lab, a private geometry editor for Stillwind logo studies.
 

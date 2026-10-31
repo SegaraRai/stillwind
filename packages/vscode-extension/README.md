@@ -1,8 +1,7 @@
 # Stillwind for Visual Studio Code
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
 `@stillwind/vscode-extension` provides Stillwind language support for VS Code.
 It adds compiler diagnostics, Quick Fixes, utility completion, CSS previews,

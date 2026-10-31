@@ -1,8 +1,7 @@
 # @stillwind/native
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
 `@stillwind/native` provides Node-API and WASM bindings for the Stillwind compiler.
 Stillwind's host services and browser tooling share these bindings.

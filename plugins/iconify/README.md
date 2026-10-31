@@ -1,6 +1,6 @@
 # @stillwind/plugin-iconify
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
 
 `@stillwind/plugin-iconify` adds Iconify icons as Stillwind utilities. Only the icons
 you use are included in your CSS.

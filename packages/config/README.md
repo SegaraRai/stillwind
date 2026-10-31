@@ -1,12 +1,10 @@
 # @stillwind/config
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
-`@stillwind/config` provides shared project configuration, lint presets, plugin
-contracts, and configuration loading for Stillwind builds and analysis.
-Applications use the helpers through `stillwind/config`.
+`@stillwind/config` provides shared project configuration, lint presets, plugin contracts, and configuration
+loading for Stillwind builds and analysis. Applications use the helpers through `stillwind/config`.
 
 See [Configuration](https://stillwind.dev/docs/configuration)
 for settings and resolution rules.

@@ -1,12 +1,10 @@
 # Stillwind build integrations
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
-`@stillwind/integration` provides build tool integrations for Stillwind. It reads
-`stillwind.config.*`, compiles styles during development and production builds,
-and delivers generated CSS through the selected build tool.
+`@stillwind/integration` provides build tool integrations for Stillwind. It reads `stillwind.config.*`, compiles
+styles during development and production builds, and delivers generated CSS through the selected build tool.
 
 ## Install
 

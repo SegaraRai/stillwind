@@ -1,12 +1,10 @@
 # Stillwind CLI
 
-Stillwind compiles Tailwind CSS v4 utilities into component props and static CSS.
-It uses theme rules and compiler checks to keep styling code in order, even when
-AI agents write much of it.
+[Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
+It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
-`@stillwind/cli` is Stillwind's command-line interface for sorting, linting,
-automatic fixes, and CI checks. It uses the same project configuration as the
-build integration and editor.
+`@stillwind/cli` is Stillwind's command-line interface for sorting, linting, automatic fixes, and CI checks.
+It uses the same project configuration as the build integration and editor.
 
 ## Install
 
