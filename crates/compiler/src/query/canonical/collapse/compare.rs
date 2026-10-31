@@ -24,18 +24,21 @@ pub(super) struct CanonicalSet {
     required: BTreeSet<LeanStr>,
     written_variables: Vec<lean_string::LeanString>,
     references: BTreeSet<lean_string::LeanString>,
+    tokens: BTreeSet<LeanStr>,
 }
 
 impl CanonicalSet {
     /// Checks whether `other` can replace this set.
     ///
     /// The two sets must produce the same normalized CSS and need the same registered
-    /// properties. Each `var()` call that the author wrote in this set must also appear
-    /// in the CSS of `other`, so that a replacement does not remove an explicit
-    /// variable. Both sets must come from the same query.
+    /// properties. `other` must reference every theme token that the final declarations
+    /// of this set reference. Each `var()` call that the author wrote in this set must
+    /// also appear in the CSS of `other`, so that a replacement does not remove an
+    /// explicit variable. Both sets must come from the same query.
     pub(super) fn matches(&self, other: &Self) -> bool {
         self.signature == other.signature
             && self.required == other.required
+            && self.tokens.is_subset(&other.tokens)
             && self
                 .written_variables
                 .iter()
@@ -88,11 +91,20 @@ impl DesignSystemQuery {
             let rendered = self.context.options.rewrite_generated(name);
             !composition.shadows.contains_key(&rendered) || signature.contains(rendered.as_str())
         });
+        // A later candidate can override a declaration and remove its token, as
+        // `leading-7` overrides the line height of `text-sm`.
+        let effective_css = minify_css(&raw_css, &CssMinifyOptions::default())
+            .map_or_else(|_| raw_css.clone(), |output| ordered_css(&output.css, 0));
         Ok(Some(CanonicalSet {
             signature,
             required,
             written_variables,
             references: variable_calls(&raw_css).into_iter().collect(),
+            tokens: self
+                .context
+                .token_references(&effective_css)
+                .into_iter()
+                .collect(),
         }))
     }
 

@@ -8,7 +8,6 @@ fn finite_aliases_compare_complete_declarations() {
     );
     for (raw, expected) in [
         ("example-8", "example-a"),
-        ("-tracking-tight", "tracking-wide"),
         ("tracking-[0.025em]", "tracking-wide"),
         (
             "[color:var(--color-red-500)]/(--opacity)",
@@ -190,7 +189,6 @@ fn canonical_color_modifiers_match_with_the_default_registry() {
         ("bg-[#f00]/50", "bg-brand/50"),
         ("hover:!bg-[#f00]/50", "hover:bg-brand/50!"),
         ("bg-[#f00]/100", "bg-brand"),
-        ("bg-[#f00]/0", "bg-b/0"),
     ] {
         assert_eq!(
             query.canonical_candidate(raw).unwrap().as_deref(),
@@ -198,6 +196,7 @@ fn canonical_color_modifiers_match_with_the_default_registry() {
             "{raw}"
         );
     }
+    assert!(query.canonical_candidate("bg-[#f00]/0").unwrap().is_none());
     assert!(
         query
             .canonical_candidate("bg-[#123456]/50")

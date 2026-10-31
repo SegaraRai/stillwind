@@ -12,6 +12,20 @@ definitions.
 Within one string or one CSS `@apply` statement, it can combine utilities such as
 `w-4 h-4` into `size-4`. Utilities must have the same variants and importance.
 
+## Theme tokens
+
+A replacement keeps every theme token that the original utility references. For
+example, `w-96` stays as written even when `--container-sm` has the same value, because
+the two tokens can differ after a theme change.
+
+A fixed value becomes a token only when the choice is clear:
+
+- A spacing multiple comes first, so `w-[448px]` becomes `w-112`, not `w-md`.
+- A named token is used when no spacing multiple fits and it is the only match, so
+  `rounded-[8px]` becomes `rounded-lg`.
+- The value stays as written when unrelated named tokens match it. An alias of a token
+  does not count as an unrelated token.
+
 ## Reported
 
 <DiagnosticExample code="prefer-canonical-utilities">

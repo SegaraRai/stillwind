@@ -15,6 +15,7 @@ use stillwind_diagnostics::CanonicalUtilitiesConfig;
 use stillwind_syntax::{CandidatePrefix, Utility, parse_candidate};
 
 use super::super::conditions::canonical_conditions;
+use super::equivalence::ReplacementChoice;
 use crate::compiler::candidate_allowed;
 use crate::query::DesignSystemQuery;
 
@@ -62,17 +63,24 @@ impl DesignSystemQuery {
         while visited.insert(current.clone()) {
             let mut next = self.dynamic_named_candidate(&current)?;
             if next.is_none() {
+                let mut choice = ReplacementChoice::default();
                 for candidate in self.local_candidates(&current) {
-                    if candidate != current
-                        && (self.equivalent(&current, &candidate)?
-                            || (self.context.canonical_preview(&current)?.is_none()
-                                && self.recover_hint(&current, &candidate)?
-                                && self.context.canonical_preview(&candidate)?.is_some()))
+                    if candidate == current {
+                        continue;
+                    }
+                    if self.equivalent(&current, &candidate)? {
+                        next = choice.offer(self, &current, &candidate)?;
+                    } else if self.context.canonical_preview(&current)?.is_none()
+                        && self.recover_hint(&current, &candidate)?
+                        && self.context.canonical_preview(&candidate)?.is_some()
                     {
                         next = Some(candidate);
+                    }
+                    if next.is_some() {
                         break;
                     }
                 }
+                next = next.or(choice.finish());
             }
             if next.is_none() {
                 next = self.named_alias(&current)?;

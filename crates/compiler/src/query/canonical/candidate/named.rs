@@ -13,6 +13,7 @@ use stillwind_syntax::{CandidatePrefix, Utility, parse_candidate};
 
 use super::super::index::rank;
 use super::super::preview::{CanonicalPreview, SpacingUnit, dimension};
+use super::equivalence::ReplacementChoice;
 use super::spelling::{arbitrary, value_candidate};
 use crate::query::{DesignSystemQuery, QueryContext};
 
@@ -72,6 +73,7 @@ impl DesignSystemQuery {
         }
         names.sort_by(|left, right| rank(left, right));
         names.dedup();
+        let mut choice = ReplacementChoice::default();
         for name in names {
             let body = name.trim_start_matches('-');
             if let Some(root) = body.match_indices('-').rev().find_map(|(index, _)| {
@@ -97,7 +99,7 @@ impl DesignSystemQuery {
             )
             .to_lean_str();
             if replacement == raw {
-                return Ok(None);
+                break;
             }
             if !raw.contains('[')
                 && replacement.len() > raw.len()
@@ -106,11 +108,13 @@ impl DesignSystemQuery {
             {
                 continue;
             }
-            if self.equivalent(raw, &replacement)? {
-                return Ok(Some(replacement));
+            if self.equivalent(raw, &replacement)?
+                && let Some(accepted) = choice.offer(self, raw, &replacement)?
+            {
+                return Ok(Some(accepted));
             }
         }
-        Ok(None)
+        Ok(choice.finish())
     }
 
     /// Returns the roots of the families whose names may replace `utility`.
@@ -235,6 +239,7 @@ impl DesignSystemQuery {
             modifier: suffix,
         };
         let labels = self.canonical_labels(&search, &original, base.as_deref());
+        let mut choice = ReplacementChoice::default();
         for label in labels {
             let replacement = format_args!(
                 "{prefix}{}{label}{suffix}{}",
@@ -245,11 +250,16 @@ impl DesignSystemQuery {
             if replacement == raw || (!raw.contains('[') && replacement.len() >= raw.len()) {
                 continue;
             }
-            if self.equivalent(raw, &replacement)? {
-                return Ok(Some(replacement));
+            if self.equivalent(raw, &replacement)?
+                && let Some(accepted) = choice.offer(self, raw, &replacement)?
+            {
+                return Ok(Some(accepted));
             }
         }
-        self.canonical_variant(raw)
+        match choice.finish() {
+            Some(replacement) => Ok(Some(replacement)),
+            None => self.canonical_variant(raw),
+        }
     }
 
     /// Returns the labels that may replace the candidate of `search`, in the order to

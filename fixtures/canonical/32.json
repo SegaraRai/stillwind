@@ -64,7 +64,8 @@
         "rem": 16,
         "collapse": true,
         "logicalToPhysical": true
-      }
+      },
+      "stillwindExpected": ["-tracking-tighter"]
     },
     {
       "input": ["-tracking-tight"],
@@ -73,7 +74,8 @@
         "rem": 16,
         "collapse": true,
         "logicalToPhysical": true
-      }
+      },
+      "stillwindExpected": ["-tracking-tight"]
     },
     {
       "input": ["-tracking-normal"],
@@ -91,7 +93,8 @@
         "rem": 16,
         "collapse": true,
         "logicalToPhysical": true
-      }
+      },
+      "stillwindExpected": ["-tracking-wide"]
     },
     {
       "input": ["-tracking-wider"],
@@ -100,7 +103,8 @@
         "rem": 16,
         "collapse": true,
         "logicalToPhysical": true
-      }
+      },
+      "stillwindExpected": ["-tracking-wider"]
     }
   ]
 }

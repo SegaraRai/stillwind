@@ -266,7 +266,7 @@ fn canonical_modifiers_keep_overlapping_functional_branches() {
 #[test]
 fn canonical_color_modifiers_search_all_values_when_alpha_erases_the_color() {
     let query = make_query(
-        "@theme { --*:initial; --color-a:red; --color-b:blue; } @theme inline { --opacity-50:0; } \
+        "@theme { --*:initial; --color-a:red; } @theme inline { --opacity-50:0; } \
          @utility fixed-* { color:--compat-color(--value(--color-*, [color]), 0%); opacity:--modifier(number); } \
          @utility token-* { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier(--opacity-*))); } \
          @utility extra-* { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier()), 0%); }",
@@ -285,7 +285,7 @@ fn canonical_color_modifiers_search_all_values_when_alpha_erases_the_color() {
 #[test]
 fn canonical_search_matches_finite_css_reference() {
     let query = make_query(
-        "@theme { --*:initial; --spacing:.25rem; --spacing-a:1rem; --color-a:red; --color-b:blue; --color-c:rgb(255 0 0); --color-alias:var(--color-a); --text-body:1rem; --leading-tight:1.25rem; } @utility tone-* { color:--value(--color-*, [color]); opacity:--modifier(number); } @utility plain-* { color:--value(--color-*, [color]); } @utility text-* { font-size:--value(--text-*, [length]); line-height:--modifier(--leading-*, [length]); } @utility nested-* { &:hover { color:--value(--color-*, [color]); outline-color:var(--color-alias); } } @utility padded-* { padding:--value(--spacing-*, [length]); }",
+        "@theme { --*:initial; --spacing:.25rem; --spacing-a:1rem; --color-a:red; --color-b:blue; --color-alias:var(--color-a); --text-body:1rem; --leading-tight:1.25rem; } @utility tone-* { color:--value(--color-*, [color]); opacity:--modifier(number); } @utility plain-* { color:--value(--color-*, [color]); } @utility text-* { font-size:--value(--text-*, [length]); line-height:--modifier(--leading-*, [length]); } @utility nested-* { &:hover { color:--value(--color-*, [color]); outline-color:var(--color-alias); } } @utility padded-* { padding:--value(--spacing-*, [length]); }",
         CompilerOptions::default(),
     );
     let index = query.canonical_index();
@@ -295,7 +295,6 @@ fn canonical_search_matches_finite_css_reference() {
         ("plain", "rgb(255_0_0)", ""),
         ("plain", "#00f", ""),
         ("nested", "#00f", ""),
-        ("padded", "1rem", ""),
         ("text", "1rem", "/tight"),
     ] {
         let raw = format_args!("{root}-[{value}]{modifier}").to_lean_str();
@@ -308,9 +307,6 @@ fn canonical_search_matches_finite_css_reference() {
             .filter(|label| label.starts_with(format_args!("{root}-").to_lean_str().as_str()))
             .cloned()
             .collect();
-        if value == "1rem" {
-            labels.push(format_args!("{root}-4").to_lean_str());
-        }
         labels.sort_by(|left, right| {
             (!index.labels.contains(left))
                 .cmp(&(!index.labels.contains(right)))
@@ -339,4 +335,8 @@ fn canonical_search_matches_finite_css_reference() {
         });
         assert_eq!(query.canonical_candidate(&raw).unwrap(), expected, "{raw}");
     }
+    assert_eq!(
+        query.canonical_candidate("padded-[1rem]").unwrap(),
+        Some("padded-4".into())
+    );
 }

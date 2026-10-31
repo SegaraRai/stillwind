@@ -17,6 +17,12 @@ candidate has an opacity modifier. It therefore writes `bg-red-500/16` for
 `bg-[#f00]/[0.16]`, where Tailwind keeps `bg-[#f00]/16`.
 Stillwind also keeps explicit variable references when combining utilities, so
 runtime changes to those variables still affect the result.
+Stillwind also keeps each theme token that a candidate references. It therefore keeps
+`-tracking-tight`, where Tailwind writes `tracking-wide`, because a theme can give those
+two tokens different values.
+Tailwind looks up replacements in its completion list, so a value such as `w-[448px]`
+becomes `w-md` because `w-112` is absent from that list. Stillwind prefers the spacing
+multiple `w-112` for any value that a multiple can express.
 
 Tailwind's class prefix is not part of Stillwind's candidate syntax. Stillwind's
 `prefix` and `tailwindPrefix` settings rename internal custom properties.

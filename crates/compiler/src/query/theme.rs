@@ -6,7 +6,7 @@ use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 use stillwind_css::{
     CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure, split_once_top_level,
 };
-use stillwind_design_system::{LegacyThemeKey, ThemeValue, UtilityResolutionError};
+use stillwind_design_system::{LegacyThemeKey, ThemeValue, ThemeValueMode, UtilityResolutionError};
 
 use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{dynamic_candidates, stylesheet_dynamic_candidates};
@@ -204,6 +204,53 @@ impl QueryContext {
                 })
             })
             .collect()
+    }
+
+    /// Returns the theme token of each `var()` call in `css`, so a token that `css`
+    /// references twice appears twice. Inline tokens are excluded, because generated
+    /// CSS contains their values instead of a reference.
+    pub(super) fn token_references(&self, css: &str) -> Vec<LeanStr> {
+        let theme = self.design_system.theme();
+        find_css_functions(css, &["var"], 0)
+            .into_iter()
+            .filter_map(|function| {
+                let (name, _) = split_once_top_level(&css[function.arguments], |token| {
+                    matches!(token, Token::Comma)
+                });
+                let name = name.trim();
+                theme
+                    .token_property(name)
+                    .is_some_and(|token| token.mode != ThemeValueMode::Inline)
+                    .then(|| name.to_lean_str())
+            })
+            .collect()
+    }
+
+    /// Returns the token that the theme token `name` finally aliases when its value is
+    /// one `var()` call of another token. Otherwise returns `name`. Stops after 64
+    /// aliases, which also ends a cycle.
+    pub(super) fn aliased_token(&self, name: &str) -> LeanStr {
+        let theme = self.design_system.theme();
+        let mut current = name.to_lean_str();
+        for _ in 0..64 {
+            let Some(next) = theme.token_property(&current).and_then(|token| {
+                let target = token
+                    .value
+                    .value
+                    .trim()
+                    .strip_prefix("var(")?
+                    .strip_suffix(')')?
+                    .trim();
+                theme
+                    .token_property(target)
+                    .is_some()
+                    .then(|| target.to_lean_str())
+            }) else {
+                break;
+            };
+            current = next;
+        }
+        current
     }
 
     /// Substitutes known theme variables in `input`. Unknown variables retain their

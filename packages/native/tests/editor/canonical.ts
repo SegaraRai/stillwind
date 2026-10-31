@@ -141,7 +141,7 @@ export function registerCanonicalEditorContract(specifier: string): void {
     );
     const query = loader.editorQuery();
     expect(query.canonicalCandidate("tone-[#f00]")).toBe("tone-a");
-    expect(query.canonicalCandidate("tone-[#00f]")).toBe("tone-b");
+    expect(query.canonicalCandidate("tone-[#00f]")).toBeNull();
     expect(query.canonicalCandidate("text-[1rem]/tight")).toBe("text-body/tight");
     expect(query.canonicalCandidate("[margin:-1rem]")).toBe("-m-gap");
     expect(query.canonicalCandidate("[color:red]")).toBeNull();
