@@ -23,7 +23,7 @@ env:
 jobs:
   changes:
     name: Select affected checks
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     outputs:
       plan: ${{ steps.plan.outputs.plan }}
@@ -77,7 +77,7 @@ jobs:
     name: Build sites
     needs: changes
     if: needs.changes.outputs.build == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     concurrency:
       group: sites-build-${{ github.ref }}
@@ -215,7 +215,7 @@ jobs:
       fail-fast: false
       matrix:
         suite: ${{ fromJSON(needs.changes.outputs.browser) }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     concurrency:
       group: sites-browser-${{ matrix.suite }}-${{ github.ref }}
@@ -255,7 +255,7 @@ jobs:
     name: Build and verify
     needs: [changes, build, browser]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7.0.1
@@ -275,7 +275,7 @@ jobs:
     name: Deploy ${{ matrix.site }}
     needs: [changes, verify]
     if: needs.changes.outputs.deploy_required == 'true' && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment:
       name: ${{ github.ref == 'refs/heads/stable' && 'sites-production' || 'sites-preview' }}

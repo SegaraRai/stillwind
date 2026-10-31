@@ -36,7 +36,7 @@ jobs:
       fail-fast: false
       matrix:
         task: [check, test:rust, test:js, test:fixtures:projects]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       # Unoptimized compiler tests take over 20 minutes. Debug assertions stay enabled.
