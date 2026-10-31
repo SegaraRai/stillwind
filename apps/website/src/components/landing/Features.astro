@@ -30,7 +30,7 @@ const stops = featureTopics.flatMap((topic) =>
       "data-enhanced:": [
         "pbs-0 block-[calc((1+var(--feature-length))*100svh)]",
         {
-          "max-outline:": "pbs-24 block-[calc((1_+_var(--feature-length))*100svh+96px)]",
+          "max-outline:": "pbs-24 block-[calc((1+var(--feature-length))*100svh+96px)]",
         },
       ],
     },
@@ -87,7 +87,7 @@ const stops = featureTopics.flatMap((topic) =>
             >
               <span
                 {...style(
-                  "relative block-2.25 [flex:0_0_9px] bg-background rounded-full border border-muted",
+                  "relative block-2.25 flex-[0_0_9px] bg-background rounded-full border border-muted",
                   {
                     [featureStep("aria-[current=step]")]: "bg-foreground border-foreground",
                     "max-inline:": "block-1.75 basis-1.75",
@@ -133,7 +133,7 @@ const stops = featureTopics.flatMap((topic) =>
               "before:": "block content-[attr(aria-label)] mbe-4 text-(length:--text-lead)",
             },
             [features("data-enhanced")]: [
-              "p-0 col-start-1 row-start-1 border-0 opacity-[var(--feature-opacity,0)] pointer-events-none",
+              "p-0 col-start-1 row-start-1 border-0 opacity-(--feature-opacity,0) pointer-events-none",
               {
                 "data-active:": [
                   "pointer-events-auto",
@@ -156,7 +156,7 @@ const stops = featureTopics.flatMap((topic) =>
                   "outline:": "mbe-6",
                 },
                 "max-outline:": "mbe-4.5 min-block-[2lh]",
-                "max-inline:": "mbe-3 min-block-[3lh] text-caption/[1.5]",
+                "max-inline:": "mbe-3 min-block-[3lh] text-caption/normal",
               },
               [features("not-data-enhanced")]: "hidden",
             })}
@@ -212,22 +212,22 @@ const stops = featureTopics.flatMap((topic) =>
 
               aria-hidden="true"
             >
-              <path {...style("opacity-[var(--focus-opacity,1)]")} data-feature-line />
+              <path {...style("opacity-(--focus-opacity,1)")} data-feature-line />
             </svg>
             <div
               {...style(
                 featureSource,
-                'relative font-mono [font-feature-settings:"liga"_0,"calt"_0,"zero"_1] text-code-feature/[1.6] tracking-[-0.045em] [font-variant-ligatures:none]',
+                "relative font-mono text-code-feature/[1.6] tracking-[-0.045em] code-font",
                 {
                   [features("data-enhanced")]: [
-                    "block-[var(--code-height,340px)]",
+                    "block-(--code-height,340px)",
                     {
                       "short-features:": {
-                        "outline:": "text-(length:--text-code-feature)",
+                        "outline:": "text-code-feature",
                       },
                       "max-outline:": "block-[max(var(--code-height,300px),340px)]",
                       "max-sidebar:":
-                        "block-[calc(var(--code-height,220px)_+_var(--preview-height,200px)_+_32px)]",
+                        "block-[calc(var(--code-height,220px)+var(--preview-height,200px)+32px)]",
                     },
                   ],
                   "max-outline:": "text-code-feature/[1.6] tracking-[-0.035em]",

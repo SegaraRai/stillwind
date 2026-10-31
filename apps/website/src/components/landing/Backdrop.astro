@@ -30,7 +30,7 @@ const gusts = streamlines
   </div>
   <div {...style("backdrop motion-reduce:absolute")}>
     <svg preserveAspectRatio="none" {...style("absolute inset-0 block-full inline-full")}>
-      <g {...style("[opacity:var(--backdrop-base-opacity,1)] motion-reduce:hidden")}>
+      <g {...style("opacity-(--backdrop-base-opacity,1) motion-reduce:hidden")}>
         {streamlines.map((index) => (
           <path
             data-streamline={index}
@@ -51,7 +51,7 @@ const gusts = streamlines
           />
         ))}
       </g>
-      <g {...style("[opacity:var(--backdrop-gust-opacity,1)] motion-reduce:hidden")}>
+      <g {...style("opacity-(--backdrop-gust-opacity,1) motion-reduce:hidden")}>
         {gusts.map(({ index, timing }) => (
           <path
             data-streamline={index}

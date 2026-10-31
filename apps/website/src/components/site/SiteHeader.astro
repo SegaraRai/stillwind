@@ -29,8 +29,8 @@ const header = style.ref();
         "data-floating:": [
           "invisible fixed inset-x-0 inset-bs-0 z-40 mx-auto block-14 bg-background opacity-0",
           container === "page"
-            ? "[inline-size:calc(min(100%,var(--container-page))-2*var(--spacing-gutter))]"
-            : "[inline-size:calc(min(100%,var(--container-docs))-2*var(--spacing-docs-gutter))]",
+            ? "inline-[calc(min(100%,var(--container-page))-var(--spacing-gutter)*2)]"
+            : "inline-[calc(min(100%,var(--container-docs))-var(--spacing-docs-gutter)*2)]",
           "-translate-y-full [transition:translate_180ms_ease,opacity_180ms_ease,visibility_180ms]",
           {
             "data-visible:": "visible opacity-100 translate-y-0",

@@ -72,7 +72,7 @@ const specimens = frames.map((frame, index) => {
 ></div>
 <div
   {...style(
-    "absolute inset-0 hidden overflow-clip opacity-[var(--focus-opacity,1)] pointer-events-none",
+    "absolute inset-0 hidden overflow-clip opacity-(--focus-opacity,1) pointer-events-none",
     {
       [features("data-enhanced")]: "block",
     },
@@ -99,18 +99,18 @@ const specimens = frames.map((frame, index) => {
         [features("data-enhanced")]: "hidden",
       })}
     >
-      <p {...style("mbe-2.5 font-mono text-[11px]/[1.5] text-muted")}>{frames[index].label}</p>
+      <p {...style("mbe-2.5 font-mono text-[11px]/normal text-muted")}>{frames[index].label}</p>
       <p {...style("max-inline-165 text-muted text-small/[1.6]")}>{frames[index].description}</p>
     </div>
     <pre
       {...style(
-        "visible relative inset-s-0 inset-bs-0 block mbe-8 inline-full flex-wrap gap-y-[0.5em] whitespace-pre select-text [font:inherit] code-font",
+        "visible relative inset-s-0 inset-bs-0 block mbe-8 inline-full flex-wrap gap-y-[0.5em] [font-family:inherit] whitespace-pre select-text code-font",
         {
           [features("data-enhanced")]: [
             "invisible absolute m-0 select-none",
             {
               "data-current:": "visible select-text",
-              "max-outline:": "[inline-size:calc(100%-324px)]",
+              "max-outline:": "inline-[calc(100%-324px)]",
               "max-sidebar:": "inline-full",
             },
           ],
@@ -124,7 +124,7 @@ const specimens = frames.map((frame, index) => {
       data-measure
       data-feature-frame={index}
       data-current={index === 0 || undefined}
-    ><code {...style("[font:inherit] code-font")}>{runs.map((run) =>
+    ><code {...style("[font-family:inherit] code-font")}>{runs.map((run) =>
         run.focused ? (
           <mark
             {...style(

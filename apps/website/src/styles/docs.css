@@ -48,7 +48,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
   }
 
   & h2 {
-    @apply mbs-12 text-heading tracking-[-0.025em];
+    @apply mbs-12 text-heading tracking-tight;
   }
 
   & h3 {
@@ -111,7 +111,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
   }
 
   & .nb-code-title {
-    @apply px-panel py-3 font-mono text-muted text-small bg-surface-muted rounded-t-panel border border-border border-be-0 max-sidebar:px-4;
+    @apply px-panel py-3 font-mono text-muted text-small bg-surface-muted rounded-t-panel border-x border-bs border-border max-sidebar:px-4;
   }
 
   & .nb-code-title-lang {
@@ -137,7 +137,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
   does not flash the Vite+ commands. Without the attribute, the Vite+ tab is selected.
   */
   & [data-package-managers] [role="tablist"] {
-    @apply flex px-3 gap-1 overflow-x-auto bg-surface-muted rounded-t-panel border border-border border-be-0 max-sidebar:px-2;
+    @apply flex px-3 gap-1 overflow-x-auto bg-surface-muted rounded-t-panel border-x border-bs border-border max-sidebar:px-2;
   }
 
   & [data-package-managers] [role="tab"] {
@@ -168,7 +168,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
 
   & .astro-code,
   & .astro-code span {
-    @apply [color:light-dark(var(--shiki-light),var(--shiki-dark))];
+    @apply text-[light-dark(var(--shiki-light),var(--shiki-dark))];
   }
 
   & .astro-code {

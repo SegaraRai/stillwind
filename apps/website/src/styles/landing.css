@@ -3,7 +3,7 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
 */
 
 @utility hero-title {
-  @apply font-display text-display font-normal tracking-[var(--display-tracking,-0.052em)];
+  @apply font-display text-display font-normal tracking-(--display-tracking,-0.052em);
 }
 
 @utility hero-second-line {
@@ -29,7 +29,7 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
 
 @utility morph-source {
   @apply relative;
-  @apply block-[var(--code-height,_1.8em)];
+  @apply block-(--code-height,1.8em);
   @apply text-code-display/[1] tracking-[-0.035em];
 }
 
@@ -95,7 +95,7 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
 }
 
 @utility scoped-example {
-  @apply flex items-center flex-col gap-2.5 inline-[132px];
+  @apply flex items-center flex-col gap-2.5 inline-33;
   @apply p-3 border border-border rounded-control bg-background text-(length:--text-caption);
 }
 

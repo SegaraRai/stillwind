@@ -8,7 +8,7 @@ Astro's client router animates navigation between pages with view transitions.
   --color-stillwind-logo-t: light-dark(#20222c, #e9f2fd);
 }
 
-@utility stillwind-logo {
+@utility stillwind-logo (implementation) {
   @apply relative icon-stillwind--t text-stillwind-logo-t;
   @apply before:absolute before:inset-0 before:icon-stillwind--e before:text-stillwind-logo-e;
   @apply after:absolute after:inset-0 after:icon-stillwind--o after:text-stillwind-logo-o;
@@ -68,7 +68,7 @@ Astro's client router animates navigation between pages with view transitions.
   @apply absolute inset-bs-4 inset-s-6 z-50 p-4 text-background bg-foreground [transform:translateY(calc(-100%-2rem))];
 
   @variant focus {
-    @apply [transform:none];
+    @apply transform-none;
   }
 }
 

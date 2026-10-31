@@ -108,7 +108,7 @@ const results = [
     "relative",
     {
       [documentRoot("data-header-mounted")]: "scroll-mbs-0",
-      "data-enhanced:": "block-[calc((1_+_var(--showcase-length))*100svh)]",
+      "data-enhanced:": "block-[calc((1+var(--showcase-length))*100svh)]",
     },
   )}
 >
@@ -179,7 +179,7 @@ const results = [
         Write with confidence.
       </h2>
       <div
-        {...style("[inline-size:min(420px,45%)]", {
+        {...style("inline-[min(420px,45%)]", {
           [story("data-enhanced")]: {
             "max-outline:": "inline-1/2",
             "max-sidebar:": "inline-full",
@@ -203,7 +203,7 @@ const results = [
             <div
               {...style({
                 [story("data-enhanced")]: [
-                  "col-start-1 row-start-1 opacity-[var(--detail-opacity,0)] pointer-events-none",
+                  "col-start-1 row-start-1 opacity-(--detail-opacity,0) pointer-events-none",
                   {
                     "data-active:": "pointer-events-auto",
                   },
@@ -214,7 +214,7 @@ const results = [
               <p
                 {...style("max-inline-105 text-muted text-small/relaxed", {
                   [story("data-enhanced")]: {
-                    "max-sidebar:": "max-inline-full text-ui/[1.5]",
+                    "max-sidebar:": "max-inline-full text-ui/normal",
                   },
                 })}
               >
@@ -229,10 +229,10 @@ const results = [
     <div
       {...style({
         [story("data-enhanced")]: [
-          "mbs-4 [--compile-progress:0] [--input-y:28px] [--output-x:52px] [--output-y:calc(var(--input-y)_+_var(--source-height,36px)_+_60px)] [--refine-progress:0] [--sort-progress:0]",
+          "mbs-4 [--compile-progress:0] [--input-y:28px] [--output-x:52px] [--output-y:calc(var(--input-y)+var(--source-height,36px)+60px)] [--refine-progress:0] [--sort-progress:0]",
           {
             "max-inline:":
-              "mbs-0 [--output-x:24px] [--output-y:calc(var(--input-y)_+_var(--source-height,72px)_+_56px)]",
+              "mbs-0 [--output-x:24px] [--output-y:calc(var(--input-y)+var(--source-height,72px)+56px)]",
           },
         ],
       })}
@@ -258,15 +258,12 @@ const results = [
         >
           <div
             data-code-host
-            {...style(
-              '[font-feature-settings:"liga"_0,"calt"_0,"zero"_1] [font-variant-ligatures:none] morph-source',
-              {
-                [story("data-enhanced")]: {
-                  "max-outline:": "text-(length:--text-code-output)",
-                  "max-inline:": "text-(length:--text-code-display)",
-                },
+            {...style("code-font morph-source", {
+              [story("data-enhanced")]: {
+                "max-outline:": "text-code-output",
+                "max-inline:": "text-code-display",
               },
-            )}
+            })}
           >
             <code data-readable-source {...style("code-font readable-source")}>
               {'style("' + frames[0]!.utilities + '")'}
@@ -314,8 +311,7 @@ const results = [
           {sourceLabels.map((label, index) => (
             <span
               {...style({
-                [story("data-enhanced")]:
-                  "col-start-1 row-start-1 opacity-[var(--label-opacity,0)]",
+                [story("data-enhanced")]: "col-start-1 row-start-1 opacity-(--label-opacity,0)",
               })}
               data-source-label={index}
             >
@@ -333,7 +329,7 @@ const results = [
             <div
               {...style(detail, {
                 [story("data-enhanced")]: [
-                  "absolute inset-0 col-start-1 row-start-1 opacity-[var(--detail-opacity,0)] pointer-events-none",
+                  "absolute inset-0 col-start-1 row-start-1 opacity-(--detail-opacity,0) pointer-events-none",
                   {
                     "data-active:": "pointer-events-none",
                   },
@@ -348,7 +344,7 @@ const results = [
                     data-format-diagnostics={frame.id === "format" || undefined}
                     data-multiple={frame.reports.length > 1 || undefined}
                     {...style(diagnostics, "text-danger", {
-                      [story("data-enhanced")]: "opacity-[var(--diagnostic-opacity,0)]",
+                      [story("data-enhanced")]: "opacity-(--diagnostic-opacity,0)",
                     })}
                   >
                     <svg
@@ -367,10 +363,10 @@ const results = [
                       <div
                         {...style({
                           [story("data-enhanced")]: [
-                            "absolute inset-s-[var(--diagnostic-x,0px)] inset-bs-[var(--diagnostic-y,100px)] [inline-size:min(360px,100%)]",
+                            "absolute inset-s-(--diagnostic-x,0px) inset-bs-(--diagnostic-y,100px) inline-[min(360px,100%)]",
                             {
                               [diagnostics("data-multiple")]: [
-                                "[inline-size:min(320px,calc((100%-48px)/2))]",
+                                "inline-[min(320px,calc((100%-48px)/2))]",
                                 {
                                   "max-inline:": "inline-full",
                                 },
@@ -471,7 +467,7 @@ const results = [
                 <div
                   {...style({
                     [story("data-enhanced")]: [
-                      "absolute inset-s-[var(--output-x)] inset-e-0 inset-bs-[calc(var(--output-y)-24px)] grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-[clamp(40px,5vw,72px)]",
+                      "absolute inset-s-(--output-x) inset-e-0 inset-bs-[calc(var(--output-y)-24px)] grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-[clamp(40px,5vw,72px)]",
                       {
                         "max-sidebar:": "grid-cols-1 gap-6",
                         "max-inline:": "gap-y-5.5",
@@ -492,8 +488,8 @@ const results = [
                         [story("data-enhanced")]: [
                           "block text-code-display/[1] tracking-[-0.035em] whitespace-pre",
                           {
-                            "max-outline:": "text-(length:--text-code-output)",
-                            "max-inline:": "text-(length:--text-code-output)",
+                            "max-outline:": "text-code-output",
+                            "max-inline:": "text-code-output",
                           },
                         ],
                       })}
@@ -504,7 +500,7 @@ const results = [
                   <div
                     {...style({
                       [story("data-enhanced")]: [
-                        "[inline-size:min(100%,390px)] min-inline-0",
+                        "inline-[min(100%,390px)] min-inline-0",
                         {
                           [detail("data-active")]: "pointer-events-auto",
                           "max-sidebar:": "inline-full",
@@ -545,7 +541,7 @@ const results = [
         >
           <span
             {...style(
-              "icon-lucide--corner-down-right absolute inset-s-[var(--arrow-x,0px)] inset-bs-[var(--arrow-y,26px)] text-muted [font-size:var(--arrow-size,20px)] leading-none",
+              "icon-lucide--corner-down-right absolute inset-s-(--arrow-x,0px) inset-bs-(--arrow-y,26px) text-muted [font-size:var(--arrow-size,20px)] leading-none",
             )}
           ></span>
         </div>
@@ -575,7 +571,7 @@ const results = [
           { "--stop-index": showcaseScenes.findIndex((scene) => scene === index) },
           {
             [story("data-enhanced")]:
-              "absolute [inset-block-start:calc(var(--stop-index)*(100%-100svh)/(var(--stop-count)-1))] overflow-clip p-0 block-px inline-px border-0 scroll-m-0",
+              "absolute inset-bs-[calc(var(--stop-index)*(100%-100svh)/(var(--stop-count)-1))] overflow-clip p-0 block-px inline-px border-0 scroll-m-0",
           },
         )}
       >
@@ -607,7 +603,7 @@ const results = [
                     "relative inline-block pbe-1 text-danger border-danger border-be",
                     {
                       "after:":
-                        'absolute [inset-block-start:calc(100%_+_4px)] inset-s-1/2 content-[""] block-6 inline-px bg-danger',
+                        'absolute inset-s-1/2 inset-bs-[calc(100%+4px)] content-[""] block-6 inline-px bg-danger',
                     },
                   ],
                 })}
@@ -647,7 +643,7 @@ const results = [
             <div
               {...style("min-inline-0", {
                 "first:": "ps-7",
-                "nth-2:": "[inline-size:min(100%,390px)]",
+                "nth-2:": "inline-[min(100%,390px)]",
               })}
             >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Output (React)</p>
@@ -656,7 +652,7 @@ const results = [
             <div
               {...style("min-inline-0", {
                 "first:": "ps-7",
-                "nth-2:": "[inline-size:min(100%,390px)]",
+                "nth-2:": "inline-[min(100%,390px)]",
               })}
             >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Compiled CSS</p>
@@ -673,14 +669,14 @@ const results = [
                   },
                 ],
                 "first:": "ps-7",
-                "nth-2:": "[inline-size:min(100%,390px)]",
+                "nth-2:": "inline-[min(100%,390px)]",
               })}
 
               aria-hidden="true"
             >
               <span
                 {...style(
-                  "icon-lucide--corner-down-right absolute inset-s-[var(--arrow-x,0px)] inset-bs-[var(--arrow-y,26px)] text-muted [font-size:var(--arrow-size,20px)] leading-none",
+                  "icon-lucide--corner-down-right absolute inset-s-(--arrow-x,0px) inset-bs-(--arrow-y,26px) text-muted [font-size:var(--arrow-size,20px)] leading-none",
                 )}
               ></span>
             </div>

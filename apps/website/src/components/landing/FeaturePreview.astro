@@ -62,9 +62,9 @@ const articleExcerpt = "Labels that make forms easier to complete.";
 
 <div
   {...style(
-    "absolute inset-e-0 inset-bs-[var(--feature-preview-top,164px)] inline-72 font-sans text-body/[1.5] tracking-normal",
+    "absolute inset-e-0 inset-bs-(--feature-preview-top,164px) inline-72 font-sans text-body/normal tracking-normal",
     {
-      [responsiveContainer().in(featureExample("data-current"))]: "[inline-size:min(100%,300px)]",
+      [responsiveContainer().in(featureExample("data-current"))]: "inline-[min(100%,300px)]",
       [features("data-enhanced")]: {
         "short-features:": {
           "outline:": "[--feature-preview-top:148px]",
@@ -75,7 +75,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
         [previewFrame("data-[feature-preview-frame=0]:data-current").in(
           featurePanel("data-[feature-panel=1]"),
         )]: {
-          "outline:": "inset-bs-[calc(var(--feature-preview-top,164px)_+_16px)]",
+          "outline:": "inset-bs-[calc(var(--feature-preview-top,164px)+16px)]",
         },
         [previewFrame("data-[feature-preview-frame=2]:data-current").in(
           featurePanel("data-[feature-panel=1]"),
@@ -84,12 +84,11 @@ const articleExcerpt = "Labels that make forms easier to complete.";
         },
         "max-outline:": "absolute inset-e-0 inset-bs-12 m-0",
         "max-sidebar:":
-          "inset-s-1/2 inset-e-auto inset-bs-[calc(var(--code-height,220px)_+_32px)] [translate:-50%_0]",
+          "inset-s-1/2 inset-e-auto inset-bs-[calc(var(--code-height,220px)+32px)] [translate:-50%_0]",
       },
-      "max-outline:": "relative inset-auto mbs-6 [inline-size:min(100%,288px)]",
-      [features("not-data-enhanced")]:
-        "relative inset-auto mx-auto mbs-7 [inline-size:min(100%,300px)]",
-      "max-inline:": "[inline-size:min(100%,288px)]",
+      "max-outline:": "relative inset-auto mbs-6 inline-[min(100%,288px)]",
+      [features("not-data-enhanced")]: "relative inset-auto mx-auto mbs-7 inline-[min(100%,300px)]",
+      "max-inline:": "inline-[min(100%,288px)]",
       "pin-features-inline:": {
         "inline:": {
           "max-sidebar:": "inline-80",
@@ -124,7 +123,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
         </button>
         <div
           {...style("mbs-5 text-center font-mono text-label/[1.9] text-muted", {
-            "max-inline:": "flex mbs-3 flex-wrap justify-center gap-x-3 gap-y-0.5 leading-[1.5]",
+            "max-inline:": "flex mbs-3 flex-wrap justify-center gap-x-3 gap-y-0.5 leading-normal",
           })}
         >
           {frame > 0 && <p>emphasized = true</p>}
@@ -164,7 +163,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
         >
           <div
             {...style(
-              "relative mx-auto mbs-0 mbe-3.5 block-2.25 inline-[var(--measure-width,auto)] font-mono text-(length:--text-label) text-muted border-border border-x",
+              "relative mx-auto mbs-0 mbe-3.5 block-2.25 inline-(--measure-width,auto) font-mono text-(length:--text-label) text-muted border-border border-x",
               {
                 "before:": 'absolute inset-x-0 inset-bs-1 content-[""] border-border border-bs',
               },
@@ -188,7 +187,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
               box,
               box.asContainer("inline-size"),
               responsiveContainer,
-              "relative mx-auto [inline-size:min(100%,var(--container-width,300px))] [transition:inline-size_180ms_ease]",
+              "relative mx-auto inline-[min(100%,var(--container-width,300px))] [transition:inline-size_180ms_ease]",
               {
                 [features("data-enhanced")]: "transition-none",
                 "motion-reduce:": "transition-none",
@@ -213,7 +212,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 </span>
                 <div>
                   <p {...style("text-body/[1.4] tracking-tight")}>{articles[0]}</p>
-                  <p {...style("mbs-1.75 font-mono text-label/[1.5] text-muted")}>{articleMeta}</p>
+                  <p {...style("mbs-1.75 font-mono text-label/normal text-muted")}>{articleMeta}</p>
                 </div>
               </div>
             </div>
@@ -250,11 +249,11 @@ const articleExcerpt = "Labels that make forms easier to complete.";
               <div
                 {...style(card, "scoped-example", {
                   "aria-[pressed=true]:": "border-foreground",
-                  "max-inline:": "p-2.5 [inline-size:calc((100%-12px)/2)]",
+                  "max-inline:": "p-2.5 inline-[calc((100%-12px)/2)]",
                 })}
               >
                 <p
-                  {...style("font-mono text-[9px]/[1.5] text-muted", {
+                  {...style("font-mono text-[9px]/normal text-muted", {
                     "aria-[pressed=true]:": "border-foreground",
                   })}
                 >
@@ -329,7 +328,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
               {...style(
                 saveButton,
                 saveButton.asAnchor(),
-                "absolute [inset-inline-start:var(--anchor-x,50%)] inset-bs-[var(--anchor-y,58px)] bg-background [translate:-50%_-50%] feature-button",
+                "absolute inset-s-(--anchor-x,50%) inset-bs-(--anchor-y,58px) bg-background [translate:-50%_-50%] feature-button",
                 {
                   "max-outline:": "min-block-11",
                 },
@@ -383,7 +382,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 data-feature-target
                 {...style(
                   enter("duration-420 ease-out both"),
-                  "relative flex px-4 py-4.5 inline-full items-center gap-3 text-(length:--text-ui) leading-[1.5] bg-background rounded-control border border-border",
+                  "relative flex px-4 py-4.5 inline-full items-center gap-3 text-(length:--text-ui) leading-normal bg-background rounded-control border border-border",
                   {
                     [features("data-enhanced")]: "[animation-play-state:paused]",
                     [features("data-motion-enabled")]: "[animation-play-state:paused]",
@@ -405,7 +404,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
             </div>
             <div
               {...style(
-                "flex mbs-7 mbe-4 items-center gap-3 font-mono text-[10px] text-muted [line-height:normal]",
+                "flex mbs-7 mbe-4 items-center gap-3 font-mono text-[10px] text-muted leading-[normal]",
                 {
                   "max-inline:": "mbs-3.5 mbe-2.5",
                 },
@@ -499,7 +498,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   {articles[0]}
                 </h3>
                 <p
-                  {...style("font-mono text-[9px]/[1.5] text-muted tracking-[0.01em]")}
+                  {...style("font-mono text-[9px]/normal text-muted tracking-[0.01em]")}
                   data-transition-slot="meta"
                 >
                   {articleMeta}
@@ -524,7 +523,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   "absolute inset-s-0 inset-bs-0 bg-background rounded-control border border-border",
                   {
                     [features("data-motion-enabled")]:
-                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-(--transition-opacity,1) [transform:translate(var(--transition-x),var(--transition-y))]",
                   },
                 )}
                 data-transition-element="surface"
@@ -538,7 +537,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   {
                     [documentRoot("[&:not([data-astro-transition])]")]: article.for("thumbnail"),
                     [features("data-motion-enabled")]:
-                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-(--transition-opacity,1) [transform:translate(var(--transition-x),var(--transition-y))]",
                   },
                 )}
                 aria-hidden="true"
@@ -551,7 +550,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   "max-inline:": "text-(length:--text-body)",
                   [documentRoot("[&:not([data-astro-transition])]")]: article.for("title"),
                   [features("data-motion-enabled")]:
-                    "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                    "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-(--transition-opacity,1) [transform:translate(var(--transition-x),var(--transition-y))]",
                 })}
               >
                 {articles[0]}
@@ -559,11 +558,11 @@ const articleExcerpt = "Labels that make forms easier to complete.";
               <p
                 data-transition-element="meta"
                 {...style(
-                  "absolute inset-s-0 inset-bs-0 font-mono text-[9px]/[1.5] text-muted tracking-[0.01em]",
+                  "absolute inset-s-0 inset-bs-0 font-mono text-[9px]/normal text-muted tracking-[0.01em]",
                   {
                     [documentRoot("[&:not([data-astro-transition])]")]: article.for("meta"),
                     [features("data-motion-enabled")]:
-                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                      "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-(--transition-opacity,1) [transform:translate(var(--transition-x),var(--transition-y))]",
                   },
                 )}
               >
@@ -572,7 +571,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
               <p
                 {...style("absolute inset-s-0 inset-bs-0 text-caption/[1.6] text-muted", {
                   [features("data-motion-enabled")]:
-                    "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-[var(--transition-opacity,1)] [transform:translate(var(--transition-x),var(--transition-y))]",
+                    "block-(--transition-height) inline-(--transition-width) text-(length:--transition-font-size) opacity-(--transition-opacity,1) [transform:translate(var(--transition-x),var(--transition-y))]",
                 })}
                 data-transition-element="detail"
               >
@@ -582,7 +581,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
           </div>
           <div
             {...style(
-              "flex mbs-7 mbe-4 items-center gap-3 font-mono text-[10px] text-muted [line-height:normal]",
+              "flex mbs-7 mbe-4 items-center gap-3 font-mono text-[10px] text-muted leading-[normal]",
               {
                 "max-inline:": "mbs-3.5 mbe-2.5",
               },
