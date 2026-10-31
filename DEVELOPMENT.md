@@ -41,8 +41,9 @@ All publishable packages release at one shared version. `versioning.fixed` in
 [pnpm-workspace.yaml](pnpm-workspace.yaml) lists them, and `versioning.ignore` lists every
 private package. These lists accept exact names only, so add a new package to one of them.
 
-Record each user-visible package change with `vp exec pnpm change`, and commit the intent
-file with the change. `vp exec pnpm change status` shows the release plan.
+Record each new feature and each other user-visible package change with
+`vp exec pnpm change`, and commit the intent file with the change.
+`vp exec pnpm change status` shows the release plan.
 
 `vp exec pnpm version -r` consumes the intents, updates the `CHANGELOG.md` of each released
 package, and creates no Git tag. The first release of each package does not use intents:

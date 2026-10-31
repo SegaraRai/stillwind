@@ -16,6 +16,12 @@
 - Use `@stillwind-internal/apps-*`, `@stillwind-internal/e2e-*`, and `@stillwind-internal/tools-*` for private packages under `apps/`, `e2e/`, and `tools/`, respectively.
 - Name the repository root `@stillwind-internal/root` and the benchmark package `@stillwind-internal/benchmarks`.
 
+## Change Intents
+
+- Record a change intent for each new feature and each other user-visible package change. Run `vp exec pnpm change`, and commit the intent file with the change.
+- Use `minor` for a new feature and `patch` for a user-visible fix. Name the packages that users install or import for the change. The fixed version group releases the other packages at the same version.
+- Write the summary for package users, because it becomes the changelog entry. Describe what users can now do, not how the implementation changed.
+
 ## Tests and Verification
 
 - Test current behavior and caller contracts. Do not add tests that only require a previous API, name, file, or implementation to remain absent.
