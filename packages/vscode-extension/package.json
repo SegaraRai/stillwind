@@ -2,7 +2,7 @@
   "name": "@stillwind/vscode-extension",
   "version": "0.1.0",
   "description": "Stillwind language support for VS Code and browser editors",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

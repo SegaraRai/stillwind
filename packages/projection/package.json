@@ -2,7 +2,7 @@
   "name": "@stillwind/projection",
   "version": "0.1.0",
   "description": "Source documents and coordinate mappings for Stillwind compilation and TypeScript checks",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

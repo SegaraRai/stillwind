@@ -2,7 +2,7 @@
   "name": "@stillwind/analysis",
   "version": "0.1.0",
   "description": "Analysis services for Stillwind tools",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

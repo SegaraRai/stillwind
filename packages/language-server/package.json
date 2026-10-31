@@ -2,7 +2,7 @@
   "name": "@stillwind/language-server",
   "version": "0.1.0",
   "description": "Stillwind language server for Node and browser transports",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

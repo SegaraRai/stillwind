@@ -2,7 +2,7 @@
   "name": "@stillwind/config",
   "version": "0.1.0",
   "description": "Shared configuration for Stillwind builds and analysis",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

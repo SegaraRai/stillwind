@@ -2,7 +2,7 @@
   "name": "@stillwind/plugin-iconify",
   "version": "0.1.0",
   "description": "Iconify icons as Stillwind utilities",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

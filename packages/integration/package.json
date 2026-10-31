@@ -2,7 +2,7 @@
   "name": "@stillwind/integration",
   "version": "0.1.0",
   "description": "Build tool integrations for Stillwind",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },

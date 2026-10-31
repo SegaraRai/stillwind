@@ -2,7 +2,7 @@
   "name": "prettier-plugin-stillwind",
   "version": "0.1.0",
   "description": "Stillwind utility sorting for Prettier",
-  "homepage": "https://stillwind.dev/",
+  "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
   },
