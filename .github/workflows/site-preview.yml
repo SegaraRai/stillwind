@@ -32,8 +32,8 @@ jobs:
     permissions:
       actions: read
       contents: read
-      issues: write
-      pull-requests: read
+      # GitHub checks `pull-requests` for reactions and replies on a pull request's comments.
+      pull-requests: write
     outputs:
       deploy: ${{ steps.resolve.outputs.deploy }}
       pull: ${{ steps.resolve.outputs.pull }}
