@@ -202,7 +202,7 @@ export default defineConfig(({ mode }) => ({
       "test:package": {
         command: "vp test --run --mode package",
         cache: false,
-        dependsOn: ["package:desktop"],
+        dependsOn: ["package:desktop", "@stillwind/cli#build"],
       },
     },
   },

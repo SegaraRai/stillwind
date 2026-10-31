@@ -6,6 +6,8 @@ import { pathToFileURL } from "node:url";
 
 import { expect, test } from "vite-plus/test";
 
+import { cliServer } from "../src/project-cli.ts";
+
 test("packaged desktop server analyzes a workspace without repository dependencies", async () => {
   const directory = await mkdtemp(join(tmpdir(), "stillwind-extension-"));
   if (!resolve(directory).startsWith(resolve(tmpdir()) + sep)) {
@@ -67,7 +69,14 @@ test("packaged desktop server analyzes a workspace without repository dependenci
     child.stdin.write(`Content-Length: ${Buffer.byteLength(text)}\r\n\r\n${text}`);
   };
   try {
-    send("initialize", { rootUri: pathToFileURL(directory + "/").href, capabilities: {} }, 1);
+    send(
+      "initialize",
+      {
+        rootUri: pathToFileURL(directory + "/").href,
+        capabilities: {},
+      },
+      1,
+    );
     await expect
       .poll(
         () =>
@@ -107,6 +116,52 @@ test("packaged desktop server analyzes a workspace without repository dependenci
       child.kill();
       await closed;
     }
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("CLI starts with the arguments and environment of a project server", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "stillwind-extension-cli-"));
+  const config = join(directory, "stillwind.config.ts");
+  await writeFile(config, "export default {projects:[]};");
+  const { command, args, options } = cliServer(
+    {
+      module: resolve(import.meta.dirname, "../../cli/dist/main.js"),
+      version: "",
+    },
+    config,
+  );
+  const child = spawn(command, args, {
+    ...options,
+    cwd: directory,
+    stdio: "pipe",
+  });
+  const closed = new Promise<number | null>((resolve) => child.once("close", resolve));
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (data) => {
+    stdout += String(data);
+  });
+  child.stderr.on("data", (data) => {
+    stderr += String(data);
+  });
+  const text = JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      rootUri: pathToFileURL(directory).href,
+      capabilities: {},
+    },
+  });
+  child.stdin.write(`Content-Length: ${Buffer.byteLength(text)}\r\n\r\n${text}`);
+  try {
+    await expect
+      .poll(() => (child.exitCode === null ? stdout : stderr), { timeout: 30_000 })
+      .toContain("serverInfo");
+  } finally {
+    child.kill();
+    await closed;
     await rm(directory, { recursive: true, force: true });
   }
 });

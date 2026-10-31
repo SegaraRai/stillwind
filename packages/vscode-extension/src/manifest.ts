@@ -11,6 +11,10 @@ export const extensionManifest = {
   version: packageManifest.version,
   description: "Stillwind diagnostics, CSS hover, completion, colors, and utility sorting",
   license: "MIT",
+  homepage: "https://stillwind.dev",
+  bugs: {
+    url: "https://github.com/SegaraRai/stillwind/issues",
+  },
   engines: {
     vscode: "^1.110.0",
   },

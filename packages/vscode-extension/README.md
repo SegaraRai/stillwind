@@ -10,9 +10,13 @@ color pickers, and sorting.
 
 ## Get started
 
-Install the Desktop or Web VSIX with VS Code's **Extensions: Install from VSIX**
-command. Desktop packages target a specific operating system and architecture.
-The extension includes its language server; the CLI is not required.
+Install **Stillwind** from the Visual Studio Marketplace or Open VSX.
+
+Desktop VS Code runs the `@stillwind/cli` version that the workspace installs, so
+editor diagnostics match that version's compiler. If the workspace has no CLI, or
+the CLI fails to start, the extension uses its bundled language server. The
+**Stillwind** output channel shows which server is running. Web VS Code always uses
+the bundled server.
 
 Add a [Stillwind project configuration](https://stillwind.dev/docs/configuration)
 to the workspace. The extension discovers `stillwind.config.*`; set
