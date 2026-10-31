@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.mdx"
+      - "apps/website/src/content/**"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.mdx"
+      - "apps/website/src/content/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # A cache restore can stall when the account exceeds its Actions cache egress limit. The
+  # default of 10 minutes would delay every job that restores a Cargo cache.
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: "2"
+
+jobs:
+  verify:
+    name: Verify ${{ matrix.task }}
+    # The Release workflow verifies the version commit after it reaches `main`.
+    if: github.head_ref != 'version/main' && !startsWith(github.event.head_commit.message, 'chore(release):')
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check, test:rust, test:js, test:fixtures:projects]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      # Unoptimized compiler tests take over 20 minutes. Debug assertions stay enabled.
+      CARGO_PROFILE_TEST_OPT_LEVEL: 1
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+      - name: Set up Rust
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt --target wasm32-wasip1-threads
+          rustup default 1.99.1
+      - name: Set up WASI SDK
+        # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
+        # https://github.com/napi-rs/napi-rs/issues/3491
+        env:
+          WASI_ARCHIVE: wasi-sdk-33.0-x86_64-linux.tar.gz
+          WASI_SHA256: 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce
+        run: |
+          curl --fail --location --retry 3 "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/$WASI_ARCHIVE" -o "$RUNNER_TEMP/$WASI_ARCHIVE"
+          echo "$WASI_SHA256  $RUNNER_TEMP/$WASI_ARCHIVE" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasi-sdk"
+          tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
+          echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
+      # The key matches the Release workflow, so both workflows share one cache entry for each task.
+      - name: Restore Cargo outputs
+        id: cargo-cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: ${{ runner.os }}-${{ runner.arch }}-release-${{ matrix.task }}-rust-1.99.1-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-release-${{ matrix.task }}-rust-1.99.1-
+      # The Fresh acceptance project runs `deno check`.
+      - uses: denoland/setup-deno@v2.0.5
+        with:
+          deno-version: 2.9.8
+      - run: vp run --concurrency-limit 1 "$TASK"
+        env:
+          TASK: ${{ matrix.task }}
+      # The repository's Actions cache is near its size limit, so pull requests only read it.
+      - name: Save Cargo outputs
+        if: github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}

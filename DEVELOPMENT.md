@@ -21,6 +21,21 @@ checks have separate tasks and prerequisites. See [Tests and verification](docs/
 for the task inventory, generated files, cache behavior, and fixture workflows.
 Run generation tasks explicitly and review their output before comparing fixtures.
 
+The [CI](.github/workflows/ci.yml) workflow runs `check`, `test:rust`, `test:js`, and
+`test:fixtures:projects` on Linux for pull requests and pushes to `main`. It skips changes
+that contain only documentation and version commits. A new push to a branch cancels the
+running workflow for that branch.
+
+The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `compatibility` tier
+weekly. The Release workflow calls it for the `primary` tier. Start **Actions → Browser
+acceptance → Run workflow** to test either tier manually.
+
+`.github/workflows/actions.lock` records the commit of each action that the workflows use,
+and GitHub Actions runs those commits. After you add a workflow or change a `uses:` value,
+run `gh actions-lock` and commit the result. Install the command with
+`gh extension install github/gh-actions-lock`. Review a change of a locked commit before
+you commit it.
+
 Package build tasks build their dependencies through the task graph. Applications
 that use the workspace integration declare `dependsOn: ["@stillwind/integration#build"]`
 for their development and build tasks. This prerequisite builds the integration's
@@ -55,12 +70,14 @@ pull request, so its Sites run waits for a maintainer to approve it in the Actio
 Merge the pull request with **Squash and merge**.
 
 The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
-workflow, which builds and verifies everything and uploads the packages to npm's staging
-area. A version with a prerelease suffix receives the npm tag `next`; any other version
-receives `latest`.
+workflow, which builds and tests everything, including browser acceptance for the `primary`
+tier. After these jobs succeed, the workflow uploads
+the npm packages to npm's staging area and publishes the
+[VS Code extension](packages/vscode-extension/DEVELOPMENT.md#publish). A version with a
+prerelease suffix receives the npm tag `next`; any other version receives `latest`.
 
 To check a release without uploading packages, start **Actions → Release → Run workflow**
-on `main` with the default dry run. Clear **dry-run** to run the upload again after a
+on `main` with the default dry run. Clear **dry-run** to run the uploads again after a
 failed release.
 
 Staged versions are not installable until a maintainer approves them with 2FA. Review them

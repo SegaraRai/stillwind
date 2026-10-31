@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       dry-run:
-        description: Run every step, but do not upload packages
+        description: Build and test every package, but do not upload them
         type: boolean
         default: true
 
@@ -48,10 +48,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -66,12 +66,62 @@ jobs:
           rustup default 1.99.1
       - name: Build and test the binding
         run: vp run @stillwind/native#test
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: native-${{ matrix.target }}
           path: packages/native/.build/native/stillwind_native.${{ matrix.target }}.node
           if-no-files-found: error
           retention-days: 7
+
+  shared:
+    name: Build shared outputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+      - name: Set up Rust
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --target wasm32-wasip1-threads
+          rustup default 1.99.1
+      - name: Set up WASI SDK
+        # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
+        # https://github.com/napi-rs/napi-rs/issues/3491
+        env:
+          WASI_ARCHIVE: wasi-sdk-33.0-x86_64-linux.tar.gz
+          WASI_SHA256: 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce
+        run: |
+          curl --fail --location --retry 3 "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/$WASI_ARCHIVE" -o "$RUNNER_TEMP/$WASI_ARCHIVE"
+          echo "$WASI_SHA256  $RUNNER_TEMP/$WASI_ARCHIVE" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasi-sdk"
+          tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
+          echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
+      - name: Build the Web package
+        run: vp run --concurrency-limit 1 @stillwind/vscode-extension#package:web
+      # The Desktop package test starts the built CLI.
+      - name: Build the CLI
+        run: vp run --concurrency-limit 1 @stillwind/cli#build
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: vsix-web
+          path: packages/vscode-extension/dist/stillwind-web.vsix
+          if-no-files-found: error
+          retention-days: 7
+      # JS bundles do not depend on the platform. Sharing them spares each Desktop runner the WASM
+      # build, and WASI SDK has no Windows Arm64 release.
+      - name: Archive the built packages
+        run: tar --create --gzip --file shared-outputs.tar.gz --exclude='packages/vscode-extension/dist/web' --exclude='*.vsix' --exclude='*.node' packages/*/dist
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: shared-outputs
+          path: shared-outputs.tar.gz
+          if-no-files-found: error
+          retention-days: 1
 
   verify:
     name: Verify ${{ matrix.task }}
@@ -85,10 +135,10 @@ jobs:
       # Unoptimized compiler tests take over 20 minutes. Debug assertions stay enabled.
       CARGO_PROFILE_TEST_OPT_LEVEL: 1
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -109,7 +159,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
           echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
       - name: Cache Cargo outputs
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.cargo/registry/
@@ -119,16 +169,89 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-release-${{ matrix.task }}-rust-1.99.1-
       # The Fresh acceptance project runs `deno check`.
-      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+      - uses: denoland/setup-deno@v2.0.5
         with:
           deno-version: 2.9.8
       - run: vp run --concurrency-limit 1 "$TASK"
         env:
           TASK: ${{ matrix.task }}
 
+  desktop:
+    name: Package ${{ matrix.target }}
+    needs: [binaries, shared]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win32-x64
+            native: win32-x64-msvc
+            runner: windows-2025
+          - target: win32-arm64
+            native: win32-arm64-msvc
+            runner: windows-11-arm
+          - target: darwin-x64
+            native: darwin-x64
+            runner: macos-15-intel
+          - target: darwin-arm64
+            native: darwin-arm64
+            runner: macos-15
+          # The oldest available image gives the binaries the lowest glibc requirement.
+          - target: linux-x64
+            native: linux-x64-gnu
+            runner: ubuntu-22.04
+          - target: linux-arm64
+            native: linux-arm64-gnu
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+          run-install: false
+      # The binding needs no install scripts, and sharp 0.32 from the Gatsby fixture cannot
+      # build on Windows Arm64.
+      - run: vp i --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: native-${{ matrix.native }}
+          path: packages/native/dist/
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: shared-outputs
+      - name: Package and test the server
+        shell: bash
+        # Direct commands skip the task dependencies, which would rebuild the bindings.
+        run: |
+          tar --extract --gzip --file shared-outputs.tar.gz
+          node packages/native/collect-local-artifacts.ts
+          node packages/vscode-extension/build.ts --package-desktop
+          cd packages/vscode-extension
+          vp test --run --mode package
+          mv dist/stillwind-desktop.vsix "dist/stillwind-$TARGET.vsix"
+        env:
+          TARGET: ${{ matrix.target }}
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: vsix-${{ matrix.target }}
+          path: packages/vscode-extension/dist/stillwind-${{ matrix.target }}.vsix
+          if-no-files-found: error
+          retention-days: 7
+
+  acceptance:
+    name: Browser acceptance
+    needs: verify
+    uses: ./.github/workflows/e2e.yml
+    with:
+      support: primary
+
   publish:
     name: Stage packages
-    needs: [binaries, verify]
+    needs: [binaries, verify, desktop, acceptance]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -137,10 +260,10 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -160,7 +283,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wasi-sdk"
           tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
           echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: native-*
           merge-multiple: true
@@ -206,10 +329,47 @@ jobs:
             arguments+=(--dry-run)
           fi
           vp exec pnpm stage publish -r "${arguments[@]}"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: publish-summary
           path: pnpm-publish-summary.json
           if-no-files-found: ignore
           retention-days: 30
+
+  publish-extension:
+    name: Publish extension
+    needs: [verify, desktop, acceptance]
+    # A push has no inputs, so `dry-run` is empty and the job publishes.
+    if: github.ref == 'refs/heads/main' && !inputs.dry-run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: extension-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+          run-install: false
+      - run: vp i --frozen-lockfile --ignore-scripts --filter @stillwind/vscode-extension
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: packages/vscode-extension/vsix/
+      # Marketplace versions are immutable, so a rerun after a partial failure skips the
+      # packages that already exist.
+      - name: Publish to Visual Studio Marketplace
+        working-directory: packages/vscode-extension
+        run: vp exec vsce publish --oidc --skip-duplicate --packagePath vsix/*.vsix
+      - name: Publish to Open VSX
+        working-directory: packages/vscode-extension
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: vp exec ovsx publish --skip-duplicate --packagePath vsix/*.vsix

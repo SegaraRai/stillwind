@@ -1,0 +1,71 @@
+name: Browser acceptance
+
+on:
+  schedule:
+    # Mondays at 03:00 UTC.
+    - cron: "0 3 * * 1"
+  workflow_call:
+    inputs:
+      support:
+        description: Support tier to test
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      support:
+        description: Support tier to test
+        type: choice
+        options: [primary, compatibility]
+        default: primary
+
+permissions:
+  contents: read
+
+env:
+  # A scheduled run has no inputs and tests the compatibility tier.
+  SUPPORT: ${{ inputs.support || 'compatibility' }}
+
+jobs:
+  acceptance:
+    name: Test the ${{ inputs.support || 'compatibility' }} tier
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+      - name: Set up Rust
+        run: |
+          rustup toolchain install 1.99.1 --profile minimal --target wasm32-wasip1-threads
+          rustup default 1.99.1
+      - name: Set up WASI SDK
+        # Rust 1.99 startup objects require the TLS initialization symbol removed in WASI SDK 34.
+        # https://github.com/napi-rs/napi-rs/issues/3491
+        env:
+          WASI_ARCHIVE: wasi-sdk-33.0-x86_64-linux.tar.gz
+          WASI_SHA256: 0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce
+        run: |
+          curl --fail --location --retry 3 "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/$WASI_ARCHIVE" -o "$RUNNER_TEMP/$WASI_ARCHIVE"
+          echo "$WASI_SHA256  $RUNNER_TEMP/$WASI_ARCHIVE" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasi-sdk"
+          tar -xzf "$RUNNER_TEMP/$WASI_ARCHIVE" -C "$RUNNER_TEMP/wasi-sdk" --strip-components=1
+          echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk" >> "$GITHUB_ENV"
+      # The Fresh fixture runs on Deno.
+      - uses: denoland/setup-deno@v2.0.5
+        with:
+          deno-version: 2.9.8
+      - run: vp exec playwright install --with-deps chrome
+        working-directory: e2e/harness
+      - run: vp run --concurrency-limit 1 "@stillwind-internal/e2e-harness#test:e2e:$SUPPORT"
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: acceptance-failure-${{ inputs.support || 'compatibility' }}-${{ github.run_attempt }}
+          path: e2e/results/
+          if-no-files-found: ignore
+          retention-days: 7

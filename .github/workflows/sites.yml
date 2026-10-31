@@ -35,11 +35,11 @@ jobs:
       deploy: ${{ steps.plan.outputs.deploy }}
       deploy_required: ${{ steps.plan.outputs.deploy_required }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -81,14 +81,14 @@ jobs:
       group: sites-build-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Check deployment URLs
         run: |
           : "${PUBLIC_WEBSITE_URL:?Set SITES_PREVIEW_WEBSITE_URL}"
           : "${PUBLIC_PLAYGROUND_URL:?Set SITES_PREVIEW_PLAYGROUND_URL}"
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -98,7 +98,7 @@ jobs:
           rustup default 1.99.1
       - name: Restore Cargo cache
         id: cargo-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: |
             ~/.cargo/registry/
@@ -129,7 +129,7 @@ jobs:
           mkdir -p apps/play/.astro apps/play/.nimbus apps/play/dist/site apps/play/dist/acceptance apps/play/node_modules/.astro
       - name: Restore Vite task cache
         id: vite-task-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: node_modules/.vite/task-cache
           key: ${{ runner.os }}-${{ runner.arch }}-sites-vite-v1-${{ github.run_id }}-${{ github.run_attempt }}
@@ -152,7 +152,7 @@ jobs:
         run: vp run --last-details
       - name: Upload browser assets
         if: needs.changes.outputs.browser_required == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: sites-browser-${{ github.sha }}
           path: apps/play/dist/acceptance/
@@ -172,11 +172,11 @@ jobs:
             vp run --ignore-depends-on @stillwind-internal/tools-sites#check:production:play
           fi
       - name: Save Vite task cache
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/save@v6.1.0
         with:
           path: node_modules/.vite/task-cache
           key: ${{ steps.vite-task-cache.outputs.cache-primary-key }}
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: sites-${{ github.sha }}
           path: |
@@ -194,7 +194,7 @@ jobs:
           fi
       - name: Save updated Cargo cache
         if: steps.cargo-changes.outputs.changed == 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/save@v6.1.0
         with:
           path: |
             ~/.cargo/registry/
@@ -216,10 +216,10 @@ jobs:
       group: sites-browser-${{ matrix.suite }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -229,7 +229,7 @@ jobs:
         working-directory: e2e/play
       - run: vp exec playwright install --with-deps chrome
         working-directory: e2e/play
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: sites-browser-${{ github.sha }}
           path: apps/play/dist/acceptance/
@@ -239,7 +239,7 @@ jobs:
         working-directory: e2e/play
       - name: Upload browser failure evidence
         if: failure()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: sites-browser-failure-${{ matrix.suite }}-${{ github.sha }}-${{ github.run_attempt }}
           path: e2e/play/results/
@@ -253,10 +253,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         with:
           node-version: "26.13.0"
           cache: false
@@ -283,7 +283,7 @@ jobs:
       group: sites-deploy-${{ matrix.site }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Check branch head
@@ -298,7 +298,7 @@ jobs:
             echo 'This run is obsolete because the branch has a newer commit. It cannot become the successful deployment baseline.' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+      - uses: voidzero-dev/setup-vp@v1.22.0
         if: steps.head.outputs.current == 'true'
         with:
           node-version: "26.13.0"
@@ -307,7 +307,7 @@ jobs:
       - name: Install deployment tools
         if: steps.head.outputs.current == 'true'
         run: vp i --frozen-lockfile --filter @stillwind-internal/tools-sites
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         if: steps.head.outputs.current == 'true'
         with:
           name: sites-${{ github.sha }}

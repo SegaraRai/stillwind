@@ -52,16 +52,18 @@ and architecture. The outputs are `dist/stillwind-desktop.vsix` and
 
 ## Publish
 
-**Actions → Release extension** builds the Web package and one Desktop package for
-each of `win32-x64`, `win32-arm64`, `darwin-x64`, `darwin-arm64`, `linux-x64`, and
-`linux-arm64`. The workflow tests the server in each Desktop package. It runs as a
-dry run by default. Clear **dry-run** on `main` to publish to the Visual Studio
-Marketplace and Open VSX. Both registries publish immediately, and their versions
-are immutable. A rerun skips versions that already exist.
+The [Release](../../.github/workflows/release.yml) workflow builds the Web package and
+one Desktop package for each of `win32-x64`, `win32-arm64`, `darwin-x64`,
+`darwin-arm64`, `linux-x64`, and `linux-arm64`. It tests the server in each Desktop
+package.
+
+After every build and test job succeeds, the workflow publishes to the Visual Studio
+Marketplace and Open VSX. Both registries publish immediately, and their versions are
+immutable. A rerun skips versions that already exist.
 
 The `extension-release` environment contains `OVSX_PAT`, an Open VSX token that can
 publish to the `stillwind` namespace. The Marketplace publisher `stillwind` needs a
-Trusted Publishing policy for the workflow `release-extension.yml`, the repository
+Trusted Publishing policy for the workflow `release.yml`, the repository
 `SegaraRai/stillwind`, and that environment.
 
 ## Verification

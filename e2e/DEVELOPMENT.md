@@ -6,7 +6,7 @@ Gatsby uses the system temporary directory because its Parcel cache requires NTF
 
 The Fresh fixture uses polling on Windows because Deno's native watcher can miss a rapid edit followed by a restore. Polling retains both SSR source-update checks without delaying source restoration.
 
-Install from the repository root with `vp i --frozen-lockfile`. Installed Google Chrome is required for browser acceptance. Run `vp run test:e2e` for the complete matrix. Ordinary `vp run check` checks the harness and fixture TypeScript, and `vp run test` tests harness helpers without opening a browser.
+Install from the repository root with `vp i --frozen-lockfile`. Installed Google Chrome is required for browser acceptance. Run `vp run test:e2e` for the complete matrix. CI tests the `primary` tier before each release and the `compatibility` tier weekly. Ordinary `vp run check` checks the harness and fixture TypeScript, and `vp run test` tests harness helpers without opening a browser.
 
 To run one application, enter its directory and run `vp run test:e2e`. Its `vp run dev`, `vp run build`, and `vp run serve` tasks use its own framework CLI or bundler API. Set `STILLWIND_E2E_PROFILE` to one of its declared profiles to select a configuration. Set `STILLWIND_E2E_DEV_ONLY=1` to omit production checks in the common runner. Specialized suites still run their own production contracts.
 
