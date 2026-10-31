@@ -65,10 +65,11 @@ After every build and test job succeeds, the workflow publishes to the Visual St
 Marketplace and Open VSX. Both registries publish immediately, and their versions are
 immutable. A rerun skips versions that already exist.
 
-The `extension-release` environment contains `OVSX_PAT`, an Open VSX token that can
-publish to the `stillwind` namespace. The Marketplace publisher `stillwind` needs a
-Trusted Publishing policy for the workflow `release.yml`, the repository
-`SegaraRai/stillwind`, and that environment.
+Both registries use Trusted Publishing, so the workflow stores no publishing token.
+The Marketplace publisher `stillwind` needs a policy for the workflow `release.yml`,
+the repository `SegaraRai/stillwind`, and the `extension-release` environment. The
+Open VSX extension `stillwind.stillwind` needs a trusted publisher for the same
+workflow and repository.
 
 ## Verification
 

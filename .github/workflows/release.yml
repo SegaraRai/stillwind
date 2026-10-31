@@ -376,6 +376,4 @@ jobs:
         run: vp exec vsce publish --oidc --skip-duplicate --packagePath vsix/*.vsix
       - name: Publish to Open VSX
         working-directory: packages/vscode-extension
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: vp exec ovsx publish --skip-duplicate --packagePath vsix/*.vsix
+        run: vp exec ovsx publish --trusted-publishing --skip-duplicate --packagePath vsix/*.vsix
