@@ -26,8 +26,9 @@ The [CI](.github/workflows/ci.yml) workflow runs `check`, `test:rust`, `test:js`
 that contain only documentation and version commits. A new push to a branch cancels the
 running workflow for that branch.
 
-The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `compatibility` tier
-weekly. The Release workflow calls it for the `primary` tier. Start **Actions → Browser
+The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `primary` tier daily
+and the `compatibility` tier weekly. CI calls it for the `primary` tier on the version pull
+request, and the Release workflow calls it again after the merge. Start **Actions → Browser
 acceptance → Run workflow** to test either tier manually.
 
 `.github/workflows/actions.lock` records the commit of each action that the workflows use,
@@ -72,7 +73,8 @@ set its manifest to the intended version and publish it.
 When `.changeset/` changes on `main`, the Version PR workflow runs `pnpm version -r` and
 keeps the result in a pull request from `version/main`. `github-actions[bot]` creates this
 pull request, so its Sites run waits for a maintainer to approve it in the Actions tab.
-Merge the pull request with **Squash and merge**.
+Wait for its CI run to pass browser acceptance, then merge the pull request with
+**Squash and merge**.
 
 The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
 workflow, which builds and tests everything, including browser acceptance for the `primary`

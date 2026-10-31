@@ -2,8 +2,10 @@ name: Browser acceptance
 
 on:
   schedule:
-    # Mondays at 03:00 UTC.
+    # The compatibility tier runs on Mondays at 03:00 UTC.
     - cron: "0 3 * * 1"
+    # The primary tier runs daily at 04:00 UTC.
+    - cron: "0 4 * * *"
   workflow_call:
     inputs:
       support:
@@ -22,12 +24,12 @@ permissions:
   contents: read
 
 env:
-  # A scheduled run has no inputs and tests the compatibility tier.
-  SUPPORT: ${{ inputs.support || 'compatibility' }}
+  # A scheduled run has no inputs, so its cron expression selects the tier.
+  SUPPORT: ${{ inputs.support || (github.event.schedule == '0 3 * * 1' && 'compatibility' || 'primary') }}
 
 jobs:
   acceptance:
-    name: Test the ${{ inputs.support || 'compatibility' }} tier
+    name: Test the ${{ inputs.support || (github.event.schedule == '0 3 * * 1' && 'compatibility' || 'primary') }} tier
     runs-on: ubuntu-26.04
     timeout-minutes: 180
     steps:
@@ -65,7 +67,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: acceptance-failure-${{ inputs.support || 'compatibility' }}-${{ github.run_attempt }}
+          name: acceptance-failure-${{ env.SUPPORT }}-${{ github.run_attempt }}
           path: e2e/results/
           if-no-files-found: ignore
           retention-days: 7

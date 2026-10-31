@@ -30,7 +30,8 @@ env:
 jobs:
   verify:
     name: Verify ${{ matrix.task }}
-    # The Release workflow verifies the version commit after it reaches `main`.
+    # The Release workflow verifies the version commit after it reaches `main`. A version pull
+    # request runs only browser acceptance, which detects a failing release before the merge.
     if: github.head_ref != 'version/main' && !startsWith(github.event.head_commit.message, 'chore(release):')
     strategy:
       fail-fast: false
@@ -94,3 +95,10 @@ jobs:
             ~/.cargo/git/
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
+  acceptance:
+    name: Browser acceptance
+    if: github.head_ref == 'version/main'
+    uses: ./.github/workflows/e2e.yml
+    with:
+      support: primary
