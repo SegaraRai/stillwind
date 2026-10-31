@@ -1,0 +1,70 @@
+name: Version PR
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-pr
+  cancel-in-progress: true
+
+env:
+  VERSION_BRANCH: version/main
+
+jobs:
+  version-pr:
+    name: Update the version pull request
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+          run-install: false
+      - run: vp i --frozen-lockfile --ignore-scripts --filter @stillwind-internal/root
+      - name: Update the version branch and its pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # A later push replaces the branch, so the pull request always contains one version
+        # commit on top of `main`.
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! compgen -G '.changeset/*.md' > /dev/null; then
+            if git ls-remote --exit-code --heads "$remote" "$VERSION_BRANCH" > /dev/null; then
+              git push "$remote" --delete "$VERSION_BRANCH"
+            fi
+            exit 0
+          fi
+
+          plan=$(vp exec pnpm change status)
+          vp exec pnpm version -r
+          version=$(node --print "require('./packages/core/package.json').version")
+          title="chore(release): version packages for $version"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$VERSION_BRANCH"
+          git add --all
+          git commit --message "$title"
+          git push --force "$remote" "$VERSION_BRANCH"
+
+          printf 'Merging this pull request starts the Release workflow.\n\n```text\n%s\n```\n' "$plan" > "$RUNNER_TEMP/body.md"
+          number=$(gh pr list --head "$VERSION_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head "$VERSION_BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi

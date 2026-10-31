@@ -1,6 +1,11 @@
 name: Release
 
 on:
+  # `pnpm version -r` updates the ledger, so this push always carries a version commit.
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/ledger.yaml"
   workflow_dispatch:
     inputs:
       dry-run:

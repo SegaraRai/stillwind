@@ -44,15 +44,23 @@ private package. These lists accept exact names only, so add a new package to on
 Record each user-visible package change with `vp exec pnpm change`, and commit the intent
 file with the change. `vp exec pnpm change status` shows the release plan.
 
-To prepare a release, run `vp exec pnpm version -r` on `main` and commit the result. This
-command consumes the intents, updates the `CHANGELOG.md` of each released package, and
-creates no Git tag. The first release of each package does
-not use intents: set its manifest to the intended version and publish it.
+`vp exec pnpm version -r` consumes the intents, updates the `CHANGELOG.md` of each released
+package, and creates no Git tag. The first release of each package does not use intents:
+set its manifest to the intended version and publish it.
 
-To publish, start **Actions → Release → Run workflow** on `main`. The default dry run
-builds and verifies everything without uploading packages. Clear **dry-run** to upload
-the packages to npm's staging area. A version with a prerelease suffix receives the npm
-tag `next`; any other version receives `latest`.
+When `.changeset/` changes on `main`, the Version PR workflow runs `pnpm version -r` and
+keeps the result in a pull request from `version/main`. `GITHUB_TOKEN` creates this pull
+request, so GitHub does not start the Sites workflow for it. Merge it with **Squash and
+merge**.
+
+The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
+workflow, which builds and verifies everything and uploads the packages to npm's staging
+area. A version with a prerelease suffix receives the npm tag `next`; any other version
+receives `latest`.
+
+To check a release without uploading packages, start **Actions → Release → Run workflow**
+on `main` with the default dry run. Clear **dry-run** to run the upload again after a
+failed release.
 
 Staged versions are not installable until a maintainer approves them with 2FA. Review them
 with `vp exec pnpm stage list`, then run `vp exec pnpm stage approve` and select every
