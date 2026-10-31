@@ -153,6 +153,8 @@ The default stylesheet imports the theme, preflight, utility slot, builtins, and
 templates. Custom CSS entries receive only the definitions they import. Individual
 stylesheets are available as `stillwind/theme.css`, `stillwind/preflight.css`,
 `stillwind/utilities.css`, `stillwind/builtins.css`, and `stillwind/templates.css`.
+Import a file from `stillwind/logical/`, such as `stillwind/logical/overflow.css`,
+after them to make the axis utilities of that property write logical properties.
 
 Use `stillwind/config` for project settings and lint presets. `stillwind/css`
 provides helpers for explicit stylesheet placement, and `stillwind/module-css`

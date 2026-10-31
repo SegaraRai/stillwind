@@ -1,0 +1,88 @@
+---
+title: Stylesheets
+slug: docs/concepts/stylesheets
+description: See which CSS files the stillwind package provides, how to import them separately, and which optional files change built-in utilities.
+---
+
+Most projects need one line:
+
+```css
+@import "stillwind";
+```
+
+This page lists the CSS files behind that import. Read it when you leave out part
+of the default stylesheet or add an optional file.
+
+## Stylesheets of the package
+
+| Import                    | Content                                                  |
+| ------------------------- | -------------------------------------------------------- |
+| `stillwind`               | All of the files below except the optional ones          |
+| `stillwind/theme.css`     | Theme tokens                                             |
+| `stillwind/preflight.css` | The reset of default element styles                      |
+| `stillwind/utilities.css` | The slot where compiled utility rules go                 |
+| `stillwind/builtins.css`  | Built-in utilities and variants                          |
+| `stillwind/templates.css` | Output templates of `style.css()`                        |
+| `stillwind/logical/*.css` | Optional: logical properties for built-in axis utilities |
+
+## Import the files separately
+
+`@import "stillwind"` has the same effect as these lines:
+
+```css
+@layer properties, theme, base, components, utilities;
+
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/preflight.css" layer(base);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+@import "stillwind/templates.css";
+```
+
+Write the `@layer` statement and keep the `layer()` assignments when you remove a
+line. They decide how these files compete with the rest of your CSS. For example,
+[Migrating from CSS](/docs/guides/migrating-from-css) leaves out `preflight.css`
+until the old styles are gone.
+
+## Optional stylesheets
+
+An optional stylesheet changes built-in utilities, so `stillwind` does not include
+it. The default definitions stay compatible with Tailwind CSS.
+
+Import an optional stylesheet after `stillwind` or `stillwind/builtins.css`. It
+replaces only the definitions that come before it:
+
+```css
+@import "stillwind";
+@import "stillwind/logical/overflow.css";
+```
+
+### Logical axis utilities
+
+The files in `stillwind/logical/` make built-in axis utilities follow the writing
+direction, as `px-*` and `py-*` do. Your class names stay the same, and each file
+changes only its own utilities. Import the files that you need:
+
+| File             | Utility          | Without the file                  | With the file                                |
+| ---------------- | ---------------- | --------------------------------- | -------------------------------------------- |
+| `overflow.css`   | `overflow-x-*`   | `overflow-x`                      | `overflow-inline`                            |
+| `overflow.css`   | `overflow-y-*`   | `overflow-y`                      | `overflow-block`                             |
+| `overscroll.css` | `overscroll-x-*` | `overscroll-behavior-x`           | `overscroll-behavior-inline`                 |
+| `overscroll.css` | `overscroll-y-*` | `overscroll-behavior-y`           | `overscroll-behavior-block`                  |
+| `divide.css`     | `divide-y-*`     | `border-top-*`, `border-bottom-*` | `border-block-start-*`, `border-block-end-*` |
+| `snap.css`       | `snap-x`         | `scroll-snap-type: x`             | `scroll-snap-type: inline`                   |
+| `snap.css`       | `snap-y`         | `scroll-snap-type: y`             | `scroll-snap-type: block`                    |
+| `resize.css`     | `resize-x`       | `resize: horizontal`              | `resize: inline`                             |
+| `resize.css`     | `resize-y`       | `resize: vertical`                | `resize: block`                              |
+
+In a horizontal writing mode, the result is the same. In a vertical writing mode,
+the utilities change axes, so `overflow-x-auto` scrolls vertically.
+
+[prefer-logical-properties](/docs/lints/prefer-logical-properties) does not report
+the `overflow`, `overscroll`, and `divide` utilities after you import their files.
+It still reports arbitrary properties such as `[overflow-x:auto]`, because these
+files do not change them. Their logical forms, such as `[overflow-inline:auto]`,
+are available.
+
+The utilities keep their cascade order, so `overflow-x-auto` still overrides
+`overflow-hidden`.

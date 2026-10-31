@@ -32,6 +32,11 @@
     "./templates.css": "./css/templates.css",
     "./theme.css": "./css/theme.css",
     "./utilities.css": "./css/utilities.css",
+    "./logical/divide.css": "./css/logical/divide.css",
+    "./logical/overflow.css": "./css/logical/overflow.css",
+    "./logical/overscroll.css": "./css/logical/overscroll.css",
+    "./logical/resize.css": "./css/logical/resize.css",
+    "./logical/snap.css": "./css/logical/snap.css",
     "./config": {
       "types": "./dist/config.d.ts",
       "default": "./dist/config.js"

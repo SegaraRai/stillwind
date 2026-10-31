@@ -1,0 +1,20 @@
+/*
+Makes `snap-x` and `snap-y` select the logical axes of `scroll-snap-type`. `stillwind` keeps the
+physical axes for Tailwind CSS compatibility, so a project opts in by importing this file.
+
+Import it after `stillwind` or `stillwind/builtins.css`, because an undefinition removes only
+definitions that register before it. Each replacement keeps the name of the removed definition,
+and therefore its cascade position. `snap-mandatory` and `snap-proximity` keep working through
+`--tw-scroll-snap-strictness`.
+*/
+
+@stillwind-undef-utility snap-x;
+@stillwind-undef-utility snap-y;
+
+@stillwind-utility snap-x {
+  scroll-snap-type: inline var(--tw-scroll-snap-strictness);
+}
+
+@stillwind-utility snap-y {
+  scroll-snap-type: block var(--tw-scroll-snap-strictness);
+}

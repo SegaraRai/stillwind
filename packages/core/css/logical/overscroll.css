@@ -1,0 +1,40 @@
+/*
+Makes `overscroll-x-*` and `overscroll-y-*` write logical properties, as `px-*` and `py-*` write
+`padding-inline` and `padding-block`. `stillwind` keeps the physical properties for Tailwind
+CSS compatibility, so a project opts in by importing this file.
+
+Import it after `stillwind` or `stillwind/builtins.css`, because an undefinition removes only
+definitions that register before it. Each replacement keeps the name of the removed definition,
+and therefore its cascade position after `overscroll-*`, so an axis utility still overrides the
+shorthand. Arbitrary properties stay as written.
+*/
+
+@stillwind-undef-utility overscroll-x-*;
+@stillwind-undef-utility overscroll-y-*;
+
+@stillwind-arbitrary-property overscroll-behavior-inline;
+@stillwind-arbitrary-property overscroll-behavior-block;
+
+@stillwind-utility overscroll-x-auto (tw-sort: overscroll-behavior-x) {
+  overscroll-behavior-inline: auto;
+}
+
+@stillwind-utility overscroll-x-contain (tw-sort: overscroll-behavior-x) {
+  overscroll-behavior-inline: contain;
+}
+
+@stillwind-utility overscroll-x-none (tw-sort: overscroll-behavior-x) {
+  overscroll-behavior-inline: none;
+}
+
+@stillwind-utility overscroll-y-auto (tw-sort: overscroll-behavior-y) {
+  overscroll-behavior-block: auto;
+}
+
+@stillwind-utility overscroll-y-contain (tw-sort: overscroll-behavior-y) {
+  overscroll-behavior-block: contain;
+}
+
+@stillwind-utility overscroll-y-none (tw-sort: overscroll-behavior-y) {
+  overscroll-behavior-block: none;
+}

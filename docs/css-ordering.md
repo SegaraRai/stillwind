@@ -73,7 +73,9 @@ Rule:
   earlier definitions of the same name, so a replacement stays where the removed
   definition was. A definition with a different name takes its own position, even when
   an undefinition pattern removes the definitions it replaces: `t-a` does not inherit
-  the position of `t-*`.
+  the position of `t-*`. The stylesheets in `stillwind/logical/`
+  therefore replace definitions under their own names, which keeps every relationship
+  between them and the other built-in utilities.
 - Utilities that `@plugin` statements define come before every `@stillwind-utility` and
   stylesheet utility, in their source order, wherever the statements appear. A plugin
   supplies defaults, so `size-full` overrides the size of an icon utility from an

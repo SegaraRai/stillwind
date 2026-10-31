@@ -28,6 +28,8 @@ the reset until the old styles are gone:
 @import "stillwind/templates.css";
 ```
 
+[Stylesheets](/docs/concepts/stylesheets) describes each of these files.
+
 Stillwind's CSS is in cascade layers. A declaration outside a layer wins over a
 declaration in a layer, whatever their specificity. While an old rule matches an
 element, it overrides the utilities on that element. Remove the old rule when

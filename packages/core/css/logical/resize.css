@@ -1,0 +1,19 @@
+/*
+Makes `resize-x` and `resize-y` select the logical axes of `resize`. `stillwind` keeps the
+physical axes for Tailwind CSS compatibility, so a project opts in by importing this file.
+
+Import it after `stillwind` or `stillwind/builtins.css`, because an undefinition removes only
+definitions that register before it. Each replacement keeps the name of the removed definition,
+and therefore its cascade position.
+*/
+
+@stillwind-undef-utility resize-x;
+@stillwind-undef-utility resize-y;
+
+@stillwind-utility resize-x {
+  resize: inline;
+}
+
+@stillwind-utility resize-y {
+  resize: block;
+}

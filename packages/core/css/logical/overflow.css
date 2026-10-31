@@ -1,0 +1,57 @@
+/*
+Makes `overflow-x-*` and `overflow-y-*` write logical properties, as `px-*` and `py-*` write
+`padding-inline` and `padding-block`. `stillwind` keeps the physical properties for Tailwind
+CSS compatibility, so a project opts in by importing this file.
+
+Import it after `stillwind` or `stillwind/builtins.css`, because an undefinition removes only
+definitions that register before it. Each replacement keeps the name of the removed definition,
+and therefore its cascade position after `overflow`, so an axis utility still overrides the
+shorthand that `overflow-*`, `truncate`, and `sr-only` write. Arbitrary properties stay as
+written.
+*/
+
+@stillwind-undef-utility overflow-x-*;
+@stillwind-undef-utility overflow-y-*;
+
+@stillwind-arbitrary-property overflow-inline;
+@stillwind-arbitrary-property overflow-block;
+
+@stillwind-utility overflow-x-auto (tw-sort: overflow-x) {
+  overflow-inline: auto;
+}
+
+@stillwind-utility overflow-x-clip (tw-sort: overflow-x) {
+  overflow-inline: clip;
+}
+
+@stillwind-utility overflow-x-hidden (tw-sort: overflow-x) {
+  overflow-inline: hidden;
+}
+
+@stillwind-utility overflow-x-scroll (tw-sort: overflow-x) {
+  overflow-inline: scroll;
+}
+
+@stillwind-utility overflow-x-visible (tw-sort: overflow-x) {
+  overflow-inline: visible;
+}
+
+@stillwind-utility overflow-y-auto (tw-sort: overflow-y) {
+  overflow-block: auto;
+}
+
+@stillwind-utility overflow-y-clip (tw-sort: overflow-y) {
+  overflow-block: clip;
+}
+
+@stillwind-utility overflow-y-hidden (tw-sort: overflow-y) {
+  overflow-block: hidden;
+}
+
+@stillwind-utility overflow-y-scroll (tw-sort: overflow-y) {
+  overflow-block: scroll;
+}
+
+@stillwind-utility overflow-y-visible (tw-sort: overflow-y) {
+  overflow-block: visible;
+}

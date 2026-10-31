@@ -55,7 +55,11 @@ export default defineConfig({
             },
             {
               label: "Concepts",
-              items: ["docs/concepts/how-styles-compile", "docs/concepts/css-ordering"],
+              items: [
+                "docs/concepts/how-styles-compile",
+                "docs/concepts/stylesheets",
+                "docs/concepts/css-ordering",
+              ],
             },
             {
               label: "Integrations",
