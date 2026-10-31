@@ -6,7 +6,9 @@ use std::collections::BTreeSet;
 use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{ValueDomain, fold_calc_expressions, split_once_top_level};
+use stillwind_css::{
+    ValueDomain, fold_calc_expressions, matching_css_delimiter, split_once_top_level,
+};
 use stillwind_design_system::{UtilityResolutionError, placeholder_namespaces, resolve_utility};
 use stillwind_syntax::{
     CandidatePrefix, Utility, Value, decode_arbitrary_value, parse_candidate, print_arbitrary_value,
@@ -374,7 +376,11 @@ pub(super) fn value_candidate(root: &str, hint: &str, value: &str) -> String {
     if let Some(value) = value
         .strip_prefix("var(")
         .and_then(|value| value.strip_suffix(')'))
-        .filter(|value| value.starts_with("--"))
+        .filter(|inner| {
+            inner.starts_with("--")
+                && matching_css_delimiter(value, "var".len(), '(', ')')
+                    .is_ok_and(|close| close + 1 == value.len())
+        })
     {
         let (name, fallback) = value
             .split_once(',')

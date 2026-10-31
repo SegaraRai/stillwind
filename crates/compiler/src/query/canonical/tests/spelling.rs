@@ -22,6 +22,23 @@ fn finite_aliases_compare_complete_declarations() {
 }
 
 #[test]
+fn variable_shorthand_requires_one_complete_var_call() {
+    let query = make_query("@import 'stillwind';", CompilerOptions::default());
+    for (raw, expected) in [
+        ("grid-cols-[var(--a)]", Some("grid-cols-(--a)")),
+        ("grid-cols-[var(--a,1fr)]", Some("grid-cols-(--a,1fr)")),
+        ("grid-cols-[var(--a)_minmax(0,1fr)]", None),
+        ("grid-cols-[var(--a)_var(--b)]", None),
+    ] {
+        assert_eq!(
+            query.canonical_candidate(raw).unwrap().as_deref(),
+            expected,
+            "{raw}"
+        );
+    }
+}
+
+#[test]
 fn runtime_conditions_keep_negation_parity_and_drop_empty_comparisons() {
     let query = make_query("@import 'stillwind';", CompilerOptions::default());
     for (raw, expected) in [
