@@ -15,6 +15,7 @@ import getConfiguration, {
   updateUserConfiguration,
 } from "@codingame/monaco-vscode-configuration-service-override";
 import "@codingame/monaco-vscode-css-default-extension";
+import "@codingame/monaco-vscode-css-language-features-default-extension";
 import * as monaco from "@codingame/monaco-vscode-editor-api";
 import "@codingame/monaco-vscode-editor-api/esm/vs/editor/contrib/format/browser/formatActions";
 import getEditor from "@codingame/monaco-vscode-editor-service-override";
@@ -107,7 +108,9 @@ export class PlaygroundWorkspace {
         name: "playground",
         publisher: "stillwind-internal",
         version: "0.0.0",
-        engines: { vscode: "*" },
+        engines: {
+          vscode: "*",
+        },
       },
       ExtensionHostKind.LocalProcess,
     );
@@ -116,6 +119,10 @@ export class PlaygroundWorkspace {
       (result) => result.json(),
     );
     const extension = registerExtension(manifest, ExtensionHostKind.LocalWebWorker);
+    extension.registerFileUrl(
+      "dist/css-data.json",
+      new URL("extensions/stillwind/dist/css-data.json", base).href,
+    );
     for (const file of [
       "extension.js",
       "server.js",
@@ -168,7 +175,9 @@ export class PlaygroundWorkspace {
           trusted: true,
           open: async () => false,
         },
-        developmentOptions: { logLevel: 2 },
+        developmentOptions: {
+          logLevel: 2,
+        },
       },
     );
     const api = await embedding.getApi();

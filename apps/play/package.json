@@ -10,6 +10,7 @@
     "@codingame/monaco-vscode-api": "^38.1.3",
     "@codingame/monaco-vscode-configuration-service-override": "^38.1.3",
     "@codingame/monaco-vscode-css-default-extension": "^38.1.3",
+    "@codingame/monaco-vscode-css-language-features-default-extension": "^38.1.3",
     "@codingame/monaco-vscode-editor-api": "^38.1.3",
     "@codingame/monaco-vscode-editor-service-override": "^38.1.3",
     "@codingame/monaco-vscode-extension-api": "^38.1.3",

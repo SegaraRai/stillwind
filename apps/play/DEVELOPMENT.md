@@ -4,7 +4,7 @@ The playground is a static Astro site. `src/pages/index.astro` renders the docum
 including the title, description, canonical URL, and Open Graph and Twitter card tags, and it
 mounts `src/Playground.tsx` with `client:only="react"`. The playground reads browser state while
 rendering, so the build emits no HTML for it. Monaco uses VS Code services and the built-in
-TypeScript extension. The public Stillwind Web extension supplies compiler diagnostics
+TypeScript and CSS extensions. The public Stillwind Web extension supplies compiler diagnostics
 and Quick Fixes. Application builds run separately in a worker with the browser build
 of Rolldown. Its JSX transform adds React Refresh registrations, and React Refresh updates a
 persistent sandboxed iframe. CSS updates replace its stylesheet.
