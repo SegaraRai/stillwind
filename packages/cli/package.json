@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/cli",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Command wrappers for Stillwind tools",
   "homepage": "https://stillwind.dev/",
   "bugs": {

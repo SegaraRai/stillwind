@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/analysis",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Analysis services for Stillwind tools",
   "homepage": "https://stillwind.dev/",
   "bugs": {

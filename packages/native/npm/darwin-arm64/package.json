@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/native-darwin-arm64",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Native Node-API binding for the Stillwind compiler",
   "homepage": "https://stillwind.dev/",
   "bugs": {

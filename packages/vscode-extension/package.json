@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/vscode-extension",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Stillwind language support for VS Code and browser editors",
   "homepage": "https://stillwind.dev/",
   "bugs": {
