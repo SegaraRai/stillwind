@@ -40,11 +40,10 @@ jobs:
             runner: macos-15-intel
           - target: darwin-arm64
             runner: macos-15
-          # The oldest available image gives the binaries the lowest glibc requirement.
           - target: linux-x64-gnu
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
           - target: linux-arm64-gnu
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
@@ -66,6 +65,13 @@ jobs:
           rustup default 1.99.1
       - name: Build and test the binding
         run: vp run @stillwind/native#test
+        env:
+          NATIVE_USE_NAPI_CROSS: ${{ startsWith(matrix.target, 'linux-') }}
+      - name: Check the glibc requirement
+        if: startsWith(matrix.target, 'linux-')
+        env:
+          TARGET: ${{ matrix.target }}
+        run: node packages/native/check-glibc.ts "packages/native/.build/native/stillwind_native.$TARGET.node"
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: native-${{ matrix.target }}
@@ -75,7 +81,7 @@ jobs:
 
   shared:
     name: Build shared outputs
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7.0.1
@@ -129,7 +135,7 @@ jobs:
       fail-fast: false
       matrix:
         task: [check, test:rust, test:js, test:fixtures:projects]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       # Unoptimized compiler tests take over 20 minutes. Debug assertions stay enabled.
@@ -195,13 +201,13 @@ jobs:
           - target: darwin-arm64
             native: darwin-arm64
             runner: macos-15
-          # The oldest available image gives the binaries the lowest glibc requirement.
+          # This image tests the packaged binding on an older glibc than the other jobs use.
           - target: linux-x64
             native: linux-x64-gnu
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
           - target: linux-arm64
             native: linux-arm64-gnu
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
@@ -253,7 +259,7 @@ jobs:
     name: Stage packages
     needs: [binaries, verify, desktop, acceptance]
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     environment: npm-release
     permissions:
@@ -342,7 +348,7 @@ jobs:
     needs: [verify, desktop, acceptance]
     # A push has no inputs, so `dry-run` is empty and the job publishes.
     if: github.ref == 'refs/heads/main' && !inputs.dry-run
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment: extension-release
     permissions:

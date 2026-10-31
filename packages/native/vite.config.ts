@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     include:
       mode === "wasm"
         ? ["tests/wasm.test.ts", "tests/package.test.ts", "tests/browser-bundle.test.ts"]
-        : ["tests/loader.test.ts"],
+        : ["tests/loader.test.ts", "tests/glibc.test.ts"],
   },
   run: {
     tasks: {
@@ -56,10 +56,10 @@ export default defineConfig(({ mode }) => ({
         dependsOn: ["build:binding"],
       },
       "build:binding": {
-        command:
-          "napi build --release --platform --esm --no-const-enum --manifest-path ../../crates/napi/Cargo.toml --output-dir .build/native --dts binding.d.ts --package-json-path package.json",
+        command: "node build-binding.ts",
         cache: {
           ...rustCache,
+          env: [...rustCache.env, "NATIVE_USE_NAPI_CROSS"],
           input: [...rustCache.input, "!dist", "!dist/**", "!.build", "!.build/**"],
           output: [".build/native/index.js", ".build/native/*.node", ".build/native/binding.d.ts"],
         },

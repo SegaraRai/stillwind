@@ -45,6 +45,11 @@ Before you publish `stillwind`, run `vp run stillwind#prepare-publish`. It build
 package and the website, and it copies the website's Markdown pages into
 `packages/core/docs/`, which git ignores.
 
+Release builds of the Linux bindings set `NATIVE_USE_NAPI_CROSS=true`, so they link
+with the glibc 2.17 toolchain from `@napi-rs/cross-toolchain`. The toolchain downloads
+during the build and only runs on Linux. `packages/native/check-glibc.ts` fails the release
+when a binding requires a newer glibc.
+
 Before you publish the platform packages of `@stillwind/native`, run
 `vp run @stillwind/native#prepare-publish`. It checks that
 `packages/native/RUST-THIRD-PARTY-LICENSES` is current and copies it into each
