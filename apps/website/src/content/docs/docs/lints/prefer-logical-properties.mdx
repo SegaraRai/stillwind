@@ -33,6 +33,20 @@ style("ms-4");
   points left, keep the physical form and add a
   [suppression comment](/docs/configuration#suppression-comments).
 
+## Shorthands
+
+A shorthand that gives every side the same value does not depend on the writing
+direction, so this rule does not report `p-4` or `overflow-hidden`.
+
+The rule reports a shorthand with different values for its sides, such as
+`[padding:1rem_2rem]`. It also reports a shorthand that sets only some sides, such
+as `[border-top:var(--border)]`, for every value.
+
+The rule does not report a single variable in a shorthand for all sides, such as
+`[padding:var(--gap)]`, because the compiler cannot determine which values the
+variable holds. With a second value, as in `[padding:var(--gap)_1rem]`, the two
+values differ, so the rule reports the shorthand.
+
 ## Rule settings
 
 <LintRuleSummary name="prefer-logical-properties" />
