@@ -303,7 +303,7 @@ export default function Playground() {
           popoverTarget="header-menu"
           aria-label="Menu"
           title="Menu"
-          {...style("icon-button order-2 header:hidden")}
+          {...style("order-2 icon-button header:hidden")}
         >
           <span aria-hidden="true" {...style("icon-control icon-lucide--menu")} />
         </button>
@@ -387,7 +387,7 @@ export default function Playground() {
           aria-label={`Color theme: ${theme.preference}. Switch to ${nextTheme[theme.preference]}.`}
           title={`Color theme: ${theme.preference}. Switch to ${nextTheme[theme.preference]}.`}
           onClick={theme.cycle}
-          {...style("icon-button max-header:order-1 max-header:ms-auto")}
+          {...style("icon-button max-header:ms-auto max-header:order-1")}
         >
           <span
             aria-hidden="true"

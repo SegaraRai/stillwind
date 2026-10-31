@@ -153,7 +153,7 @@ const paginationLink = style(
           </div>
         </nav>
         <script is:inline aria-hidden="true" set:html={navStateScript} />
-        <main id="main-content" {...style("min-inline-0 pbe-15")}>
+        <main id="main-content" {...style("pbe-15 min-inline-0")}>
           <header {...style("mbe-10")}>
             <h1 {...style("font-display text-title tracking-[-0.045em]")}>{title}</h1>
             {description && <p {...style("mbs-5 text-lead text-muted")}>{description}</p>}
@@ -181,7 +181,7 @@ const paginationLink = style(
           </article>
           <footer {...style("grid mbs-16 gap-6 text-caption text-muted")}>
             {editUrl && (
-              <a href={editUrl} {...style("justify-self-start flex items-center gap-1.5")}>
+              <a href={editUrl} {...style("flex items-center gap-1.5 justify-self-start")}>
                 <span
                   aria-hidden="true"
                   {...style("icon-simple-icons--github align-middle")}

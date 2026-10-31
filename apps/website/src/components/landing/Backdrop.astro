@@ -24,7 +24,7 @@ const gusts = streamlines
   positioned against the initial containing block, so it covers the first viewport and scrolls away with the hero.
   */}
 <div aria-hidden="true" data-backdrop>
-  <div {...style("backdrop [--backdrop-still-column-alpha:0.15]")}>
+  <div {...style("[--backdrop-still-column-alpha:0.15] backdrop")}>
     <div data-backdrop-lattice {...style("backdrop-rows")}></div>
     <div {...style("backdrop-columns")}></div>
   </div>
@@ -35,7 +35,7 @@ const gusts = streamlines
           <path
             data-streamline={index}
             {...style(
-              "fill-none stroke-backdrop-streamline stroke-1 [vector-effect:non-scaling-stroke]",
+              "fill-none stroke-1 stroke-backdrop-streamline [vector-effect:non-scaling-stroke]",
             )}
           />
         ))}
@@ -46,7 +46,7 @@ const gusts = streamlines
             data-streamline={index}
             data-still
             {...style(
-              "fill-none stroke-backdrop-streamline stroke-1 [vector-effect:non-scaling-stroke]",
+              "fill-none stroke-1 stroke-backdrop-streamline [vector-effect:non-scaling-stroke]",
             )}
           />
         ))}
@@ -59,7 +59,7 @@ const gusts = streamlines
             style={timing}
             {...style(
               gust("ease-linear infinite"),
-              "fill-none stroke-accent stroke-[1.25] opacity-60 [stroke-linecap:round] [stroke-dasharray:60_940] [vector-effect:non-scaling-stroke]",
+              "opacity-60 fill-none stroke-[1.25] stroke-accent [stroke-dasharray:60_940] [stroke-linecap:round] [vector-effect:non-scaling-stroke]",
             )}
           />
         ))}
