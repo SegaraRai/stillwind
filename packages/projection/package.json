@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/projection",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Source documents and coordinate mappings for Stillwind compilation and TypeScript checks",
   "homepage": "https://stillwind.dev",
   "bugs": {
