@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/language-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Stillwind language server for Node and browser transports",
   "homepage": "https://stillwind.dev",
   "bugs": {
