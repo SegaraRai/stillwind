@@ -314,6 +314,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "implicit-nesting-selector": {
+    category: "hazard",
+    nativeName: "implicitNestingSelector",
+    defaults: null,
+    options: null,
+  },
   "no-arbitrary-colors": {
     category: "restriction",
     nativeName: "noArbitraryColors",
@@ -437,12 +443,6 @@ export const lintRules = {
   "prefer-typed-variables": {
     category: "style",
     nativeName: "preferTypedVariables",
-    defaults: null,
-    options: null,
-  },
-  "prefer-explicit-nesting-selector": {
-    category: "style",
-    nativeName: "preferExplicitNestingSelector",
     defaults: null,
     options: null,
   },

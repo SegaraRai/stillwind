@@ -46,7 +46,8 @@ export function registerLintBindingContract(target: "native" | "wasm32-wasi") {
     );
     const defaults = compileSource(input);
     for (const [config, severity] of [
-      [undefined, "warning"],
+      [undefined, "error"],
+      [{ rules: { "unknown-utility": "warn" } }, "warning"],
       [{ extends: [lintPresets.strict] }, "error"],
       [{}, undefined],
       [false, undefined],

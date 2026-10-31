@@ -1,7 +1,7 @@
 ---
-title: prefer-explicit-nesting-selector
+title: implicit-nesting-selector
 description: Reports a custom variant selector without &, which matches descendants.
-slug: docs/lints/prefer-explicit-nesting-selector
+slug: docs/lints/implicit-nesting-selector
 ---
 
 This rule reports a `@custom-variant` selector without `&`. Without `&`, the
@@ -10,7 +10,7 @@ example, `hocus:` would match hovered elements inside the element.
 
 ## Reported
 
-<DiagnosticExample code="prefer-explicit-nesting-selector">
+<DiagnosticExample code="implicit-nesting-selector">
 
 ```css
 @custom-variant hocus (:hover);
@@ -32,4 +32,4 @@ example, `hocus:` would match hovered elements inside the element.
 
 ## Rule settings
 
-<LintRuleSummary name="prefer-explicit-nesting-selector" />
+<LintRuleSummary name="implicit-nesting-selector" />

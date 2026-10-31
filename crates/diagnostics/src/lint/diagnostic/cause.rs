@@ -682,7 +682,7 @@ pub enum LintDiagnostic {
     },
     /// A selector of a variant definition has a branch without `&` or a branch that
     /// starts with a combinator, so it is relative to `&` without writing it
-    /// (`prefer-explicit-nesting-selector`).
+    /// (`implicit-nesting-selector`).
     #[error(
         "variant selector `{selector}` is relative to `&` and means `{nested}`; write the `&`, or add `scope(document)` to the definition to select a document-level element"
     )]
@@ -923,7 +923,7 @@ impl LintDiagnostic {
             Self::UnsatisfiableVariants { .. } => LintKind::UnsatisfiableVariants,
             Self::ClampedValue { .. } => LintKind::ClampedValue,
             Self::UntypedVariable { .. } => LintKind::PreferTypedVariables,
-            Self::ImplicitNestingSelector { .. } => LintKind::PreferExplicitNestingSelector,
+            Self::ImplicitNestingSelector { .. } => LintKind::ImplicitNestingSelector,
             Self::PreferVariantDirective { .. } => LintKind::PreferVariantDirective,
             Self::DuplicateDefinition { .. } => LintKind::DuplicateDefinition,
             Self::InvalidCssImport { .. } => LintKind::InvalidCssImport,

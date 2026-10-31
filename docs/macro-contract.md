@@ -87,13 +87,13 @@ Each finding covers the failing part of the candidate, such as the value `red-99
 the inner variant `sm`. An unknown name gets a spelling suggestion when a close
 spelling resolves: `bg-red-999` suggests `bg-red-900`. Valid runtime conditions that
 the selected `useCssIf` mode cannot lower use `runtime-condition-requires-css-if`.
-Other input lints use `invalid-*` rules. Input lints other than `unknown-utility`,
-`unknown-variant`, and `invalid-marker-use` default to `deny`.
+Other input lints use `invalid-*` rules. Input lints other than `invalid-marker-use`
+default to `deny`.
 
 The same contract applies to authored stylesheets. A declaration whose `--theme()` call
 names an inactive token without a fallback is omitted, and `invalid-theme-reference`
 reports the call. [Stylesheet lint](standalone-analysis.md#stylesheet-lint) also checks
-definitions: `prefer-explicit-nesting-selector` reports variant selectors without `&`,
+definitions: `implicit-nesting-selector` reports variant selectors without `&`,
 `duplicate-definition` reports definitions that later definitions hide,
 `incompatible-theme-value` reports theme token values of the wrong type, and
 `ignored-tailwind-feature` reports Tailwind's `@config` and import modifiers, which
@@ -1011,7 +1011,7 @@ in every context, as a nested selector without `&` is relative to its parent in 
 Nesting: `@custom-variant shell (:host)` means `& :host` and styles `:host` elements
 inside the anchor. Such a variant is invalid where no anchor exists. Only variants with
 the marker and arbitrary selector variants such as `[:hover]:` set the anchor.
-`prefer-explicit-nesting-selector` reports a definition selector without `&`, and its
+`implicit-nesting-selector` reports a definition selector without `&`, and its
 fix writes the `&` without changing the meaning.
 
 A document-level style omits a candidate that does not select an element, such as

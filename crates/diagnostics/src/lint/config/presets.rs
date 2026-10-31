@@ -43,10 +43,10 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InterferingImportedStyleBase, LintSeverity::Warn),
     (LintKind::IncompatiblePropertyValue, LintSeverity::Deny),
     (LintKind::InvalidUtility, LintSeverity::Deny),
-    (LintKind::UnknownUtility, LintSeverity::Warn),
+    (LintKind::UnknownUtility, LintSeverity::Deny),
     (LintKind::InvalidMarkerUse, LintSeverity::Warn),
     (LintKind::InvalidVariant, LintSeverity::Deny),
-    (LintKind::UnknownVariant, LintSeverity::Warn),
+    (LintKind::UnknownVariant, LintSeverity::Deny),
     (LintKind::MissingDocumentTarget, LintSeverity::Deny),
     (LintKind::PreferCanonicalUtilities, LintSeverity::Warn),
     (LintKind::RedundantVariant, LintSeverity::Warn),
@@ -61,7 +61,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::IgnoredDefinitionCondition, LintSeverity::Deny),
     (LintKind::IncompatibleThemeValue, LintSeverity::Deny),
     (LintKind::IgnoredTailwindFeature, LintSeverity::Warn),
-    (LintKind::PreferExplicitNestingSelector, LintSeverity::Warn),
+    (LintKind::ImplicitNestingSelector, LintSeverity::Warn),
 ];
 
 const STYLISTIC: &[(LintKind, LintSeverity)] = &[
@@ -80,13 +80,14 @@ const STRICT_ADDITIONS: &[(LintKind, LintSeverity)] =
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LintPreset {
-    /// Standard correctness checks and canonical utility suggestions.
+    /// Input, contract, and hazard checks, invalid suppression checks, and the style
+    /// checks for canonical utilities and redundant variants.
     #[default]
     Recommended,
     /// Recommended checks and unused suppression checks, reported as errors.
     Strict,
-    /// Optional conventions for relationships, declarations, utility ordering, and
-    /// variable type hints.
+    /// Optional conventions for direct styling, logical properties, typed
+    /// relationships, utility ordering, typed variables, and the `@variant` directive.
     Stylistic,
 }
 

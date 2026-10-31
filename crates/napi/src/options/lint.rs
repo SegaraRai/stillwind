@@ -117,6 +117,8 @@ pub struct NativeLintOptions {
     pub incompatible_theme_value: Option<String>,
     /// Settings for `ignored-tailwind-feature`.
     pub ignored_tailwind_feature: Option<String>,
+    /// Settings for `implicit-nesting-selector`.
+    pub implicit_nesting_selector: Option<String>,
     /// Settings for `no-arbitrary-colors`.
     pub no_arbitrary_colors: Option<String>,
     /// Settings for `no-arbitrary-spacing`.
@@ -149,8 +151,6 @@ pub struct NativeLintOptions {
     pub redundant_variant: Option<String>,
     /// Settings for `prefer-typed-variables`.
     pub prefer_typed_variables: Option<String>,
-    /// Settings for `prefer-explicit-nesting-selector`.
-    pub prefer_explicit_nesting_selector: Option<String>,
     /// Settings for `prefer-variant-directive`.
     pub prefer_variant_directive: Option<NativeVariantDirectiveOptions>,
     /// Settings for `invalid-lint-suppression`.
@@ -380,6 +380,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .ignored_tailwind_feature
                 .map(|value| lint_severity(&value))
                 .transpose()?,
+            implicit_nesting_selector: input
+                .implicit_nesting_selector
+                .map(|value| lint_severity(&value))
+                .transpose()?,
             no_arbitrary_colors: input
                 .no_arbitrary_colors
                 .map(|value| lint_severity(&value))
@@ -439,10 +443,6 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             prefer_typed_variables: input
                 .prefer_typed_variables
-                .map(|value| lint_severity(&value))
-                .transpose()?,
-            prefer_explicit_nesting_selector: input
-                .prefer_explicit_nesting_selector
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             prefer_variant_directive: input

@@ -315,7 +315,7 @@ test("Node and browser compose imported presets and keep project defaults throug
     },
   ]);
   expect((await resolveIntegrationConfig(inline, root)).config.lint.rules["unknown-utility"]).toBe(
-    "warn",
+    "deny",
   );
   const isolated = await resolveIntegrationConfig(
     {

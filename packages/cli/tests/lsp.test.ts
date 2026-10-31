@@ -323,7 +323,7 @@ test("LSP offers the nesting selector fix at a variant definition", async () => 
     );
     expect(published.params!.diagnostics).toMatchObject([
       {
-        code: "prefer-explicit-nesting-selector",
+        code: "implicit-nesting-selector",
         range: {
           start: { line: 1, character: 21 },
           end: { line: 1, character: 36 },

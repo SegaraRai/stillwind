@@ -1551,6 +1551,8 @@ export interface NativeLintOptions {
   incompatibleThemeValue?: string
   /** Settings for `ignored-tailwind-feature`. */
   ignoredTailwindFeature?: string
+  /** Settings for `implicit-nesting-selector`. */
+  implicitNestingSelector?: string
   /** Settings for `no-arbitrary-colors`. */
   noArbitraryColors?: string
   /** Settings for `no-arbitrary-spacing`. */
@@ -1583,8 +1585,6 @@ export interface NativeLintOptions {
   redundantVariant?: string
   /** Settings for `prefer-typed-variables`. */
   preferTypedVariables?: string
-  /** Settings for `prefer-explicit-nesting-selector`. */
-  preferExplicitNestingSelector?: string
   /** Settings for `prefer-variant-directive`. */
   preferVariantDirective?: NativeVariantDirectiveOptions
   /** Settings for `invalid-lint-suppression`. */

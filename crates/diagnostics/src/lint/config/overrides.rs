@@ -153,8 +153,8 @@ pub struct LintOverrides {
     pub incompatible_theme_value: Option<LintSeverity>,
     /// Reporting level for `ignored-tailwind-feature`.
     pub ignored_tailwind_feature: Option<LintSeverity>,
-    /// Reporting level for `prefer-explicit-nesting-selector`.
-    pub prefer_explicit_nesting_selector: Option<LintSeverity>,
+    /// Reporting level for `implicit-nesting-selector`.
+    pub implicit_nesting_selector: Option<LintSeverity>,
     /// Field-wise `prefer-variant-directive` policy overrides.
     pub prefer_variant_directive: Option<VariantDirectiveOverride>,
     /// Packages whose utility definitions lint checks.
@@ -431,8 +431,8 @@ impl LintOverrides {
                 self.ignored_tailwind_feature,
             ),
             (
-                LintKind::PreferExplicitNestingSelector,
-                self.prefer_explicit_nesting_selector,
+                LintKind::ImplicitNestingSelector,
+                self.implicit_nesting_selector,
             ),
             (
                 LintKind::InvalidRuleGroupInput,

@@ -283,7 +283,7 @@ nested style rule starts a new stack, because it selects another element.
 
 Other rules check only stylesheets. They check definitions and theme references:
 
-- `prefer-explicit-nesting-selector` (style, default `warn`) reports a selector of a
+- `implicit-nesting-selector` (hazard, default `warn`) reports a selector of a
   `@custom-variant`, `@variant`, or `@stillwind-variant` definition that has a branch
   without `&` or a branch that starts with a combinator, such as `(:hover)`,
   `(> .item)`, or `{ :hover { @slot; } }`. Such a selector is relative to `&` in every
@@ -635,8 +635,7 @@ that is probably unintended, `restriction` reports a project-specific prohibitio
 reports a preferred spelling, and `suppression` checks `swlint-*` directives.
 
 `recommended` enables every `input`, `contract`, and `hazard` rule, invalid suppression
-directives, canonical suggestions, `redundant-variant`, and
-`prefer-explicit-nesting-selector`. `strict` reports all
+directives, canonical suggestions, and `redundant-variant`. `strict` reports all
 recommended checks as errors and also checks unused lint suppressions. `stylistic`
 enables `prefer-direct-styling`, `prefer-logical-properties`,
 `prefer-typed-relationships`, `prefer-sorted-utilities`, `prefer-typed-variables`, and

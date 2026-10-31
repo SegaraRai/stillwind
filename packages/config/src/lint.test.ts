@@ -17,7 +17,7 @@ test("omission selects recommended and explicit configurations enable only their
     extends: [lintPresets.recommended],
   });
   expect(resolveLintConfig()).toEqual(recommended);
-  expect(recommended.rules["unknown-utility"]).toBe("warn");
+  expect(recommended.rules["unknown-utility"]).toBe("deny");
   expect(recommended.rules["mutating-macro-argument"]).toBe("deny");
   for (const setting of Object.values(resolveLintConfig({}).rules)) {
     expect(typeof setting === "string" ? setting : setting.severity).toBe("off");
@@ -199,7 +199,7 @@ test("inline overrides replace preset lists and retain inherited rule fields", (
     preserveSpecificity: true,
   });
   expect(resolveLintConfig(mergeLintConfig(undefined, override)).rules["unknown-utility"]).toBe(
-    "warn",
+    "deny",
   );
 });
 

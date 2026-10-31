@@ -346,6 +346,7 @@ define_lint_rules! {
         IgnoredDefinitionCondition => "ignored-definition-condition",
         IncompatibleThemeValue => "incompatible-theme-value",
         IgnoredTailwindFeature => "ignored-tailwind-feature",
+        ImplicitNestingSelector => "implicit-nesting-selector",
     }
     Restriction {
         NoArbitraryColors => "no-arbitrary-colors",
@@ -366,7 +367,6 @@ define_lint_rules! {
         PreferSortedUtilities => "prefer-sorted-utilities",
         RedundantVariant => "redundant-variant",
         PreferTypedVariables => "prefer-typed-variables",
-        PreferExplicitNestingSelector => "prefer-explicit-nesting-selector",
         PreferVariantDirective => "prefer-variant-directive",
     }
     Suppression {
@@ -401,7 +401,7 @@ impl LintKind {
                     | Self::IgnoredDefinitionCondition
                     | Self::IncompatibleThemeValue
                     | Self::IgnoredTailwindFeature
-                    | Self::PreferExplicitNestingSelector
+                    | Self::ImplicitNestingSelector
                     | Self::PreferVariantDirective
             ),
             LintSurface::Stylesheet => matches!(
@@ -431,7 +431,7 @@ impl LintKind {
                     | Self::IgnoredDefinitionCondition
                     | Self::IncompatibleThemeValue
                     | Self::IgnoredTailwindFeature
-                    | Self::PreferExplicitNestingSelector
+                    | Self::ImplicitNestingSelector
                     | Self::PreferVariantDirective
                     | Self::InvalidLintSuppression
                     | Self::UnusedLintSuppression

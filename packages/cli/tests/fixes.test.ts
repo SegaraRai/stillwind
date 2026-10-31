@@ -275,7 +275,7 @@ test("lint reports stylesheet definitions and fixes implicit nesting selectors",
   try {
     await writeFile(
       path.join(root, "stillwind.config.ts"),
-      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"prefer-explicit-nesting-selector":"deny"}}}]}',
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"implicit-nesting-selector":"deny"}}}]}',
     );
     const entry = path.join(root, "root.css");
     await writeFile(
@@ -321,7 +321,7 @@ test("lint reports stylesheet definitions and fixes implicit nesting selectors",
     expect(report.code, report.stderr).toBe(1);
     expect(findings(report.stdout)).toEqual([
       ["duplicate-definition", "local.css", ["root.css"]],
-      ["prefer-explicit-nesting-selector", "root.css", []],
+      ["implicit-nesting-selector", "root.css", []],
     ]);
     const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
     expect(fixed.code, fixed.stderr).toBe(0);
