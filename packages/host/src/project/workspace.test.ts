@@ -131,6 +131,46 @@ export const card = style(base, "red");`;
   },
 );
 
+test("declaration files that match a target glob are not analysis targets", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-declarations-"));
+  const config = path.join(root, "stillwind.config.json");
+  const entry = path.join(root, "entry.ts");
+  const declaration = path.join(root, "env.d.ts");
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [
+          {
+            css: "root.css",
+            files: ["*.ts"],
+            typeFacts: false,
+          },
+        ],
+      }),
+    );
+    await writeFile(path.join(root, "root.css"), "@utility red { color: red; }");
+    await writeFile(entry, "export {};");
+    await writeFile(declaration, "declare const value: string;");
+    workspace = await AnalysisWorkspace.open(config);
+
+    await expect(workspace.targets(workspace.projects[0])).resolves.toEqual([
+      expect.stringMatching(/entry.ts$/),
+    ]);
+    const results = await workspace.lint();
+    expect(results.every(({ result }) => result.status === "complete")).toBe(true);
+    expect(results.map(({ result }) => result.entry)).not.toContainEqual(
+      expect.stringMatching(/env.d.ts$/),
+    );
+    workspace.update(declaration, "declare const value: string;", 1);
+    await expect(workspace.analyze(declaration)).resolves.toEqual([]);
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("plugin navigation uses unsaved files when the CSS graph cannot load", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-plugin-navigation-"));
   let workspace: AnalysisWorkspace | undefined;

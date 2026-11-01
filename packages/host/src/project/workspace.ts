@@ -33,6 +33,18 @@ export interface WorkspaceResult {
   result: AnalysisResult;
 }
 
+/**
+ * Recognizes a declaration file that a target glob such as `*.ts` selects by accident. Other files
+ * that the host cannot analyze stay in scope, so their analysis reports the wrong `files` entry.
+ *
+ * @param project - Project whose host decides what it can analyze.
+ * @param file - Absolute file path.
+ * @returns Whether the file is a declaration file that the host cannot analyze.
+ */
+function skipsDeclaration(project: WorkspaceProject, file: string): boolean {
+  return /.d.[cm]?ts$/i.test(file) && !project.analysis.host.supports(file);
+}
+
 /** Owns every project in one evaluated configuration and keeps overlapping scopes independent. */
 export class AnalysisWorkspace {
   /** Absolute paths with open buffers, including paths outside the configured target globs. */
@@ -94,7 +106,8 @@ export class AnalysisWorkspace {
    *
    * @param project - Project whose root, include globs, and exclusions define membership.
    * @param file - Absolute file path to test.
-   * @returns Whether the path matches files without matching excludes, node_modules, or .git.
+   * @returns Whether the path matches files without matching excludes, node_modules, or .git. A
+   * declaration file that the host cannot analyze is outside the scope.
    * Dependency traversal does not use this filter.
    */
   includes(project: WorkspaceProject, file: string): boolean {
@@ -109,6 +122,7 @@ export class AnalysisWorkspace {
         dot: true,
       });
     return (
+      !skipsDeclaration(project, file) &&
       project.config.files.some(matches) &&
       !["**/node_modules/**", "**/.git/**", ...(project.config.exclude ?? [])].some(matches)
     );
@@ -162,13 +176,15 @@ export class AnalysisWorkspace {
         pattern: pattern.replace(/^(\.\/)+/, ""),
       };
     });
-    const files = await glob(project.config.files, {
-      cwd: project.analysis.host.root,
-      absolute: true,
-      onlyFiles: true,
-      dot: true,
-      ignore: ["**/node_modules/**", "**/.git/**", ...(project.config.exclude ?? [])],
-    });
+    const files = (
+      await glob(project.config.files, {
+        cwd: project.analysis.host.root,
+        absolute: true,
+        onlyFiles: true,
+        dot: true,
+        ignore: ["**/node_modules/**", "**/.git/**", ...(project.config.exclude ?? [])],
+      })
+    ).filter((file) => !skipsDeclaration(project, file));
     if (options.stylesheets) {
       files.push(...(await project.analysis.stylesheets().catch(() => [])));
     }
