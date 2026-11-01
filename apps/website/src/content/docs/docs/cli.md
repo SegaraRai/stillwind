@@ -345,6 +345,11 @@ failures:
 Each diagnostic contains `project`, a zero-based project index, and `report`. The
 report contains the message, its locations, notes, and suggested edits.
 
+`docs` names the page that explains the report code. It is the absolute path of the page in
+the installed `stillwind` package, which matches that version. When the package has no such
+page, `docs` is the URL of the page on this website. A code without a page has no `docs`.
+Findings in `previews` contain `docs` in the same way.
+
 Each failure contains `message` and `details`, and it can contain `project` and
 `file`. `details` lists the dependency problems that caused the failure.
 

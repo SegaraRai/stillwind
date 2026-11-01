@@ -1,6 +1,8 @@
 import { lintReports } from "@stillwind/analysis";
 import type { DesignSystemAnswer, InspectPreview, LintResult } from "@stillwind/analysis/node";
 
+import { documentationPage, stillwindRoot } from "./documentation.ts";
+
 /**
  * A command that reads a design system and no source files.
  */
@@ -8,7 +10,18 @@ export type DesignCommand = "theme" | "utilities" | "variants";
 
 export type CliCommand = "lint" | "fmt" | "inspect" | DesignCommand | null;
 
-export type CliDiagnostic = ReturnType<typeof lintReports>[number];
+export type CliDiagnostic = ReturnType<typeof lintReports>[number] & {
+  /** Absolute path or URL of the page that explains the report code. */
+  docs?: string;
+};
+
+/** A preview whose findings link to the pages that explain their codes. */
+export type CliPreview = Omit<InspectPreview, "diagnostics"> & {
+  diagnostics: (InspectPreview["diagnostics"][number] & {
+    /** Absolute path or URL of the page that explains the code. */
+    docs?: string;
+  })[];
+};
 
 export interface CliFailure {
   project?: number;
@@ -26,7 +39,7 @@ export interface CliResult {
   diagnostics: CliDiagnostic[];
   failures: CliFailure[];
   changed: string[];
-  previews: InspectPreview[];
+  previews: CliPreview[];
   tokens: DesignSystemAnswer["tokens"];
   candidates: DesignSystemAnswer["candidates"];
   unmatched: string[];
@@ -73,17 +86,28 @@ export function cliResult(
   policy: ResultPolicy = {},
 ): CliResult {
   const failedFiles = new Set(result.failures?.map((failure) => failure.file));
-  const previews = result.previews ?? [];
+  const root = stillwindRoot(result.config);
+  const docs = (code: string) => {
+    const page = documentationPage(code, root);
+    return page ? { docs: page } : {};
+  };
+  const previews = (result.previews ?? []).map((preview) => ({
+    ...preview,
+    diagnostics: preview.diagnostics.map((diagnostic) => ({
+      ...diagnostic,
+      ...docs(diagnostic.code),
+    })),
+  }));
   const invalid = previews.filter(({ valid }) => !valid).length;
   const { tokens = [], candidates = [], unmatched = [] } = result;
   const invalidCandidates = candidates.filter(({ valid }) => !valid).length;
-  const diagnostics = lintReports(
+  const diagnostics: CliDiagnostic[] = lintReports(
     command !== "lint"
       ? result.results.filter(
           ({ result }) => result.status !== "complete" || failedFiles.has(result.entry),
         )
       : result.results,
-  );
+  ).map((diagnostic) => ({ ...diagnostic, ...docs(diagnostic.report.code) }));
   const failures: CliFailure[] = result.results.flatMap(({ project, result }) =>
     result.status === "complete"
       ? []

@@ -42,6 +42,7 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
       [1, "unused.tsx"],
     ]);
     expect(json.diagnostics[0].report.code).toBe("unknown-utility");
+    expect(json.diagnostics[0].docs).toMatch(/lints[/\\]unknown-utility(\.md)?$/);
     const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
     expect(fixed.code, fixed.stderr).toBe(1);
     expect(JSON.parse(fixed.stdout).diagnostics).toEqual(json.diagnostics);

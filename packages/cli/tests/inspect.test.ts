@@ -130,6 +130,9 @@ test("inspect selects generated CSS by file, line, position, and glob", async ()
       [true, false, [["error", "unknown-utility"]]],
     ]);
     expect((await inspect(root, ["partial.tsx:2"])).code).toBe(0);
+    expect(partial.result.previews[1].diagnostics[0].docs).toMatch(
+      /lints[/\\]unknown-utility(\.md)?$/,
+    );
     const failed = await inspect(root, ["partial.tsx:3:24"]);
     expect(failed.code).toBe(1);
     expect(failed.result.previews).toMatchObject([

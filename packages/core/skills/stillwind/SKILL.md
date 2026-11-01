@@ -5,13 +5,13 @@ description: Write and fix styles in a project that uses Stillwind, by loading t
 
 # Stillwind
 
-Read only the pages that the task needs. Use the documentation of the installed
-package in `node_modules/stillwind/docs/`, so that it matches the project's
+Read only the pages that the task needs. Use the documentation of the installed package
+in `node_modules/stillwind/docs/`, so that it matches the project's
 Stillwind version. The `docs/` paths below are relative to the package root.
 When this skill is installed without a local package, follow the skill's link to
-its real directory and use `../../docs/` in the same package. If the skill was
-copied without the package, start from https://stillwind.dev/docs/llms.txt,
-which lists the Markdown version of each page.
+its real directory and use `../../docs/` in the same package. If the skill was copied
+without the package, start from https://stillwind.dev/docs/llms.txt, which lists the
+Markdown version of each page.
 
 ## Task routing
 
@@ -42,22 +42,23 @@ which lists the Markdown version of each page.
 
 ## Working rules
 
-- Follow `docs/guides/recommended-practices.md`. Keep styles in `style()` calls
-  on their elements, and express states with attributes and variants.
+- Follow `docs/guides/recommended-practices.md`. Keep styles in `style()` calls on their
+  elements, and express states with attributes and variants.
 - Use theme tokens instead of arbitrary values. Run `stillwind theme --source project`
-  to read the tokens of the project. When a value is missing, ask the user before
-  you add a token.
+  to read the tokens of the project. When a value is missing, ask the user before you
+  add a token.
 - Run `stillwind utilities <name>` to check a utility before you use it, such as
-  `stillwind utilities p-4 hover:bg-accent`. A `*` pattern searches names, but it
-  omits numeric and arbitrary values. `stillwind variants` works in the same way.
-- Write custom utilities with `@apply` and variants, not with hand-written
-  selectors or media queries.
-- After you change styles, run `stillwind lint --fix` and `stillwind fmt` through
-  the project's package manager, such as `vp exec stillwind lint`. Add
-  `--format json` when you parse the output.
+  `stillwind utilities p-4 hover:bg-accent`. A `*` pattern searches names, but it omits
+  numeric and arbitrary values. `stillwind variants` works in the same way.
+- Write custom utilities with `@apply` and variants, not with hand-written selectors or
+  media queries.
+- After you change styles, run `stillwind lint --fix` and `stillwind fmt` through the
+  project's package manager, such as `vp exec stillwind lint`. Add `--format json` when
+  you parse the output.
 - Run `stillwind inspect <file>:<line> --format json` to check the CSS that a
   `style()` call generates. Paths, globs, and several targets also work.
-- Read the page of each remaining finding before you fix it. Do not add a
-  suppression comment or relax the `lint` setting unless the user agrees. A
-  suppression comment names the rule and gives the reason after `--`.
+- Read the page of each remaining finding before you fix it. With `--format json`,
+  the `docs` field of a finding names that page. Do not add a suppression comment or
+  relax the `lint` setting unless the user agrees. A suppression comment names the rule
+  and gives the reason after `--`.
 - Check the result in the browser when a change can affect the layout.
