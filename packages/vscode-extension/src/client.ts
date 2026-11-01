@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
-import type { LanguageClientOptions } from "vscode-languageclient";
+import type { BaseLanguageClient, LanguageClientOptions } from "vscode-languageclient";
 
 /**
  * Creates document selection and file watching, and registers the utility-sort command.
+ *
  * @param context - Receives the watcher and command registrations for the extension's lifetime.
  * @returns Options that synchronize source, theme, and configuration buffers.
  */
@@ -41,11 +42,47 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
 }
 
 /**
- * Reads completion discovery preferences independently of project compiler configuration.
+ * Lists the documents that editors show, which excludes documents that extensions open in the
+ * background.
+ *
+ * @returns Document URIs.
+ */
+function visibleDocuments(): string[] {
+  return vscode.window.visibleTextEditors.map((editor) => editor.document.uri.toString());
+}
+
+/**
+ * Sends the documents in view to the language server whenever they change, for the extension's
+ * lifetime. `editorSettings` supplies the first list.
+ *
+ * @param context - Receives the event subscription.
+ * @param client - Returns the current client, or undefined between clients.
+ */
+export function reportVisibleDocuments(
+  context: vscode.ExtensionContext,
+  client: () => BaseLanguageClient | undefined,
+): void {
+  context.subscriptions.push(
+    vscode.window.onDidChangeVisibleTextEditors(() => {
+      const current = client();
+      if (current?.isRunning()) {
+        void current.sendNotification("stillwind/visibleDocuments", {
+          uris: visibleDocuments(),
+        });
+      }
+    }),
+  );
+}
+
+/**
+ * Reads completion discovery preferences independently of project compiler configuration, and the
+ * documents in view.
+ *
  * @returns Initialization fields shared by the Node client and the browser client.
  */
 export function editorSettings() {
   return {
+    visibleDocuments: visibleDocuments(),
     completion: {
       registryDirectives:
         vscode.workspace
@@ -57,6 +94,7 @@ export function editorSettings() {
 
 /**
  * Captures text files through VS Code's filesystem provider and overlays open buffers.
+ *
  * @param roots - Workspace directory URIs. Symlinks, .git, and Rust target directories are skipped.
  * Files with supported lowercase extensions are decoded as UTF-8. Open buffers beneath the roots
  * replace captured text or add entries regardless of their extension.

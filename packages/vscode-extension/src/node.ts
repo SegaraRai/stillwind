@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import * as vscode from "vscode";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
 
-import { clientOptions } from "./client.ts";
+import { clientOptions, reportVisibleDocuments } from "./client.ts";
 import { cliServer, findProjectCli, serverEnvironment } from "./project-cli.ts";
 
 let client: LanguageClient | undefined;
@@ -74,6 +74,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await client.start();
   };
   context.subscriptions.push(vscode.commands.registerCommand("stillwind.restart", start));
+  reportVisibleDocuments(context, () => client);
   await start();
 }
 

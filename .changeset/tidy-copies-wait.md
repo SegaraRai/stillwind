@@ -1,6 +1,5 @@
 ---
 "@stillwind/vscode-extension": patch
-"@stillwind/cli": patch
 ---
 
-Opening a file no longer loads a configuration from a dot directory inside the workspace, such as a generated `.e2e` copy of a project. To use such a configuration, set `stillwind.configFile`.
+The VS Code extension now loads a configuration only when an editor shows a file that uses it. Files that other extensions open in the background no longer start analysis processes or report configuration errors.

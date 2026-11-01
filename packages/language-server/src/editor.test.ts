@@ -111,6 +111,59 @@ test.each([
   }
 });
 
+test("LSP discovery waits until the client shows a background document", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///f%3A/workspace/App.tsx";
+  const discovered: string[] = [];
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map(),
+    }),
+    discoverWorkspace: async (document) => {
+      discovered.push(document);
+      return {
+        workspaces: new Map([["app", coveringService([document])]]),
+      };
+    },
+  });
+  server.listen();
+  client.listen();
+  try {
+    await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///f%3A/workspace",
+      capabilities: {},
+      initializationOptions: {
+        visibleDocuments: [],
+      },
+    });
+    await client.sendNotification("initialized", {});
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "typescriptreact",
+        version: 1,
+        text: "",
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await service.ready();
+    expect(discovered).toEqual([]);
+    await client.sendNotification("stillwind/visibleDocuments", {
+      uris: ["file:///F:/workspace/App.tsx"],
+    });
+    await vi.waitFor(() => expect(discovered).toEqual([uri]));
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
+
 test("watched changes that no service reads keep the running services open", async () => {
   const input = new PassThrough();
   const output = new PassThrough();

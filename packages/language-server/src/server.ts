@@ -40,7 +40,10 @@ export interface LanguageServerOptions {
   /**
    * Opens a configuration for an open document that no service analyzes. The server calls this once
    * for each document until services reopen. Supplying it advertises editor features before any
-   * service exists. Omission leaves such documents without analysis.
+   * service exists. Omission leaves such documents without analysis. A client that reports visible
+   * documents limits these calls to them: it supplies `visibleDocuments` in its initialization
+   * options and sends `stillwind/visibleDocuments` when the list changes. Editors open documents in
+   * the background, and each configuration starts a process that runs its code.
    */
   discoverWorkspace?: DiscoverWorkspace;
   /**
@@ -109,6 +112,8 @@ export function createLanguageServer(
   let initializationOptions: unknown;
   let registryDirectives = false;
   let snippets = false;
+  /** Keys from `uriKey` of the documents in view, or undefined for a client that reports none. */
+  let visible: Set<string> | undefined;
   let generation = 0;
   let controls = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -372,18 +377,26 @@ export function createLanguageServer(
         cache.set(uri, result);
       }
       publish();
-      const uncovered = options.discoverWorkspace
-        ? [...next].flatMap(([uri, results]) =>
-            results.length || discovered.has(uri) ? [] : [uri],
-          )
-        : [];
-      if (uncovered.length) {
-        for (const uri of uncovered) {
-          discovered.add(uri);
-        }
-        control(() => discover(uncovered));
-        schedule();
+      discoverUncovered();
+    }
+  };
+
+  /**
+   * Starts discovery for visible documents that the last analysis pass left without results. Each
+   * document is passed to discovery once until services reopen.
+   */
+  const discoverUncovered = () => {
+    const uncovered = options.discoverWorkspace
+      ? [...cache].flatMap(([uri, results]) =>
+          results.length || discovered.has(uri) || visible?.has(uriKey(uri)) === false ? [] : [uri],
+        )
+      : [];
+    if (uncovered.length) {
+      for (const uri of uncovered) {
+        discovered.add(uri);
       }
+      control(() => discover(uncovered));
+      schedule();
     }
   };
 
@@ -454,6 +467,7 @@ export function createLanguageServer(
   connection.onInitialize(async (params: InitializeParams) => {
     initializationOptions = params.initializationOptions;
     registryDirectives = completionRegistrySetting(initializationOptions) ?? false;
+    visible = visibleDocumentsSetting(initializationOptions);
     snippets =
       params.capabilities.textDocument?.completion?.completionItem?.snippetSupport === true;
     foldersSupported = params.capabilities.workspace?.workspaceFolders === true;
@@ -597,6 +611,18 @@ export function createLanguageServer(
         connection.console.error(String(error));
       });
   });
+  connection.onNotification(
+    "stillwind/visibleDocuments",
+    ({
+      uris,
+    }: {
+      /** URIs of the documents in view. */
+      uris: string[];
+    }) => {
+      visible = new Set(uris.map(uriKey));
+      discoverUncovered();
+    },
+  );
   connection.onDidChangeConfiguration(({ settings }) => {
     control(async () => {
       registryDirectives =
@@ -774,6 +800,19 @@ function completionRegistrySetting(value: unknown): boolean | undefined {
   }
   const registry = (completion as Record<string, unknown>).registryDirectives;
   return typeof registry === "boolean" ? registry : undefined;
+}
+
+/**
+ * Reads the documents in view from initialization options.
+ *
+ * @param value - A protocol object that may contain `visibleDocuments`.
+ * @returns Keys from `uriKey`, or undefined when the field is absent or is not a list of strings.
+ */
+function visibleDocumentsSetting(value: unknown): Set<string> | undefined {
+  const uris = (value as { visibleDocuments?: unknown } | null | undefined)?.visibleDocuments;
+  return Array.isArray(uris) && uris.every((uri) => typeof uri === "string")
+    ? new Set(uris.map(uriKey))
+    : undefined;
 }
 
 /**
