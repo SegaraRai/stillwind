@@ -15,6 +15,7 @@ import {
 import type { TypeFactSource } from "../backend.ts";
 import type { TypePropertyCache } from "./decoder.ts";
 import { visit } from "./facts.ts";
+import { withHiddenSpawnWindows } from "./hidden-spawn.ts";
 import {
   normalize,
   prepareProject,
@@ -230,32 +231,35 @@ export class NodeChecker {
    */
   #startApi(): API {
     this.stats.starts += 1;
-    return new API({
-      cwd: this.#projectRoot,
-      collectTiming: true,
-      fs: {
-        directoryExists: (directoryName) => {
-          const prefix = normalize(directoryName).replace(/\/$/, "") + "/";
-          return [...this.#virtualFiles.keys()].some((name) => name.startsWith(prefix))
-            ? true
-            : undefined;
-        },
-        fileExists: (fileName) => {
-          this.dependencies.add(fileName);
-          return this.#virtualFiles.has(normalize(fileName)) ? true : undefined;
-        },
-        readFile: (fileName) => {
-          const overlay = this.#virtualFiles.get(normalize(fileName));
-          if (overlay === undefined) {
-            this.dependencies.add(fileName);
-            this.stats.diskReadRequests += 1;
-          } else {
-            this.stats.overlayReads += 1;
-          }
-          return overlay;
-        },
-      },
-    });
+    return withHiddenSpawnWindows(
+      () =>
+        new API({
+          cwd: this.#projectRoot,
+          collectTiming: true,
+          fs: {
+            directoryExists: (directoryName) => {
+              const prefix = normalize(directoryName).replace(/\/$/, "") + "/";
+              return [...this.#virtualFiles.keys()].some((name) => name.startsWith(prefix))
+                ? true
+                : undefined;
+            },
+            fileExists: (fileName) => {
+              this.dependencies.add(fileName);
+              return this.#virtualFiles.has(normalize(fileName)) ? true : undefined;
+            },
+            readFile: (fileName) => {
+              const overlay = this.#virtualFiles.get(normalize(fileName));
+              if (overlay === undefined) {
+                this.dependencies.add(fileName);
+                this.stats.diskReadRequests += 1;
+              } else {
+                this.stats.overlayReads += 1;
+              }
+              return overlay;
+            },
+          },
+        }),
+    );
   }
 
   /**
