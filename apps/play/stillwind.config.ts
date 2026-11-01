@@ -5,7 +5,7 @@ export default defineConfig({
   projects: [
     {
       css: "src/styles.css",
-      files: ["src/**/*.{astro,tsx}"],
+      files: ["src/**/*.{astro,ts,tsx}"],
       lint: {
         extends: [lintPresets.strict, lintPresets.stylistic],
         rules: {
