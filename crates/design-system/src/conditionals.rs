@@ -142,6 +142,19 @@ pub fn runtime_if_arguments(arguments: &str) -> Option<(RuntimeCondition<'_>, &s
     ))
 }
 
+/// Returns both branches when `value`, without surrounding whitespace, is one complete
+/// `--if()` function with valid arguments.
+pub(crate) fn runtime_value_branches(value: &str) -> Option<(&str, &str)> {
+    let value = value.trim();
+    let functions = find_css_functions(value, &["--if"], 0);
+    let function = functions.first()?;
+    if function.start != 0 || function.end != Some(value.len()) {
+        return None;
+    }
+    let (_, yes, no) = runtime_if_arguments(&value[function.arguments.clone()])?;
+    Some((yes, no))
+}
+
 /// Checks both branches of a whole conditional against the utility's value domain.
 /// Nested functions retain the domain's normal deferred-variable validation behavior.
 /// Whole-conditional recursion beyond 32 levels rejects; syntax errors return false.

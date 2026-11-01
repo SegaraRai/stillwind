@@ -30,6 +30,7 @@ use super::nested::{NestedUtilityAtRule, NestedUtilityRule};
 use super::order::{UtilityOrder, UtilityPropertySort};
 use super::ranges::{arbitrary_value_range, modifier_value_range};
 use super::variables::VariableMismatch;
+use crate::conditionals::runtime_value_branches;
 use crate::{DefinitionOrigin, ThemeIndex, UtilityOrderMode};
 
 /// One candidate resolved to the declarations and selectors it emits.
@@ -465,7 +466,9 @@ fn property_rejects(property: &str, value: &str) -> bool {
 ///
 /// Returns `None` when no grammar decides the value: for a custom property, for a
 /// property that the Webref data does not define, and for a value that contains
-/// `var()`, `env()`, or `attr()`, because substitution happens at computed-value time.
+/// `var()`, `env()`, `attr()`, or a partial `--if()`, because substitution happens at
+/// computed-value time. A value that is one `--if()` function is checked through its
+/// branches, and `property` must accept both.
 pub(super) fn property_accepts(property: &str, value: &str) -> Option<bool> {
     thread_local! {
         /// Results keyed by property and value. Resolution checks the same declarations
@@ -498,13 +501,32 @@ pub(super) fn declared_value(value: &str) -> &str {
 }
 
 /// Checks `value` against the grammar of `property` without the cache of
-/// [`property_accepts`].
+/// [`property_accepts`]. A rejected branch decides the result before an undecided one.
 fn check_property_value(property: &str, value: &str) -> Option<bool> {
+    let mut verdict = Some(true);
+    let mut pending = vec![value];
+    while let Some(value) = pending.pop() {
+        if let Some((yes, no)) = runtime_value_branches(value) {
+            pending.extend([yes, no]);
+            continue;
+        }
+        match check_plain_property_value(property, value) {
+            Some(false) => return Some(false),
+            None => verdict = None,
+            Some(true) => {}
+        }
+    }
+    verdict
+}
+
+/// Checks `value`, which is not one `--if()` function, against the grammar of
+/// `property`.
+fn check_plain_property_value(property: &str, value: &str) -> Option<bool> {
     if property.starts_with("--") {
         return None;
     }
     let lowercase = value.to_ascii_lowercase();
-    if ["var(", "env(", "attr("]
+    if ["var(", "env(", "attr(", "--if("]
         .iter()
         .any(|function| lowercase.contains(function))
     {

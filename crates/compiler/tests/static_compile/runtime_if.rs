@@ -339,6 +339,46 @@ fn runtime_if_negation_parity_swaps_values() {
 }
 
 #[test]
+fn runtime_if_arbitrary_properties_check_each_branch_against_the_property() {
+    let incompatible = |result: &CompileResult| {
+        result.lint_findings.iter().any(|finding| {
+            matches!(
+                finding.diagnostic,
+                LintDiagnostic::IncompatiblePropertyValue { .. }
+            )
+        })
+    };
+    for candidate in [
+        "[color:--if(--a,red,blue)]",
+        "[font-family:--if(--a,{Arial,sans-serif},serif)]",
+        "[width:--if(--a,--if(--b,1px,2px),3px)]",
+        "[width:--if(--a,var(--b),3px)]",
+        "[width:calc(--if(--a,1px,2px)*2)]",
+    ] {
+        for native in [false, true] {
+            let result = compile(candidate, native);
+            assert!(
+                !incompatible(&result),
+                "{candidate}: {:?}",
+                result.lint_findings
+            );
+            assert!(!result.module_css.is_empty(), "{candidate}");
+        }
+    }
+    assert!(!incompatible(&compile(
+        "[color:--if(--a,inherit,red)]",
+        true
+    )));
+    for candidate in [
+        "[color:--if(--a,12px,red)]",
+        "[color:--if(--a,red,12px)]",
+        "[width:--if(--a,--if(--b,red,2px),3px)]",
+    ] {
+        assert!(incompatible(&compile(candidate, true)), "{candidate}");
+    }
+}
+
+#[test]
 fn runtime_if_negated_variants_require_native_lowering() {
     for candidate in [
         "if(!--c):flex",
