@@ -2,11 +2,11 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { expect, test } from "vite-plus/test";
+import { expect, test, vi } from "vite-plus/test";
 
 import { AnalysisWorkspace } from "./workspace.ts";
 
-test("saved open buffers retain the workspace while configuration and closed files request reopening", async () => {
+test("saved and closed files retain the workspace while configuration files request reopening", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-refresh-"));
   const config = path.join(root, "stillwind.config.json");
   const entry = path.join(root, "entry.ts");
@@ -32,7 +32,9 @@ test("saved open buffers retain the workspace while configuration and closed fil
     workspace.update(tsconfig, "{}", 1);
     expect(workspace.refresh([tsconfig])).toBe(false);
     workspace.closeDocument(entry);
-    expect(workspace.refresh([entry])).toBe(false);
+    const invalidate = vi.spyOn(workspace, "invalidate");
+    expect(workspace.refresh([entry])).toBe(true);
+    expect(invalidate).toHaveBeenCalledOnce();
   } finally {
     await workspace?.close();
     await rm(root, { recursive: true, force: true });

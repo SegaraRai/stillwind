@@ -562,8 +562,11 @@ export function createLanguageServer(
     schedule();
   });
   connection.onDidChangeWatchedFiles(({ changes }) => {
-    control(() => refresh(changes.map((change) => change.uri)));
-    schedule();
+    const uris = changes.map((change) => change.uri).filter((uri) => !isGeneratedPath(uri, roots));
+    if (uris.length) {
+      control(() => refresh(uris));
+      schedule();
+    }
   });
   connection.onDidChangeConfiguration(({ settings }) => {
     control(async () => {
@@ -697,6 +700,30 @@ export function createLanguageServer(
     },
     dispose,
   };
+}
+
+/**
+ * Recognizes files that package managers and build tools write in bursts. Reacting to them would
+ * restart analysis before it finishes.
+ *
+ * @param uri - URI from a watch notification.
+ * @param roots - Workspace directory URIs. Only path segments beneath a root count, so a workspace
+ * inside a dot directory stays visible.
+ * @returns Whether a directory beneath a root is `node_modules`, `target`, or a dot directory.
+ */
+export function isGeneratedPath(uri: string, roots: readonly string[]): boolean {
+  const root = roots.find((candidate) => uri.startsWith(`${candidate.replace(/\/$/, "")}/`));
+  return (
+    root !== undefined &&
+    uri
+      .slice(root.replace(/\/$/, "").length + 1)
+      .split("/")
+      .slice(0, -1)
+      .some(
+        (segment) =>
+          segment === "node_modules" || segment === "target" || /^\.|^%2E/i.test(segment),
+      )
+  );
 }
 
 /**

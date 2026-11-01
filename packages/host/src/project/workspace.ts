@@ -279,19 +279,27 @@ export class AnalysisWorkspace {
   }
 
   /**
-   * Checks whether save or watch notifications need a new workspace.
+   * Checks whether save or watch notifications need a new workspace. A file without an open buffer
+   * can affect analysis through its disk content, so such a file invalidates the projects.
    *
    * @param files - File paths reported by the notification. Relative paths use the working directory.
-   * @returns True when every file has an open buffer and none is a configuration dependency,
-   * a tsconfig, or package.json. This method does not read disk or reopen projects.
+   * @returns False when a file is a configuration dependency, a tsconfig, or package.json. Otherwise
+   * returns true. This method does not read disk or reopen projects.
    */
   refresh(files: readonly string[]): boolean {
-    return files.every(
-      (file) =>
-        [...this.#openDocuments].some((open) => sameFile(open, file)) &&
-        !this.#configurationDependencies.some((dependency) => sameFile(dependency, file)) &&
-        !/(?:^|[/\\])(?:tsconfig(?:\.[^/\\]+)?\.json|package\.json)$/.test(file),
-    );
+    if (
+      files.some(
+        (file) =>
+          this.#configurationDependencies.some((dependency) => sameFile(dependency, file)) ||
+          /(?:^|[/\\])(?:tsconfig(?:\.[^/\\]+)?\.json|package\.json)$/.test(file),
+      )
+    ) {
+      return false;
+    }
+    if (files.some((file) => ![...this.#openDocuments].some((open) => sameFile(open, file)))) {
+      this.invalidate();
+    }
+    return true;
   }
 
   /**
