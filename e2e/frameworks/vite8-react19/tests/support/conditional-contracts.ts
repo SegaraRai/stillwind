@@ -44,8 +44,12 @@ export async function expectBranchEdit(app: ConditionalApplication): Promise<voi
   const page = await check(app, app.url, "dev");
   const before = await page.evaluate(() => window.classes);
   await app.put("flow.ts", app.flowSource(8));
+  // The edit reloads the page, and `#sample` is absent until the application renders again.
   await page.waitForFunction(
-    () => getComputedStyle(document.querySelector<HTMLElement>("#sample")!).marginTop === "32px",
+    () => {
+      const sample = document.querySelector<HTMLElement>("#sample");
+      return sample !== null && getComputedStyle(sample).marginTop === "32px";
+    },
     undefined,
     { timeout: 20000 },
   );

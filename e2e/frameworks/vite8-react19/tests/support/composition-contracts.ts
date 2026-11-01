@@ -109,9 +109,11 @@ export async function expectDependencyEdit(app: CompositionApplication): Promise
         }
       }, 50);
     });
-    await page.waitForFunction(
-      () => getComputedStyle(document.querySelector<HTMLElement>("#sample")!).marginTop === "12px",
-    );
+    // The reload removes `#sample` until the application renders again.
+    await page.waitForFunction(() => {
+      const sample = document.querySelector<HTMLElement>("#sample");
+      return sample !== null && getComputedStyle(sample).marginTop === "12px";
+    });
     app.record("dev-base-content-reload-preserves-order");
   } finally {
     await app.put("base.ts", app.baseSource(10));
@@ -131,9 +133,11 @@ export async function expectTopologyEdit(app: CompositionApplication): Promise<v
   });
   try {
     await app.put("a.ts", app.routeSource("diamond", 7));
-    await page.waitForFunction(
-      () => getComputedStyle(document.querySelector<HTMLElement>("#sample")!).marginTop === "28px",
-    );
+    // The edit reloads the page, and `#sample` is absent until the application renders again.
+    await page.waitForFunction(() => {
+      const sample = document.querySelector<HTMLElement>("#sample");
+      return sample !== null && getComputedStyle(sample).marginTop === "28px";
+    });
     expect(reloads > 0).toBeTruthy();
     app.record("dev-topology-reload");
   } finally {
