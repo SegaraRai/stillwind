@@ -149,6 +149,48 @@ test("verifies Preview indexing, isolation, and the WASM MIME type", async () =>
   );
 });
 
+test.each([
+  { excluded: true, error: undefined },
+  { excluded: false, error: "noindex" },
+])("requires production Markdown alternates to set noindex: %j", async ({ excluded, error }) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: URL, init: RequestInit) => {
+      if (url.pathname !== "/" && url.pathname.endsWith("/")) {
+        return new Response(null, {
+          status: 307,
+          headers: {
+            Location: url.pathname.slice(0, -1),
+          },
+        });
+      }
+      return new Response(
+        init.method === "HEAD"
+          ? null
+          : `<link rel="canonical" href="${url.origin}/">
+          <meta property="og:url" content="${url.origin}/">
+          <meta property="og:image" content="${url.origin}/og.png">
+          <meta name="twitter:image" content="${url.origin}/og.png">`,
+        {
+          headers: {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+            ...(excluded && url.pathname.endsWith("/index.md")
+              ? { "X-Robots-Tag": "noindex" }
+              : {}),
+          },
+        },
+      );
+    }),
+  );
+  const check = checkSite("website", "https://stillwind.dev", "production");
+  if (error) {
+    await expect(check).rejects.toThrow(error);
+  } else {
+    await expect(check).resolves.toBeUndefined();
+  }
+});
+
 test("rejects metadata that points to another deployment", async () => {
   vi.stubGlobal(
     "fetch",
@@ -198,6 +240,7 @@ test.each([
         headers: {
           "Cross-Origin-Opener-Policy": "same-origin",
           "Cross-Origin-Embedder-Policy": "require-corp",
+          ...(url.pathname.endsWith("/index.md") ? { "X-Robots-Tag": "noindex" } : {}),
         },
       },
     );

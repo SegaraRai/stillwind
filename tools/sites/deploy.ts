@@ -113,7 +113,7 @@ export async function deletePreview(
 }
 
 /**
- * Checks the deployed site's routes, metadata, Preview indexing policy, and WASM response headers.
+ * Checks the deployed site's routes, metadata, indexing policy, and WASM response headers.
  * Throws when an HTTP request fails or a response breaks the hosting contract.
  */
 export async function checkSite(site: Site, origin: string, deployment: Deployment): Promise<void> {
@@ -135,10 +135,13 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
     if (!response.ok) {
       throw new Error(`${url}: HTTP ${response.status}`);
     }
-    if (deployment === "preview" && !response.headers.get("x-robots-tag")?.includes("noindex")) {
-      throw new Error(`${url}: missing Preview noindex header`);
+    const excluded = response.headers.get("x-robots-tag")?.includes("noindex") ?? false;
+    // Markdown alternates repeat the HTML pages, so production also excludes them from indexing.
+    const exclusionRequired = deployment === "preview" || route.endsWith("/index.md");
+    if (exclusionRequired && !excluded) {
+      throw new Error(`${url}: missing noindex header`);
     }
-    if (deployment === "production" && response.headers.get("x-robots-tag")?.includes("noindex")) {
+    if (!exclusionRequired && excluded) {
       throw new Error(`${url}: production response is excluded from indexing`);
     }
     if ((site === "play" && route === "/") || route === "/docs/utilities") {
