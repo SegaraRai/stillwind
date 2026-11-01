@@ -225,6 +225,8 @@ from `e2e/play`. This runs the downloaded build without rebuilding it.
    scope for initial Worker creation, plus **Workers Routes Write** for the
    `stillwind.dev` zone. After provisioning, Workers **Editor** is sufficient
    when deployments keep the existing Worker and domain connections.
+   Deleting a Preview requires Workers **Admin**, so create a second token with
+   Admin scoped to `stillwind-website` and `stillwind-play` for Preview cleanup.
 3. Record the account ID. The first Preview deployment initializes each Worker
    without production routes, because Custom Domains require an existing deployment.
    It attaches `preview.stillwind.dev` and `play-preview.stillwind.dev` for Preview
@@ -240,14 +242,18 @@ and [Preview Custom Domains](https://developers.cloudflare.com/workers/previews/
 ### GitHub setup
 
 1. Enable GitHub Actions and allow the actions pinned in `sites.yml`.
-2. Under **Settings → Environments**, create `sites-preview`, `sites-pr-preview`, and
-   `sites-production`. For each environment, set **Deployment branches and tags**
-   to **Selected branches and tags**. Add a **Branch** rule for `main` in
-   `sites-preview` and `sites-pr-preview`, and a **Branch** rule for `stable` in
+2. Under **Settings → Environments**, create `sites-preview`, `sites-pr-preview`,
+   `sites-pr-preview-cleanup`, and `sites-production`. For each environment, set
+   **Deployment branches and tags** to **Selected branches and tags**. Add a
+   **Branch** rule for `main` in `sites-preview`, `sites-pr-preview`, and
+   `sites-pr-preview-cleanup`, and a **Branch** rule for `stable` in
    `sites-production`. Create the `preview` and `preview:active` labels.
 3. Add `CLOUDFLARE_API_TOKEN` under **Environment secrets** in each environment.
-   All can initially use the token created above. Add `CLOUDFLARE_ACCOUNT_ID`
-   as a repository variable under **Settings → Secrets and variables → Actions**.
+   `sites-pr-preview-cleanup` uses the cleanup token. The other environments can
+   initially use the first token created above. After provisioning, `sites-pr-preview`
+   must use a Workers **Editor** token, because its job handles pull request artifacts.
+   Add `CLOUDFLARE_ACCOUNT_ID` as a repository variable under
+   **Settings → Secrets and variables → Actions**.
    Add repository variables `SITES_PREVIEW_WEBSITE_URL` and `SITES_PREVIEW_PLAYGROUND_URL`
    with the `main` Preview URL of each Worker. These must be absolute HTTPS origins.
    They are `https://main.preview.stillwind.dev/`

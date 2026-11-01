@@ -143,7 +143,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-    environment: sites-pr-preview
+    environment: sites-pr-preview-cleanup
     steps:
       - uses: actions/checkout@v7.0.1
         with:
