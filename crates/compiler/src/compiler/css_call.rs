@@ -11,7 +11,9 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::CssCall;
+use stillwind_source::ModuleId;
 
+use super::RuleBoundaries;
 use super::conditionals::{lower, report_skipped_conditionals};
 use super::document::{DocumentInput, emit_document_rules};
 use super::style_variants::collect_variant_and_applications;
@@ -39,10 +41,15 @@ pub(crate) enum CssOutput {
 /// its rules without theme values, keyframes, or property support. The returned text
 /// uses rewritten generated names, so callers must not rewrite it again.
 ///
+/// `module_id` identifies the module of `call`, and it keeps the support queries of
+/// conditional rules distinct between calls.
+///
 /// Fatal problems, such as malformed utility definitions, are appended to
 /// `diagnostics`, and the result is then empty. A declaration whose runtime condition
 /// cannot be lowered is left out and reported at the call.
+#[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
 pub(crate) fn css_call_text(
+    module_id: &ModuleId,
     call: &CssCall,
     theme: &ThemeIndex,
     options: &CompilerOptions,
@@ -91,9 +98,16 @@ pub(crate) fn css_call_text(
     )
     .and_then(|contributions| {
         let mut utilities = MappedStylesheet::default();
+        let owner = format_args!(
+            "css\0{module_id}\0{}\0{}",
+            options.class_namespace, call.span.start.0
+        )
+        .to_lean_string();
+        let mut boundaries = RuleBoundaries::new(owner, identifiers);
         for contribution in contributions {
             let start = utilities.css.len();
-            let lowered = lower(&contribution.css, options.use_css_if, identifiers)?;
+            let css = boundaries.render(&contribution.css)?;
+            let lowered = lower(&css, options.use_css_if, identifiers)?;
             report_skipped_conditionals(lowered.skipped, call.span, lint_settings, lint_findings);
             utilities
                 .css

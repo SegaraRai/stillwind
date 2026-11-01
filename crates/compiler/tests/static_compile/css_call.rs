@@ -228,3 +228,19 @@ fn selectors_that_read_outside_the_shadow_tree_are_reported() {
         );
     }
 }
+
+#[test]
+fn conditional_rules_receive_their_support_queries() {
+    let (css, result) = compile(
+        r#"export const sheet = style.css("grid if(--on):flex hover:if(--on):block", { selector: ":host" });"#,
+        "",
+    );
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+    assert!(!css.contains("-stillwind-rule-boundary"), "{css}");
+    assert!(css.contains("@supports (x:revert-rule) and (--"), "{css}");
+    assert!(css.contains(":host{display:grid;}"), "{css}");
+}

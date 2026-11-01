@@ -17,6 +17,7 @@ use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintFinding, LintKi
 use stillwind_source::Spanned;
 use stillwind_syntax::parse_candidate;
 
+use super::RuleBoundaries;
 use super::lexer::lex_utilities;
 use super::literal::{
     definition_condition_lint, omit, resolved_candidate_lints, runtime_condition_lint,
@@ -51,7 +52,7 @@ pub(crate) fn emit_document_style(
     diagnostics: &mut Vec<CompileError>,
     lint_findings: &mut Vec<LintFinding>,
 ) -> Result<LeanString, CompileDiagnostic> {
-    Ok(emit_document_rules(
+    let contributions = emit_document_rules(
         &[DocumentInput {
             prefix: "",
             utilities: input,
@@ -63,10 +64,15 @@ pub(crate) fn emit_document_style(
         identifiers,
         diagnostics,
         lint_findings,
-    )?
-    .iter()
-    .map(|contribution| contribution.css.as_str())
-    .collect())
+    )?;
+    let mut boundaries = RuleBoundaries::new(
+        format_args!("preview\0{}", input.value).to_lean_string(),
+        identifiers,
+    );
+    contributions
+        .iter()
+        .map(|contribution| boundaries.render(&contribution.css))
+        .collect()
 }
 
 /// One utility literal of a document-level style.
@@ -378,6 +384,11 @@ mod tests {
             assert_eq!(css, expected, "{candidate}");
             assert_eq!(findings, [], "{candidate}");
         }
+        let (css, _) = document(theme, "host:if(--on):flex");
+        assert!(
+            css.starts_with("@supports (x:revert-rule) and (--"),
+            "{css}"
+        );
         let (css, _) = document(theme, "host:space-x-4");
         assert!(
             css.starts_with(":where(:host > :not(:last-child)){"),

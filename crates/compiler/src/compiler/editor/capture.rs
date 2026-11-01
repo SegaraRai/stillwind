@@ -30,7 +30,7 @@ use super::input::{collect_bases, input_plans, replace_text};
 use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
 use crate::compiler::rewrite_generated_css;
-use crate::identifiers::PreviewNames;
+use crate::identifiers::{IdentifierContext, PreviewNames};
 use crate::{CandidateContext, CompilerOptions, CssContribution, Identifiers};
 
 /// The source object addressed by a generated preview.
@@ -463,6 +463,30 @@ impl ModuleEditor {
         self.render_with_names(plan, slots, &self.names)
     }
 
+    /// Returns the preview of a `style.css()` call, or `None` when it reports
+    /// diagnostics.
+    fn render_css_call(
+        &self,
+        call: &CssCall,
+        output: CssOutput,
+        context: &IdentifierContext,
+    ) -> Option<(LeanString, Vec<IdentityId>)> {
+        let mut diagnostics = Vec::new();
+        let css = css_call_text(
+            &self.module.module_id,
+            call,
+            self.snapshot.theme(),
+            &self.options,
+            context,
+            output,
+            &mut diagnostics,
+            &mut Vec::new(),
+        );
+        diagnostics
+            .is_empty()
+            .then(|| (preview_resource_urls(css, &self.snapshot), Vec::new()))
+    }
+
     /// Emits `plan` with readable names and `&` as the element subject. `slots` records
     /// or replays transition allocations, and `names` receives any new name requests.
     /// Successful output applies the configured CSS conditional mode and prefix
@@ -486,18 +510,7 @@ impl ModuleEditor {
         match plan {
             EditorPlan::Css { call, output } => {
                 // The text is already lowered and rewritten, so it skips the steps below.
-                let css = css_call_text(
-                    call,
-                    self.snapshot.theme(),
-                    &self.options,
-                    &context,
-                    *output,
-                    &mut diagnostics,
-                    &mut lint_findings,
-                );
-                return diagnostics
-                    .is_empty()
-                    .then(|| (preview_resource_urls(css, &self.snapshot), Vec::new()));
+                return self.render_css_call(call, *output, &context);
             }
             EditorPlan::Call(call) => {
                 for input in &call.inputs {

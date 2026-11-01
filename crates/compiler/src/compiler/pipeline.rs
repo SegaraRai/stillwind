@@ -318,6 +318,7 @@ impl Compiler {
         }
         for css in &module.css_calls {
             let text = css_call_text(
+                module_id,
                 css,
                 theme,
                 options,
