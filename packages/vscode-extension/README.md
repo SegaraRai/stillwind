@@ -22,7 +22,8 @@ the bundled server.
 Add a [Stillwind project configuration](https://stillwind.dev/docs/configuration)
 to the workspace. The extension discovers `stillwind.config.*`; set
 `stillwind.configFile` to select a path relative to the workspace root.
-A configuration in a workspace subfolder loads when an editor shows a file that uses it.
+A configuration in a workspace subfolder loads when a tab shows a file that uses it. Diagnostics
+appear for files in open tabs.
 Use **Stillwind: Restart Language Server** to reload configuration and dependencies.
 
 ## Features

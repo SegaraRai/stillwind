@@ -10,7 +10,9 @@ import {
   CodeActionKind,
   DiagnosticSeverity,
   DidChangeWatchedFilesNotification,
+  LSPErrorCodes,
   MessageType,
+  ResponseError,
   ShowMessageNotification,
   TextDocuments,
   TextDocumentSyncKind,
@@ -18,6 +20,8 @@ import {
   type CodeAction,
   type Connection,
   type Diagnostic,
+  type DiagnosticServerCancellationData,
+  type DocumentDiagnosticReport,
   type InitializeParams,
   type TextDocumentEdit,
 } from "vscode-languageserver";
@@ -40,10 +44,10 @@ export interface LanguageServerOptions {
   /**
    * Opens a configuration for an open document that no service analyzes. The server calls this once
    * for each document until services reopen. Supplying it advertises editor features before any
-   * service exists. Omission leaves such documents without analysis. A client that reports visible
-   * documents limits these calls to them: it supplies `visibleDocuments` in its initialization
-   * options and sends `stillwind/visibleDocuments` when the list changes. Editors open documents in
-   * the background, and each configuration starts a process that runs its code.
+   * service exists. Omission leaves such documents without analysis. A client with pull diagnostics
+   * decides which documents reach this call, because only a diagnostic request starts discovery.
+   * Editors open documents in the background, and each configuration starts a process that runs
+   * its code.
    */
   discoverWorkspace?: DiscoverWorkspace;
   /**
@@ -68,6 +72,10 @@ export interface LanguageServerOptions {
  * Registers synchronization, diagnostics, fixes, hover, completion, colors, and sorting.
  * Analysis uses captured buffers and suppresses obsolete results. Quick fixes require every edited
  * document to be open and to match the report's source fingerprint.
+ *
+ * A client that declares `textDocument.diagnostic` requests diagnostics for each document, and the
+ * server reports only the findings located in that document. Other clients receive every open
+ * document's findings through `textDocument/publishDiagnostics`.
  *
  * @param connection - Caller-owned connection. Call listen after registration and dispose the
  * transport when finished. Diagnostic locations must use original documents and UTF-16 positions.
@@ -112,8 +120,17 @@ export function createLanguageServer(
   let initializationOptions: unknown;
   let registryDirectives = false;
   let snippets = false;
-  /** Keys from `uriKey` of the documents in view, or undefined for a client that reports none. */
-  let visible: Set<string> | undefined;
+  /** Whether the client requests diagnostics instead of receiving published ones. */
+  let pull = false;
+  /** Whether the client accepts `workspace/diagnostic/refresh`. */
+  let pullRefresh = false;
+  /** Control generation whose open documents were prepared together for pull diagnostics. */
+  let prepared: number | undefined;
+  /** Serializes pull diagnostics, because a worker analyzes one document at a time. */
+  let pulls = Promise.resolve();
+  /** Last report for each pulled document. Its identity lets the client keep unchanged results. */
+  const pullReports = new Map<string, { id: string; text: string }>();
+  let nextReport = 0;
   let generation = 0;
   let controls = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -206,6 +223,106 @@ export function createLanguageServer(
   };
 
   /**
+   * Converts one document's analysis results to diagnostics.
+   *
+   * @param uri - Analyzed document, which receives the note about an incomplete analysis.
+   * @param results - Results of each project that analyzed the document.
+   * @param add - Receives each diagnostic with the URI of its location.
+   */
+  const collect = (
+    uri: string,
+    results: readonly WorkspaceResult[],
+    add: (uri: string, diagnostic: Diagnostic) => void,
+  ) => {
+    for (const entry of results) {
+      const source = `stillwind:${entry.config}:${entry.project + 1}`;
+      for (const report of entry.result.reports) {
+        const location = report.primary.location;
+        add(location.uri, {
+          range: range(location),
+          severity:
+            report.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
+          source,
+          code: report.code,
+          message: [report.message, ...report.notes].join("\n"),
+          relatedInformation: report.related.map((label) => ({
+            location: {
+              uri: label.location.uri,
+              range: range(label.location),
+            },
+            message: label.message ?? report.message,
+          })),
+        });
+      }
+      if (entry.result.status === "incomplete") {
+        const missing =
+          entry.result.dependencies
+            ?.filter(
+              (dependency) =>
+                dependency.status === "unresolved" || dependency.status === "unsupported",
+            )
+            .map(
+              (dependency) =>
+                `${dependency.status}: ${dependency.specifier} from ${dependency.importer}`,
+            ) ?? [];
+        add(uri, {
+          range: range(),
+          severity: entry.result.error ? DiagnosticSeverity.Error : DiagnosticSeverity.Information,
+          source,
+          code: entry.result.error ? "SW_HOST" : "SW_UNVERIFIED",
+          message: [
+            entry.result.error ?? "Stillwind analysis is incomplete",
+            ...missing,
+            ...(entry.result.unverified ?? []).map((item) => `${item.moduleId}: ${item.reason}`),
+          ].join("\n"),
+        });
+      }
+    }
+  };
+
+  /**
+   * Converts workspace errors to diagnostics on their configuration files.
+   *
+   * @param add - Receives each diagnostic with the URI of its configuration file.
+   */
+  const collectErrors = (add: (uri: string, diagnostic: Diagnostic) => void) => {
+    for (const [file, error] of errors) {
+      const uri = options.configurationUri?.(file, roots);
+      if (uri) {
+        add(uri, {
+          range: range(),
+          severity: DiagnosticSeverity.Error,
+          source: "stillwind",
+          code: "SW_HOST",
+          message: error,
+        });
+      }
+    }
+  };
+
+  /** Logs each new workspace error, notifies the user once, and forgets errors that ended. */
+  const notifyErrors = () => {
+    const current = new Set<string>();
+    for (const [file, error] of errors) {
+      const message = `${file}: ${error}`;
+      current.add(message);
+      if (!reported.has(message)) {
+        reported.add(message);
+        connection.console.error(message);
+        void connection.sendNotification(ShowMessageNotification.type, {
+          type: MessageType.Warning,
+          message: `Stillwind: ${message}`,
+        });
+      }
+    }
+    for (const message of reported) {
+      if (!current.has(message)) {
+        reported.delete(message);
+      }
+    }
+  };
+
+  /**
    * Sends deduplicated cached diagnostics and workspace errors, then records their document URIs.
    * Empty notifications clear diagnostics for previously published or currently open documents.
    */
@@ -230,81 +347,10 @@ export function createLanguageServer(
       }
     };
     for (const [uri, results] of cache) {
-      for (const entry of results) {
-        const source = `stillwind:${entry.config}:${entry.project + 1}`;
-        for (const report of entry.result.reports) {
-          const location = report.primary.location;
-          add(location.uri, {
-            range: range(location),
-            severity:
-              report.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
-            source,
-            code: report.code,
-            message: [report.message, ...report.notes].join("\n"),
-            relatedInformation: report.related.map((label) => ({
-              location: {
-                uri: label.location.uri,
-                range: range(label.location),
-              },
-              message: label.message ?? report.message,
-            })),
-          });
-        }
-        if (entry.result.status === "incomplete") {
-          const missing =
-            entry.result.dependencies
-              ?.filter(
-                (dependency) =>
-                  dependency.status === "unresolved" || dependency.status === "unsupported",
-              )
-              .map(
-                (dependency) =>
-                  `${dependency.status}: ${dependency.specifier} from ${dependency.importer}`,
-              ) ?? [];
-          add(uri, {
-            range: range(),
-            severity: entry.result.error
-              ? DiagnosticSeverity.Error
-              : DiagnosticSeverity.Information,
-            source,
-            code: entry.result.error ? "SW_HOST" : "SW_UNVERIFIED",
-            message: [
-              entry.result.error ?? "Stillwind analysis is incomplete",
-              ...missing,
-              ...(entry.result.unverified ?? []).map((item) => `${item.moduleId}: ${item.reason}`),
-            ].join("\n"),
-          });
-        }
-      }
+      collect(uri, results, add);
     }
-    const current = new Set<string>();
-    for (const [file, error] of errors) {
-      const message = `${file}: ${error}`;
-      const uri = options.configurationUri?.(file, roots);
-      if (uri) {
-        add(uri, {
-          range: range(),
-          severity: DiagnosticSeverity.Error,
-          source: "stillwind",
-          code: "SW_HOST",
-          message: error,
-        });
-      }
-      current.add(message);
-      if (!reported.has(message)) {
-        reported.add(message);
-        connection.console.error(message);
-        void connection.sendNotification(ShowMessageNotification.type, {
-          type: MessageType.Warning,
-          message: `Stillwind: ${message}`,
-        });
-      }
-    }
-    for (const message of reported) {
-      if (!current.has(message)) {
-        reported.delete(message);
-      }
-    }
+    collectErrors(add);
+    notifyErrors();
     // Clients treat spellings of one file as one resource, so a second notification for another
     // spelling would replace the first.
     const targets = new Map(
@@ -382,14 +428,12 @@ export function createLanguageServer(
   };
 
   /**
-   * Starts discovery for visible documents that the last analysis pass left without results. Each
-   * document is passed to discovery once until services reopen.
+   * Starts discovery for documents that the last analysis pass left without results. Each document
+   * is passed to discovery once until services reopen.
    */
   const discoverUncovered = () => {
     const uncovered = options.discoverWorkspace
-      ? [...cache].flatMap(([uri, results]) =>
-          results.length || discovered.has(uri) || visible?.has(uriKey(uri)) === false ? [] : [uri],
-        )
+      ? [...cache].flatMap(([uri, results]) => (results.length || discovered.has(uri) ? [] : [uri]))
       : [];
     if (uncovered.length) {
       for (const uri of uncovered) {
@@ -400,10 +444,24 @@ export function createLanguageServer(
     }
   };
 
-  /** Replaces the pending 40 ms timer with an analysis pass for the current control generation. */
+  /**
+   * Replaces the pending 40 ms timer with an analysis pass for the current control generation. A
+   * pull client instead receives a request to pull its documents again, without a pass here.
+   */
   const schedule = () => {
     if (timer) {
       clearTimeout(timer);
+    }
+    if (pull) {
+      timer = setTimeout(() => {
+        notifyErrors();
+        if (pullRefresh) {
+          void connection.languages.diagnostics.refresh().catch((error: unknown) => {
+            connection.console.error(String(error));
+          });
+        }
+      }, 40);
+      return;
     }
     const revision = generation;
     timer = setTimeout(() => {
@@ -411,6 +469,122 @@ export function createLanguageServer(
         connection.console.error(String(error));
       });
     }, 40);
+  };
+
+  /**
+   * Analyzes one document for a pull request, and retries once after discovery opens a service.
+   * Results stay cached until the next control generation. Open documents are prepared together
+   * once per generation, because the checker then loads them in one batch.
+   *
+   * @param uri - Requested document URI.
+   * @param token - Client cancellation.
+   * @returns Results of each project, or an empty list for a closed document or after shutdown.
+   * @throws A `ResponseError` with `RequestCancelled` after client cancellation, or with
+   * `ServerCancelled` and `retriggerRequest` after a change makes the analysis obsolete.
+   */
+  const pullResults = async (uri: string, token: CancellationToken): Promise<WorkspaceResult[]> => {
+    for (;;) {
+      await controls;
+      if (token.isCancellationRequested) {
+        throw new ResponseError(LSPErrorCodes.RequestCancelled, "Diagnostics request cancelled");
+      }
+      if (shutdown || !documents.get(uri)) {
+        return [];
+      }
+      const cached = cache.get(uri);
+      if (cached) {
+        return cached;
+      }
+      const revision = generation;
+      const cancellation = new AbortController();
+      active = cancellation;
+      const subscription = token.onCancellationRequested(() => cancellation.abort());
+      const results: WorkspaceResult[] = [];
+      try {
+        for (const [file, workspace] of workspaces) {
+          try {
+            if (prepared !== revision) {
+              await workspace.prepare?.(
+                documents.all().map((document) => document.uri),
+                cancellation.signal,
+              );
+            }
+            results.push(...(await workspace.analyze(uri, cancellation.signal)));
+            errors.delete(file);
+          } catch (error) {
+            errors.set(file, String(error));
+          }
+        }
+      } finally {
+        subscription.dispose();
+      }
+      if (shutdown) {
+        return [];
+      }
+      if (token.isCancellationRequested) {
+        throw new ResponseError(LSPErrorCodes.RequestCancelled, "Diagnostics request cancelled");
+      }
+      if (
+        revision !== generation ||
+        results.some(({ result }) => result.status === "stale" || result.status === "cancelled")
+      ) {
+        throw new ResponseError<DiagnosticServerCancellationData>(
+          LSPErrorCodes.ServerCancelled,
+          "Stillwind analysis became obsolete",
+          { retriggerRequest: true },
+        );
+      }
+      prepared = revision;
+      cache.set(uri, results);
+      if (results.length || discovered.has(uri) || !options.discoverWorkspace) {
+        return results;
+      }
+      discovered.add(uri);
+      control(() => discover([uri]));
+    }
+  };
+
+  /**
+   * Answers a pull request with the findings located in one document and in its configuration
+   * errors. Findings in other documents appear when the client pulls those documents.
+   *
+   * @param uri - Requested document URI.
+   * @param previous - Report identity that the client retains.
+   * @param token - Client cancellation.
+   * @returns An unchanged report when the content matches the retained report, otherwise a full one.
+   * @throws The errors of `pullResults`.
+   */
+  const pullDiagnostics = async (
+    uri: string,
+    previous: string | undefined,
+    token: CancellationToken,
+  ): Promise<DocumentDiagnosticReport> => {
+    const results = await pullResults(uri, token);
+    const key = uriKey(uri);
+    const items = new Map<string, Diagnostic>();
+    /**
+     * Keeps a diagnostic only when it belongs to the requested document.
+     *
+     * @param location - URI of the diagnostic, in any spelling.
+     * @param diagnostic - Diagnostic with original LSP positions.
+     */
+    const add = (location: string, diagnostic: Diagnostic) => {
+      if (uriKey(location) === key) {
+        items.set(JSON.stringify(diagnostic), diagnostic);
+      }
+    };
+    collect(uri, results, add);
+    collectErrors(add);
+    notifyErrors();
+    const text = [...items.keys()].join("\n");
+    let report = pullReports.get(uri);
+    if (report?.text !== text) {
+      report = { id: String(++nextReport), text };
+      pullReports.set(uri, report);
+    }
+    return previous === report.id
+      ? { kind: "unchanged", resultId: report.id }
+      : { kind: "full", resultId: report.id, items: [...items.values()] };
   };
 
   /**
@@ -467,7 +641,8 @@ export function createLanguageServer(
   connection.onInitialize(async (params: InitializeParams) => {
     initializationOptions = params.initializationOptions;
     registryDirectives = completionRegistrySetting(initializationOptions) ?? false;
-    visible = visibleDocumentsSetting(initializationOptions);
+    pull = params.capabilities.textDocument?.diagnostic !== undefined;
+    pullRefresh = params.capabilities.workspace?.diagnostics?.refreshSupport === true;
     snippets =
       params.capabilities.textDocument?.completion?.completionItem?.snippetSupport === true;
     foldersSupported = params.capabilities.workspace?.workspaceFolders === true;
@@ -486,6 +661,15 @@ export function createLanguageServer(
         codeActionProvider: {
           codeActionKinds: [CodeActionKind.QuickFix, ...(editor ? editorCodeActionKinds : [])],
         },
+        ...(pull
+          ? {
+              diagnosticProvider: {
+                identifier: "stillwind",
+                interFileDependencies: true,
+                workspaceDiagnostics: false,
+              },
+            }
+          : {}),
         hoverProvider: editor,
         definitionProvider: editor,
         completionProvider: editor
@@ -544,9 +728,12 @@ export function createLanguageServer(
         await workspace.update(document.uri, document.getText(), document.version);
       }
     });
-    schedule();
+    if (!pull) {
+      schedule();
+    }
   });
   documents.onDidClose(({ document }) => {
+    pullReports.delete(document.uri);
     control(async () => {
       for (const workspace of workspaces.values()) {
         await workspace.closeDocument(document.uri);
@@ -611,18 +798,16 @@ export function createLanguageServer(
         connection.console.error(String(error));
       });
   });
-  connection.onNotification(
-    "stillwind/visibleDocuments",
-    ({
-      uris,
-    }: {
-      /** URIs of the documents in view. */
-      uris: string[];
-    }) => {
-      visible = new Set(uris.map(uriKey));
-      discoverUncovered();
-    },
-  );
+  connection.languages.diagnostics.on((params, token) => {
+    const task = pulls.then(() =>
+      pullDiagnostics(params.textDocument.uri, params.previousResultId, token),
+    );
+    pulls = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task;
+  });
   connection.onDidChangeConfiguration(({ settings }) => {
     control(async () => {
       registryDirectives =
@@ -800,19 +985,6 @@ function completionRegistrySetting(value: unknown): boolean | undefined {
   }
   const registry = (completion as Record<string, unknown>).registryDirectives;
   return typeof registry === "boolean" ? registry : undefined;
-}
-
-/**
- * Reads the documents in view from initialization options.
- *
- * @param value - A protocol object that may contain `visibleDocuments`.
- * @returns Keys from `uriKey`, or undefined when the field is absent or is not a list of strings.
- */
-function visibleDocumentsSetting(value: unknown): Set<string> | undefined {
-  const uris = (value as { visibleDocuments?: unknown } | null | undefined)?.visibleDocuments;
-  return Array.isArray(uris) && uris.every((uri) => typeof uri === "string")
-    ? new Set(uris.map(uriKey))
-    : undefined;
 }
 
 /**

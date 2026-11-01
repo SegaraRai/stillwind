@@ -400,10 +400,9 @@ that names a rule that does not check stylesheets reports `invalid-lint-suppress
 
 `stillwind lint`, `lint --fix`, and `fmt` add each project's CSS entry and imported user
 stylesheets to the script targets. Explicit file patterns filter both kinds of targets.
-The language server publishes
-diagnostics and quick fixes for open CSS documents and uses unsaved CSS buffers when
-it loads the design system. When the CSS graph cannot load, script analysis reports
-the failure, and no stylesheet is linted.
+The language server reports diagnostics and quick fixes for open CSS documents and uses
+unsaved CSS buffers when it loads the design system. When the CSS graph cannot load,
+script analysis reports the failure, and no stylesheet is linted.
 
 CSS editor queries complete Stillwind at-rule names, `@apply` candidates, applied
 `@variant` sequences, output-slot arguments, and active theme names in `theme()`,

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/browser";
 
-import { clientOptions, editorSettings, readWorkspace, reportVisibleDocuments } from "./client.ts";
+import { clientOptions, editorSettings, readWorkspace } from "./client.ts";
 
 let client: LanguageClient | undefined;
 let worker: Worker | undefined;
@@ -86,7 +86,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
   );
 
-  reportVisibleDocuments(context, () => client);
   await start();
 }
 

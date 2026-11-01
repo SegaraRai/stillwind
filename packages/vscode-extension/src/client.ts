@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { BaseLanguageClient, LanguageClientOptions } from "vscode-languageclient";
+import type { LanguageClientOptions } from "vscode-languageclient";
 
 /**
  * Creates document selection and file watching, and registers the utility-sort command.
@@ -22,6 +22,14 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
 
   return {
     initializationOptions: editorSettings,
+    // The client pulls documents in open tabs, so documents that extensions open in the background
+    // start no analysis.
+    diagnosticPullOptions: {
+      onChange: true,
+      onSave: true,
+      onFocus: true,
+      onTabs: false,
+    },
     documentSelector: [
       "javascript",
       "javascriptreact",
@@ -42,47 +50,12 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
 }
 
 /**
- * Lists the documents that editors show, which excludes documents that extensions open in the
- * background.
- *
- * @returns Document URIs.
- */
-function visibleDocuments(): string[] {
-  return vscode.window.visibleTextEditors.map((editor) => editor.document.uri.toString());
-}
-
-/**
- * Sends the documents in view to the language server whenever they change, for the extension's
- * lifetime. `editorSettings` supplies the first list.
- *
- * @param context - Receives the event subscription.
- * @param client - Returns the current client, or undefined between clients.
- */
-export function reportVisibleDocuments(
-  context: vscode.ExtensionContext,
-  client: () => BaseLanguageClient | undefined,
-): void {
-  context.subscriptions.push(
-    vscode.window.onDidChangeVisibleTextEditors(() => {
-      const current = client();
-      if (current?.isRunning()) {
-        void current.sendNotification("stillwind/visibleDocuments", {
-          uris: visibleDocuments(),
-        });
-      }
-    }),
-  );
-}
-
-/**
- * Reads completion discovery preferences independently of project compiler configuration, and the
- * documents in view.
+ * Reads completion discovery preferences independently of project compiler configuration.
  *
  * @returns Initialization fields shared by the Node client and the browser client.
  */
 export function editorSettings() {
   return {
-    visibleDocuments: visibleDocuments(),
     completion: {
       registryDirectives:
         vscode.workspace

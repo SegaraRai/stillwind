@@ -9,6 +9,7 @@ import type {
   ColorPresentation,
   CompletionItem,
   Diagnostic,
+  DocumentDiagnosticReport,
   DocumentLink,
   Hover,
   InitializeResult,
@@ -111,13 +112,42 @@ test.each([
   }
 });
 
-test("LSP discovery waits until the client shows a background document", async () => {
+test("pull diagnostics start discovery and report only the requested document", async () => {
   const input = new PassThrough();
   const output = new PassThrough();
   const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
   const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
   const uri = "file:///f%3A/workspace/App.tsx";
+  const background = "file:///f%3A/workspace/Background.tsx";
+  /**
+   * Creates a finding at the start of a document.
+   *
+   * @param location - Document URI in the spelling that analysis reports.
+   * @param message - Diagnostic message.
+   * @returns A warning report without notes or actions.
+   */
+  const finding = (location: string, message: string) => ({
+    severity: "warning",
+    code: "rule",
+    message,
+    notes: [],
+    primary: {
+      location: {
+        uri: location,
+        startLine: 0,
+        startColumn: 0,
+        endLine: 0,
+        endColumn: 1,
+      },
+    },
+    related: [],
+    actions: [],
+  });
   const discovered: string[] = [];
+  const published: PublishDiagnosticsParams[] = [];
+  client.onNotification("textDocument/publishDiagnostics", (params: PublishDiagnosticsParams) => {
+    published.push(params);
+  });
   const service = createLanguageServer(server, {
     openWorkspaces: async () => ({
       workspaces: new Map(),
@@ -125,36 +155,97 @@ test("LSP discovery waits until the client shows a background document", async (
     discoverWorkspace: async (document) => {
       discovered.push(document);
       return {
-        workspaces: new Map([["app", coveringService([document])]]),
+        workspaces: new Map([
+          [
+            "app",
+            {
+              ...coveringService([]),
+              analyze: async (target: string) => [
+                {
+                  project: 0,
+                  config: "config",
+                  result: {
+                    entry: target,
+                    revision: 0,
+                    status: "complete",
+                    reports: [
+                      finding("file:///F:/workspace/App.tsx", "own"),
+                      finding("file:///f:/workspace/Imported.ts", "imported"),
+                    ],
+                  },
+                },
+              ],
+            } as unknown as AnalysisWorkspaceService,
+          ],
+        ]),
       };
     },
   });
   server.listen();
   client.listen();
-  try {
-    await client.sendRequest<InitializeResult>("initialize", {
-      rootUri: "file:///f%3A/workspace",
-      capabilities: {},
-      initializationOptions: {
-        visibleDocuments: [],
-      },
-    });
-    await client.sendNotification("initialized", {});
-    await client.sendNotification("textDocument/didOpen", {
+  /**
+   * Opens a document without requesting its diagnostics.
+   *
+   * @param target - Document URI.
+   */
+  const open = (target: string) =>
+    client.sendNotification("textDocument/didOpen", {
       textDocument: {
-        uri,
+        uri: target,
         languageId: "typescriptreact",
         version: 1,
-        text: "",
+        text: "x",
       },
     });
+  try {
+    const initialized = await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///f%3A/workspace",
+      capabilities: {
+        textDocument: {
+          diagnostic: {},
+        },
+      },
+    });
+    expect(initialized.capabilities.diagnosticProvider).toMatchObject({
+      interFileDependencies: true,
+      workspaceDiagnostics: false,
+    });
+    await client.sendNotification("initialized", {});
+    await open(background);
+    await open(uri);
     await new Promise((resolve) => setTimeout(resolve, 200));
     await service.ready();
     expect(discovered).toEqual([]);
-    await client.sendNotification("stillwind/visibleDocuments", {
-      uris: ["file:///F:/workspace/App.tsx"],
+
+    const report = await client.sendRequest<DocumentDiagnosticReport & { resultId: string }>(
+      "textDocument/diagnostic",
+      {
+        textDocument: {
+          uri,
+        },
+      },
+    );
+    expect(discovered).toEqual([uri]);
+    expect(report).toMatchObject({
+      kind: "full",
+      items: [
+        {
+          message: "own",
+        },
+      ],
     });
-    await vi.waitFor(() => expect(discovered).toEqual([uri]));
+    await expect(
+      client.sendRequest("textDocument/diagnostic", {
+        textDocument: {
+          uri,
+        },
+        previousResultId: report.resultId,
+      }),
+    ).resolves.toEqual({
+      kind: "unchanged",
+      resultId: report.resultId,
+    });
+    expect(published).toEqual([]);
   } finally {
     await service.dispose();
     client.dispose();
