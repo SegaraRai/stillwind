@@ -51,6 +51,8 @@ which lists the Markdown version of each page.
 - After you change styles, run `stillwind lint --fix` and `stillwind fmt` through
   the project's package manager, such as `vp exec stillwind lint`. Add
   `--format json` when you parse the output.
+- Run `stillwind inspect <file>:<line> --format json` to check the CSS that a
+  `style()` call generates. Paths, globs, and several targets also work.
 - Read the page of each remaining finding before you fix it. Do not add a
   suppression comment or relax the `lint` setting unless the user agrees. A
   suppression comment names the rule and gives the reason after `--`.

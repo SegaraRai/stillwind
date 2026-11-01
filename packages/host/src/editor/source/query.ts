@@ -155,6 +155,39 @@ export class SourceQueries {
       return result;
     }
 
+    if (request.kind === "previews") {
+      result.previews = this.#index.previews
+        .sites(source)
+        .filter((site) => site.native.kind !== "input")
+        .flatMap((site) => {
+          const preview = this.#index.previews.assemble(site.native);
+          const range = {
+            start: site.start,
+            end: site.end,
+          };
+          if (!preview) {
+            return [{ ...range, css: "", valid: false }];
+          }
+          return [
+            {
+              ...range,
+              css: preview.css ? this.#query.formatCss(preview.css, this.#annotations) : "",
+              valid: true,
+              ...(preview.runtimeNames.length ? { runtimeNames: preview.runtimeNames } : {}),
+            },
+          ];
+        })
+        .sort((a, b) => a.start - b.start || b.end - a.end);
+      let end = -1;
+      // An enclosing occurrence includes the CSS of the references inside it.
+      result.previews = result.previews.filter((preview) => {
+        const outer = preview.end > end;
+        end = Math.max(end, preview.end);
+        return outer;
+      });
+      return result;
+    }
+
     const tokens = this.#sourceTokens(source);
     if (request.kind === "colors") {
       result.colors = tokens.flatMap((token) => {

@@ -1,7 +1,7 @@
 import { lintReports } from "@stillwind/analysis";
-import type { LintResult } from "@stillwind/analysis/node";
+import type { InspectPreview, LintResult } from "@stillwind/analysis/node";
 
-export type CliCommand = "lint" | "fmt" | null;
+export type CliCommand = "lint" | "fmt" | "inspect" | null;
 
 export type CliDiagnostic = ReturnType<typeof lintReports>[number];
 
@@ -21,12 +21,15 @@ export interface CliResult {
   diagnostics: CliDiagnostic[];
   failures: CliFailure[];
   changed: string[];
+  previews: InspectPreview[];
   summary: {
     files: number;
     errors: number;
     warnings: number;
     failures: number;
     changed: number;
+    previews: number;
+    invalidPreviews: number;
     suggestions: number;
     warningLimitExceeded: boolean;
   };
@@ -39,15 +42,22 @@ export interface ResultPolicy {
   maxWarnings?: number;
 }
 
-/** Projects analysis into CLI data before visibility filtering and rendering. */
+/**
+ * Projects analysis into CLI data before visibility filtering and rendering.
+ */
 export function cliResult(
   command: CliCommand,
-  result: Pick<LintResult, "config" | "results" | "changed" | "failures">,
+  result: Pick<LintResult, "config" | "results" | "changed"> & {
+    failures?: readonly Pick<NonNullable<LintResult["failures"]>[number], "file" | "message">[];
+    previews?: InspectPreview[];
+  },
   policy: ResultPolicy = {},
 ): CliResult {
   const failedFiles = new Set(result.failures?.map((failure) => failure.file));
+  const previews = result.previews ?? [];
+  const invalid = previews.filter(({ valid }) => !valid).length;
   const diagnostics = lintReports(
-    command === "fmt"
+    command === "fmt" || command === "inspect"
       ? result.results.filter(
           ({ result }) => result.status !== "complete" || failedFiles.has(result.entry),
         )
@@ -107,6 +117,7 @@ export function cliResult(
       : diagnostics,
     failures,
     changed,
+    previews,
     summary: {
       files: new Set([
         ...result.results.map(({ result }) => result.entry),
@@ -116,12 +127,17 @@ export function cliResult(
       warnings,
       failures: failures.length,
       changed: changed.length,
+      previews: previews.length,
+      invalidPreviews: invalid,
       suggestions: diagnostics.filter(({ report }) => report.actions.length > 0).length,
       warningLimitExceeded,
     },
     exitCode: failures.length
       ? 2
-      : errors || warningLimitExceeded || (policy.check && changed.length)
+      : errors ||
+          warningLimitExceeded ||
+          (policy.check && changed.length) ||
+          (command === "inspect" && (invalid || !previews.length))
         ? 1
         : 0,
   };

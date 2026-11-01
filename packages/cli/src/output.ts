@@ -173,6 +173,35 @@ export function renderResult(
       }
     }
   }
+  if (result.command === "inspect") {
+    for (const { project, location, css, valid, diagnostics, documentation } of result.previews) {
+      const label = {
+        scope: "range",
+        location,
+      } as Label;
+      lines.push(`${linked(label)} [project ${project + 1}]`);
+      const failure = valid || diagnostics.length ? [] : ["error: CSS generation failed."];
+      lines.push(
+        ...clean(
+          [
+            ...failure,
+            ...diagnostics.map(({ severity, code, message }) => `${severity} ${code}: ${message}`),
+            css,
+            documentation,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        )
+          .trimEnd()
+          .split("\n")
+          .map((line) => (line ? `  ${line}` : "")),
+      );
+      lines.push("");
+    }
+    if (!result.summary.previews && !result.summary.failures) {
+      lines.push("The selected source has no generated CSS.");
+    }
+  }
   if (result.summary.warningLimitExceeded) {
     const message = `Warning count (${result.summary.warnings}) exceeds --max-warnings${options.maxWarnings === undefined ? "" : ` (${options.maxWarnings})`}.`;
     lines.push(
@@ -187,13 +216,15 @@ export function renderResult(
     }
     const { summary } = result;
     lines.push(
-      result.command === "fmt" && !summary.failures
-        ? options.check
-          ? summary.changed
-            ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
-            : `All selected files are formatted (${summary.files} checked).`
-          : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
-        : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
+      result.command === "inspect"
+        ? `${count(summary.previews, "preview")} in ${count(summary.files, "file")}${summary.invalidPreviews ? `; ${summary.invalidPreviews} failed to generate CSS` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+        : result.command === "fmt" && !summary.failures
+          ? options.check
+            ? summary.changed
+              ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
+              : `All selected files are formatted (${summary.files} checked).`
+            : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
+          : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
     const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
     if (result.command === "lint" && suggestions) {

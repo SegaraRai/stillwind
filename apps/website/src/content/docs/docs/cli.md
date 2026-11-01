@@ -5,7 +5,7 @@ description: Commands, options, file selection, exit codes, and output formats o
 ---
 
 `@stillwind/cli` sorts utilities, reports lint findings, applies automatic fixes,
-and starts the language server. It reads the same `stillwind.config.ts` as the
+shows generated CSS, and starts the language server. It reads the same `stillwind.config.ts` as the
 build integration and the editor.
 
 ```sh
@@ -16,11 +16,12 @@ To run the CLI in CI, see [Checks in the editor and CI](/docs/guides/lint-adopti
 
 ## Commands
 
-| Command          | Action                                               |
-| ---------------- | ---------------------------------------------------- |
-| `stillwind fmt`  | Sorts utilities                                      |
-| `stillwind lint` | Reports lint findings, and can apply automatic fixes |
-| `stillwind lsp`  | Starts the language server                           |
+| Command             | Action                                               |
+| ------------------- | ---------------------------------------------------- |
+| `stillwind fmt`     | Sorts utilities                                      |
+| `stillwind lint`    | Reports lint findings, and can apply automatic fixes |
+| `stillwind inspect` | Shows the CSS that source code generates             |
+| `stillwind lsp`     | Starts the language server                           |
 
 `stillwind --help` lists the commands, and `stillwind <command> --help` lists the
 options of a command. `stillwind --version` prints the package version. The short
@@ -79,6 +80,47 @@ Findings and the exit code describe the files after the last pass.
 `--quiet` hides. When hidden warnings exceed the limit, the CLI still prints the
 reason for the failure.
 
+## stillwind inspect
+
+```sh
+vp exec stillwind inspect src/Button.tsx
+vp exec stillwind inspect src/Button.tsx:12
+vp exec stillwind inspect src/Button.tsx:12:8
+vp exec stillwind inspect 'src/**/*.tsx' src/App.tsx:30 --format json
+```
+
+`inspect` shows the CSS that `style()` calls, keyframes, and view transitions
+generate. The CSS writes the styled element as `&`, and it includes the styles that
+the call composes. `inspect` saves no files.
+
+Each target is a [path or glob](#select-files), and you can pass several targets.
+Without a target, `inspect` covers every file that `files` selects.
+
+| Suffix         | Selected CSS                                                  |
+| -------------- | ------------------------------------------------------------- |
+| None           | Every generated occurrence in the file                        |
+| `:line`        | The occurrences that overlap the line                         |
+| `:line:column` | The utility at the position, or else the occurrence around it |
+
+Lines and columns count from one, and columns count UTF-16 code units. A suffix on a
+glob applies to each matched file.
+
+`inspect` does not accept stylesheets, and a glob skips them. A target that matches no
+file fails the command.
+
+The output lists the findings in the range of each occurrence. An occurrence with an
+error is marked as failed, and `inspect` returns exit code `1`. A warning does not fail
+the occurrence or change the exit code. With `unknown-utility` set to `warn`, an
+occurrence stays valid even though its CSS omits the unknown utility, so check the
+findings as well. A file with incomplete analysis has no occurrences in the output, and
+`inspect` reports it as a failure.
+
+The output shows the CSS of each occurrence and not the result of the cascade. Runtime
+values and rules from other occurrences can still change the applied styles.
+
+`inspect` also accepts the [shared options](#shared-options). The `files` format is
+not available.
+
 ## stillwind lsp
 
 ```sh
@@ -91,7 +133,7 @@ accepts `--config`, but no globs.
 
 ## Shared options
 
-`fmt` and `lint` accept these options:
+`fmt`, `lint`, and `inspect` accept these options:
 
 | Option                  | Effect                                              |
 | ----------------------- | --------------------------------------------------- |
@@ -145,11 +187,11 @@ The CLI reports all failures and all saved files, and it returns exit code `2`.
 
 ## Exit codes
 
-| Code | Meaning                                                                                           |
-| ---- | ------------------------------------------------------------------------------------------------- |
-| `0`  | The command succeeded. `lint` may still report warnings when you set no `--max-warnings` limit    |
-| `1`  | `fmt --check` found files to sort, `lint` found errors, or the warnings exceeded `--max-warnings` |
-| `2`  | The options were invalid, no files matched, or configuration, analysis, or file access failed     |
+| Code | Meaning                                                                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | The command succeeded. `lint` may still report warnings when you set no `--max-warnings` limit                                                          |
+| `1`  | `fmt --check` found files to sort, `lint` found errors, the warnings exceeded `--max-warnings`, or `inspect` found a failed occurrence or no occurrence |
+| `2`  | The options were invalid, no files matched, or configuration, analysis, or file access failed                                                           |
 
 Code `2` takes priority over code `1`.
 
@@ -210,12 +252,15 @@ failures:
   "diagnostics": [],
   "failures": [],
   "changed": [],
+  "previews": [],
   "summary": {
     "files": 1,
     "errors": 0,
     "warnings": 0,
     "failures": 0,
     "changed": 0,
+    "previews": 0,
+    "invalidPreviews": 0,
     "suggestions": 0,
     "warningLimitExceeded": false
   },
@@ -223,15 +268,16 @@ failures:
 }
 ```
 
-| Field         | Value                                                                              |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `command`     | `"fmt"` or `"lint"`, or `null` when the CLI failed before it selected a command    |
-| `config`      | The configuration path, or `null` when the CLI failed before the analysis          |
-| `diagnostics` | The findings; `--quiet` removes warnings from this list                            |
-| `failures`    | The execution failures                                                             |
-| `changed`     | The files that the command changed; with `--check`, the files that it would change |
-| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides     |
-| `exitCode`    | The [exit code](#exit-codes)                                                       |
+| Field         | Value                                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| `command`     | `"fmt"`, `"lint"`, or `"inspect"`, or `null` when the CLI failed before it selected a command |
+| `config`      | The configuration path, or `null` when the CLI failed before the analysis                     |
+| `diagnostics` | The findings; `--quiet` removes warnings from this list                                       |
+| `failures`    | The execution failures                                                                        |
+| `changed`     | The files that the command changed; with `--check`, the files that it would change            |
+| `previews`    | The generated CSS that `inspect` selected; empty for other commands                           |
+| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides                |
+| `exitCode`    | The [exit code](#exit-codes)                                                                  |
 
 Each diagnostic contains `project`, a zero-based project index, and `report`. The
 report contains the message, its locations, notes, and suggested edits.
@@ -239,5 +285,13 @@ report contains the message, its locations, notes, and suggested edits.
 Each failure contains `message` and `details`, and it can contain `project` and
 `file`. `details` lists the dependency problems that caused the failure.
 
-File paths are absolute. Locations in reports use URIs and zero-based UTF-16
+Each preview contains `project`, `location`, `source`, `css`, `valid`, and `diagnostics`.
+`location` contains the range of the occurrence, and `source` contains the text of that
+range. `diagnostics` lists the `severity`, `code`, and `message` of each finding in the
+range. `valid` is `false` when the list contains an error or when a style that the
+occurrence requires failed. `css` can be empty for an occurrence with findings, and it
+is empty when `documentation` describes a marker class. `runtimeNames` lists the runtime
+expressions that supply view-transition names, and it is absent when there are none.
+
+File paths are absolute. Locations in reports and previews use URIs and zero-based UTF-16
 positions, and their ends are exclusive.

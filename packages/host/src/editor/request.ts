@@ -81,6 +81,10 @@ export type EditorRequest =
       offset: number;
     }
   | {
+      /** Requests CSS for every style call, declaration, and use in the source. */
+      kind: "previews";
+    }
+  | {
       /** Requests matching candidates and variant prefixes for an insertion point. */
       kind: "completion";
       /** Includes CSS registry directives. Defaults to false and does not affect compilation. */
@@ -173,6 +177,21 @@ export interface EditorResult {
      */
     runtimeNames?: string[];
   };
+  /** Formatted CSS at half-open original UTF-16 ranges, in ascending start order. Literal inputs
+   * and occurrences inside another listed occurrence are omitted.
+   */
+  previews?: {
+    /** Inclusive original UTF-16 boundary. */
+    start: number;
+    /** Exclusive original UTF-16 boundary. */
+    end: number;
+    /** Generated CSS with the required styles and global definitions. It can be empty. */
+    css: string;
+    /** False when the occurrence or a style that it requires failed to generate CSS. */
+    valid: boolean;
+    /** Authored runtime key expressions. Absent when the preview has none to explain. */
+    runtimeNames?: string[];
+  }[];
   /** Prefix-matching candidates with their full replacement ranges. CSS loads on resolve. */
   completions?: EditorCompletion[];
   /** Concrete colors resolved against the active design system. */

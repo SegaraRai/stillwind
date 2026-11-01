@@ -172,6 +172,18 @@ export class GeneratedPreviews {
    * invalid, or if the assembled CSS is empty. The site and declaration captures remain unchanged.
    */
   preview(site: CapturedEditorSite): GeneratedPreview | undefined {
+    const preview = this.assemble(site);
+    return preview?.css ? preview : undefined;
+  }
+
+  /**
+   * Assembles `site` as {@link preview} does and keeps a successful empty result.
+   *
+   * @param site - Occurrence from this instance's capture batch.
+   * @returns CSS and runtime key expressions, with empty CSS when the occurrence contributes none,
+   * or undefined if any required site is missing or invalid.
+   */
+  assemble(site: CapturedEditorSite): GeneratedPreview | undefined {
     const parts: string[] = [];
     const runtimeNames = new Set<string>();
     const seen = new Set<string>();
@@ -224,13 +236,9 @@ export class GeneratedPreviews {
     if (!collect(site)) {
       return undefined;
     }
-
-    const css = [...new Set(parts)].join("\n");
-    return css
-      ? {
-          css,
-          runtimeNames: [...runtimeNames],
-        }
-      : undefined;
+    return {
+      css: [...new Set(parts)].join("\n"),
+      runtimeNames: [...runtimeNames],
+    };
   }
 }

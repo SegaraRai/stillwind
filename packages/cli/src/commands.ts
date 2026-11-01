@@ -39,6 +39,18 @@ const lintArgs = {
   },
 } as const;
 
+const inspectArgs = {
+  ...targetArgs,
+  format: {
+    ...outputArgs.format,
+    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
+  },
+  globs: {
+    ...targetArgs.globs,
+    description: "Select files with paths or globs, optionally followed by :line or :line:column",
+  },
+} as const;
+
 const lspArgs = {
   ...configArgs,
   stdio: {
@@ -100,6 +112,26 @@ const subCommands = {
       process.exitCode = result.exitCode;
     },
   }),
+  inspect: defineCommand({
+    meta: {
+      name: "inspect",
+      description: "Show the CSS that Stillwind generates for source code",
+    },
+    args: inspectArgs,
+    plugins: [strictArguments],
+    async run({ args, data }) {
+      const options = data as OutputOptions;
+      const { inspect } = await import("@stillwind/analysis/node");
+      const analysis = await inspect({
+        config: args.config,
+        cwd: options.cwd,
+        targets: args._,
+      });
+      const result = cliResult("inspect", analysis);
+      await writeResult(result, options);
+      process.exitCode = result.exitCode;
+    },
+  }),
   lsp: defineCommand({
     meta: {
       name: "lsp",
@@ -121,7 +153,7 @@ export const command = defineCommand({
   meta: {
     name: "stillwind",
     version: packageJson.version,
-    description: "Sort and check Stillwind styles",
+    description: "Sort, check, and inspect Stillwind styles",
   },
   args: {
     ...configArgs,
@@ -144,9 +176,13 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
     const invocation = parseInvocation(rawArgs, {
       ...fmtArgs,
       ...lintArgs,
+      ...inspectArgs,
       ...lspArgs,
     });
-    name = invocation.name === "fmt" || invocation.name === "lint" ? invocation.name : null;
+    name =
+      invocation.name === "fmt" || invocation.name === "lint" || invocation.name === "inspect"
+        ? invocation.name
+        : null;
     if (invocation.name === "lsp") {
       options.format = "text";
     } else {
@@ -179,7 +215,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
         throw new Error("--version must be used without a command");
       }
       if (!invocation.name) {
-        throw new Error("A command is required: fmt, lint, or lsp");
+        throw new Error("A command is required: fmt, lint, inspect, or lsp");
       }
       await runCommand(subCommands[invocation.name as keyof typeof subCommands] as CommandDef, {
         rawArgs: invocation.rawArgs,

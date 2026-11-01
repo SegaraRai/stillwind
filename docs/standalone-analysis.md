@@ -1,7 +1,7 @@
 # Standalone analysis
 
 Stillwind analysis reads source and semantic information without starting a bundler.
-`@stillwind/cli` wraps sorting, lint, and stdio commands. `@stillwind/analysis` owns analysis
+`@stillwind/cli` wraps sorting, lint, inspection, and stdio commands. `@stillwind/analysis` owns analysis
 services, and `@stillwind/language-server` owns LSP handlers and Node/browser transports.
 The LSP can run independently of the CLI.
 
@@ -228,10 +228,11 @@ diagnostics, alongside the verified source findings.
 ## Editor previews
 
 Hovers on utilities, `style()` calls, and bound variables show generated CSS with
-the main selector written as `&`. Completion uses the active design system and
-resolves selected items to CSS and declaration or variant summaries. Variant
-suggestions omit variants already present, continue completion after insertion,
-and offer editable arbitrary values when the client supports snippets.
+the main selector written as `&`. `stillwind inspect` reports the same CSS for
+positions, and it lists the outermost occurrences of a file or line. Completion uses the
+active design system and resolves selected items to CSS and declaration or variant
+summaries. Variant suggestions omit variants already present, continue completion after
+insertion, and offer editable arbitrary values when the client supports snippets.
 
 The project's `preview` field controls comments added after preview values.
 `themeValues` adds resolved theme values and evaluated `calc()` results.

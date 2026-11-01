@@ -151,6 +151,27 @@ function resolve(current: BrowserProject, item: EditorCompletion) {
   });
 }
 
+test("source previews list whole occurrences without the references inside them", async () => {
+  const source = `import {style} from "stillwind/react";
+const base = style("block");
+export const props = style(base, "opacity-50");
+`;
+  const current = await project(source);
+  try {
+    const result = await current.query(entry, {
+      kind: "previews",
+    });
+    expect(result?.previews?.map(({ start, end }) => source.slice(start, end))).toEqual([
+      'style("block")',
+      'style(base, "opacity-50")',
+    ]);
+    expect(result?.previews?.[1].css).toContain("display: block");
+    expect(result?.previews?.[1].css).toContain("opacity: .5");
+  } finally {
+    await current.close();
+  }
+});
+
 test("keyframes inputs and animation options use distinct registries and definition conditions", async () => {
   const source = `import {style} from "stillwind/react";
 const 日本語="🦀";
