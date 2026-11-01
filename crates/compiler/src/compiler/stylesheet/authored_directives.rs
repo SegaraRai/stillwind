@@ -126,8 +126,8 @@ pub(in crate::compiler) fn expand_authored_directives(
 /// Moves conditions on a shadow host into `:host()` in the rules nested under a host.
 ///
 /// `@apply` and `@variant` write nested rules such as `&:hover`, and a browser cannot
-/// match that rule under `:host`. The pass also covers nested rules in the authored CSS,
-/// because they have the same form. A top-level rule stays as written.
+/// match that rule under `:host`. The pass also covers nested rules in the authored
+/// CSS, because they have the same form. A top-level rule stays as written.
 fn fold_nested_host_rules(css: &mut LeanString) {
     if !css.contains(":host") {
         return;
