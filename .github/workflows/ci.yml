@@ -42,6 +42,10 @@ jobs:
     env:
       # Unoptimized compiler tests take over 20 minutes. Debug assertions stay enabled.
       CARGO_PROFILE_TEST_OPT_LEVEL: 1
+      # Incremental data and full debug info can fill the runner disk when `target/` is restored.
+      # Line tables keep file and line numbers in panic backtraces.
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_TEST_DEBUG: line-tables-only
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -75,9 +79,9 @@ jobs:
             ~/.cargo/registry/
             ~/.cargo/git/
             target/
-          key: ${{ runner.os }}-${{ runner.arch }}-release-${{ matrix.task }}-rust-1.99.1-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-release-v2-${{ matrix.task }}-rust-1.99.1-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-release-${{ matrix.task }}-rust-1.99.1-
+            ${{ runner.os }}-${{ runner.arch }}-release-v2-${{ matrix.task }}-rust-1.99.1-
       # The Fresh acceptance project runs `deno check`.
       - uses: denoland/setup-deno@v2.0.5
         with:
