@@ -205,15 +205,17 @@ export function createLanguageServer(
    * Empty notifications clear diagnostics for previously published or currently open documents.
    */
   const publish = () => {
+    const open = new Map(documents.all().map((document) => [uriKey(document.uri), document.uri]));
     const grouped = new Map<string, Diagnostic[]>();
     const seen = new Set<string>();
     /**
      * Appends a diagnostic only once for its document and complete serialized value.
      *
-     * @param uri - Original document URI used to group publication.
+     * @param reported - Original document URI, in any spelling of that document.
      * @param diagnostic - Diagnostic with original LSP positions.
      */
-    const add = (uri: string, diagnostic: Diagnostic) => {
+    const add = (reported: string, diagnostic: Diagnostic) => {
+      const uri = open.get(uriKey(reported)) ?? reported;
       const key = JSON.stringify([uri, diagnostic]);
       if (!seen.has(key)) {
         seen.add(key);
@@ -298,11 +300,12 @@ export function createLanguageServer(
         reported.delete(message);
       }
     }
-    for (const uri of new Set([
-      ...published,
-      ...grouped.keys(),
-      ...documents.all().map((document) => document.uri),
-    ])) {
+    // Clients treat spellings of one file as one resource, so a second notification for another
+    // spelling would replace the first.
+    const targets = new Map(
+      [...published, ...grouped.keys(), ...open.values()].map((uri) => [uriKey(uri), uri]),
+    );
+    for (const uri of targets.values()) {
       void connection.sendDiagnostics({
         uri,
         version: documents.get(uri)?.version,
@@ -602,7 +605,7 @@ export function createLanguageServer(
         for (const report of entry.result.reports) {
           const primary = report.primary.location;
           if (
-            primary.uri !== params.textDocument.uri ||
+            uriKey(primary.uri) !== uriKey(params.textDocument.uri) ||
             primary.endLine < params.range.start.line ||
             primary.startLine > params.range.end.line
           ) {
@@ -619,7 +622,8 @@ export function createLanguageServer(
             const changes = new Map<string, TextDocumentEdit>();
             let valid = true;
             for (const edit of action.edits) {
-              const document = documents.get(edit.location.uri);
+              const key = uriKey(edit.location.uri);
+              const document = documents.all().find(({ uri }) => uriKey(uri) === key);
               if (!document || fingerprint(document.getText()) !== edit.location.revision) {
                 valid = false;
                 break;
@@ -700,6 +704,22 @@ export function createLanguageServer(
     },
     dispose,
   };
+}
+
+/**
+ * Creates a comparison key for spellings of one file URI. Editors and Node encode characters and
+ * spell Windows drive letters differently, for example `file:///f%3A/a` and `file:///F:/a`.
+ *
+ * @param uri - Document URI. Do not send the result to a client.
+ * @returns The decoded URI with a lowercase drive letter, or the input if it cannot be decoded.
+ */
+export function uriKey(uri: string): string {
+  try {
+    uri = decodeURIComponent(uri);
+  } catch {
+    return uri;
+  }
+  return uri.replace(/^file:\/\/\/[a-z]:/i, (drive) => drive.toLowerCase());
 }
 
 /**

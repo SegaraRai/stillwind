@@ -111,6 +111,85 @@ test.each([
   }
 });
 
+test("reports for another spelling of an open document stay on that document", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const uri = "file:///f%3A/workspace/App.tsx";
+  const location = {
+    uri: "file:///F:/workspace/App.tsx",
+    startLine: 0,
+    startColumn: 0,
+    endLine: 0,
+    endColumn: 1,
+  };
+  const published: PublishDiagnosticsParams[] = [];
+  client.onNotification("textDocument/publishDiagnostics", (params: PublishDiagnosticsParams) => {
+    published.push(params);
+  });
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map([
+        [
+          "root",
+          {
+            ...coveringService([]),
+            analyze: async (document: string) => [
+              {
+                project: 0,
+                config: "config",
+                result: {
+                  entry: document,
+                  revision: 0,
+                  status: "complete",
+                  reports: [
+                    {
+                      severity: "warning",
+                      code: "rule",
+                      message: "finding",
+                      notes: [],
+                      primary: { location },
+                      related: [],
+                      actions: [],
+                    },
+                  ],
+                },
+              },
+            ],
+          } as unknown as AnalysisWorkspaceService,
+        ],
+      ]),
+    }),
+  });
+  server.listen();
+  client.listen();
+  try {
+    await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///f%3A/workspace",
+      capabilities: {},
+    });
+    await client.sendNotification("initialized", {});
+    await client.sendNotification("textDocument/didOpen", {
+      textDocument: {
+        uri,
+        languageId: "typescriptreact",
+        version: 1,
+        text: "x",
+      },
+    });
+    await vi.waitFor(() => expect(published.at(-1)?.diagnostics).toHaveLength(1));
+    expect(published.at(-1)?.uri).toBe(uri);
+    expect(published.some((params) => params.uri === location.uri)).toBe(false);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
+
 test("configuration errors appear on the configuration file and notify once", async () => {
   const input = new PassThrough();
   const output = new PassThrough();
