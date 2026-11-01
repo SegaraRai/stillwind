@@ -41,6 +41,53 @@ test("saved and closed files retain the workspace while configuration files requ
   }
 });
 
+test.runIf(process.platform === "win32")(
+  "queries reach a dependency that an importing target prepared first",
+  async () => {
+    const root = await mkdtemp(path.join(import.meta.dirname, ".test-spelling-"));
+    const config = path.join(root, "stillwind.config.json");
+    const entry = path.join(root, "entry.ts");
+    const dependency = path.join(root, "dependency.ts");
+    const source = `import { style } from "stillwind/react";\nexport const base = style("red");`;
+    let workspace: AnalysisWorkspace | undefined;
+    try {
+      await writeFile(
+        config,
+        JSON.stringify({
+          projects: [
+            {
+              css: "root.css",
+              files: ["*.ts"],
+            },
+          ],
+        }),
+      );
+      await writeFile(path.join(root, "root.css"), "@utility red { color: red; }");
+      await writeFile(dependency, source);
+      const importer = `import { style } from "stillwind/react";
+import { base } from "./dependency";
+export const card = style(base, "red");`;
+      await writeFile(entry, importer);
+      workspace = await AnalysisWorkspace.open(config);
+      workspace.update(entry, importer, 1);
+      await workspace.prepare([entry]);
+      await workspace.analyze(entry);
+      workspace.update(dependency, source, 1);
+      await workspace.prepare([entry, dependency]);
+      await workspace.analyze(entry);
+      await workspace.analyze(dependency);
+      const [answer] = await workspace.query(dependency, {
+        kind: "hover",
+        offset: source.indexOf("red") + 1,
+      });
+      expect(answer.result.hover).toBeDefined();
+    } finally {
+      await workspace?.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
 test("plugin navigation uses unsaved files when the CSS graph cannot load", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-plugin-navigation-"));
   let workspace: AnalysisWorkspace | undefined;

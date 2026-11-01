@@ -14,6 +14,7 @@ import {
 } from "@stillwind/native";
 import type { PreparedSource } from "@stillwind/projection";
 
+import { sourceKey } from "../compilation/project.ts";
 import type { ModuleAnalysis } from "../compilation/request.ts";
 import type { PluginRuntime } from "../css/plugins/runtime.ts";
 import { pluginLoader } from "../css/plugins/session.ts";
@@ -128,7 +129,7 @@ export class EditorSnapshot {
    * @throws If a plugin fails or the native loader rejects the generated CSS.
    */
   async prepare(id: string, request: EditorRequest): Promise<void> {
-    const source = this.#sources.find((source) => source.resolverId === id);
+    const source = this.#sources.find((source) => sourceKey(source.resolverId) === sourceKey(id));
     await this.#queries.prepare(source, request);
   }
 
@@ -159,7 +160,7 @@ export class EditorSnapshot {
    * @throws If native candidate resolution, CSS formatting, or lint suppression checks fail.
    */
   query(id: string, request: EditorRequest): EditorResult | undefined {
-    const source = this.#sources.find((source) => source.resolverId === id);
+    const source = this.#sources.find((source) => sourceKey(source.resolverId) === sourceKey(id));
     if (!source) {
       return undefined;
     }

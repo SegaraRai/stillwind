@@ -363,7 +363,7 @@ export class CompilationProject {
  * @param id - Resolver ID, with either slash style for Windows paths.
  * @returns Forward slashes and, for absolute Windows paths, lowercase text.
  */
-function sourceKey(id: string): string {
+export function sourceKey(id: string): string {
   const normalized = id.replaceAll("\\", "/");
   return /^[a-z]:\//i.test(normalized) ? normalized.toLowerCase() : normalized;
 }
