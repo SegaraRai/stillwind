@@ -79,7 +79,7 @@ export default defineConfig({
             {
               label: "Reference",
               items: [
-                "docs/utilities",
+                "docs/utilities-and-variants",
                 "docs/configuration",
                 "docs/cli",
                 {
@@ -153,7 +153,7 @@ export default defineConfig({
   },
   server: {
     port: 4322,
-    // The utility lookup runs the threaded WASM compiler, which needs a cross-origin isolated
+    // The candidate lookup runs the threaded WASM compiler, which needs a cross-origin isolated
     // page. Deployments set these headers for that page only in public/_headers.
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",

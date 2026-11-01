@@ -119,7 +119,7 @@ export async function deletePreview(
 export async function checkSite(site: Site, origin: string, deployment: Deployment): Promise<void> {
   const paths =
     site === "website"
-      ? ["/", "/docs", "/docs/index.md", "/llms.txt", "/docs/utilities"]
+      ? ["/", "/docs", "/docs/index.md", "/llms.txt", "/docs/utilities-and-variants"]
       : [
           "/",
           "/workspace.json",
@@ -144,7 +144,7 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
     if (!exclusionRequired && excluded) {
       throw new Error(`${url}: production response is excluded from indexing`);
     }
-    if ((site === "play" && route === "/") || route === "/docs/utilities") {
+    if ((site === "play" && route === "/") || route === "/docs/utilities-and-variants") {
       if (
         response.headers.get("cross-origin-opener-policy") !== "same-origin" ||
         response.headers.get("cross-origin-embedder-policy") !== "require-corp"
@@ -166,7 +166,7 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
   }
   checkPageUrls(await page.text(), pageUrl.href, new URL("og.png", pageUrl).href);
   if (site === "website") {
-    for (const route of ["/docs", "/docs/utilities"]) {
+    for (const route of ["/docs", "/docs/utilities-and-variants"]) {
       const url = new URL(`${route}/`, origin);
       const response = await fetch(url, {
         method: "HEAD",

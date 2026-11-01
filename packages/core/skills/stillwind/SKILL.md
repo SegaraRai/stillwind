@@ -28,7 +28,7 @@ Markdown version of each page.
 | View transitions                                       | `docs/guides/view-transitions.md`, `docs/macros/view-transition.md` |
 | Theme tokens and design-system rules                   | `docs/guides/design-systems.md`                                     |
 | Custom utilities and variants                          | `docs/at-rules/index.md`, then the page of the at-rule              |
-| Available utilities                                    | `docs/utilities.md`                                                 |
+| Available utilities and variants                       | `docs/utilities-and-variants.md`                                    |
 | `stillwind.config.ts`                                  | `docs/configuration.md`                                             |
 | CLI, CI, and lint presets                              | `docs/guides/lint-adoption.md`, `docs/cli.md`                       |
 | Editor setup and language server                       | `docs/editors.md`                                                   |

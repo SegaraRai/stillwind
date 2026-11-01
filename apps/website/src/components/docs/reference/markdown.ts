@@ -85,7 +85,7 @@ export async function referenceMarkdown() {
   }
   const componentMap = {
     // The lookup needs the compiler, so the Markdown version keeps only the page's prose.
-    UtilityExplorer: {
+    CandidateExplorer: {
       revision: componentRevision,
       render: () => "",
     },

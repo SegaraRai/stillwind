@@ -1,4 +1,4 @@
-import { recordDefaultStylesheet } from "../../../lib/docs/utilities/record";
+import { recordDefaultStylesheet } from "../../../lib/docs/candidates/record";
 
 export const prerender = true;
 

@@ -243,7 +243,7 @@ Typography and spacing for Markdown, slots, and Nimbus output.
   }
 }
 
-@utility utility-result {
+@utility candidate-result {
   @apply min-inline-0;
 }
 
@@ -251,22 +251,22 @@ Typography and spacing for Markdown, slots, and Nimbus output.
 The caption stays on the line of the utility name while it fits, so it reads as a note about
 that utility.
 */
-@utility utility-result-header {
+@utility candidate-result-header {
   @apply flex mbe-3 flex-wrap items-baseline gap-x-3 gap-y-1;
 }
 
-@utility utility-result-caption {
+@utility candidate-result-caption {
   @apply m-0 text-caption text-muted wrap-anywhere;
 }
 
-@utility utility-result-title {
+@utility candidate-result-title {
   @apply m-0 text-body;
 }
 
 /*
 Token colors of highlighted results follow the GitHub themes of the site's code blocks.
 */
-@utility utility-result-code {
+@utility candidate-result-code {
   @apply bg-surface;
 
   --sh-property: light-dark(#005cc5, #79b8ff);

@@ -1,0 +1,4 @@
+# Keeps links to the page from before it covered variants.
+/docs/utilities /docs/utilities-and-variants 301
+/docs/utilities/index.md /docs/utilities-and-variants/index.md 301
+/docs/utilities/index.mdx /docs/utilities-and-variants/index.mdx 301

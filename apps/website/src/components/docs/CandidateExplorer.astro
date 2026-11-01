@@ -1,9 +1,9 @@
 ---
 import { style } from "stillwind/astro";
 
+import { highlightCss } from "../../lib/docs/candidates/highlight";
+import { lookupCandidates, matchCaption } from "../../lib/docs/candidates/lookup";
 import { documentationCompiler } from "../../lib/docs/reference/compiler";
-import { highlightCss } from "../../lib/docs/utilities/highlight";
-import { lookupUtilities, matchCaption } from "../../lib/docs/utilities/lookup";
 
 const initial = "p-4";
 const examples = [
@@ -12,28 +12,29 @@ const examples = [
   "display: flex",
   "background-color: #3b82f6",
   "hover:underline",
+  ":hover",
 ];
-const { matches } = lookupUtilities((await documentationCompiler()).query, initial);
+const { matches } = lookupCandidates((await documentationCompiler()).query, initial);
 const control = style(
   "px-control block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border",
 );
 ---
 
-<div {...style("grid gap-5")} data-utility-explorer>
+<div {...style("grid gap-5")} data-candidate-explorer>
   <form
     role="search"
-    aria-label="Utility lookup"
+    aria-label="Utility and variant lookup"
     {...style("grid p-panel gap-control bg-surface rounded-panel border border-border")}
   >
-    <label for="utility-query" {...style("text-ui font-medium")}>
-      Utility or CSS
+    <label for="candidate-query" {...style("text-ui font-medium")}>
+      Utility, variant, or CSS
     </label>
     <input
-      id="utility-query"
+      id="candidate-query"
       name="q"
       type="search"
       value={initial}
-      placeholder="p-4 or display: flex"
+      placeholder="p-4, :hover, or display: flex"
       autocomplete="off"
       spellcheck="false"
       {...style(control, "font-mono")}
@@ -54,19 +55,21 @@ const control = style(
     </div>
   </form>
   <p role="status" aria-live="polite" {...style("text-caption text-muted")}>
-    Enable JavaScript to look up other utilities. The results show an example.
+    Enable JavaScript to look up other utilities and variants. The results show an example.
   </p>
-  <div data-utility-results {...style("grid gap-5")}>
+  <div data-candidate-results {...style("grid gap-5")}>
     {matches.map((match) => (
-      <section {...style("utility-result")}>
-        <div {...style("utility-result-header")}>
-          <h3 {...style("utility-result-title")}>
-            <code>{match.utility}</code>
+      <section {...style("candidate-result")}>
+        <div {...style("candidate-result-header")}>
+          <h3 {...style("candidate-result-title")}>
+            <code>{match.candidate}</code>
           </h3>
-          {matchCaption(match) && <p {...style("utility-result-caption")}>{matchCaption(match)}</p>}
+          {matchCaption(match) && (
+            <p {...style("candidate-result-caption")}>{matchCaption(match)}</p>
+          )}
         </div>
         <pre
-          {...style("utility-result-code")}
+          {...style("candidate-result-code")}
         >{match.css ? <code set:html={highlightCss(match.css)} /> : <code>Adds a marker class and no declarations.</code>}</pre>
       </section>
     ))}
@@ -76,7 +79,7 @@ const control = style(
 <script>
   import { mount } from "@cloudflare/nimbus-docs/client";
 
-  import { mountUtilityExplorer } from "../../lib/docs/utilities/explorer";
+  import { mountCandidateExplorer } from "../../lib/docs/candidates/explorer";
 
-  mount("[data-utility-explorer]", mountUtilityExplorer);
+  mount("[data-candidate-explorer]", mountCandidateExplorer);
 </script>

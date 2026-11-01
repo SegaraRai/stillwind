@@ -1,7 +1,7 @@
 import { applyStyle, style } from "stillwind/vanilla";
 
 import { highlightCss } from "./highlight";
-import { matchCaption, type UtilityLookup } from "./lookup";
+import { matchCaption, type CandidateLookup, type CandidateMatch } from "./lookup";
 import type { LookupReply, LookupRequest } from "./worker";
 
 /**
@@ -9,13 +9,13 @@ import type { LookupReply, LookupRequest } from "./worker";
  * stay in sync. Without cross-origin isolation, the server-rendered results stay in place.
  * Returns a disposer that stops the worker and removes the listeners.
  */
-export function mountUtilityExplorer(root: HTMLElement): () => void {
+export function mountCandidateExplorer(root: HTMLElement): () => void {
   const document = root.ownerDocument;
   const view = document.defaultView!;
   const form = root.querySelector<HTMLFormElement>("form")!;
   const input = root.querySelector<HTMLInputElement>("[name=q]")!;
   const status = root.querySelector<HTMLElement>("[role=status]")!;
-  const results = root.querySelector<HTMLElement>("[data-utility-results]")!;
+  const results = root.querySelector<HTMLElement>("[data-candidate-results]")!;
   if (!view.crossOriginIsolated) {
     status.textContent =
       "This browser cannot run the compiler on this page. The results show an example.";
@@ -29,27 +29,27 @@ export function mountUtilityExplorer(root: HTMLElement): () => void {
   let latest = 0;
   status.textContent = "Loading the compiler…";
 
-  const render = (lookup: UtilityLookup, text: string) => {
+  const render = (lookup: CandidateLookup, text: string) => {
     const cards = lookup.matches.map((match) => {
       const card = document.createElement("section");
-      applyStyle(card, style("utility-result"));
+      applyStyle(card, style("candidate-result"));
       const header = document.createElement("div");
-      applyStyle(header, style("utility-result-header"));
+      applyStyle(header, style("candidate-result-header"));
       const heading = document.createElement("h3");
-      applyStyle(heading, style("utility-result-title"));
+      applyStyle(heading, style("candidate-result-title"));
       const name = document.createElement("code");
-      name.textContent = match.utility;
+      name.textContent = match.candidate;
       heading.append(name);
       header.append(heading);
       const caption = matchCaption(match);
       if (caption) {
         const from = document.createElement("p");
-        applyStyle(from, style("utility-result-caption"));
+        applyStyle(from, style("candidate-result-caption"));
         from.textContent = caption;
         header.append(from);
       }
       const pre = document.createElement("pre");
-      applyStyle(pre, style("utility-result-code"));
+      applyStyle(pre, style("candidate-result-code"));
       const code = document.createElement("code");
       if (match.css) {
         code.innerHTML = highlightCss(match.css);
@@ -61,13 +61,26 @@ export function mountUtilityExplorer(root: HTMLElement): () => void {
       return card;
     });
     results.replaceChildren(...cards);
-    const prefixes = lookup.matches.filter((match) => match.source === "prefix").length;
+    const count = (source: CandidateMatch["source"]) =>
+      lookup.matches.filter((match) => match.source === source).length;
+    const prefixes = count("prefix");
+    const variants = count("variant");
+    const partial = [
+      ...(variants < lookup.variantTotal
+        ? [`Showing ${variants} of ${lookup.variantTotal} variants that match “${text.trim()}”.`]
+        : []),
+      ...(prefixes < lookup.prefixTotal
+        ? [
+            `Showing ${prefixes} of ${lookup.prefixTotal} utilities that start with “${text.trim()}”.`,
+          ]
+        : []),
+    ];
     status.textContent = !text.trim()
-      ? "Type a utility or CSS declarations."
+      ? "Type a utility, variant, or CSS declarations."
       : lookup.matches.length === 0
-        ? `No utility or CSS declaration matches “${text.trim()}”.`
-        : prefixes < lookup.prefixTotal
-          ? `Showing ${prefixes} of ${lookup.prefixTotal} utilities that start with “${text.trim()}”.`
+        ? `No utility, variant, or CSS declaration matches “${text.trim()}”.`
+        : partial.length > 0
+          ? partial.join(" ")
           : `${lookup.matches.length} ${lookup.matches.length === 1 ? "match" : "matches"}.`;
   };
   worker.addEventListener("message", ({ data }: MessageEvent<LookupReply>) => {

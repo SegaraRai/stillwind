@@ -1,11 +1,11 @@
 import { minifyCss, NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
 import { expect, test } from "vite-plus/test";
 
+import { recordDefaultStylesheet } from "../src/lib/docs/candidates/record";
+import { replayStylesheet } from "../src/lib/docs/candidates/stylesheet";
 import { referenceCompiler } from "../src/lib/docs/reference/compiler";
-import { recordDefaultStylesheet } from "../src/lib/docs/utilities/record";
-import { replayStylesheet } from "../src/lib/docs/utilities/stylesheet";
 
-test("the optimized utility-search stylesheet compiles the same document as the source package", async () => {
+test("the optimized candidate lookup stylesheet compiles the same document as the source package", async () => {
   const original = await referenceCompiler();
   const loader = new NativeDesignSystemLoader({});
   replayStylesheet(loader, await recordDefaultStylesheet());

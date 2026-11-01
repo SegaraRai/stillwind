@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 let recording: Promise<RecordedStylesheet> | undefined;
 
 /**
- * Bundles and compacts the default package for the browser's utility lookup.
+ * Bundles and compacts the default package for the browser's candidate lookup.
  * The recording keeps the package's library origin and contains no file URIs.
  */
 export function recordDefaultStylesheet(): Promise<RecordedStylesheet> {

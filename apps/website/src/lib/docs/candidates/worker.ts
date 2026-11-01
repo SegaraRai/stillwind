@@ -1,10 +1,10 @@
 /**
- * Runs utility lookups with the WASM compiler. The worker loads the compiler and the recorded
+ * Runs candidate lookups with the WASM compiler. The worker loads the compiler and the recorded
  * default stylesheet once, then answers each `LookupRequest` with a `LookupReply` of the same id.
  * The compiler needs shared memory, so the page must be cross-origin isolated.
  */
 
-import { lookupUtilities, type UtilityLookup } from "./lookup";
+import { lookupCandidates, type CandidateLookup } from "./lookup";
 import { replayStylesheet, type RecordedStylesheet } from "./stylesheet";
 
 /**
@@ -21,7 +21,7 @@ export interface LookupRequest {
 export type LookupReply =
   | {
       id: number;
-      lookup: UtilityLookup;
+      lookup: CandidateLookup;
     }
   | {
       id: number;
@@ -33,7 +33,7 @@ export type LookupReply =
 const query = (async () => {
   const [{ NativeDesignSystemLoader }, response] = await Promise.all([
     import("@stillwind/native"),
-    fetch(new URL("/docs/utilities/stylesheet.json", import.meta.url)),
+    fetch(new URL("/docs/utilities-and-variants/stylesheet.json", import.meta.url)),
   ]);
   if (!response.ok) {
     throw new Error(`Stylesheet request failed: ${response.status}`);
@@ -48,7 +48,7 @@ self.onmessage = async ({ data }: MessageEvent<LookupRequest>) => {
   try {
     reply = {
       id: data.id,
-      lookup: lookupUtilities(await query, data.input),
+      lookup: lookupCandidates(await query, data.input),
     };
   } catch (error) {
     reply = {

@@ -1,0 +1,59 @@
+---
+title: Built-in utilities and variants
+description: Look up the CSS of a utility or variant, or find the canonical utility for CSS declarations.
+slug: docs/utilities-and-variants
+---
+
+Type a utility to see its CSS, or type CSS declarations to find the utility that
+produces them. Arbitrary values, such as `p-[16px]`, resolve to their canonical
+spelling. Arbitrary variants resolve too, so `[&:focus]` finds `focus:`. Part of
+a variant name or its CSS finds the variant: `:hover`, `@media (hover: hover)`,
+and `media hover` all find `hover:`. The URL keeps your input, so you can share
+the results.
+
+<CandidateExplorer />
+
+## Read the results
+
+Each result shows one utility and its declarations. `&` stands for the styled
+element. Comments show the resolved theme values and pixel sizes. A result for
+CSS declarations names the declaration that it comes from. A variant result
+shows where the variant places the declarations of a utility.
+
+The results leave out the theme variables and other supporting CSS that the full
+stylesheet contains. The [macro reference](/docs/macros) shows complete
+generated stylesheets.
+
+A declaration without a matching utility becomes an arbitrary property, such as
+`[hyphens:manual]`. Variants and shorthand properties can change what a utility
+does, so compare its declarations with your CSS before you replace it.
+
+## What the lookup covers
+
+The lookup runs the Stillwind compiler in your browser with the default theme.
+It downloads the compiler when the page opens. Utilities from your own `@theme`
+tokens, such as `bg-brand`, do not resolve here. See
+[Design systems](/docs/guides/design-systems) to add them. To check a utility in
+your project, hover over it in the editor or run `stillwind utilities`.
+
+The editor and the CLI report non-canonical spellings with
+[prefer-canonical-utilities](/docs/lints/prefer-canonical-utilities).
+
+## Look up names from the command line
+
+The lookup needs a browser. In a terminal or a coding agent, the
+[CLI](/docs/cli#stillwind-utilities) shows the CSS of utilities and variants:
+
+```sh
+vp exec stillwind utilities p-4 hover:underline
+vp exec stillwind utilities 'bg-*'
+vp exec stillwind variants hover 'group-*'
+```
+
+The commands read the CSS of your project, so they also resolve utilities from
+your own `@theme` tokens. An exact name shows its CSS, or the closest spelling
+when the name is unknown.
+
+A `*` pattern searches names only. It omits numeric and arbitrary values, so
+`p-*` does not list `p-4`, and you check `p-4` with its exact name. The commands
+do not search CSS, so `stillwind variants ':hover'` reports an unknown variant.
