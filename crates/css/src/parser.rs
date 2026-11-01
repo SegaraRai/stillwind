@@ -177,6 +177,22 @@ pub fn decode_css_escapes(raw: &str) -> Option<LeanStr> {
     Some(output.into())
 }
 
+/// Returns whether `name` can stand before the `:` of a declaration. `name` is either a
+/// CSS identifier or a custom property, written as CSS source text that may contain
+/// escapes. The check accepts unknown properties, and it rejects `--`, which CSS
+/// reserves.
+#[must_use]
+pub fn is_css_property_name(name: &str) -> bool {
+    if name == "--" || decode_css_escapes(name).is_none() {
+        return false;
+    }
+    let mut parser = Parser::new(name);
+    matches!(
+        parser.next_including_whitespace_and_comments(),
+        Ok(Token::Ident(_))
+    ) && parser.next_including_whitespace_and_comments().is_err()
+}
+
 /// Checks all component values and requires explicit closure of blocks and literals.
 ///
 /// Unknown functions and custom-property values are accepted. This checks CSS syntax,
@@ -405,6 +421,39 @@ mod tests {
         }
         assert_eq!(decode_css_escapes("a\\"), None);
         assert_eq!(decode_css_escapes("a\\\n"), None);
+    }
+
+    #[test]
+    fn property_names_are_single_identifiers() {
+        for name in [
+            "color",
+            "COLOR",
+            "-webkit-box-orient",
+            "--x",
+            "--1",
+            "--色",
+            "_x",
+            r"--a\.b",
+        ] {
+            assert!(is_css_property_name(name), "{name}");
+        }
+        for name in [
+            "",
+            "-",
+            "--",
+            "&",
+            "1",
+            "-1",
+            "@media(hover",
+            "@media",
+            "color()",
+            "a b",
+            " color",
+            "color/**/",
+            "a\\",
+        ] {
+            assert!(!is_css_property_name(name), "{name}");
+        }
     }
 
     #[test]

@@ -69,6 +69,28 @@ fn unresolved_utilities_are_omitted_independently_of_reporting_and_class_identit
     }
 }
 
+#[test]
+fn arbitrary_properties_with_invalid_names_emit_nothing_and_report_invalid_utility() {
+    let css = "@utility a { color:red; }";
+    let (_, expected) = compile("export const x = style('a');", css);
+    for candidate in ["[&:focus]", "[:focus]", "[@media(hover:hover)]", "[1:2]"] {
+        let (_, result) = compile(&format!("export const x = style('a {candidate}');"), css);
+        assert_eq!(result.css, expected.css, "{candidate}");
+        assert_eq!(
+            result
+                .lint_findings
+                .iter()
+                .filter(|finding| matches!(
+                    finding.diagnostic,
+                    LintDiagnostic::InvalidUtility { .. }
+                ))
+                .count(),
+            1,
+            "{candidate}: {result:#?}"
+        );
+    }
+}
+
 /// An arbitrary value that the property grammar rejects is emitted as written at every
 /// reporting level, and only the finding depends on the severity. The finding covers
 /// the value, and a property chosen as a fallback between value types gets hinted

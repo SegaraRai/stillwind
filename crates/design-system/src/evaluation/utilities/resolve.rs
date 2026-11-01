@@ -17,7 +17,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssBanner, CssProperty, inspect_css_value};
+use stillwind_css::{CssBanner, CssProperty, inspect_css_value, is_css_property_name};
 use stillwind_syntax::{Candidate, Utility, Value, parse_candidate};
 
 use super::super::stillwind::{COMPAT_COLOR_SUPPORT, arbitrary_property_order};
@@ -228,7 +228,9 @@ fn resolve_candidate(
             value,
             modifier,
         } => {
-            if !theme.accepts_arbitrary_property(&property.as_str().to_ascii_lowercase()) {
+            if !is_css_property_name(property)
+                || !theme.accepts_arbitrary_property(&property.as_str().to_ascii_lowercase())
+            {
                 return Ok(None);
             }
             let Some(value) = theme.inline_theme_functions(value) else {

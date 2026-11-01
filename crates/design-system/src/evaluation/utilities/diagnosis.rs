@@ -11,6 +11,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_css::is_css_property_name;
 use stillwind_diagnostics::MarkerUseErrorKind;
 use stillwind_syntax::{Candidate, Utility, Value, decode_arbitrary_value, parse_candidate};
 
@@ -122,6 +123,12 @@ pub enum UtilityFailureReason {
         utility: LeanStr,
         /// Value text, decoded when it was written in brackets.
         value: LeanStr,
+    },
+    /// The text before the first `:` of an arbitrary property is not a CSS property name.
+    #[error("`{property}` is not a CSS property name")]
+    InvalidProperty {
+        /// Property text as written.
+        property: LeanStr,
     },
     /// The candidate resolves without its modifier.
     #[error("`{utility}` does not accept the modifier `{modifier}`")]
@@ -275,9 +282,15 @@ pub(super) fn diagnose_utility(
             property, value, ..
         } => UtilityFailure {
             range: layout.name,
-            reason: UtilityFailureReason::UnsupportedValue {
-                utility: property.clone(),
-                value: value.clone(),
+            reason: if is_css_property_name(property) {
+                UtilityFailureReason::UnsupportedValue {
+                    utility: property.clone(),
+                    value: value.clone(),
+                }
+            } else {
+                UtilityFailureReason::InvalidProperty {
+                    property: property.clone(),
+                }
             },
         },
         Utility::Named { name, .. } => {
@@ -578,6 +591,41 @@ mod tests {
                 "{raw}"
             );
         }
+    }
+
+    #[test]
+    fn arbitrary_properties_require_a_css_property_name() {
+        let theme = theme();
+        for (raw, property) in [
+            ("[&:focus]", "&"),
+            ("hover:[&:focus]", "&"),
+            ("[:focus]", ""),
+            ("[@media(hover:hover)]", "@media(hover"),
+            ("[1:2]", "1"),
+        ] {
+            let failure = resolve_utility(raw, &theme).unwrap().unwrap_err();
+            assert_eq!(
+                failure.reason,
+                UtilityFailureReason::InvalidProperty {
+                    property: property.into(),
+                },
+                "{raw}"
+            );
+        }
+        for (raw, declaration) in [
+            ("[color:red]", "color:red;"),
+            ("[--x:1]", "--x:1;"),
+            (
+                "[-webkit-box-orient:vertical]",
+                "-webkit-box-orient:vertical;",
+            ),
+        ] {
+            assert_eq!(
+                resolve_utility(raw, &theme).unwrap().unwrap().declaration,
+                declaration
+            );
+        }
+        assert!(resolve_utility("[&:focus]:flex", &theme).unwrap().is_ok());
     }
 
     #[test]

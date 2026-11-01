@@ -413,6 +413,7 @@ mod tests {
                 .contains("color:red")
         );
         assert!(query.hover_candidate("missing:brand").unwrap().is_none());
+        assert!(query.hover_candidate("[&:focus]").unwrap().is_none());
         assert_ne!(
             query
                 .resolve_candidate("this-does-not-exist")

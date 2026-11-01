@@ -88,8 +88,9 @@ pub use normalization::{CssCase, normalize_css_fragment};
 pub use output::{CssOutputNode, CssOutputTemplate, PropertyInheritance};
 pub use parser::{
     CssBlockRange, CssSyntaxError, CssSyntaxErrorKind, ScanError, consume_css_block,
-    decode_css_escapes, literal_closed, matching_css_delimiter, parenthesis_nesting_overflow,
-    parse_css_block, validate_css_syntax, validate_css_syntax_recovering,
+    decode_css_escapes, is_css_property_name, literal_closed, matching_css_delimiter,
+    parenthesis_nesting_overflow, parse_css_block, validate_css_syntax,
+    validate_css_syntax_recovering,
 };
 pub use resources::{CssUrl, relative_css_urls};
 pub use selectors::{
