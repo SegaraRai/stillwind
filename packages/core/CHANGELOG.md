@@ -1,5 +1,24 @@
 # stillwind
 
+## 0.4.0
+
+### Patch Changes
+
+- Arbitrary properties that use `--if()`, such as `[color:--if(--on,red,blue)]`, no longer report `incompatible-property-value` when the property accepts both branches. The rule still reports a branch that the property rejects.
+
+- `if()` variants now work in `style.css()`. The returned string no longer contains an internal at-rule that kept browsers from applying the conditional rule.
+
+- Variants that test a shadow host now match. `host:hover:`, `hover:` with `selector: ":host"`, and `@apply hover:flex` inside `:host` generate `:host()` forms that browsers accept. The new `unmatched-host-selector` rule reports variants such as `host:in-[.page]:`, which read elements outside the shadow tree and cannot match.
+
+- Arbitrary properties whose name is not a CSS property name, such as `[&:focus]`, `[:focus]`, and `[1:2]`, now report `invalid-utility` and emit no CSS. Add a utility after a variant, as in `[&:focus]:flex`, to style with a selector.
+
+- The bundled `docs/utilities.md` page is now `docs/utilities-and-variants.md`, and the website page moved to `/docs/utilities-and-variants`. The lookup on the website page now also finds variants by name or by part of their CSS, such as `:hover` or `media hover`.
+
+- Updated dependencies:
+  - @stillwind/config@0.4.0
+  - @stillwind/native@0.4.0
+  - @stillwind/projection@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

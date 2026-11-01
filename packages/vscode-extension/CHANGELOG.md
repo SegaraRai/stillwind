@@ -1,5 +1,36 @@
 # @stillwind/vscode-extension
 
+## 0.4.0
+
+### Minor Changes
+
+- Editors that support pull diagnostics, including VS Code, now show Stillwind diagnostics for the files in open tabs. A file that is not open no longer shows diagnostics from a file that imports it. Other editors keep receiving published diagnostics.
+
+### Patch Changes
+
+- The VS Code extension now analyzes Astro, Svelte, and Vue files in projects that do not install `@stillwind/cli`.
+
+- On Windows, VS Code no longer opens console windows for the TypeScript checker.
+
+- On Windows, hover previews and other editor features now work in a file that another open file imports.
+
+- On Windows, diagnostics in a file that another open file imports no longer disappear when you open that file, and their quick fixes now apply.
+
+- Declaration files such as `vite-env.d.ts` that match a `*.ts` glob in `files` no longer make `stillwind lint` fail or show an analysis error in the editor.
+
+- The Stillwind output in VS Code no longer repeats Crashpad errors.
+
+- Changes to files that analysis never read no longer interrupt it. Other changes to closed files refresh analysis without restarting it, so editor features stay available during builds.
+
+- The VS Code extension now loads a configuration only when a tab shows a file that uses it. Files that other extensions open in the background no longer start analysis processes or report configuration errors.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.4.0
+  - @stillwind/config@0.4.0
+  - @stillwind/host@0.4.0
+  - @stillwind/language-server@0.4.0
+  - @stillwind/native@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes
