@@ -5,7 +5,14 @@
  * services can use `createMemoryAnalysisWorkspace` in the memory subpath.
  */
 
-export type { EditorRequest, EditorResult } from "@stillwind/host";
+export type {
+  DesignCandidate,
+  DesignSystemRequest,
+  DesignToken,
+  DesignTokenSource,
+  EditorRequest,
+  EditorResult,
+} from "@stillwind/host";
 
 export { lintReports } from "./reports.ts";
 export type {

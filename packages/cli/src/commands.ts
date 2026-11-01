@@ -1,6 +1,7 @@
 import process from "node:process";
 import { stripVTControlCharacters, styleText } from "node:util";
 
+import type { DesignSystemRequest, DesignTokenSource } from "@stillwind/analysis";
 import { defineCommand, renderUsage, runCommand, type ArgsDef, type CommandDef } from "citty";
 
 import packageJson from "../package.json" with { type: "json" };
@@ -16,7 +17,7 @@ import {
   warningLimit,
 } from "./arguments.ts";
 import { displayEnabled, writeResult, type OutputOptions } from "./output.ts";
-import { cliResult, failureResult, type CliCommand } from "./result.ts";
+import { cliResult, failureResult, type CliCommand, type DesignCommand } from "./result.ts";
 
 const fmtArgs = {
   ...targetArgs,
@@ -48,6 +49,39 @@ const inspectArgs = {
   globs: {
     ...targetArgs.globs,
     description: "Select files with paths or globs, optionally followed by :line or :line:column",
+  },
+} as const;
+
+const designArgs = {
+  ...configArgs,
+  format: {
+    ...outputArgs.format,
+    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
+  },
+  color: outputArgs.color,
+  hyperlinks: outputArgs.hyperlinks,
+} as const;
+
+const themeArgs = {
+  ...designArgs,
+  names: {
+    type: "positional",
+    required: false,
+    description: "Select tokens by name without the leading --, where * matches any text",
+  },
+  source: {
+    type: "enum",
+    options: ["project", "default"] as DesignTokenSource[],
+    description: "Show only the tokens with this origin",
+  },
+} as const;
+
+const candidateArgs = {
+  ...designArgs,
+  names: {
+    type: "positional",
+    required: false,
+    description: "Check exact names, or search with * patterns",
   },
 } as const;
 
@@ -132,6 +166,49 @@ const subCommands = {
       process.exitCode = result.exitCode;
     },
   }),
+  theme: defineCommand({
+    meta: {
+      name: "theme",
+      description: "List the theme tokens of the project",
+    },
+    args: themeArgs,
+    plugins: [strictArguments],
+    async run({ args, data }) {
+      await runDesignCommand("theme", data as OutputOptions, args.config, {
+        kind: "theme",
+        targets: args._,
+        source: args.source,
+      });
+    },
+  }),
+  utilities: defineCommand({
+    meta: {
+      name: "utilities",
+      description: "Check or search the utilities of the project",
+    },
+    args: candidateArgs,
+    plugins: [strictArguments],
+    async run({ args, data }) {
+      await runDesignCommand("utilities", data as OutputOptions, args.config, {
+        kind: "utilities",
+        targets: args._,
+      });
+    },
+  }),
+  variants: defineCommand({
+    meta: {
+      name: "variants",
+      description: "Check or search the variants of the project",
+    },
+    args: candidateArgs,
+    plugins: [strictArguments],
+    async run({ args, data }) {
+      await runDesignCommand("variants", data as OutputOptions, args.config, {
+        kind: "variants",
+        targets: args._,
+      });
+    },
+  }),
   lsp: defineCommand({
     meta: {
       name: "lsp",
@@ -148,6 +225,19 @@ const subCommands = {
     },
   }),
 };
+
+async function runDesignCommand(
+  name: DesignCommand,
+  options: OutputOptions,
+  config: string | undefined,
+  request: DesignSystemRequest,
+): Promise<void> {
+  const { designSystem } = await import("@stillwind/analysis/node");
+  const answer = await designSystem({ config, cwd: options.cwd }, request);
+  const result = cliResult(name, { ...answer, results: [] });
+  await writeResult(result, options);
+  process.exitCode = result.exitCode;
+}
 
 export const command = defineCommand({
   meta: {
@@ -177,10 +267,17 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       ...fmtArgs,
       ...lintArgs,
       ...inspectArgs,
+      ...themeArgs,
+      ...candidateArgs,
       ...lspArgs,
     });
     name =
-      invocation.name === "fmt" || invocation.name === "lint" || invocation.name === "inspect"
+      invocation.name === "fmt" ||
+      invocation.name === "lint" ||
+      invocation.name === "inspect" ||
+      invocation.name === "theme" ||
+      invocation.name === "utilities" ||
+      invocation.name === "variants"
         ? invocation.name
         : null;
     if (invocation.name === "lsp") {
@@ -215,7 +312,9 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
         throw new Error("--version must be used without a command");
       }
       if (!invocation.name) {
-        throw new Error("A command is required: fmt, lint, inspect, or lsp");
+        throw new Error(
+          "A command is required: fmt, lint, inspect, theme, utilities, variants, or lsp",
+        );
       }
       await runCommand(subCommands[invocation.name as keyof typeof subCommands] as CommandDef, {
         rawArgs: invocation.rawArgs,

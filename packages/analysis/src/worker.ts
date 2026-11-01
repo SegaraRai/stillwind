@@ -94,6 +94,9 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     case "query":
       return workspace.query(request.file, request.request);
 
+    case "designSystem":
+      return workspace.designSystem(request.request);
+
     case "update":
       workspace.update(request.file, request.source, request.version);
       return undefined;

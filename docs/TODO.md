@@ -274,3 +274,17 @@ with evaluations on sample projects.
 Sources: [skills](../packages/core/skills/),
 [agent page](../apps/website/src/content/docs/docs/agents.md),
 [package documentation generator](../apps/website/package-docs.ts).
+
+## Complete design-system searches in the CLI
+
+`stillwind utilities 'p-*'` reads the completion catalog, which omits numeric and arbitrary
+values, so `p-4` is not in the result. Expose the shape of functional utilities from the
+compiler, such as `p-<number>`, and show it in search results. `text-2xl--line-height` also
+appears in searches, because the `text-*` utility accepts that token. Decide whether a search
+should hide such tokens.
+
+`stillwind theme` shows values as written. Decide whether it should also show resolved values,
+as preview comments do.
+
+Sources: [design-system queries](../packages/host/src/editor/design-system.ts),
+[candidate completion](../crates/compiler/src/query/completion/candidates.rs).

@@ -284,6 +284,21 @@ impl NativeEditorQuery {
             .map_err(reason)
     }
 
+    /// Returns the closest spelling of the decoded `candidate` that resolves when
+    /// `candidate` fails by a likely typo. Returns null for a valid candidate and when
+    /// no spelling is close enough.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed requirements of a matching utility definition.
+    #[napi]
+    pub fn suggest_candidate(&self, candidate: String) -> napi::Result<Option<String>> {
+        self.query
+            .suggest_candidate(&candidate)
+            .map(|value| value.map(|value| value.to_string()))
+            .map_err(reason)
+    }
+
     /// Returns the CSS that the variants of the decoded `candidate` add: their wrappers
     /// and the declarations that the variants themselves add. The final `:` is
     /// optional. An omitted `context` means ordinary utilities. Returns null when the

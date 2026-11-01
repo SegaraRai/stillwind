@@ -15,11 +15,13 @@ import {
   isStylesheet,
   loadCssGraph,
   loadEditorCssGraph,
+  pluginLoader,
   type CssHost,
   type CssPluginInputs,
   type EditorCssGraph,
   type PluginRuntime,
 } from "../../css/index.ts";
+import type { DesignSystemContext } from "../../editor/index.ts";
 import type { TypeFactsEnvironment } from "../../semantics/index.ts";
 import { compilerOptions, cssEntrypoint } from "../options.ts";
 import { StylesheetEditor } from "../stylesheet-editor.ts";
@@ -207,6 +209,20 @@ export class AnalysisCss {
       attachPlugins(this.#session, this.#plugins, this.#plugins?.generation);
     }
     return this.#loader;
+  }
+
+  /**
+   * Loads the design system for questions that read no source file.
+   *
+   * @returns A query over the definitions of the latest plugin load, and the plugin runtime.
+   * @throws If resolving, reading, or loading the CSS graph fails.
+   */
+  async designSystem(): Promise<Pick<DesignSystemContext, "query" | "plugins">> {
+    const loader = await this.load();
+    return {
+      query: (pluginLoader(this.#session!) ?? loader).editorQuery(),
+      plugins: this.#plugins,
+    };
   }
 
   /**

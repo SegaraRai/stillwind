@@ -120,6 +120,30 @@ impl DesignSystemQuery {
             revision: result.revision,
         }))
     }
+
+    /// Returns the closest spelling of `candidate` that resolves when `candidate` fails
+    /// by a likely typo. Returns `None` for a valid candidate and when no spelling is
+    /// close enough.
+    ///
+    /// # Errors
+    ///
+    /// Returns a malformed requirement from a matching utility definition.
+    pub fn suggest_candidate(
+        &self,
+        candidate: &str,
+    ) -> Result<Option<LeanString>, UtilityResolutionError> {
+        let theme = self.context.design_system.theme();
+        Ok(self
+            .resolve_candidate(candidate)?
+            .failures
+            .iter()
+            .find_map(|failure| match failure {
+                CandidateFailure::Unresolved(failure) => {
+                    failure.suggested_candidate(candidate, theme)
+                }
+                _ => None,
+            }))
+    }
 }
 
 impl QueryContext {
@@ -406,6 +430,11 @@ mod tests {
                 "{candidate}: {failures:?}"
             );
         }
+        assert_eq!(
+            query.suggest_candidate("brnad").unwrap().as_deref(),
+            Some("brand")
+        );
+        assert_eq!(query.suggest_candidate("brand").unwrap(), None);
         assert!(
             query
                 .complete_candidate(CompletionInput {

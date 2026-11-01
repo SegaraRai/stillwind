@@ -3,7 +3,13 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripVTControlCharacters, styleText } from "node:util";
 
-import type { CliDiagnostic, CliFailure, CliResult, ResultPolicy } from "./result.ts";
+import {
+  isDesignCommand,
+  type CliDiagnostic,
+  type CliFailure,
+  type CliResult,
+  type ResultPolicy,
+} from "./result.ts";
 import type { SourceFrames } from "./source-frame.ts";
 
 export type OutputFormat = "text" | "json" | "github" | "files";
@@ -202,6 +208,33 @@ export function renderResult(
       lines.push("The selected source has no generated CSS.");
     }
   }
+  const projects = new Set([...result.tokens, ...result.candidates].map(({ project }) => project));
+  const tag = (project: number) => (projects.size > 1 ? ` [project ${project + 1}]` : "");
+  for (const { project, name, value, source } of result.tokens) {
+    lines.push(
+      `${clean(name)}: ${clean(value)}${source === "default" ? " (default)" : ""}${tag(project)}`,
+    );
+  }
+  for (const { project, name, kind, valid, css, suggestion } of result.candidates) {
+    if (valid) {
+      lines.push(`${clean(name)}${kind === "marker" ? " (marker)" : ""}${tag(project)}`);
+      lines.push(
+        ...clean(css)
+          .trimEnd()
+          .split("\n")
+          .map((line) => (line ? `  ${line}` : "")),
+      );
+    } else {
+      lines.push(`${clean(name)}${tag(project)}: ${paint(`unknown ${kind}`, "red", color)}`);
+      if (suggestion) {
+        lines.push(`  help: Did you mean ${clean(suggestion)}?`);
+      }
+    }
+    lines.push("");
+  }
+  for (const target of result.unmatched) {
+    lines.push(`${clean(target)}: ${paint("no match", "red", color)}`);
+  }
   if (result.summary.warningLimitExceeded) {
     const message = `Warning count (${result.summary.warnings}) exceeds --max-warnings${options.maxWarnings === undefined ? "" : ` (${options.maxWarnings})`}.`;
     lines.push(
@@ -216,15 +249,17 @@ export function renderResult(
     }
     const { summary } = result;
     lines.push(
-      result.command === "inspect"
-        ? `${count(summary.previews, "preview")} in ${count(summary.files, "file")}${summary.invalidPreviews ? `; ${summary.invalidPreviews} failed to generate CSS` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
-        : result.command === "fmt" && !summary.failures
-          ? options.check
-            ? summary.changed
-              ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
-              : `All selected files are formatted (${summary.files} checked).`
-            : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
-          : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
+      isDesignCommand(result.command)
+        ? `${result.command === "theme" ? count(summary.tokens, "token") : count(summary.candidates, result.command === "variants" ? "variant" : "utility").replace("utilitys", "utilities")}${summary.invalidCandidates ? `; ${summary.invalidCandidates} unknown` : ""}${summary.unmatched ? `; ${count(summary.unmatched, "unmatched target")}` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+        : result.command === "inspect"
+          ? `${count(summary.previews, "preview")} in ${count(summary.files, "file")}${summary.invalidPreviews ? `; ${summary.invalidPreviews} failed to generate CSS` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+          : result.command === "fmt" && !summary.failures
+            ? options.check
+              ? summary.changed
+                ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
+                : `All selected files are formatted (${summary.files} checked).`
+              : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
+            : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
     const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
     if (result.command === "lint" && suggestions) {

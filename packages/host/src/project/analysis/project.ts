@@ -7,7 +7,14 @@ import { CompilationProject, sourceKey } from "../../compilation/project.ts";
 import { isStylesheet } from "../../css/index.ts";
 import { queryPluginPaths } from "../../css/plugins/paths.ts";
 import { prepareSourcePlugins } from "../../css/plugins/session.ts";
-import { EditorSnapshot, type EditorRequest, type EditorResult } from "../../editor/index.ts";
+import {
+  EditorSnapshot,
+  queryDesignSystem,
+  type DesignSystemRequest,
+  type DesignSystemResult,
+  type EditorRequest,
+  type EditorResult,
+} from "../../editor/index.ts";
 import {
   TypeScriptFactsService,
   type TypeFactsBackend,
@@ -366,6 +373,35 @@ export class AnalysisProject {
       await snapshot?.prepare(entry, request);
       const result = snapshot?.query(entry, request);
       return this.#discardReason(revision, signal) ? undefined : result;
+    });
+    this.#queue = task.catch(() => {});
+    return task;
+  }
+
+  /**
+   * Answers a question about the design system, using the current buffers.
+   *
+   * @param request - Theme, utility, or variant request.
+   * @returns The answer, or undefined when the captured buffers become outdated.
+   * @throws If the project is closed, CSS loading fails, or a plugin fails.
+   */
+  designSystem(request: DesignSystemRequest): Promise<DesignSystemResult | undefined> {
+    const revision = this.#revision;
+    const documents = new Map([...this.#documents].map(([id, document]) => [id, document.source]));
+    const task = this.#queue.then(async () => {
+      if (this.#closed) {
+        throw new Error("Analysis project is closed");
+      }
+      if (!(await this.#installDocuments(documents, revision))) {
+        return undefined;
+      }
+      return queryDesignSystem(
+        {
+          ...(await this.#css.designSystem()),
+          annotations: this.host.config.preview,
+        },
+        request,
+      );
     });
     this.#queue = task.catch(() => {});
     return task;

@@ -2,7 +2,7 @@ import { fork, type ChildProcess } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import type { EditorRequest, WorkspaceResult } from "@stillwind/host";
+import type { DesignSystemRequest, EditorRequest, WorkspaceResult } from "@stillwind/host";
 
 import { RewriteFailure, type RewriteInput, type RewriteBatchResult } from "./rewrite.ts";
 
@@ -55,6 +55,12 @@ export type WorkerRequest =
       file: string;
       /** Editor operation in original UTF-16 coordinates. */
       request: EditorRequest;
+    }
+  | {
+      /** Serialized discriminator for a question about each project's design system. */
+      method: "designSystem";
+      /** Theme, utility, or variant request. */
+      request: DesignSystemRequest;
     }
   | {
       /** Serialized discriminator for replacing an unsaved buffer. */

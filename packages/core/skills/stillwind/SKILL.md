@@ -44,8 +44,12 @@ which lists the Markdown version of each page.
 
 - Follow `docs/guides/recommended-practices.md`. Keep styles in `style()` calls
   on their elements, and express states with attributes and variants.
-- Use theme tokens instead of arbitrary values. When a value is missing, ask the
-  user before you add a token.
+- Use theme tokens instead of arbitrary values. Run `stillwind theme --source project`
+  to read the tokens of the project. When a value is missing, ask the user before
+  you add a token.
+- Run `stillwind utilities <name>` to check a utility before you use it, such as
+  `stillwind utilities p-4 hover:bg-accent`. A `*` pattern searches names, but it
+  omits numeric and arbitrary values. `stillwind variants` works in the same way.
 - Write custom utilities with `@apply` and variants, not with hand-written
   selectors or media queries.
 - After you change styles, run `stillwind lint --fix` and `stillwind fmt` through

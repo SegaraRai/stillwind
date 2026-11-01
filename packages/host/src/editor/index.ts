@@ -6,6 +6,15 @@
  * capture fingerprint returned with the completion.
  */
 
+export {
+  queryDesignSystem,
+  type DesignCandidate,
+  type DesignSystemContext,
+  type DesignSystemRequest,
+  type DesignSystemResult,
+  type DesignToken,
+  type DesignTokenSource,
+} from "./design-system.ts";
 export type {
   EditorColor,
   EditorCompletion,

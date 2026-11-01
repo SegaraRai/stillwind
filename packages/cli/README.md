@@ -3,7 +3,7 @@
 [Stillwind](https://stillwind.dev/) compiles Tailwind CSS v4 utilities into component props and static CSS.
 It uses theme rules and compiler checks to keep styling code in order, even when AI agents write much of it.
 
-`@stillwind/cli` is Stillwind's command-line interface for sorting, linting, automatic fixes, CSS inspection, and CI checks.
+`@stillwind/cli` is Stillwind's command-line interface for sorting, linting, automatic fixes, CSS inspection, design-system lookups, and CI checks.
 It uses the same project configuration as the build integration and editor.
 
 ## Install
@@ -23,6 +23,9 @@ stillwind fmt
 stillwind lint
 stillwind lint --fix
 stillwind inspect src/Button.tsx:12
+stillwind theme 'color-*'
+stillwind utilities p-4 'bg-*'
+stillwind variants 'group-*'
 ```
 
 `fmt` sorts utility inputs and preserves source layout and token spellings. Run a
@@ -30,6 +33,7 @@ general formatter afterward, or use
 [prettier-plugin-stillwind](https://stillwind.dev/docs/formatters).
 `lint` reports findings; `lint --fix` applies enabled automatic fixes. Only changed
 files are saved. `inspect` shows the CSS that a file, line, or position generates.
+`theme`, `utilities`, and `variants` read the project's design system.
 
 Optional file patterns narrow the configured project scopes:
 
@@ -51,7 +55,7 @@ configuration logs use stderr. GitHub annotations are the default in GitHub Acti
 | Exit code | Meaning                                                                                                              |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
 | `0`       | Formatting succeeded, formatting check found no changes, or lint found no errors and stayed within any warning limit |
-| `1`       | Formatting changes are required, lint found errors, the warning limit was exceeded, or inspect found no CSS          |
+| `1`       | Formatting changes are required, lint found errors, the warning limit was exceeded, or a lookup found no CSS or name |
 | `2`       | Invalid options, failed configuration/analysis/planning/I/O, or no matching targets                                  |
 
 Warnings alone return `0` when no limit is set. `stillwind --help` lists commands;

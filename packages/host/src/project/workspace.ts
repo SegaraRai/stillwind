@@ -8,7 +8,12 @@ import { glob } from "tinyglobby";
 
 import { sourceKey } from "../compilation/project.ts";
 import { isStylesheet } from "../css/index.ts";
-import type { EditorRequest, EditorResult } from "../editor/index.ts";
+import type {
+  DesignSystemRequest,
+  DesignSystemResult,
+  EditorRequest,
+  EditorResult,
+} from "../editor/index.ts";
 import { sameFile } from "./analysis/host.ts";
 import { AnalysisProject, type AnalysisResult } from "./analysis/project.ts";
 import { createFileSystemAnalysisHost } from "./filesystem.ts";
@@ -206,6 +211,27 @@ export class AnalysisWorkspace {
             )),
       )
       .sort();
+  }
+
+  /**
+   * Answers a question about the design system of each project.
+   *
+   * @param request - Theme, utility, or variant request.
+   * @returns Answers in configuration order.
+   * @throws If CSS loading or a plugin fails in any project.
+   */
+  async designSystem(request: DesignSystemRequest): Promise<
+    {
+      /** Zero-based index into the configured projects. */
+      project: number;
+      /** Answer from that project's design system. */
+      result: DesignSystemResult;
+    }[]
+  > {
+    const answers = await Promise.all(
+      this.projects.map((project) => project.analysis.designSystem(request)),
+    );
+    return answers.flatMap((result, project) => (result ? [{ project, result }] : []));
   }
 
   /**

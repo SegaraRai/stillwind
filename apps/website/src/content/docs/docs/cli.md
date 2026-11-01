@@ -5,7 +5,7 @@ description: Commands, options, file selection, exit codes, and output formats o
 ---
 
 `@stillwind/cli` sorts utilities, reports lint findings, applies automatic fixes,
-shows generated CSS, and starts the language server. It reads the same `stillwind.config.ts` as the
+shows generated CSS, lists the project's design system, and starts the language server. It reads the same `stillwind.config.ts` as the
 build integration and the editor.
 
 ```sh
@@ -16,12 +16,15 @@ To run the CLI in CI, see [Checks in the editor and CI](/docs/guides/lint-adopti
 
 ## Commands
 
-| Command             | Action                                               |
-| ------------------- | ---------------------------------------------------- |
-| `stillwind fmt`     | Sorts utilities                                      |
-| `stillwind lint`    | Reports lint findings, and can apply automatic fixes |
-| `stillwind inspect` | Shows the CSS that source code generates             |
-| `stillwind lsp`     | Starts the language server                           |
+| Command               | Action                                               |
+| --------------------- | ---------------------------------------------------- |
+| `stillwind fmt`       | Sorts utilities                                      |
+| `stillwind lint`      | Reports lint findings, and can apply automatic fixes |
+| `stillwind inspect`   | Shows the CSS that source code generates             |
+| `stillwind theme`     | Lists the theme tokens of the project                |
+| `stillwind utilities` | Checks or searches utilities                         |
+| `stillwind variants`  | Checks or searches variants                          |
+| `stillwind lsp`       | Starts the language server                           |
 
 `stillwind --help` lists the commands, and `stillwind <command> --help` lists the
 options of a command. `stillwind --version` prints the package version. The short
@@ -121,6 +124,56 @@ values and rules from other occurrences can still change the applied styles.
 `inspect` also accepts the [shared options](#shared-options). The `files` format is
 not available.
 
+## stillwind theme
+
+```sh
+vp exec stillwind theme
+vp exec stillwind theme 'color-*' spacing-panel
+vp exec stillwind theme --source project
+```
+
+`theme` lists the active tokens of the CSS that the configuration selects. It reads no
+source files, and `files` does not affect it.
+
+Each argument selects tokens by name, and `*` matches any text. Write names without the
+leading `--`, because the CLI reads `--color-*` as an option.
+
+| Option              | Effect                                          |
+| ------------------- | ----------------------------------------------- |
+| `--source <origin>` | Shows only `project` tokens or `default` tokens |
+
+`project` tokens come from an ordinary `@theme`. `default` tokens come from `@theme default`
+or from a plugin, and an ordinary `@theme` can override them.
+
+Each token shows its value as written, including references to other tokens.
+
+## stillwind utilities
+
+```sh
+vp exec stillwind utilities p-4 hover:bg-accent
+vp exec stillwind utilities 'bg-*' '*-panel'
+```
+
+`utilities` shows the CSS of each utility. It reads no source files.
+
+An argument without `*` is an exact check, and it can include variants, numeric values, and
+arbitrary values. An unknown name shows the closest spelling when one is close enough.
+
+An argument with `*` searches the names that editors complete, and a `*` inside brackets or
+parentheses does not count. **A search omits numeric and arbitrary values.** For example,
+`p-*` lists `p-px` but not `p-4`, so check such a value with its exact name. Without an
+argument, `utilities` lists every name.
+
+## stillwind variants
+
+```sh
+vp exec stillwind variants hover
+vp exec stillwind variants 'group-*'
+```
+
+`variants` shows the selectors and at-rules that each variant adds. Its arguments work as in
+`utilities`. Write a variant name without the trailing `:`.
+
 ## stillwind lsp
 
 ```sh
@@ -133,7 +186,7 @@ accepts `--config`, but no globs.
 
 ## Shared options
 
-`fmt`, `lint`, and `inspect` accept these options:
+`fmt`, `lint`, `inspect`, `theme`, `utilities`, and `variants` accept these options:
 
 | Option                  | Effect                                              |
 | ----------------------- | --------------------------------------------------- |
@@ -187,11 +240,11 @@ The CLI reports all failures and all saved files, and it returns exit code `2`.
 
 ## Exit codes
 
-| Code | Meaning                                                                                                                                                 |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | The command succeeded. `lint` may still report warnings when you set no `--max-warnings` limit                                                          |
-| `1`  | `fmt --check` found files to sort, `lint` found errors, the warnings exceeded `--max-warnings`, or `inspect` found a failed occurrence or no occurrence |
-| `2`  | The options were invalid, no files matched, or configuration, analysis, or file access failed                                                           |
+| Code | Meaning                                                                                                                                                                                                                                        |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | The command succeeded. `lint` may still report warnings when you set no `--max-warnings` limit                                                                                                                                                 |
+| `1`  | `fmt --check` found files to sort, `lint` found errors, the warnings exceeded `--max-warnings`, `inspect` found a failed occurrence or no occurrence, or `theme`, `utilities`, or `variants` found an unknown name or a target without a match |
+| `2`  | The options were invalid, no files matched, or configuration, analysis, or file access failed                                                                                                                                                  |
 
 Code `2` takes priority over code `1`.
 
@@ -253,6 +306,9 @@ failures:
   "failures": [],
   "changed": [],
   "previews": [],
+  "tokens": [],
+  "candidates": [],
+  "unmatched": [],
   "summary": {
     "files": 1,
     "errors": 0,
@@ -261,6 +317,10 @@ failures:
     "changed": 0,
     "previews": 0,
     "invalidPreviews": 0,
+    "tokens": 0,
+    "candidates": 0,
+    "invalidCandidates": 0,
+    "unmatched": 0,
     "suggestions": 0,
     "warningLimitExceeded": false
   },
@@ -268,16 +328,19 @@ failures:
 }
 ```
 
-| Field         | Value                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------- |
-| `command`     | `"fmt"`, `"lint"`, or `"inspect"`, or `null` when the CLI failed before it selected a command |
-| `config`      | The configuration path, or `null` when the CLI failed before the analysis                     |
-| `diagnostics` | The findings; `--quiet` removes warnings from this list                                       |
-| `failures`    | The execution failures                                                                        |
-| `changed`     | The files that the command changed; with `--check`, the files that it would change            |
-| `previews`    | The generated CSS that `inspect` selected; empty for other commands                           |
-| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides                |
-| `exitCode`    | The [exit code](#exit-codes)                                                                  |
+| Field         | Value                                                                               |
+| ------------- | ----------------------------------------------------------------------------------- |
+| `command`     | The command name, or `null` when the CLI failed before it selected a command        |
+| `config`      | The configuration path, or `null` when the CLI failed before the analysis           |
+| `diagnostics` | The findings; `--quiet` removes warnings from this list                             |
+| `failures`    | The execution failures                                                              |
+| `changed`     | The files that the command changed; with `--check`, the files that it would change  |
+| `previews`    | The generated CSS that `inspect` selected; empty for other commands                 |
+| `tokens`      | The tokens that `theme` selected; empty for other commands                          |
+| `candidates`  | The names that `utilities` or `variants` selected; empty for other commands         |
+| `unmatched`   | The arguments of `theme`, `utilities`, or `variants` without a match in any project |
+| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides      |
+| `exitCode`    | The [exit code](#exit-codes)                                                        |
 
 Each diagnostic contains `project`, a zero-based project index, and `report`. The
 report contains the message, its locations, notes, and suggested edits.
@@ -292,6 +355,13 @@ range. `valid` is `false` when the list contains an error or when a style that t
 occurrence requires failed. `css` can be empty for an occurrence with findings, and it
 is empty when `documentation` describes a marker class. `runtimeNames` lists the runtime
 expressions that supply view-transition names, and it is absent when there are none.
+
+Each token contains `project`, `name`, `value`, `source`, and `inline`. `inline` is `true`
+when utilities write the value of the token instead of a reference to it.
+
+Each candidate contains `project`, `name`, `kind`, `valid`, and `css`. `kind` is `"utility"`,
+`"variant"`, or `"marker"`, and `css` is empty for an unknown name and for a marker class
+without CSS. An unknown name can contain `suggestion`, the closest valid spelling.
 
 File paths are absolute. Locations in reports and previews use URIs and zero-based UTF-16
 positions, and their ends are exclusive.
