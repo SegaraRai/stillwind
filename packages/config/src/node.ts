@@ -85,7 +85,8 @@ export function findConfiguration(directory: string): string | undefined {
  * @param file - Absolute document path.
  * @param folders - Absolute workspace folders.
  * @returns The configuration path, or undefined when the document lies outside the folders or in
- * `node_modules`, or the folder has no configuration at or above the document.
+ * `node_modules`, the nearest configuration lies in a dot directory beneath the folder, or the
+ * folder has no configuration at or above the document.
  */
 export function findDocumentConfiguration(
   file: string,

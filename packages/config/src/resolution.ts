@@ -119,14 +119,17 @@ function containsPath(directory: string, target: string, paths: ConfigPaths): bo
 
 /**
  * Finds the nearest configuration of a document in a workspace folder. Evaluating a configuration
- * runs its code, so this skips files that the user did not place in the workspace.
+ * runs its code, so this skips files that the user did not place in the workspace. Tools generate
+ * copies of projects in directories such as `.e2e`, so a configuration in a dot directory beneath
+ * the folder is also skipped.
  *
  * @param file - Absolute document path.
  * @param folders - Absolute workspace folders.
  * @param exists - Tests whether a file exists.
  * @param paths - Host path operations.
  * @returns The nearest configuration path inside the folder that contains the document, or
- * undefined when the document lies outside the folders or in `node_modules`, or no such file exists.
+ * undefined when the document lies outside the folders or in `node_modules`, the nearest file lies
+ * in a dot directory beneath the folder, or no such file exists.
  */
 export function documentConfiguration(
   file: string,
@@ -142,7 +145,11 @@ export function documentConfiguration(
     return undefined;
   }
   const found = configurationCandidates(paths.dirname(file), paths).find(exists);
-  return found && containsPath(folder, found, paths) ? found : undefined;
+  if (!found || !containsPath(folder, found, paths)) {
+    return undefined;
+  }
+  const directories = paths.relative(folder, found).replaceAll("\\", "/").split("/").slice(0, -1);
+  return directories.some((directory) => directory.startsWith(".")) ? undefined : found;
 }
 
 /**

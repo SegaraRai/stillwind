@@ -81,6 +81,18 @@ test("references accept files, directories, and globs with exclusions", async ()
   expect(dependencies).toEqual(expect.arrayContaining([configFile, custom, web, docs]));
 });
 
+test("document discovery skips configurations in dot directories beneath the folder", async () => {
+  const { root } = await fixture();
+  const workspace = path.join(root, ".workspace");
+  const app = await writeProject(path.join(workspace, "apps/web"));
+  await writeProject(path.join(workspace, "apps/web/.e2e/run-1"));
+  await mkdir(path.join(workspace, "apps/web/.storybook"));
+  const find = (file: string) => findDocumentConfiguration(path.join(workspace, file), [workspace]);
+
+  expect(find("apps/web/.e2e/run-1/src/App.tsx")).toBeUndefined();
+  expect(find("apps/web/.storybook/preview.ts")).toBe(app);
+});
+
 test("document discovery stays in the workspace folder and outside node_modules", async () => {
   const { root } = await fixture();
   const workspace = path.join(root, "workspace");
