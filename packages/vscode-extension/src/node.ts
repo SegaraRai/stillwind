@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
 
 import { clientOptions } from "./client.ts";
-import { cliServer, findProjectCli } from "./project-cli.ts";
+import { cliServer, findProjectCli, serverEnvironment } from "./project-cli.ts";
 
 let client: LanguageClient | undefined;
 
@@ -65,6 +65,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         module: context.asAbsolutePath("dist/node/server.js"),
         transport: TransportKind.stdio,
         args: config ? ["--config", config] : [],
+        options: {
+          env: serverEnvironment(),
+        },
       },
       options,
     );

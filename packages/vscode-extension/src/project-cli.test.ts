@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, beforeEach, expect, test } from "vite-plus/test";
+import { afterEach, beforeEach, expect, onTestFinished, test, vi } from "vite-plus/test";
 
-import { findProjectCli } from "./project-cli.ts";
+import { findProjectCli, serverEnvironment } from "./project-cli.ts";
 
 let root: string;
 
@@ -56,4 +56,15 @@ test("skips an installation without a usable manifest", async () => {
 
 test("returns undefined when no directory resolves the CLI", () => {
   expect(findProjectCli([root])).toBeUndefined();
+});
+
+test("server processes run as Node without the crash reporter pipe", () => {
+  vi.stubEnv("CHROME_CRASHPAD_PIPE_NAME", "\\\\.\\pipe\\crashpad");
+  onTestFinished(() => {
+    vi.unstubAllEnvs();
+  });
+  expect(serverEnvironment()).toMatchObject({
+    ELECTRON_RUN_AS_NODE: "1",
+    CHROME_CRASHPAD_PIPE_NAME: undefined,
+  });
 });

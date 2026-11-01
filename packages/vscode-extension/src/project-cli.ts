@@ -46,6 +46,25 @@ export function findProjectCli(directories: readonly string[]): ProjectCli | und
 }
 
 /**
+ * Creates the environment of a server process that runs under the editor runtime.
+ *
+ * Electron reports an error on stderr at each process start when it cannot reach the crash reporter
+ * pipe that `CHROME_CRASHPAD_PIPE_NAME` names, and analysis workers inherit this environment. The
+ * undefined value also removes the variable when the language client merges `process.env` into
+ * these options.
+ *
+ * @returns Environment for `Executable` and `NodeModule` server options.
+ */
+export function serverEnvironment(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    CHROME_CRASHPAD_PIPE_NAME: undefined,
+    ELECTRON_NO_ASAR: "1",
+    ELECTRON_RUN_AS_NODE: "1",
+  };
+}
+
+/**
  * Describes a CLI server process that runs under the editor runtime.
  *
  * The language client adds `--clientProcessId` to the arguments of a `NodeModule` server, and the
@@ -60,11 +79,7 @@ export function cliServer(cli: ProjectCli, config: string | undefined): Executab
     command: process.execPath,
     args: [cli.module, "lsp", "--stdio", ...(config ? ["--config", config] : [])],
     options: {
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: "1",
-        ELECTRON_NO_ASAR: "1",
-      },
+      env: serverEnvironment(),
     },
   };
 }
