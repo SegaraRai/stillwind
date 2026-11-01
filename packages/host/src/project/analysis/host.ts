@@ -156,6 +156,11 @@ export class AnalysisCss {
     return isStylesheet(id) || [...this.#dependencies].some((file) => sameFile(file, id));
   }
 
+  /** Returns the files that CSS or plugins have read. */
+  get dependencies(): ReadonlySet<string> {
+    return this.#dependencies;
+  }
+
   /**
    * Discards loaders and the native session while keeping plugins available for the next load.
    */

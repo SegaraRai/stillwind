@@ -3,7 +3,7 @@ import path from "node:path";
 import type { BindingReport } from "@stillwind/native";
 
 import { analyzeModule, type ModuleAnalysis } from "../../compilation/index.ts";
-import { CompilationProject } from "../../compilation/project.ts";
+import { CompilationProject, sourceKey } from "../../compilation/project.ts";
 import { isStylesheet } from "../../css/index.ts";
 import { queryPluginPaths } from "../../css/plugins/paths.ts";
 import { prepareSourcePlugins } from "../../css/plugins/session.ts";
@@ -171,6 +171,20 @@ export class AnalysisProject {
       this.#dirty = true;
       this.#cssDirty ||= this.#css.affects(id);
     }
+  }
+
+  /**
+   * Lists the files that analysis has observed, for comparison with paths in watch notifications.
+   *
+   * @returns Keys from `sourceKey` for prepared sources, files that CSS or plugins read, and paths
+   * that the checker read or tested, including missing paths. A custom semantic backend contributes
+   * nothing.
+   */
+  reads(): Set<string> {
+    return new Set([
+      ...this.#compilation.sourceKeys(),
+      ...[...this.#css.dependencies, ...(this.#facts?.dependencies ?? [])].map(sourceKey),
+    ]);
   }
 
   /** Makes pending results stale. The next transaction rebuilds CSS and backend caches. */

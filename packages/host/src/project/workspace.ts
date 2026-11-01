@@ -6,6 +6,7 @@ import { loadConfiguration } from "@stillwind/config/node";
 import { minimatch } from "minimatch";
 import { glob } from "tinyglobby";
 
+import { sourceKey } from "../compilation/project.ts";
 import { isStylesheet } from "../css/index.ts";
 import type { EditorRequest, EditorResult } from "../editor/index.ts";
 import { sameFile } from "./analysis/host.ts";
@@ -279,25 +280,77 @@ export class AnalysisWorkspace {
   }
 
   /**
-   * Checks whether save or watch notifications need a new workspace. A file without an open buffer
-   * can affect analysis through its disk content, so such a file invalidates the projects.
+   * Checks whether a change to a file requires a new workspace.
+   *
+   * @param file - Changed file path.
+   * @param reads - Result of `AnalysisProject.reads` for each project, in project order.
+   * @returns True for a configuration dependency, and for a tsconfig or package.json that a project
+   * read or that lies directly in a project root. Module resolution can read these files without
+   * recording them, so the project root is checked as well.
+   */
+  #reopens(file: string, reads: readonly ReadonlySet<string>[]): boolean {
+    if (this.#configurationDependencies.some((dependency) => sameFile(dependency, file))) {
+      return true;
+    }
+    return (
+      /(?:^|[/\\])(?:tsconfig(?:\.[^/\\]+)?\.json|package\.json)$/.test(file) &&
+      this.projects.some(
+        (project, index) =>
+          reads[index].has(sourceKey(file)) ||
+          sameFile(path.dirname(path.resolve(file)), project.analysis.host.root),
+      )
+    );
+  }
+
+  /**
+   * Checks whether the disk content of a file can change a project's analysis.
+   *
+   * @param index - Project index.
+   * @param file - Changed file path.
+   * @param reads - Result of `AnalysisProject.reads` for each project, in project order.
+   * @returns True when the file has no open buffer and the project read it or its target scope
+   * contains it. Scope membership covers a new file that no analysis has read.
+   */
+  #stale(index: number, file: string, reads: readonly ReadonlySet<string>[]): boolean {
+    return (
+      ![...this.#openDocuments].some((open) => sameFile(open, file)) &&
+      (reads[index].has(sourceKey(file)) || this.includes(this.projects[index], path.resolve(file)))
+    );
+  }
+
+  /**
+   * Checks whether file changes can change this workspace's results, without changing any state.
+   * Analysis cannot depend on a file that it never read and that lies outside every target scope.
+   *
+   * @param files - File paths reported by a watch notification. Relative paths use the working
+   * directory.
+   * @returns Whether `refresh` would request reopening or invalidate a project for these files.
+   */
+  affects(files: readonly string[]): boolean {
+    const reads = this.projects.map((project) => project.analysis.reads());
+    return files.some(
+      (file) =>
+        this.#reopens(file, reads) || this.projects.some((_, i) => this.#stale(i, file, reads)),
+    );
+  }
+
+  /**
+   * Checks whether save or watch notifications need a new workspace, and invalidates each project
+   * that a change to a closed file can affect.
    *
    * @param files - File paths reported by the notification. Relative paths use the working directory.
-   * @returns False when a file is a configuration dependency, a tsconfig, or package.json. Otherwise
+   * @returns False when the workspace must reopen, which leaves projects unchanged. Otherwise
    * returns true. This method does not read disk or reopen projects.
    */
   refresh(files: readonly string[]): boolean {
-    if (
-      files.some(
-        (file) =>
-          this.#configurationDependencies.some((dependency) => sameFile(dependency, file)) ||
-          /(?:^|[/\\])(?:tsconfig(?:\.[^/\\]+)?\.json|package\.json)$/.test(file),
-      )
-    ) {
+    const reads = this.projects.map((project) => project.analysis.reads());
+    if (files.some((file) => this.#reopens(file, reads))) {
       return false;
     }
-    if (files.some((file) => ![...this.#openDocuments].some((open) => sameFile(open, file)))) {
-      this.invalidate();
+    for (const [index, project] of this.projects.entries()) {
+      if (files.some((file) => this.#stale(index, file, reads))) {
+        project.analysis.invalidate();
+      }
     }
     return true;
   }

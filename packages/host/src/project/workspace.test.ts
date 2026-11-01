@@ -32,9 +32,52 @@ test("saved and closed files retain the workspace while configuration files requ
     workspace.update(tsconfig, "{}", 1);
     expect(workspace.refresh([tsconfig])).toBe(false);
     workspace.closeDocument(entry);
-    const invalidate = vi.spyOn(workspace, "invalidate");
+    const invalidate = vi.spyOn(workspace.projects[0].analysis, "invalidate");
     expect(workspace.refresh([entry])).toBe(true);
     expect(invalidate).toHaveBeenCalledOnce();
+  } finally {
+    await workspace?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("file changes matter when analysis read the file or its scope contains the file", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-affects-"));
+  const config = path.join(root, "stillwind.config.json");
+  const css = path.join(root, "root.css");
+  const imported = path.join(root, "theme.css");
+  let workspace: AnalysisWorkspace | undefined;
+  try {
+    await writeFile(
+      config,
+      JSON.stringify({
+        projects: [
+          {
+            css: "root.css",
+            files: ["src/**/*.ts"],
+            typeFacts: false,
+          },
+        ],
+      }),
+    );
+    await writeFile(css, '@import "./theme.css";');
+    await writeFile(imported, "@utility red { color: red; }");
+    await mkdir(path.join(root, "src"));
+    await mkdir(path.join(root, "dist"));
+    const entry = path.join(root, "src/entry.ts");
+    await writeFile(entry, "export {};");
+    workspace = await AnalysisWorkspace.open(config);
+    workspace.update(entry, "export {};", 1);
+    await workspace.analyze(entry);
+
+    expect(workspace.affects([path.join(root, "dist/output.js")])).toBe(false);
+    expect(workspace.affects([path.join(root, "dist/output.css")])).toBe(false);
+    expect(workspace.affects([path.join(root, "dist/package.json")])).toBe(false);
+    expect(workspace.affects([entry])).toBe(false);
+
+    expect(workspace.affects([imported])).toBe(true);
+    expect(workspace.affects([path.join(root, "src/target/new.ts")])).toBe(true);
+    expect(workspace.affects([path.join(root, "package.json")])).toBe(true);
   } finally {
     await workspace?.close();
     await rm(root, { recursive: true, force: true });

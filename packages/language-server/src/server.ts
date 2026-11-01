@@ -549,7 +549,7 @@ export function createLanguageServer(
    * @throws If a service check or workspace replacement fails.
    */
   const refresh = async (uris: readonly string[]) => {
-    if (!workspaces.size) {
+    if (!workspaces.size || (errors.size && uris.some(isConfigurationUri))) {
       await open();
       return;
     }
@@ -564,12 +564,38 @@ export function createLanguageServer(
     control(() => refresh([document.uri]));
     schedule();
   });
-  connection.onDidChangeWatchedFiles(({ changes }) => {
-    const uris = changes.map((change) => change.uri).filter((uri) => !isGeneratedPath(uri, roots));
-    if (uris.length) {
-      control(() => refresh(uris));
-      schedule();
+  /**
+   * Decides whether watched changes need work. Starting that work cancels running analysis, so
+   * changes to unrelated files must not reach it.
+   *
+   * @param uris - Document URIs from the watch notification.
+   * @returns True for a configuration file while a service is missing or failed, and when a service
+   * reports that the changes affect it. A service without an `affects` check counts as affected.
+   * @throws If a service check fails.
+   */
+  const affected = async (uris: readonly string[]) => {
+    if ((!workspaces.size || errors.size) && uris.some(isConfigurationUri)) {
+      return true;
     }
+    for (const workspace of workspaces.values()) {
+      if ((await workspace.affects?.(uris)) ?? true) {
+        return true;
+      }
+    }
+    return false;
+  };
+  connection.onDidChangeWatchedFiles(({ changes }) => {
+    const uris = changes.map((change) => change.uri);
+    void affected(uris)
+      .then((result) => {
+        if (result) {
+          control(() => refresh(uris));
+          schedule();
+        }
+      })
+      .catch((error: unknown) => {
+        connection.console.error(String(error));
+      });
   });
   connection.onDidChangeConfiguration(({ settings }) => {
     control(async () => {
@@ -723,27 +749,13 @@ export function uriKey(uri: string): string {
 }
 
 /**
- * Recognizes files that package managers and build tools write in bursts. Reacting to them would
- * restart analysis before it finishes.
+ * Recognizes a Stillwind configuration file by name.
  *
- * @param uri - URI from a watch notification.
- * @param roots - Workspace directory URIs. Only path segments beneath a root count, so a workspace
- * inside a dot directory stays visible.
- * @returns Whether a directory beneath a root is `node_modules`, `target`, or a dot directory.
+ * @param uri - Document URI.
+ * @returns Whether the file name is `stillwind.config` with any extension.
  */
-export function isGeneratedPath(uri: string, roots: readonly string[]): boolean {
-  const root = roots.find((candidate) => uri.startsWith(`${candidate.replace(/\/$/, "")}/`));
-  return (
-    root !== undefined &&
-    uri
-      .slice(root.replace(/\/$/, "").length + 1)
-      .split("/")
-      .slice(0, -1)
-      .some(
-        (segment) =>
-          segment === "node_modules" || segment === "target" || /^\.|^%2E/i.test(segment),
-      )
-  );
+function isConfigurationUri(uri: string): boolean {
+  return /\/stillwind\.config\.[^/]+$/.test(uri);
 }
 
 /**

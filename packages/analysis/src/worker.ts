@@ -109,6 +109,9 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     case "refresh":
       return workspace.refresh(request.files);
 
+    case "affects":
+      return workspace.affects(request.files);
+
     case "close":
       await workspace.close();
       workspace = undefined;

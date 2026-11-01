@@ -79,6 +79,12 @@ export type WorkerRequest =
       files: readonly string[];
     }
   | {
+      /** Serialized discriminator for checking whether file changes can change results. */
+      method: "affects";
+      /** Absolute file paths reported by watch notifications. */
+      files: readonly string[];
+    }
+  | {
       /** Serialized discriminator for refreshing disk and compiler caches. */
       method: "invalidate";
     }

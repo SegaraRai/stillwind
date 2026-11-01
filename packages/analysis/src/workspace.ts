@@ -72,6 +72,14 @@ export interface AnalysisWorkspaceService {
    */
   refresh?(uris: readonly string[]): Promise<boolean>;
   /**
+   * Checks whether watched file changes can change this service's results, without changing state.
+   * Omission makes the server treat every change as relevant.
+   *
+   * @param uris - Document URIs or absolute virtual paths reported by the notification.
+   * @returns False when the server can ignore the changes and keep running analysis.
+   */
+  affects?(uris: readonly string[]): Promise<boolean>;
+  /**
    * Queries optional editor features against captured original documents.
    *
    * @param uri - Target document URI within a configured project.

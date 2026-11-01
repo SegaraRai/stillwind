@@ -119,6 +119,11 @@ async function openConfiguration(
           method: "refresh",
           files: uris.filter(accepts).map((uri) => fileURLToPath(uri)),
         }),
+      affects: (uris) =>
+        worker.request<boolean>({
+          method: "affects",
+          files: uris.filter(accepts).map((uri) => fileURLToPath(uri)),
+        }),
       prepare: async (uris, signal) => {
         if (!signal?.aborted) {
           await worker.request({

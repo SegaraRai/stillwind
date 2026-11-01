@@ -55,6 +55,11 @@ export class CompilationProject {
     return this.#sources.get(sourceKey(id))?.source;
   }
 
+  /** Returns the normalized identities of the prepared sources, as {@link sourceKey} defines them. */
+  sourceKeys(): string[] {
+    return [...this.#sources.keys()];
+  }
+
   /** Returns the prepared documents' original text so plugins can find candidates together. */
   texts(): string[] {
     return [...this.#sources.values()].map((record) => record.source.document.code);

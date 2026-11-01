@@ -111,6 +111,64 @@ test.each([
   }
 });
 
+test("watched changes that no service reads keep the running services open", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const openWorkspaces = vi.fn(async () => ({
+    workspaces: new Map([
+      [
+        "root",
+        {
+          ...coveringService([]),
+          affects: async ([uri]: readonly string[]) => uri.endsWith("read.ts"),
+          refresh: async () => false,
+        } satisfies AnalysisWorkspaceService,
+      ],
+    ]),
+  }));
+  const service = createLanguageServer(server, {
+    openWorkspaces,
+  });
+  server.listen();
+  client.listen();
+  /**
+   * Reports a change to one file and waits for the server to handle it.
+   *
+   * @param uri - Changed file.
+   */
+  const change = async (uri: string) => {
+    await client.sendNotification("workspace/didChangeWatchedFiles", {
+      changes: [
+        {
+          uri,
+          type: 2,
+        },
+      ],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await service.ready();
+  };
+  try {
+    await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    await client.sendNotification("initialized", {});
+    await change("file:///workspace/dist/output.js");
+    expect(openWorkspaces).toHaveBeenCalledOnce();
+    await change("file:///workspace/src/read.ts");
+    expect(openWorkspaces).toHaveBeenCalledTimes(2);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
+
 test("reports for another spelling of an open document stay on that document", async () => {
   const input = new PassThrough();
   const output = new PassThrough();
