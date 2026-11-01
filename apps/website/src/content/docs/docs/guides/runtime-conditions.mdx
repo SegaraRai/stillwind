@@ -1,0 +1,190 @@
+---
+title: Runtime conditions
+description: Change utilities and values with a custom property, without changing the classes of an element.
+slug: docs/guides/runtime-conditions
+---
+
+A runtime condition reads a CSS custom property when the browser computes styles.
+The class list of an element stays the same when the property changes, and the
+property reaches descendants through ordinary CSS inheritance.
+
+<Aside type="caution" title="Experimental">
+
+Runtime conditions can change between releases. The `if()` variant needs a browser
+that supports the CSS keyword `revert-rule`, which became Baseline in 2026. Check
+[Browser support](#browser-support) before you use it.
+
+</Aside>
+
+## Write a condition
+
+Stillwind has two forms:
+
+- The `if()` variant applies a utility when the condition holds.
+- The `--if()` function chooses between two values. It takes a condition, the
+  value for a true condition, and the value for a false condition.
+
+```tsx
+import { style } from "stillwind/react";
+
+export function Sidebar({ compact }: { compact: boolean }) {
+  return (
+    <aside {...style("block w-[--if(--compact,4rem,16rem)]", { "--compact": compact })}>
+      <span {...style("if(--compact):hidden")}>Projects</span>
+    </aside>
+  );
+}
+```
+
+`style()` writes `--compact` on the `<aside>`, and both elements read it. Neither
+element needs a second set of classes for the compact state.
+
+## Choose an approach
+
+[Style states](/docs/guides/style#style-states) shows the two approaches that most
+states need:
+
+- When an attribute represents the state, such as `disabled` or `aria-expanded`,
+  use a variant of that attribute.
+- When one element changes and your component knows the state, pass a JavaScript
+  condition to `style()`.
+
+Use a runtime condition when a state must reach several elements through CSS.
+
+## Set the custom property
+
+A condition without a comparison tests a boolean custom property. Pass a boolean in
+`style()`, as in the first example. `true` becomes one space, and `false` becomes
+`initial`. A custom property that no element sets is false.
+
+In a stylesheet, write the same values yourself:
+
+```css
+.compact {
+  --compact: ;
+}
+
+.wide {
+  --compact: initial;
+}
+```
+
+Other values do not work as booleans. For example, `"true"` and `1` produce invalid
+CSS without `useCssIf`. Do not register a boolean custom property with `@property`,
+because the registration changes its initial value.
+
+The browser evaluates the condition on the styled element. To test the state of
+another element, pass that state down with the custom property. A condition inside a
+[ref](/docs/macros/ref) wrapper is rejected, so write `if()` outside the wrapper.
+
+## Combine conditions
+
+Variants combine as usual. Repeated `if()` variants must all hold:
+
+```tsx
+style("if(--compact):if(--docked):hidden hover:if(--compact):w-64");
+```
+
+`--if()` can stand inside another `--if()` and inside a CSS function:
+
+```tsx
+style("w-[--if(--a,--if(--b,30px,20px),10px)] h-[calc(--if(--wide,20,10)*1px)]");
+```
+
+Each branch must suit the utility. When a utility accepts several types, name the
+type as with other arbitrary values, such as
+`bg-[image:--if(--on,var(--image),none)]`.
+
+## Use conditions in CSS
+
+The same forms work in your stylesheet:
+
+```css
+.panel {
+  width: --if(--compact, 4rem, 16rem);
+
+  @apply grid if(--compact):flex;
+
+  @variant if(--docked) {
+    position: sticky;
+  }
+}
+```
+
+Put braces around a branch that contains a top-level comma:
+
+```css
+.title {
+  font-family: --if(--brand, {Arial, sans-serif}, serif);
+}
+```
+
+## Enable native CSS if()
+
+By default, the compiler expresses conditions with `var()`. The `useCssIf` option
+makes it write the native CSS `if()` function instead, for values and variants:
+
+```ts title="stillwind.config.ts"
+import { defineConfig } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx}"],
+      useCssIf: true,
+    },
+  ],
+});
+```
+
+Set this option only when the browsers that you support implement CSS `if()`. These
+forms work only with it:
+
+| Form                                       | Example                              |
+| ------------------------------------------ | ------------------------------------ |
+| Negated variant                            | `if(!--compact):flex`                |
+| Comparison with a value                    | `if(--mode:compact):flex`            |
+| Comparison in `--if()`                     | `w-[--if(--mode:compact,20px,10px)]` |
+| CSS-wide keyword for a set custom property | `w-[--if(--compact,inherit,10px)]`   |
+
+<Aside type="note" title="Negated values work without this option">
+
+The compiler swaps the branches of a negated `--if()`, so `--if(!--a,x,y)` does not
+need `useCssIf`. The restriction on CSS-wide keywords then applies to `y`.
+
+</Aside>
+
+A comparison follows the rules of CSS style queries, including any `@property`
+registration of the custom property. A comparison value can contain a comma only
+inside a CSS function or a quoted string.
+
+The compiler leaves out a utility that it cannot express. Then
+[runtime-condition-requires-css-if](/docs/lints/runtime-condition-requires-css-if)
+reports the utility. In a stylesheet,
+[invalid-runtime-condition](/docs/lints/invalid-runtime-condition) reports the
+declaration. A malformed condition reports
+[invalid-variant](/docs/lints/invalid-variant) or
+[invalid-utility](/docs/lints/invalid-utility).
+
+## Browser support
+
+The `if()` variant needs `revert-rule`, with or without `useCssIf`. These versions
+are the first to support it:
+
+| Browser      | Version |
+| ------------ | ------- |
+| Chrome, Edge | 148     |
+| Firefox      | 150     |
+| Safari       | 27      |
+
+The compiler wraps the rule of the variant in `@supports (x:revert-rule)`. An older
+browser skips the rule, and the styles without the variant stay. For example,
+`grid if(--compact):flex` stays `grid` there. Make sure that these styles are usable.
+
+`--if()` does not need `revert-rule`, unless a branch contains it. Without `useCssIf`,
+it also works in browsers without CSS `if()`.
+
+A custom CSS minifier must keep these `@supports` rules separate. Each rule has a
+generated custom property in its condition, such as `(--iphw2:)`, and merging rules
+with different conditions can remove styles from the page.

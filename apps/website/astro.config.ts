@@ -40,6 +40,7 @@ export default defineConfig({
                 "docs/guides/style",
                 "docs/guides/reusable-styles",
                 "docs/guides/responsive-styles",
+                "docs/guides/runtime-conditions",
                 "docs/guides/animations",
                 "docs/guides/view-transitions",
                 "docs/guides/recommended-practices",

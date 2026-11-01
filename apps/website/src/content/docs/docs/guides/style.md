@@ -152,7 +152,8 @@ export function Progress({ value }: { value: number }) {
 ```
 
 The utility `w-(--progress)` stays the same, so its CSS is generated at build
-time. Only the value of `--progress` changes at runtime.
+time. Only the value of `--progress` changes at runtime. To change utilities with
+a custom property, see [Runtime conditions](/docs/guides/runtime-conditions).
 
 ## Add classes from other stylesheets
 

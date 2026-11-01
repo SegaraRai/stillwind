@@ -110,7 +110,7 @@ Paths in `css`, `files`, `exclude`, and `tsconfig` are relative to `root`.
 | `tailwind`     | A Tailwind configuration object; see [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind#move-configuration) |
 | `plugins`      | Plugin objects for the `@plugin` rules of your stylesheet                                                                   |
 | `rootFontSize` | Pixels per `rem`, used by lint fixes and editor previews; defaults to 16                                                    |
-| `useCssIf`     | `true` lets runtime CSS conditions use the native CSS `if()` function; defaults to `false`                                  |
+| `useCssIf`     | `true` lets [runtime conditions](/docs/guides/runtime-conditions) use the native CSS `if()` function; defaults to `false`   |
 
 ### Generated names
 
