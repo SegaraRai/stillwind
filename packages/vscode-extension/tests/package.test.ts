@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -16,6 +17,27 @@ test("packaged extension contains its CSS custom data", async () => {
       name: "@utility",
     });
   }
+});
+
+test("packaged desktop server resolves framework compilers", () => {
+  const require = createRequire(
+    resolve(
+      import.meta.dirname,
+      "../dist/desktop/dist/node/node_modules/@stillwind/projection/package.json",
+    ),
+  );
+  for (const name of [
+    "@astrojs/compiler",
+    "@vue/compiler-dom",
+    "@vue/compiler-sfc",
+    "@vue/language-core",
+    "svelte/compiler",
+    "svelte2tsx",
+    "typescript",
+  ]) {
+    expect(require.resolve(name)).toContain(join("dist", "desktop"));
+  }
+  expect(require("@vue/language-core")).toHaveProperty("createVueLanguagePlugin");
 });
 
 test.each([

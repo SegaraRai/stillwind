@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { cp, mkdir, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -118,6 +119,27 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
       "@stillwind/language-server",
       copied,
     );
+    // The projection package declares its framework compilers as optional peers, which the copied
+    // dependency closure omits. A project's own installation is not visible from the extension.
+    const projection = path.resolve(root, "../projection");
+    const { peerDependencies } = JSON.parse(
+      await readFile(path.join(projection, "package.json"), "utf8"),
+    ) as { peerDependencies: Record<string, string> };
+    for (const name of Object.keys(peerDependencies)) {
+      await copyDependencies(
+        await dependencyDirectory(projection, name),
+        path.join(stage, "dist/node"),
+        name,
+        copied,
+      );
+    }
+    // svelte2tsx imports `typescript` as a peer and needs the JavaScript API of TypeScript 6.
+    await copyDependencies(
+      path.dirname(typescriptLibrary),
+      path.join(stage, "dist/node"),
+      "typescript",
+      copied,
+    );
     // Some copied dependencies have no license files, so the desktop package lists
     // the npm packages among them as well. Workspace packages are covered by LICENSE.
     const installed = [...copied.values()].filter((directory) =>
@@ -184,6 +206,8 @@ async function copyDependencies(
         return false;
       }
       return (
+        // A glob such as `lib/**/*.js` can select files at any depth beneath a directory.
+        statSync(file).isDirectory() ||
         /^(package\.json|readme|license)/i.test(first) ||
         isPublished(relative.split(path.sep).join("/"), manifest.files)
       );
@@ -214,11 +238,11 @@ async function copyDependencies(
 }
 
 /**
- * Returns whether npm would publish a package path according to the `files` field.
+ * Returns whether npm would publish a file according to the `files` field.
  *
- * @param relative Path that is relative to the package root and uses `/` separators.
+ * @param relative File path that is relative to the package root and uses `/` separators.
  * @param files Patterns from the `files` field. A package without this field publishes every path.
- * @returns `true` for a published path and for a directory that contains a positive pattern's path.
+ * @returns `true` for a published file.
  */
 function isPublished(relative: string, files: string[] | undefined): boolean {
   if (!files) {
@@ -228,10 +252,8 @@ function isPublished(relative: string, files: string[] | undefined): boolean {
   const matches = (pattern: string) =>
     path.posix.matchesGlob(relative, pattern) || path.posix.matchesGlob(relative, `${pattern}/**`);
   return (
-    patterns.some(
-      (pattern, index) =>
-        !files[index].startsWith("!") && (matches(pattern) || pattern.startsWith(`${relative}/`)),
-    ) && !patterns.some((pattern, index) => files[index].startsWith("!") && matches(pattern))
+    patterns.some((pattern, index) => !files[index].startsWith("!") && matches(pattern)) &&
+    !patterns.some((pattern, index) => files[index].startsWith("!") && matches(pattern))
   );
 }
 
