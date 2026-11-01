@@ -7,7 +7,11 @@ slug: docs/guides/tailwind-compatibility
 Stillwind supports the utilities, variants, theme, CSS directives, and plugins of
 Tailwind CSS v4. To move a project, follow
 [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind). This page
-lists what works, how Stillwind checks it, and where Stillwind differs.
+lists what works, how Stillwind checks it, what Stillwind adds, and where it differs.
+
+For the usage of Tailwind features, see the
+[Tailwind CSS documentation](https://tailwindcss.com/docs). To check the CSS of a
+utility or variant, use [Built-in utilities and variants](/docs/utilities-and-variants).
 
 ## What works
 
@@ -87,6 +91,20 @@ A plugin can select an element by a fixed class name. For example, the rules of
 `class` attribute, so `style("not-prose")` adds the class `not-prose`. The class
 keeps its name only without variants, so
 [invalid-marker-use](/docs/lints/invalid-marker-use) reports `hover:not-prose`.
+
+## What Stillwind adds
+
+These features have no equivalent in Tailwind CSS:
+
+| Feature                                 | Page                                                                        |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| `if()` variant and `--if()` function    | [Runtime conditions](/docs/guides/runtime-conditions)                       |
+| `host:` variant                         | [Style the shadow host](/docs/guides/web-components#style-the-shadow-host)  |
+| Keyframes defined in a component        | [Animations](/docs/guides/animations)                                       |
+| View transitions defined in a component | [View transitions](/docs/guides/view-transitions)                           |
+| Refs to other elements                  | [Element relationships](/docs/guides/element-relationships)                 |
+| Logical properties for axis utilities   | [Logical axis utilities](/docs/concepts/stylesheets#logical-axis-utilities) |
+| Lint rules                              | [Checks in the editor and CI](/docs/guides/lint-adoption)                   |
 
 ## What Stillwind does not support
 
