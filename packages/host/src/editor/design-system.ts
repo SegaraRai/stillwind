@@ -55,6 +55,11 @@ export interface DesignCandidate {
   css: string;
   /** Closest valid spelling of an invalid name. Absent when no spelling is close enough. */
   suggestion?: string;
+  /**
+   * Canonical spelling of a valid exact candidate. Absent for a canonical name, for a name without
+   * a replacement that produces the same CSS, and for a pattern match.
+   */
+  canonical?: string;
 }
 
 /**
@@ -180,6 +185,26 @@ function describe(
 }
 
 /**
+ * Returns the canonical spelling of a valid candidate under the lint options of the project.
+ *
+ * @param query - Query that contains the definitions of the plugin candidates in the request.
+ * @param name - Decoded candidate, or a variant name without its trailing colon.
+ * @param kind - Selects utility or variant spelling.
+ * @returns The spelling, or undefined when `name` has no different canonical spelling.
+ * @throws If a matching utility definition is malformed.
+ */
+function canonicalSpelling(
+  query: NativeEditorQuery,
+  name: string,
+  kind: "utilities" | "variants",
+): string | undefined {
+  // A variant resolves only with a utility, which the spelling must not keep.
+  return kind === "variants"
+    ? query.canonicalCandidate(`${name}:flex`)?.replace(/:flex$/, "")
+    : (query.canonicalCandidate(name) ?? undefined);
+}
+
+/**
  * Answers a utility or variant request.
  *
  * @param context - Loaded design system.
@@ -196,7 +221,10 @@ async function candidates(
   const catalog = new CandidateQueries(context.query);
   const targets = request.targets.length ? request.targets : ["*"];
   const exact = targets.filter((target) => !isPattern(target));
-  const patterns: { target: string; names: string[] }[] = [];
+  const patterns: {
+    target: string;
+    names: string[];
+  }[] = [];
   for (const target of targets.filter(isPattern)) {
     const expression = patternExpression(target);
     const prefix = segments(target, "*")[0];
@@ -211,7 +239,10 @@ async function candidates(
         ? [name]
         : [];
     });
-    patterns.push({ target, names: [...new Set(names)].sort() });
+    patterns.push({
+      target,
+      names: [...new Set(names)].sort(),
+    });
   }
 
   // Each plugin load rebuilds the design system, so one load covers every name of the request.
@@ -245,8 +276,16 @@ async function candidates(
       unmatched.push(target);
     }
   }
-  const named = exact.map((name) => describe(query, queries, context.annotations, name, kind));
-  return { tokens: [], candidates: [...named, ...listed], unmatched };
+  const named = exact.map((name) => {
+    const candidate = describe(query, queries, context.annotations, name, kind);
+    const canonical = candidate.valid ? canonicalSpelling(query, name, kind) : undefined;
+    return canonical ? { ...candidate, canonical } : candidate;
+  });
+  return {
+    tokens: [],
+    candidates: [...named, ...listed],
+    unmatched,
+  };
 }
 
 /**

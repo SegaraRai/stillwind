@@ -57,3 +57,15 @@ when the name is unknown.
 A `*` pattern searches names only. It omits numeric and arbitrary values, so
 `p-*` does not list `p-4`, and you check `p-4` with its exact name. The commands
 do not search CSS, so `stillwind variants ':hover'` reports an unknown variant.
+
+To find the utility for a CSS declaration, write the declaration as an arbitrary
+property. Variants can precede it:
+
+```sh
+vp exec stillwind utilities '[padding:16px]' '[&:focus]:[display:flex]'
+```
+
+The output names the canonical spellings, `p-4` and `focus:flex`. You can also
+write arbitrary properties in your source and run `stillwind lint --fix`, which
+replaces them with the same spellings. An arbitrary property that stays has no
+equivalent utility.

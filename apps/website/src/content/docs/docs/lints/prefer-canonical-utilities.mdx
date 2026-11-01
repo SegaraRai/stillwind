@@ -4,10 +4,13 @@ description: Suggests standard utility spellings and combines equivalent utiliti
 slug: docs/lints/prefer-canonical-utilities
 ---
 
-This rule suggests standard spellings, such as `px-4` for `px-[16px]`. It also
-removes unnecessary spaces from arbitrary values, simplifies variants and modifiers,
-and replaces legacy Tailwind spellings. Suggestions use your active theme and custom
-definitions.
+This rule suggests standard spellings, such as `px-4` for `px-[16px]` and `p-4` for
+`[padding:16px]`. It also removes unnecessary spaces from arbitrary values, simplifies
+variants and modifiers, and replaces legacy Tailwind spellings. Suggestions use your
+active theme and custom definitions.
+
+The rule also finds the utility for CSS that you know. Write the declaration as an
+arbitrary property, and let `stillwind lint --fix` replace it.
 
 Within one string or one CSS `@apply` statement, it can combine utilities such as
 `w-4 h-4` into `size-4`. Utilities must have the same variants and importance.

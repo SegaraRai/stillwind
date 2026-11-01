@@ -53,7 +53,9 @@ next steps.
    CSS project, leave out the preflight reset until the old CSS is gone, as
    `docs/guides/migrating-from-css.md` describes.
 2. Migrate in batches, such as one directory or one group of components. After
-   each batch, build the project and run `stillwind lint`.
+   each batch, build the project and run `stillwind lint`. To move a CSS
+   declaration, write it as an arbitrary property, such as `[padding:16px]`, and
+   run `stillwind lint --fix`, which replaces it when an equivalent utility exists.
 3. For many mechanical changes, you can write a one-off codemod for this
    project. Keep it outside the source directories, review its diff, and delete
    it afterward.

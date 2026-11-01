@@ -110,6 +110,30 @@ test("theme, utilities, and variants read the design system without source files
       },
     ]);
 
+    const canonical = await json(root, [
+      "utilities",
+      "[padding:16px]",
+      "[&:focus]:[display:flex]",
+      "[hyphens:manual]",
+      "p-4",
+    ]);
+    expect(canonical.code).toBe(0);
+    expect(canonical.result.candidates.map(({ canonical }) => canonical)).toEqual([
+      "p-4",
+      "focus:flex",
+      undefined,
+      undefined,
+    ]);
+    expect(canonical.result.candidates[0].css).toContain("padding: 16px");
+    expect(
+      (await json(root, ["variants", "[&:focus]", "[&:hover]"])).result.candidates.map(
+        ({ canonical }) => canonical,
+      ),
+    ).toEqual(["focus", undefined]);
+    expect((await run(root, ["utilities", "[padding:16px]", "--color", "never"])).stdout).toContain(
+      "help: The canonical spelling is p-4.",
+    );
+
     const search = await json(root, ["utilities", "bg-acc*", "*-panel"]);
     expect(search.code).toBe(0);
     expect(search.result.candidates.map(({ name }) => name)).toEqual(

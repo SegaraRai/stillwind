@@ -157,7 +157,9 @@ vp exec stillwind utilities 'bg-*' '*-panel'
 `utilities` shows the CSS of each utility. It reads no source files.
 
 An argument without `*` is an exact check, and it can include variants, numeric values, and
-arbitrary values. An unknown name shows the closest spelling when one is close enough.
+arbitrary values. An unknown name shows the closest spelling when one is close enough. A valid
+name also shows its canonical spelling when a different spelling produces the same CSS, so
+`[padding:16px]` shows `p-4`. The `canonical` field of the JSON output contains that spelling.
 
 An argument with `*` searches the names that editors complete, and a `*` inside brackets or
 parentheses does not count. **A search omits numeric and arbitrary values.** For example,

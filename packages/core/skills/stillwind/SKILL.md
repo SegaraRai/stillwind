@@ -50,6 +50,11 @@ Markdown version of each page.
 - Run `stillwind utilities <name>` to check a utility before you use it, such as
   `stillwind utilities p-4 hover:bg-accent`. A `*` pattern searches names, but it omits
   numeric and arbitrary values. `stillwind variants` works in the same way.
+- When you know the CSS but not the utility, pass the declaration as an arbitrary property,
+  such as `stillwind utilities '[padding:16px]' '[&:focus]:[display:flex]'`, and use the
+  canonical spelling that the output names. An arbitrary property in the source is only an
+  intermediate step, which `stillwind lint --fix` also replaces. When no canonical spelling
+  exists, the declaration has no equivalent utility.
 - Write custom utilities with `@apply` and variants, not with hand-written selectors or
   media queries.
 - After you change styles, run `stillwind lint --fix` and `stillwind fmt` through the

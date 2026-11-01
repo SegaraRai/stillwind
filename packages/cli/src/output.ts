@@ -215,7 +215,7 @@ export function renderResult(
       `${clean(name)}: ${clean(value)}${source === "default" ? " (default)" : ""}${tag(project)}`,
     );
   }
-  for (const { project, name, kind, valid, css, suggestion } of result.candidates) {
+  for (const { project, name, kind, valid, css, suggestion, canonical } of result.candidates) {
     if (valid) {
       lines.push(`${clean(name)}${kind === "marker" ? " (marker)" : ""}${tag(project)}`);
       lines.push(
@@ -224,6 +224,9 @@ export function renderResult(
           .split("\n")
           .map((line) => (line ? `  ${line}` : "")),
       );
+      if (canonical) {
+        lines.push(`  help: The canonical spelling is ${clean(canonical)}.`);
+      }
     } else {
       lines.push(`${clean(name)}${tag(project)}: ${paint(`unknown ${kind}`, "red", color)}`);
       if (suggestion) {
