@@ -201,6 +201,35 @@ the `css` string from `stillwind/module-css`, or create a stylesheet from it wit
 `CSSStyleSheet.replaceSync()`. The [style.css() reference](/docs/macros/css)
 describes variants that choose their own element and the `template` option.
 
+## Style the shadow host
+
+`host:` styles the shadow host with the `:host` selector. Use it in `style.css()` to
+style the host and the elements of `selector` in one stylesheet:
+
+```ts
+import { style } from "stillwind/vanilla";
+
+export const buttonCss = style.css("p-4 host:block host:hover:bg-gray-100", {
+  selector: "button",
+});
+```
+
+`p-4` styles `button`, and the other utilities style the host.
+
+Inside its shadow tree, the host matches only `:host`, `:host()`, and
+`:host-context()`. For this reason, the compiler moves conditions on the host into
+`:host()`. `host:hover:` generates `:host(:hover)`, `hover:` with
+`selector: ":host(.active)"` generates `:host(.active:hover)`, and `@apply hover:flex`
+inside `:host` generates `&:host(:hover)`.
+
+A selector in a shadow tree cannot read the elements around the host, so `host:in-*:`
+and `host:group-*:` cannot match.
+[unmatched-host-selector](/docs/lints/unmatched-host-selector) reports them.
+
+In `style()`, `host:` does not select the element that receives the classes. The
+rule applies to the host of every shadow root that contains the CSS, and
+[document-scoped-selector](/docs/lints/document-scoped-selector) reports it.
+
 ## Constraints
 
 - The CSS of a module contains only the styles of that module and the styles

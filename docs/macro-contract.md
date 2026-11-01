@@ -973,7 +973,7 @@ asterisks are literal. Ordinary CSS overrides keep their normal registry precede
 ## Variant targets
 
 Variants apply from left to right, and the leftmost variant is the outermost one, as in
-CSS Nesting: `host:hover:flex` selects `:host:hover`. While variants apply, `&` refers
+CSS Nesting: `dark:hover:flex` puts `:hover` inside the `dark` condition. While variants apply, `&` refers
 to the element that is selected so far. This element is the anchor. In `style()`, the
 anchor starts as the generated class. In `@apply`, it starts as the selector of the
 authored rule. A document-level style, which `style.css()` creates, starts without an
@@ -988,6 +988,29 @@ variant applies relative to it.
 | A custom variant without `&`, such as `(:hover)`            | `& :hover`, which styles descendants                  | Invalid                         |
 | `not-*`                                                     | A condition on the anchor                             | Invalid                         |
 | At-rule variants, such as `sm:`, `dark:`, and `supports-*:` | Unaffected                                            | Unaffected                      |
+
+Inside its shadow tree, a host matches only `:host`, `:host()`, and `:host-context()`.
+The compiler therefore moves the conditions of a compound that selects a host into
+`:host()` after all steps apply. This depends on the composed selector, so `host:hover:`,
+`[:host(.a)]:hover:`, and `hover:` with `selector: ":host"` behave the same:
+
+| Composed selector         | Output                           |
+| ------------------------- | -------------------------------- |
+| `:host:hover`             | `:host(:hover)`                  |
+| `:host(.a):hover`         | `:host(.a:hover)`                |
+| `:host:hover::before`     | `:host(:hover)::before`          |
+| `:host:hover > *`         | `:host(:hover) > *`              |
+| `:host-context(.a):hover` | `:host-context(.a):host(:hover)` |
+
+Specificity does not change. A nested rule cannot name its parent, so `@apply`,
+`@variant`, and authored nested rules under a host become `&:host(:hover)`. A top-level
+authored rule stays as written. A selector list stays as written after `:is()` wraps it,
+so `selector: ":host, .a"` keeps `:is(:host, .a):hover`.
+
+A selector in a shadow tree cannot read the elements around its host. A compound before
+the host, as `host:in-[.page]:` produces, and a complex selector in `:is()` or `:where()`
+inside `:host()`, as `host:group-hover:` produces, cannot match.
+`unmatched-host-selector` reports these variant stacks.
 
 The package's `host:` variant selects `:host`. A definition declares that its selectors
 without `&` select a document-level element. `@stillwind-variant` uses

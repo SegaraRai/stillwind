@@ -838,3 +838,30 @@ fn variant_wrappers_are_equivalent_to_prefixed_utility_lists() {
         assert_eq!(classes(&code), classes(&flat_code), "{wrapped}");
     }
 }
+
+#[test]
+fn rules_nested_under_the_shadow_host_test_it_through_the_functional_pseudo_class() {
+    let source = css_source(
+        FileId(2),
+        r"
+        @import 'stillwind';
+        :host { @apply hover:flex; }
+        :host(.a) { @variant focus { color: red; @variant before { color: blue; } } }
+        .plain { @apply hover:flex; }
+    ",
+    )
+    .unwrap();
+    let css = Compiler::render_stylesheet(
+        &source,
+        &CssSourceName::from("test.css"),
+        "",
+        &CompilerOptions::default(),
+    )
+    .unwrap();
+    assert!(css.contains("&:host(:hover)"), "{css}");
+    assert!(css.contains("&:host(:focus)"), "{css}");
+    assert!(css.contains("&::before"), "{css}");
+    assert!(!css.contains(":host { &:hover"), "{css}");
+    let plain = &css[css.find(".plain").unwrap()..];
+    assert!(plain.contains("&:hover"), "{css}");
+}

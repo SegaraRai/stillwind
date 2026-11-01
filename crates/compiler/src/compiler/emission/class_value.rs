@@ -18,7 +18,7 @@ use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmissionPart};
 use super::super::style_variants::{StyleVariantPlan, parse_prefix};
 use super::super::utilities::check_variant;
-use super::super::variants::document_scoped_selector;
+use super::super::variants::{document_scoped_selector, unmatched_host_selector};
 use super::{CallEmitter, PendingRegion};
 use crate::editor_lint::literal_boundaries;
 use crate::generated::js_string;
@@ -37,6 +37,16 @@ impl CallEmitter<'_> {
         };
         for prefix in prefixes {
             if let Some(variants) = parse_prefix(prefix) {
+                if self
+                    .lint_settings
+                    .enabled_for_detection(LintKind::UnmatchedHostSelector)
+                    && let Some(selector) = unmatched_host_selector(&variants, self.theme)
+                {
+                    self.lint_findings.push(LintFinding::new(
+                        LintDiagnostic::UnmatchedHostSelector { selector },
+                        prefix.span,
+                    ));
+                }
                 let boundaries = literal_boundaries(self.source, prefix);
                 let mut offset = 0;
                 for variant in variants {

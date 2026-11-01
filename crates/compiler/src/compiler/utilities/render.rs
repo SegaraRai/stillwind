@@ -10,7 +10,8 @@
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, instantiate_selector, selector_list_branches, selector_uses_subject,
+    append_element_condition, fold_host_conditions, instantiate_selector, selector_list_branches,
+    selector_uses_subject,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
@@ -209,6 +210,7 @@ fn render_utility_steps(
     if let Some(template) = utility.selector.as_deref() {
         selector = instantiate_selector(template, &selector);
     }
+    let selector = fold_host_conditions(&selector);
     let conditional = !conditions.is_empty();
     // Every conditional guards the body the previous one produced, and the gate declarations a
     // pass writes are part of that body, so the names only have to survive this rule's own steps.

@@ -358,14 +358,15 @@ mod tests {
         for (candidate, expected) in [
             (
                 "host:hover:flex",
-                "@media (hover: hover){:host:hover{display:flex;}}",
+                "@media (hover: hover){:host(:hover){display:flex;}}",
             ),
-            ("host:[:hover]:flex", ":host:is(:hover){display:flex;}"),
+            ("host:[:hover]:flex", ":host(:is(:hover)){display:flex;}"),
             ("host:hv:flex", ":host :hover{display:flex;}"),
             (
                 "host:not-hover:flex",
-                ":host:not(:hover){display:flex;}@media not (hover: hover){:host{display:flex;}}",
+                ":host(:not(:hover)){display:flex;}@media not (hover: hover){:host{display:flex;}}",
             ),
+            ("host:focus:*:flex", ":is(:host(:focus) > *){display:flex;}"),
             ("[:hover,:focus]:flex", ":hover,:focus{display:flex;}"),
             (
                 "[:hover,:focus]:[&_.x]:flex",

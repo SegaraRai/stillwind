@@ -496,6 +496,15 @@ pub enum LintDiagnostic {
         /// Resolved selector that contains the repeated `&`.
         selector: LeanStr,
     },
+    /// A variant stack tests a shadow host in a way that no browser can match, because
+    /// a selector inside a shadow tree cannot read the elements around its host.
+    #[error(
+        "`{selector}` cannot match the shadow host; pass the state down with a custom property"
+    )]
+    UnmatchedHostSelector {
+        /// Resolved selector that cannot match.
+        selector: LeanStr,
+    },
     /// A style call marks participants with a transition class but names none.
     #[error(
         "a view transition class without a name does not participate; add .for(key) or declare view-transition-name"
@@ -907,6 +916,7 @@ impl LintDiagnostic {
             Self::TailwindRelationshipUtility { .. } => LintKind::PreferTypedRelationships,
             Self::DocumentScopedSelector { .. } => LintKind::DocumentScopedSelector,
             Self::RepeatedNestingSelector { .. } => LintKind::RepeatedNestingSelector,
+            Self::UnmatchedHostSelector { .. } => LintKind::UnmatchedHostSelector,
             Self::MissingViewTransitionName => LintKind::MissingViewTransitionName,
             Self::DuplicateViewTransitionName { .. } => LintKind::DuplicateViewTransitionName,
             Self::SplitViewTransitionClass => LintKind::SplitViewTransitionClass,

@@ -94,10 +94,11 @@ pub use parser::{
 };
 pub use resources::{CssUrl, relative_css_urls};
 pub use selectors::{
-    SelectorTarget, absolutize_nested_selector, append_element_condition,
-    implicit_nesting_positions, instantiate_selector, selector_class_names,
-    selector_is_element_condition, selector_is_subject_condition, selector_is_valid,
-    selector_list_branches, selector_repeats_subject, selector_target, selector_uses_subject,
+    SelectorTarget, absolutize_nested_selector, append_element_condition, fold_host_conditions,
+    fold_nested_host_conditions, implicit_nesting_positions, instantiate_selector,
+    selector_cannot_match_host, selector_class_names, selector_is_element_condition,
+    selector_is_subject_condition, selector_is_valid, selector_list_branches,
+    selector_repeats_subject, selector_selects_host, selector_target, selector_uses_subject,
     subject_as_universal, subject_compound_parts,
 };
 pub use structure::{CssBlock, CssNode, CssNodeKind, parse_structure};

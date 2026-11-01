@@ -9,9 +9,9 @@ use std::collections::BTreeSet;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    SelectorTarget, append_element_condition, arbitrary_value_flags, declaration_is_physical,
-    inspect_css_value, instantiate_selector, media_has_size_comparison, policy_glob_matches,
-    property_covers, property_value_domains, selector_target,
+    SelectorTarget, arbitrary_value_flags, declaration_is_physical, inspect_css_value,
+    media_has_size_comparison, policy_glob_matches, property_covers, property_value_domains,
+    selector_target,
 };
 use stillwind_design_system::{
     ThemeIndex, UtilityDeclaration, VariantApplication, VariantContext, VariantValueSource,
@@ -24,7 +24,7 @@ use stillwind_source::{FileId, JoinText, Span};
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::emission::collect_declarations;
-use super::super::variants::{VariantStep, variant_paths};
+use super::super::variants::{VariantStep, path_selector, variant_paths};
 use super::declaration_order::prepend_missing_declarations;
 use super::resolve::{CompiledUtility, resolve_utility_targets};
 use crate::style_analysis::{DeclarationValue, SupplyKind};
@@ -744,33 +744,7 @@ fn variant_other_target(utility: &CompiledUtility, theme: &ThemeIndex) -> Option
         .iter()
         .flat_map(|applications: &Vec<VariantApplication>| variant_paths(applications))
         .find_map(|path| {
-            let mut selector = "&".to_lean_string();
-            for step in path {
-                match step {
-                    VariantStep::SelectorSuffix(suffix) => {
-                        selector.push_str(suffix);
-                    }
-                    VariantStep::SelectorTemplate(template)
-                    | VariantStep::BareSelector {
-                        selector: template, ..
-                    }
-                    | VariantStep::SelectorRule {
-                        selector: template, ..
-                    }
-                    | VariantStep::SelectorMedia {
-                        selector: template, ..
-                    }
-                    | VariantStep::SelectorMediaRule {
-                        selector: template, ..
-                    } => {
-                        selector = instantiate_selector(template, &selector);
-                    }
-                    VariantStep::SelectorCondition(condition) => {
-                        selector = append_element_condition(&selector, condition);
-                    }
-                    _ => {}
-                }
-            }
+            let selector = path_selector(&path);
             (selector_target(&selector) == SelectorTarget::Other).then_some(selector)
         })
 }

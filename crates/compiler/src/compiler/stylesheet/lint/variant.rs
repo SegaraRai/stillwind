@@ -17,7 +17,7 @@ use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::authored_directives::{parse_variant_sequence, variant_sequences};
 use super::analysis::Checker;
-use crate::compiler::literal::variant_list_lints;
+use crate::compiler::literal::{host_selector_lint, variant_list_lints};
 use crate::compiler::utilities::{unresolved_lint_kind, unresolved_utility_finding};
 
 /// Checks each sequence of the `@variant` prelude at the byte range `prelude` and
@@ -50,6 +50,12 @@ pub(super) fn check_variant_block(
             })
             .collect::<Vec<_>>();
         checker.report_all(variant_list_lints(
+            &variants,
+            &spans,
+            checker.theme,
+            checker.settings,
+        ));
+        checker.report_all(host_selector_lint(
             &variants,
             &spans,
             checker.theme,

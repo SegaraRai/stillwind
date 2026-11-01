@@ -24,7 +24,7 @@ use super::utilities::{
     CompiledUtility, clamped_value, invalid_property_value_finding, marker_use_finding,
     resolve_utility_targets, unresolved_lint_kind, unresolved_utility_finding, written_span,
 };
-use super::variants::document_scoped_selector;
+use super::variants::{document_scoped_selector, unmatched_host_selector};
 
 /// Rules and class names collected before they are assigned to a class unit.
 ///
@@ -269,12 +269,19 @@ pub(super) fn variant_selector_lints(
     } else {
         vec![span; candidate.variants.len()]
     };
-    variant_list_lints(
+    let mut findings = variant_list_lints(
         &candidate.variants[unchecked.min(candidate.variants.len())..],
         &spans[unchecked.min(spans.len())..],
         theme,
         lint_settings,
-    )
+    );
+    findings.extend(host_selector_lint(
+        &candidate.variants,
+        &spans,
+        theme,
+        lint_settings,
+    ));
+    findings
 }
 
 /// Returns the enabled findings for the selectors of `variants`, each written at the
@@ -312,6 +319,24 @@ pub(super) fn variant_list_lints(
         ));
     }
     findings
+}
+
+/// Returns the `unmatched-host-selector` finding for the complete stack `variants`, at
+/// the last of `spans`.
+pub(super) fn host_selector_lint(
+    variants: &[Variant],
+    spans: &[Span],
+    theme: &ThemeIndex,
+    lint_settings: &LintSettings,
+) -> Option<LintFinding> {
+    if !lint_settings.enabled_for_detection(LintKind::UnmatchedHostSelector) {
+        return None;
+    }
+    let selector = unmatched_host_selector(variants, theme)?;
+    Some(LintFinding::new(
+        LintDiagnostic::UnmatchedHostSelector { selector },
+        *spans.last()?,
+    ))
 }
 
 /// Returns whether lint checks the declarations of definitions from `origin`: always

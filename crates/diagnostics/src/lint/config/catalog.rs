@@ -334,6 +334,7 @@ define_lint_rules! {
         MissingRefAttachment => "missing-ref-attachment",
         DocumentScopedSelector => "document-scoped-selector",
         RepeatedNestingSelector => "repeated-nesting-selector",
+        UnmatchedHostSelector => "unmatched-host-selector",
         MissingViewTransitionName => "missing-view-transition-name",
         DuplicateViewTransitionName => "duplicate-view-transition-name",
         SplitViewTransitionClass => "split-view-transition-class",
@@ -415,6 +416,7 @@ impl LintKind {
                     | Self::ConflictingUtilities
                     | Self::DocumentScopedSelector
                     | Self::RepeatedNestingSelector
+                    | Self::UnmatchedHostSelector
                     | Self::IncompatiblePropertyValue
                     | Self::UnsatisfiableVariants
                     | Self::ClampedValue

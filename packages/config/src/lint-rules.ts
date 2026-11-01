@@ -242,6 +242,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "unmatched-host-selector": {
+    category: "hazard",
+    nativeName: "unmatchedHostSelector",
+    defaults: null,
+    options: null,
+  },
   "missing-view-transition-name": {
     category: "hazard",
     nativeName: "missingViewTransitionName",

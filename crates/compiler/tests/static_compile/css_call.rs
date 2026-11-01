@@ -176,3 +176,55 @@ fn calls_inside_style_inputs_omit_the_input() {
         LintDiagnostic::NestedMacroCall { syntax } if syntax == "style.css()"
     )));
 }
+
+#[test]
+fn conditions_on_the_shadow_host_move_into_the_functional_pseudo_class() {
+    let (css, result) = compile(
+        r#"export const sheet = style.css("host:hover:block host:hover:before:flex [:host(.a)]:focus:grid host:*:p-4");"#,
+        "",
+    );
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+    for selector in [
+        ":host(:hover){display:block;}",
+        ":host(:hover)::before{",
+        ":host(.a:focus){display:grid;}",
+        ":host>*",
+    ] {
+        assert!(
+            css.replace(" > ", ">").contains(selector),
+            "{selector}: {css}"
+        );
+    }
+    assert!(!css.contains(":host:hover"), "{css}");
+
+    let (css, _) = compile(
+        r#"export const sheet = style.css("hover:block", { selector: ":host(.a)" });"#,
+        "",
+    );
+    assert!(css.contains(":host(.a:hover){display:block;}"), "{css}");
+}
+
+#[test]
+fn selectors_that_read_outside_the_shadow_tree_are_reported() {
+    for (input, reported) in [
+        ("host:in-[.page]:block", true),
+        ("host:group-hover:block", true),
+        ("host:hover:block", false),
+        ("host:has-[.icon]:block", false),
+    ] {
+        let (_, result) = compile(
+            &format!(r#"export const sheet = style.css("{input}");"#),
+            "",
+        );
+        assert_eq!(
+            kinds(&result).contains(&LintKind::UnmatchedHostSelector),
+            reported,
+            "{input}: {:?}",
+            result.lint_findings
+        );
+    }
+}

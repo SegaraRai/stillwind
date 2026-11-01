@@ -1,0 +1,37 @@
+---
+title: unmatched-host-selector
+description: Reports a variant that tests a shadow host through the elements around it.
+slug: docs/lints/unmatched-host-selector
+---
+
+This rule reports a variant stack that tests a shadow host through the elements
+around it, such as `host:in-[.page]:` or `host:group-hover:`. A selector in a shadow
+tree cannot read those elements, so the rule never matches.
+
+## Reported
+
+<DiagnosticExample code="unmatched-host-selector">
+
+```tsx
+style.css("host:in-[.page]:block");
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```tsx
+style.css("[:host(.page)]:block");
+```
+
+## How to fix
+
+- Add a class or an attribute to the host, and test it inside `:host()`, as in the
+  example.
+- Set a custom property on the outer element, and read it on the host with
+  [`--if()`](/docs/guides/runtime-conditions). Custom properties inherit into a
+  shadow tree.
+
+## Rule settings
+
+<LintRuleSummary name="unmatched-host-selector" />

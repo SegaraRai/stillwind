@@ -212,7 +212,7 @@ fn document_completions_start_with_variants_that_select_an_element() {
             .preview_candidate("host:hover:flex size-full", CandidateContext::Document)
             .unwrap()
             .as_deref(),
-        Some("@media (hover: hover){:host:hover{display:flex;}}")
+        Some("@media (hover: hover){:host(:hover){display:flex;}}")
     );
     assert_eq!(
         query

@@ -9,7 +9,10 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{selector_is_subject_condition, selector_list_branches};
+use stillwind_css::{
+    append_element_condition, fold_host_conditions, instantiate_selector,
+    selector_cannot_match_host, selector_is_subject_condition, selector_list_branches,
+};
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantDeclaration, resolve_variant,
 };
@@ -213,6 +216,51 @@ pub(super) fn document_scoped_selector(
     Some(LintDiagnostic::DocumentScopedSelector {
         selector: selector.to_lean_str(),
         branch,
+    })
+}
+
+/// Returns the selector that one variant path produces from `&`.
+pub(super) fn path_selector(path: &[VariantStep<'_>]) -> LeanString {
+    let mut selector = "&".to_lean_string();
+    for step in path {
+        match *step {
+            VariantStep::SelectorSuffix(suffix) => {
+                selector.push_str(suffix);
+            }
+            VariantStep::SelectorTemplate(template)
+            | VariantStep::BareSelector {
+                selector: template, ..
+            }
+            | VariantStep::SelectorRule {
+                selector: template, ..
+            }
+            | VariantStep::SelectorMedia {
+                selector: template, ..
+            }
+            | VariantStep::SelectorMediaRule {
+                selector: template, ..
+            } => {
+                selector = instantiate_selector(template, &selector);
+            }
+            VariantStep::SelectorCondition(condition) => {
+                selector = append_element_condition(&selector, condition);
+            }
+            _ => {}
+        }
+    }
+    selector
+}
+
+/// Returns the first selector of `variants` that tests a shadow host in a way that
+/// cannot match. Variants that do not resolve produce no result.
+pub(super) fn unmatched_host_selector(variants: &[Variant], theme: &ThemeIndex) -> Option<LeanStr> {
+    let applications = variants
+        .iter()
+        .map(|variant| resolve_variant(variant, theme).ok())
+        .collect::<Option<Vec<_>>>()?;
+    variant_paths(&applications).iter().find_map(|path| {
+        let selector = fold_host_conditions(&path_selector(path));
+        selector_cannot_match_host(&selector).then(|| selector.to_lean_str())
     })
 }
 

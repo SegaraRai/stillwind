@@ -3,10 +3,12 @@
 //! [`list`] validates selector lists and splits them into branches, [`target`]
 //! classifies the element that each branch styles, [`subject`] finds, inserts, and
 //! replaces the nesting selector `&`, [`element`] handles conditions on the selected
-//! element, and [`classes`] lists the class names that a selector matches.
+//! element, [`host`] handles conditions on a shadow host, and [`classes`] lists the
+//! class names that a selector matches.
 
 mod classes;
 mod element;
+mod host;
 mod list;
 mod subject;
 mod target;
@@ -14,6 +16,10 @@ mod target;
 pub use classes::selector_class_names;
 pub use element::{
     append_element_condition, selector_is_element_condition, selector_is_subject_condition,
+};
+pub use host::{
+    fold_host_conditions, fold_nested_host_conditions, selector_cannot_match_host,
+    selector_selects_host,
 };
 pub use list::{selector_is_valid, selector_list_branches};
 pub use subject::{

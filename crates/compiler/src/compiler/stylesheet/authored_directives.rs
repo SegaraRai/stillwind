@@ -17,7 +17,8 @@ use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{
-    CssBanner, CssNode, CssNodeKind, parse_structure, split_top_level, whitespace_separated_ranges,
+    CssBanner, CssNode, CssNodeKind, fold_nested_host_conditions, parse_structure,
+    selector_selects_host, split_top_level, whitespace_separated_ranges,
 };
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences, resolve_variant,
@@ -118,7 +119,55 @@ pub(in crate::compiler) fn expand_authored_directives(
             expand_authored_variant(&output[prelude], &output[body], theme, identifiers)?;
         output.replace_range(range, &replacement);
     }
+    fold_nested_host_rules(&mut output);
     Ok(output)
+}
+
+/// Moves conditions on a shadow host into `:host()` in the rules nested under a host.
+///
+/// `@apply` and `@variant` write nested rules such as `&:hover`, and a browser cannot
+/// match that rule under `:host`. The pass also covers nested rules in the authored CSS,
+/// because they have the same form. A top-level rule stays as written.
+fn fold_nested_host_rules(css: &mut LeanString) {
+    if !css.contains(":host") {
+        return;
+    }
+    let mut edits = Vec::new();
+    collect_nested_host_edits(css, &parse_structure(css), false, &mut edits);
+    edits.sort_by_key(|(range, _): &(Range<usize>, LeanString)| std::cmp::Reverse(range.start));
+    for (range, selector) in edits {
+        css.replace_range(range, &selector);
+    }
+}
+
+/// Appends the selector replacements for `nodes`. `under_host` tells whether `&` in
+/// `nodes` refers to a shadow host.
+fn collect_nested_host_edits(
+    css: &str,
+    nodes: &[CssNode],
+    under_host: bool,
+    edits: &mut Vec<(Range<usize>, LeanString)>,
+) {
+    for node in nodes {
+        let nested_under_host = match &node.kind {
+            CssNodeKind::StyleRule { selector, .. } => {
+                let written = &css[selector.clone()];
+                let folded = if under_host {
+                    fold_nested_host_conditions(written)
+                } else {
+                    written.into()
+                };
+                let selects_host =
+                    selector_selects_host(&folded) || (under_host && folded.trim() == "&");
+                if folded != written {
+                    edits.push((selector.clone(), folded));
+                }
+                selects_host
+            }
+            _ => under_host,
+        };
+        collect_nested_host_edits(css, node.children(), nested_under_host, edits);
+    }
 }
 
 /// Returns `css` with every `@apply` statement recursively replaced using `theme`.

@@ -252,6 +252,7 @@ mod tests {
                 "invalid-css-input": "deny",
                 "document-scoped-selector": "deny",
                 "repeated-nesting-selector": "warn",
+                "unmatched-host-selector": "warn",
                 "missing-view-transition-name": "warn",
                 "duplicate-view-transition-name": "warn",
                 "split-view-transition-class": "warn",

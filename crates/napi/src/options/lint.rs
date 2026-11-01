@@ -93,6 +93,8 @@ pub struct NativeLintOptions {
     pub document_scoped_selector: Option<String>,
     /// Settings for `repeated-nesting-selector`.
     pub repeated_nesting_selector: Option<String>,
+    /// Settings for `unmatched-host-selector`.
+    pub unmatched_host_selector: Option<String>,
     /// Settings for `missing-view-transition-name`.
     pub missing_view_transition_name: Option<String>,
     /// Settings for `duplicate-view-transition-name`.
@@ -330,6 +332,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             repeated_nesting_selector: input
                 .repeated_nesting_selector
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            unmatched_host_selector: input
+                .unmatched_host_selector
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             missing_view_transition_name: input
