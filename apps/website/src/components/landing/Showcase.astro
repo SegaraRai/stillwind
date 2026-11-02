@@ -3,8 +3,11 @@ import { style } from "stillwind/astro";
 
 import { styleParts } from "../../lib/landing/code-morph";
 import { createExamples } from "../../lib/landing/examples";
+import { highlightCss, highlightScript } from "../../lib/landing/highlight";
 import { showcaseScenes, showcaseScrollLength } from "../../lib/landing/showcase";
 import { documentRoot } from "../site/document";
+import { syntaxStyles } from "./syntax";
+import SyntaxTokens from "./SyntaxTokens.astro";
 
 const story = style.ref();
 const detail = style.ref();
@@ -82,6 +85,9 @@ const policy = '{\n  "no-arbitrary-breakpoints": "deny",\n  "no-arbitrary-colors
 const sorted = 'style("' + examples.ordered + '")';
 const normalized = 'style("' + examples.canonicalized + '")';
 const props = '{ className: "' + examples.cssClassName + '" }';
+const policyTokens = highlightScript(policy);
+const propsTokens = highlightScript(props);
+const cssTokens = highlightCss(examples.css);
 const results = [
   {
     label: sourceLabels[1],
@@ -291,7 +297,9 @@ const results = [
                       data-finding={parts[0]!.finding || undefined}
                     >
                       {parts.map((part) => (
-                        <span data-part={part.key}>{part.text}</span>
+                        <span data-part={part.key} data-token={part.kind}>
+                          {part.text}
+                        </span>
                       ))}
                     </span>
                   ))}
@@ -449,7 +457,7 @@ const results = [
                             "max-inline:": "text-label/[1.6]",
                           },
                         })}
-                      ><code {...style("code-font")} >{policy}</code></pre>
+                      ><code {...style("code-font")} ><SyntaxTokens tokens={policyTokens} /></code></pre>
                     </div>
                   )}
                   {frame.id === "format" && (
@@ -511,7 +519,7 @@ const results = [
                         ],
                       })}
                     >
-                      {props}
+                      <SyntaxTokens tokens={propsTokens} />
                     </code>
                   </div>
                   <div
@@ -538,7 +546,7 @@ const results = [
                           },
                         ],
                       })}
-                    ><code {...style("code-font")} >{examples.css}</code></pre>
+                    ><code {...style("code-font")} ><SyntaxTokens tokens={cssTokens} /></code></pre>
                   </div>
                 </div>
               )}
@@ -619,7 +627,7 @@ const results = [
                 translate="no"
                 {...style("code-font", {
                   [finding("data-static-finding")]: [
-                    "relative inline-block pbe-1 text-danger border-danger border-be",
+                    "relative inline-block pbe-1 text-danger border-danger border-be [--syntax-override:var(--color-danger)]",
                     {
                       "after:":
                         'absolute inset-s-1/2 inset-bs-[calc(100%+4px)] content-[""] block-6 inline-px bg-danger',
@@ -627,7 +635,9 @@ const results = [
                   ],
                 })}
               >
-                {parts.map((part) => part.text).join("")}
+                {parts.map((part) => (
+                  <span {...syntaxStyles[part.kind]}>{part.text}</span>
+                ))}
               </code>
               {frame.reports
                 .filter((report) => keys[report.utilityIndex] === parts[0]!.utility)
@@ -650,14 +660,14 @@ const results = [
         {frame.id === "constrain" && <pre
           translate="no"
           {...style("mbs-7 font-mono text-caption/[1.9] code-font code-scroll")}
-        ><code {...style("code-font")} >{policy}</code></pre>}
+        ><code {...style("code-font")} ><SyntaxTokens tokens={policyTokens} /></code></pre>}
         {frame.id === "format" &&
           results.map((result) => (
             <div {...style("mbs-7")}>
               <p {...style("mbe-3 font-mono text-caption text-muted")}>{result.label}</p>
               <div {...style("code-scroll")}>
                 <code translate="no" {...style("font-mono text-lead code-font")}>
-                  {result.source}
+                  <SyntaxTokens tokens={highlightScript(result.source)} />
                 </code>
               </div>
               <p translate="no" {...style("mbs-5 font-mono text-caption text-muted")}>
@@ -679,7 +689,7 @@ const results = [
             >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Output (React)</p>
               <code translate="no" {...style("block font-mono text-small code-font")}>
-                {props}
+                <SyntaxTokens tokens={propsTokens} />
               </code>
             </div>
             <div
@@ -692,7 +702,7 @@ const results = [
               <pre
                 translate="no"
                 {...style("font-mono text-caption/[1.9] code-font code-scroll")}
-              ><code {...style("code-font")} >{examples.css}</code></pre>
+              ><code {...style("code-font")} ><SyntaxTokens tokens={cssTokens} /></code></pre>
             </div>
             <div
               {...style("absolute inset-0 z-2 min-inline-0 pointer-events-none", {

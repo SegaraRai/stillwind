@@ -1,8 +1,10 @@
 ---
 import { style } from "stillwind/astro";
 
+import { highlightScript } from "../../lib/landing/highlight";
 import FeaturePreview from "./FeaturePreview.astro";
 import { featureExample, featureSource, features } from "./presentation";
+import { syntaxStyles } from "./syntax";
 
 interface Props {
   topic: number;
@@ -18,20 +20,14 @@ const { topic, frames } = Astro.props;
 
 const tokenize = (source: string, frame: number) => {
   const counts = new Map<string, number>();
-  return [...source.matchAll(/"(?:[^"\\]|\\.)*"|[a-zA-Z_$][\w$]*|\d+|\s+|./g)].map((match) => {
-    const text = match[0];
-    const punctuation = !text.startsWith('"') && !/^[\w$\s]/.test(text);
-    const count = counts.get(text) ?? 0;
-    counts.set(text, count + 1);
+  return highlightScript(source).map((token) => {
+    const punctuation = token.kind === "punctuation" && !!token.text.trim();
+    const count = counts.get(token.text) ?? 0;
+    counts.set(token.text, count + 1);
     return {
-      text,
+      ...token,
       punctuation,
-      key:
-        (text.startsWith('"') || /^[\w$]/.test(text) ? "value-" : "syntax-" + frame + "-") +
-        text +
-        "-" +
-        count,
-      start: match.index,
+      key: (punctuation ? "syntax-" + frame + "-" : "value-") + token.text + "-" + count,
     };
   });
 };
@@ -116,7 +112,8 @@ const specimens = frames.map((frame, index) => {
             },
           ],
           [features("data-enhanced:not-data-compact")]: {
-            [featureSource("data-feature-morph")]: "text-transparent",
+            [featureSource("data-feature-morph")]:
+              "text-transparent [--syntax-override:transparent]",
           },
           "max-outline:": "wrap-anywhere whitespace-pre-wrap",
           [features("not-data-enhanced")]: "mbe-0 wrap-anywhere whitespace-pre-wrap",
@@ -138,7 +135,9 @@ const specimens = frames.map((frame, index) => {
             data-feature-origin
             >{run.parts.map((part) => (
               <span
+                {...syntaxStyles[part.kind]}
                 data-part={part.key}
+                data-token={part.kind}
                 data-code-punctuation={part.punctuation || undefined}
                 set:text={part.text}
               />
@@ -146,7 +145,9 @@ const specimens = frames.map((frame, index) => {
         ) : (
           run.parts.map((part) => (
             <span
+              {...syntaxStyles[part.kind]}
               data-part={part.key}
+              data-token={part.kind}
               data-code-punctuation={part.punctuation || undefined}
               set:text={part.text}
             />

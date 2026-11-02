@@ -127,6 +127,31 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
   }
 }
 
+/*
+Syntax colors for landing code specimens. Each name matches a SyntaxKind from lib/landing/highlight.ts,
+and code-morph.ts builds the same var(--color-syntax-*) names for animated tokens.
+Only Stillwind concepts get a hue, and JavaScript and CSS syntax stays neutral.
+Danger stays reserved for diagnostics.
+*/
+@theme {
+  --color-syntax-api: var(--color-accent);
+  --color-syntax-variant: var(--color-warning);
+  --color-syntax-utility: var(--color-foreground);
+  --color-syntax-identifier: var(--color-foreground);
+  --color-syntax-property: var(--color-muted);
+  --color-syntax-string: var(--color-success);
+  --color-syntax-keyword: var(--color-muted);
+  --color-syntax-punctuation: color-mix(in oklab, var(--color-muted) 75%, var(--color-background));
+}
+
+/*
+An ancestor sets --syntax-override to recolor every token inside it,
+such as transparent text under morph actors or danger text in a diagnostic.
+*/
+@utility syntax-* {
+  color: var(--syntax-override, --value(--color-syntax-*));
+}
+
 @utility code-actor {
   @apply absolute inset-s-0 inset-bs-0 whitespace-pre;
   transform: translate(

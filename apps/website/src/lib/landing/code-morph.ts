@@ -1,8 +1,11 @@
 import { applyStyle, style } from "stillwind/vanilla";
 
+import type { SyntaxKind } from "./highlight";
+
 interface CodePart {
   key: string;
   text: string;
+  kind: SyntaxKind;
   utility?: string;
   finding: boolean;
 }
@@ -10,6 +13,7 @@ interface CodePart {
 /**
  * Wraps single-space-separated utilities in a style() call for measured token animation.
  * Keys must identify each utility in source order. Only spaces and colons divide its text.
+ * Segments before a colon are variants.
  * Each utility supplies a shared key for measuring its complete underline, including colons.
  * Marked keys color every segment. Throws if keys do not match utilities.
  */
@@ -22,7 +26,20 @@ export function styleParts(
   if (words.length !== keys.length || words.some((word) => !word)) {
     throw new Error("Each utility must have one stable key.");
   }
-  const parts: CodePart[] = [{ key: "syntax-open", text: 'style("', finding: false }];
+  const parts: CodePart[] = [
+    {
+      key: "api-style",
+      text: "style",
+      kind: "api",
+      finding: false,
+    },
+    {
+      key: "syntax-open",
+      text: '("',
+      kind: "punctuation",
+      finding: false,
+    },
+  ];
   words.forEach((word, index) => {
     const key = keys[index]!;
     const segments = word.split(":");
@@ -30,6 +47,7 @@ export function styleParts(
       parts.push({
         key: segment === segments.length - 1 ? key : key + "-variant-" + segment,
         text,
+        kind: segment === segments.length - 1 ? "utility" : "variant",
         utility: key,
         finding: marked.includes(key),
       });
@@ -37,16 +55,27 @@ export function styleParts(
         parts.push({
           key: key + "-colon-" + segment,
           text: ":",
+          kind: "punctuation",
           utility: key,
           finding: marked.includes(key),
         });
       }
     });
     if (index < words.length - 1) {
-      parts.push({ key: key + "-space", text: " ", finding: false });
+      parts.push({
+        key: key + "-space",
+        text: " ",
+        kind: "punctuation",
+        finding: false,
+      });
     }
   });
-  parts.push({ key: "syntax-close", text: '")', finding: false });
+  parts.push({
+    key: "syntax-close",
+    text: '")',
+    kind: "punctuation",
+    finding: false,
+  });
   return parts;
 }
 
@@ -86,6 +115,7 @@ interface MeasuredUtility extends MeasuredBox {
 
 interface MeasuredPart extends MeasuredUtility {
   text: string;
+  kind: string;
 }
 
 interface MeasuredFrame {
@@ -97,6 +127,7 @@ interface MeasuredFrame {
 /**
  * Measures data-measure frames and animates whole tokens with CSS custom properties.
  * Each frame contains uniquely keyed data-part spans grouped by data-utility wrappers.
+ * A data-token attribute on a part names its SyntaxKind and selects its color.
  * Marked wrappers supply data-finding. Scope contains the code canvas and diagnostic labels
  * whose data-diagnostic keys match those wrappers, with a matching SVG path for each label.
  * The host contains data-code-actors. Call render with finite progress while visible.
@@ -144,7 +175,11 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
       height: layout.getBoundingClientRect().height,
       parts: new Map(
         [...layout.querySelectorAll<HTMLElement>("[data-part]")].map((part) => {
-          const measured = { ...box(part), text: part.textContent! };
+          const measured = {
+            ...box(part),
+            text: part.textContent!,
+            kind: part.dataset.token ?? "identifier",
+          };
           const key = part.hasAttribute("data-code-punctuation")
             ? "syntax-position-" +
               measured.text +
@@ -180,12 +215,8 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
     for (const key of new Set([...before.keys(), ...after.keys()])) {
       const from = before.get(key);
       const to = after.get(key);
-      const color = (part: MeasuredPart | undefined) =>
-        part?.finding
-          ? "var(--color-danger)"
-          : key.startsWith("syntax-")
-            ? "var(--color-muted)"
-            : "var(--color-foreground)";
+      const color = (part: MeasuredPart) =>
+        part.finding ? "var(--color-danger)" : "var(--color-syntax-" + part.kind + ")";
       const addToken = (text: string, entering: boolean, leaving: boolean) => {
         const start = from ?? to!;
         const end = to ?? from!;
@@ -204,8 +235,8 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
         } else if (leaving) {
           token.dataset.leaving = "";
         }
-        token.style.setProperty("--from-color", color(from ?? to));
-        token.style.setProperty("--to-color", color(to ?? from));
+        token.style.setProperty("--from-color", color(start));
+        token.style.setProperty("--to-color", color(end));
         fragment.append(token);
       };
       if (from?.text === to?.text) {
@@ -276,7 +307,14 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
           const y = origin.top - bounds.top + blend(start.y + start.height, end.y + end.height) + 8;
           const width = element.offsetWidth;
           return [
-            { element, line, x, y, width, left: Math.max(0, Math.min(x, bounds.width - width)) },
+            {
+              element,
+              line,
+              x,
+              y,
+              width,
+              left: Math.max(0, Math.min(x, bounds.width - width)),
+            },
           ];
         })
         .sort((left, right) => left.x - right.x);
@@ -321,7 +359,9 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
   };
   const observer = new view.ResizeObserver(invalidate);
   observer.observe(host);
-  view.addEventListener("resize", invalidate, { passive: true });
+  view.addEventListener("resize", invalidate, {
+    passive: true,
+  });
   host.ownerDocument.fonts.addEventListener("loadingdone", invalidate);
   return {
     render,

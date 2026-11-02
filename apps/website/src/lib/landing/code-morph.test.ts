@@ -9,7 +9,8 @@ it("keeps utility names and arbitrary values intact, splitting only colons and s
     ["inline", "color"],
   );
   expect(parts.map((part) => part.text)).toEqual([
-    'style("',
+    "style",
+    '("',
     "rounded-control",
     " ",
     "hover",
@@ -24,6 +25,14 @@ it("keeps utility names and arbitrary values intact, splitting only colons and s
   expect(parts.map((part) => part.text).join("")).toBe(
     'style("rounded-control hover:min-[713px]:px-[16px] bg-[#d9e2f0]")',
   );
+  expect(parts.filter((part) => part.kind !== "punctuation").map((part) => part.kind)).toEqual([
+    "api",
+    "utility",
+    "variant",
+    "variant",
+    "utility",
+    "utility",
+  ]);
   expect(parts.filter((part) => part.finding).map((part) => part.text)).toEqual([
     "hover",
     ":",

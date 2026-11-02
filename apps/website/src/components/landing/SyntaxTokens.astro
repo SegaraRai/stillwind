@@ -1,0 +1,14 @@
+---
+import type { SyntaxToken } from "../../lib/landing/highlight";
+import { syntaxStyles } from "./syntax";
+
+interface Props {
+  tokens: readonly SyntaxToken[];
+}
+
+const { tokens } = Astro.props;
+---
+
+{tokens.map((token) => (
+  <span {...syntaxStyles[token.kind]} set:text={token.text} />
+))}
