@@ -63,6 +63,10 @@ jobs:
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          # The version pull request checks both sites and every browser scenario before a
+          # release. A fork can also name a branch `version/main`, so the condition checks the head
+          # repository.
+          SITES_RELEASE_CHECK: ${{ github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             baseline=$(gh api \

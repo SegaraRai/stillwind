@@ -133,3 +133,12 @@ jobs:
             ~/.cargo/git/
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      # The Browser Mode and WASM tests reuse the builds of `test:js` and take a few minutes. They
+      # run after the cache save, so the WASM build does not enlarge the cache entry.
+      - if: matrix.task == 'test:js'
+        run: vp exec playwright install --with-deps chrome
+        working-directory: e2e/harness
+      - if: matrix.task == 'test:js'
+        run: vp run --concurrency-limit 1 test:browser
+      - if: matrix.task == 'test:js'
+        run: vp run --concurrency-limit 1 test:wasm

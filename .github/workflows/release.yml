@@ -222,6 +222,18 @@ jobs:
             ~/.cargo/git/
             target/
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+      # These tests reuse the builds of `test:js`. They run after the cache save, so the WASM
+      # build does not enlarge the cache entry. The Tailwind comparison takes about 15 minutes,
+      # which still ends before browser acceptance, so only a release runs it.
+      - if: matrix.task == 'test:js'
+        run: vp exec playwright install --with-deps chrome
+        working-directory: e2e/harness
+      - if: matrix.task == 'test:js'
+        run: vp run --concurrency-limit 1 test:browser
+      - if: matrix.task == 'test:js'
+        run: vp run --concurrency-limit 1 test:wasm
+      - if: matrix.task == 'test:js'
+        run: vp run --concurrency-limit 1 test:tailwind
 
   desktop:
     name: Package ${{ matrix.target }}
@@ -296,11 +308,20 @@ jobs:
     with:
       support: primary
 
-  # This job runs beside `binaries` and the tests. `publish` adds the platform binaries and
-  # uploads the packages after the tests pass.
+  # The version pull request and a dry run also test the weekly tier, so a release does not
+  # wait for it. The upload jobs do not need this job, because it is skipped on a push.
+  acceptance-compatibility:
+    name: Browser acceptance (compatibility)
+    if: (github.event_name == 'workflow_dispatch' && inputs.dry-run) || (github.event_name == 'pull_request' && github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository)
+    uses: ./.github/workflows/e2e.yml
+    with:
+      support: compatibility
+
+  # This job runs beside `binaries` and the tests. `packages` adds the platform binaries and
+  # checks the result, and `publish` uploads the packages after the tests pass.
   npm-packages:
     name: Build npm packages
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' || (github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
@@ -344,17 +365,13 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  publish:
-    name: Stage packages
-    needs: [binaries, npm-packages, verify, desktop, acceptance]
-    # A push has no inputs, so `dry-run` is empty and the job stages the packages.
-    if: github.ref == 'refs/heads/main' && !inputs.dry-run
+  # The version pull request runs this job, so a missing binary or a package that cannot be
+  # packed fails before the merge.
+  packages:
+    name: Check npm packages
+    needs: [binaries, npm-packages]
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
-    environment: npm-release
-    permissions:
-      contents: read
-      id-token: write
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -386,6 +403,43 @@ jobs:
             main=$(node --print "require('./$directory/package.json').main")
             test -f "$directory/$main"
           done
+      # Recursive publication skips versions that already exist on npm.
+      - name: Pack every package
+        run: vp exec pnpm publish -r --dry-run --no-git-checks
+
+  publish:
+    name: Stage packages
+    needs: [npm-packages, packages, verify, desktop, acceptance]
+    # A push has no inputs, so `dry-run` is empty and the job stages the packages.
+    if: github.ref == 'refs/heads/main' && !inputs.dry-run
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: npm-packages
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: packages/native/dist/
+      # A direct command skips the task dependencies of `collect:local`, which would rebuild the
+      # bindings.
+      - name: Collect the platform binaries
+        run: |
+          tar --extract --gzip --file npm-packages.tar.gz
+          node packages/native/collect-local-artifacts.ts
       - name: Select the npm tag
         id: tag
         run: |

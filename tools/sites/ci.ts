@@ -163,13 +163,22 @@ if (import.meta.main) {
     const listing = JSON.parse(await readFile(process.argv[2]!, "utf8"));
     const packages = await readWorkspacePackages(root, listing);
     const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, "utf8"));
-    const files = changedFiles(
-      root,
-      process.env.GITHUB_EVENT_NAME ?? "",
-      event,
-      process.env.SITES_BASE_SHA,
-    );
-    const plan = planSites(packages, files);
+    // A release check selects both sites and every browser scenario, whatever the change.
+    const plan =
+      process.env.SITES_RELEASE_CHECK === "true"
+        ? {
+            ...planSites(packages, null),
+            reason: "The version pull request checks every site",
+          }
+        : planSites(
+            packages,
+            changedFiles(
+              root,
+              process.env.GITHUB_EVENT_NAME ?? "",
+              event,
+              process.env.SITES_BASE_SHA,
+            ),
+          );
     console.log(JSON.stringify(plan, null, 2));
     if (process.env.GITHUB_OUTPUT) {
       const urls = buildUrls(

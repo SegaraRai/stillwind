@@ -22,7 +22,9 @@ for the task inventory, generated files, cache behavior, and fixture workflows.
 Run generation tasks explicitly and review their output before comparing fixtures.
 
 The [CI](.github/workflows/ci.yml) workflow runs `check`, `test:rust`, `test:js`, and
-`test:fixtures:projects` on Linux for pull requests and pushes to `main`. It skips changes
+`test:fixtures:projects` on Linux for pull requests and pushes to `main`. The `test:js` job
+then runs `test:browser` and `test:wasm` with its builds. The Release workflow runs the same
+jobs and adds `test:tailwind`, which takes about 15 minutes. The CI workflow skips changes
 that contain only documentation. It also skips the version pull request and pushes that
 change `.changeset/ledger.yaml`, because the Release workflow runs the same tasks for them.
 A new push to a branch cancels the running workflow for that branch.
@@ -35,7 +37,8 @@ fails when a pull request from a fork changes `.github/`, `.changeset/ledger.yam
 
 The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `primary` tier daily
 and the `compatibility` tier weekly. The Release workflow calls it for the `primary` tier on
-the version pull request and again after the merge. Each run splits the tier across four
+the version pull request and again after the merge. It also tests the `compatibility` tier
+on the version pull request and in a dry run. Each run splits the tier across four
 runners with `--shard`. Start **Actions → Browser acceptance → Run workflow** to test either
 tier manually.
 
@@ -89,9 +92,11 @@ the Rust workspace. Fixture generators remove the version from the Stillwind not
 release does not change expected outputs.
 
 The Release workflow builds and tests the version pull request like a release, including
-browser acceptance for the `primary` tier. It tests a pull request only when the pull
-request comes from `version/main` in this repository. The upload jobs run only on `main` and
-skip this run. `github-actions[bot]` creates this pull
+browser acceptance for both tiers. It also builds the npm packages, adds the platform
+binaries, and packs every package with `pnpm publish -r --dry-run`. It tests a pull request
+only when the pull request comes from `version/main` in this repository. The upload jobs run
+only on `main` and skip this run. The Sites workflow checks both sites and every browser
+scenario for this pull request, whatever its change. `github-actions[bot]` creates this pull
 request, so its Release and Sites runs wait for a maintainer to approve them in the Actions
 tab. Wait for the Release run to pass, then merge the pull request with **Squash and merge**.
 
@@ -102,8 +107,8 @@ npm's staging area and publishes the [VS Code extension](packages/vscode-extensi
 prerelease suffix receives the npm tag `next`; any other version receives `latest`.
 
 To check a release without uploading packages, start **Actions → Release → Run workflow**
-on `main` with the default dry run. A dry run builds the npm packages but skips the upload
-jobs, so it does not wait for a deployment review. Clear **dry-run** to run the uploads again
+on `main` with the default dry run. A dry run runs the same checks as the version pull
+request but skips the upload jobs, so it does not wait for a deployment review. Clear **dry-run** to run the uploads again
 after a failed release.
 
 Staged versions are not installable until a maintainer approves them with 2FA. Review them
@@ -228,8 +233,8 @@ Production validation consumes the Build Output prepared earlier in the build jo
 The Sites plan adds Rust and generator inputs and selects each application's checks.
 Website-only changes skip the playground build and browser jobs. Browser test changes
 select their scenarios without deploying. Developer documentation and unrelated packages
-skip site work. Unclassified inputs, missing Git history, and manual runs select both sites
-and all scenarios. PRs compare against their base. Pushes compare against the last successful Sites run
+skip site work. Unclassified inputs, missing Git history, manual runs, and the version pull
+request select both sites and all scenarios. PRs compare against their base. Pushes compare against the last successful Sites run
 on the branch, so failed or cancelled runs cannot hide unpublished changes. An obsolete
 run fails its deployment head check and cannot become that baseline.
 The plan appears in the Actions summary. It rejects a browser matrix that does not cover
