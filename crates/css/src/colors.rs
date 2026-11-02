@@ -1,7 +1,8 @@
 //! CSS color conversion, declaration colors, and rewriting for shadow utilities.
 //!
 //! Lightning CSS supplies color and shadow parsing. [`color_rgba`] and [`color_hex`]
-//! resolve concrete colors for editor displays. Shadow rewriting preserves
+//! resolve concrete colors for editor displays, and [`select_color_scheme`] removes the
+//! `light-dark()` choice before that resolution. Shadow rewriting preserves
 //! custom-property overrides and relative-color fallbacks.
 //!
 //! Authored text is preserved where it matters: a shadow whose color is written last
@@ -17,6 +18,7 @@ use lightningcss::values::color::{CssColor, SRGB};
 
 use stillwind_source::JoinText;
 
+use crate::functions::find_css_functions;
 use crate::lists::split_top_level;
 use crate::parser::{closer, consume_css_block, validate_css_syntax};
 
@@ -114,6 +116,48 @@ pub fn color_rgba(value: &str) -> Option<[f64; 4]> {
         return None;
     };
     Some([color.red, color.green, color.blue, color.alpha].map(|value| f64::from(value) / 255.0))
+}
+
+/// A color scheme that selects one argument of `light-dark()`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ColorScheme {
+    /// Selects the first argument.
+    Light,
+    /// Selects the second argument.
+    Dark,
+}
+
+/// Replaces each complete lowercase `light-dark()` call in `value` with its argument
+/// for `scheme`, including calls inside the selected argument.
+///
+/// A call without a closing parenthesis or without exactly two top-level arguments
+/// keeps its spelling, so [`color_rgba`] still rejects the result.
+#[must_use]
+pub fn select_color_scheme(value: &str, scheme: ColorScheme) -> LeanString {
+    let mut selected = LeanString::new();
+    let mut copied = 0;
+    for call in find_css_functions(value, &["light-dark"], 0) {
+        let Some(end) = call.end else { continue };
+        if call.start < copied {
+            continue;
+        }
+        let [light, dark] = split_top_level(&value[call.arguments], |token| {
+            matches!(token, Token::Comma)
+        })[..] else {
+            continue;
+        };
+        selected.push_str(&value[copied..call.start]);
+        selected.push_str(&select_color_scheme(
+            match scheme {
+                ColorScheme::Light => light.trim(),
+                ColorScheme::Dark => dark.trim(),
+            },
+            scheme,
+        ));
+        copied = end;
+    }
+    selected.push_str(&value[copied..]);
+    selected
 }
 
 /// A fully determined CSS color serialized as hexadecimal sRGB.
@@ -220,6 +264,24 @@ mod tests {
         );
         assert_eq!(color_hex("currentColor"), None);
         assert_eq!(color_hex("1rem"), None);
+    }
+
+    #[test]
+    fn color_schemes_select_nested_light_dark_arguments() {
+        let value = "color-mix(in oklab, light-dark(light-dark(red, lime), blue) 50%, transparent)";
+        assert_eq!(
+            select_color_scheme(value, ColorScheme::Light),
+            "color-mix(in oklab, red 50%, transparent)"
+        );
+        assert_eq!(
+            select_color_scheme(value, ColorScheme::Dark),
+            "color-mix(in oklab, blue 50%, transparent)"
+        );
+        assert_eq!(
+            select_color_scheme("light-dark(red, lime, blue)", ColorScheme::Dark),
+            "light-dark(red, lime, blue)"
+        );
+        assert_eq!(color_rgba("light-dark(red, blue)"), None);
     }
 
     #[test]

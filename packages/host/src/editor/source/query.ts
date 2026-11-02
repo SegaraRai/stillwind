@@ -194,19 +194,14 @@ export class SourceQueries {
         if (!this.#colorInput(token.literal) || !this.#preview(token.literal, token.text)) {
           return [];
         }
-        const color = this.#candidates.color(token.literal.prefix + token.text);
-        return color
-          ? [
-              {
-                start: token.start,
-                end: token.end,
-                red: color[0],
-                green: color[1],
-                blue: color[2],
-                alpha: color[3],
-              },
-            ]
-          : [];
+        return this.#candidates
+          .colors(token.literal.prefix + token.text)
+          .map(({ scheme, ...color }) => ({
+            start: token.start,
+            end: token.end,
+            ...color,
+            ...(scheme ? { scheme } : {}),
+          }));
       });
       return result;
     }

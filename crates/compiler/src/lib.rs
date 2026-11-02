@@ -93,9 +93,9 @@ pub use options::{CompilerOptions, RootFontSize};
 pub use query::{
     AddedMarker, CandidateContext, CandidateFailure, CandidateHover, CandidateResolution,
     ColorEquivalents, CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations,
-    StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions, StylesheetEdit,
-    StylesheetHover, StylesheetPluginPath, StylesheetSortOptions, completion_detail,
-    editor_css_source, prepare_canonical_index, stylesheet_plugin_paths,
+    SchemeColor, StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions,
+    StylesheetEdit, StylesheetHover, StylesheetPluginPath, StylesheetSortOptions,
+    completion_detail, editor_css_source, prepare_canonical_index, stylesheet_plugin_paths,
 };
 pub use renderer::{
     RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,

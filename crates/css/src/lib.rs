@@ -69,7 +69,8 @@ pub use blocks::{
     extract_named_statements, extract_order_statements, strip_css_comments, unterminated_block,
 };
 pub use colors::{
-    HexColor, color_hex, color_rgba, shadow_with_color_fallback, shadow_with_color_override,
+    ColorScheme, HexColor, color_hex, color_rgba, select_color_scheme, shadow_with_color_fallback,
+    shadow_with_color_override,
 };
 pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,

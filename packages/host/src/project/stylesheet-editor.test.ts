@@ -263,6 +263,36 @@ test("CSS colors and picker edits use original UTF-16 ranges and preserve utilit
   ).toBeUndefined();
 });
 
+test("CSS light-dark colors show both schemes and reject picker edits", () => {
+  const loader = new NativeDesignSystemLoader();
+  loader.provide(
+    0,
+    "theme.css",
+    "@theme { --color-surface:light-dark(#202b35, #e4edff); } @utility bg-* {background-color:--value(--color-*);}",
+  );
+  const text = ".a { @apply bg-surface; color:var(--color-surface); }";
+  const editor = new StylesheetEditor("local.css", text, [], loader.editorQuery());
+  const colors = editor.query("local.css", { kind: "colors" })!.colors!;
+  expect(colors.map((color) => [text.slice(color.start, color.end), color.scheme])).toEqual([
+    ["bg-surface", "light"],
+    ["bg-surface", "dark"],
+    ["var(--color-surface)", "light"],
+    ["var(--color-surface)", "dark"],
+  ]);
+  expect(colors[0].red).toBeCloseTo(0x20 / 255);
+  expect(colors[1].red).toBeCloseTo(0xe4 / 255);
+  for (const color of colors) {
+    expect(
+      editor.query("local.css", {
+        kind: "colorPresentation",
+        start: color.start,
+        end: color.end,
+        color: { red: 0, green: 1, blue: 0, alpha: 1 },
+      })!.edits,
+    ).toBeUndefined();
+  }
+});
+
 test.each([false, true])(
   "CSS explicit sorting is independent of lint with applyStatements=%s",
   (statements) => {

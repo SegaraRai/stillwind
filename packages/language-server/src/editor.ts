@@ -285,18 +285,25 @@ export function registerEditorFeatures(
       },
       token,
     );
-    const colors = entries.flatMap((entry) => entry.result.colors ?? []);
-    return colors
+    const colors = entries
+      .flatMap((entry) => entry.result.colors ?? [])
       .filter(
-        (color, index) =>
-          colors.findIndex((other) => JSON.stringify(other) === JSON.stringify(color)) === index &&
-          !colors.some(
-            (other) =>
-              other.start === color.start &&
-              other.end === color.end &&
-              JSON.stringify(other) !== JSON.stringify(color),
-          ),
-      )
+        (color, index, colors) =>
+          colors.findIndex((other) => JSON.stringify(other) === JSON.stringify(color)) === index,
+      );
+    // Projects that disagree on a range omit it. A range may show one light and one dark color.
+    return colors
+      .filter((color) => {
+        const range = colors.filter(
+          (other) => other.start === color.start && other.end === color.end,
+        );
+        return (
+          range.length === 1 ||
+          (range.length === 2 &&
+            range.some((other) => other.scheme === "light") &&
+            range.some((other) => other.scheme === "dark"))
+        );
+      })
       .map((color) => ({
         range: offsets(document, color),
         color: {

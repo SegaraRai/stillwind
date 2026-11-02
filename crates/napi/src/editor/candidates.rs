@@ -8,7 +8,7 @@ use napi::bindgen_prelude::Either;
 use napi_derive::napi;
 
 use stillwind_compiler::{CandidateContext, ColorEquivalents, CompletionInput, PreviewAnnotations};
-use stillwind_css::{color_rgba, format_css};
+use stillwind_css::{ColorScheme, color_rgba, format_css};
 use stillwind_design_system::MarkerOrigin;
 
 use super::NativeEditorQuery;
@@ -112,6 +112,40 @@ pub enum NativeMarkerOriginKind {
     /// Serialized as `variant`. The selector or the body of a variant definition uses
     /// the class.
     Variant,
+}
+
+/// A color scheme that selects one argument of `light-dark()`.
+#[napi(string_enum = "lowercase")]
+pub enum NativeColorScheme {
+    /// Serialized as `light`. The color uses the first argument.
+    Light,
+    /// Serialized as `dark`. The color uses the second argument.
+    Dark,
+}
+
+impl From<ColorScheme> for NativeColorScheme {
+    fn from(value: ColorScheme) -> Self {
+        match value {
+            ColorScheme::Light => Self::Light,
+            ColorScheme::Dark => Self::Dark,
+        }
+    }
+}
+
+/// One color that a candidate sets.
+#[napi(object, object_from_js = false)]
+pub struct NativeCandidateColor {
+    /// The sRGB red component, from 0 to 1.
+    pub red: f64,
+    /// The sRGB green component, from 0 to 1.
+    pub green: f64,
+    /// The sRGB blue component, from 0 to 1.
+    pub blue: f64,
+    /// The opacity that applies, from 0 to 1.
+    pub alpha: f64,
+    /// The color scheme that shows this color. The field is absent when both schemes
+    /// show it.
+    pub scheme: Option<NativeColorScheme>,
 }
 
 /// A statement or definition that makes a class a marker.
@@ -484,5 +518,30 @@ impl NativeEditorQuery {
             .candidate_color(&candidate)
             .map(|value| value.map(|value| value.to_vec()))
             .map_err(reason)
+    }
+
+    /// Returns the colors that `candidate` sets: one color without a scheme, or a
+    /// light color followed by a dark color when `light-dark()` selects different
+    /// colors. Returns an empty array when the utility sets more than colors, or when
+    /// its color does not resolve or is ambiguous in either scheme.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed requirements of a utility definition.
+    #[napi]
+    pub fn candidate_colors(&self, candidate: String) -> napi::Result<Vec<NativeCandidateColor>> {
+        Ok(self
+            .query
+            .candidate_colors(&candidate)
+            .map_err(reason)?
+            .into_iter()
+            .map(|color| NativeCandidateColor {
+                red: color.rgba[0],
+                green: color.rgba[1],
+                blue: color.rgba[2],
+                alpha: color.rgba[3],
+                scheme: color.scheme.map(Into::into),
+            })
+            .collect())
     }
 }

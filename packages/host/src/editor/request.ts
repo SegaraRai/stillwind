@@ -58,6 +58,12 @@ export interface EditorColor {
   blue: number;
   /** Effective opacity after utility modifiers, in the inclusive range 0..1. */
   alpha: number;
+  /**
+   * Color scheme whose `light-dark()` arguments produce this color. Absent when both schemes
+   * produce it. A light color is followed by a dark color with the same range, and neither
+   * accepts a color presentation.
+   */
+  scheme?: "light" | "dark";
 }
 
 /**

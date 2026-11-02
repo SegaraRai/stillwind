@@ -167,10 +167,11 @@ export class StylesheetEditor {
       };
     }
     if (request.kind === "colors" || request.kind === "colorPresentation") {
-      const colors = this.#query.stylesheetColors(this.#text).map((color) => ({
+      const colors = this.#query.stylesheetColors(this.#text).map(({ scheme, ...color }) => ({
         ...color,
         start: this.#utf16(color.start),
         end: this.#utf16(color.end),
+        ...(scheme ? { scheme } : {}),
       }));
       if (request.kind === "colors") {
         result.colors = colors.map(({ candidate: _candidate, ...color }) => color);
@@ -178,7 +179,8 @@ export class StylesheetEditor {
         const color = colors.find(
           (color) => color.start === request.start && color.end === request.end,
         );
-        if (color) {
+        // Replacing one scheme's color would remove the other argument of `light-dark()`.
+        if (color && !color.scheme) {
           const newText = color.candidate
             ? colorReplacement(
                 color.candidate,

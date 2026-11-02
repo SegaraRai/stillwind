@@ -875,7 +875,7 @@ test("CSS LSP requests complete cold incomplete buffers and resolve dialect and 
   const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
   const uri = "file:///workspace/theme.css";
   const definitions = `@stillwind-theme-namespace --color-* [color];
-@theme { --color-brand:red; }
+@theme { --color-brand:red; --color-surface:light-dark(red, blue); }
 @utility flex {display:flex;}
 @utility bg-* {background-color:--value(--color-*);}
 @custom-variant hover (&:hover);
@@ -1025,6 +1025,15 @@ test("CSS LSP requests complete cold incomplete buffers and resolve dialect and 
       },
     );
     expect(candidateEdit[0].textEdit?.newText).toBe("hover:bg-[#0000ff]");
+    await change(`${definitions}.a { @apply bg-surface; }`);
+    const schemes = await client.sendRequest<ColorInformation[]>("textDocument/documentColor", {
+      textDocument: { uri },
+    });
+    expect(schemes.map(({ color }) => [color.red, color.blue])).toEqual([
+      [1, 0],
+      [0, 1],
+    ]);
+    expect(schemes[1].range).toEqual(schemes[0].range);
     await change(`${definitions}.a { @apply bg-brand flex; }`);
     const actions = await client.sendRequest<CodeAction[]>("textDocument/codeAction", {
       textDocument: { uri },

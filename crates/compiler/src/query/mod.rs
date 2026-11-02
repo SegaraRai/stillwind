@@ -42,5 +42,6 @@ pub use stylesheet::{
     StylesheetHover, StylesheetPluginPath, StylesheetSortOptions, editor_css_source,
     stylesheet_plugin_paths,
 };
+pub use theme::SchemeColor;
 
 use context::QueryContext;

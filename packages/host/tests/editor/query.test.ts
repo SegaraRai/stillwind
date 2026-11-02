@@ -183,6 +183,35 @@ test("color queries display concrete colors and picker edits preserve variants",
   }
 });
 
+test("color queries show both light-dark schemes without picker edits", async () => {
+  const source = 'import {style} from "stillwind/react"; const card = style("hover:bg-surface");';
+  const current = project(
+    source,
+    {},
+    `${theme} @theme { --color-surface: light-dark(#202b35, #e4edff); }`,
+  );
+  try {
+    const colors = (await current.query("/workspace/entry.tsx", {
+      kind: "colors",
+    }))!.colors!;
+    expect(colors.map((color) => [source.slice(color.start, color.end), color.scheme])).toEqual([
+      ["hover:bg-surface", "light"],
+      ["hover:bg-surface", "dark"],
+    ]);
+    expect(colors[1].blue).toBeCloseTo(1);
+    expect(
+      (await current.query("/workspace/entry.tsx", {
+        kind: "colorPresentation",
+        start: colors[0].start,
+        end: colors[0].end,
+        color: { red: 1, green: 0, blue: 0, alpha: 1 },
+      }))!.edits,
+    ).toBeUndefined();
+  } finally {
+    await current.close();
+  }
+});
+
 test("hover follows imported style aliases without treating ordinary variables as styles", async () => {
   const source =
     'import {style} from "stillwind/react"; import {base as imported} from "./base"; const derived=style([imported,"flex"]); console.log(imported);';

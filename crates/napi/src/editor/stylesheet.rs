@@ -9,6 +9,7 @@ use napi_derive::napi;
 use stillwind_compiler::StylesheetCompletionOptions;
 use stillwind_source::BytePos;
 
+use super::candidates::NativeColorScheme;
 use super::query::reason;
 use super::{NativeEditorLintEdit, NativeEditorQuery};
 use crate::output::NativeText;
@@ -124,6 +125,9 @@ pub struct NativeStylesheetColor {
     /// The utility as written in the source. The field is absent when an editor would
     /// replace a reference with a CSS color value.
     pub candidate: Option<String>,
+    /// The color scheme that shows this color. The field is absent when both schemes
+    /// show it. A light color is followed by a dark color with the same range.
+    pub scheme: Option<NativeColorScheme>,
 }
 
 /// The path of a `@plugin` statement. Its range does not include the CSS quotes.
@@ -230,9 +234,10 @@ impl NativeEditorQuery {
         }))
     }
 
-    /// Returns each known color in the CSS `source`, with its byte range. Incomplete
-    /// blocks are also read. A reference that is resolved at runtime uses the active
-    /// theme definition.
+    /// Returns each known color in the CSS `source`, with its byte range, in range
+    /// order. Incomplete blocks are also read. A reference that is resolved at runtime
+    /// uses the active theme definition. A range whose `light-dark()` arguments differ
+    /// has a light and a dark color.
     ///
     /// # Errors
     ///
@@ -253,6 +258,7 @@ impl NativeEditorQuery {
                     blue: color.rgba[2],
                     alpha: color.rgba[3],
                     candidate: color.candidate.map(Into::into),
+                    scheme: color.scheme.map(Into::into),
                 })
             })
             .collect()

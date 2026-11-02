@@ -202,12 +202,37 @@ export function registerCandidatesEditorContract(specifier: string): void {
       `@theme { --color-brand: red; }
 @utility card { background-color: red; padding: 1rem; }
 @utility ring-brand { --ring-color: var(--color-brand); }
-@utility faded { color: rgb(255 0 0 / 0); outline-color: red; }`,
+@utility faded { color: rgb(255 0 0 / 0); outline-color: red; }
+@utility surface { color: light-dark(red, blue); }`,
     );
     const query = loader.editorQuery();
     expect(query.candidateColor("card")).toBeNull();
     expect(query.candidateColor("ring-brand")).toEqual([1, 0, 0, 1]);
     expect(query.candidateColor("faded")).toEqual([1, 0, 0, 1]);
+    expect(query.candidateColors("ring-brand")).toEqual([
+      {
+        red: 1,
+        green: 0,
+        blue: 0,
+        alpha: 1,
+      },
+    ]);
+    expect(query.candidateColors("surface")).toEqual([
+      {
+        red: 1,
+        green: 0,
+        blue: 0,
+        alpha: 1,
+        scheme: "light",
+      },
+      {
+        red: 0,
+        green: 0,
+        blue: 1,
+        alpha: 1,
+        scheme: "dark",
+      },
+    ]);
     const css = ".card { @apply card; color: var(--color-brand); }";
     const colors = query.stylesheetColors(css);
     expect(colors).toHaveLength(1);

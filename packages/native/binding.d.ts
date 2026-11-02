@@ -243,6 +243,17 @@ export declare class NativeEditorQuery {
    */
   candidateColor(candidate: string): Array<number> | null
   /**
+   * Returns the colors that `candidate` sets: one color without a scheme, or a
+   * light color followed by a dark color when `light-dark()` selects different
+   * colors. Returns an empty array when the utility sets more than colors, or when
+   * its color does not resolve or is ambiguous in either scheme.
+   *
+   * # Errors
+   *
+   * Returns an error for malformed requirements of a utility definition.
+   */
+  candidateColors(candidate: string): Array<NativeCandidateColor>
+  /**
    * Returns reports for the sorting edits `edits`, using the lint settings of this
    * query. Each edit becomes an `unsorted-utilities` finding with a fix. The reports
    * respect the severity of the rule and the suppression comments of the source.
@@ -290,9 +301,10 @@ export declare class NativeEditorQuery {
    */
   stylesheetDefinition(source: string, offset: number): NativeStylesheetDefinition | null
   /**
-   * Returns each known color in the CSS `source`, with its byte range. Incomplete
-   * blocks are also read. A reference that is resolved at runtime uses the active
-   * theme definition.
+   * Returns each known color in the CSS `source`, with its byte range, in range
+   * order. Incomplete blocks are also read. A reference that is resolved at runtime
+   * uses the active theme definition. A range whose `light-dark()` arguments differ
+   * has a light and a dark color.
    *
    * # Errors
    *
@@ -855,6 +867,23 @@ export interface NativeAssetRecord {
 /** Quote character that delimited a converted attribute value. */
 export type NativeAttributeQuote = 'single' | 'double'
 
+/** One color that a candidate sets. */
+export interface NativeCandidateColor {
+  /** The sRGB red component, from 0 to 1. */
+  red: number
+  /** The sRGB green component, from 0 to 1. */
+  green: number
+  /** The sRGB blue component, from 0 to 1. */
+  blue: number
+  /** The opacity that applies, from 0 to 1. */
+  alpha: number
+  /**
+   * The color scheme that shows this color. The field is absent when both schemes
+   * show it.
+   */
+  scheme?: NativeColorScheme
+}
+
 /** One label that candidate completion offers. */
 export interface NativeCandidateCompletion {
   /**
@@ -946,6 +975,9 @@ export interface NativeClassContext {
   /** Branch discriminator and canonical spelling of the contribution. */
   branch: string
 }
+
+/** A color scheme that selects one argument of `light-dark()`. */
+export type NativeColorScheme = 'light' | 'dark'
 
 /** Host metadata and CSS text for a compilation. */
 export interface NativeCompileCssInput {
@@ -2062,6 +2094,11 @@ export interface NativeStylesheetColor {
    * replace a reference with a CSS color value.
    */
   candidate?: string
+  /**
+   * The color scheme that shows this color. The field is absent when both schemes
+   * show it. A light color is followed by a dark color with the same range.
+   */
+  scheme?: NativeColorScheme
 }
 
 /** One completion in a stylesheet. Its range counts UTF-8 bytes in the original source. */

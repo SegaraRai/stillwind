@@ -6,11 +6,14 @@ use cssparser::Token;
 use lean_string::LeanStr;
 
 use stillwind_css::{
-    CssNode, color_rgba, find_css_functions, parse_structure, split_once_top_level,
+    ColorScheme, CssNode, color_rgba, find_css_functions, parse_structure, select_color_scheme,
+    split_once_top_level,
 };
 use stillwind_design_system::{ThemeValueRole, UtilityResolutionError};
 
-use crate::{compiler::apply_candidates, query::DesignSystemQuery};
+use crate::compiler::apply_candidates;
+use crate::query::DesignSystemQuery;
+use crate::query::theme::scheme_colors;
 
 /// A concrete color at one complete utility or theme-reference range.
 #[derive(Clone, Debug)]
@@ -20,6 +23,10 @@ pub struct StylesheetColor {
     pub range: Range<usize>,
     /// sRGB red, green, blue, and effective alpha in the inclusive range 0..1.
     pub rgba: [f64; 4],
+    /// The scheme whose `light-dark()` arguments produce this color, or `None` when
+    /// both schemes produce it. A light color is followed by a dark color at the same
+    /// range, and replacing either color would remove the other.
+    pub scheme: Option<ColorScheme>,
     /// Original utility spelling for candidate replacement. References have no
     /// candidate and are replaced by a CSS color literal.
     pub candidate: Option<LeanStr>,
@@ -27,10 +34,12 @@ pub struct StylesheetColor {
 
 impl DesignSystemQuery {
     /// Resolves colors in `@apply` candidates and complete theme-reference functions
-    /// in `css`. Ranges address the original UTF-8 source, including unclosed blocks.
-    /// Functions inside an `@apply` candidate are handled only through that candidate.
-    /// Unknown, cyclic, contextual, and ambiguous colors are omitted. Runtime `var()`
-    /// references show the active theme definition rather than browser cascade state.
+    /// in `css`, in range order. Ranges address the original UTF-8 source, including
+    /// unclosed blocks. Functions inside an `@apply` candidate are handled only through
+    /// that candidate. A range whose `light-dark()` arguments differ has a light and a
+    /// dark color. Unknown, cyclic, other contextual, and ambiguous colors are omitted.
+    /// Runtime `var()` references show the active theme definition rather than browser
+    /// cascade state.
     ///
     /// # Errors
     ///
@@ -44,11 +53,12 @@ impl DesignSystemQuery {
         let mut colors = Vec::new();
         for range in &ranges {
             let candidate = &css[range.clone()];
-            if let Some(rgba) = self.candidate_color(candidate)? {
+            for color in self.candidate_colors(candidate)? {
                 colors.push(StylesheetColor {
                     range: range.clone(),
-                    rgba,
+                    rgba: color.rgba,
                     candidate: Some(candidate.into()),
+                    scheme: color.scheme,
                 });
             }
         }
@@ -77,11 +87,12 @@ impl DesignSystemQuery {
             let Some(value) = self.context.resolve_theme_values(&token.value.value) else {
                 continue;
             };
-            if let Some(rgba) = color_rgba(&value) {
+            for color in scheme_colors(|scheme| color_rgba(&select_color_scheme(&value, scheme))) {
                 colors.push(StylesheetColor {
-                    range,
-                    rgba,
+                    range: range.clone(),
+                    rgba: color.rgba,
                     candidate: None,
+                    scheme: color.scheme,
                 });
             }
         }
@@ -102,6 +113,7 @@ fn applications(css: &str, nodes: &[CssNode], ranges: &mut Vec<Range<usize>>) {
 
 #[cfg(test)]
 mod tests {
+    use stillwind_css::{ColorScheme, color_rgba};
     use stillwind_design_system::{DesignSystemOptions, DesignSystemSnapshot};
     use stillwind_source::FileId;
     use stillwind_test_support::css_source;
@@ -143,5 +155,36 @@ mod tests {
         }));
         assert!(colors[0].candidate.is_some());
         assert!(colors[2].candidate.is_none());
+    }
+
+    #[test]
+    fn light_dark_colors_share_one_range_in_scheme_order() {
+        let source = css_source(FileId(1), "@theme { --color-surface:light-dark(#202b35, #e4edff); --color-same:light-dark(red, red); } @utility bg-* {background-color:--value(--color-*);}").unwrap();
+        let query = DesignSystemQuery::new(
+            DesignSystemSnapshot::from_source(
+                &source,
+                "theme.css".into(),
+                DesignSystemOptions::default(),
+            )
+            .unwrap(),
+            CompilerOptions::default(),
+        );
+        let css = ".a { @apply bg-surface bg-same; color:var(--color-surface); }";
+        let colors = query.stylesheet_colors(css).unwrap();
+        assert_eq!(
+            colors
+                .iter()
+                .map(|color| (&css[color.range.clone()], color.scheme))
+                .collect::<Vec<_>>(),
+            [
+                ("bg-surface", Some(ColorScheme::Light)),
+                ("bg-surface", Some(ColorScheme::Dark)),
+                ("bg-same", None),
+                ("var(--color-surface)", Some(ColorScheme::Light)),
+                ("var(--color-surface)", Some(ColorScheme::Dark)),
+            ]
+        );
+        assert_eq!(colors[0].rgba, color_rgba("#202b35").unwrap());
+        assert_eq!(colors[1].rgba, color_rgba("#e4edff").unwrap());
     }
 }

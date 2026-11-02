@@ -1,6 +1,7 @@
 import {
   completionDetail,
   type NativeAddedMarker,
+  type NativeCandidateColor,
   type NativeCandidateCompletion,
   type NativeCandidateContext,
   type NativeEditorQuery,
@@ -168,6 +169,19 @@ export class CandidateQueries {
    */
   color(candidate: string): number[] | undefined {
     return this.#query.candidateColor(candidate) ?? undefined;
+  }
+
+  /**
+   * Resolves a color utility's concrete colors in both color schemes against this query's theme.
+   *
+   * @param candidate - Full decoded ordinary utility candidate, including variants and modifiers.
+   * @returns One color without a scheme, a light color followed by a dark color when
+   * `light-dark()` selects different colors, or an empty array when the candidate is not a color
+   * utility or has no unambiguous concrete color in either scheme.
+   * @throws If a matching utility definition has a malformed requirement.
+   */
+  colors(candidate: string): NativeCandidateColor[] {
+    return this.#query.candidateColors(candidate);
   }
 }
 

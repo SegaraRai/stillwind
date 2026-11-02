@@ -5,7 +5,8 @@ use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure, split_once_top_level,
+    ColorScheme, CssNode, CssNodeKind, color_rgba, find_css_functions, parse_structure,
+    select_color_scheme, split_once_top_level,
 };
 use stillwind_design_system::{LegacyThemeKey, ThemeValue, ThemeValueMode, UtilityResolutionError};
 
@@ -74,14 +75,8 @@ impl DesignSystemQuery {
             .collect()
     }
 
-    /// Returns a concrete color for a candidate whose ordinary declarations only set
-    /// colors.
-    ///
-    /// Mask images, mask composition, and empty pseudo-element content are ignored.
-    /// Custom properties supply colors only when no ordinary declarations remain.
-    /// Theme variables are resolved against this snapshot. Runtime and contextual
-    /// colors are omitted. Colors must agree within 1/255 per component, except that
-    /// matching RGB colors may include alpha 0.
+    /// Returns the concrete color of a candidate when it is the same in both color
+    /// schemes. See [`DesignSystemQuery::candidate_colors`] for the rules.
     ///
     /// # Errors
     ///
@@ -90,8 +85,31 @@ impl DesignSystemQuery {
         &self,
         candidate: &str,
     ) -> Result<Option<[f64; 4]>, UtilityResolutionError> {
+        Ok(match self.candidate_colors(candidate)?[..] {
+            [SchemeColor { scheme: None, rgba }] => Some(rgba),
+            _ => None,
+        })
+    }
+
+    /// Returns the concrete colors of a candidate whose ordinary declarations only set
+    /// colors: one color without a scheme, a light color followed by a dark color when
+    /// `light-dark()` selects different colors, or nothing.
+    ///
+    /// Mask images, mask composition, and empty pseudo-element content are ignored.
+    /// Custom properties supply colors only when no ordinary declarations remain.
+    /// Theme variables are resolved against this snapshot. Runtime and other
+    /// contextual colors are omitted. In each scheme, colors must agree within 1/255
+    /// per component, except that matching RGB colors may include alpha 0.
+    ///
+    /// # Errors
+    ///
+    /// Returns malformed utility requirements.
+    pub fn candidate_colors(
+        &self,
+        candidate: &str,
+    ) -> Result<Vec<SchemeColor>, UtilityResolutionError> {
         let Some(preview) = self.hover_candidate(candidate)? else {
-            return Ok(None);
+            return Ok(Vec::new());
         };
         let mut declarations = Vec::new();
         color_declarations(
@@ -116,32 +134,73 @@ impl DesignSystemQuery {
                 && !matches!(property.as_str(), "color" | "fill" | "stroke")
                 && !property.ends_with("-color")
         }) {
-            return Ok(None);
+            return Ok(Vec::new());
         }
         let values: Vec<_> = declarations
             .iter()
             .filter(|(property, _)| all_custom || !property.starts_with("--"))
-            .filter_map(|(_, value)| {
-                self.context
-                    .resolve_theme_values(declaration_value(value))
-                    .and_then(|value| color_rgba(&value))
-            })
+            .filter_map(|(_, value)| self.context.resolve_theme_values(declaration_value(value)))
             .collect();
-        let color = values
-            .iter()
-            .find(|color| color[3] != 0.0)
-            .or(values.first())
-            .copied();
-        Ok(color.filter(|color| {
-            values.iter().all(|other| {
-                color[..3]
-                    .iter()
-                    .zip(other)
-                    .all(|(a, b)| (a - b).abs() <= 1.0 / 255.0)
-                    && (other[3] == 0.0 || (color[3] - other[3]).abs() <= 1.0 / 255.0)
+        Ok(scheme_colors(|scheme| {
+            let colors: Vec<_> = values
+                .iter()
+                .filter_map(|value| color_rgba(&select_color_scheme(value, scheme)))
+                .collect();
+            let color = colors
+                .iter()
+                .find(|color| color[3] != 0.0)
+                .or(colors.first())
+                .copied();
+            color.filter(|color| {
+                colors.iter().all(|other| {
+                    color[..3]
+                        .iter()
+                        .zip(other)
+                        .all(|(a, b)| (a - b).abs() <= 1.0 / 255.0)
+                        && (other[3] == 0.0 || (color[3] - other[3]).abs() <= 1.0 / 255.0)
+                })
             })
         }))
     }
+}
+
+/// A concrete color that an editor shows, with the color scheme that it requires.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SchemeColor {
+    /// The scheme whose `light-dark()` arguments produce this color, or `None` when
+    /// both schemes produce it.
+    pub scheme: Option<ColorScheme>,
+    /// sRGB red, green, blue, and effective alpha in the inclusive range 0..1.
+    pub rgba: [f64; 4],
+}
+
+/// Resolves a color in both schemes. Returns one color without a scheme when the
+/// results agree within 1/255 per component, the light color followed by the dark
+/// color when both resolve but differ, and nothing when either scheme has no color.
+pub(super) fn scheme_colors(color: impl Fn(ColorScheme) -> Option<[f64; 4]>) -> Vec<SchemeColor> {
+    let (Some(light), Some(dark)) = (color(ColorScheme::Light), color(ColorScheme::Dark)) else {
+        return Vec::new();
+    };
+    if light
+        .iter()
+        .zip(dark)
+        .all(|(a, b)| (a - b).abs() <= 1.0 / 255.0)
+    {
+        return vec![SchemeColor {
+            scheme: None,
+            rgba: light,
+        }];
+    }
+    vec![
+        SchemeColor {
+            scheme: Some(ColorScheme::Light),
+            rgba: light,
+        },
+        SchemeColor {
+            scheme: Some(ColorScheme::Dark),
+            rgba: dark,
+        },
+    ]
 }
 
 /// Collects declarations from all nested rules while omitting property registrations.
@@ -409,6 +468,30 @@ mod tests {
                 "{candidate}"
             );
         }
+    }
+
+    #[test]
+    fn candidate_colors_resolve_light_dark_in_each_scheme() {
+        let query = query(
+            r"@import 'stillwind';
+@theme { --color-surface: light-dark(#202b35, #e4edff); }
+",
+            DesignSystemOptions::default(),
+        );
+        assert_eq!(
+            query.candidate_colors("bg-surface/50").unwrap(),
+            [
+                SchemeColor {
+                    scheme: Some(ColorScheme::Light),
+                    rgba: color_rgba("rgb(32 43 53 / 50%)").unwrap(),
+                },
+                SchemeColor {
+                    scheme: Some(ColorScheme::Dark),
+                    rgba: color_rgba("rgb(228 237 255 / 50%)").unwrap(),
+                },
+            ]
+        );
+        assert_eq!(query.candidate_color("bg-surface").unwrap(), None);
     }
 
     #[test]
