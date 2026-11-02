@@ -6,6 +6,8 @@ import { ClientRouter } from "astro:transitions";
 import { style } from "stillwind/astro";
 
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
+import SearchDialog from "../components/docs/SearchDialog.astro";
+import WebMCP from "../components/docs/WebMCP.astro";
 import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
@@ -92,13 +94,14 @@ const paginationLink = style(
         },
       ]}
     />
+    <WebMCP />
   </head>
   <body {...style("font-sans text-body text-foreground antialiased bg-background")}>
     <a href="#main-content" {...style("skip-link")}>
       Skip to content
     </a>
     <div data-docs-page {...style("mx-auto px-docs-gutter inline-full max-inline-docs")}>
-      <SiteHeader container="docs" />
+      <SiteHeader container="docs" search />
       <div
         {...style(
           "grid pbs-12 grid-cols-[var(--container-navigation)_minmax(0,1fr)_var(--container-outline)] items-start gap-docs-gutter",
@@ -255,6 +258,7 @@ const paginationLink = style(
         </nav>
       </div>
     </div>
+    <SearchDialog />
   </body>
 </html>
 
