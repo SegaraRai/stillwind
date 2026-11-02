@@ -4,7 +4,12 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { fixtureSupport, type FixtureManifest } from "./fixture.ts";
-import { matrixOptions, selectedProfiles, supportDocument } from "./matrix-selection.ts";
+import {
+  matrixOptions,
+  selectedProfiles,
+  shardPackages,
+  supportDocument,
+} from "./matrix-selection.ts";
 import { contractPolicy } from "./policy.ts";
 import { startProcess } from "./process.ts";
 
@@ -60,14 +65,17 @@ const support = options.support ?? process.env.STILLWIND_E2E_SUPPORT;
 if (support !== undefined && support !== "primary" && support !== "compatibility") {
   throw new Error(`Invalid support tier: ${support}`);
 }
-const queue = packages.filter(
-  (item) =>
-    (!selected.length || selected.includes(item.name)) &&
-    (!item.manifest ||
-      selectedProfiles(item.manifest, support, process.env.STILLWIND_E2E_PROFILE).length),
+const queue = shardPackages(
+  packages.filter(
+    (item) =>
+      (!selected.length || selected.includes(item.name)) &&
+      (!item.manifest ||
+        selectedProfiles(item.manifest, support, process.env.STILLWIND_E2E_PROFILE).length),
+  ),
+  options.shard,
 );
 if (options.docs) {
-  if (selected.length || support) {
+  if (selected.length || support || options.shard) {
     throw new Error("Support documentation requires the full matrix");
   }
   await writeFile(

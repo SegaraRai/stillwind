@@ -29,7 +29,13 @@ env:
 
 jobs:
   acceptance:
-    name: Test the ${{ inputs.support || (github.event.schedule == '0 3 * * 1' && 'compatibility' || 'primary') }} tier
+    name: Test the ${{ inputs.support || (github.event.schedule == '0 3 * * 1' && 'compatibility' || 'primary') }} tier (${{ matrix.shard }}/4)
+    # The release workflow waits for this job. Each shard repeats the build of the shared inputs,
+    # which takes less time than running every package on one runner.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-26.04
     timeout-minutes: 180
     steps:
@@ -62,12 +68,14 @@ jobs:
           deno-version: 2.9.8
       - run: vp exec playwright install --with-deps chrome
         working-directory: e2e/harness
-      - run: vp run --concurrency-limit 1 "@stillwind-internal/e2e-harness#test:e2e:$SUPPORT"
+      - run: vp run --concurrency-limit 1 "@stillwind-internal/e2e-harness#test:e2e:$SUPPORT" --shard "$SHARD"
+        env:
+          SHARD: ${{ matrix.shard }}/4
       - name: Upload failure evidence
         if: failure()
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: acceptance-failure-${{ env.SUPPORT }}-${{ github.run_attempt }}
+          name: acceptance-failure-${{ env.SUPPORT }}-${{ matrix.shard }}-${{ github.run_attempt }}
           path: e2e/results/
           if-no-files-found: ignore
           retention-days: 7

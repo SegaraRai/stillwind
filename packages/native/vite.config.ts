@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => ({
         command: "node build-binding.ts",
         cache: {
           ...rustCache,
-          env: [...rustCache.env, "NATIVE_USE_NAPI_CROSS"],
+          env: [...rustCache.env, "NATIVE_USE_NAPI_CROSS", "NATIVE_TARGET"],
           input: [...rustCache.input, "!dist", "!dist/**", "!.build", "!.build/**"],
           output: [".build/native/index.js", ".build/native/*.node", ".build/native/binding.d.ts"],
         },

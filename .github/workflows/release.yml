@@ -36,9 +36,9 @@ env:
 jobs:
   binaries:
     name: Build ${{ matrix.target }}
-    # Every other job depends on `binaries`, `shared`, or `verify`, so this condition on the
-    # three jobs limits pull request runs to the version branch of this repository. A fork can
-    # also name a branch `version/main`.
+    # Every other job depends on `binaries`, `shared`, `verify`, or `acceptance`, so this
+    # condition on the four jobs limits pull request runs to the version branch of this
+    # repository. A fork can also name a branch `version/main`.
     if: github.event_name != 'pull_request' || (github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
@@ -48,8 +48,11 @@ jobs:
             runner: windows-2025
           - target: win32-arm64-msvc
             runner: windows-11-arm
+          # The Intel runner builds much more slowly, so an Apple silicon runner cross-compiles
+          # this binary. `desktop` still loads it on an Intel runner.
           - target: darwin-x64
-            runner: macos-15-intel
+            runner: macos-15
+            rust-target: x86_64-apple-darwin
           - target: darwin-arm64
             runner: macos-15
           - target: linux-x64-gnu
@@ -72,13 +75,22 @@ jobs:
       - run: vp i --frozen-lockfile --ignore-scripts
       - name: Set up Rust
         shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.rust-target }}
         run: |
-          rustup toolchain install 1.99.1 --profile minimal
+          rustup toolchain install 1.99.1 --profile minimal ${RUST_TARGET:+--target "$RUST_TARGET"}
           rustup default 1.99.1
       - name: Build and test the binding
+        if: ${{ !matrix.rust-target }}
         run: vp run @stillwind/native#test
         env:
           NATIVE_USE_NAPI_CROSS: ${{ startsWith(matrix.target, 'linux-') }}
+      # The runner cannot load a binary for another architecture.
+      - name: Build the binding
+        if: ${{ matrix.rust-target }}
+        run: vp run @stillwind/native#build:binding
+        env:
+          NATIVE_TARGET: ${{ matrix.rust-target }}
       - name: Check the glibc requirement
         if: startsWith(matrix.target, 'linux-')
         env:
@@ -248,9 +260,9 @@ jobs:
           node-version: "26.13.0"
           cache: false
           run-install: false
-      # The binding needs no install scripts, and sharp 0.32 from the Gatsby fixture cannot
-      # build on Windows Arm64.
-      - run: vp i --frozen-lockfile --ignore-scripts
+      # The packaging commands below run without `vp run`, so they need only these packages. A
+      # full install takes several minutes on Windows Arm64 and Intel macOS.
+      - run: vp i --frozen-lockfile --ignore-scripts --filter @stillwind-internal/root --filter "@stillwind/cli..." --filter "@stillwind/vscode-extension..."
       - uses: actions/download-artifact@v8.0.2
         with:
           name: native-${{ matrix.native }}
@@ -279,21 +291,18 @@ jobs:
 
   acceptance:
     name: Browser acceptance
-    needs: verify
+    if: github.event_name != 'pull_request' || (github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository)
     uses: ./.github/workflows/e2e.yml
     with:
       support: primary
 
-  publish:
-    name: Stage packages
-    needs: [binaries, verify, desktop, acceptance]
+  # This job runs beside the tests, so `publish` only uploads after the tests pass.
+  npm-packages:
+    name: Build npm packages
+    needs: binaries
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     timeout-minutes: 60
-    environment: npm-release
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -325,6 +334,12 @@ jobs:
           path: packages/native/dist/
       - name: Build packages
         run: vp run --concurrency-limit 1 prepare-publish
+        # `prepare-publish` rebuilds the Linux x64 binary and replaces the downloaded one, so the
+        # rebuild must keep the glibc requirement of the `binaries` job.
+        env:
+          NATIVE_USE_NAPI_CROSS: true
+      - name: Check the glibc requirement
+        run: node packages/native/check-glibc.ts packages/native/npm/linux-x64-gnu/stillwind_native.linux-x64-gnu.node
       - name: Require every platform binary
         # `collect:local` skips a missing binary, which would publish an empty platform package.
         working-directory: packages/native/npm
@@ -333,6 +348,42 @@ jobs:
             main=$(node --print "require('./$directory/package.json').main")
             test -f "$directory/$main"
           done
+      # The archive holds the generated files that `pnpm publish` packs. Tracked files come from
+      # the checkout in `publish`.
+      - name: Archive the built packages
+        run: |
+          git ls-files -z --others --ignored --exclude-standard -- packages plugins \
+            | grep -zv -e '/node_modules/' -e '/\.build/' -e '\.tmp$' \
+            | tar --create --gzip --null --files-from - --file npm-packages.tar.gz
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: npm-packages
+          path: npm-packages.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Stage packages
+    needs: [npm-packages, verify, desktop, acceptance]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: npm-packages
+      - run: tar --extract --gzip --file npm-packages.tar.gz
       - name: Select the npm tag
         id: tag
         run: |

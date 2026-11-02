@@ -16,6 +16,7 @@ export function matrixOptions(args: string[]) {
     typecheck: boolean;
     list: boolean;
     docs: boolean;
+    shard?: { index: number; count: number };
   } = {
     selected: [],
     typecheck: false,
@@ -36,6 +37,13 @@ export function matrixOptions(args: string[]) {
       options.list = true;
     } else if (arg === "--write-support-doc") {
       options.docs = true;
+    } else if (arg === "--shard") {
+      const match = /^([1-9]\d*)\/([1-9]\d*)$/.exec(args[++index] ?? "");
+      const shard = match && { index: Number(match[1]), count: Number(match[2]) };
+      if (!shard || shard.index > shard.count) {
+        throw new Error("--shard requires <index>/<count> with 1 <= index <= count");
+      }
+      options.shard = shard;
     } else if (arg.startsWith("--")) {
       throw new Error(`Unknown matrix option: ${arg}`);
     } else {
@@ -43,6 +51,17 @@ export function matrixOptions(args: string[]) {
     }
   }
   return options;
+}
+
+/**
+ * Returns the packages of one shard. Packages are assigned in turn, so every package belongs to
+ * exactly one shard when all indexes from 1 to `count` run with the same ordered input.
+ */
+export function shardPackages<T>(
+  items: readonly T[],
+  shard?: { index: number; count: number },
+): T[] {
+  return items.filter((_, position) => !shard || position % shard.count === shard.index - 1);
 }
 
 /** Returns profiles matching both selectors. Packages without a manifest contain independent CSS contracts. */

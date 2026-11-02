@@ -35,8 +35,9 @@ fails when a pull request from a fork changes `.github/`, `.changeset/ledger.yam
 
 The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `primary` tier daily
 and the `compatibility` tier weekly. The Release workflow calls it for the `primary` tier on
-the version pull request and again after the merge. Start **Actions → Browser
-acceptance → Run workflow** to test either tier manually.
+the version pull request and again after the merge. Each run splits the tier across four
+runners with `--shard`. Start **Actions → Browser acceptance → Run workflow** to test either
+tier manually.
 
 `.github/workflows/actions.lock` records the commit of each action that the workflows use,
 and GitHub Actions runs those commits. After you add a workflow or change a `uses:` value,
@@ -57,6 +58,10 @@ Release builds of the Linux bindings set `NATIVE_USE_NAPI_CROSS=true`, so they l
 with the glibc 2.17 toolchain from `@napi-rs/cross-toolchain`. The toolchain downloads
 during the build and only runs on Linux. `packages/native/check-glibc.ts` fails the release
 when a binding requires a newer glibc.
+
+Set `NATIVE_TARGET` to a Rust target triple to build the binding for a target other than the
+host. The Release workflow builds the `darwin-x64` binding on an Apple silicon runner with
+`NATIVE_TARGET=x86_64-apple-darwin`, and the Desktop package job tests it on an Intel runner.
 
 Before you publish the platform packages of `@stillwind/native`, run
 `vp run @stillwind/native#prepare-publish`. It checks that
@@ -91,9 +96,8 @@ request, so its Release and Sites runs wait for a maintainer to approve them in 
 tab. Wait for the Release run to pass, then merge the pull request with **Squash and merge**.
 
 The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
-workflow again, which builds and tests everything on `main`. After these jobs succeed, the
-workflow uploads
-the npm packages to npm's staging area and publishes the
+workflow again, which builds and tests everything on `main`. It builds the npm packages
+while the tests run. After the tests succeed, the workflow uploads the npm packages to npm's staging area and publishes the
 [VS Code extension](packages/vscode-extension/DEVELOPMENT.md#publish). A version with a
 prerelease suffix receives the npm tag `next`; any other version receives `latest`.
 

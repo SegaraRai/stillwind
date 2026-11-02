@@ -1,7 +1,12 @@
 import { expect, test, vi, afterEach } from "vite-plus/test";
 
 import { fixtureProfiles, fixtureSupport, failureReason, type FixtureManifest } from "./fixture.ts";
-import { matrixOptions, selectedProfiles, supportDocument } from "./matrix-selection.ts";
+import {
+  matrixOptions,
+  selectedProfiles,
+  shardPackages,
+  supportDocument,
+} from "./matrix-selection.ts";
 import { casePolicy } from "./policy.ts";
 
 const fixture: FixtureManifest = {
@@ -38,6 +43,9 @@ test("rejects invalid CLI selectors and misspelled profile overrides", () => {
   expect(() => matrixOptions(["--support"])).toThrow("requires");
   expect(() => matrixOptions(["--support", "minor"])).toThrow("requires");
   expect(() => matrixOptions(["--unknown"])).toThrow("Unknown");
+  expect(matrixOptions(["--shard", "2/4"]).shard).toEqual({ index: 2, count: 4 });
+  expect(() => matrixOptions(["--shard", "5/4"])).toThrow("--shard requires");
+  expect(() => matrixOptions(["--shard", "0/4"])).toThrow("--shard requires");
   expect(() =>
     fixtureSupport(
       {
@@ -52,6 +60,13 @@ test("rejects invalid CLI selectors and misspelled profile overrides", () => {
       "webpack",
     ),
   ).toThrow("Unknown support profile");
+});
+
+test("assigns every package to exactly one shard", () => {
+  const items = ["a", "b", "c", "d", "e"];
+  const shards = [1, 2, 3].map((index) => shardPackages(items, { index, count: 3 }));
+  expect(shards).toEqual([["a", "d"], ["b", "e"], ["c"]]);
+  expect(shardPackages(items)).toEqual(items);
 });
 
 test("reports source map limitations separately from high priority CSS contracts", () => {

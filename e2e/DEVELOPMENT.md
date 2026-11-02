@@ -56,6 +56,6 @@ Support tiers, contract priorities, and expected-failure rules are documented in
 [Support inventory](support.md). Classification does not allow failed tests;
 unexpected passes of expected-failure cases also fail the suite.
 
-Run `vp run test:e2e:primary` or `vp run test:e2e:compatibility` for one support tier. `vp run @stillwind-internal/e2e-harness#test:e2e --support primary` or `--support compatibility` also selects a tier. Package names and `STILLWIND_E2E_PROFILE` can further restrict the selection. Framework-independent CSS tests run with either tier unless package names exclude them. `--list` prints the selection without starting servers. Tier selections write separate `matrix-primary.json` and `matrix-compatibility.json` reports.
+Run `vp run test:e2e:primary` or `vp run test:e2e:compatibility` for one support tier. `vp run @stillwind-internal/e2e-harness#test:e2e --support primary` or `--support compatibility` also selects a tier. Package names and `STILLWIND_E2E_PROFILE` can further restrict the selection. Framework-independent CSS tests run with either tier unless package names exclude them. `--shard <index>/<count>` runs every `count`-th package of the selection, starting at position `index`, so CI can split a tier across runners. `--list` prints the selection without starting servers. Tier selections write separate `matrix-primary.json` and `matrix-compatibility.json` reports.
 
 After changing manifests, regenerate the support inventory with `vp exec node e2e/harness/src/matrix.ts --write-support-doc`, then run `vp fmt e2e/support.md`.

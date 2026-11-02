@@ -24,6 +24,10 @@ const args = [
 if (process.env.NATIVE_USE_NAPI_CROSS === "true") {
   args.push("--use-napi-cross");
 }
+// A Rust target triple, such as `x86_64-apple-darwin`, selects a target other than the host.
+if (process.env.NATIVE_TARGET) {
+  args.push("--target", process.env.NATIVE_TARGET);
+}
 
 const { status, error } = spawnSync(process.execPath, args, {
   cwd: import.meta.dirname,
