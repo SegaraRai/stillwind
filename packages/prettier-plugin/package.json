@@ -1,6 +1,6 @@
 {
   "name": "prettier-plugin-stillwind",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Stillwind utility sorting for Prettier",
   "homepage": "https://stillwind.dev",
   "bugs": {

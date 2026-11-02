@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/host",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Host services shared by Stillwind's build integrations and analysis tools",
   "homepage": "https://stillwind.dev",
   "bugs": {
