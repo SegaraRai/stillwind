@@ -27,6 +27,27 @@ Follow these rules:
 - The notes replace the whole body, including the request above this comment and the comment
   itself.
 
+Start each entry with a scope label that names the part of Stillwind where users see the
+change. Choose the scope from the change itself, not from the package whose changelog lists it.
+For example, `@stillwind/cli` bundles the language server, so its changelog can list a VS Code
+fix. Use these labels, in this order, when they fit:
+
+1. `Core`: generated CSS, utilities, variants, theme tokens, configuration, diagnostic rules, and
+   build integrations. Use `Core` when the change is the same in every tool, such as a rule that
+   both `stillwind lint` and the editor report.
+2. `CLI`: `stillwind` commands, their options, and their output formats.
+3. `Editor`: the VS Code extension and the language server in other editors.
+4. `Prettier`: `prettier-plugin-stillwind`.
+5. `Iconify Plugin`: `@stillwind/plugin-iconify`. Label another plugin in the same way, such as
+   `<Name> Plugin`, after `Iconify Plugin`.
+
+When no label above fits a change, use a short label that names the part users see, and place
+it after the labels above.
+
+When an entry changes several scopes in different ways, join their labels in the order above,
+such as `**CLI, Editor:**`, and write the entry once. Within each heading, order entries by
+their first label in the order above.
+
 Use this structure:
 
 ```md
@@ -34,15 +55,15 @@ Use this structure:
 
 ## Breaking changes
 
-- <Change, followed by the migration step>
+- **<Scope>:** <Change, followed by the migration step>
 
 ## Features
 
-- <New capability>
+- **<Scope>:** <New capability>
 
 ## Fixes
 
-- <Corrected behavior>
+- **<Scope>:** <Corrected behavior>
 
 ## Changelogs
 
