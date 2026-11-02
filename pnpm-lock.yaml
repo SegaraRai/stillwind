@@ -241,6 +241,9 @@ importers:
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:tools/workspace
+      '@stillwind/cli':
+        specifier: workspace:*
+        version: link:packages/cli
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
