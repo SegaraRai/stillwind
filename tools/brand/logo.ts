@@ -72,8 +72,8 @@ ${logo.tiles.map((tile) => `    <path class="${tile.part}" d="${tile.d}" />`).jo
 `;
 }
 
-const coloredTiles = (logo: Lockup) => {
-  const c = COLORS.light;
+const coloredTiles = (logo: Lockup, scheme: keyof typeof COLORS) => {
+  const c = COLORS[scheme];
   return `  <g ${STROKE}>
 ${logo.tiles.map((tile) => `    <path d="${tile.d}" fill="${c[tile.part]}" stroke="${c[tile.part]}" />`).join("\n")}
   </g>`;
@@ -82,16 +82,19 @@ ${logo.tiles.map((tile) => `    <path d="${tile.d}" fill="${c[tile.part]}" strok
 /** Returns the mark alone with the light colors. */
 export const markOnly = (logo: Lockup): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 32 32">
-${coloredTiles(logo)}
+${coloredTiles(logo, "light")}
 </svg>
 `;
 
-/** Returns the lockup with the light colors and an outlined wordmark. */
-export const lockupOutlined = (logo: Lockup): string =>
+/**
+ * Returns the lockup with an outlined wordmark in the colors of `scheme`. The colors are fixed, so a page that
+ * supports both color schemes must select the file for each scheme.
+ */
+export const lockupOutlined = (logo: Lockup, scheme: keyof typeof COLORS): string =>
   `${lockupRoot(logo)}
   <title>Stillwind</title>
-${coloredTiles(logo)}
-  <g fill="${COLORS.light.text}" aria-label="Stillwind">
+${coloredTiles(logo, scheme)}
+  <g fill="${COLORS[scheme].text}" aria-label="Stillwind">
 ${paths(logo.wordmark.paths)}
   </g>
 </svg>
@@ -101,7 +104,7 @@ ${paths(logo.wordmark.paths)}
 export const lockupEditable = (logo: Lockup, tracking: number): string =>
   `${lockupRoot(logo)}
   <title>Stillwind</title>
-${coloredTiles(logo)}
+${coloredTiles(logo, "light")}
   <text x="${fmt(logo.wordmark.x)}" y="${fmt(logo.baseline)}" fill="${COLORS.light.text}" font-family="Rubik" font-weight="400" font-size="${fmt(logo.wordmark.size)}" letter-spacing="${fmt(tracking * logo.wordmark.size)}">Stillwind</text>
 </svg>
 `;

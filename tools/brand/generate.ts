@@ -33,8 +33,9 @@ for (const app of ["website", "play"]) {
 }
 write("apps/play/src/icons/stillwind/mark.svg", mark);
 write("apps/website/logo-shape-only.svg", markOnly(logo));
-write("apps/website/logo-with-text.svg", lockupOutlined(logo));
-write("tools/brand/output/stillwind-logo-outlined.svg", lockupOutlined(logo));
+write("apps/website/logo-with-text.svg", lockupOutlined(logo, "light"));
+write("apps/website/logo-with-text-dark.svg", lockupOutlined(logo, "dark"));
+write("tools/brand/output/stillwind-logo-outlined.svg", lockupOutlined(logo, "light"));
 write("tools/brand/output/stillwind-logo-editable.svg", lockupEditable(logo, LOCKUP.tracking));
 // The extension icon is drawn at 8x and scaled down so that its small tile gaps stay sharp.
 write(

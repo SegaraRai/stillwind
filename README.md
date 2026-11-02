@@ -1,13 +1,31 @@
-# Stillwind
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/website/logo-with-text-dark.svg" />
+    <img src="apps/website/logo-with-text.svg" alt="Stillwind" width="360" />
+  </picture>
+</h1>
 
-**Familiar utilities. Enforced rules.**
+<p align="center"><strong>Familiar utilities. Enforced rules.</strong></p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/stillwind"><img src="https://img.shields.io/npm/v/stillwind?style=flat-square&color=354fa2" alt="npm version" /></a>
+  <a href="https://github.com/SegaraRai/stillwind/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SegaraRai/stillwind/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-354fa2?style=flat-square" alt="MIT License" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=stillwind.stillwind"><img src="https://img.shields.io/open-vsx/v/stillwind/stillwind?style=flat-square&label=VS%20Code&color=d9725b" alt="VS Code extension version" /></a>
+</p>
+
+<p align="center">
+  <a href="https://stillwind.dev/">Website</a> ·
+  <a href="https://stillwind.dev/docs">Documentation</a> ·
+  <a href="https://play.stillwind.dev/">Playground</a> ·
+  <a href="https://stillwind.dev/docs/agents">Coding agents</a>
+</p>
+
+---
 
 Stillwind is a compiler for component styles. Write Tailwind CSS v4 utilities,
 enforce your design system, and ship static CSS. Its checks keep styling code
 in order, even when AI agents write much of it.
-
-[Website](https://stillwind.dev/) · [Documentation](https://stillwind.dev/docs) ·
-[Playground](https://play.stillwind.dev/) · [Coding agents](https://stillwind.dev/docs/agents)
 
 > [!WARNING]
 > Stillwind is in early development. Test your application's build and pages before you release changes.
