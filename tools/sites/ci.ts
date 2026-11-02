@@ -16,6 +16,7 @@ export const browserSuites = [
   "sharing",
   "files",
   "recovery",
+  "output",
 ] as const;
 type BrowserSuite = (typeof browserSuites)[number];
 export interface SitePlan {
