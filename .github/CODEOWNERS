@@ -1,0 +1,34 @@
+# Changes to these paths run with repository secrets or write permissions after the merge,
+# change the published packages, or change the instructions that coding agents follow.
+# The Protected paths workflow rejects changes to `.github/`, the ledger, and changelogs from
+# forks. Keep its `paths` list in sync with those entries.
+
+# Workflows, pinned actions, and this file.
+/.github/ @SegaraRai
+
+# The Version PR workflow generates these files.
+/.changeset/ledger.yaml @SegaraRai
+CHANGELOG.md @SegaraRai
+
+# Dependencies, install patches, and package metadata.
+package.json @SegaraRai
+Cargo.toml @SegaraRai
+/Cargo.lock @SegaraRai
+/pnpm-lock.yaml @SegaraRai
+/pnpm-workspace.yaml @SegaraRai
+/patches/ @SegaraRai
+
+# Scripts that privileged workflows run on `main`.
+/tools/workspace/sync-version.ts @SegaraRai
+/tools/sites/ @SegaraRai
+/packages/native/*.ts @SegaraRai
+/packages/vscode-extension/build.ts @SegaraRai
+
+# License files that the packages publish.
+/LICENSE @SegaraRai
+/TAILWINDCSS-MIT-LICENSE @SegaraRai
+/THIRD_PARTY_NOTICES.md @SegaraRai
+/packages/vscode-extension/LICENSE @SegaraRai
+
+# Instructions for coding agents.
+/AGENTS.md @SegaraRai

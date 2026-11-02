@@ -26,6 +26,12 @@ The [CI](.github/workflows/ci.yml) workflow runs `check`, `test:rust`, `test:js`
 that contain only documentation and version commits. A new push to a branch cancels the
 running workflow for that branch.
 
+[CODEOWNERS](.github/CODEOWNERS) requests a maintainer review for workflows, generated
+release files, dependencies, scripts that privileged workflows run, license files, and
+agent instructions. The [Protected paths](.github/workflows/protected-paths.yml) workflow
+fails when a pull request from a fork changes `.github/`, `.changeset/ledger.yaml`, or a
+`CHANGELOG.md` file. Update both files together when you change this set of paths.
+
 The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `primary` tier daily
 and the `compatibility` tier weekly. The Release workflow calls it for the `primary` tier on
 the version pull request and again after the merge. Start **Actions → Browser
