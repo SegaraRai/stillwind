@@ -13,7 +13,6 @@ import {
   fixtureThemeKeyframes,
 } from "./comparison.ts";
 import { generatesInvalidCss } from "./invalid-upstream.ts";
-import { verifyPropertyOrderParity } from "./property-order-fixtures.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -394,11 +393,4 @@ if (failures.length > 0) {
     console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   }
   process.exitCode = 1;
-}
-
-if (failures.length === 0 && limit === 0 && offset === 0 && !candidateFilter) {
-  const propertyOrder = verifyPropertyOrderParity(fixtureRoot, { fileFilter });
-  console.log(
-    `Tailwind property-order parity: ${propertyOrder.constraints} interfering-property constraints across ${propertyOrder.candidates} candidates in ${propertyOrder.cases} fixture cases.`,
-  );
 }

@@ -235,10 +235,15 @@ export function verifyPropertyOrderParity(
         source,
         "src/PropertyOrderParity.tsx",
         stillwindFixtureCss(fixtureCase.input),
-        // Some cases put hundreds of utilities in one call, and canonical lint
-        // compares many combinations of them. This audit checks only the CSS order.
+        // Some cases put thousands of utilities in one call. Canonical lint compares
+        // many combinations of them, and conflict lint reports each conflicting pair:
+        // `default-completions` returns about 2.4 million findings, which exhaust the
+        // default V8 heap. This audit checks only the CSS order.
         {
           lint: {
+            conflictingUtilities: {
+              severity: "off",
+            },
             preferCanonicalUtilities: {
               severity: "off",
             },
