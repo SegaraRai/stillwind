@@ -30,8 +30,9 @@ export function developmentHooks(
      *
      * @param context - Vite hot-update event with the current server, changed file, and source
      * reader.
-     * @returns Modules affected by a design-system update, an empty list for a CSS-only producer
-     * change, or `undefined` to retain normal Vite handling.
+     * @returns Modules affected by a design-system update, an empty list when a producer edit
+     * changes only CSS and no request has compiled the edited source yet, or `undefined` to retain
+     * normal Vite handling.
      */
     async hotUpdate(context) {
       const name = this.environment.name;
@@ -76,7 +77,8 @@ export function developmentHooks(
         }
         const previous = inputs(name).get(id);
         if (previous && context.type !== "delete") {
-          const result = await compile(name, await context.read(), id, host);
+          const source = await context.read();
+          const result = await compile(name, source, id, host);
           await publish(name, host);
           const values = [];
           for (const input of inputs(name).values()) {
@@ -105,7 +107,15 @@ export function developmentHooks(
           if (values.length) {
             return [...new Set([...context.modules, ...values])];
           }
-          if (!previous.manual && result?.code === previous.javascript) {
+          // A transform request can compile the changed source before this hook runs, for example
+          // when TanStack Start transforms a route for the server. The recorded output then
+          // matches the new output, but the module runner still holds the module from before the
+          // change.
+          if (
+            !previous.manual &&
+            previous.code !== source &&
+            result?.code === previous.javascript
+          ) {
             return [];
           }
         }

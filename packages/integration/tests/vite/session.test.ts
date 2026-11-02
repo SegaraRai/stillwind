@@ -572,3 +572,79 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("hot updates skip JavaScript only when the producer output matches an older source", async () => {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  const root = mkdtempSync(path.join(repositoryRoot, ".test-session-"));
+  const css = path.join(root, "root.css");
+  writeFileSync(
+    css,
+    "@import '../packages/core/index.css'; @utility first { width: 13px; } @utility second { width: 17px; }",
+  );
+  const server = await createServer({
+    configFile: false,
+    root,
+    plugins: [stillwind({ css })],
+    logLevel: "silent",
+    server: {
+      middlewareMode: true,
+      watch: null,
+    },
+  });
+  try {
+    const environment = server.environments.ssr;
+    const plugin = environment.plugins.find((plugin) => plugin.name === "stillwind:compiler")!;
+    const transform =
+      typeof plugin.transform === "function" ? plugin.transform : plugin.transform?.handler;
+    const hot = environment.plugins.find((plugin) => plugin.hotUpdate)!.hotUpdate;
+    if (typeof transform !== "function" || typeof hot !== "function") {
+      expect.fail("expected transform and HMR hooks");
+    }
+    await environment.pluginContainer.buildStart({});
+    const file = path.join(root, "button.tsx");
+    const code = (utility: string) =>
+      `import {style} from 'stillwind/react'; export const props = style('${utility}');`;
+    const compile = (source: string) =>
+      transform.call(
+        {
+          environment,
+          resolve: (specifier: string, importer: string) =>
+            environment.pluginContainer.resolveId(specifier, importer),
+          addWatchFile: () => {},
+          warn: () => {},
+          error: (message: string) => {
+            expect.fail(message);
+          },
+        } as unknown as ThisParameterType<typeof transform>,
+        source,
+        file,
+      );
+    const update = (source: string) =>
+      hot.call(
+        {
+          environment,
+          warn: (message: string) => {
+            expect.fail(message);
+          },
+        } as unknown as ThisParameterType<typeof hot>,
+        {
+          type: "update",
+          file,
+          timestamp: Date.now(),
+          modules: [],
+          read: async () => source,
+          server,
+        },
+      );
+    writeFileSync(file, code("first"));
+    await compile(code("first"));
+    expect(await update(code("first").replace("style(", "style( "))).toEqual([]);
+    // A request can compile the edited source before Vite calls the hook. The module runner still
+    // holds the module that it evaluated before the edit.
+    await compile(code("second"));
+    expect(await update(code("second"))).toBeUndefined();
+  } finally {
+    await server.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
