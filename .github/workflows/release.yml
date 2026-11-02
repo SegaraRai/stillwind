@@ -347,7 +347,8 @@ jobs:
   publish:
     name: Stage packages
     needs: [binaries, npm-packages, verify, desktop, acceptance]
-    if: github.ref == 'refs/heads/main'
+    # A push has no inputs, so `dry-run` is empty and the job stages the packages.
+    if: github.ref == 'refs/heads/main' && !inputs.dry-run
     runs-on: ubuntu-26.04
     timeout-minutes: 60
     environment: npm-release
@@ -404,18 +405,12 @@ jobs:
           fi
       - name: Stage
         env:
-          DRY_RUN: ${{ inputs.dry-run }}
           NPM_TAG: ${{ steps.tag.outputs.name }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         # Branch rules and the job condition replace pnpm's Git checks. Recursive staging skips
         # versions that already exist on npm. A maintainer publishes the staged versions by
         # approving them with 2FA.
-        run: |
-          arguments=(--no-git-checks --tag "$NPM_TAG" --report-summary)
-          if [ "$DRY_RUN" = true ]; then
-            arguments+=(--dry-run)
-          fi
-          vp exec pnpm stage publish -r "${arguments[@]}"
+        run: vp exec pnpm stage publish -r --no-git-checks --tag "$NPM_TAG" --report-summary
       - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:

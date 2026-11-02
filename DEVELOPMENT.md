@@ -97,13 +97,14 @@ tab. Wait for the Release run to pass, then merge the pull request with **Squash
 
 The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
 workflow again, which builds and tests everything on `main`. It builds the npm packages
-while the tests run. After the tests succeed, the workflow uploads the npm packages to npm's staging area and publishes the
-[VS Code extension](packages/vscode-extension/DEVELOPMENT.md#publish). A version with a
+while the tests run. After the tests succeed, the workflow uploads the npm packages to
+npm's staging area and publishes the [VS Code extension](packages/vscode-extension/DEVELOPMENT.md#publish). A version with a
 prerelease suffix receives the npm tag `next`; any other version receives `latest`.
 
 To check a release without uploading packages, start **Actions → Release → Run workflow**
-on `main` with the default dry run. Clear **dry-run** to run the uploads again after a
-failed release.
+on `main` with the default dry run. A dry run builds the npm packages but skips the upload
+jobs, so it does not wait for a deployment review. Clear **dry-run** to run the uploads again
+after a failed release.
 
 Staged versions are not installable until a maintainer approves them with 2FA. Review them
 with `vp exec pnpm stage list`, then run `vp exec pnpm stage approve` and select every
