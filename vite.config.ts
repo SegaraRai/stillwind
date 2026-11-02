@@ -128,11 +128,20 @@ export default defineConfig(({ mode }) => ({
       },
       "fmt:check": {
         command: "",
-        dependsOn: ["fmt:js:check", "fmt:rust:check"],
+        dependsOn: [
+          "fmt:js:check",
+          "fmt:rust:check",
+          "@stillwind-internal/apps-play#fmt:stillwind:check",
+          "@stillwind-internal/apps-website#fmt:stillwind:check",
+        ],
       },
       "fmt:js": {
         command: "vp fmt",
         cache: false,
+        dependsOn: [
+          "@stillwind-internal/apps-play#fmt:stillwind",
+          "@stillwind-internal/apps-website#fmt:stillwind",
+        ],
       },
       "fmt:js:check": {
         command: "vp fmt --check",
@@ -147,7 +156,12 @@ export default defineConfig(({ mode }) => ({
       // lint
       lint: {
         command: "",
-        dependsOn: ["lint:js", "lint:rust"],
+        dependsOn: [
+          "lint:js",
+          "lint:rust",
+          "@stillwind-internal/apps-play#lint:stillwind",
+          "@stillwind-internal/apps-website#lint:stillwind",
+        ],
       },
       "lint:js": {
         command: "vp lint",
@@ -273,6 +287,8 @@ export default defineConfig(({ mode }) => ({
       "verify:sites:website": {
         command: "",
         dependsOn: [
+          "@stillwind-internal/apps-website#fmt:stillwind:check",
+          "@stillwind-internal/apps-website#lint:stillwind",
           "@stillwind-internal/apps-website#test",
           "@stillwind-internal/tools-sites#check:urls:website",
           "@stillwind-internal/tools-sites#prepare:website",
@@ -284,6 +300,8 @@ export default defineConfig(({ mode }) => ({
         command: "",
         dependsOn: [
           "@stillwind-internal/apps-play#check:examples",
+          "@stillwind-internal/apps-play#fmt:stillwind:check",
+          "@stillwind-internal/apps-play#lint:stillwind",
           "@stillwind-internal/apps-play#test",
           "@stillwind-internal/apps-play#typecheck",
           "@stillwind-internal/apps-play#build:acceptance",

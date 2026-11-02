@@ -35,6 +35,17 @@ vp run @stillwind-internal/apps-website#preview
 vp run @stillwind-internal/apps-website#verify
 ```
 
+`fmt:stillwind` sorts utilities in the application sources with `stillwind fmt`.
+`fmt:stillwind:check` and `lint:stillwind` check the sources without saving them, and
+`lint:stillwind` fails on any warning. The repository `fmt`, `check`, and `lint` tasks
+include them:
+
+```sh
+vp run @stillwind-internal/apps-website#fmt:stillwind
+vp run @stillwind-internal/apps-website#fmt:stillwind:check
+vp run @stillwind-internal/apps-website#lint:stillwind
+```
+
 Development and preview use port 4322. The build writes a static site to `dist/`.
 See [Site deployments](../../DEVELOPMENT.md#site-deployments) for CI, Preview,
 production, and the required Cloudflare and GitHub settings.

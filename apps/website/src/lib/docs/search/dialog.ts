@@ -8,10 +8,8 @@ const DEBOUNCE = 150;
 const option = style(
   "block px-3 py-2 rounded-control cursor-pointer hover:bg-surface-muted data-highlighted:bg-surface-muted",
 );
-const optionTitle = style("block truncate text-small font-medium text-foreground");
-const optionExcerpt = style(
-  "mbs-1 line-clamp-2 text-caption text-muted [&_mark]:text-foreground [&_mark]:font-medium [&_mark]:bg-transparent",
-);
+const optionTitle = style("block truncate text-foreground text-small font-medium");
+const optionExcerpt = style("line-clamp-2 mbs-1 text-caption text-muted search-excerpt");
 const optionSections = style("grid mbs-1.5 ps-3 border-border border-s");
 const optionSection = style("block truncate py-0.5 text-caption text-muted hover:text-foreground");
 

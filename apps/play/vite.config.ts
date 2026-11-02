@@ -86,6 +86,19 @@ export default defineConfig({
         command: "node build/examples.ts check",
         dependsOn: ["@stillwind/cli#build", "@stillwind/plugin-iconify#build", "stillwind#build"],
       },
+      "fmt:stillwind": {
+        command: "stillwind fmt",
+        cache: false,
+        dependsOn: ["@stillwind/cli#build", "@stillwind/plugin-iconify#build", "stillwind#build"],
+      },
+      "fmt:stillwind:check": {
+        command: "stillwind fmt --check",
+        dependsOn: ["@stillwind/cli#build", "@stillwind/plugin-iconify#build", "stillwind#build"],
+      },
+      "lint:stillwind": {
+        command: "stillwind lint --max-warnings=0",
+        dependsOn: ["@stillwind/cli#build", "@stillwind/plugin-iconify#build", "stillwind#build"],
+      },
       "generate:types": {
         command: "astro sync",
         dependsOn: ["@stillwind/integration#build", "@stillwind/plugin-iconify#build"],

@@ -278,3 +278,12 @@ Token colors of highlighted results follow the GitHub themes of the site's code 
   --sh-comment: light-dark(#6a737d, #6a737d);
   --sh-sign: light-dark(#24292e, #e1e4e8);
 }
+
+/*
+Pagefind inserts the mark elements into the excerpt HTML, so utilities cannot be attached to them.
+*/
+@utility search-excerpt {
+  & mark {
+    @apply text-foreground font-medium bg-transparent;
+  }
+}

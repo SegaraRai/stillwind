@@ -34,6 +34,17 @@ vp run @stillwind-internal/apps-play#dev
 vp run @stillwind-internal/apps-play#build
 ```
 
+`fmt:stillwind` sorts utilities in the application sources with `stillwind fmt`.
+`fmt:stillwind:check` and `lint:stillwind` check the sources without saving them, and
+`lint:stillwind` fails on any warning. The repository `fmt`, `check`, and `lint` tasks
+include them:
+
+```sh
+vp run @stillwind-internal/apps-play#fmt:stillwind
+vp run @stillwind-internal/apps-play#fmt:stillwind:check
+vp run @stillwind-internal/apps-play#lint:stillwind
+```
+
 `build/assets.ts` writes the static assets and the files from `public/` to
 `dist/assets-static`, which Astro uses as its public directory. Serve `dist/site` with
 `Cross-Origin-Opener-Policy: same-origin` and

@@ -6,10 +6,10 @@ import { style } from "stillwind/astro";
   data-search-dialog
   aria-label="Search documentation"
   {...style(
-    "hidden mx-auto mbs-[12dvh] p-0 inline-[min(40rem,calc(100%-2rem))] max-block-[min(36rem,76dvh)] flex-col text-foreground bg-surface rounded-panel border border-border shadow-lg open:flex backdrop:bg-foreground/30",
+    "hidden mx-auto mbs-[12dvh] p-0 inline-[min(40rem,calc(100%-2rem))] max-block-[min(36rem,76dvh)] flex-col text-foreground bg-surface rounded-panel border border-border shadow-lg backdrop:bg-foreground/30 open:flex",
   )}
 >
-  <div {...style("flex items-center gap-3 px-4 border-border border-be")}>
+  <div {...style("flex px-4 items-center gap-3 border-border border-be")}>
     <span
       aria-hidden="true"
       {...style("icon-control icon-lucide--search shrink-0 text-muted")}
@@ -26,7 +26,7 @@ import { style } from "stillwind/astro";
       autocomplete="off"
       spellcheck="false"
       {...style(
-        "block-12 min-inline-0 flex-1 text-small text-foreground bg-transparent outline-none placeholder:text-muted",
+        "block-12 min-inline-0 flex-1 text-foreground text-small bg-transparent outline-none placeholder:text-muted",
       )}
     />
     <form method="dialog">
@@ -40,8 +40,8 @@ import { style } from "stillwind/astro";
       </button>
     </form>
   </div>
-  <div {...style("min-block-40 overflow-y-auto p-2")}>
-    <p data-search-status role="status" {...style("py-8 text-center text-small text-muted")}>
+  <div {...style("overflow-y-auto p-2 min-block-40")}>
+    <p data-search-status role="status" {...style("py-8 text-center text-muted text-small")}>
       Type to search the documentation.
     </p>
     <div data-search-results id="search-results" role="listbox" aria-label="Results" hidden></div>
