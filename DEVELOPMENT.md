@@ -126,11 +126,13 @@ changelog sections since the previous published GitHub Release.
 body starts with a short request for a coding agent, and an HTML comment holds the detailed
 instructions from
 [tools/workspace/release-notes-prompt.md](tools/workspace/release-notes-prompt.md). Give the
-request to an agent in a checkout of this repository. The agent reads the draft with `gh`,
-follows the instructions, and replaces the body with the notes. Review the notes, and publish
-the draft after the npm approval. GitHub
-creates the tag when you publish the draft. A rerun of the workflow keeps the notes of an
-existing draft and replaces its assets, and it skips a published release.
+request to an agent in your checkout of this repository. The agent reads the draft with `gh`,
+follows the instructions, and replaces the body with the notes. It also checks that npm, Visual
+Studio Marketplace, and Open VSX serve the new version and that `stable` points to the release
+commit. When npm and both marketplaces serve the version, the agent proposes to publish the
+draft and publishes it only after you tell it to. Review the notes before you approve.
+GitHub creates the tag when the draft is published. A rerun of the workflow keeps the notes of
+an existing draft and replaces its assets, and it skips a published release.
 
 ### npm setup
 

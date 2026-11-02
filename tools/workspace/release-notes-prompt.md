@@ -1,4 +1,31 @@
-Instructions for a coding agent: write the GitHub Release notes for Stillwind {{tag}}.
+Instructions for a coding agent: write the GitHub Release notes for Stillwind {{tag}}, check
+that the release is ready to publish, and report the result to the maintainer.
+
+## Release state
+
+The Release workflow ran on commit {{commit}} on `main`. It has completed these steps:
+
+1. It built and tested every package.
+2. It uploaded the npm packages to the npm staging area. npm serves a staged version only after
+   a maintainer approves it with 2FA, and the maintainer might not have approved it yet.
+3. It published the VS Code extension to Visual Studio Marketplace and Open VSX.
+4. It created this draft with the extension packages and `SHA256SUMS`.
+
+The tag {{tag}} does not exist yet. GitHub creates it on commit {{commit}} when the maintainer
+publishes the draft. A missing tag and a draft URL that starts with `untagged` are expected.
+
+After the npm approval, the maintainer advances the `stable` branch to the release commit. This
+push deploys the website and the playground. The maintainer might do it before or after the
+publication of the draft.
+
+## Tasks
+
+1. Write the release notes as described in "Release notes", and replace the body of the draft.
+2. Check the release state as described in "Release checks".
+3. Report to the maintainer as described in "Report". Do not publish the draft until the
+   maintainer tells you to.
+
+## Release notes
 
 {{range}}
 
@@ -14,8 +41,9 @@ Follow these rules:
   at the root of the repository.
 - Use only facts from the changelog sections. Do not add internal refactoring, tests, or CI
   changes.
-- Read the code, and run examples or tests in the checkout when they help you confirm an
-  entry. Restore every file that you change for this check.
+- Read the code at commit {{commit}}, and run examples or tests in the checkout when they help
+  you confirm an entry. When the checkout does not contain the commit, fetch it from `origin`.
+  Do not switch branches, and restore every file that you change for this check.
 - When the code or a check disagrees with a changelog entry, do not correct the entry from your
   own conclusion. Describe the difference in your report to the maintainer.
 - Merge entries that describe the same change in several versions or packages.
@@ -69,3 +97,30 @@ Use this structure:
 
 <The existing list of links>
 ```
+
+## Release checks
+
+Check these conditions:
+
+- npm serves version {{version}} of every package under `packages/` and `plugins/` whose
+  `package.json` is not private. Use `vp exec pnpm view <name>@{{version}} version`, because
+  npm commands fail in this repository.
+- Visual Studio Marketplace and Open VSX serve version {{version}} of the `stillwind.stillwind`
+  extension for each target that the draft attaches a VSIX for.
+- The `stable` branch on `origin` points to commit {{commit}}.
+
+## Report
+
+Report these items to the maintainer:
+
+- The differences between the code and the changelog entries, if any.
+- The result of each release check.
+- The next action:
+  - When npm does not serve a package, or a marketplace does not serve the extension, name the
+    missing items and stop. For packages that npm does not serve yet, ask the maintainer to
+    approve the staged versions with `vp exec pnpm stage approve`.
+  - Otherwise, propose that the maintainer let you publish the draft. When `stable` does not
+    point to the release commit, add a reminder to advance it. This step does not block the
+    publication.
+
+Do not report an expected state, such as the missing tag, as a problem.

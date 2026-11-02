@@ -105,6 +105,7 @@ test("the draft has an agent request, the instructions in a comment, and the cha
 
   expect(request).toContain("`gh release view v0.4.1 --repo owner/name --json body --jq .body`");
   expect(request).toContain("`gh release edit v0.4.1 --repo owner/name --notes-file <file>`");
+  expect(request).toContain("`gh release edit v0.4.1 --repo owner/name --draft=false`");
   expect(comment).toContain("Stillwind v0.4.1");
   expect(comment).toContain("Users upgrade from v0.3.0.");
   expect(comment).toContain(link);
