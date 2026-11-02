@@ -28,15 +28,44 @@ env:
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: "2"
 
 jobs:
+  release:
+    name: Detect a Release run
+    # The Release workflow runs on a push to `main` that changes the ledger. This job applies
+    # the same path condition to the pushed commits, so commit messages do not affect it.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      ledger: ${{ steps.ledger.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - id: ledger
+        env:
+          BEFORE: ${{ github.event.before }}
+        # A push without a previous commit, such as the creation of a branch, keeps verification.
+        run: |
+          if git cat-file -e "$BEFORE^{commit}" 2> /dev/null && ! git diff --quiet "$BEFORE" "$GITHUB_SHA" -- .changeset/ledger.yaml; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
     name: Verify ${{ matrix.task }}
-    # The Release workflow runs the same tasks on the version pull request and on the version
-    # commit after it reaches `main`. A fork can also name a branch `version/main`, so the
-    # condition checks the head repository.
+    needs: release
+    # The Release workflow runs the same tasks on the version pull request and on a push that
+    # changes the ledger. A fork can also name a branch `version/main`, so the condition checks
+    # the head repository. `release` runs only for a push, and `!cancelled()` keeps this job when
+    # `release` is skipped.
     if: >-
       ${{
-        !(github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository) &&
-        !startsWith(github.event.head_commit.message, 'chore(release):')
+        !cancelled() &&
+        needs.release.outputs.ledger != 'true' &&
+        !(github.head_ref == 'version/main' && github.event.pull_request.head.repo.full_name == github.repository)
       }}
     strategy:
       fail-fast: false

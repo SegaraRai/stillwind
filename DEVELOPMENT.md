@@ -23,8 +23,9 @@ Run generation tasks explicitly and review their output before comparing fixture
 
 The [CI](.github/workflows/ci.yml) workflow runs `check`, `test:rust`, `test:js`, and
 `test:fixtures:projects` on Linux for pull requests and pushes to `main`. It skips changes
-that contain only documentation and version commits. A new push to a branch cancels the
-running workflow for that branch.
+that contain only documentation. It also skips the version pull request and pushes that
+change `.changeset/ledger.yaml`, because the Release workflow runs the same tasks for them.
+A new push to a branch cancels the running workflow for that branch.
 
 [CODEOWNERS](.github/CODEOWNERS) requests a maintainer review for workflows, generated
 release files, dependencies, scripts that privileged workflows run, license files, and
