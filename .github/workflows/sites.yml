@@ -274,7 +274,8 @@ jobs:
   deploy:
     name: Deploy ${{ matrix.site }}
     needs: [changes, verify]
-    if: needs.changes.outputs.deploy_required == 'true' && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
+    # The implicit `success()` also rejects a skipped `browser` job, which a website-only change skips.
+    if: ${{ !cancelled() && needs.verify.result == 'success' && needs.changes.outputs.deploy_required == 'true' && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable') }}
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment:
