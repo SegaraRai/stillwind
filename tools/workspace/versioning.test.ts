@@ -27,6 +27,15 @@ function workspaceManifests(): { name: string; private?: boolean }[] {
   );
 }
 
+test("the Rust workspace has the version of the native package", () => {
+  const { version } = JSON.parse(
+    readFileSync(path.join(root, "packages/native/package.json"), "utf8"),
+  );
+  const manifest = readFileSync(path.join(root, "Cargo.toml"), "utf8");
+
+  expect(/^\[workspace\.package\][^[]*?^version = "([^"]+)"/m.exec(manifest)?.[1]).toBe(version);
+});
+
 test("versioning lists every workspace package by its exact name", () => {
   const manifests = workspaceManifests();
   const [fixed, ignored] =

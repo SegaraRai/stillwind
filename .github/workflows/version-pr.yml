@@ -52,6 +52,7 @@ jobs:
 
           plan=$(vp exec pnpm change status)
           vp exec pnpm version -r
+          node tools/workspace/sync-version.ts
           version=$(node --print "require('./packages/core/package.json').version")
           title="chore(release): version packages for $version"
           git config user.name 'github-actions[bot]'

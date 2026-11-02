@@ -103,10 +103,16 @@ export const cssTargetFixtureRoot = fileURLToPath(
 );
 export const cssTargetExpectedRoot = path.join(cssTargetFixtureRoot, "expected");
 
+function withoutStillwindVersion(css: string) {
+  return css.replaceAll(/(\/\*! stillwind) v\S+ \|/g, "$1 |");
+}
+
 /**
  * Builds document CSS and an explicit CSS value from the same fixture sources.
  * @param testCase - Vite and Stillwind target overrides, plus optional emission and minification settings.
- * @returns The emitted CSS, evaluated CSS value, and output assets. Temporary files are removed.
+ * @returns The emitted CSS, evaluated CSS value, and output assets. The two CSS strings omit the
+ * version from the Stillwind notice, so a release does not change the expected outputs. Temporary
+ * files are removed.
  * @throws If fixture IO, Vite compilation, or evaluation fails, or the expected outputs are missing.
  */
 export async function buildCssTargetFixture(testCase: CssTargetCase) {
@@ -200,8 +206,8 @@ export async function buildCssTargetFixture(testCase: CssTargetCase) {
       .map((item) => String(item.source).replace(/\n\/\*# sourceMappingURL=.*?\*\/$/, ""))
       .join("");
     return {
-      document,
-      fragment: values.css,
+      document: withoutStillwindVersion(document),
+      fragment: withoutStillwindVersion(values.css),
       output: result.output,
     };
   } finally {

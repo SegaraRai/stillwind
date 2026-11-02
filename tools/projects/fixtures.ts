@@ -253,8 +253,12 @@ function minifiedPath(file: string) {
   return file.replace(/\.css$/, ".min.css");
 }
 
+function withoutStillwindVersion(css: string) {
+  return css.replaceAll(/(\/\*! stillwind) v\S+ \|/g, "$1 |");
+}
+
 function writeOrCheck(file: string, content: string, stale: string[]) {
-  const next = `${normalize(content).trimEnd()}\n`;
+  const next = `${withoutStillwindVersion(normalize(content)).trimEnd()}\n`;
   if (check) {
     if (!existsSync(file) || normalize(readFileSync(file, "utf8")) !== next) {
       stale.push(path.relative(repositoryRoot, file));
