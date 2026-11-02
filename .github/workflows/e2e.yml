@@ -76,6 +76,12 @@ jobs:
         uses: actions/upload-artifact@v7.0.2
         with:
           name: acceptance-failure-${{ env.SUPPORT }}-${{ matrix.shard }}-${{ github.run_attempt }}
-          path: e2e/results/
+          # The matrix writes logs under e2e/results/, and each package writes server logs, traces and
+          # screenshots under its own results/ directory.
+          path: |
+            e2e/results/
+            e2e/*/results/
+            e2e/*/*/results/
+            !e2e/**/node_modules/**
           if-no-files-found: ignore
           retention-days: 7
