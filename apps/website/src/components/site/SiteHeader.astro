@@ -91,9 +91,19 @@ const header = style.ref();
       <a href={URL_DOCS} {...style(link, headerTransition.for("docs"))}>
         Docs
       </a>
-      <a href={URL_REPOSITORY} {...style(link, headerTransition.for("github"), "gap-2")}>
-        <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
-        GitHub
+      <a
+        href={URL_REPOSITORY}
+        {...style(
+          link,
+          headerTransition.for("github"),
+          "gap-2 max-inline:inline-7 max-inline:justify-center",
+        )}
+      >
+        <span
+          aria-hidden="true"
+          {...style("icon-simple-icons--github max-inline:icon-control-mark")}
+        ></span>
+        <span {...style("max-inline:sr-only")}>GitHub</span>
       </a>
       <button
         type="button"
