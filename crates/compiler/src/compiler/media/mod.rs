@@ -1,13 +1,17 @@
 //! Lowering of `style.media()` calls into media query list strings.
 //!
 //! Each argument is a variant list whose variants must resolve only to media
-//! conditions. The variants of one argument must all hold, and the arguments are
+//! conditions. All variants of one argument must hold, and the arguments are
 //! alternatives, so the call matches where any argument matches. An argument that does
 //! not resolve, or that contains another kind of condition, matches no environment and
 //! produces a lint finding. Removing only the failing variant would match more
 //! environments than the author wrote.
 //!
-//! [`media_query`] lowers one call, and [`query`] combines media query lists.
+//! [`media_query`] lowers one call.
+//!
+//! Modules:
+//!
+//! - [`query`] combines media query lists.
 
 mod query;
 

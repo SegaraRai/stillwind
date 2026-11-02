@@ -1,14 +1,17 @@
-//! Projected-input tests: framework scaffolding removal and span identity.
+//! Projected-input tests: removal of framework scaffolding and span identity.
 //!
-//! Each case builds a converter-shaped input (a shadow module plus a map) and
-//! checks what the analyzer produces: which scaffolding was dropped, which spans
-//! belong to the original file, and how converter configuration participates in
-//! the revision.
+//! Each case builds a converter-shaped input, a shadow module with a map, and checks
+//! what the analyzer produces: which scaffolding is dropped, which spans belong to the
+//! original file, and how converter configuration participates in the revision.
 //!
-//! `correspondence` checks normalization and original correspondence for generated expressions.
-//! `input_contracts` checks projection metadata, source revisions, and preparation contracts.
-//! `facts` checks semantic identities and facts at original document coordinates.
-//! `support` supplies the builders shared by these cases.
+//! Modules:
+//!
+//! - [`correspondence`] checks normalization and original correspondence for generated
+//!   expressions.
+//! - [`facts`] checks semantic identities and facts at original document coordinates.
+//! - [`input_contracts`] checks projection metadata, source revisions, and preparation
+//!   contracts.
+//! - [`support`] supplies the builders that these cases share.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

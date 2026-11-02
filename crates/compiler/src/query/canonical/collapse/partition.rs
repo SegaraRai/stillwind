@@ -65,7 +65,7 @@ impl DesignSystemQuery {
     ///
     /// The result is usually the same as the result of `collapse_component` for the
     /// complete group. It can contain fewer candidates when one candidate of the group
-    /// has a declaration that `Declaration::parse` rejects, such as a property with a
+    /// has a declaration that [`Declaration::parse`] rejects, such as a property with a
     /// vendor prefix. In that case, the comparison of the complete group cannot merge
     /// declarations by property, and it rejects some replacements. A part without that
     /// candidate accepts them. For example, the complete group
@@ -303,7 +303,7 @@ impl DesignSystemQuery {
             .map(|(member, _)| *member)
     }
 
-    /// Returns the `Footprint` of the candidate `value`, written without the variants
+    /// Returns the [`Footprint`] of the candidate `value`, written without the variants
     /// of its group. Returns `None` when `value` does not resolve, or when its CSS
     /// contains a statement that is not a declaration, a rule, or an at-rule.
     fn footprint(&self, value: &str) -> Option<Footprint> {

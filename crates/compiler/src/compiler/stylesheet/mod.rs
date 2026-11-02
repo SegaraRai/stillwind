@@ -1,20 +1,24 @@
 //! Stylesheet assembly.
 //!
 //! [`template::render_mapped`] assembles a document or carrier from structured producer
-//! contributions and an immutable design system, and [`template::render_css_template`]
-//! places one `style.css()` call into a named template. [`render`] exposes raw-CSS
-//! wrappers that retain notices and the assembly error type. The template owns output
-//! order, selectors, layers, and conditions; these modules do not resolve host URLs or
-//! minify the assembled CSS.
+//! contributions and an immutable design system. [`template::render_css_template`]
+//! places one `style.css()` call into a named template. The template owns output order,
+//! selectors, layers, and conditions. These modules do not resolve host URLs or minify
+//! the assembled CSS.
 //!
-//! [`authored_directives`] expands `@apply` and `@variant`, returning CSS and
-//! accumulating registration dependencies. [`properties`] selects registration rules
-//! and fallback declarations. [`keyframes`] selects definitions from authored theme
-//! text; generated animations already carry their destination. [`template`] combines
-//! those contributions while retaining source mappings. [`theme_prefix`] applies
-//! configured property prefixes to CSS identifiers. [`lint`] checks the marked
-//! stylesheets of a snapshot and finds directives through the same structure model as
-//! [`authored_directives`].
+//! Modules:
+//!
+//! - [`authored_directives`] expands `@apply` and `@variant` and collects registration
+//!   dependencies.
+//! - [`keyframes`] selects keyframes definitions from authored theme text. Generated
+//!   animations already carry their destination.
+//! - [`lint`] checks the marked stylesheets of a snapshot through the same structure
+//!   model as [`authored_directives`].
+//! - [`properties`] selects registration rules and fallback declarations.
+//! - [`render`] provides raw-CSS wrappers that keep notices, and the assembly error
+//!   type.
+//! - [`template`] combines the contributions and keeps their source mappings.
+//! - [`theme_prefix`] applies the configured property prefixes to CSS identifiers.
 
 mod authored_directives;
 mod keyframes;

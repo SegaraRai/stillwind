@@ -1,18 +1,23 @@
-//! Editor queries resolve candidates against one immutable design-system snapshot.
+//! Editor queries that resolve candidates against one immutable design-system snapshot.
 //!
-//! [`DesignSystemQuery`] pins each answer to a revision so hosts can discard stale
-//! results. [`resolution`] generates candidate previews and diagnostics. [`ordering`]
-//! compares candidates using compiler order. [`completion`] offers utility, variant,
-//! marker, and theme labels, and [`markers`] describes the marker class that a
-//! candidate adds. [`canonical`] finds equivalent spellings under the active lint
-//! policy. [`theme`] exposes theme values and resolves colors for editor decorations,
-//! and [`annotations`] adds comments with resolved values to preview CSS.
-//! [`stylesheet`] locates CSS inputs and reuses candidate queries for completion,
-//! hover, colors, and sorting edits. It also recovers definitions from incomplete CSS
-//! for completion, hover, and color queries. [`input`] selects the compiler resolver
-//! for each source input role. [`context`] evaluates CSS and retrieves shared canonical
-//! indexes for queries and [`prepare_canonical_index`], which loaders can use before
-//! exposing a revision. [`state`] owns the pinned snapshot and caches.
+//! [`DesignSystemQuery`] pins each answer to a revision, so hosts can discard stale
+//! results.
+//!
+//! Modules:
+//!
+//! - [`annotations`] adds comments with resolved values to preview CSS.
+//! - [`canonical`] finds equivalent spellings under the active lint policy.
+//! - [`completion`] offers utility, variant, marker, and theme labels.
+//! - [`context`] evaluates CSS and provides the shared canonical indexes, including
+//!   [`prepare_canonical_index`], which a loader can call before it exposes a revision.
+//! - [`input`] selects the compiler resolver for each source input role.
+//! - [`markers`] describes the marker class that a candidate adds.
+//! - [`ordering`] compares candidates in compiler order.
+//! - [`resolution`] generates candidate previews and diagnostics.
+//! - [`state`] owns the pinned snapshot and caches.
+//! - [`stylesheet`] answers completion, hover, color, and sorting requests for authored
+//!   CSS, including incomplete CSS.
+//! - [`theme`] exposes theme values and resolves colors for editor decorations.
 
 mod annotations;
 mod canonical;

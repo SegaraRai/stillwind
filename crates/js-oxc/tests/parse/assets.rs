@@ -253,7 +253,8 @@ fn unclaimed_keyframes_uses_report_diagnostics() {
     }
 }
 
-/// A keyframes use the class lowering claims stays clean, wherever the class input sits.
+/// A keyframes use the class lowering claims stays clean, wherever the class input
+/// sits.
 #[test]
 fn claimed_keyframes_uses_stay_diagnostic_free() {
     let source = SourceFile::new(

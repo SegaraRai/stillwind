@@ -46,8 +46,8 @@ impl From<ExportedValue> for CheckedValue {
 /// What one checked expression denotes.
 ///
 /// The fact is a claim by the host checker; consumers must check the enclosing
-/// [`super::TypeFacts`] revisions before trusting it, and must fall back to local analysis
-/// when it is missing.
+/// [`super::TypeFacts`] revisions before trusting it, and must fall back to local
+/// analysis when it is missing.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeFact {

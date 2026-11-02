@@ -1,10 +1,11 @@
 //! Utility tokenization that reports span failures as diagnostics.
 //!
-//! Tokenization cannot fail on ordinary input; only a source-coordinate problem produces an
-//! error, and that error has to reach the user as a diagnostic rather than as a panic or as a
-//! silently empty token list that hides the real cause. The same rule covers a token whose
-//! value nests deeper than the calculator accepts: it is reported against the token's own
-//! span so the value never reaches a parser that would refuse it.
+//! Tokenization cannot fail on ordinary input; only a source-coordinate problem
+//! produces an error, and that error has to reach the user as a diagnostic rather than
+//! as a panic or as a silently empty token list that hides the real cause. The same
+//! rule covers a token whose value nests deeper than the calculator accepts: it is
+//! reported against the token's own span so the value never reaches a parser that would
+//! refuse it.
 
 use lean_string::LeanStr;
 

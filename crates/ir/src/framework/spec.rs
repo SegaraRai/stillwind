@@ -68,7 +68,7 @@ impl AdapterKind {
 /// Static policy for one framework.
 pub struct FrameworkSpec {
     /// The adapter this specification describes; used to close the loop back from a
-    /// `SPEC` constant to its `AdapterKind`.
+    /// `SPEC` constant to its [`AdapterKind`].
     pub id: AdapterKind,
     /// Module specifier a user imports the `style` macro from, for example
     /// `stillwind/react`. It is the import the compiler may remove.

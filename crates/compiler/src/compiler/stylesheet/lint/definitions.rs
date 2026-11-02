@@ -47,7 +47,8 @@ impl Definition<'_> {
     }
 }
 
-/// Returns the definitions of `nodes`, the top-level nodes of `text`, in authored order.
+/// Returns the definitions of `nodes`, the top-level nodes of `text`, in authored
+/// order.
 pub(super) fn definitions<'a>(nodes: &'a [CssNode], text: &str) -> Vec<Definition<'a>> {
     let mut found = Vec::new();
     collect(nodes, text, &mut found);

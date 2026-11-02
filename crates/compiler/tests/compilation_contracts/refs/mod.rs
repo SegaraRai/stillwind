@@ -1,10 +1,12 @@
 //! Ref names, projections, scope lists, and provider diagnostics.
 //!
-//! `conditions` checks ref conditions, scope combinations, and selector targets.
-//! `names` checks labels and the names allocated to declarations.
-//! `projections` checks static and runtime projections and explicit css roles.
-//! `providers` checks attachment requirements and conflicting provider properties.
-//! `support` supplies the builders shared by these cases.
+//! Modules:
+//!
+//! - [`conditions`] checks ref conditions, scope combinations, and selector targets.
+//! - [`names`] checks labels and the names allocated to declarations.
+//! - [`projections`] checks static and runtime projections and explicit CSS roles.
+//! - [`providers`] checks attachment requirements and conflicting provider properties.
+//! - [`support`] supplies the builders that these cases share.
 
 use std::collections::BTreeMap;
 

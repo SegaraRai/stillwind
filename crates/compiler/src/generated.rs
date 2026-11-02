@@ -45,7 +45,7 @@ impl Code {
 
     /// Concatenates fragments in iterator order, placing synthetic separators between them.
     ///
-    /// Child mappings must satisfy the `Code` invariants. Their generated offsets are
+    /// Child mappings must satisfy the [`Code`] invariants. Their generated offsets are
     /// rebased into the result without changing original spans. An empty iterator
     /// produces empty text with no mappings; empty fragments still delimit separators.
     pub(crate) fn join(items: impl IntoIterator<Item = Self>, separator: &str) -> Self {
@@ -111,8 +111,9 @@ pub(crate) fn js_string(value: &str) -> LeanString {
     serde_json::Value::String(value.into()).to_lean_string()
 }
 
-/// Concatenates fragments convertible to `Code`, in argument order, with no separator.
-/// String arguments denote synthetic syntax; `Code` arguments retain their mappings.
+/// Concatenates fragments convertible to [`Code`], in argument order, with no
+/// separator. String arguments denote synthetic syntax; `Code` arguments retain their
+/// mappings.
 macro_rules! code {
     ($($part:expr),* $(,)?) => {
         $crate::generated::Code::join([$($crate::generated::Code::from($part)),*], "")

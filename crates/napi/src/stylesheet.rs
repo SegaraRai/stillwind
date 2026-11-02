@@ -20,7 +20,8 @@ use stillwind_project::{StylesheetCoverage, StylesheetPlan};
 use crate::output::{BindingRejectedIdentifier, NativeModuleResource, NativeText};
 
 /// Throws an assembly error with its fallback reports attached as `rejectedNames`.
-/// Returns the pending-exception status so native and WASM bindings preserve the same JS object.
+/// Returns the pending-exception status so native and WASM bindings preserve the same
+/// JS object.
 pub(crate) fn stylesheet_error(env: Env, error: StylesheetRenderError) -> Error {
     let create = || -> napi::Result<Error> {
         let mut value = env.create_error(Error::from_reason(error.to_string()))?;

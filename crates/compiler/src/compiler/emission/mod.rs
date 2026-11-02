@@ -1,23 +1,29 @@
 //! Structure-preserving style emission.
 //!
 //! [`CallEmitter::run`] resolves style inputs into class units and typed contributions
-//! for fragment folding. It retains guards and source occurrences. Subtrees with no
-//! contribution are omitted under the macro purity contract. It does not choose final
+//! for fragment folding. It keeps guards and source occurrences, and it omits subtrees
+//! without a contribution under the macro purity contract. It does not choose final
 //! framework keys or allocate runtime helper imports.
 //!
-//! [`super::class_units::ClassUnits`] owns class identities and base-before-conditional CSS publication.
-//! [`super::literal::LiteralContribution`] resolves utility text,
-//! and fragment rendering later chooses a representation without changing those CSS
-//! identities or declaration order.
+//! [`ClassUnits`](super::class_units::ClassUnits) owns class identities and publishes
+//! base CSS before conditional CSS.
+//! [`LiteralContribution`](super::literal::LiteralContribution) resolves utility text.
+//! Fragment rendering later chooses a representation without changing those CSS
+//! identities or the declaration order.
 //!
-//! `call` owns the walk state and shares its fields only within emission. It runs the
-//! walk and dispatches each style input. `class_value` lowers class expressions.
-//! `ref_projection`, `keyframes_use`, and `view_transition` hold the arms of one
-//! contribution kind each. `style_analysis` records declarations, markers, and source
-//! decisions before class-unit merging removes their original use boundaries.
+//! Modules:
 //!
-//! `static_properties` finds literals that can be emitted outside runtime guards.
-//! `asset_record` defines the property keys shared with asset serialization.
+//! - [`asset_record`] defines the property keys shared with asset serialization.
+//! - [`call`] owns the walk state, runs the walk, and dispatches each style input. Its
+//!   fields are shared only within emission.
+//! - [`class_value`] lowers class expressions.
+//! - [`keyframes_use`] lowers animation uses.
+//! - [`ref_projection`] lowers ref projections.
+//! - [`static_properties`] finds literal custom properties that can be emitted outside
+//!   runtime guards.
+//! - [`style_analysis`] records declarations, markers, and source decisions before
+//!   class-unit merging removes the original use boundaries.
+//! - [`view_transition`] lowers view-transition uses.
 
 mod asset_record;
 mod call;

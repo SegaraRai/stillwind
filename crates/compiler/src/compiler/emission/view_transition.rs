@@ -1,6 +1,6 @@
 //! View-transition use lowering for participant classes and names.
 //!
-//! The `CallEmitter` methods here resolve static and finite runtime transition values
+//! The [`CallEmitter`] methods here resolve static and finite runtime transition values
 //! under JavaScript guards and CSS variants. They produce class and name contributions;
 //! the fragment renderer chooses framework props, while definition emission owns the
 //! transition's pseudo-element rules.

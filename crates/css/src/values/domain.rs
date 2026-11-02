@@ -1,6 +1,6 @@
 //! The domain value a `--value([…])` hint denotes.
 //!
-//! A domain is deliberately one layer above [`ValueType`]: it is the type the registry
+//! A domain is one layer above [`ValueType`]: it is the type the registry
 //! stores and compares, and it decides both whether a concrete value is accepted and
 //! whether a narrower hint may annotate a broader domain. Hint names are CSS value
 //! definitions, never CSS property names, so a `property:padding` style hint resolves

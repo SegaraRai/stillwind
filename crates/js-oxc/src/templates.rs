@@ -6,7 +6,7 @@
 //! keeps its own source span and the substitution stays a ref variant rather than
 //! becoming text.
 //!
-//! The accepted grammar is narrow on purpose. A substitution must be a direct ref call
+//! The accepted grammar is narrow. A substitution must be a direct ref call
 //! or tag, the text after it must begin with `:`, and any text before it must already
 //! be a complete `variant:` prefix; anything else fails with
 //! [`LintDiagnostic::InvalidUtilityTemplate`] instead of guessing how the author meant

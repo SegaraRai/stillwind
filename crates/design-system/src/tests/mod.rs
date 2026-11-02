@@ -1,8 +1,12 @@
 //! In-crate integration tests for theme parsing and snapshot construction.
 //!
-//! The crate's fixture parser expands package imports through
-//! [`stillwind_test_support::css_source`] before parsing themes and the package's
+//! The fixture parser of the crate expands package imports through
+//! [`stillwind_test_support::css_source`] before it parses themes and the package's
 //! definitions.
+//!
+//! Modules:
+//!
+//! - [`theme`] checks theme parsing against the real `stillwind` package.
 
 use stillwind_source::{CssSourceName, FileId, SourceFile};
 

@@ -278,12 +278,11 @@ pub enum DynamicFamilyKind {
 /// statements, followed by one family for each `@stillwind-plugin-family` statement.
 /// `@stillwind-dynamic` statements with the same prefix merge into one family.
 ///
-/// # Errors
-///
-/// Returns [`CompileDiagnostic::InvalidDirectiveForm`] for a `@stillwind-dynamic`
-/// block, for a `@stillwind-dynamic` header that is not one name ending in `*` or `[*]`
-/// after a nonempty prefix, and for a `@stillwind-plugin-family` header that is not
-/// `utility` or `variant` followed by one root.
+/// Pushes a [`SkipReason::DirectiveForm`] range to `skipped` and leaves the statement
+/// out for a `@stillwind-dynamic` block, for a `@stillwind-dynamic` header that is not
+/// one name ending in `*` or `[*]` after a nonempty prefix, and for a
+/// `@stillwind-plugin-family` header that is not `utility` or `variant` followed by
+/// one root.
 fn extract_dynamic_utilities(css: &str, skipped: &mut Vec<SkippedRange>) -> Vec<DynamicFamily> {
     let invalid = |offset: usize, directive: &str| {
         (

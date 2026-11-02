@@ -3,8 +3,8 @@
 //!
 //! A named variant is indexed by its complete test CSS. A functional variant is indexed
 //! by a template: the test CSS for a test value, split around the text that the test
-//! value produces. A template turns an arbitrary selector variant, such as `[p_&]`, back
-//! into the functional variant that produces it, such as `in-[p]`. All names and
+//! value produces. A template turns an arbitrary selector variant, such as `[p_&]`,
+//! back into the functional variant that produces it, such as `in-[p]`. All names and
 //! selector forms come from the variant definitions of the snapshot.
 
 use std::collections::{BTreeSet, HashMap};
@@ -352,9 +352,9 @@ pub(super) fn simple_name(value: &str) -> bool {
 }
 
 /// Returns the attribute name in `value` when `value` ends with `="true"`, `='true'`,
-/// or `=true` and the name passes `simple_name`. Returns `None` otherwise. A variant of
-/// the `[aria]` value type selects that attribute with the value `true` when it receives
-/// the bare name.
+/// or `=true` and the name passes [`simple_name`]. Returns `None` otherwise. A variant
+/// of the `[aria]` value type selects that attribute with the value `true` when it
+/// receives the bare name.
 pub(super) fn aria_true_name(value: &str) -> Option<&str> {
     ["=\"true\"", "='true'", "=true"]
         .into_iter()

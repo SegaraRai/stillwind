@@ -284,7 +284,8 @@ fn merge_barriers_have_an_independent_collision_pool() {
     }
 }
 
-/// Names every anonymous layer with one fixed body, so an authored layer can collide with it.
+/// Names every anonymous layer with one fixed body, so an authored layer can collide
+/// with it.
 #[derive(Debug)]
 struct FixedLayerGenerator;
 

@@ -1,14 +1,18 @@
-//! Integration of import binding, declarations, reference resolution and module summaries.
+//! Integration of import binding, declarations, reference resolution, and module
+//! summaries.
 //!
-//! Every test here goes through the public [`parse`] entry point with real source
-//! text, because most of the contracts are about what a module looks like from
-//! the outside: which framework was selected, which spans are recorded, which
-//! exports denote assets, and which shapes are rejected.
+//! Every test goes through the public [`parse`] entry point with real source text,
+//! because most contracts are about what a module looks like from the outside: which
+//! framework is selected, which spans are recorded, which exports denote assets, and
+//! which shapes are rejected.
 //!
-//! `diagnostics` checks parser failures and transactional ir span mapping.
-//! `imports` checks macro binding, import editing, and semantic reads.
-//! `expressions` checks class, object, array, and variant expression lowering.
-//! `assets` checks asset declarations, uses, and exported identities.
+//! Modules:
+//!
+//! - [`assets`] checks asset declarations, uses, and exported identities.
+//! - [`diagnostics`] checks parser failures and transactional IR span mapping.
+//! - [`expressions`] checks the lowering of class, object, array, and variant
+//!   expressions.
+//! - [`imports`] checks macro binding, import editing, and semantic reads.
 
 use std::collections::BTreeMap;
 

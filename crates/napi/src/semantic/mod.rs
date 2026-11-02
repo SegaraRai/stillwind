@@ -1,7 +1,11 @@
-//! Typed Node transport for semantic domain values; domain crates never depend on napi-rs.
+//! Typed Node transport for semantic domain values, so that the domain crates never
+//! depend on napi-rs.
 //!
-//! [`identity`] converts asset kinds and declaration sites; [`values`] checks symbolic
-//! candidates and type facts; [`module_summary`] serializes module edges and exports.
+//! Modules:
+//!
+//! - [`identity`] converts asset kinds and declaration sites.
+//! - [`module_summary`] serializes module edges and exports.
+//! - [`values`] checks symbolic candidates and type facts.
 
 mod identity;
 mod module_summary;

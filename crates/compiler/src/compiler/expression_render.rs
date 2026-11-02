@@ -17,7 +17,7 @@ use crate::runtime::RuntimeBindings;
 /// Collects clsx arguments in evaluation order, removing only provably empty values.
 /// Compiler-owned arrays and class groups are expanded; guards and opaque expressions
 /// remain single arguments so conditional evaluation and helper boundaries survive.
-/// Callers must establish `is_plain` before collecting a tree containing groups.
+/// Callers must establish [`is_plain`] before collecting a tree containing groups.
 pub(crate) fn collect_class_arguments<'a>(value: &'a Emitted, arguments: &mut Vec<&'a Emitted>) {
     if value.is_empty() {
         return;
@@ -43,10 +43,10 @@ pub(crate) fn collect_class_arguments<'a>(value: &'a Emitted, arguments: &mut Ve
 
 /// Serializes a class-value tree without introducing framework property keys.
 ///
-/// Source mappings and branch/array order are retained; missing slots become `null`.
-/// Returns `None` for groups with custom properties, style payloads, or no retained
-/// class entries. Opaque expressions are emitted verbatim, not normalized or
-/// type-checked. Deferred helpers visited before a failure may already have been
+/// Source mappings and the order of branches and arrays are retained; missing slots
+/// become `null`. Returns `None` for groups with custom properties, style payloads, or
+/// no retained class entries. Opaque expressions are emitted verbatim, not normalized
+/// or type-checked. Deferred helpers visited before a failure may already have been
 /// registered, so production callers establish structural compatibility before
 /// rendering.
 pub(crate) fn render_plain(value: &Emitted, runtime: &mut RuntimeBindings<'_>) -> Option<Code> {
@@ -147,7 +147,8 @@ pub(crate) fn render_select(test: &Code, entries: Vec<(&LeanStr, Code)>) -> Code
 
 /// Checks whether a tree can remain a class-only atom without registering helpers.
 /// Rejects opaque source values and empty or property-bearing groups. Deferred calls
-/// and class-only arrays/branches qualify; this does not imply purity or nonemptiness.
+/// and class-only arrays and branches qualify; this does not imply purity or
+/// nonemptiness.
 pub(crate) fn is_plain(value: &Emitted) -> bool {
     match value {
         Emitted::Expression(ValueExpr::Source(_)) => false,

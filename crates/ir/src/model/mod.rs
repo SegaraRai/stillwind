@@ -2,20 +2,23 @@
 //!
 //! Every [`stillwind_source::Span`] here refers to the editable original source, never
 //! to a virtual or converted view. The model keeps author intent, not generated CSS: a
-//! [`StyleInput`] still says "these utilities come from this expression", it does not
-//! name classes or declarations.
+//! [`StyleInput`] says which expression supplies utilities, and it does not name
+//! classes or declarations.
 //!
-//! Ordering is semantic and must survive any consumer. [`ModuleIr::style_calls`],
+//! Order has meaning and every consumer must keep it. [`ModuleIr::style_calls`],
 //! [`ModuleIr::ref_definitions`], and the input entries inside one call stay in source
-//! order to preserve CSS and contribution precedence. Value expressions must satisfy
-//! the macro purity contract. Folding may reorder their evaluation and omit unused
-//! values while retaining guards for selected contributions.
+//! order to keep CSS and contribution precedence. Value expressions must satisfy the
+//! macro purity contract. Folding may reorder their evaluation and omit unused values,
+//! but it keeps the guards of selected contributions.
 //!
-//! [`module`] groups declarations and calls extracted from one source, including
-//! `style.media()` and `style.css()` calls. [`assets`] describes named declarations and
-//! their uses. [`style`] describes call inputs and variants. [`expression`] stores
-//! recursive class and rule contributions and validates conversion to the rule-only
-//! subset.
+//! Modules:
+//!
+//! - [`assets`] describes named declarations and their uses.
+//! - [`expression`] stores recursive class and rule contributions and validates
+//!   conversion to the rule-only subset.
+//! - [`module`] groups the declarations and calls extracted from one source, including
+//!   `style.media()` and `style.css()` calls.
+//! - [`style`] describes call inputs and variants.
 
 mod assets;
 mod expression;

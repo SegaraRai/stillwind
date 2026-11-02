@@ -138,7 +138,7 @@ impl LintSettings {
             .map_or(LintSeverity::Off, LintConfig::severity)
     }
 
-    /// Iterates settings in the order defined by `LintKind`.
+    /// Iterates settings in the order defined by [`LintKind`].
     pub fn iter(&self) -> impl Iterator<Item = &LintConfig> {
         self.entries.values()
     }

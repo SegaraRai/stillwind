@@ -1,10 +1,9 @@
 //! The two stylesheet entry points and the errors they can report.
 //!
 //! Both entry points delegate to the output template; the only difference is whether
-//! authored document CSS and Preflight participate. The error set is deliberately about
-//! assembly - a missing utilities slot, an unusable `--theme()` reference, or CSS usage
-//! parsing failure - rather than about candidate resolution, which reports through
-//! diagnostics elsewhere.
+//! authored document CSS and Preflight participate. The errors describe assembly
+//! failures, such as a missing utilities slot, an unusable `--theme()` reference, or a
+//! CSS usage parsing failure. Candidate resolution reports through diagnostics instead.
 
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::CompileDiagnostic;
@@ -32,7 +31,8 @@ pub(crate) fn render_stylesheet(
 ///
 /// # Errors
 ///
-/// Returns the assembly failures from [`super::template::render`]; no partial CSS is returned.
+/// Returns the assembly failures from [`super::template::render`]; no partial CSS is
+/// returned.
 pub(crate) fn render_module_stylesheet(
     theme: &ThemeIndex,
     utility_css: &str,

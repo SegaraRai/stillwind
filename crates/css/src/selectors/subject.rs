@@ -104,7 +104,8 @@ fn subject_uses(parser: &mut Parser<'_>) -> usize {
 /// that contains no `&` gets `& ` in front of it, so `:hover` becomes `& :hover` and
 /// `> .item` becomes `& > .item`. Other branches, whitespace and comments stay as
 /// written. Quoted, escaped, commented, and attribute-value ampersands are literal text
-/// and do not count as `&`. [`implicit_nesting_positions`] returns the insertion points.
+/// and do not count as `&`. [`implicit_nesting_positions`] returns the insertion
+/// points.
 pub fn absolutize_nested_selector(selector: &str) -> LeanString {
     let mut output = LeanString::new();
     let mut cursor = 0;

@@ -15,7 +15,7 @@ pub struct FileId(
 /// A UTF-8 byte offset from the start of one [`super::SourceFile`].
 ///
 /// The value carries no file identity; it is only meaningful together with the
-/// `FileId` of the span it came from.
+/// [`FileId`] of the span it came from.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct BytePos(
     /// Zero-based UTF-8 byte count; construction does not validate bounds or scalar alignment.
@@ -26,8 +26,8 @@ pub struct BytePos(
 ///
 /// `start == end` is a valid empty span that addresses a position rather than a
 /// character. Construction validates nothing, so a span may be reversed or out of
-/// range; [`super::SourceFile::slice`] validates the whole span. [`super::SourceFile::position`]
-/// validates only the byte offset supplied to it.
+/// range; [`super::SourceFile::slice`] validates the whole span.
+/// [`super::SourceFile::position`] validates only the byte offset supplied to it.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Span {

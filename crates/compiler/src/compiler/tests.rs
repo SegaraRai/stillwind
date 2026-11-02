@@ -1,4 +1,4 @@
-//! Integration of frontend/theme loading, registries and final compiler output.
+//! Integration of frontend and theme loading, registries and final compiler output.
 
 use lean_string::{ToLeanStr, ToLeanString};
 

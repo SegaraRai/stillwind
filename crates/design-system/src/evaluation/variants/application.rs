@@ -2,8 +2,8 @@
 //!
 //! [`VariantApplication`] is the data that resolution produces: a selector, a
 //! condition, declarations, or a composition of those. The compiler decides how to
-//! combine it with a utility. [`VariantObstacle`] names the part of an application that a
-//! negating or relationship variant cannot express. [`document_scoped_selector`] and
+//! combine it with a utility. [`VariantObstacle`] names the part of an application that
+//! a negating or relationship variant cannot express. [`document_scoped_selector`] and
 //! [`repeated_subject_selector`] find selectors that hosts report.
 
 use std::fmt;

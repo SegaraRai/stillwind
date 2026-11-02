@@ -38,7 +38,7 @@ pub(super) struct ExpandedSource {
 
 impl ExpandedSource {
     /// Appends text and fails if the result would exceed the 32-bit source limit,
-    /// keeping the buffer usable for `SourceFile` construction later.
+    /// keeping the buffer usable for [`SourceFile`] construction later.
     fn append_text(&mut self, text: &str) -> Result<(), SourceError> {
         let end = self
             .text
@@ -53,7 +53,7 @@ impl ExpandedSource {
     /// Appends another expansion wrapped in the import's conditionals, in the authored
     /// modifier order, so `@layer` stays outside `@supports` and `@media`.
     ///
-    /// The wrapper text is synthetic and intentionally unmapped; only the nested
+    /// The wrapper text is synthetic and has no mapping; only the nested
     /// expansion keeps its mappings, shifted by the current offset. When `plugin` is
     /// true, the nested text is recorded as the answer to a `@plugin` statement.
     pub(super) fn append_import(

@@ -1,12 +1,15 @@
 //! Lint rules, diagnostic contents, and source-located findings.
 //!
-//! Construct [`LintFinding`] from a [`LintDiagnostic`] and a source span. Producers
+//! Construct a [`LintFinding`] from a [`LintDiagnostic`] and a source span. Producers
 //! detect findings, and reporters apply the configured severity and suppression.
 //!
-//! [`config`] defines named rules, setting variants, and severity lookup.
-//! [`diagnostic`] defines detected causes and their message templates. [`finding`]
-//! attaches source labels, notes, and actions to a detected cause. [`suppression`]
-//! parses `swlint-*` comments and filters findings by their primary spans.
+//! Modules:
+//!
+//! - [`config`] defines named rules, setting variants, and severity lookup.
+//! - [`diagnostic`] defines detected causes and their message templates.
+//! - [`finding`] attaches source labels, notes, and actions to a detected cause.
+//! - [`suppression`] parses `swlint-*` comments and filters findings by their primary
+//!   spans.
 
 mod config;
 mod diagnostic;

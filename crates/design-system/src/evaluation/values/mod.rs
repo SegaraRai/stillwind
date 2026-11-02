@@ -1,16 +1,24 @@
 //! Value resolution for utility bodies and variant captures.
 //!
 //! A registry definition names placeholders such as `--value(...)`, `--modifier(...)`,
-//! or `--alpha(...)`; this module decides what they become for one candidate. The work
-//! is split by what the value depends on: the theme ([`theme`]), the capture's grammar
-//! ([`domains`]), CSS color compatibility ([`colors`]), textual decoding of arbitrary
-//! values ([`arbitrary`]), the nested placeholder forms ([`macros`]), and the ordered
-//! expansion that applies all of them ([`placeholders`]). [`token_values`] checks
-//! authored token values against the types of their namespace for lint.
+//! or `--alpha(...)`, and this module decides what they become for one candidate.
+//! Resolution fails closed: when a placeholder cannot be resolved, the whole
+//! declaration is rejected, and the caller tries the next overload instead of emitting
+//! a partially substituted value.
 //!
-//! Resolution is fail-closed: when a placeholder cannot be resolved the whole
-//! declaration is rejected, and the caller then tries the next overload rather than
-//! emitting a partially substituted value.
+//! Modules:
+//!
+//! - [`arbitrary`] decodes arbitrary-value and CSS-variable captures.
+//! - [`colors`] resolves color opacity expressions, compatibility branches, and theme
+//!   shadow modifiers.
+//! - [`domains`] decides which spellings a `--value(...)` placeholder accepts.
+//! - [`expansion`] performs bounded expansion of compiler-owned CSS functions.
+//! - [`macros`] evaluates the arguments of the placeholder forms that run before the
+//!   main value family.
+//! - [`placeholders`] expands every placeholder family of one declaration in order.
+//! - [`theme`] looks up theme tokens for candidate values.
+//! - [`token_values`] checks authored token values against the types of their namespace
+//!   for lint.
 
 mod arbitrary;
 mod colors;

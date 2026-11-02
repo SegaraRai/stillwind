@@ -2,15 +2,19 @@
 //!
 //! Build a [`DirectSource`] or [`ProjectedSource`] before creating a [`SourceInput`].
 //! Their constructors validate source identities, formats, and import metadata.
-//! Original framework markup remains opaque to the core. Map loading and expression
+//! Original framework markup stays opaque to the core. Map loading and expression
 //! restoration belong to the analyzer and can still produce diagnostics.
 //!
-//! [`SourceInput::parser_source`] supplies parser bytes; [`SourceInput::document`]
-//! identifies the editable source to which published spans must refer.
+//! [`SourceInput::parser_source`] supplies the parser bytes, and
+//! [`SourceInput::document`] identifies the editable source that published spans must
+//! refer to.
 //!
-//! `prepared` combines documents and projections into module inputs. `document`
-//! defines editable documents and direct parser settings. `projection` validates
-//! converter output and import metadata against component documents.
+//! Modules:
+//!
+//! - [`document`] defines editable documents and direct parser settings.
+//! - [`prepared`] combines documents and projections into module inputs.
+//! - [`projection`] validates converter output and import metadata against component
+//!   documents.
 
 mod document;
 mod prepared;

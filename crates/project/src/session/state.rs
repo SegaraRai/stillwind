@@ -416,7 +416,7 @@ impl ProjectSession {
     ///
     /// Generated names are checked against other modules' symbols because their output
     /// shares one document. A collision prevents publication and reports
-    /// `CompileDiagnostic::GeneratedIdentifierCollision`. Each namespace is checked
+    /// [`CompileDiagnostic::GeneratedIdentifierCollision`]. Each namespace is checked
     /// separately. Different namespaces can share a spelling, but different identities
     /// in the same namespace cannot.
     ///

@@ -1,13 +1,16 @@
-//! One-shot compile entry points, kept independent of Node-API.
+//! One-shot compile entry points, independent of Node-API.
 //!
-//! The `*_input` functions take ordinary Rust values so the same behaviour can be
-//! tested without a JavaScript runtime. The `#[napi]` functions next to them only
+//! The `*_input` functions take ordinary Rust values, so the same behavior can be
+//! tested without a JavaScript runtime. The `#[napi]` functions beside them only
 //! convert arguments, so a JavaScript caller and a Rust test exercise one
 //! implementation.
 //!
-//! `compilation` owns standalone compilation and result conversion. `project`
-//! compiles a prepared graph. `scan` exposes summaries and checker targets.
-//! `stylesheet` renders shared CSS and folds constant expressions.
+//! Modules:
+//!
+//! - [`compilation`] compiles one source and converts the result.
+//! - [`project`] compiles a prepared graph.
+//! - [`scan`] exposes summaries and checker targets.
+//! - [`stylesheet`] renders shared CSS and folds constant expressions.
 
 mod compilation;
 mod project;

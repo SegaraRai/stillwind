@@ -21,7 +21,8 @@ pub(super) struct NormalizationPlan {
     pub(super) expressions: Vec<(Span, bool)>,
 }
 
-/// Visits generated syntax and returns only candidates accepted by the framework policy.
+/// Visits generated syntax and returns only candidates accepted by the framework
+/// policy.
 pub(super) fn collect_plan<'a>(
     source: &'a SourceFile,
     index: &ProjectionIndex<'a>,

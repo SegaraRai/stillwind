@@ -2,9 +2,9 @@
 //!
 //! The pipeline normalizes the converter buffer against the projection, parses the
 //! normalized source, and maps the IR and summary back to the original file.
-//! It also maps diagnostic and lint labels to original spans. If required data cannot be mapped,
-//! parsing returns an error or reports a diagnostic. Optional recognition probes
-//! are omitted when their generated code has no corresponding original source.
+//! It also maps diagnostic and lint labels to original spans. If required data cannot
+//! be mapped, parsing returns an error or reports a diagnostic. Optional recognition
+//! probes are omitted when their generated code has no corresponding original source.
 
 use std::collections::BTreeMap;
 
@@ -19,7 +19,8 @@ use crate::ParsedJavaScript;
 use crate::entry::parse_with_coordinates;
 use crate::normalization::{NormalizedProjection, normalize_projection};
 
-/// Parses a projected input and returns original IR, provenance, and checker operations.
+/// Parses a projected input and returns original IR, provenance, and checker
+/// operations.
 ///
 /// The validated source supplies the component format and converter metadata.
 /// `module_id` identifies the module for asset identities, and `facts` and `assets`

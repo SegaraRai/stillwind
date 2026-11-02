@@ -97,7 +97,7 @@ impl DesignSystemQuery {
 
     /// CSS for a candidate that resolves, `None` otherwise.
     ///
-    /// Failures are deliberately not part of a hover result: an unresolved candidate
+    /// Failures are not part of a hover result: an unresolved candidate
     /// has no CSS to show.
     ///
     /// # Errors

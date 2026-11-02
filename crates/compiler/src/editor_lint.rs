@@ -1,6 +1,8 @@
 //! Source lint detection for canonical utility spelling, redundant variants, and
-//! untyped variables. Findings retain original source snapshots; Reporter applies
-//! severity and suppression.
+//! untyped variables.
+//!
+//! Findings keep snapshots of the original source.
+//! [`Reporter`](stillwind_diagnostics::Reporter) applies severity and suppression.
 
 use std::ops::Range;
 use std::sync::Arc;

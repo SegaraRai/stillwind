@@ -28,10 +28,10 @@ use super::variants::{document_scoped_selector, unmatched_host_selector};
 
 /// Rules and class names collected before they are assigned to a class unit.
 ///
-/// [`Self::canonical`] contributes to the class hash assembled by `ClassUnits`.
-/// Separate lists keep compatibility and asset markers apart from rules. Transition
-/// uses keep their CSS context until the owning unit chooses whether to write tokens
-/// directly or through slots.
+/// [`Self::canonical`] contributes to the class hash assembled by
+/// [`ClassUnits`](super::class_units::ClassUnits). Separate lists keep compatibility
+/// and asset markers apart from rules. Transition uses keep their CSS context until the
+/// owning unit chooses whether to write tokens directly or through slots.
 #[derive(Default)]
 pub(super) struct LiteralContribution {
     /// Hash fragment for rule-bearing candidates and their wrappers, in source order.

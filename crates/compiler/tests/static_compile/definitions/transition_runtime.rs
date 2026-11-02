@@ -2,9 +2,9 @@
 
 use super::*;
 
-/// A guarded use fills a slot its own class carries, and the unit owning the element class
-/// list references every slot with an empty fallback, so a condition contributes its token
-/// without replacing what another condition contributed.
+/// A guarded use fills a slot its own class carries, and the unit owning the element
+/// class list references every slot with an empty fallback, so a condition contributes
+/// its token without replacing what another condition contributed.
 #[test]
 fn compiles_guarded_view_transitions_through_class_slots() {
     let component = SourceFile::new(
@@ -287,8 +287,8 @@ export const item = style([anchor, { "--size": 4, class: "external" }, enabled &
     );
 }
 
-/// Two conditions that hold together each fill their own slot, so the resolved class list
-/// is the union of what the element declares rather than the last one to apply.
+/// Two conditions that hold together each fill their own slot, so the resolved class
+/// list is the union of what the element declares rather than the last one to apply.
 #[test]
 fn unions_guarded_view_transitions_through_class_slots() {
     let component = SourceFile::new(

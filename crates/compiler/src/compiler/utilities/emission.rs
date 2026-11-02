@@ -286,9 +286,10 @@ fn emit_utility_css<const FLAGS: u8>(
 
 /// Writes one `<class selector>{...}` block for a run of plain utilities.
 ///
-/// Nested rules whose property is present in the combined declarations are inlined right after that
-/// property; the rest follow the declarations in their own order. Utilities with no declarations at
-/// all produce no block, which is why a marker-only unit still costs nothing in the CSS.
+/// Nested rules whose property is present in the combined declarations are inlined
+/// right after that property; the rest follow the declarations in their own order.
+/// Utilities with no declarations at all produce no block, which is why a marker-only
+/// unit still costs nothing in the CSS.
 fn emit_base_utility_group<const FLAGS: u8>(
     output: &mut LeanString,
     class_selector: &str,

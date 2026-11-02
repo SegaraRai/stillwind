@@ -339,12 +339,12 @@ pub(super) struct Guarded {
 }
 
 /// Guards every declaration, including nested rules, with a validated condition.
-/// `condition` must parse as a `RuntimeCondition`. Emits unresolved `--if` values with
-/// `revert-rule` as the false branch; callers must run [`lower`] and retain a separate
-/// rule boundary. Existing guards combine as AND using local boolean gates. Priority
-/// stays outside the expression; `known` names the gate declarations an earlier pass
-/// wrote, which are left alone, and the ones this pass writes are returned. Negated AND
-/// operands emit inversions that require native lowering.
+/// `condition` must parse as a [`RuntimeCondition`]. Emits unresolved `--if` values
+/// with `revert-rule` as the false branch; callers must run [`lower`] and retain a
+/// separate rule boundary. Existing guards combine as AND using local boolean gates.
+/// Priority stays outside the expression; `known` names the gate declarations an
+/// earlier pass wrote, which are left alone, and the ones this pass writes are
+/// returned. Negated AND operands emit inversions that require native lowering.
 ///
 /// # Errors
 ///
@@ -421,7 +421,7 @@ pub(super) fn guard(
 }
 
 /// Returns a custom-property name suitable for a fallback AND expression. `condition`
-/// must parse as a `RuntimeCondition`. Positive presence tests return their trimmed
+/// must parse as a [`RuntimeCondition`]. Positive presence tests return their trimmed
 /// text without changing `declarations`; negations and comparisons append an unresolved
 /// helper with empty/initial branches and return its name. Callers must lower appended
 /// helpers in native mode before emitting them.

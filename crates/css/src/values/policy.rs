@@ -1,6 +1,6 @@
 //! CSS value inspection for property and unit policies.
 //!
-//! `property_value_domains` expands parsed shorthands without inventing values for
+//! [`property_value_domains`] expands parsed shorthands without inventing values for
 //! unresolved variables. Lexical inspection skips strings and URLs and preserves
 //! nonzero dimensions inside mathematical functions.
 
@@ -90,7 +90,8 @@ pub fn property_value_domains(property: &str, value: &str) -> Vec<(LeanString, L
 }
 
 /// Returns nonzero length unit names and direct `var()` / `--theme()` references.
-/// References in fallback arguments are included; their declaration values are not followed.
+/// References in fallback arguments are included; their declaration values are not
+/// followed.
 pub fn inspect_css_value(value: &str) -> (BTreeSet<LeanStr>, BTreeSet<LeanStr>) {
     let mut units = BTreeSet::new();
     let mut references = BTreeSet::new();
@@ -98,9 +99,10 @@ pub fn inspect_css_value(value: &str) -> (BTreeSet<LeanStr>, BTreeSet<LeanStr>) 
     (units, references)
 }
 
-/// Returns whether explicit CSS text contains a literal color or nonzero spacing measure.
-/// Strings and URL arguments are skipped. Variable fallbacks and mathematical expressions
-/// are inspected; referenced custom-property definitions are left to the caller.
+/// Returns whether explicit CSS text contains a literal color or nonzero spacing
+/// measure. Strings and URL arguments are skipped. Variable fallbacks and mathematical
+/// expressions are inspected; referenced custom-property definitions are left to the
+/// caller.
 pub fn arbitrary_value_flags(property: &str, value: &str, color_domain: bool) -> (bool, bool) {
     let property = property.to_lean_string().to_ascii_lowercase();
     let color = color_domain

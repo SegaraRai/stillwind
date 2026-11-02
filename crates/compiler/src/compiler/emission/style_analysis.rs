@@ -1,6 +1,6 @@
 //! Records contributions before class-unit merging removes their source boundaries.
 //!
-//! `CallEmitter` records declarations from the same resolved utilities used for CSS
+//! [`CallEmitter`] records declarations from the same resolved utilities used for CSS
 //! emission, together with source guards, finite receiver choices, and ref
 //! requirements. The collector reads rendered utility fragments; it never reads
 //! published module CSS. Selector classification stays conservative when the subject
@@ -455,7 +455,7 @@ pub(in crate::compiler) fn collect_declarations(
 /// Returns the byte offset of the first top-level rule block opening in `text`.
 /// Strings and functional values are skipped. Custom-property declarations return
 /// `None` because their values may contain brace blocks. The caller supplies one
-/// complete declaration or rule fragment from `declaration_ranges`.
+/// complete declaration or rule fragment from [`declaration_ranges`].
 fn rule_open(text: &str) -> Option<usize> {
     let mut parser = Parser::new(text);
     if parser

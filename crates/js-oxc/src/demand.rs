@@ -6,7 +6,7 @@
 //! questions: which imports the module's type probes can reach, and which imports each
 //! exported binding needs.
 //!
-//! The slice is deliberately conservative. It follows symbol references, not control
+//! The slice is conservative. It follows symbol references, not control
 //! flow, so a statement that merely mentions a symbol contributes it, and it keeps
 //! every import reachable from a probe rather than guessing which branch matters. The
 //! result can be larger than necessary, but never smaller.
@@ -104,7 +104,8 @@ impl<'a> Visit<'a> for StatementReads {
 /// `program`, `scoping`, and `probes` must describe the same analysis buffer. `probes`
 /// contains the ranges the project asked about. `exports` contains the
 /// `(symbol, exported name)` pairs whose dependencies are needed. Both results are
-/// sorted by `(source, imported, local)`, so callers must not read them as source order.
+/// sorted by `(source, imported, local)`, so callers must not read them as source
+/// order.
 pub(crate) fn collect(
     program: &Program<'_>,
     scoping: &Scoping,

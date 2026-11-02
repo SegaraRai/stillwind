@@ -2,7 +2,7 @@
 //!
 //! `@custom-variant` and `@variant` are user-authored, so a definition is identified by
 //! its body or selector alone. `@stillwind-variant` is compiler-owned and may add a
-//! typed header - a value type, a modifier type, or sort metadata - which is parsed
+//! typed header with a value type, a modifier type, or sort metadata, which is parsed
 //! here and used only for `@stillwind-variant`. Both forms may declare that a variant
 //! selects a document-level target, as [`VariantScope`] describes: a
 //! `@stillwind-variant` header with `scope: document`, or `@custom-variant` with
@@ -329,7 +329,8 @@ pub(crate) struct ParsedStillwindVariantHeader {
     scope: VariantScope,
 }
 
-/// Returns the decoded variant name and the optional UTF-8 byte offset of its capture `*`.
+/// Returns the decoded variant name and the optional UTF-8 byte offset of its
+/// capture `*`.
 ///
 /// CSS escapes decode as literal name characters; one unescaped asterisk captures
 /// between fixed prefix and suffix text. Empty names, multiple captures, whitespace,

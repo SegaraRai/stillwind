@@ -128,10 +128,10 @@ impl Scan {
 ///
 /// # Errors
 ///
-/// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block,
-/// [`CompileDiagnostic::InvalidCssImportSpecifier`] for an invalid import target, or
-/// modifier errors from [`import_wrappers`]. Offsets refer to `css`. This layer does
-/// not attach source labels or names.
+/// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block, and the
+/// errors of [`theme_prelude`] and [`plugin`]. An invalid import target or import
+/// modifier does not fail the scan; it is recorded in [`Scan::skipped`]. Offsets refer
+/// to `css`. This layer does not attach source labels or names.
 pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
     let mut parser = Parser::new(css);
     let mut scan = Scan::default();

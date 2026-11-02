@@ -6,10 +6,13 @@
 //! error: [`resolve_variant`] returns a [`VariantFailure`] that names the cause, and
 //! the caller decides how to report it.
 //!
-//! [`variant`] resolves one variant and defines the failures that resolution reports.
-//! [`arbitrary`] resolves `[...]` variant text and builds inner variants from captures.
-//! [`definition`] evaluates one registered definition for a capture, including typed
-//! captures, modifiers, and nested variants.
+//! Modules:
+//!
+//! - [`arbitrary`] resolves `[...]` variant text and builds inner variants from
+//!   captures.
+//! - [`definition`] evaluates one registered definition for a capture, including typed
+//!   captures, modifiers, and nested variants.
+//! - [`variant`] resolves one variant and defines the failures that resolution reports.
 
 mod arbitrary;
 mod definition;

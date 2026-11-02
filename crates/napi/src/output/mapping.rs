@@ -7,8 +7,9 @@ use stillwind_compiler::{ExpressionTransformMapping, TransformMapping};
 use stillwind_source::Span;
 
 /// An applied compiler edit, exposed to JavaScript for source-map construction.
-/// Offsets are absolute UTF-16 code units before host prefix insertion or import removal;
-/// generated gaps outside `expressions` use the edit's original start as an anchor.
+/// Offsets are absolute UTF-16 code units before host prefix insertion or import
+/// removal; generated gaps outside `expressions` use the edit's original start as an
+/// anchor.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -41,7 +42,8 @@ impl From<TransformMapping> for NativeTransformMapping {
 
 /// One retained expression or encoded character inside a compiler replacement.
 /// Coordinates are absolute UTF-16 code units in the original and complete compiled
-/// buffers; exact intervals advance both positions, while encoded intervals use an anchor.
+/// buffers; exact intervals advance both positions, while encoded intervals use an
+/// anchor.
 #[napi(object, object_from_js = false)]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

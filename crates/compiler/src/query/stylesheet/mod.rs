@@ -1,18 +1,29 @@
 //! Editor queries and sorting edits for authored CSS.
 //!
-//! [`completion`] implements [`crate::query::DesignSystemQuery::complete_stylesheet`]
-//! and owns its replacement labels. [`hover`] implements
-//! [`crate::query::DesignSystemQuery::hover_stylesheet`] and owns its previews.
-//! [`context`] locates cursor inputs through the shared CSS parser and lexical helpers.
-//! [`directives`] supplies dialect names, syntax, audience, provenance, and usage
-//! positions. [`completion`] also owns discovery options that are independent of
-//! compilation. [`recovery`] extracts definitions for editor queries when the original
-//! CSS cannot compile. Recovered definitions support completion, hover, and color
-//! queries on incomplete input. Structural sorting and lint fixes require the original
-//! CSS graph. [`colors`] resolves utility colors and theme references. [`sorting`] owns
-//! the independent sorting targets and plans source edits shared with stylesheet lint.
-//! [`plugins`] extracts plugin strings and cursor prefixes without loading the CSS
-//! graph.
+//! When the original CSS cannot compile, recovered definitions still support
+//! completion, hover, and color queries. Structural sorting and lint fixes require the
+//! original CSS graph.
+//!
+//! Modules:
+//!
+//! - [`colors`] resolves utility colors and theme references.
+//! - [`completion`] implements [`DesignSystemQuery::complete_stylesheet`], owns its
+//!   replacement labels, and owns the discovery options that are independent of
+//!   compilation.
+//! - [`context`] locates cursor inputs through the shared CSS parser and lexical
+//!   helpers.
+//! - [`directives`] supplies dialect names, syntax, audience, provenance, and usage
+//!   positions.
+//! - [`hover`] implements [`DesignSystemQuery::hover_stylesheet`] and owns its previews.
+//! - [`plugins`] extracts plugin strings and cursor prefixes without loading the CSS
+//!   graph.
+//! - [`recovery`] extracts definitions for editor queries when the original CSS cannot
+//!   compile.
+//! - [`sorting`] owns the sorting targets and plans the source edits that stylesheet
+//!   lint shares.
+//!
+//! [`DesignSystemQuery::complete_stylesheet`]: super::DesignSystemQuery::complete_stylesheet
+//! [`DesignSystemQuery::hover_stylesheet`]: super::DesignSystemQuery::hover_stylesheet
 
 mod colors;
 mod completion;

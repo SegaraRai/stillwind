@@ -1,17 +1,30 @@
 //! Framework policy, independent of parsers and host converters.
 //!
-//! Each entrypoint selects a shared output representation and a source projection
-//! policy. `output` owns property names, style representations, and runtime modules.
-//! Framework converter policies normalize original-source projections.
+//! Each entry point selects a shared output representation and a source projection
+//! policy. [`AdapterKind::spec`] selects a specification, and [`FRAMEWORKS`] lists the
+//! specifications in the order offered to hosts. Supporting another adapter requires
+//! its specification and entries in the enum and the list, not a parser here. Source
+//! parsing, projection bookkeeping, and host conversion belong to the frontend and host
+//! layers.
 //!
-//! `spec` owns adapter selection and shared specifications. `projection` defines the
-//! expressions and decisions used by converter normalization.
-//! The framework modules and `vanilla` supply static
-//! specifications and expression-rewrite policies. [`AdapterKind::spec`] selects a
-//! specification; [`FRAMEWORKS`] lists them in the order offered to hosts. Supporting
-//! another adapter requires its specification and enum/list entries, not a parser here.
-//! Source parsing, projection bookkeeping, and host conversion belong to the frontend
-//! and host layers.
+//! Modules:
+//!
+//! - [`alpine`] defines the macro policy for Alpine directives.
+//! - [`astro`] defines the Astro adapter policy.
+//! - [`lit`] defines the macro policy for Lit templates.
+//! - [`output`] defines property names, style representations, and runtime modules for
+//!   compiled props.
+//! - [`preact`] defines the Preact adapter policy.
+//! - [`projection`] defines the expressions and decisions that converter normalization
+//!   uses.
+//! - [`qwik`] defines the macro policy for Qwik JSX.
+//! - [`react`] defines the React adapter policy.
+//! - [`solid`] defines the Solid adapter policy.
+//! - [`spec`] defines static framework specifications and adapter selection.
+//! - [`svelte`] defines the Svelte adapter policy and bindings for helpers that
+//!   svelte2tsx supplies.
+//! - [`vanilla`] defines the macro policy for direct DOM consumers.
+//! - [`vue`] defines the Vue adapter policy and its Volar projection rewrite.
 
 mod alpine;
 mod astro;

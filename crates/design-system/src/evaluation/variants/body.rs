@@ -40,10 +40,10 @@ pub(in crate::evaluation) fn resolve_variant_body(body: &str) -> Option<VariantA
 /// block, in authored order. [`None`] means the body has no slot, is empty, or is not a
 /// construct the emitter can place.
 ///
-/// A selector rule without declarations resolves to [`VariantApplication::BareSelector`]
-/// when `scope` is [`VariantScope::Document`] and no branch of its selector contains
-/// `&`. A selector rule inside `@media` resolves to [`VariantApplication::SelectorMedia`]
-/// with the same selector.
+/// A selector rule without declarations resolves to
+/// [`VariantApplication::BareSelector`] when `scope` is [`VariantScope::Document`] and
+/// no branch of its selector contains `&`. A selector rule inside `@media` resolves to
+/// [`VariantApplication::SelectorMedia`] with the same selector.
 pub(in crate::evaluation) fn resolve_scoped_variant_body(
     body: &str,
     scope: VariantScope,

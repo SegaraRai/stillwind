@@ -60,8 +60,9 @@ const panel = style("rounded-md", enter("duration-180 ease-standard both"), { "[
     assert!(transformed.contains("const enter = undefined;"));
 }
 
-/// A declaration's label is spelled into every name the declaration generates, in the family's
-/// own separator, and the rendering positions write it the way their grammar requires.
+/// A declaration's label is spelled into every name the declaration generates, in the
+/// family's own separator, and the rendering positions write it the way their grammar
+/// requires.
 #[test]
 fn spells_declaration_labels_into_the_generated_names() {
     let component = SourceFile::new(

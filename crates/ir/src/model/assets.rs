@@ -112,8 +112,8 @@ pub struct AssetReference {
 /// How one view-transition use names the participants it marks.
 ///
 /// A view-transition-name is a pairing key rather than an allocated name: different
-/// transitions may compose the same value on purpose, so the compiler derives it from the
-/// class token and the key instead of checking it against a namespace.
+/// transitions may compose the same value on purpose, so the compiler derives it from
+/// the class token and the key instead of checking it against a namespace.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "camelCase")]
 pub enum ViewTransitionName {

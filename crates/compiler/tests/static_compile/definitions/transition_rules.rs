@@ -113,9 +113,9 @@ export const photo = style(item);"#,
     assert!(base < conditional, "{}", result.css);
 }
 
-/// A group option may carry a media or supports condition: the unconditional options share one
-/// rule and each conditioned option follows as its own rule with the same selector, so the
-/// condition changes only the properties that option states.
+/// A group option may carry a media or supports condition: the unconditional options
+/// share one rule and each conditioned option follows as its own rule with the same
+/// selector, so the condition changes only the properties that option states.
 #[test]
 fn conditions_group_options_on_their_own_rules() {
     let component = SourceFile::new(
@@ -213,9 +213,10 @@ export const photo = style(item);"#,
     );
 }
 
-/// A composed base's transition classes do not merge with the derived call's own list: the
-/// derived rules come later and replace the single class property, so a transition only the base
-/// declares stops marking the element. Re-declaring the base's own transition loses nothing.
+/// A composed base's transition classes do not merge with the derived call's own list:
+/// the derived rules come later and replace the single class property, so a transition
+/// only the base declares stops marking the element. Re-declaring the base's own
+/// transition loses nothing.
 #[test]
 fn warns_when_a_composed_base_declares_other_transition_classes() {
     let component = SourceFile::new(
@@ -262,8 +263,9 @@ export const kept = style(block, base.for("hero"));"#,
     );
 }
 
-/// A transition name the runtime composes reaches the element as an inline property, so a base
-/// carrying one still cannot be composed: merging two payloads is what the rejection covers.
+/// A transition name the runtime composes reaches the element as an inline property, so
+/// a base carrying one still cannot be composed: merging two payloads is what the
+/// rejection covers.
 #[test]
 fn rejects_composing_a_base_with_a_runtime_transition_name() {
     let component = SourceFile::new(

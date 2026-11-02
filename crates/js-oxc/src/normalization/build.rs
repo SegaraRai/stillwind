@@ -1,4 +1,5 @@
-//! Builds an analysis buffer after validating projection syntax and normalization plans.
+//! Builds an analysis buffer after validating projection syntax and normalization
+//! plans.
 
 use lean_string::{LeanString, ToLeanStr};
 use oxc::allocator::Allocator;

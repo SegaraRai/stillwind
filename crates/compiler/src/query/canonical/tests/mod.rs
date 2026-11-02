@@ -1,4 +1,9 @@
 //! Tests for canonical spellings and for the canonical index.
+//!
+//! Modules:
+//!
+//! - [`index`] checks the canonical index.
+//! - [`spelling`] checks canonical spellings.
 
 use std::sync::Arc;
 

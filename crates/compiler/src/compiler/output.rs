@@ -1,10 +1,12 @@
 //! The compilation result shape handed to a host.
 //!
-//! [`CompileResult`] contains diagnostics, source edits, generated identifiers, and CSS.
-//! Its [`CssContribution`] entries carry the placement and registration dependencies
-//! needed by artifact construction. `module_css` is a text-only inspection view;
-//! `css` holds the output selected by the caller's rendering stage. Serde excludes
-//! contributions and module text because host responses transport the rendered CSS.
+//! [`CompileResult`] contains diagnostics, source edits, generated identifiers, and
+//! CSS. Its [`CssContribution`] entries carry the placement and registration
+//! dependencies needed by artifact construction.
+//! [`module_css`](CompileResult::module_css) is a text-only inspection view;
+//! [`css`](CompileResult::css) holds the output selected by the caller's rendering
+//! stage. Serde excludes contributions and module text because host responses transport
+//! the rendered CSS.
 //!
 //! [`CompileResult::apply_to_source`] applies the stored edits to their original source
 //! and rejects failed compilations. This module defines transport values; compilation,
@@ -89,8 +91,8 @@ impl CompileResult {
     /// be the original buffer addressed by their spans; the returned text contains
     /// the complete edit result, while the input buffer and stored edits are unchanged.
     ///
-    /// This deliberately keeps the compiler's source mapping contract separate
-    /// from any particular bundler. A Vite adapter can use the same plan and
+    /// The compiler's source mapping contract stays independent of any particular
+    /// bundler. A Vite adapter can use the same plan and
     /// provide a high-resolution source map around these exact byte spans.
     ///
     /// # Errors

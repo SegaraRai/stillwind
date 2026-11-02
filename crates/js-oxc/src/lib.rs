@@ -1,34 +1,49 @@
 //! Oxc-backed JS/TS/JSX parsing and import-bound macro extraction.
 //!
-//! This crate is the JavaScript frontend: it parses a module with Oxc, finds the
-//! `style` binding that came from a Stillwind macro import, extracts style calls,
-//! ref definitions, keyframes and view-transition declarations, resolves the framework
-//! adapter, and publishes a [`stillwind_semantic::ModuleSummary`] plus the type probes
-//! the host checker still has to answer. `entry` coordinates parsing and extraction;
-//! `contract` validates macro argument expressions before folding; `uses` rejects
-//! unconsumed projections and ref variants. `normalization` and `projected_scan`
-//! restore editable source coordinates for converted framework input, including the
-//! effect-proof spans. `local_span` supplies file-local range keys for extraction and
-//! checker bookkeeping.
+//! This crate is the JavaScript frontend. It parses a module with Oxc and finds the
+//! `style` binding that a Stillwind macro import created. It extracts style calls, ref
+//! definitions, keyframes, and view-transition declarations, and resolves the framework
+//! adapter. It then publishes a [`stillwind_semantic::ModuleSummary`] and the type
+//! probes that the host checker must answer.
 //!
-//! Three contracts hold throughout. Extraction is binding-bound, never name-bound: a
-//! local `style` that shadows the import is not the macro. Every span in a result
-//! belongs to the editable original source, even when the input was a converter's
-//! shadow module. And scanning is demand-driven: probes are created only for values
-//! that local analysis could not resolve, so a module of literal utilities asks the
-//! checker nothing.
+//! Three contracts hold throughout:
 //!
-//! `analyzer` implements scanning and finalization. `state` holds one extraction, and
-//! `visit` collects module structure and macro uses. `bindings` recognizes imported
-//! macro symbols, and `style_bindings` seeds local producers. `imports` records
-//! bindings and their reads. `cva` validates factory configurations and extracts their
-//! values. `media` records `style.media()` arguments, and `stylesheet` records
-//! `style.css()` inputs and options. `expressions` lowers style inputs, and `templates`
-//! preserves ref substitutions. `resolution` distinguishes unsupported values from
-//! missing facts. `refs`, `keyframes`, and `view_transition` extract their declarations
-//! and uses. `demand` finds the imports needed by unresolved values. `ast` tags Oxc
-//! ranges with their analysis buffer identity before coordinate mapping and validates
-//! Unicode strings consumed during extraction.
+//! - Extraction follows bindings, not names. A local `style` that shadows the import is
+//!   not the macro.
+//! - Every span in a result belongs to the editable original source, even when the
+//!   input is a converter's shadow module.
+//! - Scanning is demand-driven. Probes are created only for values that local analysis
+//!   cannot resolve, so a module of literal utilities asks the checker nothing.
+//!
+//! Modules:
+//!
+//! - [`analyzer`] implements scanning and finalization.
+//! - [`ast`] tags Oxc ranges with the identity of their analysis buffer and validates
+//!   the Unicode strings that extraction reads.
+//! - [`bindings`] recognizes imported macro symbols.
+//! - [`contract`] validates macro argument expressions before folding.
+//! - [`cva`] validates factory configurations and extracts their values.
+//! - [`demand`] finds the imports that unresolved values need.
+//! - [`entry`] coordinates parsing and extraction.
+//! - [`expressions`] lowers style inputs.
+//! - [`imports`] records bindings and their reads.
+//! - [`keyframes`] extracts keyframes declarations and their uses.
+//! - [`local_span`] supplies file-local range keys for extraction and checker
+//!   bookkeeping.
+//! - [`media`] records `style.media()` arguments.
+//! - [`normalization`] validates the correspondence between authored expressions and
+//!   converter code.
+//! - [`projected_scan`] restores editable source coordinates for converted framework
+//!   input.
+//! - [`refs`] extracts ref declarations and their uses.
+//! - [`resolution`] distinguishes unsupported values from missing facts.
+//! - [`state`] holds the state of one extraction.
+//! - [`style_bindings`] seeds local style producers.
+//! - [`stylesheet`] records `style.css()` inputs and options.
+//! - [`templates`] preserves ref substitutions in template literals.
+//! - [`uses`] rejects unconsumed projections and ref variants.
+//! - [`view_transition`] extracts view-transition declarations and their uses.
+//! - [`visit`] collects module structure and macro uses.
 
 #![cfg_attr(
     not(test),

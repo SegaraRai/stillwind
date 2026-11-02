@@ -1,7 +1,8 @@
 //! Keeps each producer's CSS rules and assembles them in the requested order.
 //!
 //! [`ProjectStylesheet::replace`] retains each producer's rule occurrences, including
-//! repeated content. [`ProjectStylesheet::serialize`] expands the design-system template.
+//! repeated content. [`ProjectStylesheet::serialize`] expands the design-system
+//! template.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;

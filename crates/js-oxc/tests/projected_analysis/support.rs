@@ -4,7 +4,7 @@ use super::*;
 
 /// A Svelte-style projection of one script block into an original file.
 ///
-/// The map is deliberately simple (one interval covering the script), so a failure
+/// The map is simple (one interval covers the script), so a failure
 /// points at the analyzer rather than at the fixture's arithmetic.
 pub(super) fn projected() -> SourceInput {
     let script = "import {style} from 'stillwind/svelte'; export const target = style.ref('target'); const active: boolean = true; const props = style(target, active ? 'flex' : 'grid');";

@@ -1,10 +1,10 @@
 //! Experimental runtime conditions shared by value and variant resolution.
 //!
-//! [`RuntimeCondition`] parses presence/comparison syntax and produces its canonical
-//! spelling; [`runtime_if_arguments`] splits value-function arguments. These helpers do
-//! not inspect property registrations or decide the output strategy. Presence tests use
-//! whitespace/initial boolean values; comparisons are lowered by the compiler to native
-//! CSS style queries.
+//! [`RuntimeCondition`] parses presence and comparison syntax and produces its
+//! canonical spelling; [`runtime_if_arguments`] splits value-function arguments. These
+//! helpers do not inspect property registrations or decide the output strategy.
+//! Presence tests use boolean values that are whitespace or `initial`; comparisons are
+//! lowered by the compiler to native CSS style queries.
 
 use std::fmt;
 

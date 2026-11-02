@@ -1,33 +1,34 @@
 //! CSS parsing primitives, value validation, math and color handling, custom
 //! properties, resource discovery, and output-template data.
 //!
-//! Everything here is either standard CSS or a lexical helper the design
-//! system and the compiler build on; the crate deliberately knows nothing
-//! about Stillwind's theme, registry or utility model. Property and value
-//! grammar is delegated to Lightning CSS and to the generated Webref table, so
-//! "is this a valid value for that property" is answered from published CSS
-//! data rather than from a hand-maintained list.
+//! Everything here is standard CSS or a lexical helper that the design system and the
+//! compiler build on. The crate knows nothing about Stillwind's theme, registry, or
+//! utility model. Property and value grammar comes from Lightning CSS and the generated
+//! Webref table, so value validation uses published CSS data instead of a
+//! hand-maintained list.
 //!
-//! Boundaries worth knowing: `resources` finds URLs but never resolves them,
-//! `blocks` scans raw text without understanding declarations, and `output`
-//! describes where authored CSS goes without choosing the host's module or
-//! chunk layout. `format_css` prints complete stylesheets for editor previews.
+//! Modules:
 //!
-//! With the `minify` feature, `minify_css` processes complete assets and composes
-//! source maps independently of Stillwind compilation.
-//!
-//! `normalization` compares fragments after normalizing whitespace and ASCII case.
-//! `functions` finds CSS calls, `lists` splits component value lists, and
-//! `declarations` preserves declaration boundaries and parses `name: value` lists.
-//! `selectors` instantiates nesting templates. `structure` parses the rule tree of
-//! authored stylesheets with byte ranges. `colors` converts concrete colors and
-//! rewrites shadow colors. `math` folds compatible numeric expressions, and `values`
-//! validates grammars and inspects property effects. `parser` shares token traversal,
-//! explicit block boundaries, and syntax validation. `custom_properties` discovers
-//! references and registrations. `emission` preserves rule occurrences and optimizes
-//! declaration order. `format` formats editor previews, while the optional `minify`
-//! module processes final assets. `banner` retains important comments and masks their
-//! compile-time declarations.
+//! - [`banner`] retains important comments and masks their compile-time declarations.
+//! - [`blocks`] scans raw text for blocks without parsing declarations.
+//! - [`colors`] converts concrete colors and rewrites shadow colors.
+//! - [`custom_properties`] discovers custom-property references and registrations.
+//! - [`declarations`] preserves declaration boundaries and parses `name: value` lists.
+//! - [`emission`] preserves rule occurrences and optimizes declaration order.
+//! - [`mod@format`] prints complete stylesheets for editor previews.
+//! - [`functions`] finds CSS function calls.
+//! - [`lists`] splits component value lists.
+//! - [`math`] folds compatible numeric expressions.
+//! - [`minify`] minifies complete assets and composes their source maps. It requires
+//!   the `minify` feature.
+//! - [`normalization`] compares fragments after normalizing whitespace and ASCII case.
+//! - [`output`] describes where authored CSS goes, without choosing the host's module
+//!   or chunk layout.
+//! - [`parser`] shares token traversal, block boundaries, and syntax validation.
+//! - [`resources`] finds URLs without resolving them.
+//! - [`selectors`] expands nesting selector templates.
+//! - [`structure`] parses the rule tree of authored stylesheets with byte ranges.
+//! - [`values`] validates value grammars and inspects property effects.
 
 #![cfg_attr(
     not(test),

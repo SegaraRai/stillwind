@@ -1,6 +1,6 @@
 //! Shared CSS token traversal, explicit block boundaries, and syntax validation.
 //!
-//! `parse_css_block` records whether cssparser consumed a real closing delimiter. The
+//! [`parse_css_block`] records whether cssparser consumed a real closing delimiter. The
 //! complete validator rejects implicit EOF closure; the recovering validator retains
 //! CSS's EOF recovery while still rejecting malformed tokens and mismatched delimiters.
 

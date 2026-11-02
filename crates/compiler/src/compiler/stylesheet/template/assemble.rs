@@ -4,7 +4,7 @@
 //! [`render_css_template`] emits a named template without requiring every slot;
 //! [`render`] adapts raw CSS without contribution metadata. This module owns error
 //! precedence and destination checks; dependency selection and node traversal belong
-//! to `support` and `emit`, respectively.
+//! to [`super::support`] and [`super::emit`], respectively.
 
 use stillwind_css::{CssOutputNode, CssOutputTemplate};
 use stillwind_design_system::{CssSourceGraph, ThemeIndex};

@@ -142,8 +142,8 @@ pub fn compound_variant_inner(value: &str, theme: &ThemeIndex) -> Option<LeanStr
         .or_else(|| compound_variant_capture(stillwind_variants(theme), value))
 }
 
-/// The inner variant text of the first definition whose declared value type is a variant
-/// stack, without that definition's own modifier.
+/// The inner variant text of the first definition whose declared value type is a
+/// variant stack, without that definition's own modifier.
 pub(super) fn compound_variant_capture(
     variants: &[Arc<CustomVariant>],
     value: &str,

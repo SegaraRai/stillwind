@@ -173,9 +173,11 @@ impl DesignSystemQuery {
     /// filled value that resolves in element context.
     ///
     /// The map contains only variants that accept an arbitrary value. The test values
-    /// come from `CustomVariant::sample_captures`, and an arbitrary variant such as
+    /// come from [`CustomVariant::sample_captures`], and an arbitrary variant such as
     /// `[]` uses the samples of a variant capture. The query computes the map on the
     /// first call and reuses it.
+    ///
+    /// [`CustomVariant::sample_captures`]: stillwind_design_system::CustomVariant::sample_captures
     fn variant_placeholders(&self) -> &BTreeMap<LeanStr, LeanStr> {
         self.variant_placeholders.get_or_init(|| {
             let mut placeholders = BTreeMap::new();

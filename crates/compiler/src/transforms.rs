@@ -4,7 +4,7 @@
 //! anchored origins inside its replacement. [`render_transforms`] validates the plan,
 //! applies edits, and returns UTF-16 intervals for host source-map construction.
 //! Unedited text is copied verbatim; synthetic replacement gaps use the edit's anchor.
-//! This module does not produce source-map v3 or compose framework/loader maps.
+//! This module does not produce source-map v3 or compose framework or loader maps.
 
 use lean_string::{LeanStr, LeanString};
 use serde::Serialize;
@@ -46,7 +46,7 @@ pub enum TransformError {
 /// One replacement of an original source range.
 ///
 /// All edits share one original coordinate space; application order never rebases
-/// their source spans. Use `render_transforms` to validate and apply a complete plan.
+/// their source spans. Use [`render_transforms`] to validate and apply a complete plan.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceTransform {
@@ -74,8 +74,8 @@ impl SourceTransform {
     /// past `replacement`, or falls inside a multi-byte scalar, because each range is
     /// sliced directly; a panicking `rewrite` propagates as well.
     ///
-    /// Callers must build the ranges together with the replacement text they address -
-    /// the compiler does this while lowering one macro call - and must not attach ranges
+    /// Callers must build the ranges together with the replacement text they address,
+    /// as the compiler does while lowering one macro call, and must not attach ranges
     /// carried over from another compilation. Mutation is not transactional: the
     /// replacement has been taken even when a panic starts.
     pub(crate) fn rewrite_generated(&mut self, rewrite: impl Fn(&str) -> LeanStr) {
@@ -375,7 +375,8 @@ fn utf16_length(text: &str) -> Result<u32, TransformError> {
     u32::try_from(text.encode_utf16().count()).map_err(|_| TransformError::TooLarge)
 }
 
-/// Adds two UTF-16 offsets, rejecting a sum that no longer fits the 32-bit coordinate space.
+/// Adds two UTF-16 offsets, rejecting a sum that no longer fits the 32-bit coordinate
+/// space.
 fn add_offset(offset: u32, length: u32) -> Result<u32, TransformError> {
     offset.checked_add(length).ok_or(TransformError::TooLarge)
 }
@@ -402,7 +403,8 @@ mod tests {
             .collect()
     }
 
-    /// Exercises prefix expansion, unchanged authored prefixes, surrogate pairs, and encoded quotes.
+    /// Exercises prefix expansion, unchanged authored prefixes, surrogate pairs, and
+    /// encoded quotes.
     #[test]
     fn encoded_characters_and_synthetic_rewrites_keep_expression_origins() {
         let source = SourceFile::new(FileId(1), None, None, "\"😀--sw-user\"").unwrap();

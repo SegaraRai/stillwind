@@ -174,11 +174,11 @@ pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> Var
 
 /// Folds an inner selector into the definition body at its `:--value()` slot.
 ///
-/// The selector must be relative to the utility - it starts with `&` - and the fragment
-/// after `&` is what replaces the slot. A selector with a pseudo-element, such as
-/// `&::before`, returns `None` for every body, as in Tailwind. The package relationship
-/// variants place the slot inside `:is()`, `:where()`, or `:has()`, and those functions
-/// cannot contain pseudo-elements.
+/// The selector must be relative to the utility, so it starts with `&`, and the
+/// fragment after `&` is what replaces the slot. A selector with a pseudo-element, such
+/// as `&::before`, returns `None` for every body, as in Tailwind. The package
+/// relationship variants place the slot inside `:is()`, `:where()`, or `:has()`, and
+/// those functions cannot contain pseudo-elements.
 fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     if !selector_is_element_condition(selector, false) {
         return None;
@@ -364,7 +364,8 @@ pub(in crate::evaluation) fn resolve_variant_css_placeholders(
     Some(body)
 }
 
-/// Returns the value-domain capture without a modifier, as the placeholder resolver uses it.
+/// Returns the value-domain capture without a modifier, as the placeholder resolver
+/// uses it.
 pub(super) fn variant_value_capture<'a>(variant_name: &str, value: &'a str) -> Option<&'a str> {
     variant_name
         .strip_suffix('*')

@@ -1,9 +1,10 @@
 //! Variant lowering and the utilities layer.
 //!
-//! Pins Tailwind's group, peer, and container compatibility (and the lint rule that can forbid it),
-//! breakpoint queries inlined without lookup tokens, fallbacks and selector overloads from
-//! CSS-defined utilities, nested supports and media rules, starting-style wrappers, and that a
-//! variant wrapper is equivalent to the same prefix written on the utility.
+//! Pins Tailwind's group, peer, and container compatibility (and the lint rule that can
+//! forbid it), breakpoint queries inlined without lookup tokens, fallbacks and selector
+//! overloads from CSS-defined utilities, nested supports and media rules,
+//! starting-style wrappers, and that a variant wrapper is equivalent to the same prefix
+//! written on the utility.
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::fold_calc_expressions;
@@ -469,8 +470,9 @@ fn host_settings_can_disable_the_element_scope_rule() {
     );
 }
 
-/// A transition class participates only through a name, so a call states exactly one source
-/// of it; a name the compiler cannot see stays invisible, which is why both rules warn.
+/// A transition class participates only through a name, so a call states exactly one
+/// source of it; a name the compiler cannot see stays invisible, which is why both
+/// rules warn.
 #[test]
 fn reports_missing_and_duplicated_view_transition_names() {
     let component = SourceFile::new(

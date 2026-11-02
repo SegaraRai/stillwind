@@ -1,22 +1,29 @@
 //! Cross-module identities, symbolic candidate values, and module summaries.
 //!
-//! This crate is the shared vocabulary between the JS frontend (`js-oxc`), the host
-//! type checker, and the compiler: declaration-site [`IdentityId`] values, the
-//! [`SymbolicValue`] / [`ExportedValue`] algebra that carries candidate sets across
+//! This crate is the shared vocabulary of the JS frontend (`js-oxc`), the host type
+//! checker, and the compiler. It defines declaration-site [`IdentityId`] values, the
+//! [`SymbolicValue`] and [`ExportedValue`] algebra that carries candidate sets across
 //! module boundaries, per-module [`ModuleSummary`] values, and the versioned
-//! [`TypeFacts`] a checker hands back for one module.
+//! [`TypeFacts`] that a checker returns for one module.
 //!
-//! Two rules dominate. Identity is created at the declaration site and derives from the
-//! module identity plus the declaration span, so an asset keeps one identity however it
-//! is imported or re-exported. Symbolic values stay sound: a value becomes finite only
-//! when the frontend proved the candidates, because a wrongly finite set pins CSS that
-//! may never apply. No I/O happens here, and nothing in this crate knows what CSS will
-//! be generated.
+//! Two rules apply:
 //!
-//! `identity` defines declaration keys, and `assets` carries their source records and
-//! metadata. `symbolic` defines candidate sets and their algebra. `module_summary`
-//! records imports, exports, and declarations. `type_facts` associates checker answers
-//! with expression spans, and `module` versions those answers for a source revision.
+//! - An identity is created at the declaration site from the module identity and the
+//!   declaration span, so an asset keeps one identity however it is imported or
+//!   re-exported.
+//! - Symbolic values stay sound. A value becomes finite only when the frontend has
+//!   proved its candidates, because a wrongly finite set pins CSS that may never apply.
+//!
+//! No I/O happens here, and nothing in this crate knows which CSS will be generated.
+//!
+//! Modules:
+//!
+//! - [`assets`] carries the source records and metadata of declarations.
+//! - [`identity`] defines declaration keys.
+//! - [`module`] versions checker answers for a source revision.
+//! - [`module_summary`] records imports, exports, and declarations.
+//! - [`symbolic`] defines candidate sets and their algebra.
+//! - [`type_facts`] associates checker answers with expression spans.
 
 #![cfg_attr(
     not(test),

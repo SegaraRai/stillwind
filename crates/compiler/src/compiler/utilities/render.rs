@@ -1,9 +1,10 @@
 //! Rule rendering for one resolved utility.
 //!
 //! A utility renders to one rule per variant path: the selector starts as the utility's
-//! own selector or as the unit's class selector, and each step rewrites it. The at
-//! rules a step contributes wrap the finished rule in a fixed order - `@supports`,
-//! `@media`, `@container`, then `@starting-style` - so output is deterministic and
+//! own selector or as the unit's class selector, and each step rewrites it. The
+//! at-rules that a step contributes wrap the finished rule in a fixed order
+//! (`@supports`, `@media`, `@container`, then `@starting-style`), so output is
+//! deterministic and
 //! conditions combine by containment instead of being merged into one query. Resolved
 //! values are emitted without minification.
 

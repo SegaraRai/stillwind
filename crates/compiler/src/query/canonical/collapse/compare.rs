@@ -47,7 +47,7 @@ impl CanonicalSet {
 }
 
 impl DesignSystemQuery {
-    /// Returns the `CanonicalSet` of the candidates `values`.
+    /// Returns the [`CanonicalSet`] of the candidates `values`.
     ///
     /// The method sorts the candidates in the order of the compiled CSS before it
     /// merges their CSS. Returns `None` when a candidate does not resolve, or when its
@@ -205,7 +205,7 @@ pub(super) fn physical_properties(property: &str) -> Vec<String> {
 ///
 /// A shorthand is expanded to the longhands that it sets. A shorthand with one
 /// variable, such as `border-style: var(--tw-border-style)`, is expanded with
-/// `repeated_longhands`. An `!important` value wins over later values without
+/// [`repeated_longhands`]. An `!important` value wins over later values without
 /// `!important`. `depth` is the nesting level of `css`. CSS that cannot be parsed, and
 /// rules nested deeper than 64 levels, stay as written.
 fn ordered_css(css: &str, depth: usize) -> String {
@@ -280,7 +280,7 @@ fn ordered_css(css: &str, depth: usize) -> String {
 }
 
 /// Returns `css` with each property name replaced by the names that
-/// `physical_properties` returns. A declaration of a logical shorthand becomes one
+/// [`physical_properties`] returns. A declaration of a logical shorthand becomes one
 /// declaration for each physical side. `depth` is the nesting level of `css`. CSS that
 /// cannot be parsed, and rules nested deeper than 64 levels, stay as written.
 fn physical_css(css: &str, depth: usize) -> String {

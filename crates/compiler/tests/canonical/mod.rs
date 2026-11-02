@@ -1,5 +1,10 @@
 //! Tests that canonical spellings match the pinned results of Tailwind's
 //! canonicalization.
+//!
+//! Modules:
+//!
+//! - [`policy`] checks the options of `prefer-canonical-utilities` whose defaults
+//!   differ from Tailwind's canonicalization.
 
 use std::fs;
 use std::path::Path;

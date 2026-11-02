@@ -1,7 +1,7 @@
 //! Identifier families and the CSS namespaces they are written into.
 //!
 //! One family is one kind of name the compiler allocates: a utility class, a ref
-//! marker, an keyframes name, and so on. Identity is not the same thing as a CSS
+//! marker, a keyframes name, and so on. Identity is not the same thing as a CSS
 //! namespace, because several families can write into one namespace when the default
 //! generators reuse a single string per declaration.
 //!

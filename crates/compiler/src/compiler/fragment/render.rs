@@ -64,7 +64,8 @@ pub(in super::super) fn render_style_call(
 }
 
 /// Renders one CVA value as class text or private fragments for runtime selection.
-/// Inputs must contain only classes and custom properties and satisfy the macro purity contract.
+/// Inputs must contain only classes and custom properties and satisfy the macro purity
+/// contract.
 pub(in super::super) fn render_cva_value(
     emission: &StyleEmission,
     output: &OutputSpec,

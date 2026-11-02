@@ -1,7 +1,7 @@
 //! Prepares CSS templates from the shared evaluator and indexes concrete theme values.
 //!
-//! Families that copy values share the namespace indexes in `direct`. Other families
-//! use CSS templates after checking each candidate's utility IR. Overrides and
+//! Families that copy values share the namespace indexes in [`super::direct`]. Other
+//! families use CSS templates after checking each candidate's utility IR. Overrides and
 //! transformations that change that IR remain in the finite CSS index.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};

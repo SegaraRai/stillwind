@@ -1,7 +1,11 @@
 //! Inputs shared by the project session integration tests.
 //!
-//! `snapshot` builds design-system fixtures; `analysis` parses source fixtures.
 //! Each integration-test binary uses a subset of these constructors.
+//!
+//! Modules:
+//!
+//! - [`analysis`] parses source fixtures.
+//! - [`snapshot`] builds design-system fixtures.
 
 #![allow(dead_code, unused_imports)]
 

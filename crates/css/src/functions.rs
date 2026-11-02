@@ -22,7 +22,9 @@ pub struct CssFunctionMatch {
     pub end: Option<usize>,
 }
 
-/// Finds all occurrences of several complete, unescaped function names in one token walk.
+/// Finds all occurrences of several complete, unescaped function names in one token
+/// walk.
+///
 /// Results follow source order, including nested matches. Consumers replacing an outer
 /// invocation must skip matches contained in that replacement range. `from` filters
 /// results without discarding lexical context before that offset.

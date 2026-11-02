@@ -5,7 +5,7 @@
 //! spellings documented on [`ValueType`] are part of the authored grammar: a variant
 //! may not be renamed without changing what users write in a hint.
 //!
-//! Validation is total and side-effect free. It is deliberately permissive in two
+//! Validation is total and side-effect free. It is permissive in two
 //! places, both documented on [`ValueType::accepts`]: a CSS-wide keyword and a `var()`
 //! reference are accepted without consulting the grammar.
 
@@ -33,7 +33,7 @@ use super::syntax::{
 
 /// A CSS value type accepted by a typed `--value([type])` domain.
 ///
-/// The variants intentionally model CSS value definitions, rather than the utility that
+/// The variants model CSS value definitions instead of the utility that
 /// happens to consume them. This keeps `p-*`, `border-*`, and `z-*` distinct even when
 /// their source spelling contains the same digits.
 ///
@@ -296,11 +296,11 @@ impl ValueType {
     /// domain. `None` denotes a compound domain whose grammar is validated by Lightning
     /// CSS (or a focused parser) instead.
     ///
-    /// The terms deliberately name CSS value productions, not CSS properties: a
+    /// The terms name CSS value productions, not CSS properties: a
     /// registry audit can therefore discover newly used properties without maintaining
     /// a property allow-list.
     ///
-    /// The lists are deliberately loose where CSS is (for example `Integer` also lists
+    /// The lists are as loose as CSS (for example `Integer` also lists
     /// `number`); this is audit metadata, never a validity check.
     #[must_use]
     pub const fn csswg_formal_terms(self) -> Option<&'static [&'static str]> {

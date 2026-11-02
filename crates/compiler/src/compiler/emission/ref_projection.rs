@@ -189,7 +189,9 @@ impl CallEmitter<'_> {
     }
 }
 
-/// Returns an authored utility with `declaration`, an optional selector, and resolved variants.
+/// Returns an authored utility with `declaration`, an optional selector, and resolved
+/// variants.
+///
 /// `declaration` contains complete CSS declarations. `selector` is a template with
 /// `&` for the generated class, or `None` to use that class directly. The caller must
 /// escape any generated identifiers in both strings. The returned contribution includes

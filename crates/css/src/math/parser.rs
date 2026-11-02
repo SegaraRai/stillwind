@@ -1,6 +1,6 @@
 //! Recursive-descent parser for the `calc()` expression grammar.
 //!
-//! The grammar is deliberately small: sums, products, unary signs, numeric literals
+//! The grammar is small: sums, products, unary signs, numeric literals
 //! with an optional unit or `%`, parenthesized sub-expressions, nested `calc()` (parsed
 //! through), and opaque atoms for everything else. An atom is never partially consumed:
 //! a construct the parser cannot read makes the whole parse fail, which keeps folding

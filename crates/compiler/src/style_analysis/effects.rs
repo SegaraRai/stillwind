@@ -1,9 +1,10 @@
 //! Direct contributions retained while lowering still knows their source occurrences.
 //!
 //! The compiler stores these records in each successful module artifact. Project hosts
-//! pass the opaque `StyleEffects` records to `StyleResolver`; only lowering constructs
-//! or changes the contribution tree. CSS contexts describe emitted rules and do not
-//! encode implications between CSS predicates or correlations between runtime tests.
+//! pass the opaque [`StyleEffects`] records to
+//! [`StyleResolver`](super::composition::StyleResolver); only lowering constructs or
+//! changes the contribution tree. CSS contexts describe emitted rules and do not encode
+//! implications between CSS predicates or correlations between runtime tests.
 
 use lean_string::LeanStr;
 

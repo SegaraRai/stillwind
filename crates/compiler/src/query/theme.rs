@@ -1,4 +1,5 @@
-//! Theme queries expose authored values and resolve concrete colors in candidate previews.
+//! Theme queries expose authored values and resolve concrete colors in candidate
+//! previews.
 
 use cssparser::Token;
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};

@@ -1,6 +1,6 @@
 //! Shares value indexes across families that copy theme values into declarations.
 //!
-//! The lookup deliberately permits extra candidates. The caller verifies their full CSS
+//! The lookup may return extra candidates. The caller verifies their full CSS
 //! and registration requirements before returning a replacement.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};

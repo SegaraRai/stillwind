@@ -1,4 +1,5 @@
-//! Renders canonical previews and normalizes their CSS under one query's spacing policy.
+//! Renders canonical previews and normalizes their CSS under one query's spacing
+//! policy.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -309,7 +310,7 @@ fn composition_declarations(css: &str, composition: &Composition, depth: usize) 
 }
 
 /// Returns `required` without the registered internal properties whose declarations
-/// `composition_declarations` removes from `css`. `required` must contain the
+/// [`composition_declarations`] removes from `css`. `required` must contain the
 /// registration requirements of `css`, written with the package prefix or with the
 /// prefix of `composition`.
 pub(super) fn canonical_requirements(

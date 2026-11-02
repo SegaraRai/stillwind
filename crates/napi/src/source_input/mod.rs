@@ -3,13 +3,16 @@
 //! [`HostPreparedSource::input`] converts direct script documents or projected
 //! component documents into analyzer input. Projection realms and editable regions
 //! arrive as UTF-16 offsets in the original document and become byte spans through
-//! [`stillwind_source::CoordinateIndex`]. Surrogate interiors are rejected rather than rounded. Core
-//! constructors validate source formats and projection metadata. The host supplies
-//! source maps and converter records.
+//! [`stillwind_source::CoordinateIndex`]. Offsets inside a surrogate pair are rejected
+//! instead of rounded. Core constructors validate source formats and projection
+//! metadata. The host supplies source maps and converter records.
 //!
-//! `document` owns editable input transport. `prepared` registers analyzer inputs.
-//! `projection` validates projection transport and coordinates. `failure` resolves
-//! known adapter failures against registered original sources.
+//! Modules:
+//!
+//! - [`document`] transports editable inputs.
+//! - [`failure`] resolves known adapter failures against registered original sources.
+//! - [`prepared`] registers analyzer inputs.
+//! - [`projection`] validates projection transport and coordinates.
 
 mod document;
 mod failure;

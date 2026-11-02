@@ -1,14 +1,17 @@
 //! Lint rule identities and reporting settings shared by producers and hosts.
 //!
 //! Parse rule names with [`LintKind::from_name`] and insert [`LintConfig`] values into
-//! [`LintSettings`]. Unconfigured rules are off. Serialization emits the map of names
-//! to severities used by hosts.
+//! [`LintSettings`]. Unconfigured rules are off. Serialization emits the map from names
+//! to severities that hosts use.
 //!
-//! [`catalog`] declares stable rule names, default options, and the kinds of source
-//! that each rule checks. [`presets`] selects built-in rule severities. [`policies`]
-//! pairs detailed detection settings with their partial overrides. [`overrides`] merges
-//! host settings into defaults. [`settings`] indexes effective settings and controls
-//! reporting lookup.
+//! Modules:
+//!
+//! - [`catalog`] declares stable rule names, default options, and the kinds of source
+//!   that each rule checks.
+//! - [`overrides`] merges host settings into the defaults.
+//! - [`policies`] pairs detailed detection settings with their partial overrides.
+//! - [`presets`] selects built-in rule severities.
+//! - [`settings`] indexes the effective settings and looks them up for reporting.
 
 mod catalog;
 mod overrides;

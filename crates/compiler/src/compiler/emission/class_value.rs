@@ -223,7 +223,7 @@ impl CallEmitter<'_> {
 
     /// Resolves a rule subtree under the active JavaScript guards and CSS variants.
     /// Returns the retained runtime class contribution, or `None` when the rule folds
-    /// into a region/base unit, contributes nothing, or fails resolution. Diagnostics
+    /// into a region or base unit, contributes nothing, or fails resolution. Diagnostics
     /// are appended separately for failures. Resolved literals record their
     /// declarations before class merging; transition and ref uses record their semantic
     /// requirements. The caller supplies original source spans, and successful

@@ -109,7 +109,7 @@ impl DesignSystemQuery {
     /// Unknown candidates stay in the result. Candidates that do not change keep their
     /// order. A new candidate is placed after the candidates that it does not replace.
     ///
-    /// The query caches the results. Queries that `DesignSystemQuery::shared` creates
+    /// The query caches the results. Queries that [`DesignSystemQuery::shared`] creates
     /// for the same snapshot and options share one cache. Other queries have their own
     /// cache.
     ///

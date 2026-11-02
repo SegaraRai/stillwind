@@ -2,7 +2,7 @@
 //!
 //! A frontend that analyzes a converted or shadow buffer produces spans in that
 //! buffer's coordinates, but every consumer downstream edits the original file. This
-//! module walks an entire `ModuleIr` and rewrites each span through one supplied
+//! module walks an entire [`ModuleIr`] and rewrites each span through one supplied
 //! mapping function.
 //!
 //! The conversion is all-or-nothing: the receiver is untouched and the first error is
@@ -10,7 +10,7 @@
 //! Frontends own the mapping itself, including correspondence validation and their
 //! provenance records; this module only enforces that no span is forgotten.
 //!
-//! [`map_input`] deliberately matches exhaustively with no wildcard arm so that a new
+//! [`map_input`] matches exhaustively without a wildcard arm, so that a new
 //! IR variant fails to compile until its mapping policy is stated.
 
 use stillwind_source::{Span, Spanned};

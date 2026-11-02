@@ -167,7 +167,7 @@ impl<'a> RuleBoundaries<'a> {
         self.declarations.extend(declarations);
     }
 
-    /// Allocates the current owner/interval name and returns an opening `@supports`
+    /// Allocates the name of the current owner and interval and returns an opening `@supports`
     /// block. Call after observing the declarations it protects. The shared allocator
     /// memoizes the name, while this owner's conflict state stays unchanged.
     ///
