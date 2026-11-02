@@ -110,9 +110,9 @@ function withoutStillwindVersion(css: string) {
 /**
  * Builds document CSS and an explicit CSS value from the same fixture sources.
  * @param testCase - Vite and Stillwind target overrides, plus optional emission and minification settings.
- * @returns The emitted CSS, evaluated CSS value, and output assets. The two CSS strings omit the
- * version from the Stillwind notice, so a release does not change the expected outputs. Temporary
- * files are removed.
+ * @returns The emitted CSS in HTML link order, evaluated CSS value, and output assets. The two CSS
+ * strings omit the version from the Stillwind notice, so a release does not change the expected
+ * outputs. Temporary files are removed.
  * @throws If fixture IO, Vite compilation, or evaluation fails, or the expected outputs are missing.
  */
 export async function buildCssTargetFixture(testCase: CssTargetCase) {
@@ -200,9 +200,29 @@ export async function buildCssTargetFixture(testCase: CssTargetCase) {
     if (typeof values.css !== "string") {
       throw new Error("Expected the fixture CSS value");
     }
-    const document = result.output
-      .filter((item) => item.type === "asset")
-      .filter((item) => item.fileName.endsWith(".css"))
+    // Asset file names contain content hashes, and the Stillwind version in the notice changes
+    // those hashes. The HTML link order keeps the cascade order for every version.
+    const html = result.output.find((item) => item.fileName === "index.html");
+    if (html?.type !== "asset") {
+      throw new Error("Expected the fixture HTML asset");
+    }
+    const cssAssets = result.output.filter(
+      (item) => item.type === "asset" && item.fileName.endsWith(".css"),
+    );
+    const linked = Array.from(
+      String(html.source).matchAll(/<link rel="stylesheet"[^>]*? href="\/([^"]+)"/g),
+      ([, fileName]) => {
+        const asset = cssAssets.find((item) => item.fileName === fileName);
+        if (asset?.type !== "asset") {
+          throw new Error(`Expected the linked CSS asset ${fileName}`);
+        }
+        return asset;
+      },
+    );
+    if (linked.length !== cssAssets.length) {
+      throw new Error("Expected the fixture HTML to link every CSS asset");
+    }
+    const document = linked
       .map((item) => String(item.source).replace(/\n\/\*# sourceMappingURL=.*?\*\/$/, ""))
       .join("");
     return {
