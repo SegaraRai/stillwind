@@ -210,7 +210,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 70);
+        assert_eq!(names.len(), 71);
         for name in [
             "custom",
             "",
