@@ -4,8 +4,8 @@ import { join, resolve } from "node:path";
 import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
 import { parseMarkdownFixtureCases } from "@stillwind-internal/tools-tailwind/markdown-fixtures";
 
+import { compileParity } from "./comparison.ts";
 import { generatesInvalidCss } from "./invalid-upstream.ts";
-import { compileFixtureSource } from "./native-input.ts";
 import { stillwindFixtureCss } from "./stillwind-css.ts";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -98,11 +98,7 @@ for (const file of readdirSync(caseRoot)
         }
         acceptedByTailwind += 1;
         const source = `import { style } from "stillwind/react"; style(${JSON.stringify(candidate)});`;
-        const result = compileFixtureSource(
-          source,
-          "src/NumericDomainAudit.tsx",
-          stillwindFixtureCss(fixtureCase.input),
-        ) as { classes: unknown[]; diagnostics: unknown[] };
+        const result = compileParity(source, stillwindFixtureCss(fixtureCase.input));
         const rejected = result.classes.length === 0 || result.diagnostics.length !== 0;
         if (rejected !== generatesInvalidCss(candidate)) {
           failures.push(
