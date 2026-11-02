@@ -108,6 +108,20 @@ workspace dependencies is not approved. Use `vp exec pnpm stage reject <stage-id
 remove a staged version. After the approval succeeds, advance `stable` to the release
 commit.
 
+After both uploads succeed, the Release workflow creates a draft GitHub Release named
+`v<version>` for the release commit. The draft contains the VS Code extension packages,
+`SHA256SUMS`, and build provenance attestations for the packages. Its body lists links to the
+changelog sections since the previous published GitHub Release.
+[tools/workspace/release-draft.ts](tools/workspace/release-draft.ts) writes this body. The
+body starts with a short request for a coding agent, and an HTML comment holds the detailed
+instructions from
+[tools/workspace/release-notes-prompt.md](tools/workspace/release-notes-prompt.md). Give the
+request to an agent in a checkout of this repository. The agent reads the draft with `gh`,
+follows the instructions, and replaces the body with the notes. Review the notes, and publish
+the draft after the npm approval. GitHub
+creates the tag when you publish the draft. A rerun of the workflow keeps the notes of an
+existing draft and replaces its assets, and it skips a published release.
+
 ### npm setup
 
 1. Create the `npm-release` GitHub environment with a **Branch** rule for `main`.
