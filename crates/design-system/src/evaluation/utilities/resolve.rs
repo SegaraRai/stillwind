@@ -535,8 +535,8 @@ fn check_plain_property_value(property: &str, value: &str) -> Option<bool> {
     CssProperty::from_name(&property.to_ascii_lowercase()).map(|property| property.accepts(value))
 }
 
-/// Resolves a candidate through the project registry and then the Stillwind definitions.
-/// Explains a candidate that cannot be resolved.
+/// Resolves a candidate through the project registry and then the Stillwind
+/// definitions. Explains a candidate that cannot be resolved.
 ///
 /// [`super::check_candidate_variants`] checks the parsed variants separately. The inner
 /// result is the resolution, or a [`UtilityFailure`] whose range lies within `raw`.

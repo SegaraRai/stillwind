@@ -1,9 +1,11 @@
 //! Fatal diagnostic payloads, reporting identities, and source highlights.
 //!
-//! `diagnostic` owns payloads and message templates. `code` assigns unique reporting
-//! identities and their classes. `source_failure` preserves coordinates when converting
-//! source failures.
-//! `finding` attaches highlights and notes through `CompileError::new`.
+//! Modules:
+//!
+//! - [`code`] assigns unique reporting identities and their classes.
+//! - [`diagnostic`] owns payloads and message templates.
+//! - [`finding`] attaches highlights and notes through [`CompileError::new`].
+//! - [`source_failure`] keeps coordinates when it converts source failures.
 
 mod code;
 mod diagnostic;

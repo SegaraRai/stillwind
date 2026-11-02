@@ -1,30 +1,32 @@
-//! Resolves a utility candidate: it finds the definitions that match the candidate
-//! name, and turns the body of each matching definition into declarations.
+//! Resolves a utility candidate: finds the definitions that match the candidate name,
+//! and turns the body of each matching definition into declarations.
 //!
 //! A candidate may match one exact definition, several functional families, or nothing.
-//! The modules divide the work as follows:
-//!
-//! - [`matching`] chooses the matching definition branches and merges competing
-//!   branches.
-//! - [`body`] and [`nested`] split a definition body into its selector, its
-//!   declarations, and its conditional rules.
-//! - [`declarations`] replaces the placeholders in each declaration.
-//! - [`formatting`] writes values with the serialization settings of the registry.
-//! - [`resolve`] is the public entry point that runs these steps.
-//! - [`diagnosis`] explains why a candidate does not resolve, and [`ranges`] finds the
-//!   parts of the candidate that the explanation points at.
-//! - [`variables`] checks a `var()` value without a type hint against the known type of
-//!   its variable.
-//! - [`order`] keeps the Tailwind sort keys of each utility and the order in which
-//!   declarations are written. [`tailwind_property_order`] contains the generated
-//!   property order that these keys use.
-//!
 //! When a value does not fit the domain of a definition, that definition does not
 //! match, and another definition can still match. When every definition rejects an
 //! arbitrary value without a type hint, the value is written to the CSS unchanged and
 //! recorded as an [`InvalidPropertyValue`]. The same happens for a variable whose known
 //! type the property rejects, and for an opacity modifier outside `0%` to `100%`. A
 //! matching definition that is malformed returns an error.
+//!
+//! Modules:
+//!
+//! - [`body`] splits a definition body into its selector, its declarations, and its
+//!   conditional rules.
+//! - [`declarations`] replaces the placeholders in each declaration.
+//! - [`diagnosis`] explains why a candidate does not resolve.
+//! - [`formatting`] writes values with the serialization settings of the registry.
+//! - [`matching`] chooses the matching definition branches and merges competing
+//!   branches.
+//! - [`nested`] splits a utility body into blocks that can be evaluated separately.
+//! - [`order`] keeps the Tailwind sort keys of each utility and the order in which
+//!   declarations are written.
+//! - [`ranges`] finds the parts of a candidate that a diagnosis points at.
+//! - [`resolve`] is the public entry point that runs these steps.
+//! - [`tailwind_property_order`] contains the generated property order that the sort
+//!   keys use.
+//! - [`variables`] checks a `var()` value without a type hint against the known type of
+//!   its variable.
 
 mod body;
 mod declarations;

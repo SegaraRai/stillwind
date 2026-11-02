@@ -406,3 +406,59 @@ jobs:
       - name: Publish to Open VSX
         working-directory: packages/vscode-extension
         run: vp exec ovsx publish --trusted-publishing --skip-duplicate --packagePath vsix/*.vsix
+
+  github-release:
+    name: Draft GitHub Release
+    needs: [publish, publish-extension]
+    if: github.ref == 'refs/heads/main' && !inputs.dry-run
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: "26.13.0"
+          cache: false
+          run-install: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release/
+      - name: List checksums
+        working-directory: ${{ runner.temp }}/release
+        run: sha256sum -- *.vsix > SHA256SUMS
+      - uses: actions/attest-build-provenance@v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/release/*.vsix
+      # The draft becomes public when a maintainer publishes it after approving the staged npm
+      # packages, and GitHub creates the tag at that time. A rerun after a partial failure keeps
+      # the notes of an existing draft and replaces only its assets.
+      - name: Create or update the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ runner.temp }}/release
+        run: |
+          version=$(node --print "require('./packages/core/package.json').version")
+          flags=()
+          list=(--exclude-drafts --limit 1000 --json tagName --jq '.[].tagName')
+          case "$version" in
+            *-*) flags+=(--prerelease --latest=false) ;;
+            # The notes of a stable release cover every change since the previous stable release.
+            *) list+=(--exclude-pre-releases) ;;
+          esac
+          export RELEASE_TAGS
+          RELEASE_TAGS=$(gh release list "${list[@]}")
+          tag=$(node tools/workspace/release-draft.ts --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --body-file "$RUNNER_TEMP/release-body.md")
+          draft=$(gh release view "$tag" --json isDraft --jq '.isDraft' 2> /dev/null || true)
+          case "$draft" in
+            false) echo "The GitHub Release $tag is already published." ;;
+            true) gh release upload "$tag" "$RELEASE"/* --clobber ;;
+            *) gh release create "$tag" "$RELEASE"/* --draft --target "$GITHUB_SHA" --title "$tag" --notes-file "$RUNNER_TEMP/release-body.md" "${flags[@]}" ;;
+          esac

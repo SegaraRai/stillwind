@@ -6,11 +6,15 @@
 //! replace two or more candidates of a group. A proposal is accepted only when the
 //! group produces the same CSS after the replacement.
 //!
-//! `group` splits the candidates of a container into groups and returns the result of
-//! [`crate::DesignSystemQuery::canonical_candidates`]. `partition` divides a group into
-//! parts whose candidates cannot affect each other. `component` accepts proposals for
-//! one part. `proposals` lists the proposals for a group. `compare` compares the CSS of
-//! two sets of candidates.
+//! Modules:
+//!
+//! - [`compare`] compares the CSS of two sets of candidates.
+//! - [`component`] accepts proposals for one part of a group.
+//! - [`group`] splits the candidates of a container into groups and returns the result
+//!   of [`crate::DesignSystemQuery::canonical_candidates`].
+//! - [`partition`] divides a group into parts whose candidates cannot affect each
+//!   other.
+//! - [`proposals`] lists the proposals for a group.
 
 mod compare;
 mod component;

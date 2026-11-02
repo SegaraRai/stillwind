@@ -1,11 +1,14 @@
 //! Source-bound diagnostic reporting for one analysis or update.
 //!
 //! Producers build labels from registered source revisions. [`Reporter::report`]
-//! accepts those source-bound labels and [`Reporter::finish`] resolves one batch.
+//! accepts those labels, and [`Reporter::finish`] resolves one batch.
 //!
-//! `located` binds producer causes and labels to immutable sources. `resolved`
-//! defines revision-pinned host diagnostics and verifies proposed edits. `reporter`
-//! applies lint policy, validates labels and actions, and resolves a complete batch.
+//! Modules:
+//!
+//! - [`located`] binds producer causes and labels to immutable sources.
+//! - [`reporter`] applies lint policy, validates labels and actions, and resolves a
+//!   complete batch.
+//! - [`resolved`] defines revision-pinned host diagnostics and verifies proposed edits.
 
 mod located;
 mod reporter;

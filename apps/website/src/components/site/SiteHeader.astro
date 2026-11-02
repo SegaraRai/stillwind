@@ -7,9 +7,11 @@ import { documentRoot } from "./document";
 interface Props {
   /** Container of the page, which sets the width of the floating header. */
   container?: "page" | "docs";
+  /** Shows the button that opens the search dialog. The page must render `SearchDialog`. */
+  search?: boolean;
 }
 
-const { container = "page" } = Astro.props;
+const { container = "page", search = false } = Astro.props;
 
 const headerTransition = style.viewTransition({
   group: "duration-300 ease-out",
@@ -58,15 +60,50 @@ const header = style.ref();
         "flex items-center gap-7 text-ui/[inherit] max-inline:gap-2 max-inline:text-caption/[inherit]",
       )}
     >
+      {search && (
+        <button
+          type="button"
+          data-search-trigger
+          aria-label="Search documentation"
+          aria-keyshortcuts="Control+K"
+          {...style(
+            headerTransition.for("search"),
+            "inline-flex block-9 items-center gap-2 px-2.5 text-muted bg-surface rounded-control border border-border cursor-pointer hover:text-foreground hover:bg-surface-muted max-inline:inline-9 max-inline:justify-center max-inline:px-0",
+          )}
+        >
+          <span aria-hidden="true" {...style("icon-control icon-lucide--search")}></span>
+          <span aria-hidden="true" {...style("max-inline:hidden")}>
+            Search
+          </span>
+          <kbd
+            aria-hidden="true"
+            {...style(
+              "px-1.5 font-mono text-label rounded-inline border border-border max-inline:hidden",
+            )}
+          >
+            <span data-shortcut-key>Ctrl</span> K
+          </kbd>
+        </button>
+      )}
       <a href={URL_PLAYGROUND} {...style(link, headerTransition.for("playground"))}>
         Playground
       </a>
       <a href={URL_DOCS} {...style(link, headerTransition.for("docs"))}>
         Docs
       </a>
-      <a href={URL_REPOSITORY} {...style(link, headerTransition.for("github"), "gap-2")}>
-        <span aria-hidden="true" {...style("icon-simple-icons--github")}></span>
-        GitHub
+      <a
+        href={URL_REPOSITORY}
+        {...style(
+          link,
+          headerTransition.for("github"),
+          "gap-2 max-inline:inline-7 max-inline:justify-center",
+        )}
+      >
+        <span
+          aria-hidden="true"
+          {...style("icon-simple-icons--github max-inline:icon-control-mark")}
+        ></span>
+        <span {...style("max-inline:sr-only")}>GitHub</span>
       </a>
       <button
         type="button"
@@ -106,7 +143,9 @@ const header = style.ref();
 <script>
   import { mount } from "@cloudflare/nimbus-docs/client";
 
+  import { mountSearchTrigger } from "../../lib/docs/search/dialog";
   import { mountThemeControl } from "../../lib/site/theme";
 
+  mount("[data-search-trigger]", mountSearchTrigger);
   mount("[data-theme-toggle]", (button) => mountThemeControl(button as HTMLButtonElement));
 </script>

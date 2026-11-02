@@ -1,9 +1,13 @@
-//! Read-only access to the definitions selected by a snapshot.
+//! Read-only access to the definitions that a snapshot selects.
 //!
-//! [`registry`] borrows utility, variant, and animation definitions from the supplied
-//! theme. [`metadata`] reads declaration formats, property registrations, and ordering
-//! metadata, and derives token prefixes for completion. Both use the caller's theme
-//! without consulting a global registry.
+//! Both modules use the theme of the caller without consulting a global registry.
+//!
+//! Modules:
+//!
+//! - [`metadata`] reads declaration formats, property registrations, and ordering
+//!   metadata, and derives token prefixes for completion.
+//! - [`registry`] borrows utility, variant, and animation definitions from the supplied
+//!   theme.
 
 mod metadata;
 mod registry;

@@ -1,7 +1,9 @@
 //! Indexes canonical candidates derived from theme values.
 //!
-//! `index` prepares CSS templates and matches their normalized output.
-//! `direct` shares value lookups across families that copy theme values.
+//! Modules:
+//!
+//! - [`direct`] shares value lookups between families that copy theme values.
+//! - [`index`] prepares CSS templates and matches their normalized output.
 
 mod direct;
 mod index;

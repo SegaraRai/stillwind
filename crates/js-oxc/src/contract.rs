@@ -2,7 +2,8 @@
 //!
 //! [`validate`] visits extracted macro calls in their original AST. Ordinary calls and
 //! constructors rely on the caller's purity contract. Function bodies belong to that
-//! contract and are not analyzed interprocedurally; nested macros are checked separately.
+//! contract and are not analyzed interprocedurally; nested macros are checked
+//! separately.
 
 use std::collections::BTreeSet;
 

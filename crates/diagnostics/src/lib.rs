@@ -1,22 +1,22 @@
 //! Typed compilation errors, lint findings, and source highlights.
 //!
-//! Construct a [`CompileError`] from a [`CompileDiagnostic`] or a [`LintFinding`] from
-//! a [`LintDiagnostic`] and a source span. Causes own message templates; [`LintKind`]
-//! identifies a named lint rule, and [`LintSettings`] stores its configuration.
-//! Wrappers retain ordered labels and notes. Compilation errors may also carry an
-//! opaque display source name. The first label is the primary location and controls
-//! lint suppression. Detection belongs to the frontend, IR validation, and compiler
-//! passes, not here.
+//! Construct a [`CompileError`] from a [`CompileDiagnostic`], or a [`LintFinding`] from
+//! a [`LintDiagnostic`] and a source span. Causes own their message templates.
+//! [`LintKind`] identifies a named lint rule, and [`LintSettings`] stores the rule
+//! configuration. Both wrappers keep ordered labels and notes, and a compilation error
+//! may also carry an opaque display source name. The first label is the primary
+//! location and controls lint suppression. The frontend, IR validation, and compiler
+//! passes detect problems; this crate only describes them.
 //!
 //! ## Error and lint boundary
 //!
 //! Each macro call lowers one to one into a runtime form, and invalid input also has a
 //! defined runtime meaning. A compilation error means that no artifact can be produced:
 //!
-//! - the compiler cannot read the source, such as a parse, source-map, or projection
-//!   failure;
-//! - the compiler cannot choose a runtime form, such as missing checker facts, a macro
-//!   use outside a supported position, or a framework conflict;
+//! - the compiler cannot read the source, such as after a parse, source-map, or
+//!   projection failure;
+//! - the compiler cannot choose a runtime form, such as when checker facts are missing,
+//!   a macro is used outside a supported position, or frameworks conflict;
 //! - a constraint outside the one-to-one lowering fails, such as a composition cycle,
 //!   CSS ordering, a generated-name collision, or a missing required slot;
 //! - the environment or configuration is invalid.
@@ -26,9 +26,14 @@
 //! variants, entries, and options. Policy lints report valid output that violates
 //! project rules. Severity and suppression change only reporting.
 //!
-//! `compilation` defines fatal causes; `lint` defines lint causes and settings;
-//! `label` defines shared highlights. `report` resolves source-bound public batches.
-//! Source coordinates remain owned by [`stillwind_source`].
+//! Source coordinates belong to [`stillwind_source`].
+//!
+//! Modules:
+//!
+//! - [`compilation`] defines fatal causes and their reporting codes.
+//! - [`label`] defines shared source highlights.
+//! - [`lint`] defines lint causes, rule settings, and suppression.
+//! - [`report`] resolves source-bound diagnostic batches for hosts.
 
 #![cfg_attr(
     not(test),

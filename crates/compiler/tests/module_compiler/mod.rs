@@ -1,13 +1,16 @@
 //! Module compilation through the public API.
 //!
-//! Pins composition ordering and the merging of selected bases, artifact identity (an options or
-//! frontend-IR change is a different key for the same source revision), structured CSS and
-//! transform output against a pinned snapshot, invalid IR and byte boundaries returning
-//! diagnostics instead of panicking, and that a lint policy never changes generated artifacts.
+//! The cases pin composition ordering and the merging of selected bases, and artifact
+//! identity: an options or frontend IR change gives a different key for the same source
+//! revision. They also pin structured CSS and transform output against a pinned
+//! snapshot, check that invalid IR and byte boundaries return diagnostics instead of
+//! panicking, and check that a lint policy never changes generated artifacts.
 //!
-//! `composition` checks composition ordering and provider contributions.
-//! `artifacts` checks pinned compilation output, invalid ir, and artifact identity.
-//! `naming` checks development mode and host name generators.
+//! Modules:
+//!
+//! - [`artifacts`] checks pinned compilation output, invalid IR, and artifact identity.
+//! - [`composition`] checks composition ordering and provider contributions.
+//! - [`naming`] checks development mode and host name generators.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;

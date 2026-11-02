@@ -20,7 +20,6 @@ export default defineConfig({
         github: "https://github.com/SegaraRai/stillwind",
         editPattern: "https://github.com/SegaraRai/stillwind/edit/main/apps/website/{path}",
         socialImage: "/og.png",
-        search: false,
         sidebar: {
           items: [
             "docs", // Getting Started

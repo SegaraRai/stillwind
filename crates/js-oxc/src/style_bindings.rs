@@ -1,4 +1,4 @@
-//! Collect direct producer bindings before extracting their dependencies.
+//! Collects direct producer bindings before extracting their dependencies.
 //!
 //! Seeding runs before the main visit so that `const props = style("…")` is already a
 //! known style value when the visit reaches `style(props)`. Only direct bindings of a

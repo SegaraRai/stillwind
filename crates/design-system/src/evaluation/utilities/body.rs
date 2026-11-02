@@ -34,7 +34,8 @@ use super::variables::VariableMismatch;
 use crate::requirements::{PropertyRequirementError, take_property_requirements};
 use crate::{CustomUtility, DefinitionOrigin, ThemeIndex, UtilityOrderMode};
 
-/// A failed utility resolution caused by a malformed requirement in the matched definition.
+/// A failed utility resolution caused by a malformed requirement in the matched
+/// definition.
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("utility `{name}`: {source}")]
 pub struct UtilityResolutionError {
@@ -182,9 +183,9 @@ impl UtilityResolutionDiagnosticData {
 /// belong to `theme` or its Stillwind definitions.
 ///
 /// `arbitrary_check` selects how typed domains check arbitrary values without a type
-/// hint. Returns [`None`] when the body uses `@slot` (that is a variant, not a utility), when
-/// the candidate carries a modifier no branch consumes, or when no declaration group
-/// matches.
+/// hint. Returns [`None`] when the body uses `@slot` (that is a variant, not a
+/// utility), when the candidate carries a modifier no branch consumes, or when no
+/// declaration group matches.
 ///
 /// # Errors
 ///

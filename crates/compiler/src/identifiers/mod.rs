@@ -1,16 +1,20 @@
 //! Generated names: families, brands, requests, and allocation.
 //!
 //! The compiler decides one name per identity, and the type of that name says where the
-//! name may be written. [`kind`] holds the vocabulary - the families, their CSS
-//! namespaces, and the mode a compilation runs in. [`name`] holds the brand types that
-//! clean a name and write it. [`request`] holds the context and the identity a name is
-//! allocated from, and [`generator`] holds the host injection point together with one
-//! compilation's memo of allocated names. [`preview`] assigns readable display names
-//! after normal allocation and validation.
+//! name may be written. A default name carries the prefix of its family, which
+//! separates compiler names from authored CSS. A host-provided name is written exactly
+//! as returned, without a prefix, so a host that computes its own names must keep them
+//! apart from authored CSS itself.
 //!
-//! A default name carries the family's prefix, which separates compiler names from
-//! authored CSS. A host-provided name is written exactly as returned, with no prefix:
-//! a host that computes its own names owns that separation too.
+//! Modules:
+//!
+//! - [`generator`] holds the host injection point and the memo of names that one
+//!   compilation allocates.
+//! - [`kind`] holds the name families, their CSS namespaces, and the mode of a
+//!   compilation.
+//! - [`name`] holds the brand types that clean and write a name.
+//! - [`preview`] assigns readable display names after normal allocation and validation.
+//! - [`request`] holds the context and the identity that a name is allocated from.
 
 mod generator;
 mod kind;

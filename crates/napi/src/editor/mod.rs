@@ -1,9 +1,19 @@
-//! Provides editor requests to JavaScript. The requests use the compiler's resolution,
-//! lint settings, and reporting.
+//! Editor requests for JavaScript, answered with the compiler's resolution, lint
+//! settings, and reporting.
 //!
-//! `query` defines `NativeEditorQuery`, which answers requests for one design system.
-//! `candidates`, `stylesheet`, `lint`, and `theme` add the requests of each area to
-//! that type, together with the types that those requests exchange with JavaScript.
+//! Each module that adds requests also defines the types that those requests exchange
+//! with JavaScript.
+//!
+//! Modules:
+//!
+//! - [`candidates`] adds candidate requests: canonical spellings, previews, completion,
+//!   marker classes, ordering, and colors.
+//! - [`lint`] adds requests that report lint findings and check suppression comments.
+//! - [`query`] defines [`NativeEditorQuery`], which answers requests for one design
+//!   system.
+//! - [`stylesheet`] adds requests for authored stylesheets.
+//! - [`theme`] adds requests for the theme tokens and shared assets that JavaScript
+//!   plugins read.
 
 mod candidates;
 mod lint;

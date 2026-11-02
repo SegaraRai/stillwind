@@ -1,25 +1,30 @@
 //! Parsing of the CSS registry language into typed definitions.
 //!
-//! Two definition syntaxes exist and are deliberately separate. Stillwind definitions
-//! use `@stillwind-*` directives (`@stillwind-utility`, `@stillwind-variant`,
-//! `@stillwind-format`, …) and carry a `position`. Tailwind-style definitions use
-//! `@utility`, `@variant`, and `@custom-variant` and do not. Both may appear in the
-//! package CSS and in a stylesheet. The authored order supplies the candidate
-//! precedence of authored utility ordering, so a parser here must return definitions in
-//! authored order. User variants are grouped by syntax form and do not preserve
-//! cross-form order. A `position` is the byte offset of the directive, so utilities and
-//! arbitrary properties share one ordering space, and variant order compares with the
-//! authored variant positions.
+//! Two separate definition syntaxes exist. Stillwind definitions use `@stillwind-*`
+//! directives, such as `@stillwind-utility`, `@stillwind-variant`, and
+//! `@stillwind-format`, and carry a `position`. Tailwind-style definitions use
+//! `@utility`, `@variant`, and `@custom-variant` and carry no position. Both may appear
+//! in the package CSS and in a stylesheet.
 //!
-//! Every entry point is usable without a complete theme stylesheet so a host can build
-//! a registry once and share it.
+//! The authored order supplies the candidate precedence of authored utility ordering,
+//! so a parser here must return definitions in authored order. User variants are
+//! grouped by syntax form and do not keep the order across forms. A `position` is the
+//! byte offset of the directive, so utilities and arbitrary properties share one
+//! ordering space, and variant order compares the authored variant positions.
 //!
-//! [`utilities`] and [`variants`] parse their respective definitions. [`contexts`]
-//! reads the statements of each registry context and applies them. [`definitions`]
-//! stores the Stillwind definitions. [`order`] records precedence across utilities and
-//! arbitrary properties. [`formats`] parses serialization formats, relationship
-//! patterns, and theme order. [`utility_lookup`] indexes definitions for candidate
-//! lookup. [`markers`] collects the class names that candidates add as written.
+//! Every entry point works without a complete theme stylesheet, so a host can build a
+//! registry once and share it.
+//!
+//! Modules:
+//!
+//! - [`contexts`] reads the statements of each registry context and applies them.
+//! - [`definitions`] stores the Stillwind definitions.
+//! - [`formats`] parses serialization formats, relationship patterns, and theme order.
+//! - [`markers`] collects the class names that candidates add as written.
+//! - [`order`] records precedence across utilities and arbitrary properties.
+//! - [`utilities`] parses utility definitions.
+//! - [`utility_lookup`] indexes definitions for candidate lookup.
+//! - [`variants`] parses variant definitions.
 
 mod contexts;
 mod definitions;

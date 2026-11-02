@@ -1,14 +1,11 @@
 # Guideline For Agents
 
-## Responsibility and Colocation
+## Code Organization
 
-- Keep `index.ts` dependent on the modules it exposes. Files in its directory or descendants must import the responsible module directly, including type-only imports.
-- When a Rust module has child files, use `foo/mod.rs` and `foo/*.rs`. Do not combine `foo.rs` with a sibling `foo/` directory.
-- Actively colocate new code by related responsibility, not by item kind. Define errors and types alongside the code that constructs them;
-  do not create kind-based files such as `errors.rs` or `types.rs`. Keep each struct immediately followed by its impl blocks.
-- Prioritize colocation of errors with the code that constructs or returns them. Within each responsibility group, put its errors before its
-  main items, then follow each main item with its supporting items. Put errors at the beginning of a file when the related code is nearby or
-  shares those errors throughout the file. Several errors may share a file; distinct responsibilities can justify splitting it.
+- `index.ts` imports the modules it exposes. Files in its directory or descendants import the responsible module directly, including type-only imports.
+- A Rust module with child files uses `foo/mod.rs` and `foo/*.rs`. Do not combine `foo.rs` with a sibling `foo/` directory.
+- Group code by responsibility, not by item kind. Define errors and types beside the code that constructs or returns them, and do not create files such as `errors.rs` or `types.rs`. Put each struct's impl blocks directly after it.
+- Within a responsibility group, put errors first. Follow each main item with its supporting items.
 
 ## Package Names
 
@@ -22,73 +19,53 @@
 - Use `minor` for a new feature and `patch` for a user-visible fix. Name the packages that users install or import for the change. The fixed version group releases the other packages at the same version.
 - Write the summary for package users, because it becomes the changelog entry. Describe what users can now do, not how the implementation changed.
 
-## Tests and Verification
+## Tests
 
-- Test current behavior and caller contracts. Do not add tests that only require a previous API, name, file, or implementation to remain absent.
-- Put JS tests beside the module they exercise and use `.test.ts`. Use `.mts`, `.js`, or `.mjs` only when the test needs their module or execution semantics. A public API alone does not justify a separate test directory.
-- Use a dedicated `tests/` directory for integration tests that exercise several modules together. Keep Rust unit tests beside their implementation and Rust public-API integration tests in the owning crate's `tests/` directory.
+- Test current behavior and caller contracts. Do not add tests that only check that a previous API, name, file, or implementation is absent.
+- Add a test only when it protects a distinct observable contract. Remove assertions that detect the same failure through the same interface.
+- Put JS tests beside the module they exercise and use `.test.ts`. Use `.mts`, `.js`, or `.mjs` only when the test needs their module or execution semantics.
+- Use a `tests/` directory for integration tests that exercise several modules together. Keep Rust unit tests beside their implementation and Rust public-API integration tests in the owning crate's `tests/` directory.
 - Use project fixtures for representative generated JS, CSS, diagnostics, and source maps. Use integration tests for build-tool contracts and browser tests for behavior that requires a browser.
-- Use `vite-plus/test` for JS tests and declare `vp test --run` tasks in `vite.config.ts`. Include runtime tests in the package's TypeScript check. Keep compile-only type contracts under `typecheck`.
-- Use Vitest `expect` for assertions, including rejected promises and thrown errors. Use `expect.fail` for unexpected branches or mock calls. A mock may throw when the thrown error is an input to the behavior being tested.
-- Share test cases between native and WASM bindings, but run the bindings in separate processes. Give tests that write files or start servers independent temporary directories and clean up after them.
-- Run `vp run check` and `vp run test` for ordinary verification, or `vp run verify` for both. `check` includes generated-data consistency, and `test` includes project fixture comparisons. Use `test:tailwind`, `test:browser`, and `test:wasm` for the corresponding environments.
-- Keep framework browser acceptance under `e2e/` and performance measurements under `benchmarks/`. Run browser acceptance with `vp run test:e2e`; run benchmarks explicitly with `bench:compiler`, `bench:host`, or `bench:source-map`.
-- Fixture checks compare without updating tracked files. Run `generate:*` tasks explicitly and review their output. Use `test:*` for behavior assertions, `check:*` for static consistency, and `verify` for aggregates of both. Reserve `refresh:*` for fetching mutable external inputs.
-- Declare prerequisites in `dependsOn` and let each task's command perform its own work. Aggregate tasks have an empty command. Use the dependency graph instead of invoking `vp run` within another task's command.
-- Cache finite deterministic tasks by default. Keep automatic input tracking, add result-affecting environment variables and sources that incremental tools may skip reading, and exclude disposable files from inputs and restored outputs. Disable caching for servers, browser acceptance, performance measurements, and checks of external inputs that cannot be tracked.
-- Add a test when it protects a distinct observable contract. Remove duplicate assertions that detect the same failure through the same interface.
+- Keep framework browser acceptance under `e2e/` and performance measurements under `benchmarks/`.
+- Use `vite-plus/test` and Vitest `expect`, including for rejected promises and thrown errors. Use `expect.fail` for unexpected branches or mock calls.
+- Include runtime tests in the package's TypeScript check. Keep compile-only type contracts under `typecheck`.
+- Share test cases between native and WASM bindings, but run the bindings in separate processes.
+- Give tests that write files or start servers independent temporary directories, and clean them up.
+
+## Verification
+
+- Run `vp run check` and `vp run test`, or `vp run verify` for both. `check` includes generated-data consistency, and `test` includes project fixture comparisons.
+- Do not run several `vp` commands in parallel. `vp run` already runs the dependencies of a task in parallel where the dependency graph allows it, so run one aggregate task instead.
+- Run `test:tailwind`, `test:browser`, `test:wasm`, and `test:e2e` for the corresponding environments. Run `bench:compiler`, `bench:host`, and `bench:source-map` only when measuring performance.
+- Fixture checks do not update tracked files. Run `generate:*` tasks explicitly and review their output.
+
+## Task Definitions
+
+- Declare `vp test --run` tasks in `vite.config.ts`.
+- Name tasks by kind: `test:*` asserts behavior, `check:*` checks static consistency, `verify` aggregates both, `generate:*` writes tracked output, and `refresh:*` fetches mutable external inputs.
+- Declare prerequisites in `dependsOn`. Aggregate tasks have an empty command. Do not invoke `vp run` within another task's command.
+- Cache finite deterministic tasks. Keep automatic input tracking, add result-affecting environment variables and sources that incremental tools may skip reading, and exclude disposable files from inputs and restored outputs.
+- Disable caching for servers, browser acceptance, performance measurements, and checks of external inputs that cannot be tracked.
 
 ## Writing Guidelines
 
-These rules apply to all prose, including comments, documentation, explanations, and status reports.
+These rules apply to all prose, including comments, documentation, change intents, release notes, and status reports.
 
-- Write repository documentation in English. Preserve non-English source examples and fixture data when their content is required by the contract or test.
-- Keep documentation small and focused on current contracts, usage, and required verification. Update or merge existing documents before adding one.
-- Do not keep documents that record implementation steps, completed work, review transcripts, or one-off benchmark results.
-- Keep unresolved design and validation work in `docs/TODO.md`. Remove resolved entries and avoid separate plans or TODO comments.
-- Write for a reader who knows the subject but may not be a native English speaker. Keep established technical terms and code identifiers.
-  Simplify the grammar around them. Explain a term where it is introduced when readers need that definition; do not repeat the definition at every use.
-- State each relationship with an explicit verb. Write "`span` identifies the source use, and `guard` contains its conditions" instead of
-  "`span` identifies the source use and `guard` its conditions". The conventional opening "Returns ..." or "Records ..." is fine for a function
-  comment when the function is clearly the subject. Name the actor when it changes or could be ambiguous.
-- Review phrases with three or more nouns and invented hyphenated labels. Express the relationship with a verb or preposition:
-  "property records for each use" instead of "source-use property records". Keep established terms such as "canonical marker token" when they
-  identify a specific concept. Do not replace precise terms with vague synonyms merely to shorten them.
-- Name the concrete object or action when an abstraction makes the reader reconstruct it. Write "the compiler cannot determine which element
-  the selector affects" instead of "the target is uncertain". Prefer ordinary verbs such as "adds", "keeps", and "skips" where they convey
-  the exact behavior. Keep implementation terms such as "lowering" when that specific operation matters.
-- Give each sentence one main relationship. A closely related condition or consequence can stay in the same sentence. Separate independent
-  parameters, exceptions, and failure behavior, and use paragraph breaks between those topics. Do not turn every clause into a separate sentence
-  or list item when that would only repeat its subject.
-- Preserve the contract when simplifying: who acts, what changes, when it happens, and which exceptions apply. For example, if provider rules
-  are included, keep "Ordinary utilities with selectors are skipped"; shortening it to "Utilities with selectors are skipped" changes the meaning.
-  Preserve distinctions such as "may" versus "must", missing values versus empty values, and failure versus successful omission.
-- Reduce grammatical compression without adding information. Do not explain an established term repeatedly, paraphrase the same guarantee twice,
-  or add filler such as "in order to" or "it is important to note". Use an example only when it resolves an ambiguity more directly than prose.
-- Before finishing, check that readers can identify each sentence's actor, action, object, and conditions without filling in omitted words.
-  Then remove duplicated facts and verify that the simpler wording still describes the implementation accurately.
+- Write repository documentation in English. Preserve non-English source examples and fixture data when the contract or test requires them.
+- Documentation covers current contracts, usage, and required verification. Update or merge an existing document before adding one. Do not keep documents that record implementation steps, completed work, review transcripts, or one-off benchmark results.
+- Keep unresolved design and validation work in `docs/TODO.md`. Remove resolved entries, and do not write separate plans or TODO comments.
+- Write for readers who know the subject but may not be native English speakers. Keep established technical terms and identifiers, and use plain grammar around them.
+- Make the actor, action, object, and conditions of each sentence clear. Use a verb or preposition instead of stacked nouns or invented hyphenated labels.
+- Keep the contract when shortening: who acts, what changes, when it happens, and which exceptions apply. Preserve distinctions such as "may" versus "must", missing versus empty values, and failure versus successful omission.
 
 ## Comment Guidelines
 
-- Describe the current codebase objectively for its readers. Do not record session history, received instructions, or the changes made in the current task.
-- Write a factual statement such as "This is A" only when it is worth reading. It must satisfy both conditions: it provides new information absent
-  from the surrounding context (including adjacent lines and linked material) that would otherwise require reading the implementation to discover;
-  and ignorance of that fact could cause critical misuse or misunderstanding. Apply this threshold to all comments described below.
-- Avoid formulations such as "This is A, not B" and "A; B": these are typical ways to slip history or excuses into comments. Merely echoing a user's
-  request to "satisfy X" as "This satisfies X" is also an excuse, not useful documentation. State the relevant fact directly only if it meets both
-  conditions above; otherwise omit the comment.
-- Crate and module doc comments explain their purpose, responsibilities, non-goals, and main entry points with usage guidance. In `lib.rs` / `mod.rs`, also
-  describe each module's role. Omit entry-point guidance when there are no main entry points.
-- Function doc comments explain purpose and the contract between caller and function: what the caller must guarantee about parameters and prior state,
-  and what the function guarantees about its return value and resulting state. Describe what each parameter accepts when present, what the function returns
-  when it has a return value, and what it changes when it has side effects, including changes to internal state or passed-in values. Document error
-  conditions when returning `Result` and panic conditions when applicable.
-- Struct and enum doc comments explain the represented concept and its purpose. Describe usage domains or potential misuse only when useful. Field comments
-  document formats, units, ranges, whitespace, ordering, and other constraints that the code relies on. Prefer expressing invalid combinations through types.
-- When an enum variant or field merely maps to a serialized form, state that mapping briefly, while retaining range, whitespace, and other contracts. Include
-  tuple fields. When moving details into field comments, remove the corresponding duplication from the containing type's doc comment.
-- Regular comments explain the operation's purpose and preserved invariants. When rejecting an apparently simpler approach, describe concrete circumstances in
-  which it would fail.
-- CSS comments explain the rules' purpose, preserved invariants, ordering rationale, custom at-rule and slot usage, placement constraints, and considerations
-  before changing them. Separate the opening file overview from comments for individual blocks and slots.
-- Avoid restating obvious code, duplicating explanations, or claiming contracts the implementation does not guarantee.
+- Describe the current code. Do not record session history, received instructions, changes made in the current task, or justifications such as "This satisfies X".
+- Write a comment only when it gives information that the surrounding code and linked material do not, and when missing that information could cause misuse or misunderstanding. Avoid the "This is A, not B" pattern.
+- Crate and module doc comments explain purpose, responsibilities, non-goals, and main entry points. In `lib.rs` and `mod.rs`, end the doc comment with `Modules:` followed by a bullet list that describes the role of each non-test child module in alphabetical order, such as ``- [`loading`] expands supplied CSS imports.``
+- Write an intra-doc link for every item, module, and field that rustdoc can resolve, and link only the first mention in each doc comment. Link to an item that is not in scope with an explicit path, such as ``[`Name`](crate::module::Name)``, instead of a `#[cfg(doc)]` import. Do not write intra-doc links in the doc comments of `#[napi]` items, because napi-rs copies them into `packages/native/binding.d.ts`. Check links with `cargo doc --workspace --no-deps --all-features --document-private-items`.
+- Function doc comments explain the contract: what the caller must guarantee about parameters and prior state, what the function returns, and what it changes. Document error conditions for `Result` and panic conditions.
+- Type doc comments explain the represented concept and its purpose. Field comments document formats, units, ranges, whitespace, ordering, and other constraints that the code relies on. Prefer types over comments for invalid combinations.
+- When an enum variant or field maps to a serialized form, state the mapping briefly and keep its other constraints.
+- Regular comments explain purpose and preserved invariants. When code rejects a simpler approach, describe a concrete case in which that approach fails.
+- CSS comments explain purpose, preserved invariants, ordering rationale, custom at-rule and slot usage, and placement constraints. Keep the file overview separate from comments for individual blocks and slots.

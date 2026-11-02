@@ -6,8 +6,8 @@
 //! [`CompilerOptions::resolved`] pins both prefixes to the snapshot's own
 //! configuration, so a caller that passes stale options still compiles against the
 //! theme it handed over. Every generated text that carries a prefix is substituted by
-//! this module's `rewrite_generated`. The package's names in the two namespaces do not
-//! overlap, so the prefixes may be equal.
+//! [`CompilerOptions::rewrite_generated`]. The package's names in the two namespaces do
+//! not overlap, so the prefixes may be equal.
 
 use lean_string::{LeanStr, ToLeanStr};
 use serde::{Deserialize, Deserializer, Serialize, de};
@@ -23,7 +23,7 @@ use crate::identifiers::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH};
 use crate::query::StylesheetSortOptions;
 
 /// The prefix of internal custom properties in the package's own CSS. Generated text
-/// replaces it with `CompilerOptions::tailwind_prefix`.
+/// replaces it with [`CompilerOptions::tailwind_prefix`].
 pub(crate) const PACKAGE_TAILWIND_PREFIX: &str = "--tw-";
 
 /// Knobs a host may set per compilation.

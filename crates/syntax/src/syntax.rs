@@ -139,7 +139,7 @@ pub struct Candidate {
 
 /// Parses a candidate after it has been lexed from a utility string.
 ///
-/// Parsing is deliberately lossless: arbitrary selectors and values retain their
+/// Parsing is lossless: arbitrary selectors and values retain their
 /// decoded spelling, while `raw` preserves the exact source candidate. Validation
 /// belongs to a utility or variant registry, not this grammar layer.
 ///

@@ -6,9 +6,11 @@
 //! `value-parser.ts`, and `utils/math-operators.ts`). Keep them aligned with Tailwind,
 //! because a candidate written for Tailwind must give the same CSS.
 //!
-//! `value` splits a value into words, separators, and functions. `decode` converts the
-//! spelling in a candidate to CSS. `print` converts CSS back to a short spelling for a
-//! candidate.
+//! Modules:
+//!
+//! - [`decode`] converts the spelling in a candidate to CSS.
+//! - [`mod@print`] converts CSS back to a short spelling for a candidate.
+//! - [`value`] splits a value into words, separators, and functions.
 
 mod decode;
 mod print;

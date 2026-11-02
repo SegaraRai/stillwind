@@ -4,9 +4,9 @@
 //! function tokens that start with `--`. Strings, comments, URLs, hash tokens,
 //! at-keywords, and dimension units are tokenized and discarded, so `--x` inside them
 //! is not reported. The scan does not parse declarations or rules, so a declaration
-//! such as `--x: 1` and a reference such as `var(--x)` are reported the same way. This
-//! is the cheap dependency set used for activation decisions, not a substitute for the
-//! AST-based classification in [`super::usage`].
+//! such as `--x: 1` and a reference such as `var(--x)` are reported the same way. The
+//! result is a cheap dependency set for activation decisions. [`super::usage`]
+//! classifies properties precisely from the syntax tree.
 
 use std::collections::BTreeSet;
 

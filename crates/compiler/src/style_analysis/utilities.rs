@@ -1,7 +1,8 @@
 //! Duplicate and competing direct utilities under compatible source decisions.
 //!
 //! Candidate records group every declaration of one original token. Base and provider
-//! comparisons remain in `properties`; identical shared declarations are harmless.
+//! comparisons remain in [`super::properties`]; identical shared declarations are
+//! harmless.
 
 use std::collections::{BTreeMap, BTreeSet};
 

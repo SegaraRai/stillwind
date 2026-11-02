@@ -1,9 +1,11 @@
-//! Completes partial candidates in the editor, using the registry and theme of the
+//! Completes partial candidates in the editor from the registry and theme of the
 //! snapshot.
 //!
-//! [`candidates`] completes one partial candidate for an input role. [`vocabulary`]
-//! lists the utility and variant labels that [`candidates`] filters. [`detail`]
-//! summarizes the CSS of a selected label.
+//! Modules:
+//!
+//! - [`candidates`] completes one partial candidate for an input role.
+//! - [`detail`] summarizes the CSS of a selected label.
+//! - [`vocabulary`] lists the utility and variant labels that [`candidates`] filters.
 
 mod candidates;
 mod detail;

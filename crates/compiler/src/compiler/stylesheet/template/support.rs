@@ -349,7 +349,8 @@ pub(super) struct SupportOutput {
     pub(super) properties: PropertyOutput,
 }
 
-/// Appends theme-node references in depth-first source order through group and style children.
+/// Appends theme-node references in depth-first source order through group and style
+/// children.
 ///
 /// Existing `output` entries remain before the appended nodes. The input tree is
 /// unchanged; traversal neither retains surrounding wrappers nor deduplicates nodes.

@@ -1,27 +1,41 @@
-//! The compilation pipeline, split by concern.
+//! The compilation pipeline.
 //!
-//! [`api`] holds the stateless entry points, [`pipeline`] orders the passes, and
-//! [`emission`] lowers style inputs, [`props`] carries call metadata, and
-//! [`style_variants`] and [`variants`] resolve variant wrappers. [`animation_options`]
-//! resolves option lists for animation uses and group options. [`fragment`] folds
-//! ordered contributions and materializes framework props. [`conditionals`] lowers
-//! runtime value tests after rule construction. [`rule_boundaries`] assigns merge
-//! barriers in final rule order. [`literal`] resolves utility text; [`class_units`]
-//! allocates classes and orders CSS. [`expression_render`] serializes lowered class
-//! trees in class-value context. [`symbols`], [`definitions`], and [`lexer`] allocate
-//! names and emit asset definitions. [`utilities`] and [`stylesheet`] render CSS.
-//! [`output`] defines compilation results and structured CSS contributions. [`editor`]
-//! captures source occurrences and reuses emission for isolated CSS previews.
-//! [`document`] resolves document-level styles, whose variants select the element to
-//! style. [`media`] lowers `style.media()` calls into media query strings, and
-//! [`css_call`] lowers `style.css()` calls into stylesheet strings. [`dynamic`] finds
-//! the candidates that host plugins must define. [`stylesheet`] also checks the
-//! stylesheets that a host marks for lint.
+//! [`Compiler`] exposes the stateless compilation entry points. Callers with reusable
+//! snapshots and module artifacts use [`ModuleCompiler`](crate::ModuleCompiler) and
+//! [`StylesheetRenderer`](crate::StylesheetRenderer) instead; this module supplies
+//! their lowering passes.
 //!
-//! [`Compiler`] exposes the stateless compilation entry points implemented by [`api`].
-//! Callers with reusable snapshots and module artifacts use the crate's
-//! `ModuleCompiler` and `StylesheetRenderer` interfaces; this module supplies their
-//! lowering passes.
+//! Modules:
+//!
+//! - [`animation_options`] resolves the option lists of animation uses.
+//! - [`api`] implements the stateless entry points.
+//! - [`class_units`] allocates class identities and publishes base CSS before
+//!   conditional CSS.
+//! - [`conditionals`] lowers runtime value tests after rule construction.
+//! - [`css_call`] lowers `style.css()` calls into stylesheet strings.
+//! - [`definitions`] emits the CSS that each declaration owns.
+//! - [`document`] resolves document-level styles, whose variants select the element to
+//!   style.
+//! - [`dynamic`] finds the candidates that host plugins must define.
+//! - [`editor`] captures source occurrences and reuses emission for isolated CSS
+//!   previews.
+//! - [`emission`] lowers style inputs.
+//! - [`expression_render`] serializes lowered class trees in a class-value context.
+//! - [`fragment`] folds ordered contributions and materializes framework props.
+//! - [`lexer`] tokenizes utilities and reports span failures as diagnostics.
+//! - [`literal`] resolves utility text.
+//! - [`media`] lowers `style.media()` calls into media query strings.
+//! - [`output`] defines compilation results and structured CSS contributions.
+//! - [`pipeline`] orders the passes for one module.
+//! - [`props`] carries per-call metadata.
+//! - [`rule_boundaries`] assigns merge barriers in final rule order.
+//! - [`style_variants`] lowers the variant wrappers of source expressions.
+//! - [`stylesheet`] assembles stylesheets and checks the stylesheets that a host marks
+//!   for lint.
+//! - [`symbols`] generates deterministic identifiers.
+//! - [`utilities`] resolves utilities and renders their rules.
+//! - [`variants`] defines the non-compound variant steps that authored and generated
+//!   CSS renderers share.
 
 mod animation_options;
 mod api;

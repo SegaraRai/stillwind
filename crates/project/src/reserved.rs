@@ -3,23 +3,26 @@
 //! [`ReservedNames`] collects what a stylesheet already declares in the namespaces the
 //! compiler allocates names in. Generated identifiers are checked against these, so a
 //! generated name can never silently change the meaning of an authored declaration or
-//! reference. Names are stored in the canonical spelling the pools compare, which is the
-//! decoded one the CSS tokenizer already produces.
+//! reference. Names are stored in the canonical spelling the pools compare, which is
+//! the decoded one the CSS tokenizer already produces.
 //!
 //! The scan is a token walk, not a text search: `cssparser` splits the stylesheet into
-//! tokens, so a comment or a string can never be mistaken for a declaration, and escapes
-//! are decoded for free. It reads custom property declarations, `var()` references,
-//! `@property` registrations, `@layer` statements and blocks, `@keyframes` names, class
-//! selectors, and the custom-ident properties that name anchors, containers, and view
-//! transitions. It does not resolve imports, which the caller does before scanning, and it
-//! does not interpret values.
+//! tokens, so a comment or a string can never be mistaken for a declaration, and
+//! escapes are decoded for free. It reads custom property declarations, `var()`
+//! references, `@property` registrations, `@layer` statements and blocks, `@keyframes`
+//! names, class selectors, and the custom-ident properties that name anchors,
+//! containers, and view transitions. It does not resolve imports, which the caller does
+//! before scanning, and it does not interpret values.
 //!
-//! A block the tokenizer cannot close contributes no names. The walk is best-effort and has no
-//! error channel, because the CSS it scans was parsed by the design system before it got here.
+//! A block the tokenizer cannot close contributes no names. The walk is best-effort and
+//! has no error channel, because the CSS it scans was parsed by the design system
+//! before it got here.
 //!
-//! The scan covers the text it is given: the design system's own sources, and whatever a host
-//! supplies for a producer through `ProjectSession::reserve_authored_css`. CSS a producer authors
-//! never reaches the compiler by itself, so a host that does not supply it leaves those names out.
+//! The scan covers the text it is given: the design system's own sources, and whatever
+//! a host supplies for a producer through
+//! [`ProjectSession::reserve_authored_css`](crate::ProjectSession::reserve_authored_css).
+//! CSS a producer authors never reaches the compiler by itself, so a host that does not
+//! supply it leaves those names out.
 
 use std::collections::BTreeSet;
 
@@ -45,7 +48,7 @@ pub struct ReservedNames {
     /// `view-transition-class` values, the namespace generated transition tokens are written in.
     ///
     /// `view-transition-name` values are pairing keys rather than allocated names, so an
-    /// authored name is deliberately not reserved.
+    /// authored name is not reserved.
     pub view_transition_classes: BTreeSet<LeanStr>,
 }
 
@@ -87,8 +90,8 @@ impl ReservedNames {
 /// Walks one stylesheet, rule body, or declaration body.
 ///
 /// `at_declaration` is true where a custom property name may appear: at the start of a
-/// rule body and after every semicolon. Anywhere else a leading double hyphen is part of
-/// a value, such as the subtraction in `calc(1px - -2px)`, and is ignored.
+/// rule body and after every semicolon. Anywhere else a leading double hyphen is part
+/// of a value, such as the subtraction in `calc(1px - -2px)`, and is ignored.
 fn walk(reserved: &mut ReservedNames, parser: &mut Parser<'_>, mut at_declaration: bool) {
     loop {
         let Ok(token) = parser.next() else {
@@ -205,10 +208,11 @@ fn ident_names(property: &str) -> Option<NamePool> {
 
 /// Reads one declaration's custom-ident values into the pool that owns them.
 ///
-/// The values are the declaration's own idents: a block such as `var()` is stepped over, because a
-/// name it mentions belongs to that name's own property, and CSS-wide keywords and `none` name
-/// nothing. The loop ends at the declaration's semicolon or at the end of the enclosing block, and
-/// returns whether the declaration used a semicolon, which is where the next declaration begins.
+/// The values are the declaration's own idents: a block such as `var()` is stepped
+/// over, because a name it mentions belongs to that name's own property, and CSS-wide
+/// keywords and `none` name nothing. The loop ends at the declaration's semicolon or at
+/// the end of the enclosing block, and returns whether the declaration used a
+/// semicolon, which is where the next declaration begins.
 fn collect_ident_values(
     reserved: &mut ReservedNames,
     parser: &mut Parser<'_>,
@@ -237,8 +241,9 @@ fn collect_ident_values(
 
 /// Reads the names a `@container` prelude gives before its query.
 ///
-/// A prelude names containers first, so idents before the query are names; the query's own grammar
-/// is stepped over, and `not`, `and`, and `or` are operators rather than names.
+/// A prelude names containers first, so idents before the query are names; the query's
+/// own grammar is stepped over, and `not`, `and`, and `or` are operators rather than
+/// names.
 fn collect_container_queries(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
     loop {
         match parser.next_including_whitespace_and_comments() {
@@ -300,8 +305,8 @@ fn is_css_wide_or_none(name: &str) -> bool {
 
 /// Reads the names of a `@layer` statement or block and walks its body.
 ///
-/// A statement carries a comma-separated list and ends at its semicolon; a block carries
-/// names followed by rules.
+/// A statement carries a comma-separated list and ends at its semicolon; a block
+/// carries names followed by rules.
 fn collect_layer(reserved: &mut ReservedNames, parser: &mut Parser<'_>) {
     let mut next = true;
     loop {

@@ -1,17 +1,19 @@
 //! Lint dispatch over one resolved style and rule classification for replacement.
 //!
-//! Hosts resolve a call with `StyleResolver`, run `check_style`, and apply lint policy
-//! and source suppression themselves. These checks reason about contributions that
-//! can occur together; they do not compute the browser's complete cascade.
+//! Hosts resolve a call with [`StyleResolver`](super::composition::StyleResolver), run
+//! [`check_style`], and apply lint policy and source suppression themselves. These
+//! checks reason about contributions that can occur together; they do not compute the
+//! browser's complete cascade.
 
 use stillwind_diagnostics::{LintFinding, LintKind};
 
 use super::{ResolvedStyle, properties, utilities, view_transition};
 
-/// Returns composition-dependent lint findings for a result from `StyleResolver`.
-/// The findings retain diagnostic source spans, including labels in imported bases.
-/// A compatible unknown path prevents absence findings and still permits known
-/// conflicts. This function does not apply severity settings or source suppression.
+/// Returns composition-dependent lint findings for a result from
+/// [`StyleResolver`](super::composition::StyleResolver). The findings retain diagnostic
+/// source spans, including labels in imported bases. A compatible unknown path prevents
+/// absence findings and still permits known conflicts. This function does not apply
+/// severity settings or source suppression.
 pub fn check_style(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     let mut findings = properties::check(style);
     findings.extend(view_transition::check(style));

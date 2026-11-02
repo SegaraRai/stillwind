@@ -1,19 +1,24 @@
-//! Variant resolution: turning one variant into the selector or condition it
+//! Variant resolution: turning one variant into the selector or condition that it
 //! contributes, and deciding the order of a variant stack.
 //!
-//! A variant is a small CSS program. [`body`] reads an authored definition body and
-//! classifies it, [`substitution`] fills the capture and composes nested variants,
-//! [`anchor`] finds the variant that selects the element of a document-level style,
-//! [`negation`] negates a resolved application for `not-*`, [`resolve`] is the public
-//! entry point, [`application`] defines its result and the queries over it,
-//! [`compatibility`] answers questions about Tailwind spellings, [`conditions`] finds
-//! redundant and contradicting variants of one candidate, and [`order`] compares two
-//! resolved stacks using the registry's declared ordering rather than the order the
-//! classes appear in markup. [`usage`] records direct token selections and viewport
-//! value origins from the selected definition for source policies.
+//! A variant is a small CSS program. Theme definitions stay immutable, and usage
+//! inspection creates an isolated recorder, so resolving a stack repeatedly produces
+//! identical applications and usage records.
 //!
-//! Theme definitions remain immutable. Usage inspection creates an isolated recorder,
-//! so resolving a stack repeatedly produces identical applications and usage records.
+//! Modules:
+//!
+//! - [`anchor`] finds the variant that selects the element of a document-level style.
+//! - [`application`] defines the result of resolution and the queries over it.
+//! - [`body`] reads an authored definition body and classifies it.
+//! - [`compatibility`] answers questions about Tailwind spellings.
+//! - [`conditions`] finds redundant and contradicting variants of one candidate.
+//! - [`negation`] negates a resolved application for `not-*`.
+//! - [`order`] compares two resolved stacks by the order that the registry declares,
+//!   not by the order of classes in markup.
+//! - [`resolve`] is the public entry point.
+//! - [`substitution`] fills the capture and composes nested variants.
+//! - [`usage`] records direct token selections and viewport value origins from the
+//!   selected definition for source policies.
 
 mod anchor;
 mod application;

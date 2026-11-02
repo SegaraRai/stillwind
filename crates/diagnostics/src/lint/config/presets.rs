@@ -1,4 +1,5 @@
-//! Built-in reporting policies shared by direct Rust callers and generated host presets.
+//! Built-in reporting policies shared by direct Rust callers and generated host
+//! presets.
 
 use serde::{Deserialize, Serialize};
 

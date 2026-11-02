@@ -2,9 +2,9 @@
 //!
 //! Fixture candidates are compiled through Stillwind's own entry points, and the
 //! resulting rules are compared to Tailwind's output using test-only normalization.
-//! Production CSS spelling is not a compatibility contract. Variant generation order is compared against
-//! fixtures whose candidates are spelled out of canonical order, so the check cannot
-//! pass by preserving the input order.
+//! Production CSS spelling is not a compatibility contract. Variant generation order is
+//! compared against fixtures whose candidates are spelled out of canonical order, so
+//! the check cannot pass by preserving the input order.
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};

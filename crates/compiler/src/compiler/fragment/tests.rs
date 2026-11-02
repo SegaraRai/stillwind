@@ -50,7 +50,8 @@ fn property(name: &str, index: u32) -> Property {
     }
 }
 
-/// Builds a custom-property contribution whose ordering position matches its synthetic identity.
+/// Builds a custom-property contribution whose ordering position matches its synthetic
+/// identity.
 fn custom(name: &str, index: u32) -> StyleEmissionPart {
     StyleEmissionPart::CustomProperties {
         property: property(name, index),
@@ -58,7 +59,8 @@ fn custom(name: &str, index: u32) -> StyleEmissionPart {
     }
 }
 
-/// Builds a finalized call fixture with an optional static class and no allocated CSS records.
+/// Builds a finalized call fixture with an optional static class and no allocated CSS
+/// records.
 fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
     StyleEmission {
         style_effects: StyleEffects {
@@ -94,7 +96,8 @@ fn record_layout_combines_interleaved_calls_under_the_contract() {
     );
 }
 
-/// Checks that duplicate custom names share an object channel but block direct string serialization.
+/// Checks that duplicate custom names share an object channel but block direct string
+/// serialization.
 #[test]
 fn duplicate_custom_names_require_object_representation() {
     let atoms = vec![
@@ -148,7 +151,8 @@ fn partial_folding_stops_at_opaque_props_and_is_idempotent() {
     assert_eq!(fold(folded.clone()), folded);
 }
 
-/// Exercises a 4096-entry record and verifies a second fold leaves its structure unchanged.
+/// Exercises a 4096-entry record and verifies a second fold leaves its structure
+/// unchanged.
 #[test]
 fn large_records_fold_without_candidate_growth() {
     let source = Fragment::Sequence(
@@ -381,7 +385,8 @@ fn folded_javascript_matches_runtime_materialization() {
     execute_cases(&cases);
 }
 
-/// Runs optimized/reference pairs against output runtimes in fresh JavaScript environments.
+/// Runs optimized/reference pairs against output runtimes in fresh JavaScript
+/// environments.
 ///
 /// # Panics
 ///

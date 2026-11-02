@@ -1,7 +1,7 @@
 //! Import edits derived from resolved references and successful macro replacements.
 //!
-//! Removing a macro binding is only sound when every resolved read of it was replaced by
-//! a lowering, so the plan is built from the frontend's reference list and rejected
+//! Removing a macro binding is only sound when every resolved read of it was replaced
+//! by a lowering, so the plan is built from the frontend's reference list and rejected
 //! wholesale when any read is unaccounted for; a partial removal would leave a dangling
 //! specifier or a reference to a deleted binding. Only the named macro specifiers and
 //! their list separators are removed. Delimiters, comments, default bindings, and
@@ -19,7 +19,8 @@ use crate::SourceTransform;
 /// Remove macro bindings only when every resolved read was successfully replaced.
 ///
 /// Edits replace a declaration as a unit, so adjacent removed specifiers cannot create
-/// overlapping edits, and the returned spans always cover the original import statement.
+/// overlapping edits, and the returned spans always cover the original import
+/// statement.
 ///
 /// # Errors
 ///

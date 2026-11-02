@@ -180,7 +180,7 @@ pub(crate) fn resolve_theme_references(
     resolve_references(value, &mut is_defined, 0, 0)
 }
 
-/// Replaces the references in `value` in the same way as `resolve_theme_references`.
+/// Replaces the references in `value` in the same way as [`resolve_theme_references`].
 /// `depth` is the nesting level of fallback arguments. `base_offset` is the offset of
 /// `value` in the original input, and error offsets include it. Returns `Ok(None)` when
 /// references are nested deeper than 64 levels.

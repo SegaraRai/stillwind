@@ -1,28 +1,35 @@
 //! Node-API surface for the Stillwind compiler.
 //!
-//! The binding is transport only. Every entry point converts JavaScript values into the
-//! domain types of the Rust crates, calls the same services the CLI and the tests use,
-//! and converts the result back; no rule, candidate, or registry decision is made here.
+//! The binding only transports data. Every entry point converts JavaScript values into
+//! the domain types of the Rust crates, calls the same services that the CLI and the
+//! tests use, and converts the result back. It makes no rule, candidate, or registry
+//! decision.
 //!
-//! Two families of functions exist. The one-shot functions ([`compile_source`],
-//! [`compile_project`], [`render_stylesheet`], [`summarize_source`], [`minify_css`])
-//! are pure, so they have plain Rust counterparts that the E2E tests call directly. The
-//! classes `NativeDesignSystemLoader` and `NativeProjectSession` carry state across
-//! calls and are thin wrappers over [`stillwind_design_system`] and
-//! [`stillwind_project`].
+//! The one-shot functions ([`compile_source`], [`compile_project`],
+//! [`render_stylesheet`], [`summarize_source`], and [`minify_css`]) are pure, so the
+//! E2E tests call their plain Rust counterparts directly. The classes
+//! `NativeDesignSystemLoader` and `NativeProjectSession` in [`session`] keep state
+//! across calls and wrap [`stillwind_design_system`] and [`stillwind_project`].
 //!
-//! File and module resolution stays in JavaScript. The binding only receives buffers
-//! that the host already read, and it reports unresolved CSS imports as requests for
-//! the host to satisfy.
+//! File and module resolution stays in JavaScript. The binding receives only buffers
+//! that the host has already read, and it reports unresolved CSS imports as requests
+//! for the host.
 //!
-//! `api` provides standalone operations, and `session` wraps stateful loaders and
-//! project sessions. `source_input` validates document and projection transport.
-//! `semantic` converts checker facts and module summaries, while `options` converts
-//! configuration and `naming` invokes host name generators. `output` serializes
-//! compiler results, and `stylesheet` carries load requests and rendered CSS. `editor`
-//! handles editor queries and lint reporting. `module_editor` captures source
-//! occurrences and previews from finalized analysis. `fingerprint` exposes content
-//! identities, and `minify` transports final CSS minification.
+//! Modules:
+//!
+//! - [`api`] provides the one-shot operations.
+//! - [`editor`] answers editor queries and reports lint findings.
+//! - [`mod@fingerprint`] exposes content identities.
+//! - [`minify`] transports final CSS minification.
+//! - [`module_editor`] captures source occurrences and previews from a finalized
+//!   analysis.
+//! - [`naming`] calls host name generators.
+//! - [`options`] converts compiler options.
+//! - [`output`] serializes compiler results.
+//! - [`semantic`] converts checker facts and module summaries.
+//! - [`session`] wraps the stateful loader and project session.
+//! - [`source_input`] validates the transport of documents and projections.
+//! - [`stylesheet`] carries CSS load requests and rendered CSS.
 
 #![cfg_attr(
     not(test),

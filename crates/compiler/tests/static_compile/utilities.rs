@@ -1,9 +1,9 @@
 //! Utility resolution and its emitted CSS.
 //!
-//! Pins the Tailwind-shaped layers, theme variables, and variants, authored custom properties and
-//! theme selectors, v4 default spacing, default animations together with their keyframes,
-//! CSS-defined utilities and variants, arbitrary custom properties, and negative and themed
-//! transition utilities.
+//! Pins the Tailwind-shaped layers, theme variables, and variants, authored custom
+//! properties and theme selectors, v4 default spacing, default animations together with
+//! their keyframes, CSS-defined utilities and variants, arbitrary custom properties,
+//! and negative and themed transition utilities.
 
 use stillwind_compiler::CompilerOptions;
 use stillwind_css::strip_css_comments;

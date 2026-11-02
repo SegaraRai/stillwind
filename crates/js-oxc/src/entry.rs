@@ -32,9 +32,6 @@ use crate::demand::collect as collect_demand;
 use crate::imports::collect as collect_imports;
 use crate::state::MacroExtractor;
 
-#[cfg(doc)]
-use {crate::OxcSourceAnalyzer, stillwind_ir::SourceAnalyzer};
-
 /// The result of parsing one module.
 ///
 /// The fields are independent: [`Self::module`] is the IR, [`Self::summary`] the

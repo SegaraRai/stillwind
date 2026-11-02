@@ -2,14 +2,19 @@ import { expect, it } from "vite-plus/test";
 
 import { type HeaderScroll, isFragmentLink, nextHeaderScroll } from "./header";
 
-function scrollThrough(positions: number[], viewportHeight = 800): boolean[] {
+/** Each position is a scroll position, or a scroll position and a viewport height. */
+function scrollThrough(positions: (number | [number, number])[]): boolean[] {
+  const [first, ...rest] = positions.map((position) =>
+    typeof position === "number" ? [position, 800] : position,
+  );
   let state: HeaderScroll = {
     visible: false,
-    anchor: positions[0]!,
-    previous: positions[0]!,
+    anchor: first![0],
+    previous: first![0],
+    viewportHeight: first![1],
   };
-  return positions.slice(1).map((y) => {
-    state = nextHeaderScroll(state, y, viewportHeight);
+  return rest.map(([y, viewportHeight]) => {
+    state = nextHeaderScroll(state, y!, viewportHeight!);
     return state.visible;
   });
 }
@@ -32,6 +37,12 @@ it("ignores movements against the direction up to the tolerance", () => {
 
 it("hides the header after a jump farther than the viewport", () => {
   expect(scrollThrough([3000, 2900, 1000])).toEqual([true, false]);
+});
+
+it("ignores the scroll position change of an update that changes the viewport height", () => {
+  // Near the page end, hiding a 56px toolbar clamps the scroll position from 2944 to 2888.
+  expect(scrollThrough([2900, 2944, [2888, 856], 2880, 2870])).toEqual([false, false, false, true]);
+  expect(scrollThrough([1000, 900, [960, 744]])).toEqual([true, true]);
 });
 
 it("recognizes links to a fragment of the current page", () => {

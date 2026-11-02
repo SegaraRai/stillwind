@@ -33,8 +33,9 @@ pub struct ModuleTransformError(
 /// Identifies the inputs used to compile a module so its output can be reused.
 ///
 /// Equal keys allow reuse of the compiled artifact. [`Self::compiler_version`] includes
-/// the compiler's build fingerprint, so a compiler rebuild invalidates cached artifacts.
-/// [`Self::analysis_revision`] hashes the analysis inputs supplied by the frontend.
+/// the compiler's build fingerprint, so a compiler rebuild invalidates cached
+/// artifacts. [`Self::analysis_revision`] hashes the analysis inputs supplied by the
+/// frontend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleArtifactKey {
     /// Compiler version plus the build fingerprint of the compiler and its dependencies.

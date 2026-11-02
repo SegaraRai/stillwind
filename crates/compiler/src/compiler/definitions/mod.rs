@@ -1,8 +1,11 @@
-//! The definition band (`docs/css-ordering.md` L3-1): CSS a declaration owns and that
-//! is emitted once per declaration.
+//! The definition band (`docs/css-ordering.md` L3-1): CSS that a declaration owns and
+//! that is emitted once per declaration.
 //!
-//! `keyframes` writes complete conditional keyframe definitions; `view_transition` writes
-//! the group rule and the pseudo-element phases of one transition.
+//! Modules:
+//!
+//! - [`keyframes`] writes complete conditional keyframe definitions.
+//! - [`view_transition`] writes the group rule and the pseudo-element phases of one
+//!   transition.
 
 mod keyframes;
 mod view_transition;

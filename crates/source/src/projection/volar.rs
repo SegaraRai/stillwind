@@ -29,7 +29,8 @@ pub struct VolarMapping {
     pub generated_lengths: Option<Vec<u32>>,
 }
 
-/// Loads parallel UTF-16 arrays, rejecting malformed lengths, overflow, and coordinates.
+/// Loads parallel UTF-16 arrays, rejecting malformed lengths, overflow, and
+/// coordinates.
 #[allow(clippy::too_many_lines)] // Interval validation and boundary precedence form one pass.
 pub(super) fn load<'a>(
     generated: &'a SourceFile,

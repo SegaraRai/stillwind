@@ -1,8 +1,10 @@
 //! JavaScript-facing compiler options.
 //!
-//! `compiler` validates compiler overrides and applies defaults. `lint_policy`
-//! converts options for individual lint rules. `lint` contains the aggregate
-//! generated from the Rust lint catalog.
+//! Modules:
+//!
+//! - [`compiler`] validates compiler overrides and applies defaults.
+//! - [`lint`] contains the aggregate options generated from the Rust lint catalog.
+//! - [`lint_policy`] converts the options of individual lint rules.
 
 mod compiler;
 mod lint;

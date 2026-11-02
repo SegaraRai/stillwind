@@ -1,10 +1,10 @@
 //! Focused value-shape checks for grammars Lightning CSS cannot type.
 //!
-//! Each helper answers one narrow question - is this a gradient argument list, a
-//! `content` value, a transform function body, a `var()` reference - and they exist so
-//! that a value type without a typed parser is still checked by something stricter than
-//! "looks plausible". Some helpers still use lexical shape checks, so acceptance is not
-//! proof that a browser will accept the whole value.
+//! Each helper answers one narrow question, such as whether a value is a gradient
+//! argument list, a `content` value, a transform function body, or a `var()` reference.
+//! The helpers give a stricter check to value types that have no typed parser. Some
+//! helpers still use lexical shape checks, so acceptance is not proof that a browser
+//! will accept the whole value.
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::ToLeanString;
@@ -43,11 +43,11 @@ const MATH_FUNCTIONS: &[&str] = &[
 /// Whether `value` is a nonempty sequence of CSS component values whose math functions
 /// parse, regardless of the value's type.
 ///
-/// `1/2` and `12px foo` are well formed. A value is rejected when it is blank, contains a
-/// bad string or URL token, or closes a block that it did not open. It is also rejected
-/// when a math function such as `calc()` does not parse as a number, length, percentage,
-/// angle, or time calculation, as in `calc(1rem + )`. A math function that contains
-/// `var()` is accepted, because its type is known only after substitution.
+/// `1/2` and `12px foo` are well formed. A value is rejected when it is blank, contains
+/// a bad string or URL token, or closes a block that it did not open. It is also
+/// rejected when a math function such as `calc()` does not parse as a number, length,
+/// percentage, angle, or time calculation, as in `calc(1rem + )`. A math function that
+/// contains `var()` is accepted, because its type is known only after substitution.
 pub fn value_is_well_formed(value: &str) -> bool {
     !value.trim().is_empty()
         && validate_css_syntax(value).is_ok()

@@ -1,13 +1,24 @@
 //! Evaluation test suites, one module per subject.
 //!
-//! Each suite parses real registry CSS, either directly or through a snapshot built
-//! from CSS that is already in memory, and asserts the resolved values, because most
-//! evaluation contracts are about what users write rather than about internal types.
-//! Shared fixtures may expand package CSS from disk. The loading module's own tests
-//! exercise the caller-driven protocol. [`support`] holds the shared fixtures; the
-//! other modules own one area each: package CSS contents, utility matching and domains,
-//! value families, variants and custom variants, overloads, relationships, and
-//! animations.
+//! Each suite parses real registry CSS, directly or through a snapshot built from CSS
+//! in memory, and checks the resolved values, because most evaluation contracts are
+//! about what users write instead of internal types. Shared fixtures may expand package
+//! CSS from disk. The tests of the loading module cover the caller-driven protocol.
+//!
+//! Modules:
+//!
+//! - [`animations`] checks placeholder and value-domain families through the package's
+//!   definitions.
+//! - [`custom_variants`] checks user-authored variants and the CSS value functions that
+//!   they use.
+//! - [`overloads`] checks overloaded CSS definitions and compatibility output.
+//! - [`registry`] checks registry metadata as the source of resolution behavior.
+//! - [`relationships`] checks conditional declarations, relationships, and shared value
+//!   families.
+//! - [`support`] constructs themes and provides CSSWG syntax helpers.
+//! - [`utility_domains`] checks resolution coverage of the upstream utility catalog.
+//! - [`value_families`] checks theme values, keywords, fractions, and arbitrary values.
+//! - [`variants`] checks variant resolution across the package's variants.
 
 use std::collections::BTreeSet;
 

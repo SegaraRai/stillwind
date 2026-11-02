@@ -7,8 +7,8 @@
 //! to be valid `@property` CSS.
 //!
 //! Authored `@property` rules are a separate, read-only concern:
-//! `extract_authored_property_names` reports their names so that compiler-owned
-//! registrations never shadow them, and `extract_authored_property_syntaxes` reports
+//! [`extract_authored_property_names`] reports their names so that compiler-owned
+//! registrations never shadow them, and [`extract_authored_property_syntaxes`] reports
 //! their `syntax` descriptors for lint rules that check variable types.
 
 use std::collections::{BTreeMap, BTreeSet};

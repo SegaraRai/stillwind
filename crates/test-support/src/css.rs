@@ -3,7 +3,7 @@
 //!
 //! The default stylesheet uses the committed bundle from `crates/test-support/assets`.
 //! Explicit imports read the package sources from disk. `@import` expansion is
-//! intentionally minimal: only `stillwind`, `stillwind/…` and relative paths inside the
+//! minimal: only `stillwind`, `stillwind/…` and relative paths inside the
 //! fixture directory are supported, and an unsupported tail asserts instead of being
 //! ignored.
 
@@ -24,7 +24,8 @@ use crate::defaults::DEFAULT_CSS;
 ///
 /// # Errors
 ///
-/// Returns [`SourceError::TooLarge`] if the expanded CSS exceeds the 32-bit source limit.
+/// Returns [`SourceError::TooLarge`] if the expanded CSS exceeds the 32-bit source
+/// limit.
 ///
 /// # Panics
 ///

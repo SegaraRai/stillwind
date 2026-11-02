@@ -1,7 +1,7 @@
 //! `swlint-*` comment directives and the filter that applies them.
 //!
 //! Directives are parsed out of comment bodies. Script frontends supply the comments
-//! that their parser found. CSS callers use `stillwind_css::css_comment_ranges` for
+//! that their parser found. CSS callers use [`stillwind_css::css_comment_ranges`] for
 //! comments of a stylesheet, so directive-shaped text inside a string or template is
 //! not a directive.
 //!
@@ -80,7 +80,7 @@ impl LintDirectiveRules {
 
 /// Removes lint findings suppressed by `swlint-disable*` comments.
 ///
-/// The source span is deliberately used after all analysis has completed, so findings
+/// The source span is used after all analysis has completed, so findings
 /// produced by different compiler passes share the same suppression semantics. Both
 /// line and block comments are accepted.
 ///

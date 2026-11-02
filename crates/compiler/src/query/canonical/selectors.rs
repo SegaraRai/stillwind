@@ -12,7 +12,7 @@ use stillwind_css::{
 };
 
 /// Returns `css` with each selector written in one spelling by
-/// `subject_with_specificity`. For example, `[data-x]&` becomes `&[data-x]`, and
+/// [`subject_with_specificity`]. For example, `[data-x]&` becomes `&[data-x]`, and
 /// `&:is([data-x])` becomes `&[data-x]`.
 ///
 /// When `preserve_specificity` is false, the method may also remove `:where()` around

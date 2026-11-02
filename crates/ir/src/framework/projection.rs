@@ -4,8 +4,9 @@ use stillwind_source::Span;
 
 /// Parser-neutral view of a possible converter-generated expression or reference.
 ///
-/// The frontend reports what it saw; the framework's [`super::FrameworkSpec::normalize`]
-/// decides which source expression to retain and how to handle generated references.
+/// The frontend reports what it saw; the framework's
+/// [`super::FrameworkSpec::normalize`] decides which source expression to retain and
+/// how to handle generated references.
 #[derive(Clone, Copy, Debug)]
 pub enum ProjectionExpression<'a> {
     /// An identifier used as a runtime expression.

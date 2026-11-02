@@ -1,8 +1,8 @@
 //! Static CVA configuration validation and extraction of independently compiled values.
 //!
-//! `collect_cva` keeps configuration syntax in the source and records only the callee
-//! and style expressions that need replacement. Selection values remain ordinary
-//! JavaScript literals. CVA values reuse the style-input parser after syntax
+//! [`MacroExtractor::collect_cva`] keeps configuration syntax in the source and records
+//! only the callee and style expressions that need replacement. Selection values remain
+//! ordinary JavaScript literals. CVA values reuse the style-input parser after syntax
 //! validation.
 
 use std::collections::{BTreeMap, BTreeSet};

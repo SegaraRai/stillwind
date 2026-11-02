@@ -1,10 +1,13 @@
 //! Expansion of nesting selector templates at rule construction time.
 //!
-//! [`list`] validates selector lists and splits them into branches, [`target`]
-//! classifies the element that each branch styles, [`subject`] finds, inserts, and
-//! replaces the nesting selector `&`, [`element`] handles conditions on the selected
-//! element, [`host`] handles conditions on a shadow host, and [`classes`] lists the
-//! class names that a selector matches.
+//! Modules:
+//!
+//! - [`classes`] lists the class names that a selector matches.
+//! - [`element`] handles conditions on the selected element.
+//! - [`host`] handles conditions on a shadow host.
+//! - [`list`] validates selector lists and splits them into branches.
+//! - [`subject`] finds, inserts, and replaces the nesting selector `&`.
+//! - [`target`] classifies the element that each branch styles.
 
 mod classes;
 mod element;

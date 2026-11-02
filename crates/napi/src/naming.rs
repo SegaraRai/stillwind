@@ -1,13 +1,14 @@
 //! JavaScript-facing name generators.
 //!
-//! A host may name one family per function. Every function is optional, and a function returns the
-//! name to write or `undefined` to keep the compiler's own name. Implementations must be pure: the
-//! same request has to produce the same name, and the result may not depend on call order, call
-//! count, time, or randomness.
+//! A host may name one family per function. Every function is optional, and a function
+//! returns the name to write or `undefined` to keep the compiler's own name.
+//! Implementations must be pure: the same request has to produce the same name, and the
+//! result may not depend on call order, call count, time, or randomness.
 //!
-//! The functions are JavaScript values, so they are callable only on the thread that owns them and
-//! only while a host call is running. [`NativeNaming`] holds the persistent references and marks
-//! them callable for the duration of one call, which is where the compiler asks for names.
+//! The functions are JavaScript values, so they are callable only on the thread that
+//! owns them and only while a host call is running. [`NativeNaming`] holds the
+//! persistent references and marks them callable for the duration of one call, which is
+//! where the compiler asks for names.
 
 #![allow(clippy::type_complexity)] // Every field is one JavaScript function signature.
 

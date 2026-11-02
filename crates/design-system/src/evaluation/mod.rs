@@ -1,16 +1,19 @@
 //! Candidate evaluation: turning authored spellings into declarations and selectors
-//! using only the definitions a snapshot holds.
+//! with only the definitions that a snapshot holds.
 //!
 //! Entry points borrow the immutable [`crate::ThemeIndex`]. The theme owns effective
 //! token lookup and parsed utility programs, which its clones and snapshots share.
 //!
-//! The modules below split the work by subject: [`stillwind`] reads the selected
-//! registry, [`utilities`] matches and expands a utility body, [`values`] resolves
-//! typed value domains and placeholders, and [`variants`] produces selector
-//! applications and their ordering. [`context`] records direct selections for one
-//! evaluation. [`programs`] prepares utility syntax and declaration branches.
-//! [`suggestions`] proposes spellings for unknown utility, variant, and theme token
-//! names.
+//! Modules:
+//!
+//! - [`context`] records direct selections for one evaluation.
+//! - [`programs`] prepares utility syntax and declaration branches.
+//! - [`stillwind`] reads the selected registry.
+//! - [`suggestions`] proposes spellings for unknown utility, variant, and theme token
+//!   names.
+//! - [`utilities`] matches a utility and expands its body.
+//! - [`values`] resolves typed value domains and placeholders.
+//! - [`variants`] produces selector applications and their order.
 
 mod context;
 mod programs;

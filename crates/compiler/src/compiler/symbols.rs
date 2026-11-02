@@ -451,8 +451,8 @@ pub(super) fn generated_ref_marker_symbol(
 
 /// Builds the reportable symbol for a generated utility class.
 ///
-/// The identity keeps the whole canonical input - namespace, module, callsite, branch,
-/// and rule spelling - rather than the truncated name, so two producers can prove they
+/// The identity keeps the whole canonical input (namespace, module, call site, branch,
+/// and rule spelling) instead of the truncated name, so two producers can prove they
 /// generated the same class or detect that they generated different ones with equal
 /// names.
 pub(super) fn generated_class_symbol(

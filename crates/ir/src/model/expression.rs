@@ -274,7 +274,8 @@ pub enum RuleExpressionErrorKind {
     ExternalClass,
 }
 
-/// A failed class-to-rule conversion with the first incompatible descendant's kind and span.
+/// A failed class-to-rule conversion with the first incompatible descendant's kind and
+/// span.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[error("{reason}")]
 pub struct RuleExpressionError {

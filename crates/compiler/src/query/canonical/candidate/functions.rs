@@ -19,7 +19,7 @@ impl DesignSystemQuery {
     /// Returns `raw` with legacy syntax replaced by its current form.
     ///
     /// The method rewrites `theme()` calls in variants and arbitrary values with
-    /// `theme_value`. It also renames a few built-in utilities whose name changed, such
+    /// [`theme_value`]. It also renames a few built-in utilities whose name changed, such
     /// as `bg-gradient-to-r` to `bg-linear-to-r`. A renamed utility is used only when
     /// the old name no longer resolves, or when both names produce the same CSS, so
     /// custom definitions keep their behavior. Returns `raw` unchanged when the
@@ -128,7 +128,7 @@ impl DesignSystemQuery {
 }
 
 /// Rewrites each legacy `theme(path)` call in `value`, and then shortens scale
-/// calculations with `scale_functions`.
+/// calculations with [`scale_functions`].
 ///
 /// - A path that names an active token becomes `var(--token)`. It becomes
 ///   `--theme(--token/alpha)` when the path has an alpha value, or when `variant` is
@@ -270,7 +270,7 @@ fn opacity_modifier(value: &str) -> String {
 /// matches.
 ///
 /// A `path` that starts with `--` is returned when it names an active token. Otherwise
-/// the first key selects the namespace with `legacy_namespace`, and the other keys
+/// the first key selects the namespace with [`legacy_namespace`], and the other keys
 /// follow it, joined with `-`. A `1` that is not the last key marks the second item of
 /// a tuple: `fontSize.xs.1.lineHeight` becomes `--text-xs--line-height`. A final `0`
 /// after a tuple key, such as in `fontSize.xs.0`, names the token without a suffix.

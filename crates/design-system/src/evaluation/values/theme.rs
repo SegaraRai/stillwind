@@ -5,10 +5,10 @@
 //! token and the authored text for an inline token. [`theme_value_literal`] reads the
 //! authored token text so shadow color overrides can replace colors inside the value.
 //!
-//! Typed captures - `[hint:value]`, parenthesized variables, and arbitrary lengths -
-//! are validated against the namespace's CSS-declared value types, so the accepted
-//! grammar follows the registry rather than this file. Numeric captures use the
-//! namespace's scale only when the registry declares one.
+//! Typed captures, such as `[hint:value]`, parenthesized variables, and arbitrary
+//! lengths, are validated against the namespace's CSS-declared value types, so the
+//! accepted grammar follows the registry rather than this file. Numeric captures use
+//! the namespace's scale only when the registry declares one.
 
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
@@ -152,8 +152,8 @@ pub(in crate::evaluation) fn bare_token_value(
 }
 
 /// Returns the authored value of the bare token of the namespace `namespace`, such as
-/// `--shadow` for `shadow`, and records the token as used. Returns `None` when the token
-/// is not active.
+/// `--shadow` for `shadow`, and records the token as used. Returns `None` when the
+/// token is not active.
 pub(in crate::evaluation) fn bare_token_literal(
     namespace: &str,
     theme: &EvaluationContext<'_>,
@@ -246,8 +246,8 @@ pub(in crate::evaluation) fn theme_value_literal(
 /// A namespace without declared types accepts any spelling; a hint is checked before
 /// the value itself, so `[time:2s]` is rejected for a length-only namespace even though
 /// `2s` is a valid value of some other type. When `theme` checks
-/// [`ArbitraryValueCheck::WellFormed`] values, every well-formed value without a hint is
-/// accepted.
+/// [`ArbitraryValueCheck::WellFormed`] values, every well-formed value without a hint
+/// is accepted.
 fn typed_theme_arbitrary(
     namespace: &ThemeNamespace,
     value: &str,

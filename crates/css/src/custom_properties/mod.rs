@@ -1,14 +1,17 @@
 //! Custom-property discovery, registration metadata, and usage classification.
 //!
-//! Three related questions live here. [`references`] tokenizes CSS text to find
-//! `--name` idents, [`registration`] parses compiler-owned `@stillwind-property` blocks
-//! and authored `@property` names and syntaxes, and [`usage`] classifies an emitted
-//! stylesheet into declared properties, `var()` references and declaring properties.
-//! The split matters: registration decides what the compiler may emit, while usage
-//! decides which registrations an output actually needs.
+//! Registration decides which properties the compiler may emit, and usage decides which
+//! registrations an output actually needs. Authored `@property` rules are never
+//! rewritten or removed by these functions; they only report names and syntax
+//! descriptors.
 //!
-//! Authored `@property` rules are never rewritten or removed by these
-//! functions; they only report names and syntax descriptors.
+//! Modules:
+//!
+//! - [`references`] tokenizes CSS text to find `--name` identifiers.
+//! - [`registration`] parses compiler-owned `@stillwind-property` blocks and the names
+//!   and syntaxes of authored `@property` rules.
+//! - [`usage`] classifies an emitted stylesheet into declared properties, `var()`
+//!   references, and declaring properties.
 
 mod references;
 mod registration;

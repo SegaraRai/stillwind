@@ -272,7 +272,7 @@ struct PreparedNestedDeclarations {
 
 /// Resolves each declaration independently. `body` contains a registered declaration
 /// group or a group produced by expanding theme wildcards. `@utility` overloads are
-/// often intentionally broad: a single body can expose both color and length forms. A
+/// often broad: a single body can expose both color and length forms. A
 /// failed typed placeholder must remove only the incompatible declaration, never the
 /// compatible siblings.
 ///

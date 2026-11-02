@@ -1,4 +1,5 @@
-//! View-transition definitions: the rules of the four pseudo-elements of one transition.
+//! View-transition definitions: the rules of the four pseudo-elements of one
+//! transition.
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
@@ -70,8 +71,8 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     }
 }
 
-/// Appends one pseudo-element's rules for `selector` to `contribution`, resolving utilities
-/// through the `view-transition` context of `theme`.
+/// Appends one pseudo-element's rules for `selector` to `contribution`, resolving
+/// utilities through the `view-transition` context of `theme`.
 ///
 /// Utilities without variants share one rule. A utility carrying condition variants
 /// emits its own rule per condition path, in source order after the shared rule, so a

@@ -1,26 +1,30 @@
 //! Language-neutral intermediate representation shared by all source frontends.
 //!
-//! This crate is the seam between a frontend (`js-oxc` today, other parsers later) and
-//! the backend. It defines three things: the host input contract ([`SourceInput`]), the
-//! extracted module model ([`ModuleIr`]), and the two-phase analysis contract
-//! ([`SourceAnalyzer`]: `ModuleScan` before TypeScript facts, [`ModuleAnalysis`] after
-//! them).
+//! This crate connects a frontend (`js-oxc` today) to the backend. It defines the host
+//! input contract ([`SourceInput`]), the extracted module model ([`ModuleIr`]), and the
+//! two-phase analysis contract ([`SourceAnalyzer`]): a [`ModuleScan`] before TypeScript
+//! facts and a [`ModuleAnalysis`] after them.
 //!
-//! The IR stores original source spans rather than re-printed JavaScript. A frontend
-//! that parses a virtual or shadow source must map every span back to the editable
-//! original before handing the IR on; [`ModuleIr::try_map_spans`] performs that rewrite
-//! transactionally, and the frontend keeps ownership of correspondence validation and
-//! of its own provenance records.
+//! The IR stores original source spans instead of reprinted JavaScript. A frontend that
+//! parses a virtual or shadow source must map every span back to the editable original
+//! before it returns the IR. [`ModuleIr::try_map_spans`] performs that rewrite
+//! transactionally. The frontend keeps ownership of correspondence validation and of
+//! its own provenance records.
 //!
+//! [`validate_composition`] checks dependency cycles and producer availability, and
+//! [`ordered_style_calls`] orders the remaining dependencies.
 //! [`IncompatibleComposition`] reports composition bases that supply only part of their
-//! value. [`validate_composition`] checks dependency cycles and producer
-//! availability, and [`ordered_style_calls`] orders the retained dependencies. These
-//! operations do not emit CSS.
+//! value. These operations do not emit CSS.
 //!
-//! `input` validates editable documents and prepared parser buffers. `analysis` defines
-//! the scan and finalization interfaces. `model` stores the extracted IR, and `spans`
-//! maps its coordinates. `framework` selects adapter policies. `composition` checks
-//! dependencies and orders style calls before lowering.
+//! Modules:
+//!
+//! - [`analysis`] defines the scan and finalization interfaces.
+//! - [`composition`] checks composition dependencies and orders style calls before
+//!   lowering.
+//! - [`framework`] selects framework adapter policies.
+//! - [`input`] validates editable documents and prepared parser buffers.
+//! - [`model`] stores the extracted module model.
+//! - [`spans`] maps the spans of the model to other coordinates.
 
 #![warn(missing_docs)]
 #![cfg_attr(

@@ -6,8 +6,8 @@ use stillwind_ir::{ModuleAnalysis, ScriptLanguage, ScriptModuleKind, SourceAnaly
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{FileId, ModuleId, SourceFile};
 
-/// Returns the Oxc analysis of `source` in the module named `name`.
-/// Uses file ID 1, TSX syntax, unambiguous module detection, and no external type facts.
+/// Returns the Oxc analysis of `source` in the module named `name`. Uses file ID 1, TSX
+/// syntax, unambiguous module detection, and no external type facts.
 ///
 /// # Panics
 ///

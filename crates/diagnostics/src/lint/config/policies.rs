@@ -214,7 +214,8 @@ pub struct RestrictedThemeTokensConfig {
     pub tokens: Vec<LeanStr>,
 }
 
-/// Partial updates to the restricted theme token policy for `LintOverrides::resolve`.
+/// Partial updates to the restricted theme token policy for
+/// [`LintOverrides::resolve`](super::overrides::LintOverrides::resolve).
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RestrictedThemeTokensOverride {
@@ -302,7 +303,8 @@ pub struct RestrictedDeclarationsConfig {
     pub rules: Vec<RestrictedDeclarationRule>,
 }
 
-/// Partial updates to declaration restrictions for `LintOverrides::resolve`.
+/// Partial updates to declaration restrictions for
+/// [`LintOverrides::resolve`](super::overrides::LintOverrides::resolve).
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RestrictedDeclarationsOverride {
@@ -324,7 +326,8 @@ pub struct ImportantConfig {
     pub check_implementation: bool,
 }
 
-/// Partial updates to importance restrictions for `LintOverrides::resolve`.
+/// Partial updates to importance restrictions for
+/// [`LintOverrides::resolve`](super::overrides::LintOverrides::resolve).
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ImportantOverride {

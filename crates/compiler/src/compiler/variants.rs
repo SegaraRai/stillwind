@@ -101,9 +101,10 @@ pub(super) enum VariantStep<'a> {
 
 /// Expands alternatives and sequential compositions, preserving authored branch order.
 ///
-/// The returned order is the order a reader sees in the source: alternatives of one compound
-/// application keep their written order, and later applications only multiply the paths. The
-/// Compound alternatives use an explicit stack; sequential children share this expansion.
+/// The returned order is the order a reader sees in the source: alternatives of one
+/// compound application keep their written order, and later applications only multiply
+/// the paths. The Compound alternatives use an explicit stack; sequential children
+/// share this expansion.
 pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<VariantStep<'_>>> {
     let mut paths = vec![Vec::new()];
     for application in applications {
@@ -178,8 +179,8 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
     paths
 }
 
-/// Whether every step of every path is a condition that can wrap a rule without a selector
-/// of its own.
+/// Whether every step of every path is a condition that can wrap a rule without a
+/// selector of its own.
 ///
 /// Definition-level rules such as keyframes and view-transition pseudo-elements have no
 /// element to select, so only `@media` and `@supports` can contain them.
@@ -306,11 +307,12 @@ pub(crate) fn wrap_conditions(rule: &str, path: &[OptionCondition]) -> LeanStrin
         })
 }
 
-/// The condition paths one variant list produces, or `None` when a variant cannot wrap a rule.
+/// The condition paths one variant list produces, or `None` when a variant cannot wrap
+/// a rule.
 ///
-/// A view-transition pseudo-element has no element state of its own and no container ancestor,
-/// so only media and supports conditions can wrap it. Any other variant fails the utility rather
-/// than dropping its condition silently.
+/// A view-transition pseudo-element has no element state of its own and no container
+/// ancestor, so only media and supports conditions can wrap it. Any other variant fails
+/// the utility rather than dropping its condition silently.
 pub(crate) fn condition_paths(
     variants: &[Variant],
     theme: &ThemeIndex,
@@ -319,8 +321,8 @@ pub(crate) fn condition_paths(
     application_condition_paths(&applications)
 }
 
-/// The condition paths one already-resolved application list produces, or `None` when a step
-/// cannot wrap a rule.
+/// The condition paths one already-resolved application list produces, or `None` when a
+/// step cannot wrap a rule.
 pub(super) fn application_condition_paths(
     applications: &[VariantApplication],
 ) -> Option<Vec<Vec<OptionCondition>>> {
@@ -330,7 +332,8 @@ pub(super) fn application_condition_paths(
         .collect()
 }
 
-/// Resolves a bucket utility's variants into the applications a pseudo-element rule can carry.
+/// Resolves a bucket utility's variants into the applications a pseudo-element rule can
+/// carry.
 fn condition_applications(
     variants: &[Variant],
     theme: &ThemeIndex,

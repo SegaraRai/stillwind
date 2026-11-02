@@ -1,4 +1,4 @@
-//! Source-ordered CSS output, independent of the host's module/chunk policy.
+//! Source-ordered CSS output, independent of how the host splits modules and chunks.
 //!
 //! A [`CssOutputTemplate`] is the plan for one output carrier: an ordered tree of nodes
 //! saying which authored CSS, layer statements, groups, theme declarations and

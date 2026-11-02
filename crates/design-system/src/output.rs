@@ -33,8 +33,8 @@ use crate::{SkipReason, ThemeValue, ThemeValuePrecedence};
 /// Deepest group nesting accepted in one authored buffer.
 ///
 /// Parsing recurses once per nested group, so this bounds the stack one stylesheet can
-/// consume; deeper input is reported as [`CompileDiagnostic::CssNestingTooDeep`] instead
-/// of exhausting the stack.
+/// consume; deeper input is reported as [`CompileDiagnostic::CssNestingTooDeep`]
+/// instead of exhausting the stack.
 const MAX_BLOCK_NESTING: usize = 64;
 
 /// Parses one CSS buffer into a source-ordered output template.
@@ -42,7 +42,8 @@ const MAX_BLOCK_NESTING: usize = 64;
 /// `tokens` are the already extracted theme tokens; each `@theme` node records the
 /// indices of the tokens whose name spans fall inside that block. Their offsets must
 /// address `css`. Returned origins use `FileId(0)` and UTF-8 byte offsets into `css`;
-/// the caller assigns the template's initially empty source identity and remaps origins.
+/// the caller assigns the template's initially empty source identity and remaps
+/// origins.
 ///
 /// Invalid directives and slots are left out and appended to `skipped`, with ranges in
 /// `css`. A conditional definition is kept without its condition and also appended.

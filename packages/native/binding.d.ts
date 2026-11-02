@@ -1721,7 +1721,7 @@ export interface NativeModuleSpecifier {
 
 /** Versioned cross-module summary of one module. */
 export interface NativeModuleSummary {
-  /** Original-to-projected expression/import correspondences; empty for plain inputs. */
+  /** Correspondences of original and projected expressions and imports; empty for plain inputs. */
   checkerSpans: Array<NativeCheckerSpan>
   /** Generated helper references protected from bindings in authored scopes. */
   checkerBindings: Array<NativeCheckerBinding>

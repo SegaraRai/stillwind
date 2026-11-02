@@ -1,17 +1,21 @@
 //! Serializable compiler output.
 //!
 //! [`BindingOutput`] carries module results from Rust services to JavaScript adapters.
-//! [`BindingReport`] carries the common reporting layer's document identity, revision,
-//! complete editor range, related highlights, and fix actions. The compatibility
-//! diagnostic and lint records carry primary coordinates too. Other records document
-//! their own coordinate units at the field level.
+//! [`BindingReport`] carries the document identity, revision, complete editor range,
+//! related highlights, and fix actions of the common reporting layer. The compatibility
+//! diagnostic and lint records also carry primary coordinates. Other records document
+//! their coordinate units on their fields.
 //!
 //! Generated code is absent when compiler diagnostics are present. These types describe
-//! one result; retaining an earlier successful result is the host session's responsibility.
+//! one result; the host session is responsible for keeping an earlier successful
+//! result.
 //!
-//! `compilation` carries compiler results and generated identities. `reporting`
-//! carries diagnostic batches and scan outcomes. `mapping` carries original and
-//! transformed source coordinates. `text` transfers owned UTF-8 buffers to Node-API.
+//! Modules:
+//!
+//! - [`compilation`] carries compiler results and generated identities.
+//! - [`mapping`] carries original and transformed source coordinates.
+//! - [`reporting`] carries diagnostic batches and scan outcomes.
+//! - [`text`] transfers owned UTF-8 buffers to Node-API.
 
 mod compilation;
 mod mapping;

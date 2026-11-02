@@ -1,18 +1,20 @@
-//! Stateful Node host binding. Resolution and I/O remain in JavaScript.
+//! Stateful Node host binding. Resolution and I/O stay in JavaScript.
 //!
-//! [`NativeDesignSystemLoader`] exposes the loader state machine directly: it returns
-//! the outstanding CSS requests and accepts the host's answers, so the JavaScript side
+//! [`NativeDesignSystemLoader`] exposes the loader state machine directly. It returns
+//! the outstanding CSS requests and accepts the answers of the host, so JavaScript
 //! keeps full control of resolution, package lookup, and reading order. The snapshot
-//! only exists after a `Complete` step, and every method that needs it reports
+//! exists only after a `Complete` step, and every method that needs it reports
 //! [`NativeSessionError::IncompleteCssLoad`] instead of loading anything itself.
 //!
-//! [`project::NativeProjectSession`] wraps the project session. It receives TypeScript facts the
-//! host already produced through its long-lived TS7 service rather than running a
-//! checker of its own.
-
+//! [`NativeProjectSession`](project::NativeProjectSession) wraps the project session.
+//! It receives the TypeScript facts that the long-lived TS7 service of the host has
+//! produced, and runs no checker of its own.
 //!
-//! `loader` owns CSS load requests and completed snapshots. `project` wraps project
-//! publication and reloads. `facts` attaches supplied checker facts to source scans.
+//! Modules:
+//!
+//! - [`facts`] attaches supplied checker facts to source scans.
+//! - [`loader`] owns CSS load requests and completed snapshots.
+//! - [`project`] wraps project publication and reloads.
 
 mod facts;
 mod loader;

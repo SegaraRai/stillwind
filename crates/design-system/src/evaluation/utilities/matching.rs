@@ -63,7 +63,7 @@ pub fn dynamic_named_spelling(
 ///
 /// Project CSS is consulted first; a successfully resolved project branch wins. If
 /// no project branch resolves, `@stillwind-utility` definitions are tried. There is
-/// deliberately no property-prefix fallback: a definition that rejects the candidate's
+/// no property-prefix fallback: a definition that rejects the candidate's
 /// value type is a non-match, not an invitation to reinterpret the candidate.
 ///
 /// An arbitrary value without a type hint that no definition accepts by grammar is

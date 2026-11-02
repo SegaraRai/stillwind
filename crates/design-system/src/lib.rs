@@ -1,37 +1,43 @@
 //! CSS-defined styling semantics, caller-driven loading, and immutable snapshots.
 //!
-//! The crate owns everything that can be expressed by the project's CSS: theme tokens,
-//! the utility, variant and property registries, import expansion, and candidate
-//! evaluation. A host supplies the CSS buffers through [`DesignSystemLoader`] and
-//! receives a [`DesignSystemSnapshot`]. The loader never reads a file, resolves a
-//! specifier, or interprets a source name as a path; those decisions stay in the host
-//! (`cli`, Vite, or an editor).
+//! The crate owns everything that the project's CSS can express: theme tokens, the
+//! utility, variant, and property registries, import expansion, and candidate
+//! evaluation. A host supplies CSS buffers through [`DesignSystemLoader`] and receives
+//! a [`DesignSystemSnapshot`]. The loader never reads a file, resolves a specifier, or
+//! interprets a source name as a path. The host (the CLI, Vite, or an editor) makes
+//! those decisions.
 //!
-//! Two prefixed custom-property namespaces exist: Stillwind-owned identifiers use the
-//! configurable `--sw-` prefix, and the Tailwind-compatibility namespace uses the
-//! separately configurable `--tw-` prefix. The package's names in the two namespaces do
-//! not overlap, so the prefixes may be equal.
-//! [`DesignSystemOptions`] validates their shape and provides
-//! [`DesignSystemOptions::rewrite_generated`] for substituting the canonical markers.
-//! The compiler chooses which generated strings to pass through that operation; loading
-//! a design system does not rewrite every authored value to the configured prefixes.
+//! Stillwind-owned custom properties use the configurable `--sw-` prefix, and the
+//! Tailwind-compatibility namespace uses the separately configurable `--tw-` prefix.
+//! The names in the two namespaces do not overlap, so the prefixes may be equal.
+//! [`DesignSystemOptions`] validates both prefixes, and
+//! [`DesignSystemOptions::rewrite_generated`] substitutes them for the canonical
+//! markers. The compiler chooses which generated strings to rewrite; loading does not
+//! rewrite authored values.
 //!
-//! Runtime-conditional syntax is shared by value and variant resolution through
-//! [`RuntimeCondition`] and [`runtime_if_arguments`]; the compiler chooses its
-//! lowering.
+//! Value and variant resolution share the runtime-conditional syntax through
+//! [`RuntimeCondition`] and [`runtime_if_arguments`]. The compiler chooses how to lower
+//! it.
 //!
-//! A snapshot is immutable after construction and clones an `Arc`, so a compile or
-//! editor request pins one clone for its whole duration instead of observing two
-//! revisions. Reloading CSS builds a new snapshot.
+//! A snapshot is immutable and cheap to clone, so a compile or editor request keeps one
+//! clone for its whole duration and never observes two revisions. Reloading CSS builds
+//! a new snapshot.
 //!
-//! `loading` expands supplied CSS imports, and `theme` parses tokens and declarations.
-//! `registry` parses utility and variant definitions. `evaluation` resolves candidates
-//! against those definitions, and `conditionals` recognizes runtime tests. `options`
-//! validates configuration, `output` parses output slots, and `snapshot` owns the
-//! immutable revision shared by compilation and editor requests. `skipped` records the
-//! invalid statements that loading leaves out instead of failing. `target` checks
-//! browser versions before removing generated color fallbacks. `requirements` reads
-//! registration requirements from parsed CSS directives.
+//! Modules:
+//!
+//! - [`conditionals`] recognizes runtime-conditional tests.
+//! - [`evaluation`] resolves candidates against the loaded definitions.
+//! - [`loading`] expands the CSS imports that the host supplies.
+//! - [`options`] validates configuration.
+//! - [`output`] parses output templates and their slots.
+//! - [`registry`] parses utility and variant definitions.
+//! - [`requirements`] reads registration requirements from parsed CSS directives.
+//! - [`skipped`] records the invalid statements that loading leaves out instead of
+//!   failing.
+//! - [`snapshot`] owns the immutable revision that compilation and editor requests
+//!   share.
+//! - [`target`] checks browser versions before generated color fallbacks are removed.
+//! - [`theme`] parses tokens, declarations, and shared assets.
 
 #![cfg_attr(
     not(test),

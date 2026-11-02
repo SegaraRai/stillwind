@@ -5,9 +5,9 @@
 //! binding name. Importing, re-exporting or aliasing the value therefore keeps the same
 //! identity, which is what lets the compiler emit one stable CSS name per declaration.
 //!
-//! Generated short names are derived from this key later. Keeping the full key here is
-//! deliberate: it is what lets a build adapter detect a hash collision instead of
-//! silently merging two assets.
+//! Generated short names are derived from this key later. The full key stays here so
+//! that a build adapter can detect a hash collision instead of silently merging two
+//! assets.
 
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
@@ -34,9 +34,9 @@ pub enum AssetKind {
 /// Full declaration-site identity. The generated 32-bit name is derived later;
 /// retaining this key lets the build adapter detect hash collisions.
 ///
-/// Fields are compared exactly, and the derived order (kind, module identity, span, binding
-/// name) is used to sort and deduplicate candidate sets. It is not source order, so
-/// consumers must not present it as such.
+/// Fields are compared exactly, and the derived order (kind, module identity, span,
+/// binding name) is used to sort and deduplicate candidate sets. It is not source
+/// order, so consumers must not present it as such.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityId {

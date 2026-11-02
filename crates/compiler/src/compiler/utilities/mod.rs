@@ -1,14 +1,18 @@
 //! Utility resolution and rule emission.
 //!
-//! [`resolve`] turns candidate text into [`CompiledUtility`] values, and
-//! [`declaration_order`] implements the declaration-level ordering rules. [`render`]
-//! turns one utility into selector blocks, and [`emission`] groups them into a class
-//! unit. [`policy`] checks emitted values and variant targets and filters canonical
-//! suggestions. [`clamping`] finds literal values that browsers clamp.
+//! The split follows the CSS ordering levels: [`declaration_order`] decides the
+//! declaration order, and [`emission`] decides the block order. The renderers only
+//! serialize the result.
 //!
-//! The split follows the CSS ordering levels: declaration order is decided in
-//! [`declaration_order`], and block order is decided in [`emission`]. The two renderers
-//! only serialize the result.
+//! Modules:
+//!
+//! - [`clamping`] finds literal values that browsers clamp.
+//! - [`declaration_order`] implements the declaration-level ordering rules.
+//! - [`emission`] groups selector blocks into a class unit.
+//! - [`policy`] checks emitted values and variant targets and filters canonical
+//!   suggestions.
+//! - [`render`] turns one utility into selector blocks.
+//! - [`resolve`] turns candidate text into [`CompiledUtility`] values.
 
 mod clamping;
 mod declaration_order;

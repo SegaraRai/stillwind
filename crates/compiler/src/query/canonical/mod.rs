@@ -1,19 +1,23 @@
 //! Finds the canonical spelling of candidates under the options of the
-//! `prefer-canonical-utilities` rule. A canonical spelling produces the same CSS as the
-//! original candidate, and it is the spelling that the rule prefers, such as `p-4` for
-//! `p-[16px]`.
+//! `prefer-canonical-utilities` rule.
 //!
-//! [`candidate`] finds the canonical spelling of one candidate. [`collapse`] replaces
-//! several candidates of one source container with one utility. [`conditions`] rewrites
-//! runtime conditions. [`preview`] renders the CSS of a candidate and normalizes it for
-//! comparison. [`index`] lists the named spellings that a search can return. [`values`]
-//! lists theme values, and `variants` lists named variants. [`parallel`] runs
-//! independent preparation steps on several threads. [`selectors`] writes equivalent
-//! selectors in one spelling for comparison.
-//!
-//! Call [`crate::DesignSystemQuery::canonical_candidate`] for one candidate. Call
+//! A canonical spelling produces the same CSS as the original candidate, and the rule
+//! prefers it, such as `p-4` for `p-[16px]`. Call
+//! [`crate::DesignSystemQuery::canonical_candidate`] for one candidate, or
 //! [`crate::DesignSystemQuery::canonical_candidates`] for all candidates of one source
 //! container.
+//!
+//! Modules:
+//!
+//! - [`candidate`] finds the canonical spelling of one candidate.
+//! - [`collapse`] replaces several candidates of one source container with one utility.
+//! - [`conditions`] rewrites runtime conditions.
+//! - [`index`] lists the named spellings that a search can return.
+//! - [`parallel`] runs independent preparation steps on several threads.
+//! - [`preview`] renders the CSS of a candidate and normalizes it for comparison.
+//! - [`selectors`] writes equivalent selectors in one spelling for comparison.
+//! - [`values`] lists theme values.
+//! - [`variants`] lists named variants.
 
 mod candidate;
 mod collapse;

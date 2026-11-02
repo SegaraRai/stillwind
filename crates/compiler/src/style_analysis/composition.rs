@@ -169,7 +169,7 @@ impl<'a> StyleResolver<'a> {
 }
 
 /// The supplies and unknown paths visible to one registered style call.
-/// Obtain this immutable result through `StyleResolver::resolve` and pass it to
+/// Obtain this immutable result through [`StyleResolver::resolve`] and pass it to
 /// `check_style`. The result borrows source records and retains the registry needed
 /// to inspect base ancestry independently of the resolver's lifetime.
 pub struct ResolvedStyle<'a> {
@@ -297,11 +297,11 @@ fn collect_bases<'a>(node: &'a StyleEffect, out: &mut Vec<&'a IdentityId>) {
     }
 }
 
-/// Returns whether all `required` supplies can occur while every `excluded` supply is absent.
-/// All supplies must use consistent finite domains for shared source occurrences.
-/// An empty excluded list accepts any consistent required path. An unconditional
-/// excluded supply makes omission impossible. Search selects a different arm for
-/// at least one decision in each excluded guard without changing the records.
+/// Returns whether all `required` supplies can occur while every `excluded` supply is
+/// absent. All supplies must use consistent finite domains for shared source
+/// occurrences. An empty excluded list accepts any consistent required path. An
+/// unconditional excluded supply makes omission impossible. Search selects a different
+/// arm for at least one decision in each excluded guard without changing the records.
 pub(super) fn can_omit(required: &[&ResolvedSupply<'_>], excluded: &[&ResolvedSupply<'_>]) -> bool {
     let decisions = required
         .iter()

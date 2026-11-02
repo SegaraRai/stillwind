@@ -215,7 +215,7 @@ impl<'a> MacroExtractor<'a> {
     /// Assets are appended in kind order (styles, refs, keyframes, view transitions),
     /// not source order. Exports are keyed by exported name and only contain bindings
     /// whose value resolved to a symbolic form; a binding that was reassigned or chosen
-    /// conditionally is deliberately absent so the host checker can answer instead of
+    /// conditionally is absent so that the host checker can answer instead of
     /// this pass guessing.
     pub(crate) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.module_id.clone());

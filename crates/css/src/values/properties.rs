@@ -172,7 +172,7 @@ impl CssProperty {
     }
 
     /// Validates the value through Lightning CSS's parser for this exact CSS property.
-    /// This intentionally covers property-specific keyword and shorthand rules that a
+    /// This covers property-specific keyword and shorthand rules that a
     /// generic value type cannot express.
     ///
     /// CSS-wide keywords are accepted before the grammar runs. A value Lightning CSS

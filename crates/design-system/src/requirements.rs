@@ -1,7 +1,7 @@
 //! Registration requirements embedded in utility definitions and authored CSS.
 //!
-//! The CSS parser supplies directive boundaries. This module validates names and removes
-//! requirement directives before their declarations are emitted.
+//! The CSS parser supplies directive boundaries. This module validates names and
+//! removes requirement directives before their declarations are emitted.
 
 use std::ops::Range;
 

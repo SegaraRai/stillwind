@@ -80,8 +80,8 @@ struct ThemeData {
     contexts: [OnceLock<ThemeIndex>; RegistryContext::ALL.len()],
 }
 
-/// Owns one immutable stylesheet's authored declarations and evaluation data.
-/// Clones share the same definitions and preparation. Parsing new CSS creates a new index.
+/// Owns one immutable stylesheet's authored declarations and evaluation data. Clones
+/// share the same definitions and preparation. Parsing new CSS creates a new index.
 #[derive(Clone, Debug)]
 pub struct ThemeIndex {
     inner: Arc<ThemeData>,

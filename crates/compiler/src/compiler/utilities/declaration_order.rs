@@ -1,12 +1,12 @@
 //! Declaration-level ordering inside one rule.
 //!
-//! Utilities are ordered by the key the snapshot's utility ordering mode produced, which
-//! makes shorthand and longhand precedence reproducible. Equal keys fall back to a
-//! candidate-name comparison and branches of one candidate keep their resolved order, so
-//! output is stable for a given input. Combining, rather than concatenating, the
-//! declarations is also where semantic declaration composition applies, so a caller must
-//! always go through `combine_declarations_for_theme` instead of joining declaration
-//! strings itself.
+//! Utilities are ordered by the key the snapshot's utility ordering mode produced,
+//! which makes shorthand and longhand precedence reproducible. Equal keys fall back to
+//! a candidate-name comparison and branches of one candidate keep their resolved order,
+//! so output is stable for a given input. Combining, rather than concatenating, the
+//! declarations is also where semantic declaration composition applies, so a caller
+//! must always go through [`combine_declarations_for_theme`] instead of joining
+//! declaration strings itself.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -21,11 +21,12 @@ use stillwind_source::JoinText;
 
 use super::resolve::CompiledUtility;
 
-/// Prepends the declarations a variant contributes, skipping properties the body already sets.
+/// Prepends the declarations a variant contributes, skipping properties the body
+/// already sets.
 ///
-/// A property the body writes explicitly keeps its authored position and value, and repeating the
-/// call is a no-op, so a variant that is applied through several paths cannot accumulate
-/// duplicates.
+/// A property the body writes explicitly keeps its authored position and value, and
+/// repeating the call is a no-op, so a variant that is applied through several paths
+/// cannot accumulate duplicates.
 pub(in crate::compiler) fn prepend_missing_declarations(
     declaration: &mut LeanString,
     supporting: &[VariantDeclaration],
@@ -205,7 +206,8 @@ fn composition_value(value: &str) -> (&str, bool) {
     priority.map_or((value.trim(), false), |start| (value[..start].trim(), true))
 }
 
-/// Orders utilities by shared precedence while retaining branches of the same candidate.
+/// Orders utilities by shared precedence while retaining branches of the same
+/// candidate.
 pub(in crate::compiler) fn order_utilities(
     mut utilities: Vec<&CompiledUtility>,
 ) -> Vec<&CompiledUtility> {
@@ -216,23 +218,19 @@ pub(in crate::compiler) fn order_utilities(
     utilities
 }
 
-/// Test-only combination against the package CSS.
-#[cfg(test)]
-fn combine_declarations(utilities: &[&CompiledUtility]) -> LeanString {
-    use stillwind_design_system::parse_declaration_formats;
-    use stillwind_test_support::PACKAGE_CSS;
-
-    combine_declarations_with_formats(utilities, &parse_declaration_formats(PACKAGE_CSS))
-}
-
 #[cfg(test)]
 mod tests {
     use lean_string::ToLeanStr;
 
-    use stillwind_design_system::{UtilityOrder, VariantContext};
+    use stillwind_design_system::{UtilityOrder, VariantContext, parse_declaration_formats};
+    use stillwind_test_support::PACKAGE_CSS;
 
     use super::super::resolve::CompiledUtilityDiagnosticData;
     use super::*;
+
+    fn combine_declarations(utilities: &[&CompiledUtility]) -> LeanString {
+        combine_declarations_with_formats(utilities, &parse_declaration_formats(PACKAGE_CSS))
+    }
 
     #[test]
     fn orders_conflicting_shorthands_like_tailwind() {

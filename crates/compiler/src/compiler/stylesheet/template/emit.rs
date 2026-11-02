@@ -3,7 +3,7 @@
 //! [`emit`] preserves authored wrappers and carrier layer reservations. Anonymous
 //! layers share identities across document and carrier walks. [`resolve_origin`]
 //! resolves retained source buffers for both template and support fragments. Pass
-//! prepared support to `emit`; it does not discover dependencies, validate missing
+//! prepared support to [`emit`]; it does not discover dependencies, validate missing
 //! slots, or lower the supplied utility and support fragments.
 
 use std::sync::Arc;

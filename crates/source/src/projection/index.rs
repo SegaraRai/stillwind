@@ -1,8 +1,9 @@
 //! Validated projection indexes and exact original-source queries.
 //!
-//! `ProjectionIndex::new` dispatches host maps to the v3 or Volar loader. Queries
-//! preserve point/interval distinctions and reject ambiguous or text-mismatched
-//! correspondences instead of inferring editable spans from neighboring anchors.
+//! [`ProjectionIndex::new`] dispatches host maps to the v3 or Volar loader. Queries
+//! keep the distinction between points and intervals and reject ambiguous or
+//! text-mismatched correspondences instead of inferring editable spans from neighboring
+//! anchors.
 
 use std::collections::BTreeMap;
 

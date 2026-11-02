@@ -1,18 +1,20 @@
 //! End-to-end tests for the pure Rust entry points behind the Node binding.
 //!
-//! The binding itself is a thin conversion layer, so these tests drive
-//! `compile_source_*`, [`summarize_source_input`], and [`render_stylesheet`] directly
-//! and serialize results through serde. JSON
-//! fields and native JavaScript properties use camelCase. These tests check
-//! that projected runtime imports stay inside their verified script realms,
-//! invalid projection metadata fails the compile instead of producing partial code, and
-//! options are validated rather than defaulted silently.
+//! The binding is a thin conversion layer, so these tests call `compile_source_*`,
+//! [`summarize_source_input`], and [`render_stylesheet`] directly and serialize the
+//! results through serde. JSON fields and native JavaScript properties use camelCase.
+//! The tests check that projected runtime imports stay inside their verified script
+//! realms, that invalid projection metadata fails the compile instead of producing
+//! partial code, and that options are validated instead of silently defaulted.
 //!
-//! `compilation` checks serialized compilation, summaries, graph output, and options.
-//! `naming` checks generated identities and rejected names in host output.
-//! `reporting` checks lint severity and diagnostic editor coordinates.
-//! `source_input` checks prepared document transport and projection contracts.
-//! `support` supplies the builders shared by these cases.
+//! Modules:
+//!
+//! - [`compilation`] checks serialized compilation, summaries, graph output, and
+//!   options.
+//! - [`naming`] checks generated identities and rejected names in host output.
+//! - [`reporting`] checks lint severity and the editor coordinates of diagnostics.
+//! - [`source_input`] checks prepared document transport and projection contracts.
+//! - [`support`] supplies the builders that these cases share.
 
 use std::error::Error;
 

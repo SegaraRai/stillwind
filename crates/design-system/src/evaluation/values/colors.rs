@@ -15,8 +15,9 @@ use super::domains::resolve_value_domains;
 use super::theme::{bare_token_literal, theme_value_literal};
 use crate::ThemeIndex;
 
-/// Resolves a color and an alpha, optionally followed by another alpha, to oklab mixing.
-/// A 100% first alpha keeps the original color. Compatibility emission follows resolution.
+/// Resolves a color and an alpha, optionally followed by another alpha, to oklab
+/// mixing. A 100% first alpha keeps the original color. Compatibility emission follows
+/// resolution.
 pub(in crate::evaluation) fn resolve_compat_color(arguments: &str) -> Option<LeanString> {
     let arguments = split_top_level(arguments, |token| matches!(token, Token::Comma));
     let (color, alpha, modern_alpha) = match arguments.as_slice() {
@@ -217,7 +218,7 @@ fn contains_current_color(value: &str) -> bool {
 }
 
 /// CSS-first extension for theme shadow opacity modifiers. `--value()` emits the normal
-/// `var(--shadow-*)` reference; this intentionally reads the authored token to
+/// `var(--shadow-*)` reference; this function reads the authored token to
 /// construct a CSS Color 5 relative color function.
 ///
 /// The first argument names the theme namespace whose token value is read, such as

@@ -71,7 +71,8 @@ impl ProjectedSource {
     }
 }
 
-/// Converter output whose identities and import relationships are internally consistent.
+/// Converter output whose identities and import relationships are internally
+/// consistent.
 #[derive(Clone, Debug)]
 pub struct SourceProjection {
     code: Arc<SourceFile>,
@@ -227,7 +228,8 @@ fn validate_metadata_spans(
 
 /// Checks realm identifiers, parent chains, region references, span ordering, and
 /// overlapping region interiors. Parents declare import visibility independently of
-/// spatial containment. Returns the first invalid relationship without changing metadata.
+/// spatial containment. Returns the first invalid relationship without changing
+/// metadata.
 fn validate_import_metadata(
     realms: &[ImportRealm],
     regions: &[ProjectionRegion],

@@ -177,7 +177,7 @@ impl DesignSystemQuery {
     ///
     /// The spellings include more specific families that declare the resolved
     /// properties, the value with and without its type hint, and the forms from
-    /// `scalar_forms`.
+    /// [`scalar_forms`].
     fn arbitrary_bases(&self, raw: &str, name: &str, is_negative: bool) -> Option<Vec<String>> {
         let (root, hint, value) = arbitrary(name)?;
         let mut bases = Vec::new();

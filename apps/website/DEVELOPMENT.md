@@ -62,6 +62,13 @@ Each page has an `index.md` alternate and an `index.mdx` source alternate.
 Nimbus's helpers and the same content collection as HTML.
 `public/_headers` keeps the Markdown alternates out of search indexes.
 
+The site search uses Pagefind. After `astro build`, Nimbus runs Pagefind over the
+`data-pagefind-body` element of each documentation page and writes the index to
+`dist/pagefind/`. The search dialog opens from the header button or Ctrl+K, or Cmd+K on
+macOS. The index exists only in a production build, so test search with `preview`; in
+`dev`, the dialog reports that search is unavailable. `WebMCP.astro` registers a
+`search_documentation` tool on the same index for browsers that support WebMCP.
+
 `/robots.txt` points crawlers to the sitemap. Nimbus adds `WebPage` structured data to
 documentation pages, and `DocsLayout` adds a `BreadcrumbList`. `src/pages/index.astro`
 defines the structured data of the landing page.

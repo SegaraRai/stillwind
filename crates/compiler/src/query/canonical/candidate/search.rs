@@ -36,7 +36,7 @@ impl DesignSystemQuery {
     /// `canonical_options`. A legacy spelling, or a candidate with an invalid type
     /// hint, may also receive a replacement.
     ///
-    /// The query caches the results. Queries that `DesignSystemQuery::shared` creates
+    /// The query caches the results. Queries that [`DesignSystemQuery::shared`] creates
     /// for the same snapshot and options share one cache. Other queries have their own
     /// cache.
     ///

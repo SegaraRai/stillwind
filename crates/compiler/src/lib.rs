@@ -1,32 +1,40 @@
 //! Frontend-independent module compilation, code generation, and stylesheet queries.
 //!
-//! The crate owns IR lowering, class and symbol allocation, source replacements,
-//! generated CSS rules, framework type declarations, and editor queries. Its inputs
-//! are a [`stillwind_ir::ModuleAnalysis`] and an immutable
-//! [`stillwind_design_system::DesignSystemSnapshot`]; it performs no I/O and depends
-//! on neither the JavaScript frontend nor the project layer, so the host supplies
-//! opaque source names and contents.
+//! The crate lowers a [`stillwind_ir::ModuleAnalysis`] against an immutable
+//! [`stillwind_design_system::DesignSystemSnapshot`]. It produces source replacements,
+//! class and symbol names, CSS rules, framework type declarations, and editor query
+//! results. It performs no I/O and depends on neither the JavaScript frontend nor the
+//! project layer, so the host supplies opaque source names and contents.
 //!
 //! Result spans address the original, unedited source buffer. Default names derive from
-//! canonical content and declaration identity. Host name generators must return the
-//! same name for the same request to preserve names across compilations. When a
+//! canonical content and declaration identity. A host name generator must return the
+//! same name for the same request to keep names stable across compilations. When a
 //! compilation fails, diagnostics still address the real source, and transforms,
 //! classes, and symbols stay empty.
 //!
-//! `module_compiler` compiles one analyzed module through the lowering passes in
-//! `compiler`. `compiled_module` applies the resulting edits, and `module_css` owns
-//! CSS occurrences and rule identities. `identifiers` allocates names, and `options`
-//! configures compilation. `imports` plans macro import removal, while `runtime`
-//! allocates framework helper bindings.
+//! Modules:
 //!
-//! `style_analysis` resolves composed supplies and checks their properties and markers.
-//! `generated` composes JavaScript fragments with expression provenance. `transforms`
-//! converts their source ranges to UTF-16 mappings for host source-map generation.
-//! `renderer` assembles stylesheet slots, and `stylesheet_map` retains CSS origins.
-//! `banner` adds the preserved notices before a published stylesheet. `query` answers
-//! editor requests. `editor_lint` detects canonical spellings and collects utility
-//! literals for `candidate_fixes`, which detects redundant variants and untyped
-//! variables with their fixes.
+//! - [`banner`] adds the preserved notices before a published stylesheet.
+//! - [`candidate_fixes`] detects variants without an effect and untyped `var()` values,
+//!   and offers fixes.
+//! - [`compiled_module`] stores compiled output and applies its source edits.
+//! - [`compiler`] contains the lowering passes and the stateless [`Compiler`] entry
+//!   points.
+//! - [`editor_lint`] detects canonical spellings and collects utility literals for
+//!   [`candidate_fixes`].
+//! - [`generated`] composes JavaScript fragments with expression provenance.
+//! - [`identifiers`] allocates generated names.
+//! - [`imports`] plans the removal of macro imports.
+//! - [`module_compiler`] compiles one analyzed module against a pinned snapshot.
+//! - [`module_css`] owns CSS occurrences and rule identities.
+//! - [`options`] configures compilation.
+//! - [`query`] answers editor requests.
+//! - [`renderer`] assembles stylesheet slots.
+//! - [`runtime`] allocates framework helper bindings.
+//! - [`style_analysis`] resolves composed bases and checks their properties and
+//!   markers.
+//! - [`stylesheet_map`] retains the origins of CSS ranges.
+//! - [`transforms`] converts source edits to UTF-16 mappings for host source maps.
 
 #![cfg_attr(
     not(test),

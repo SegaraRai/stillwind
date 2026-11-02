@@ -170,7 +170,8 @@ pub(super) fn fold(fragment: Fragment) -> Fragment {
     }
 }
 
-/// Representation state for a pending record. Opaque classes cannot share a class field.
+/// Representation state for a pending record. Opaque classes cannot share a class
+/// field.
 #[derive(Default)]
 struct Channels {
     has_class: bool,

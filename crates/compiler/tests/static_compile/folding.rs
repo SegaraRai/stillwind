@@ -17,7 +17,8 @@ use stillwind_test_support::css_source;
 use super::compile_with_snapshot;
 use crate::Compiler;
 
-/// Compiles a TypeScript call body under one framework import and the shared standard theme.
+/// Compiles a TypeScript call body under one framework import and the shared standard
+/// theme.
 ///
 /// # Panics
 ///

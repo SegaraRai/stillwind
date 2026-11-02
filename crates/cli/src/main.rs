@@ -1,14 +1,18 @@
-//! Bundler-facing command line adapter for the Stillwind compiler.
+//! Command-line adapter for debugging and accepting the Stillwind compiler.
 //!
-//! The CLI owns filesystem and package resolution for command-line compilation: it
-//! reads the source and theme files, resolves CSS imports through `oxc-resolver`, and
-//! rebases resource URLs relative to the entry. Everything downstream is composed from
-//! the library crates in the same order a host would use them: scan, finalize without
-//! checker facts, compile, render, and print one JSON object on stdout.
+//! The CLI reads the source and theme files, resolves CSS imports through
+//! `oxc-resolver`, and rebases resource URLs relative to the entry. It then uses the
+//! library crates in the same order as a host: scan, finalize without checker facts,
+//! compile, render, and print one JSON object on stdout. Diagnostics and lint findings
+//! keep their resolved source locations, related labels, and fix actions in that JSON.
 //!
-//! It is a debugging and acceptance adapter, not a bundler integration: no watcher, no
-//! module graph, no caching. Diagnostics and lint findings retain their resolved
-//! source locations, related labels, and fix actions in the emitted JSON.
+//! The CLI is not a bundler integration. It has no watcher, no module graph, and no
+//! cache.
+//!
+//! Modules:
+//!
+//! - [`arguments`] looks up flags and values by name.
+//! - [`loading`] reads files, resolves CSS imports, and rebases resource URLs.
 
 #![cfg_attr(
     not(test),
@@ -185,7 +189,7 @@ fn compiler_options() -> CompilerOptions {
 ///
 /// Source and theme may be given as text or as paths; a text theme is named
 /// `stillwind.css` because diagnostics and resource rebasing need a path. Checker facts
-/// are deliberately absent, so this path exercises the frontend without a TypeScript
+/// are absent, so this path exercises the frontend without a TypeScript
 /// checker.
 fn run() -> Result<(), CommandError> {
     let command = env::args().nth(1).ok_or(CommandError::MissingCommand)?;

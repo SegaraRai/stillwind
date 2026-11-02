@@ -104,7 +104,9 @@ fn rewrite_shadow_color(
     Some(format_args!("{without_color} var({color_property}, {fallback})").to_lean_string())
 }
 
-/// Converts a fully determined CSS color to sRGB components in the inclusive range 0..=1.
+/// Converts a fully determined CSS color to sRGB components in the inclusive range
+/// 0..=1.
+///
 /// Returns `None` for contextual colors, invalid values, or unsupported conversions.
 #[must_use]
 pub fn color_rgba(value: &str) -> Option<[f64; 4]> {
