@@ -9,6 +9,8 @@ export interface HeaderScroll {
   anchor: number;
   /** Scroll position of the previous update, in pixels. */
   previous: number;
+  /** Viewport height of the previous update, in pixels. */
+  viewportHeight: number;
 }
 
 /** Distance in pixels that the page must scroll against the current direction to change visibility. */
@@ -17,18 +19,31 @@ const TOLERANCE = 8;
 /**
  * Returns the next visibility of the floating header for scroll position `y`. Scrolling down
  * hides the header, and scrolling up by more than the tolerance shows it. A jump farther than
- * `viewportHeight`, such as one to a fragment or the page end, hides the header.
+ * `viewportHeight`, such as one to a fragment or the page end, hides the header. An update in
+ * which `viewportHeight` changed keeps the visibility and starts measuring from `y`.
  */
 export function nextHeaderScroll(
   state: HeaderScroll,
   y: number,
   viewportHeight: number,
 ): HeaderScroll {
+  // A mobile browser changes the viewport height when it hides or shows its toolbar. Near the page
+  // end, the browser then clamps the scroll position, so hiding the toolbar moves `y` up by the
+  // toolbar height although the reader scrolled down.
+  if (viewportHeight !== state.viewportHeight) {
+    return {
+      visible: state.visible,
+      anchor: y,
+      previous: y,
+      viewportHeight,
+    };
+  }
   if (Math.abs(y - state.previous) > viewportHeight) {
     return {
       visible: false,
       anchor: y,
       previous: y,
+      viewportHeight,
     };
   }
   if (state.visible ? y <= state.anchor : y >= state.anchor) {
@@ -43,6 +58,7 @@ export function nextHeaderScroll(
       visible: !state.visible,
       anchor: y,
       previous: y,
+      viewportHeight,
     };
   }
   return {
@@ -81,6 +97,7 @@ export function mountDocsHeader(slot: HTMLElement): () => void {
     visible: false,
     anchor: view.scrollY,
     previous: view.scrollY,
+    viewportHeight: view.innerHeight,
   };
   // Set when the page scrolls to a fragment. The next update hides the header at the position
   // after that scroll, so an upward jump shorter than the viewport does not reveal it.
@@ -96,6 +113,7 @@ export function mountDocsHeader(slot: HTMLElement): () => void {
             visible: false,
             anchor: view.scrollY,
             previous: view.scrollY,
+            viewportHeight: view.innerHeight,
           };
     fragmentJump = false;
     setHeaderState(header, floating, !floating || scroll.visible);
