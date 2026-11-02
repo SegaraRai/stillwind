@@ -27,8 +27,8 @@ that contain only documentation and version commits. A new push to a branch canc
 running workflow for that branch.
 
 The [Browser acceptance](.github/workflows/e2e.yml) workflow tests the `primary` tier daily
-and the `compatibility` tier weekly. CI calls it for the `primary` tier on the version pull
-request, and the Release workflow calls it again after the merge. Start **Actions → Browser
+and the `compatibility` tier weekly. The Release workflow calls it for the `primary` tier on
+the version pull request and again after the merge. Start **Actions → Browser
 acceptance → Run workflow** to test either tier manually.
 
 `.github/workflows/actions.lock` records the commit of each action that the workflows use,
@@ -71,16 +71,21 @@ package, and creates no Git tag. The first release of each package does not use 
 set its manifest to the intended version and publish it.
 
 When `.changeset/` changes on `main`, the Version PR workflow runs `pnpm version -r` and
-keeps the result in a pull request from `version/main`. The workflow also runs
-`node tools/workspace/sync-version.ts`, which copies the new version to the Rust workspace.
-Fixture generators remove the version from the Stillwind notice, so a release does not
-change expected outputs. `github-actions[bot]` creates this pull request, so its Sites
-run waits for a maintainer to approve it in the Actions tab. Wait for its CI run to pass
-browser acceptance, then merge the pull request with **Squash and merge**.
+keeps the result in a pull request from `version/main` with the `release` label. The
+workflow also runs `node tools/workspace/sync-version.ts`, which copies the new version to
+the Rust workspace. Fixture generators remove the version from the Stillwind notice, so a
+release does not change expected outputs.
+
+The Release workflow builds and tests the version pull request like a release, including
+browser acceptance for the `primary` tier. It tests a pull request only when the pull
+request comes from `version/main` in this repository. The upload jobs run only on `main` and
+skip this run. `github-actions[bot]` creates this pull
+request, so its Release and Sites runs wait for a maintainer to approve them in the Actions
+tab. Wait for the Release run to pass, then merge the pull request with **Squash and merge**.
 
 The merge updates `.changeset/ledger.yaml` on `main`. This change starts the Release
-workflow, which builds and tests everything, including browser acceptance for the `primary`
-tier. After these jobs succeed, the workflow uploads
+workflow again, which builds and tests everything on `main`. After these jobs succeed, the
+workflow uploads
 the npm packages to npm's staging area and publishes the
 [VS Code extension](packages/vscode-extension/DEVELOPMENT.md#publish). A version with a
 prerelease suffix receives the npm tag `next`; any other version receives `latest`.

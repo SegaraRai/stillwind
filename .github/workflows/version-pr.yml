@@ -16,6 +16,7 @@ concurrency:
 
 env:
   VERSION_BRANCH: version/main
+  VERSION_LABEL: release
 
 jobs:
   version-pr:
@@ -65,7 +66,7 @@ jobs:
           printf 'Merging this pull request starts the Release workflow.\n\n```text\n%s\n```\n' "$plan" > "$RUNNER_TEMP/body.md"
           number=$(gh pr list --head "$VERSION_BRANCH" --state open --json number --jq '.[0].number // empty')
           if [ -n "$number" ]; then
-            gh pr edit "$number" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+            gh pr edit "$number" --title "$title" --body-file "$RUNNER_TEMP/body.md" --add-label "$VERSION_LABEL"
           else
-            gh pr create --base main --head "$VERSION_BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+            gh pr create --base main --head "$VERSION_BRANCH" --title "$title" --body-file "$RUNNER_TEMP/body.md" --label "$VERSION_LABEL"
           fi
