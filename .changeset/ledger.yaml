@@ -25,6 +25,15 @@
   dir: packages/config
   intents:
     - weak-moose-fail
+"@stillwind/integration@0.5.0":
+  dir: packages/integration
+  intents:
+    - fresh-routes-render
+"@stillwind/language-server@0.5.0":
+  dir: packages/language-server
+  intents:
+    - clear-logs-show
+    - light-jokes-dig
 "@stillwind/vscode-extension@0.2.0":
   dir: packages/vscode-extension
   intents:
@@ -47,6 +56,11 @@
   dir: packages/vscode-extension
   intents:
     - late-builds-ship
+"@stillwind/vscode-extension@0.5.0":
+  dir: packages/vscode-extension
+  intents:
+    - clear-logs-show
+    - light-jokes-dig
 stillwind@0.1.0:
   dir: packages/core
   intents:
