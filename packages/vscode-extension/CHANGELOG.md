@@ -1,5 +1,18 @@
 # @stillwind/vscode-extension
 
+## 0.4.1
+
+### Patch Changes
+
+- This release publishes the changes listed for 0.4.0. Version 0.4.0 was not published to npm or the VS Code extension marketplaces.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.4.1
+  - @stillwind/config@0.4.1
+  - @stillwind/host@0.4.1
+  - @stillwind/language-server@0.4.1
+  - @stillwind/native@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

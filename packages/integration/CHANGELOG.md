@@ -1,5 +1,15 @@
 # @stillwind/integration
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.4.1
+  - @stillwind/host@0.4.1
+  - @stillwind/native@0.4.1
+  - stillwind@0.4.1
+
 ## 0.4.0
 
 ### Patch Changes

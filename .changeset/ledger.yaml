@@ -17,6 +17,10 @@
     - plain-types-skip
     - pulled-tabs-match
     - steady-builds-pass
+"@stillwind/cli@0.4.1":
+  dir: packages/cli
+  intents:
+    - late-builds-ship
 "@stillwind/config@0.2.0":
   dir: packages/config
   intents:
@@ -39,6 +43,10 @@
     - silent-logs-settle
     - steady-builds-pass
     - tidy-copies-wait
+"@stillwind/vscode-extension@0.4.1":
+  dir: packages/vscode-extension
+  intents:
+    - late-builds-ship
 stillwind@0.1.0:
   dir: packages/core
   intents:
@@ -68,3 +76,7 @@ stillwind@0.4.0:
     - strict-names-report
     - true-notices-tell
     - wide-pages-match
+stillwind@0.4.1:
+  dir: packages/core
+  intents:
+    - late-builds-ship
