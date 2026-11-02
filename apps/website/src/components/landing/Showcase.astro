@@ -258,6 +258,7 @@ const results = [
         >
           <div
             data-code-host
+            translate="no"
             {...style("code-font morph-source", {
               [story("data-enhanced")]: {
                 "max-outline:": "text-code-output",
@@ -344,7 +345,9 @@ const results = [
                     data-format-diagnostics={frame.id === "format" || undefined}
                     data-multiple={frame.reports.length > 1 || undefined}
                     {...style(diagnostics, "text-danger", {
-                      [story("data-enhanced")]: "opacity-(--diagnostic-opacity,0)",
+                      [story("data-enhanced")]: {
+                        "data-format-diagnostics:": "opacity-(--diagnostic-opacity,0)",
+                      },
                     })}
                   >
                     <svg
@@ -378,6 +381,7 @@ const results = [
                         data-diagnostic={keys[report.utilityIndex]}
                       >
                         <p
+                          translate="no"
                           {...style("mbe-2 font-sans text-small", {
                             [story("data-enhanced")]: {
                               "first:": {
@@ -408,8 +412,19 @@ const results = [
                       </div>
                     ))}
                   </div>
+                  {frame.id === "check" && (
+                    <p
+                      translate="no"
+                      {...style("text-caption text-muted", {
+                        [story("data-enhanced")]: "absolute inset-s-0 inset-be-2",
+                      })}
+                    >
+                      $ stillwind lint
+                    </p>
+                  )}
                   {frame.id === "constrain" && (
                     <div
+                      translate="no"
                       {...style({
                         [story("data-enhanced")]: [
                           "absolute inset-s-0 inset-be-2 text-muted",
@@ -440,6 +455,7 @@ const results = [
                   {frame.id === "format" && (
                     <p
                       data-format-command
+                      translate="no"
                       {...style("text-caption text-muted", {
                         [story("data-enhanced")]: "absolute inset-s-0 inset-be-2 grid",
                       })}
@@ -484,6 +500,7 @@ const results = [
                   >
                     <p {...style("mbe-3 text-caption/[1] text-muted")}>Output (React)</p>
                     <code
+                      translate="no"
                       {...style("code-font", {
                         [story("data-enhanced")]: [
                           "block text-code-display/[1] tracking-[-0.035em] whitespace-pre",
@@ -510,6 +527,7 @@ const results = [
                   >
                     <p {...style("mbe-3 text-caption/[1] text-muted")}>Compiled CSS</p>
                     <pre
+                      translate="no"
                       {...style("text-caption/[1.7] code-font code-scroll", {
                         [story("data-enhanced")]: [
                           "max-block-50",
@@ -598,6 +616,7 @@ const results = [
               data-static-finding={parts[0]!.finding || undefined}
             >
               <code
+                translate="no"
                 {...style("code-font", {
                   [finding("data-static-finding")]: [
                     "relative inline-block pbe-1 text-danger border-danger border-be",
@@ -614,14 +633,22 @@ const results = [
                 .filter((report) => keys[report.utilityIndex] === parts[0]!.utility)
                 .map((report) => (
                   <div {...style("mbs-9 text-danger whitespace-normal")}>
-                    <p {...style("mbe-2 font-sans text-small")}>{report.code}</p>
+                    <p translate="no" {...style("mbe-2 font-sans text-small")}>
+                      {report.code}
+                    </p>
                     <p {...style("max-inline-90 text-caption/[1.7]")}>{report.message}</p>
                   </div>
                 ))}
             </div>
           ))}
         </div>
+        {frame.id === "check" && (
+          <p translate="no" {...style("mbs-7 font-mono text-caption text-muted")}>
+            $ stillwind lint
+          </p>
+        )}
         {frame.id === "constrain" && <pre
+          translate="no"
           {...style("mbs-7 font-mono text-caption/[1.9] code-font code-scroll")}
         ><code {...style("code-font")} >{policy}</code></pre>}
         {frame.id === "format" &&
@@ -629,9 +656,13 @@ const results = [
             <div {...style("mbs-7")}>
               <p {...style("mbe-3 font-mono text-caption text-muted")}>{result.label}</p>
               <div {...style("code-scroll")}>
-                <code {...style("font-mono text-lead code-font")}>{result.source}</code>
+                <code translate="no" {...style("font-mono text-lead code-font")}>
+                  {result.source}
+                </code>
               </div>
-              <p {...style("mbs-5 font-mono text-caption text-muted")}>{result.command}</p>
+              <p translate="no" {...style("mbs-5 font-mono text-caption text-muted")}>
+                {result.command}
+              </p>
             </div>
           ))}
         {frame.id === "compile" && (
@@ -647,7 +678,9 @@ const results = [
               })}
             >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Output (React)</p>
-              <code {...style("block font-mono text-small code-font")}>{props}</code>
+              <code translate="no" {...style("block font-mono text-small code-font")}>
+                {props}
+              </code>
             </div>
             <div
               {...style("min-inline-0", {
@@ -657,6 +690,7 @@ const results = [
             >
               <p {...style("mbe-3 font-mono text-caption text-muted")}>Compiled CSS</p>
               <pre
+                translate="no"
                 {...style("font-mono text-caption/[1.9] code-font code-scroll")}
               ><code {...style("code-font")} >{examples.css}</code></pre>
             </div>

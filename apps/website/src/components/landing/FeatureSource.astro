@@ -68,6 +68,7 @@ const specimens = frames.map((frame, index) => {
     },
   })}
   data-code-actors
+  translate="no"
   aria-hidden="true"
 ></div>
 <div
@@ -122,6 +123,7 @@ const specimens = frames.map((frame, index) => {
         },
       )}
       data-measure
+      translate="no"
       data-feature-frame={index}
       data-current={index === 0 || undefined}
     ><code {...style("[font-family:inherit] code-font")}>{runs.map((run) =>
