@@ -8,9 +8,11 @@ import { fileIcon, getFileInfo } from "./file-info.ts";
 import { PreviewChannel, previewDocument } from "./preview/channel.ts";
 import { URL_DOCS, URL_WEBSITE } from "./site.ts";
 import { Explorer } from "./workbench/explorer.tsx";
-import { countProblems, ProblemsPanel, type Problem } from "./workbench/problems.tsx";
+import { Panel, type PanelTab } from "./workbench/panel.tsx";
+import { countProblems, type Problem } from "./workbench/problems.tsx";
 import { ResultPane, selectOutput, type ResultTab, type Viewport } from "./workbench/results.tsx";
 import { Sash } from "./workbench/sash.tsx";
+import { OutputChannels, type ChannelEntry } from "./workspace/channels.ts";
 import { applyEditorTheme, PlaygroundWorkspace } from "./workspace/editor.ts";
 import { formatSource } from "./workspace/formatter.ts";
 import { OutputView } from "./workspace/output.ts";
@@ -39,6 +41,11 @@ export default function Playground() {
   const outputHost = useRef<HTMLDivElement>(null);
   const workspace = useRef<PlaygroundWorkspace>(undefined);
   const outputView = useRef<OutputView>(undefined);
+  const channelHost = useRef<HTMLDivElement>(null);
+  const channelView = useRef<OutputChannels>(undefined);
+  const [panelTab, setPanelTab] = useState<PanelTab>("problems");
+  const [channels, setChannels] = useState<ChannelEntry[]>([]);
+  const [channel, setChannel] = useState<string>();
   const [outputReady, setOutputReady] = useState(false);
   const theme = useColorTheme();
   const [fixable, setFixable] = useState(false);
@@ -49,8 +56,10 @@ export default function Playground() {
   const [result, setResult] = useState<ApplicationBuild>();
   const [problems, setProblems] = useState<Problem[]>([]);
   const [tab, setTab] = useState<ResultTab>("preview");
-  // Below the inline breakpoint, the workbench shows one view at a time.
-  const [view, setView] = useState<"code" | "preview" | "problems">("code");
+  // Below the inline breakpoint, the workbench shows one view at a time. The panel views also
+  // select the panel tab, because the panel hides its own tabs there.
+  const [view, setView] = useState<"code" | "preview" | PanelTab>("code");
+  const viewNav = useRef<HTMLElement>(null);
   const [filesOpen, setFilesOpen] = useState(false);
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [sidebar, setSidebar] = useState(224);
@@ -128,6 +137,13 @@ export default function Playground() {
         current.select(opened.active);
         setActive(opened.active);
         outputView.current = new OutputView(outputHost.current!);
+        const listChannels = () => setChannels(channelView.current?.list() ?? []);
+        channelView.current = new OutputChannels(channelHost.current!, listChannels, (id) => {
+          setPanelTab("output");
+          setChannel(id);
+          setView("output");
+        });
+        listChannels();
         setOutputReady(true);
         const refreshDiagnostics = () =>
           setProblems(
@@ -161,6 +177,7 @@ export default function Playground() {
       builder?.dispose();
       channel?.dispose();
       outputView.current?.dispose();
+      channelView.current?.dispose();
       workspace.current?.dispose();
     };
   }, []);
@@ -186,6 +203,28 @@ export default function Playground() {
       current = false;
     };
   }, [output?.id, output?.language, output?.text, output?.generated, outputReady]);
+
+  // The panel shows the Stillwind channel until the user selects another channel, and falls back
+  // to the first channel when the selected channel is removed.
+  useEffect(() => {
+    if (!channels.some(({ id }) => id === channel)) {
+      setChannel((channels.find(({ label }) => label === "Stillwind") ?? channels[0])?.id);
+    }
+  }, [channels, channel]);
+
+  useEffect(() => {
+    if (channel) {
+      void channelView.current?.show(channel);
+    }
+  }, [channel]);
+
+  // A view selected outside the bar, such as Output after "Go to output", can be scrolled out.
+  useEffect(() => {
+    viewNav.current?.querySelector("[aria-pressed=true]")?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [view]);
 
   // Diagnostics change after edits and fixes, so they also signal changes in the fix actions.
   useEffect(() => {
@@ -463,7 +502,10 @@ export default function Playground() {
             {...style({
               "": "grid min-block-0 grid-cols-[minmax(0,1fr)_minmax(20rem,min(var(--results),calc(100%-20rem)))]",
               "max-workbench:": "grid-cols-1 grid-rows-2",
-              "max-inline:": ["grid-rows-[minmax(0,1fr)]", view === "problems" && "hidden"],
+              "max-inline:": [
+                "grid-rows-[minmax(0,1fr)]",
+                (view === "problems" || view === "output") && "hidden",
+              ],
               "--results": `${results}px`,
             })}
           >
@@ -592,9 +634,14 @@ export default function Playground() {
               />
             </div>
           </div>
-          <div {...style("relative grid min-block-0", view !== "problems" && "max-inline:hidden")}>
+          <div
+            {...style(
+              "relative grid min-block-0",
+              view !== "problems" && view !== "output" && "max-inline:hidden",
+            )}
+          >
             <Sash
-              label="Resize problems panel"
+              label="Resize panel"
               orientation="horizontal"
               value={panel}
               min={96}
@@ -602,25 +649,41 @@ export default function Playground() {
               direction={-1}
               onChange={setPanel}
             />
-            <ProblemsPanel problems={problems} onSelect={select} />
+            <Panel
+              tab={panelTab}
+              onTab={setPanelTab}
+              problems={problems}
+              onSelect={select}
+              channels={channels}
+              channel={channel}
+              onChannel={setChannel}
+              outputHost={channelHost}
+            />
           </div>
         </div>
       </div>
+      {/* Four views do not fit the narrowest phones, so the bar scrolls horizontally. */}
       <nav
+        ref={viewNav}
         aria-label="Views"
-        {...style("grid block-12 grid-cols-3 bg-background border-divider border-bs inline:hidden")}
+        {...style(
+          "flex overflow-x-auto block-12 bg-background border-divider border-bs scrollbar-none inline:hidden",
+        )}
       >
-        {(["code", "preview", "problems"] as const).map((id) => (
+        {(["code", "preview", "problems", "output"] as const).map((id) => (
           <button
             key={id}
             type="button"
             aria-pressed={view === id}
             onClick={() => {
               setView(id);
+              if (id === "problems" || id === "output") {
+                setPanelTab(id);
+              }
               setFilesOpen(false);
             }}
             {...style({
-              "": "relative flex items-center justify-center gap-1.5 text-caption text-muted select-none",
+              "": "relative flex px-3 min-inline-24 flex-1 items-center justify-center gap-1.5 text-caption text-muted whitespace-nowrap select-none",
               "aria-pressed:":
                 "text-foreground before:absolute before:inset-x-6 before:inset-bs-0 before:block-0.5 before:bg-accent",
             })}
@@ -633,6 +696,7 @@ export default function Playground() {
                   code: "icon-lucide--code-xml",
                   preview: "icon-lucide--app-window",
                   problems: "icon-lucide--circle-alert",
+                  output: "icon-lucide--logs",
                 }[id],
               )}
             />
@@ -641,6 +705,7 @@ export default function Playground() {
                 code: "Code",
                 preview: "Preview",
                 problems: `Problems (${problems.length})`,
+                output: "Output",
               }[id]
             }
           </button>

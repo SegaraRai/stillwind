@@ -26,8 +26,11 @@ import "@codingame/monaco-vscode-javascript-default-extension";
 import "@codingame/monaco-vscode-json-default-extension";
 import getKeybindings from "@codingame/monaco-vscode-keybindings-service-override";
 import getLanguages from "@codingame/monaco-vscode-languages-service-override";
+import "@codingame/monaco-vscode-log-default-extension";
 import getModels from "@codingame/monaco-vscode-model-service-override";
 import getNotifications from "@codingame/monaco-vscode-notifications-service-override";
+import getOutput from "@codingame/monaco-vscode-output-service-override";
+import OutputLinkWorker from "@codingame/monaco-vscode-output-service-override/worker?worker";
 import getTextmate from "@codingame/monaco-vscode-textmate-service-override";
 import TextmateWorker from "@codingame/monaco-vscode-textmate-service-override/worker?worker";
 import "@codingame/monaco-vscode-theme-defaults-default-extension";
@@ -144,11 +147,13 @@ export class PlaygroundWorkspace {
         getWorkerUrl: (_id: string, label: string) =>
           label === "extensionHostWorkerMain" ? extensionWorker : undefined,
         getWorker: (_id: string, label: string) =>
-          label === "TextMateWorker"
-            ? new TextmateWorker()
-            : label === "editorWorkerService"
-              ? new EditorWorker()
-              : undefined,
+          (
+            {
+              EditorWorker: () => new EditorWorker(),
+              OutputLinkWorker: () => new OutputLinkWorker(),
+              TextMateWorker: () => new TextmateWorker(),
+            } as Partial<Record<string, () => Worker>>
+          )[label]?.(),
       },
     });
     await initialize(
@@ -159,6 +164,7 @@ export class PlaygroundWorkspace {
         ...getLanguages(),
         ...getKeybindings(),
         ...getNotifications(),
+        ...getOutput(),
         ...getEditor(async () => undefined),
         ...getExtensions({
           enableWorkerExtensionHost: true,

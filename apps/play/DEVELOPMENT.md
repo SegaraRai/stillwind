@@ -110,7 +110,11 @@ The result pane shows the preview, the CSS that Stillwind generated for the file
 the editor, that file's compiled code, and the bundled stylesheet of the preview build. A
 read-only Monaco editor shows the outputs. Its models are not sent to extensions, so language
 servers do not report diagnostics for them. The preview frame stays mounted while another view
-is shown. The Problems panel below the editor lists diagnostics from all workspace files.
+is shown. The panel below the editor lists diagnostics from all workspace files under Problems
+and shows the output channels of VS Code services and extensions under Output, such as the
+Stillwind language client log. Output opens the Stillwind channel first. A request from an
+extension to show a channel, such as the "Go to output" button of a notification, selects that
+channel in Output.
 
 Configuration accepts objects, functions, async functions, and promises. Imports
 must be browser-compatible; Node built-ins are unavailable.
