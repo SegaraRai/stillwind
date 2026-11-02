@@ -19,6 +19,8 @@ This directory contains the sources of the Stillwind logo, the favicons, and the
 - `apps/{website,play}/public/favicon.svg` and `apps/play/src/icons/stillwind/mark.svg`: the mark.
   An embedded `prefers-color-scheme` media query selects the light or dark colors.
 - `apps/website/public/og.png` and `apps/play/public/og.png`: the social preview images of the sites.
+- `apps/website/public/brand/{logo-outlined,mark}-{light,dark}.svg`: copies of the files in `tools/brand/output/`
+  that `https://stillwind.dev/brand/` serves. Other sites link to these URLs, so keep the file names.
 - `packages/vscode-extension/icon.png`: the mark with the light colors and a transparent background.
 
 `tools/brand/output/` holds the files that are not part of an app or a package:

@@ -361,6 +361,14 @@ selectable as the nearest complete source state. Manual motion playback retains
 its final state until scrolling reaches the end, the stage leaves the viewport,
 or a scene change hides it; those events restore scroll control.
 
+## Brand files
+
+`public/brand/` holds copies of the logo and mark SVG files from `tools/brand/output/`.
+`tools/brand/generate.ts` writes them, so regenerate them instead of editing them.
+Other sites link to `https://stillwind.dev/brand/<file>.svg`, so keep the file names.
+`public/_headers` allows cross-origin use of these files and limits their cache lifetime,
+because a changed logo keeps its URL.
+
 ## Fonts and measurements
 
 Instrument Sans and JetBrains Mono are bundled for local delivery. Their licenses

@@ -32,8 +32,12 @@ for (const app of ["website", "play"]) {
   write(`apps/${app}/public/favicon.svg`, mark);
 }
 write("apps/play/src/icons/stillwind/mark.svg", mark);
-write("tools/brand/output/logo-outlined-light.svg", lockupOutlined(logo, "light"));
-write("tools/brand/output/logo-outlined-dark.svg", lockupOutlined(logo, "dark"));
+// stillwind.dev serves the logo and mark SVG files under /brand/ for other sites to use.
+for (const scheme of ["light", "dark"] as const) {
+  const svg = lockupOutlined(logo, scheme);
+  write(`tools/brand/output/logo-outlined-${scheme}.svg`, svg);
+  write(`apps/website/public/brand/logo-outlined-${scheme}.svg`, svg);
+}
 write("tools/brand/output/logo-editable.svg", lockupEditable(logo, LOCKUP.tracking));
 // Square icons are drawn at 8x and scaled down so that their small tile gaps stay sharp.
 const squarePng = async (svg: string, size: number) =>
@@ -52,6 +56,7 @@ write("packages/vscode-extension/icon.png", await squarePng(markOnly(logo, "ligh
 for (const scheme of ["light", "dark"] as const) {
   const svg = markOnly(logo, scheme);
   write(`tools/brand/output/mark-${scheme}.svg`, svg);
+  write(`apps/website/public/brand/mark-${scheme}.svg`, svg);
   // The VS Code Marketplace publisher uses the 250px icon, and the GitHub organization uses the 500px icon.
   for (const size of [250, 500]) {
     write(`tools/brand/output/mark-${scheme}-${size}.png`, await squarePng(svg, size));
