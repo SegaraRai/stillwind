@@ -5,8 +5,9 @@
 //! registrations the CSS actually needs, and walks the template's layers and slots.
 //! [`StylesheetPlacement`] decides whether authored document rules and Preflight
 //! participate, so a per-module carrier does not duplicate them. Assembly failures come
-//! back as [`StylesheetRenderError`] with any naming fallback reports. Rendering a whole
-//! compilation attaches the fatal cause to the source and invalidates generated output.
+//! back as [`StylesheetRenderError`] with any naming fallback reports. Rendering a
+//! whole compilation attaches the fatal cause to the source and invalidates generated
+//! output.
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError};
@@ -237,7 +238,8 @@ impl<'a> StylesheetRenderer<'a> {
     }
 }
 
-/// Combines generator reports in encounter order, deduplicating family, hash, and reason.
+/// Combines generator reports in encounter order, deduplicating family, hash, and
+/// reason.
 pub fn merge_rejected_names(
     first: Vec<RejectedIdentifier>,
     second: Vec<RejectedIdentifier>,

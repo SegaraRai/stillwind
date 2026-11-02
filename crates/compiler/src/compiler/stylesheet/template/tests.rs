@@ -1,7 +1,8 @@
 //! Assembly contracts spanning dependency selection and template emission.
 //!
 //! Covers authored placement, carrier layers, dependency destinations, and repeated
-//! source mappings through the rendering entry points; it does not test CSS minification.
+//! source mappings through the rendering entry points; it does not test CSS
+//! minification.
 
 use std::rc::Rc;
 use std::sync::Arc;
