@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.json",
   "include": [
     "tests/**/*.ts",
+    "typecheck/**/*.ts",
     "build-binding.ts",
     "check-glibc.ts",
     "collect-local-artifacts.ts",
