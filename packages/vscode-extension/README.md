@@ -15,9 +15,13 @@ or [Open VSX](https://open-vsx.org/extension/stillwind/stillwind).
 
 Desktop VS Code runs the `@stillwind/cli` version that the workspace installs, so
 editor diagnostics match that version's compiler. If the workspace has no CLI, or
-the CLI fails to start, the extension uses its bundled language server. The
-**Stillwind** output channel shows which server is running. Web VS Code always uses
-the bundled server.
+the CLI fails to start, the extension uses its bundled language server and shows a
+warning. Web VS Code always uses the bundled server.
+
+The **Stillwind** output channel shows which server is running, which configurations
+opened, and the workspace folders without a configuration. Set the channel's log
+level to Debug to see the events that reload configurations, or to Trace to see the
+LSP messages. `stillwind.trace.server` selects `messages` or `verbose` trace detail.
 
 Add a [Stillwind project configuration](https://stillwind.dev/docs/configuration)
 to the workspace. The extension discovers `stillwind.config.*`; set

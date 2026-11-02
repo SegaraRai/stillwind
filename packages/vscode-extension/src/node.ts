@@ -21,6 +21,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log: true,
   });
   context.subscriptions.push(output);
+  const version = (context.extension.packageJSON as { version: string }).version;
+  output.info(`Stillwind extension ${version}`);
   const options = {
     ...clientOptions(context),
     outputChannel: output,
@@ -39,7 +41,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       .map((folder) => folder.uri.fsPath);
     const setting = vscode.workspace.getConfiguration("stillwind").get<string>("configFile");
     const config = setting ? resolve(folders[0] ?? "", setting) : undefined;
+    if (config) {
+      output.info(`Using the configuration file ${config} from stillwind.configFile`);
+    }
     const cli = findProjectCli(config ? [dirname(config), ...folders] : folders);
+    let reason = "the project does not install @stillwind/cli";
     if (cli) {
       output.info(`Starting @stillwind/cli ${cli.version} from ${cli.module}`);
       const projectClient = new LanguageClient(
@@ -55,9 +61,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       } catch (error) {
         output.warn(`The project CLI failed to start: ${String(error)}`);
         await projectClient.dispose().catch(() => undefined);
+        reason = `@stillwind/cli ${cli.version} failed to start`;
+        void vscode.window
+          .showWarningMessage(
+            `Stillwind: The project's @stillwind/cli ${cli.version} failed to start. The bundled language server ${version} runs instead, so its results can differ from the project CLI.`,
+            "Show Output",
+          )
+          .then((selection) => {
+            if (selection) {
+              output.show(true);
+            }
+          });
       }
     }
-    output.info("Starting the bundled language server");
+    output.info(`Starting the bundled language server ${version} because ${reason}`);
     client = new LanguageClient(
       "stillwind",
       "Stillwind",

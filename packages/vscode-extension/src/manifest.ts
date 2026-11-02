@@ -93,6 +93,14 @@ export const extensionManifest = {
           description:
             "Include registry directives when editing utility libraries and CSS metadata. This changes editor suggestions only.",
         },
+        "stillwind.trace.server": {
+          type: "string",
+          enum: ["messages", "verbose"],
+          default: "messages",
+          scope: "window",
+          description:
+            "Detail of the LSP message trace. The Stillwind output shows the trace when its log level is Trace.",
+        },
       },
     },
   },

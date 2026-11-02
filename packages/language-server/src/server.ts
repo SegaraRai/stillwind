@@ -113,8 +113,12 @@ export function createLanguageServer(
   const published = new Set<string>();
   /** Documents already passed to discovery, which keeps later analysis passes from searching again. */
   const discovered = new Set<string>();
-  /** Current error messages that the user has seen, which keeps each from notifying again. */
+  /** Identities whose current error the user has seen, which keeps each from notifying again. */
   const reported = new Set<string>();
+  /** Last logged error message of each identity, which keeps an unchanged error from repeating. */
+  const logged = new Map<string, string>();
+  /** Editor query failures already logged since services opened, which keeps each from repeating. */
+  const queryFailures = new Set<string>();
 
   let roots: string[] = [];
   let initializationOptions: unknown;
@@ -154,7 +158,7 @@ export function createLanguageServer(
     generation++;
     cache.clear();
     controls = controls.then(action).catch((error: unknown) => {
-      connection.console.error(String(error));
+      connection.console.error(errorText(error));
     });
   };
 
@@ -170,6 +174,7 @@ export function createLanguageServer(
       errors.set(id, error);
     }
     for (const [id, workspace] of opened.workspaces) {
+      connection.console.info(`Opened the Stillwind workspace ${id}`);
       workspaces.set(id, workspace);
       for (const document of documents.all()) {
         await workspace.update(document.uri, document.getText(), document.version);
@@ -178,22 +183,43 @@ export function createLanguageServer(
   };
 
   /**
-   * Closes existing services, opens the current roots, and replays every open buffer.
+   * Closes existing services, opens the current roots, replays every open buffer, and logs the
+   * outcome.
    *
+   * @param reason - Event that requires the services, logged at debug level.
    * @returns Completion of service replacement and buffer replay.
    * @throws If service closure, the workspace factory, or buffer replay fails.
    */
-  const open = async () => {
+  const open = async (reason: string) => {
+    connection.console.debug(`Opening Stillwind workspaces after ${reason}`);
+    const start = performance.now();
     await Promise.all([...workspaces.values()].map((workspace) => workspace.close()));
     workspaces.clear();
     errors.clear();
     discovered.clear();
+    queryFailures.clear();
     await adopt(
       await options.openWorkspaces({
         workspaceFolders: roots,
         initializationOptions,
       }),
     );
+    const elapsed = Math.round(performance.now() - start);
+    if (workspaces.size) {
+      const count = `${workspaces.size} Stillwind workspace${workspaces.size === 1 ? "" : "s"}`;
+      connection.console.info(`Opened ${count} in ${elapsed} ms`);
+    } else if (!errors.size) {
+      connection.console.info(
+        [
+          roots.length
+            ? `No Stillwind configuration was found in ${roots.join(", ")}.`
+            : "No workspace folder is open.",
+          ...(options.discoverWorkspace
+            ? ["A configuration in a subdirectory opens when a document in that directory opens."]
+            : []),
+        ].join(" "),
+      );
+    }
   };
 
   /**
@@ -300,24 +326,30 @@ export function createLanguageServer(
     }
   };
 
-  /** Logs each new workspace error, notifies the user once, and forgets errors that ended. */
+  /**
+   * Logs each new or changed workspace error and forgets errors that ended. The user receives one
+   * notification for each identity until its error ends, because the message of a configuration
+   * error can change with each edit of the configuration.
+   */
   const notifyErrors = () => {
-    const current = new Set<string>();
     for (const [file, error] of errors) {
       const message = `${file}: ${error}`;
-      current.add(message);
-      if (!reported.has(message)) {
-        reported.add(message);
+      if (logged.get(file) !== message) {
+        logged.set(file, message);
         connection.console.error(message);
+      }
+      if (!reported.has(file)) {
+        reported.add(file);
         void connection.sendNotification(ShowMessageNotification.type, {
-          type: MessageType.Warning,
+          type: MessageType.Error,
           message: `Stillwind: ${message}`,
         });
       }
     }
-    for (const message of reported) {
-      if (!current.has(message)) {
-        reported.delete(message);
+    for (const file of reported) {
+      if (!errors.has(file)) {
+        reported.delete(file);
+        logged.delete(file);
       }
     }
   };
@@ -457,7 +489,7 @@ export function createLanguageServer(
         notifyErrors();
         if (pullRefresh) {
           void connection.languages.diagnostics.refresh().catch((error: unknown) => {
-            connection.console.error(String(error));
+            connection.console.error(errorText(error));
           });
         }
       }, 40);
@@ -466,7 +498,7 @@ export function createLanguageServer(
     const revision = generation;
     timer = setTimeout(() => {
       void analyze(revision).catch((error: unknown) => {
-        connection.console.error(String(error));
+        connection.console.error(errorText(error));
       });
     }, 40);
   };
@@ -589,7 +621,8 @@ export function createLanguageServer(
 
   /**
    * Queries services after queued mutations and checks document versions and source fingerprints.
-   * Query failures are logged, and the cancellation subscription is released after the request.
+   * Each distinct query failure is logged once until services reopen. The cancellation subscription
+   * is released after the request.
    *
    * @param uri - URI of the open original document.
    * @param request - Editor operation expressed in that document's UTF-16 coordinates.
@@ -630,7 +663,11 @@ export function createLanguageServer(
       const { fingerprint } = await import("@stillwind/native");
       return results.filter((entry) => entry.result.revision === fingerprint(document.getText()));
     } catch (error) {
-      connection.console.error(String(error));
+      const message = errorText(error);
+      if (!queryFailures.has(message)) {
+        queryFailures.add(message);
+        connection.console.error(message);
+      }
       return [];
     } finally {
       subscription.dispose();
@@ -651,7 +688,7 @@ export function createLanguageServer(
     roots =
       params.workspaceFolders?.map((folder) => folder.uri) ??
       (params.rootUri ? [params.rootUri] : []);
-    await open();
+    await open("initialization");
     const editor =
       options.discoverWorkspace != null ||
       [...workspaces.values()].some((workspace) => workspace.query != null);
@@ -704,7 +741,7 @@ export function createLanguageServer(
           ...roots.filter((root) => !deleted.has(root)),
           ...added.map((folder) => folder.uri),
         ];
-        control(open);
+        control(() => open("a workspace folder change"));
         schedule();
       });
     }
@@ -745,24 +782,27 @@ export function createLanguageServer(
    * Reopens the workspaces if any service cannot reuse its current buffers after a save or file
    * change. Without services, reopening lets a new or corrected configuration take effect.
    *
-   * @param uris - Document URIs from the save or watch notification.
+   * @param uris - Document URIs from the save or watch notification. The list must not be empty.
+   * @param event - Notification kind for the log, such as `save`.
    * @returns Completion of the checks and any required workspace replacement.
    * @throws If a service check or workspace replacement fails.
    */
-  const refresh = async (uris: readonly string[]) => {
+  const refresh = async (uris: readonly string[], event: string) => {
+    const others = uris.length > 1 ? ` and ${uris.length - 1} other files` : "";
+    const reason = `the ${event} of ${uris[0]}${others}`;
     if (!workspaces.size || (errors.size && uris.some(isConfigurationUri))) {
-      await open();
+      await open(reason);
       return;
     }
     for (const workspace of workspaces.values()) {
       if (!(await workspace.refresh?.(uris))) {
-        await open();
+        await open(reason);
         break;
       }
     }
   };
   documents.onDidSave(({ document }) => {
-    control(() => refresh([document.uri]));
+    control(() => refresh([document.uri], "save"));
     schedule();
   });
   /**
@@ -790,12 +830,12 @@ export function createLanguageServer(
     void affected(uris)
       .then((result) => {
         if (result) {
-          control(() => refresh(uris));
+          control(() => refresh(uris, "change"));
           schedule();
         }
       })
       .catch((error: unknown) => {
-        connection.console.error(String(error));
+        connection.console.error(errorText(error));
       });
   });
   connection.languages.diagnostics.on((params, token) => {
@@ -812,7 +852,7 @@ export function createLanguageServer(
     control(async () => {
       registryDirectives =
         completionRegistrySetting(settings?.stillwind ?? settings) ?? registryDirectives;
-      await open();
+      await open("a configuration change");
     });
     schedule();
   });
@@ -935,7 +975,7 @@ export function createLanguageServer(
   return {
     ready: () => controls,
     reload: async () => {
-      control(open);
+      control(() => open("a reload request"));
       schedule();
       await controls;
     },
@@ -957,6 +997,17 @@ export function uriKey(uri: string): string {
     return uri;
   }
   return uri.replace(/^file:\/\/\/[a-z]:/i, (drive) => drive.toLowerCase());
+}
+
+/**
+ * Formats an unexpected failure for the log.
+ *
+ * @param error - Thrown value.
+ * @returns The stack trace of an `Error`, which includes its message, or the string form of other
+ * values.
+ */
+function errorText(error: unknown): string {
+  return error instanceof Error && error.stack ? error.stack : String(error);
 }
 
 /**

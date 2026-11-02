@@ -9,16 +9,54 @@ let worker: Worker | undefined;
 /**
  * Starts the LSP worker with files read through the embedding's workspace provider.
  *
- * @param context - Extension context that owns command registrations and file watching.
+ * @param context - Extension context that owns command registrations, file watching, and the output
+ * channel.
  * @returns Completion of command registration, workspace capture, and LSP initialization.
- * @throws If cross-origin isolation is unavailable or server initialization fails.
+ * @throws If cross-origin isolation is unavailable, after the error is logged and shown, or if
+ * server initialization fails.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const output = vscode.window.createOutputChannel("Stillwind", {
+    log: true,
+  });
+  context.subscriptions.push(output);
+  output.info(
+    `Stillwind extension ${(context.extension.packageJSON as { version: string }).version}`,
+  );
   if (!globalThis.crossOriginIsolated || typeof SharedArrayBuffer === "undefined") {
-    throw new Error("Stillwind Web requires cross-origin isolation (COOP and COEP headers)");
+    const message = "Stillwind Web requires cross-origin isolation (COOP and COEP headers)";
+    output.error(message);
+    void vscode.window.showErrorMessage(message);
+    throw new Error(message);
   }
 
-  const options = clientOptions(context);
+  const options = {
+    ...clientOptions(context),
+    outputChannel: output,
+  };
+  /**
+   * Captures workspace files and logs their count, the capture time, and the configuration setting.
+   *
+   * @param roots - Workspace directory URIs.
+   * @returns Captured files and the explicit configuration path, if the setting has one.
+   * @throws If workspace capture fails.
+   */
+  const capture = async (roots: readonly string[]) => {
+    const start = performance.now();
+    const files = await readWorkspace(roots);
+    output.info(
+      `Captured ${files.length} workspace files in ${Math.round(performance.now() - start)} ms`,
+    );
+    const configFile =
+      vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined;
+    if (configFile) {
+      output.info(`Using the configuration file ${configFile} from stillwind.configFile`);
+    }
+    return {
+      files,
+      configFile,
+    };
+  };
   /**
    * Stops the previous client, replaces its worker, and captures the current workspace for initialization.
    *
@@ -40,11 +78,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
     const initializationOptions = {
       ...editorSettings(),
-      files: await readWorkspace(
+      ...(await capture(
         vscode.workspace.workspaceFolders?.map((folder) => folder.uri.toString()) ?? [],
-      ),
-      configFile:
-        vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
+      )),
     };
     client = new LanguageClient("stillwind", "Stillwind", worker, {
       ...options,
@@ -57,11 +93,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }: {
         /** Workspace directory URIs requested by the server during reload. */
         roots: string[];
-      }) => ({
-        files: await readWorkspace(roots),
-        configFile:
-          vscode.workspace.getConfiguration("stillwind").get<string>("configFile") || undefined,
-      }),
+      }) => capture(roots),
     );
     try {
       await client.start();

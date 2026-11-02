@@ -450,6 +450,109 @@ test("configuration errors appear on the configuration file and notify once", as
   }
 });
 
+test("a configuration notifies again only after its error ends, and logs each changed error", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const messages: string[] = [];
+  const logs: string[] = [];
+  client.onNotification("window/showMessage", ({ message }: { message: string }) => {
+    messages.push(message);
+  });
+  client.onNotification(
+    "window/logMessage",
+    ({ type, message }: { type: number; message: string }) => {
+      if (type === 1) {
+        logs.push(message);
+      }
+    },
+  );
+  const failures = ["broken at 1", "broken at 2", undefined, "broken at 3"];
+  let opening = 0;
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => {
+      const failure = failures[opening++];
+      return {
+        workspaces: new Map(),
+        errors: new Map(failure ? [["/workspace/stillwind.config.ts", failure]] : []),
+      };
+    },
+  });
+  server.listen();
+  client.listen();
+  try {
+    await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    await client.sendNotification("initialized", {});
+    await vi.waitFor(() => expect(logs).toHaveLength(1));
+    for (let index = 1; index < failures.length; index++) {
+      await service.reload();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(logs).toEqual([
+      "/workspace/stillwind.config.ts: broken at 1",
+      "/workspace/stillwind.config.ts: broken at 2",
+      "/workspace/stillwind.config.ts: broken at 3",
+    ]);
+    expect(messages).toEqual([
+      "Stillwind: /workspace/stillwind.config.ts: broken at 1",
+      "Stillwind: /workspace/stillwind.config.ts: broken at 3",
+    ]);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
+
+test("opening workspaces logs each configuration and folders without one", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const server = createConnection(new StreamMessageReader(input), new StreamMessageWriter(output));
+  const client = createConnection(new StreamMessageReader(output), new StreamMessageWriter(input));
+  const logs: string[] = [];
+  client.onNotification(
+    "window/logMessage",
+    ({ type, message }: { type: number; message: string }) => {
+      if (type === 3) {
+        logs.push(message);
+      }
+    },
+  );
+  let opening = 0;
+  const service = createLanguageServer(server, {
+    openWorkspaces: async () => ({
+      workspaces: new Map(
+        opening++ ? [["/workspace/stillwind.config.ts", coveringService([])]] : [],
+      ),
+    }),
+  });
+  server.listen();
+  client.listen();
+  try {
+    await client.sendRequest<InitializeResult>("initialize", {
+      rootUri: "file:///workspace",
+      capabilities: {},
+    });
+    await service.reload();
+    await vi.waitFor(() => expect(logs).toHaveLength(3));
+    expect(logs[0]).toBe("No Stillwind configuration was found in file:///workspace.");
+    expect(logs[1]).toBe("Opened the Stillwind workspace /workspace/stillwind.config.ts");
+    expect(logs[2]).toMatch(/^Opened 1 Stillwind workspace in \d+ ms$/);
+  } finally {
+    await service.dispose();
+    client.dispose();
+    server.dispose();
+    input.destroy();
+    output.destroy();
+  }
+});
+
 test("LSP definition requests navigate CSS asset references using original UTF-16 ranges", async () => {
   const input = new PassThrough();
   const output = new PassThrough();
