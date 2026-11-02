@@ -32,37 +32,42 @@ for (const app of ["website", "play"]) {
   write(`apps/${app}/public/favicon.svg`, mark);
 }
 write("apps/play/src/icons/stillwind/mark.svg", mark);
-write("apps/website/logo-shape-only.svg", markOnly(logo));
-write("apps/website/logo-with-text.svg", lockupOutlined(logo, "light"));
-write("apps/website/logo-with-text-dark.svg", lockupOutlined(logo, "dark"));
-write("tools/brand/output/stillwind-logo-outlined.svg", lockupOutlined(logo, "light"));
-write("tools/brand/output/stillwind-logo-editable.svg", lockupEditable(logo, LOCKUP.tracking));
-// The extension icon is drawn at 8x and scaled down so that its small tile gaps stay sharp.
-write(
-  "packages/vscode-extension/icon.png",
-  await sharp(Buffer.from(markOnly(logo)), {
+write("tools/brand/output/logo-outlined-light.svg", lockupOutlined(logo, "light"));
+write("tools/brand/output/logo-outlined-dark.svg", lockupOutlined(logo, "dark"));
+write("tools/brand/output/logo-editable.svg", lockupEditable(logo, LOCKUP.tracking));
+// Square icons are drawn at 8x and scaled down so that their small tile gaps stay sharp.
+const squarePng = async (svg: string, size: number) =>
+  await sharp(Buffer.from(svg), {
     density: 72 * 8,
   })
-    .resize(128, 128, {
+    .resize(size, size, {
       kernel: "lanczos3",
     })
     .png({
       compressionLevel: 9,
       palette: false,
     })
-    .toBuffer(),
-);
+    .toBuffer();
+write("packages/vscode-extension/icon.png", await squarePng(markOnly(logo, "light"), 128));
+for (const scheme of ["light", "dark"] as const) {
+  const svg = markOnly(logo, scheme);
+  write(`tools/brand/output/mark-${scheme}.svg`, svg);
+  // The VS Code Marketplace publisher uses the 250px icon, and the GitHub organization uses the 500px icon.
+  for (const size of [250, 500]) {
+    write(`tools/brand/output/mark-${scheme}-${size}.png`, await squarePng(svg, size));
+  }
+}
 
 const website: Omit<OgImage, "width" | "height"> = {
   title: ["Keep your styles in order —", "even when AI writes them."],
   description: ["Tailwind CSS v4 utilities, checked and compiled."],
   field: "scattered",
 };
-// Each entry is [PNG path, SVG copy in tools/brand/output, content].
-const images: [string, string, OgImage][] = [
+// Each entry is [name in tools/brand/output, PNG path in an app or null, content].
+const images: [string, string | null, OgImage][] = [
   [
+    "website",
     "apps/website/public/og.png",
-    "website-og.svg",
     {
       ...website,
       width: 1200,
@@ -70,8 +75,8 @@ const images: [string, string, OgImage][] = [
     },
   ],
   [
-    "apps/website/github-social-preview.png",
-    "github-social-preview.svg",
+    "github",
+    null,
     {
       ...website,
       width: 1280,
@@ -79,8 +84,8 @@ const images: [string, string, OgImage][] = [
     },
   ],
   [
+    "playground",
     "apps/play/public/og.png",
-    "play-og.svg",
     {
       title: ["Try Stillwind in your browser."],
       description: ["Write components and see the CSS as you type."],
@@ -90,16 +95,17 @@ const images: [string, string, OgImage][] = [
     },
   ],
 ];
-for (const [path, copy, image] of images) {
+for (const [name, appPath, image] of images) {
   const svg = ogSvg(image, logo);
-  write(`tools/brand/output/${copy}`, svg);
-  write(
-    path,
-    await sharp(Buffer.from(svg))
-      .png({
-        compressionLevel: 9,
-        palette: false,
-      })
-      .toBuffer(),
-  );
+  const png = await sharp(Buffer.from(svg))
+    .png({
+      compressionLevel: 9,
+      palette: false,
+    })
+    .toBuffer();
+  write(`tools/brand/output/social-preview-${name}.svg`, svg);
+  write(`tools/brand/output/social-preview-${name}.png`, png);
+  if (appPath !== null) {
+    write(appPath, png);
+  }
 }

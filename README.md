@@ -1,7 +1,7 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="apps/website/logo-with-text-dark.svg" />
-    <img src="apps/website/logo-with-text.svg" alt="Stillwind" width="360" />
+    <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg" />
+    <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
   </picture>
 </h1>
 

@@ -18,12 +18,19 @@ This directory contains the sources of the Stillwind logo, the favicons, and the
 - `apps/{website,play}/src/icons/stillwind/{t,e,o}.svg`: icon layers of the `stillwind-logo` utility.
 - `apps/{website,play}/public/favicon.svg` and `apps/play/src/icons/stillwind/mark.svg`: the mark.
   An embedded `prefers-color-scheme` media query selects the light or dark colors.
-- `apps/website/logo-shape-only.svg` and `apps/website/logo-with-text.svg`: the mark and the lockup with outlined text.
-- `apps/website/logo-with-text-dark.svg`: the lockup with outlined text in the dark colors. The root `README.md`
-  selects it with a `<picture>` element when GitHub uses a dark theme.
-- `apps/website/public/og.png`, `apps/play/public/og.png`, and `apps/website/github-social-preview.png`.
+- `apps/website/public/og.png` and `apps/play/public/og.png`: the social preview images of the sites.
 - `packages/vscode-extension/icon.png`: the mark with the light colors and a transparent background.
-- `tools/brand/output/`: the lockup with outlined and editable text, and SVG copies of the social preview images.
+
+`tools/brand/output/` holds the files that are not part of an app or a package:
+
+- `mark-light.svg` and `mark-dark.svg`: the mark in the light and dark colors.
+- `mark-{light,dark}-250.png` and `mark-{light,dark}-500.png`: the mark with a transparent background. The VS Code
+  Marketplace publisher uses `mark-light-250.png`, and the GitHub organization uses `mark-light-500.png`.
+- `logo-outlined-light.svg` and `logo-outlined-dark.svg`: the lockup with outlined text in the light and dark
+  colors. The root `README.md` selects the dark file with a `<picture>` element when GitHub uses a dark theme.
+- `logo-editable.svg`: the lockup with the light colors and an editable Rubik `<text>` wordmark.
+- `social-preview-{github,playground,website}.{svg,png}`: the social preview images. The GitHub image is uploaded
+  in the repository settings, and the PNG files of the sites are the same as their `og.png`.
 
 ## Logo construction
 

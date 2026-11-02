@@ -79,10 +79,10 @@ ${logo.tiles.map((tile) => `    <path d="${tile.d}" fill="${c[tile.part]}" strok
   </g>`;
 };
 
-/** Returns the mark alone with the light colors. */
-export const markOnly = (logo: Lockup): string =>
+/** Returns the mark alone in the colors of `scheme`. */
+export const markOnly = (logo: Lockup, scheme: keyof typeof COLORS): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 32 32">
-${coloredTiles(logo, "light")}
+${coloredTiles(logo, scheme)}
 </svg>
 `;
 
