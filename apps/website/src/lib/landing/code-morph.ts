@@ -280,11 +280,18 @@ export function createCodeMorph(host: HTMLElement, scope: HTMLElement) {
           ];
         })
         .sort((left, right) => left.x - right.x);
-      const stacked = bounds.width < 600;
+      const stacked = !view.matchMedia(style.media("inline")).matches;
       let right = bounds.width;
       for (const label of labels.toReversed()) {
         label.left = stacked ? 0 : Math.min(label.left, right - label.width);
         right = label.left - 48;
+      }
+      if (!stacked) {
+        let left = 0;
+        for (const label of labels) {
+          label.left = Math.max(label.left, left);
+          left = label.left + label.width + 48;
+        }
       }
       let nextTop = origin.top - bounds.top + sourceHeight + (stacked ? 36 : 56);
       labels.forEach((label, index) => {
