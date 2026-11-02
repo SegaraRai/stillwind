@@ -149,8 +149,8 @@ export class PlaygroundWorkspace {
         getWorker: (_id: string, label: string) =>
           (
             {
-              EditorWorker: () => new EditorWorker(),
-              OutputLinkWorker: () => new OutputLinkWorker(),
+              editorWorkerService: () => new EditorWorker(),
+              OutputLinkDetectionWorker: () => new OutputLinkWorker(),
               TextMateWorker: () => new TextmateWorker(),
             } as Partial<Record<string, () => Worker>>
           )[label]?.(),
