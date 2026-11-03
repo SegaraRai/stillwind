@@ -69,7 +69,9 @@ inherits its font and line height from the page, unless you set them on it.
 
 Import only plain CSS in this way, such as `preflight.css`. Keep `stillwind`,
 `theme.css`, `utilities.css`, `builtins.css`, and other files with Stillwind
-definitions at the top level of the stylesheet.
+definitions or `@layer` statements at the top level of the stylesheet. The
+compiler leaves out a nested import of such a file and reports it with
+[invalid-css-import](/docs/lints/invalid-css-import).
 
 ## Optional stylesheets
 

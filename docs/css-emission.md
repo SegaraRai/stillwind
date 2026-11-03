@@ -235,11 +235,18 @@ host marks for linting:
 
 - `invalid-css-import` reports an `@import` or `@plugin` statement with an invalid
   specifier, options, or modifiers, an import that closes a cycle, and an import that
-  the host cannot resolve or read. The stylesheet loads without that import.
+  the host cannot resolve or read. It also reports an `@import` inside a style rule
+  when the imported graph, through imports outside style rules, contains a definition,
+  a Tailwind configuration statement, `@stillwind-slot`, a top-level `@variant`, or a
+  `@layer` statement. The stylesheet loads without that import.
 - `invalid-css-directive` reports a Stillwind directive that the loader skips: a slot
   with an unknown name or in a context that cannot contain its output, a directive in
   the wrong block or statement form, an invalid `@stillwind-dynamic` or
   `@stillwind-css-template`, and an invalid `@stillwind-registry` header or statement.
+  It also reports a definition, a Tailwind configuration statement, or a `@layer`
+  statement inside a style rule. The loader leaves out the whole statement. `@variant`,
+  `@apply`, `@stillwind-slot`, and `@stillwind-require-properties` keep their meanings
+  inside a style rule.
 - `ignored-definition-condition` reports a definition inside a conditional at-rule,
   such as `@media`. Loading keeps the definition and ignores the condition.
 

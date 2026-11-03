@@ -8,6 +8,12 @@ This rule reports an `@import` in your stylesheet that the integration cannot
 resolve, such as a misspelled package name or a missing file. The import adds
 nothing.
 
+The rule also reports an `@import` inside a style rule when the imported file, or a
+file that it imports, contains a statement that works only at the top level, such
+as `@theme`, `@utility`, `@stillwind-slot`, or a `@layer` statement. The compiler
+leaves out the whole import. See
+[Reset only part of the page](/docs/concepts/stylesheets#reset-only-part-of-the-page).
+
 ## Reported
 
 <DiagnosticExample code="invalid-css-import">
@@ -30,6 +36,8 @@ nothing.
 - Write a file path relative to the stylesheet that imports it, and check that
   the file exists.
 - For a package stylesheet, check that the package exports that path.
+- Inside a style rule, import only plain CSS, such as `stillwind/preflight.css`.
+  Import other stylesheets at the top level.
 
 ## Rule settings
 

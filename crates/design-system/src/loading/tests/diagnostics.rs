@@ -112,6 +112,57 @@ fn unresolved_nested_imports_keep_their_authored_sources() {
     assert_eq!(snapshot.theme().custom_css(), ".scope { color: red;  }");
 }
 
+/// A definition inside a style rule is ignored, and an import inside a style rule is
+/// left out when the imported graph contains a statement that only the top level
+/// accepts. Each record points at the statement that the author can change.
+#[test]
+fn top_level_statements_inside_rules_are_skipped_where_they_are_written() {
+    let root = ".a { @utility direct { color: blue; } color: red; } .scope { @import 'a.css'; }";
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let request = requests(loader.provide(0, "root.css".into(), None, None, root.into()));
+    let request = requests(loader.provide(
+        request[0].id,
+        "a.css".into(),
+        None,
+        None,
+        "@import 'b.css'; * { margin: 0; }".into(),
+    ));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+        request[0].id,
+        "b.css".into(),
+        None,
+        None,
+        "@utility imported { color: green; }".into(),
+    ) else {
+        panic!("expected a snapshot")
+    };
+    let root_source = &snapshot.sources().sources[0].source;
+    let [definition, import] = snapshot.sources().skipped.as_slice() else {
+        panic!("{:?}", snapshot.sources().skipped);
+    };
+    assert_eq!(
+        root_source.slice(definition.span).unwrap(),
+        "@utility direct { color: blue; }"
+    );
+    assert!(matches!(
+        &definition.reason,
+        SkipReason::DefinitionInStyleRule { directive } if directive == "utility"
+    ));
+    assert_eq!(root_source.slice(import.span).unwrap(), "@import 'a.css';");
+    assert!(matches!(
+        &import.reason,
+        SkipReason::NestedImportDefinition { specifier, directive }
+            if specifier == "a.css" && directive == "utility"
+    ));
+    assert_eq!(
+        snapshot.theme().custom_css(),
+        ".a {  color: red; } .scope {  }"
+    );
+    let positions = snapshot.theme().utility_positions();
+    assert!(!positions.contains_key("direct") && !positions.contains_key("imported"));
+}
+
 /// Repeated identical resource specifiers in one owner are one placeholder, so a host
 /// resolves and rewrites the URL once.
 #[test]

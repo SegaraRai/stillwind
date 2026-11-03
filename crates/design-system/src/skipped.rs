@@ -41,12 +41,30 @@ pub enum SkipReason {
         /// Specifier as written.
         specifier: LeanStr,
     },
+    /// The import is inside a style rule, and the imported file or one of its imports
+    /// contains a statement that only the top level of a stylesheet accepts.
+    #[error(
+        "`{specifier}` contains `@{directive}`, so it cannot be imported inside a style rule; import only plain CSS there"
+    )]
+    NestedImportDefinition {
+        /// Specifier as written.
+        specifier: LeanStr,
+        /// At-rule name without `@` of one such statement.
+        directive: LeanStr,
+    },
     /// A definition is inside a conditional at-rule. The definition applies without the
     /// condition.
     #[error(
         "`@{directive}` defines at compile time, so the enclosing condition is ignored; put conditions around `@stillwind-slot utilities;` instead"
     )]
     ConditionalDefinition {
+        /// At-rule name without `@`.
+        directive: LeanStr,
+    },
+    /// A definition, a Tailwind configuration statement, or a `@layer` statement is
+    /// inside a style rule. Loading ignores the whole statement.
+    #[error("`@{directive}` cannot appear inside a style rule, so it is ignored")]
+    DefinitionInStyleRule {
         /// At-rule name without `@`.
         directive: LeanStr,
     },
@@ -114,7 +132,8 @@ impl SkipReason {
             Self::ImportSpecifier { .. }
             | Self::ImportModifiers { .. }
             | Self::UnresolvedImport { .. }
-            | Self::ImportCycle { .. } => LintKind::InvalidCssImport,
+            | Self::ImportCycle { .. }
+            | Self::NestedImportDefinition { .. } => LintKind::InvalidCssImport,
             Self::ConditionalDefinition { .. } => LintKind::IgnoredDefinitionCondition,
             _ => LintKind::InvalidCssDirective,
         }

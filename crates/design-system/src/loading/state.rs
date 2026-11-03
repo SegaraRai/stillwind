@@ -116,6 +116,9 @@ struct Node {
     /// Byte ranges of the `@config` statements and the skipped import statements in
     /// source order, which expansion removes. They never overlap an import's range.
     removed: Vec<Range<usize>>,
+    /// Name of a statement in the source that an `@import` inside a style rule cannot
+    /// inline, as in [`Scan::top_level_only`](super::imports::Scan::top_level_only).
+    top_level_only: Option<LeanStr>,
 }
 
 /// One import of one accepted source: (source index, import index).
@@ -382,6 +385,8 @@ impl DesignSystemLoader {
         }
         let mut skipped_imports = cycles;
         skipped_imports.extend_from_slice(&self.unresolved);
+        let nested = self.skip_nested_definitions(&order, &skipped_imports)?;
+        skipped_imports.extend(nested);
         let output = self.expand(&order, &skipped_imports)?;
         let root = self
             .graph
@@ -456,6 +461,79 @@ impl DesignSystemLoader {
         .map_err(DesignSystemLoadError::InvalidOptions)?;
         self.terminal = true;
         Ok(DesignSystemLoadStep::Complete(Ok(snapshot)))
+    }
+
+    /// Skips and records each import inside a style rule whose target, or a file that the
+    /// target imports outside style rules, contains a statement that only the top level
+    /// accepts.
+    ///
+    /// `order` is the postorder from [`Self::source_order`], and the imports in `skipped`
+    /// are already left out. Returns the newly skipped imports.
+    fn skip_nested_definitions(
+        &mut self,
+        order: &[usize],
+        skipped: &[ImportSlot],
+    ) -> Result<Vec<ImportSlot>, DesignSystemLoadError> {
+        let mut contained: Vec<Option<LeanStr>> = vec![None; self.nodes.len()];
+        let mut rejected = Vec::new();
+        for &index in order {
+            let node = self
+                .nodes
+                .get(index)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let mut found = node.top_level_only.clone();
+            for (import_index, (import, target)) in
+                node.imports.iter().zip(&node.targets).enumerate()
+            {
+                if skipped.contains(&(index, import_index)) {
+                    continue;
+                }
+                let target = target.ok_or(DesignSystemLoadError::InvalidGraph)?;
+                let directive = contained
+                    .get(target)
+                    .ok_or(DesignSystemLoadError::InvalidGraph)?
+                    .clone();
+                if !import.in_rule {
+                    found = found.or(directive);
+                } else if let Some(directive) = directive {
+                    rejected.push((index, import_index, directive));
+                }
+            }
+            *contained
+                .get_mut(index)
+                .ok_or(DesignSystemLoadError::InvalidGraph)? = found;
+        }
+        let mut slots = Vec::new();
+        for (source, import, directive) in rejected {
+            let node = self
+                .nodes
+                .get(source)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let (statement, request) = node
+                .imports
+                .get(import)
+                .zip(node.requests.get(import))
+                .ok_or(DesignSystemLoadError::InvalidGraph)?;
+            let file = self
+                .graph
+                .sources
+                .get(source)
+                .ok_or(DesignSystemLoadError::InvalidGraph)?
+                .source
+                .id();
+            self.skipped.extend(locate(
+                file,
+                vec![(
+                    statement.start..statement.end,
+                    SkipReason::NestedImportDefinition {
+                        specifier: request.specifier.clone(),
+                        directive,
+                    },
+                )],
+            ));
+            slots.push((source, import));
+        }
+        Ok(slots)
     }
 
     /// Records that the host could not resolve or read import `import` of source
@@ -535,6 +613,7 @@ impl DesignSystemLoader {
         let mut scan =
             scan(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
         let removed = scan.removed();
+        let top_level_only = scan.top_level_only.take();
         self.skipped
             .extend(locate(source.id(), std::mem::take(&mut scan.skipped)));
         let mut imports = scan.imports;
@@ -569,6 +648,7 @@ impl DesignSystemLoader {
                 specifier,
                 wrappers: Vec::new(),
                 plugin: Some(Vec::new()),
+                in_rule: false,
             });
         }
         let mut requests = Vec::new();
@@ -595,6 +675,7 @@ impl DesignSystemLoader {
             imports,
             requests,
             removed,
+            top_level_only,
         });
         self.known.insert(name.clone(), index);
         self.graph.sources.push(CssSource {
@@ -744,6 +825,7 @@ mod tests {
                 requests,
                 targets,
                 removed: Vec::new(),
+                top_level_only: None,
             });
             loader.graph.sources.push(CssSource {
                 name: "node.css".into(),

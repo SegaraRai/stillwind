@@ -13,7 +13,10 @@
 //! `@source`, and `@reference` statements are skipped and recorded as
 //! [`IgnoredTailwindFeature`]s, which stylesheet lint reports. An `@import` or
 //! `@plugin` statement with an invalid specifier, options, or modifiers is removed from
-//! the expansion and recorded as a skipped statement.
+//! the expansion and recorded as a skipped statement. So is a definition, a Tailwind
+//! configuration statement, or a `@layer` statement inside a style rule. The same
+//! statements outside style rules mark the buffer as one that an `@import` inside a
+//! style rule cannot inline.
 
 use std::ops::Range;
 
@@ -44,6 +47,8 @@ pub(super) struct Import {
     pub(super) wrappers: Vec<LeanStr>,
     /// Plugin options when the statement is `@plugin`, or `None` for `@import`.
     pub(super) plugin: Option<Vec<ParsedDeclaration>>,
+    /// Whether a style rule encloses the statement, directly or through groups.
+    pub(super) in_rule: bool,
 }
 
 /// A Tailwind feature in a stylesheet that the loader ignores.
@@ -93,14 +98,19 @@ pub(super) struct Scan {
     pub(super) imports: Vec<Import>,
     /// Ignored features in source order.
     pub(super) ignored: Vec<IgnoredTailwindFeature>,
-    /// Invalid `@import` and `@plugin` statements in source order, each with its whole
-    /// statement range.
+    /// Invalid `@import` and `@plugin` statements and the statements ignored inside
+    /// style rules, in source order, each with its whole statement range.
     pub(super) skipped: Vec<SkippedRange>,
+    /// Lowercase name without `@` of the first statement outside style rules that only
+    /// the top level of a stylesheet or a group accepts, such as `theme` or a `layer`
+    /// order statement. `None` means that an `@import` inside a style rule may inline
+    /// the buffer.
+    pub(super) top_level_only: Option<LeanStr>,
 }
 
 impl Scan {
-    /// Returns the byte ranges that expansion removes, in source order: the `@config`,
-    /// `@source`, and `@reference` statements and the skipped import statements.
+    /// Returns the byte ranges that expansion removes, in source order: the top-level
+    /// `@config`, `@source`, and `@reference` statements and the skipped statements.
     pub(super) fn removed(&self) -> Vec<Range<usize>> {
         let mut removed = self
             .ignored
@@ -140,144 +150,241 @@ impl Scan {
 pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
     let mut parser = Parser::new(css);
     let mut scan = Scan::default();
-    scan_block(&mut parser, 0, &mut scan)?;
+    scan_block(
+        &mut parser,
+        Level {
+            depth: 0,
+            rule: false,
+        },
+        &mut scan,
+    )?;
     Ok(scan)
+}
+
+/// Where a block level is in the buffer.
+#[derive(Clone, Copy)]
+struct Level {
+    /// 0 for the top level of the buffer.
+    depth: usize,
+    /// Whether a style rule encloses the level, directly or through groups.
+    rule: bool,
+}
+
+/// What the statement read so far is, judged by its first token.
+#[derive(Clone, Copy)]
+enum Statement {
+    /// A style rule, whose block may contain imports.
+    Rule,
+    /// A grouping at-rule other than `@layer`, whose block may contain imports.
+    Group,
+    /// A `@layer` rule: a group with a block, or an order statement without one.
+    Layer,
+    /// Another at-rule, whose block is consumed as a unit.
+    Opaque,
 }
 
 /// Scans the statements of one block level into `scan`, and recurses into the blocks
 /// that may contain an `@import`.
 ///
-/// `depth` is 0 for the top level of the buffer. Only the top level reads `@plugin`,
-/// `@config`, `@source`, `@reference`, and `@theme` statements. Blocks below
-/// [`MAX_BLOCK_NESTING`] are consumed as units, because loading rejects that input
-/// later.
+/// Only the top level reads `@plugin`, `@config`, `@source`, `@reference`, and `@theme`
+/// statements. Inside a style rule, the statements that [`ignored_in_rule`] names and
+/// `@layer` order statements are recorded in [`Scan::skipped`] with their whole range.
+/// Blocks below [`MAX_BLOCK_NESTING`] are consumed as units, because loading rejects
+/// that input later.
 ///
 /// # Errors
 ///
 /// Returns the errors of [`scan`].
 fn scan_block(
     parser: &mut Parser<'_>,
-    depth: usize,
+    level: Level,
     scan: &mut Scan,
 ) -> Result<(), CompileDiagnostic> {
-    // Whether the current statement may contain an `@import` in its block, or `None`
-    // before the first token of the statement.
-    let mut nesting: Option<bool> = None;
+    // The start offset and kind of the current statement, or `None` before its first
+    // token.
+    let mut statement: Option<(usize, Statement)> = None;
     loop {
         let start = parser.position().byte_index();
         let Ok(token) = parser.next_including_whitespace_and_comments() else {
             break;
         };
-        let first = nesting.is_none();
         match token {
-            Token::WhiteSpace(_) | Token::Comment(_) => {
-                continue;
+            Token::WhiteSpace(_) | Token::Comment(_) => {}
+            Token::Semicolon => {
+                if let Some((begin, Statement::Layer)) = statement {
+                    let range = begin..parser.position().byte_index();
+                    top_level_statement("layer", range, level, scan);
+                }
+                statement = None;
             }
-            Token::Semicolon | Token::CloseCurlyBracket => {
-                nesting = None;
-                continue;
+            Token::CloseCurlyBracket => {
+                statement = None;
             }
             Token::CurlyBracketBlock => {
-                let nested = nesting.unwrap_or(true) && depth < MAX_BLOCK_NESTING;
-                nesting = None;
+                let child = match statement.map_or(Statement::Rule, |(_, kind)| kind) {
+                    Statement::Rule => Some(true),
+                    Statement::Group | Statement::Layer => Some(level.rule),
+                    Statement::Opaque => None,
+                }
+                .filter(|_| level.depth < MAX_BLOCK_NESTING)
+                .map(|rule| Level {
+                    depth: level.depth + 1,
+                    rule,
+                });
+                statement = None;
                 let mut result = Ok(());
                 parser
                     .parse_nested_block(|block| {
-                        if nested {
-                            result = scan_block(block, depth + 1, scan);
+                        if let Some(child) = child {
+                            result = scan_block(block, child, scan);
                         }
                         while block.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(())
                     })
                     .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
                 result?;
-                continue;
             }
             Token::ParenthesisBlock | Token::SquareBracketBlock | Token::Function(_) => {
-                nesting.get_or_insert(true);
+                statement.get_or_insert((start, Statement::Rule));
                 parser
                     .parse_nested_block(|nested| {
                         while nested.next_including_whitespace_and_comments().is_ok() {}
                         Ok::<_, ParseError<()>>(())
                     })
                     .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
-                continue;
             }
-            Token::AtKeyword(name) if first => {
-                nesting = Some(is_group(name));
+            Token::AtKeyword(name) if statement.is_none() => {
+                let name = name.to_ascii_lowercase().to_lean_string();
+                if !at_rule(parser, start, &name, level, scan)? {
+                    let kind = if name == "layer" {
+                        Statement::Layer
+                    } else if is_group(&name) {
+                        Statement::Group
+                    } else {
+                        Statement::Opaque
+                    };
+                    statement = Some((start, kind));
+                }
             }
             _ => {
-                nesting.get_or_insert(true);
-                continue;
+                statement.get_or_insert((start, Statement::Rule));
             }
         }
-        if depth == 0
-            && let Some(kind) = ignored_statement(token)
-        {
-            // A block, which these statements never have, ends the statement as well,
-            // so the removed range cannot swallow the rules after it.
-            while let Ok(token) = parser.next_including_whitespace_and_comments() {
-                if matches!(token, Token::Semicolon | Token::CurlyBracketBlock) {
-                    break;
-                }
-            }
-            scan.ignored.push(IgnoredTailwindFeature {
-                range: start..parser.position().byte_index(),
-                kind,
-            });
-            nesting = None;
-            continue;
-        }
-        if depth == 0
-            && matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("theme"))
-        {
-            theme_prelude(parser, start, &mut scan.ignored)?;
-            nesting = None;
-            continue;
-        }
-        if depth == 0
-            && matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin"))
-        {
-            match plugin(parser, start)? {
-                Ok(import) => {
-                    scan.imports.push(import);
-                }
-                Err(reason) => {
-                    scan.skipped
-                        .push((start..parser.position().byte_index(), reason));
-                }
-            }
-            nesting = None;
-            continue;
-        }
-        if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
-            continue;
-        }
-        import(parser, start, scan);
-        nesting = None;
     }
     Ok(())
 }
 
-/// Whether an at-rule named `name` groups rules, so an `@import` in its block is inlined
-/// there.
+/// Reads the at-rule that starts a statement, after its keyword `name` in lowercase, at
+/// offset `start`.
+///
+/// Returns whether the whole statement was consumed: an `@import`, a statement that
+/// [`ignored_in_rule`] names inside a style rule, or a top-level `@plugin`, `@config`,
+/// `@source`, `@reference`, or `@theme` statement. Otherwise, the parser stays after the
+/// keyword.
+///
+/// # Errors
+///
+/// Returns the errors of [`scan`].
+fn at_rule(
+    parser: &mut Parser<'_>,
+    start: usize,
+    name: &str,
+    level: Level,
+    scan: &mut Scan,
+) -> Result<bool, CompileDiagnostic> {
+    if name == "import" {
+        import(parser, start, level.rule, scan);
+        return Ok(true);
+    }
+    if level.rule && ignored_in_rule(name) {
+        skip_at_rule(parser, start)?;
+        top_level_statement(name, start..parser.position().byte_index(), level, scan);
+        return Ok(true);
+    }
+    if !level.rule && (ignored_in_rule(name) || matches!(name, "stillwind-slot" | "variant")) {
+        scan.top_level_only.get_or_insert_with(|| name.into());
+    }
+    if level.depth > 0 {
+        return Ok(false);
+    }
+    if let Some(kind) = ignored_statement(name) {
+        // A block, which these statements never have, ends the statement as well,
+        // so the removed range cannot swallow the rules after it.
+        while let Ok(token) = parser.next_including_whitespace_and_comments() {
+            if matches!(token, Token::Semicolon | Token::CurlyBracketBlock) {
+                break;
+            }
+        }
+        scan.ignored.push(IgnoredTailwindFeature {
+            range: start..parser.position().byte_index(),
+            kind,
+        });
+    } else if name == "theme" {
+        theme_prelude(parser, start, &mut scan.ignored)?;
+    } else if name == "plugin" {
+        match plugin(parser, start)? {
+            Ok(import) => {
+                scan.imports.push(import);
+            }
+            Err(reason) => {
+                scan.skipped
+                    .push((start..parser.position().byte_index(), reason));
+            }
+        }
+    } else {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+/// Records a statement, at `range`, that only the top level of a stylesheet or a group
+/// accepts: skipped inside a style rule, or else as [`Scan::top_level_only`].
+fn top_level_statement(name: &str, range: Range<usize>, level: Level, scan: &mut Scan) {
+    if level.rule {
+        scan.skipped.push((
+            range,
+            SkipReason::DefinitionInStyleRule {
+                directive: name.into(),
+            },
+        ));
+    } else {
+        scan.top_level_only.get_or_insert_with(|| name.into());
+    }
+}
+
+/// Whether loading ignores an at-rule named `name`, in lowercase, inside a style rule:
+/// a definition or a Tailwind configuration statement. `@variant`, `@apply`,
+/// `@stillwind-slot`, and `@stillwind-require-properties` have meanings inside a style
+/// rule and are not named.
+fn ignored_in_rule(name: &str) -> bool {
+    (name.starts_with("stillwind-")
+        && !matches!(name, "stillwind-slot" | "stillwind-require-properties"))
+        || matches!(
+            name,
+            "theme"
+                | "utility"
+                | "custom-variant"
+                | "tailwind"
+                | "plugin"
+                | "config"
+                | "source"
+                | "reference"
+        )
+}
+
+/// Whether an at-rule named `name`, in lowercase, groups rules, so an `@import` in its
+/// block is inlined there. `@layer` is handled separately because of its statement form.
 fn is_group(name: &str) -> bool {
-    [
-        "layer",
-        "supports",
-        "media",
-        "container",
-        "scope",
-        "starting-style",
-    ]
-    .iter()
-    .any(|group| name.eq_ignore_ascii_case(group))
+    matches!(
+        name,
+        "supports" | "media" | "container" | "scope" | "starting-style"
+    )
 }
 
 /// Reads the rest of an `@import` statement after its keyword into `scan`. `start` is
-/// the offset of the keyword. An invalid specifier or invalid modifiers record the
-/// statement in [`Scan::skipped`].
-fn import(parser: &mut Parser<'_>, start: usize, scan: &mut Scan) {
+/// the offset of the keyword, and `in_rule` tells whether a style rule encloses it. An
+/// invalid specifier or invalid modifiers record the statement in [`Scan::skipped`].
+fn import(parser: &mut Parser<'_>, start: usize, in_rule: bool, scan: &mut Scan) {
     // A failed parse is rewound, so a misplaced `;` still ends this statement.
     let specifier = parser
         .try_parse(|parser| {
@@ -303,6 +410,7 @@ fn import(parser: &mut Parser<'_>, start: usize, scan: &mut Scan) {
                 &mut scan.ignored,
             )?,
             plugin: None,
+            in_rule,
         })
     });
     match import {
@@ -315,19 +423,14 @@ fn import(parser: &mut Parser<'_>, start: usize, scan: &mut Scan) {
     }
 }
 
-/// Returns the kind of the ignored Tailwind statement that `token` starts, if any.
-fn ignored_statement(token: &Token<'_>) -> Option<IgnoredTailwindFeatureKind> {
-    let Token::AtKeyword(name) = token else {
-        return None;
-    };
-    if name.eq_ignore_ascii_case("config") {
-        Some(IgnoredTailwindFeatureKind::Config)
-    } else if name.eq_ignore_ascii_case("source") {
-        Some(IgnoredTailwindFeatureKind::Source)
-    } else if name.eq_ignore_ascii_case("reference") {
-        Some(IgnoredTailwindFeatureKind::Reference)
-    } else {
-        None
+/// Returns the kind of the ignored Tailwind statement that an at-rule named `name`, in
+/// lowercase, starts, if any.
+fn ignored_statement(name: &str) -> Option<IgnoredTailwindFeatureKind> {
+    match name {
+        "config" => Some(IgnoredTailwindFeatureKind::Config),
+        "source" => Some(IgnoredTailwindFeatureKind::Source),
+        "reference" => Some(IgnoredTailwindFeatureKind::Reference),
+        _ => None,
     }
 }
 
@@ -412,7 +515,7 @@ fn plugin(
             Ok(specifier) => specifier,
             Err(error) => {
                 let reason = invalid(&error.kind.to_lean_str());
-                skip_plugin_statement(parser, start)?;
+                skip_at_rule(parser, start)?;
                 return Ok(Err(reason));
             }
         };
@@ -435,7 +538,7 @@ fn plugin(
             }
         }
         Ok(_) => {
-            skip_plugin_statement(parser, start)?;
+            skip_at_rule(parser, start)?;
             return Ok(Err(invalid(
                 "expected `;` or an options block after the plugin",
             )));
@@ -447,16 +550,16 @@ fn plugin(
         specifier: specifier.into(),
         wrappers: Vec::new(),
         plugin: Some(options),
+        in_rule: false,
     }))
 }
 
-/// Consumes the rest of an invalid `@plugin` statement through its semicolon or its
-/// options block.
+/// Consumes the rest of an at-rule statement through its semicolon or its first block.
 ///
 /// # Errors
 ///
 /// Returns [`CompileDiagnostic::InvalidCssBlock`] for an unbalanced block.
-fn skip_plugin_statement(parser: &mut Parser<'_>, start: usize) -> Result<(), CompileDiagnostic> {
+fn skip_at_rule(parser: &mut Parser<'_>, start: usize) -> Result<(), CompileDiagnostic> {
     loop {
         match parser.next_including_whitespace_and_comments() {
             Ok(Token::Semicolon) | Err(_) => {
@@ -623,7 +726,7 @@ mod tests {
 
     #[test]
     fn imports_nested_in_rules_and_groups_are_dependencies() {
-        let css = ".scope { color: red; @import 'a.css'; &:hover { @import url(b.css) layer(x); } }             @layer base { .x { @import 'c.css'; } } @media print { @import 'd.css'; }             @theme { @import 'no'; } @keyframes k { @import 'no'; } .y { @plugin 'no'; @config 'no'; }";
+        let css = ".scope { color: red; @import 'a.css'; &:hover { @import url(b.css) layer(x); } }             @layer base { .x { @import 'c.css'; } } @media print { @import 'd.css'; }             @theme { @import 'no'; } @keyframes k { @import 'no'; }";
         let scan = scan(css).unwrap();
         assert_eq!(
             scan.imports
@@ -640,6 +743,48 @@ mod tests {
         assert!(
             matches!(skipped(css).as_slice(), [(range, SkipReason::ImportSpecifier { .. })] if &css[range.clone()] == "@import 42;")
         );
+    }
+
+    #[test]
+    fn statements_that_only_the_top_level_accepts_are_skipped_inside_rules() {
+        let css = ".a { @utility u { color: red; } color: blue; @layer x, y;             @layer z { b { @config 'c'; } } @variant hover { e: f; } @apply flex;             @stillwind-slot theme; @stillwind-require-properties --a;             @custom-variant v (&:hover); }";
+        let scan = scan(css).unwrap();
+        assert_eq!(
+            scan.skipped
+                .iter()
+                .map(|(range, reason)| (&css[range.clone()], reason.clone()))
+                .collect::<Vec<_>>(),
+            [
+                ("@utility u { color: red; }", "utility"),
+                ("@layer x, y;", "layer"),
+                ("@config 'c';", "config"),
+                ("@custom-variant v (&:hover);", "custom-variant"),
+            ]
+            .map(|(text, directive)| {
+                (
+                    text,
+                    SkipReason::DefinitionInStyleRule {
+                        directive: directive.into(),
+                    },
+                )
+            })
+        );
+        assert_eq!(scan.removed().len(), 4);
+        assert!(scan.ignored.is_empty() && scan.top_level_only.is_none());
+        for (css, directive) in [
+            ("* { margin: 0; } @layer a { b { c: d; } }", None),
+            (":root { @stillwind-slot theme; }", None),
+            ("@layer a, b; .x {}", Some("layer")),
+            ("@media print { @theme { --a: b; } }", Some("theme")),
+            ("@stillwind-slot utilities;", Some("stillwind-slot")),
+            ("@source './x';", Some("source")),
+        ] {
+            assert_eq!(
+                super::scan(css).unwrap().top_level_only.as_deref(),
+                directive,
+                "{css}"
+            );
+        }
     }
 
     #[test]
@@ -780,7 +925,7 @@ mod tests {
             ]
         );
         assert_eq!(scan.removed(), [scan.ignored[2].range.clone()]);
-        // A nested statement stays body text.
+        // A statement inside a rule is skipped as a definition, not recorded as a feature.
         let css = "@source '../x'; .a { @source 'y'; } @source inline('flex'); @reference './a.css'; .b{}";
         let found = super::scan(css).unwrap();
         assert_eq!(
@@ -801,7 +946,11 @@ mod tests {
                 ),
             ]
         );
-        assert_eq!(found.removed().len(), 3);
+        assert!(matches!(
+            found.skipped.as_slice(),
+            [(range, SkipReason::DefinitionInStyleRule { .. })] if &css[range.clone()] == "@source 'y';"
+        ));
+        assert_eq!(found.removed().len(), 4);
         assert_eq!(
             ignored_tailwind_features("@theme static prefix(tw) { --a: prefix(b); }")
                 .iter()

@@ -229,14 +229,6 @@ as load warnings.
 
 An import whose specifier the host cannot resolve has no file to watch, so creating the
 file later does not reload the graph until another watched file changes.
-
-A definition such as `@theme` or `@utility` inside a style rule is kept in the authored
-CSS and is not reported. A `@layer` statement inside a style rule fails the load with a
-CSS parse error at the whole root file. An `@import` inside a style rule can bring
-either into the rule, for example `.scope { @import "stillwind"; }`. Decide whether
-loading skips these statements with a lint finding, as it does for a definition inside
-a conditional group.
-
 The renderer still fails for a malformed `@stillwind-require-properties`, a requirement
 without a `@stillwind-property` registration, and invalid `--theme()` syntax. Evaluate
 skipping them with a lint finding as loading does.

@@ -8,6 +8,13 @@ This rule reports a Stillwind directive in your stylesheet that the compiler
 cannot read, such as [`@stillwind-slot`](/docs/at-rules/stillwind-slot) with
 an unknown slot name. The compiler skips the directive.
 
+The rule also reports a statement that works only at the top level of a stylesheet
+when you write it inside a style rule: a definition such as
+[`@utility`](/docs/at-rules/utility) or `@theme`, a Tailwind configuration statement
+such as `@plugin`, or a `@layer` statement that lists layer names. The compiler
+ignores the whole statement. `@variant`, `@apply`, `@stillwind-slot`, and
+`@stillwind-require-properties` still work inside a style rule.
+
 ## Reported
 
 <DiagnosticExample code="invalid-css-directive">
@@ -28,6 +35,7 @@ an unknown slot name. The compiler skips the directive.
 
 - Check the name and the arguments of the directive. For example, the slot for
   generated utilities is `utilities`.
+- Move a definition or a `@layer` statement out of the style rule to the top level.
 - If you do not need the directive, remove it. `@import "stillwind"` already
   places the slots that the default stylesheet needs.
 
