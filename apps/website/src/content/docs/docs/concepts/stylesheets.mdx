@@ -44,6 +44,33 @@ line. They decide how these files compete with the rest of your CSS. For example
 [Migrating from CSS](/docs/guides/migrating-from-css) leaves out `preflight.css`
 until the old styles are gone.
 
+## Reset only part of the page
+
+Some pages already have base styles from a site theme or a host application. To
+reset only the elements inside one container, write the `@import` inside a style
+rule:
+
+```css
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+
+@layer base {
+  .widget {
+    @import "stillwind/preflight.css";
+  }
+}
+```
+
+Stillwind inlines the imported file in place, so each of its rules nests under
+`.widget` and applies only to the descendants of that element. The `html` and
+`:host` rules of `preflight.css` then match no element. The `.widget` element
+inherits its font and line height from the page, unless you set them on it.
+
+Import only plain CSS in this way, such as `preflight.css`. Keep `stillwind`,
+`theme.css`, `utilities.css`, `builtins.css`, and other files with Stillwind
+definitions at the top level of the stylesheet.
+
 ## Optional stylesheets
 
 An optional stylesheet changes built-in utilities, so `stillwind` does not include

@@ -24,6 +24,7 @@ use stillwind_css::{ParsedDeclaration, parse_declaration_list};
 use stillwind_diagnostics::CompileDiagnostic;
 
 use crate::SkipReason;
+use crate::output::MAX_BLOCK_NESTING;
 use crate::skipped::SkippedRange;
 
 /// One authored import: its byte range in the buffer, its decoded specifier, and the
@@ -120,10 +121,14 @@ impl Scan {
     }
 }
 
-/// Finds every authored `@import`, `@plugin`, `@config`, `@source`, and `@reference` at
-/// the top level of one buffer, in source order. Blocks and function arguments are
-/// consumed as units, so an `@import` inside a rule or a parenthesized condition is
-/// body text, not a dependency. Unparsable top-level CSS ends the scan with the
+/// Finds every authored `@import` statement and the top-level `@plugin`, `@config`,
+/// `@source`, and `@reference` statements of one buffer, in source order.
+///
+/// An `@import` is also found inside a style rule or a `@layer`, `@supports`, `@media`,
+/// `@container`, `@scope`, or `@starting-style` block, at any depth, so expansion
+/// inlines the imported file in place. Other at-rule blocks, such as `@theme` and
+/// `@keyframes`, and function arguments are consumed as units, so an `@import` inside
+/// them is body text, not a dependency. Unparsable top-level CSS ends the scan with the
 /// statements found so far.
 ///
 /// # Errors
@@ -135,27 +140,80 @@ impl Scan {
 pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
     let mut parser = Parser::new(css);
     let mut scan = Scan::default();
+    scan_block(&mut parser, 0, &mut scan)?;
+    Ok(scan)
+}
+
+/// Scans the statements of one block level into `scan`, and recurses into the blocks
+/// that may contain an `@import`.
+///
+/// `depth` is 0 for the top level of the buffer. Only the top level reads `@plugin`,
+/// `@config`, `@source`, `@reference`, and `@theme` statements. Blocks below
+/// [`MAX_BLOCK_NESTING`] are consumed as units, because loading rejects that input
+/// later.
+///
+/// # Errors
+///
+/// Returns the errors of [`scan`].
+fn scan_block(
+    parser: &mut Parser<'_>,
+    depth: usize,
+    scan: &mut Scan,
+) -> Result<(), CompileDiagnostic> {
+    // Whether the current statement may contain an `@import` in its block, or `None`
+    // before the first token of the statement.
+    let mut nesting: Option<bool> = None;
     loop {
         let start = parser.position().byte_index();
         let Ok(token) = parser.next_including_whitespace_and_comments() else {
             break;
         };
-        if matches!(
-            token,
-            Token::CurlyBracketBlock
-                | Token::ParenthesisBlock
-                | Token::SquareBracketBlock
-                | Token::Function(_)
-        ) {
-            parser
-                .parse_nested_block(|nested| {
-                    while nested.next_including_whitespace_and_comments().is_ok() {}
-                    Ok::<_, ParseError<()>>(())
-                })
-                .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
-            continue;
+        let first = nesting.is_none();
+        match token {
+            Token::WhiteSpace(_) | Token::Comment(_) => {
+                continue;
+            }
+            Token::Semicolon | Token::CloseCurlyBracket => {
+                nesting = None;
+                continue;
+            }
+            Token::CurlyBracketBlock => {
+                let nested = nesting.unwrap_or(true) && depth < MAX_BLOCK_NESTING;
+                nesting = None;
+                let mut result = Ok(());
+                parser
+                    .parse_nested_block(|block| {
+                        if nested {
+                            result = scan_block(block, depth + 1, scan);
+                        }
+                        while block.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, ParseError<()>>(())
+                    })
+                    .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
+                result?;
+                continue;
+            }
+            Token::ParenthesisBlock | Token::SquareBracketBlock | Token::Function(_) => {
+                nesting.get_or_insert(true);
+                parser
+                    .parse_nested_block(|nested| {
+                        while nested.next_including_whitespace_and_comments().is_ok() {}
+                        Ok::<_, ParseError<()>>(())
+                    })
+                    .map_err(|_| CompileDiagnostic::InvalidCssBlock { offset: start })?;
+                continue;
+            }
+            Token::AtKeyword(name) if first => {
+                nesting = Some(is_group(name));
+            }
+            _ => {
+                nesting.get_or_insert(true);
+                continue;
+            }
         }
-        if let Some(kind) = ignored_statement(token) {
+        if depth == 0
+            && let Some(kind) = ignored_statement(token)
+        {
             // A block, which these statements never have, ends the statement as well,
             // so the removed range cannot swallow the rules after it.
             while let Ok(token) = parser.next_including_whitespace_and_comments() {
@@ -167,14 +225,20 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
                 range: start..parser.position().byte_index(),
                 kind,
             });
+            nesting = None;
             continue;
         }
-        if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("theme")) {
-            theme_prelude(&mut parser, start, &mut scan.ignored)?;
+        if depth == 0
+            && matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("theme"))
+        {
+            theme_prelude(parser, start, &mut scan.ignored)?;
+            nesting = None;
             continue;
         }
-        if matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin")) {
-            match plugin(&mut parser, start)? {
+        if depth == 0
+            && matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("plugin"))
+        {
+            match plugin(parser, start)? {
                 Ok(import) => {
                     scan.imports.push(import);
                 }
@@ -183,48 +247,72 @@ pub(super) fn scan(css: &str) -> Result<Scan, CompileDiagnostic> {
                         .push((start..parser.position().byte_index(), reason));
                 }
             }
+            nesting = None;
             continue;
         }
         if !matches!(token, Token::AtKeyword(name) if name.eq_ignore_ascii_case("import")) {
             continue;
         }
-        // A failed parse is rewound, so a misplaced `;` still ends this statement.
-        let specifier = parser
-            .try_parse(|parser| {
-                parser
-                    .expect_url_or_string()
-                    .map(|specifier| specifier.to_lean_string())
-            })
-            .map_err(|error| SkipReason::ImportSpecifier {
-                detail: error.kind.to_lean_str(),
-            });
-        let tail_start = parser.position();
-        skip_statement(&mut parser);
-        let tail = parser.slice(tail_start..parser.position());
-        let end = parser.position().byte_index();
-        let import = specifier.and_then(|specifier| {
-            Ok(Import {
-                start,
-                end,
-                specifier: specifier.into(),
-                wrappers: import_wrappers(
-                    tail.strip_suffix(';').unwrap_or(tail),
-                    tail_start.byte_index(),
-                    &mut scan.ignored,
-                )?,
-                plugin: None,
-            })
+        import(parser, start, scan);
+        nesting = None;
+    }
+    Ok(())
+}
+
+/// Whether an at-rule named `name` groups rules, so an `@import` in its block is inlined
+/// there.
+fn is_group(name: &str) -> bool {
+    [
+        "layer",
+        "supports",
+        "media",
+        "container",
+        "scope",
+        "starting-style",
+    ]
+    .iter()
+    .any(|group| name.eq_ignore_ascii_case(group))
+}
+
+/// Reads the rest of an `@import` statement after its keyword into `scan`. `start` is
+/// the offset of the keyword. An invalid specifier or invalid modifiers record the
+/// statement in [`Scan::skipped`].
+fn import(parser: &mut Parser<'_>, start: usize, scan: &mut Scan) {
+    // A failed parse is rewound, so a misplaced `;` still ends this statement.
+    let specifier = parser
+        .try_parse(|parser| {
+            parser
+                .expect_url_or_string()
+                .map(|specifier| specifier.to_lean_string())
+        })
+        .map_err(|error| SkipReason::ImportSpecifier {
+            detail: error.kind.to_lean_str(),
         });
-        match import {
-            Ok(import) => {
-                scan.imports.push(import);
-            }
-            Err(reason) => {
-                scan.skipped.push((start..end, reason));
-            }
+    let tail_start = parser.position();
+    skip_statement(parser);
+    let tail = parser.slice(tail_start..parser.position());
+    let end = parser.position().byte_index();
+    let import = specifier.and_then(|specifier| {
+        Ok(Import {
+            start,
+            end,
+            specifier: specifier.into(),
+            wrappers: import_wrappers(
+                tail.strip_suffix(';').unwrap_or(tail),
+                tail_start.byte_index(),
+                &mut scan.ignored,
+            )?,
+            plugin: None,
+        })
+    });
+    match import {
+        Ok(import) => {
+            scan.imports.push(import);
+        }
+        Err(reason) => {
+            scan.skipped.push((start..end, reason));
         }
     }
-    Ok(scan)
 }
 
 /// Returns the kind of the ignored Tailwind statement that `token` starts, if any.
@@ -523,7 +611,7 @@ mod tests {
     }
 
     #[test]
-    fn imports_ignore_comments_strings_and_nested_rules_but_resolve_all_packages() {
+    fn imports_ignore_comments_and_strings_but_resolve_all_packages() {
         let css = "/* @import 'no'; */ .x{content:\"@import 'no';\";} @import 'stillwind'; @import 'a.css'; @import url(\"b.css\");";
         let found = imports(css);
         assert_eq!(found.len(), 3);
@@ -531,6 +619,27 @@ mod tests {
         assert_eq!(found[1].specifier, "a.css");
         assert_eq!(found[2].specifier, "b.css");
         assert_eq!(&css[found[1].start..found[1].end], "@import 'a.css';");
+    }
+
+    #[test]
+    fn imports_nested_in_rules_and_groups_are_dependencies() {
+        let css = ".scope { color: red; @import 'a.css'; &:hover { @import url(b.css) layer(x); } }             @layer base { .x { @import 'c.css'; } } @media print { @import 'd.css'; }             @theme { @import 'no'; } @keyframes k { @import 'no'; } .y { @plugin 'no'; @config 'no'; }";
+        let scan = scan(css).unwrap();
+        assert_eq!(
+            scan.imports
+                .iter()
+                .map(|import| import.specifier.as_str())
+                .collect::<Vec<_>>(),
+            ["a.css", "b.css", "c.css", "d.css"]
+        );
+        let first = &scan.imports[0];
+        assert_eq!(&css[first.start..first.end], "@import 'a.css';");
+        assert_eq!(scan.imports[1].wrappers, vec!["@layer x"]);
+        assert!(scan.ignored.is_empty() && scan.skipped.is_empty());
+        let css = ".a { @import 42; }";
+        assert!(
+            matches!(skipped(css).as_slice(), [(range, SkipReason::ImportSpecifier { .. })] if &css[range.clone()] == "@import 42;")
+        );
     }
 
     #[test]

@@ -35,7 +35,7 @@ use crate::{SkipReason, ThemeValue, ThemeValuePrecedence};
 /// Parsing recurses once per nested group, so this bounds the stack one stylesheet can
 /// consume; deeper input is reported as [`CompileDiagnostic::CssNestingTooDeep`]
 /// instead of exhausting the stack.
-const MAX_BLOCK_NESTING: usize = 64;
+pub(crate) const MAX_BLOCK_NESTING: usize = 64;
 
 /// Parses one CSS buffer into a source-ordered output template.
 ///

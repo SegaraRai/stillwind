@@ -86,6 +86,32 @@ fn skipped_statements_keep_their_authored_sources() {
     assert!(snapshot.theme().token("color", "red").is_some());
 }
 
+/// An unresolved import inside a style rule is recorded at its statement in the
+/// importing source, and the rule keeps its other content.
+#[test]
+fn unresolved_nested_imports_keep_their_authored_sources() {
+    let root = ".scope { color: red; @import 'missing.css'; }";
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let request = requests(loader.provide(0, "root.css".into(), None, None, root.into()));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide_many([CssFileInput {
+        unresolved: true,
+        ..input(request[0].id, "missing.css", "")
+    }]) else {
+        panic!("expected a snapshot")
+    };
+    let sources = &snapshot.sources().sources;
+    let [import] = snapshot.sources().skipped.as_slice() else {
+        panic!("{:?}", snapshot.sources().skipped);
+    };
+    assert_eq!(
+        sources[0].source.slice(import.span).unwrap(),
+        "@import 'missing.css';"
+    );
+    assert!(matches!(import.reason, SkipReason::UnresolvedImport { .. }));
+    assert_eq!(snapshot.theme().custom_css(), ".scope { color: red;  }");
+}
+
 /// Repeated identical resource specifiers in one owner are one placeholder, so a host
 /// resolves and rewrites the URL once.
 #[test]

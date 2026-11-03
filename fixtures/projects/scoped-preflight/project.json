@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "scoped-preflight",
+  "title": "Scoped Preflight",
+  "description": "Preflight imported inside a style rule, so the reset applies only to an embedded widget.",
+  "tags": ["import", "preflight"],
+  "theme": "stillwind.css",
+  "sources": ["src/Widget.tsx"]
+}

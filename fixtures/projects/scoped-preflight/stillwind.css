@@ -1,0 +1,11 @@
+@layer properties, theme, base, components, utilities;
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+
+/* The host page keeps its own base styles, and only the widget subtree is reset. */
+@layer base {
+  .widget {
+    @import "stillwind/preflight.css";
+  }
+}

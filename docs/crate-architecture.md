@@ -159,7 +159,8 @@ recompile retained analyses.
 
 `DesignSystemLoader` requests opaque files; the host resolves and reads them. Import
 expansion preserves authored ordering, wrappers, physical provenance, and resource
-owners. There is no general Rust `resolver` crate.
+owners. An `@import` inside a style rule or a conditional group is expanded in place,
+so the imported rules nest under it. There is no general Rust `resolver` crate.
 
 The JavaScript host and bundler adapters retain module resolution, environment graphs,
 the TypeScript checker, asynchronous stale-load checks, and editor document state. The

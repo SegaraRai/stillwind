@@ -399,6 +399,32 @@ fn config_statements_are_removed_from_the_expansion() {
 }
 
 #[test]
+fn imports_nested_in_a_rule_expand_in_place() {
+    let mut loader =
+        DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+    let request = requests(loader.provide(
+        0,
+        "root.css".into(),
+        None,
+        None,
+        ".scope { @import 'reset.css' layer(base); }".into(),
+    ));
+    let DesignSystemLoadStep::Complete(Ok(snapshot)) = loader.provide(
+        request[0].id,
+        "reset.css".into(),
+        None,
+        None,
+        "* { margin: 0; }".into(),
+    ) else {
+        panic!("expected loaded snapshot");
+    };
+    assert_eq!(
+        snapshot.theme().custom_css(),
+        ".scope { @layer base{* { margin: 0; }} }"
+    );
+}
+
+#[test]
 fn rejected_declarations_record_the_origin_of_their_definition() {
     let root = "@import 'pkg';
         @utility fg-* { color: --value(integer); }
