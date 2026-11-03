@@ -6,6 +6,32 @@ import { producerPrefix } from "./module-ids.ts";
 import type { ViteProject } from "./project.ts";
 
 /**
+ * Browser code that keeps loader links across Astro ClientRouter navigations.
+ *
+ * Astro removes each head element that the incoming document does not contain, and the chunk that
+ * added a link does not run again, so the link would stay missing. Astro keeps an old stylesheet
+ * link when the incoming head has a link with the same `href`, and each incoming link matches one
+ * old link. The listener therefore copies each loader link while the incoming head has fewer links
+ * with its `href` than the current head, which also keeps repeated split occurrences. One listener
+ * serves all chunks in a document.
+ */
+const persistAcrossSwaps = `const key = Symbol.for("stillwind.persistLinks");
+  if (!globalThis[key]) {
+    globalThis[key] = true;
+    document.addEventListener("astro:before-swap", (event) => {
+      const head = event.newDocument.head;
+      const count = (parent, href) =>
+        [...parent.querySelectorAll('link[rel="stylesheet"]')].filter((l) => l.getAttribute("href") === href).length;
+      for (const link of document.head.querySelectorAll("link[data-stillwind-loader]")) {
+        const href = link.getAttribute("href");
+        if (count(head, href) < count(document.head, href)) {
+          head.append(link.cloneNode());
+        }
+      }
+    });
+  }`;
+
+/**
  * Associates emitted CSS with a chunk and loads its stylesheets in the browser.
  *
  * Split parts retain manifest order and relative-base URLs resolve against the chunk. Hosts can
@@ -100,8 +126,10 @@ if (typeof document !== "undefined") {
     l.href = p.relative ? new URL(p.href, import.meta.url).href : p.href;
     l.dataset.stillwindPart = p.id;
     l.dataset.stillwindOrder = String(p.order);
+    l.dataset.stillwindLoader = "";
     document.head.insertBefore(l, links.find((e) => Number(e.dataset.stillwindOrder) > p.order) ?? null);
   }
+  ${persistAcrossSwaps}
 }
 `,
         map: null,
@@ -128,8 +156,10 @@ if (typeof document !== "undefined") {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = href;
+    link.dataset.stillwindLoader = "";
     document.head.append(link);
   }
+  ${persistAcrossSwaps}
 }
 `,
       map: null,

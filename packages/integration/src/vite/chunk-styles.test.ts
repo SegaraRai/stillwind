@@ -1,4 +1,4 @@
-import { runInNewContext } from "node:vm";
+import { createContext, runInContext, runInNewContext } from "node:vm";
 
 import type { Rollup } from "vite";
 import { expect, test } from "vite-plus/test";
@@ -33,29 +33,16 @@ test.each(["/app/", "./", ""])(
 test("the generated loader inserts missing links in manifest order and keeps existing occurrences", () => {
   const { project, context, chunk } = fixture("./");
   const code = renderChunkStyles(project, "client", context, "", chunk)!.code;
-  const links = [
-    {
+  const document = fakeDocument();
+  document.head.children.push(
+    fakeLink({
+      href: "existing.css",
       dataset: {
         stillwindPart: "2:red",
         stillwindOrder: "2",
       },
-      href: "existing.css",
-    },
-  ];
-  const document = {
-    querySelectorAll: () => links,
-    createElement: () => ({ dataset: {}, href: "" }),
-    head: {
-      /**
-       * Inserts a stylesheet occurrence into the simulated document order.
-       * @param link - New link whose occurrence metadata is inspected by the generated loader.
-       * @param before - Existing link to precede, or null to append.
-       */
-      insertBefore(link: (typeof links)[number], before: (typeof links)[number] | null) {
-        links.splice(before ? links.indexOf(before) : links.length, 0, link);
-      },
-    },
-  };
+    }),
+  );
   const runnable = code.replace(
     "import.meta.url",
     JSON.stringify("https://example.test/app/assets/chunks/entry.js"),
@@ -64,13 +51,41 @@ test("the generated loader inserts missing links in manifest order and keeps exi
   runInNewContext(runnable, { document, URL });
   runInNewContext(runnable, { document, URL });
 
-  expect(links.map((link) => link.dataset.stillwindPart)).toEqual(["0:red", "1:blue", "2:red"]);
-  expect(links.map((link) => link.href)).toEqual([
+  expect(document.head.children.map((link) => link.dataset.stillwindPart)).toEqual([
+    "0:red",
+    "1:blue",
+    "2:red",
+  ]);
+  expect(document.head.children.map((link) => link.href)).toEqual([
     "https://example.test/app/assets/red.css",
     "https://example.test/app/assets/blue.css",
     "existing.css",
   ]);
   expect(() => runInNewContext(runnable, { URL })).not.toThrow();
+});
+
+test("loaded split links stay in the head across Astro ClientRouter swaps", () => {
+  const { project, context, chunk } = fixture("/app/");
+  const code = renderChunkStyles(project, "client", context, "", chunk)!.code.replace(
+    "import.meta.url",
+    JSON.stringify("https://example.test/app/assets/chunks/entry.js"),
+  );
+  const document = fakeDocument();
+  const sandbox = createContext({ document, URL });
+
+  // Two chunks share one realm, so the listener must copy each link only once.
+  runInContext(code, sandbox);
+  runInContext(code, sandbox);
+  const newDocument = fakeDocument();
+  newDocument.head.children.push(fakeLink({ href: "/app/assets/ssr.css" }));
+  document.dispatch("astro:before-swap", { newDocument });
+
+  expect(newDocument.head.children.map((link) => link.href)).toEqual([
+    "/app/assets/ssr.css",
+    "/app/assets/red.css",
+    "/app/assets/blue.css",
+    "/app/assets/red.css",
+  ]);
 });
 
 test.each(["/app/", "./", ""])("single emission loads client CSS once with base %j", (base) => {
@@ -79,39 +94,23 @@ test.each(["/app/", "./", ""])("single emission loads client CSS once with base 
   });
   project.config.emission = "single";
   const result = renderChunkStyles(project, "client", context, "", chunk, true)!;
-  const links: {
-    href: string;
-  }[] = [];
-  const document = {
-    baseURI: "https://example.test/app/",
-    querySelectorAll: () => links,
-    createElement: () => ({
-      href: "",
-    }),
-    head: {
-      append: (link: { href: string }) => {
-        links.push(link);
-      },
-    },
-  };
+  const document = fakeDocument("https://example.test/app/");
   const runnable = result.code.replace(
     "import.meta.url",
     JSON.stringify("https://example.test/app/assets/chunks/entry.js"),
   );
+  const sandbox = createContext({ document, URL });
 
-  runInNewContext(runnable, {
-    document,
-    URL,
-  });
-  runInNewContext(runnable, {
-    document,
-    URL,
-  });
-  expect(links).toEqual([
-    {
-      rel: "stylesheet",
-      href: "https://example.test/app/assets/single.css",
-    },
+  runInContext(runnable, sandbox);
+  runInContext(runnable, sandbox);
+  expect(document.head.children.map((link) => link.href)).toEqual([
+    "https://example.test/app/assets/single.css",
+  ]);
+
+  const newDocument = fakeDocument();
+  document.dispatch("astro:before-swap", { newDocument });
+  expect(newDocument.head.children.map((link) => link.href)).toEqual([
+    "https://example.test/app/assets/single.css",
   ]);
   expect(() => runInNewContext(runnable, { URL })).not.toThrow();
   expect(chunk.viteMetadata?.importedCss).toEqual(new Set(["assets/single.css"]));
@@ -240,7 +239,9 @@ function fixture(base: string, output?: BuildOutput) {
     getFileName: () => "assets/single.css",
   } as unknown as Parameters<typeof renderChunkStyles>[2];
   const chunk = {
-    modules: { [registryId]: {} },
+    modules: {
+      [registryId]: {},
+    },
     facadeModuleId: "/facade.ts",
     fileName: "assets/chunks/entry.js",
     viteMetadata: {
@@ -248,7 +249,87 @@ function fixture(base: string, output?: BuildOutput) {
       importedAssets: new Set(["image.svg"]),
     },
   } as unknown as Rollup.RenderedChunk;
-  return { project, context, chunk };
+  return {
+    project,
+    context,
+    chunk,
+  };
+}
+
+/** Stylesheet link in {@link fakeDocument}. */
+interface FakeLink {
+  rel: string;
+  href: string;
+  dataset: Record<string, string>;
+  getAttribute(name: string): string | null;
+  cloneNode(): FakeLink;
+}
+
+/**
+ * Creates a stylesheet link that supports the attribute reads of the generated loaders.
+ * @param init - Initial `href` and `dataset`. The link is a stylesheet unless `rel` is given.
+ * @returns A link whose `href` attribute equals its `href` property.
+ */
+function fakeLink(init: Partial<Pick<FakeLink, "rel" | "href" | "dataset">> = {}): FakeLink {
+  const link: FakeLink = {
+    rel: "stylesheet",
+    href: "",
+    dataset: {},
+    ...init,
+    getAttribute: (name) => (name === "href" ? link.href : null),
+    cloneNode: () =>
+      fakeLink({
+        rel: link.rel,
+        href: link.href,
+        dataset: {
+          ...link.dataset,
+        },
+      }),
+  };
+  return link;
+}
+
+/**
+ * Creates a document with a head of links and the listener API that the generated loaders use.
+ * The head supports only the `link[...]` selectors that the loaders query.
+ * @param baseURI - Base URL for loaders that resolve public paths.
+ * @returns The document, its head links in order, and `dispatch`, which calls listeners of a type.
+ */
+function fakeDocument(baseURI?: string) {
+  const children: FakeLink[] = [];
+  const matches = (link: FakeLink, selector: string) =>
+    selector === 'link[rel="stylesheet"]'
+      ? link.rel === "stylesheet"
+      : selector === "link[data-stillwind-part]"
+        ? "stillwindPart" in link.dataset
+        : selector === "link[data-stillwind-loader]"
+          ? "stillwindLoader" in link.dataset
+          : expect.fail(`unexpected selector ${selector}`);
+  const head = {
+    children,
+    querySelectorAll: (selector: string) => children.filter((link) => matches(link, selector)),
+    append: (link: FakeLink) => {
+      children.push(link);
+    },
+    insertBefore: (link: FakeLink, before: FakeLink | null) => {
+      children.splice(before ? children.indexOf(before) : children.length, 0, link);
+    },
+  };
+  const listeners = new Map<string, ((event: unknown) => void)[]>();
+  return {
+    baseURI,
+    head,
+    querySelectorAll: head.querySelectorAll,
+    createElement: () => fakeLink({ rel: "" }),
+    addEventListener: (type: string, listener: (event: unknown) => void) => {
+      listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+    },
+    dispatch: (type: string, event: unknown) => {
+      for (const listener of listeners.get(type) ?? []) {
+        listener(event);
+      }
+    },
+  };
 }
 
 /**
