@@ -1,5 +1,13 @@
 # @stillwind/language-server
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/analysis@0.6.0
+  - @stillwind/native@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,5 +1,14 @@
 # @stillwind/host
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.6.0
+  - @stillwind/native@0.6.0
+  - @stillwind/projection@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # prettier-plugin-stillwind
 
+## 0.6.0
+
+### Patch Changes
+
+- The packages now have npm keywords, so the npm search, the Astro integrations library, and other directories that read `keywords` can find them by the frameworks, build tools, and editors that they support. Each package description now states what the package does and which tools it supports.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes

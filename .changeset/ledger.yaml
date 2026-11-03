@@ -21,6 +21,10 @@
   dir: packages/cli
   intents:
     - late-builds-ship
+"@stillwind/cli@0.6.0":
+  dir: packages/cli
+  intents:
+    - package-keywords-list
 "@stillwind/config@0.2.0":
   dir: packages/config
   intents:
@@ -29,11 +33,21 @@
   dir: packages/integration
   intents:
     - fresh-routes-render
+"@stillwind/integration@0.6.0":
+  dir: packages/integration
+  intents:
+    - chilly-spoons-decide
+    - clever-bottles-matter
+    - package-keywords-list
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
     - clear-logs-show
     - light-jokes-dig
+"@stillwind/plugin-iconify@0.6.0":
+  dir: plugins/iconify
+  intents:
+    - package-keywords-list
 "@stillwind/vscode-extension@0.2.0":
   dir: packages/vscode-extension
   intents:
@@ -61,6 +75,14 @@
   intents:
     - clear-logs-show
     - light-jokes-dig
+"@stillwind/vscode-extension@0.6.0":
+  dir: packages/vscode-extension
+  intents:
+    - editor-components-activate
+prettier-plugin-stillwind@0.6.0:
+  dir: packages/prettier-plugin
+  intents:
+    - package-keywords-list
 stillwind@0.1.0:
   dir: packages/core
   intents:
@@ -94,3 +116,10 @@ stillwind@0.4.1:
   dir: packages/core
   intents:
     - late-builds-ship
+stillwind@0.6.0:
+  dir: packages/core
+  intents:
+    - curly-dolphins-peel
+    - nested-imports-inline
+    - nested-variants-expand
+    - package-keywords-list
