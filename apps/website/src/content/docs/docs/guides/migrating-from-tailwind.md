@@ -36,6 +36,12 @@ Stillwind integration. Then create `stillwind.config.ts`, as described in
 [Getting started](/docs#configure-the-project), and set up your framework, as
 described in [Framework integrations](/docs/integrations).
 
+With Tailwind, your code or framework configuration imports the stylesheet, for
+example with `import "./app.css"` or in Starlight's `customCss`. With Vite and the
+frameworks that run on it, remove these imports. The integration reads the
+stylesheet that `css` selects and adds the compiled CSS to the page. If the
+import remains, the page also receives the raw stylesheet.
+
 ## Move classes into style()
 
 Replace each `className` string with a `style()` call that you spread onto the

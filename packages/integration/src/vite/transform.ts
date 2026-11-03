@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { relative, resolve } from "node:path";
 
 import { cleanModuleId } from "@stillwind/host";
 import type { Plugin } from "vite";
@@ -6,6 +7,9 @@ import type { Plugin } from "vite";
 import { readableFile } from "./file-access.ts";
 import type { ViteProject } from "./project.ts";
 import { projectionImports } from "./projection-imports.ts";
+
+/** Project settings whose configured CSS entrypoint has already produced an import warning. */
+const warnedEntrypointImports = new WeakSet<ViteProject["settings"]>();
 
 /** Selects the compiler's position and source after a framework regenerates scripts. */
 export interface TransformOptions {
@@ -26,7 +30,8 @@ export interface TransformOptions {
  * generated modules.
  * @param options - Source selection and ordering required by the framework integration.
  * @returns Hooks that recompile cached producers, register stylesheet projections, reserve authored
- * CSS identifiers, and remove deleted inputs.
+ * CSS identifiers, and remove deleted inputs. The transform warns once per project when the
+ * configured CSS entrypoint is imported as an ordinary stylesheet.
  */
 export function transformHooks(
   project: ViteProject,
@@ -96,6 +101,18 @@ export function transformHooks(
           }
         }
         if (isAuthoredStylesheet(id)) {
+          if (
+            project.config.css &&
+            !warnedEntrypointImports.has(settings) &&
+            relative(resolve(settings.projectRoot, project.config.css), cleanModuleId(id)) === ""
+          ) {
+            warnedEntrypointImports.add(settings);
+            this.warn(
+              `The Stillwind CSS entrypoint ${project.config.css} is imported as an ordinary stylesheet. ` +
+                "The integration already delivers its compiled CSS. Remove the import so that Vite " +
+                "does not also emit the uncompiled Stillwind rules.",
+            );
+          }
           await project.environment(name).reserveAuthoredCss(id, code, this);
           return;
         }

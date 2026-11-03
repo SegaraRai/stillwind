@@ -4,8 +4,6 @@ import { stillwind, style } from "stillwind/alpine";
 import { probeComposed, probeDiamond } from "./semantics-main";
 import { shared } from "./shared-style";
 
-import "./styles.css";
-
 Alpine.plugin(stillwind);
 Alpine.data("app", () => ({
   count: 0,

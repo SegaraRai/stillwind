@@ -22,6 +22,15 @@ Place Stillwind before the framework's JSX transform. Framework plugins that spl
 routes or server functions must run first. For TanStack Start, use
 `[tanstackStart(), stillwind(), react()]`.
 
+The Vite adapter and the adapters built on it (Astro, Fresh, Nuxt, and SvelteKit)
+read the CSS entrypoint selected by `stillwind.config.ts` and deliver its compiled
+CSS. Do not import that entrypoint from application code, from framework options
+such as Starlight's `customCss`, or from another stylesheet. Vite would also
+process it as an ordinary stylesheet, and the uncompiled `@theme` and `@utility`
+rules would reach the page. Stillwind warns once when application code or a
+framework imports the entrypoint as a module. It cannot detect an `@import` from
+another stylesheet. The webpack-based adapters work differently; see their sections.
+
 When `target` is omitted, Stillwind inherits the client's resolved `build.cssTarget`,
 which Vite defaults to `build.target`. Inline Stillwind targets override project
 targets, and project targets override inheritance. `target: []` disables inheritance.
@@ -60,6 +69,20 @@ export default defineConfig({
 Keep the application's other Astro integrations. Stillwind registers the Vite
 adapter and supplies automatic SSR styles for pages and islands. The optional
 Astro peer is required only when using this entrypoint.
+
+Stillwind's middleware inserts the styles into each HTML response before the first
+`</head>`. The development server inserts an inline `<style data-stillwind-ssr>`
+element, and production builds insert `<link rel="stylesheet">` elements. In both
+cases, the styles follow the stylesheets that Astro and other integrations place in
+`<head>`. Responses without `</head>` remain unchanged.
+
+Cascade layers are ordered by their first declaration in the document. When an
+earlier stylesheet declares its own layers, declare the complete layer order in a
+stylesheet that loads before Stillwind's styles. Otherwise Stillwind's `theme`,
+`base`, and `utilities` layers rank after the earlier layers and override them.
+
+The [Starlight setup](https://stillwind.dev/docs/integrations#starlight) applies
+this rule with a `customCss` file that contains only a layer statement.
 
 ## Fresh 2
 

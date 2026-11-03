@@ -103,6 +103,15 @@ Some plugins split routes or server functions before compilation, such as the
 TanStack Start plugin. Place those plugins before `stillwind()`:
 `[tanstackStart(), stillwind(), react()]`.
 
+The plugin reads the stylesheet that `css` selects in `stillwind.config.ts` and
+adds the compiled CSS to the page. Do not import that stylesheet anywhere else:
+not from JavaScript, not from another stylesheet, and not from framework options
+such as Starlight's `customCss`. If you import it, Vite also bundles it as plain
+CSS, and the page receives the raw `@theme` and `@utility` rules. Stillwind warns
+when JavaScript or a framework option imports the stylesheet. It cannot detect
+an `@import` in another stylesheet. This rule also applies to Astro, SvelteKit,
+Nuxt, and other frameworks that run on Vite.
+
 ## Astro
 
 Add the integration to `astro.config.ts`:
@@ -118,6 +127,61 @@ export default defineConfig({
 
 The integration also adds styles to server-rendered pages and islands. Keep your
 other integrations, such as `@astrojs/react`.
+
+The integration inserts the styles at the end of `<head>` in each HTML page: an
+inline `<style>` element in development, and `<link rel="stylesheet">` elements
+in production builds. The styles therefore come after the stylesheets that Astro
+and your other integrations add.
+
+The browser orders cascade layers by the first place that declares them. If an
+earlier stylesheet declares its own layers, Stillwind's `theme`, `base`, and
+`utilities` layers come after them and win over them. To choose a different
+order, declare all layers in a stylesheet that loads before Stillwind's styles.
+
+### Starlight
+
+Starlight declares its `starlight` layers in its own stylesheet, which loads
+before Stillwind's styles. Without an earlier layer order, Stillwind's base styles
+would override Starlight's content styles. Create a stylesheet that contains only
+the layer order, and make it the only entry in `customCss`:
+
+```css
+/* src/styles/layers.css */
+@layer properties, base, starlight, theme, components, utilities;
+```
+
+```js
+// astro.config.mjs
+import starlight from "@astrojs/starlight";
+import { stillwind } from "@stillwind/integration/astro";
+import { defineConfig } from "astro/config";
+
+export default defineConfig({
+  integrations: [
+    starlight({
+      title: "Docs",
+      customCss: ["./src/styles/layers.css"],
+    }),
+    stillwind(),
+  ],
+});
+```
+
+Put the Stillwind stylesheet in a separate file, select it with `css` in
+`stillwind.config.ts`, and keep it out of `customCss`:
+
+```css
+/* src/styles/stillwind.css */
+@import "@astrojs/starlight-tailwind";
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+@import "stillwind/templates.css";
+```
+
+`@astrojs/starlight-tailwind` adds the `dark` variant and theme tokens for
+Starlight's colors and fonts. The stylesheet leaves out `stillwind/preflight.css`,
+because Starlight resets the page styles itself.
 
 ## Next.js
 

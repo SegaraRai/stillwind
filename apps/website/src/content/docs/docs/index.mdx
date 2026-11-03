@@ -83,6 +83,8 @@ export default defineConfig({
 
 Place `stillwind()` before `react()`. Stillwind must compile styles before React
 compiles JSX. The plugin finds `stillwind.config.ts` in the application root.
+It also adds the compiled CSS of your stylesheet to the page, so do not import
+the stylesheet from your code.
 
 ## Style a component
 
