@@ -140,7 +140,7 @@ test("converts a variant to its canonical spelling", () => {
     relation: "same",
   });
   expect(match!.css).toContain("&:focus {");
-  expect(matchCaption(match!)).toBe("Same as [&:focus]:");
+  expect(matchCaption(match!)).toBe("Variant, same as [&:focus]:");
   expect(lookupCandidates(query, "data-[active]").matches[0]!.candidate).toBe("data-active:");
 });
 

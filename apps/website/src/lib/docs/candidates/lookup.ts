@@ -41,14 +41,25 @@ export interface CandidateMatch {
 }
 
 /**
- * Returns a short description of where `match` came from, or undefined when it needs none.
+ * Returns a short description of where `match` came from, or undefined when it needs none. The
+ * description of a variant starts with `Variant`.
  */
 export function matchCaption(match: CandidateMatch): string | undefined {
+  const origin = matchOrigin(match);
+  if (match.source !== "variant") {
+    return origin;
+  }
+  return origin === undefined
+    ? "Variant"
+    : `Variant, ${origin[0]!.toLowerCase()}${origin.slice(1)}`;
+}
+
+function matchOrigin(match: CandidateMatch): string | undefined {
   if (match.relation === "written") {
     return "As written";
   }
   if (match.from === undefined) {
-    return match.source === "variant" ? "Variant" : undefined;
+    return undefined;
   }
   if (match.source === "css") {
     return `From ${match.from}`;
