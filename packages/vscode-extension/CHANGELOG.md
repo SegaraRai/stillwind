@@ -1,5 +1,18 @@
 # @stillwind/vscode-extension
 
+## 0.6.0
+
+### Patch Changes
+
+- The VS Code extension now starts when you open a Vue, Svelte, or Astro file, even if the workspace root has no `stillwind.config.*`. Previously, a workspace with its configuration only in a subfolder got no diagnostics or completion in these files until a JavaScript, TypeScript, or CSS file was opened. The Marketplace and Open VSX listings now show keywords, a banner, and a description that names Tailwind CSS v4.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.6.0
+  - @stillwind/config@0.6.0
+  - @stillwind/host@0.6.0
+  - @stillwind/language-server@0.6.0
+  - @stillwind/native@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

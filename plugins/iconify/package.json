@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/plugin-iconify",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Iconify icons as Stillwind utilities, with only the icons you use in the CSS",
   "keywords": [
     "css-icons",

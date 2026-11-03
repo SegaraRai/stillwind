@@ -1,5 +1,26 @@
 # stillwind
 
+## 0.6.0
+
+### Minor Changes
+
+- An `@import` inside a style rule, or inside a `@layer`, `@supports`, `@media`, or other conditional group, now inlines the imported stylesheet in place, as Tailwind CSS v4 does. For example, `.widget { @import "stillwind/preflight.css"; }` applies the reset only to the descendants of `.widget`. Previously, the compiled CSS kept the raw `@import`, and browsers ignored it. Only plain CSS can be imported inside a style rule: when the imported file or its imports contain a definition, `@stillwind-slot`, or a `@layer` statement, such as `stillwind` itself, the import is left out. `invalid-css-import` reports that import and an unresolved nested import at their source locations.
+
+  A definition such as `@utility` or `@theme`, a Tailwind statement such as `@plugin`, or a `@layer` statement written inside a style rule is now ignored and reported by `invalid-css-directive`. Previously, a nested `@utility` was registered while a nested `@theme` was not, the raw at-rules stayed in the compiled CSS, and a nested `@layer` statement failed the build with a parse error.
+
+### Patch Changes
+
+- The migration guides now describe how to check a migration: compare the computed styles of the migrated components in the old and new builds with a browser console function. The `migrate-to-stillwind` skill now asks agents to run this comparison for each theme and breakpoint and to report each difference.
+
+- A `@variant` block in the body of a `@utility` now applies its variants, as it does in a style rule. Directly in the body, the variants apply to the element that uses the utility. Inside a nested rule, they apply to that rule's selector. Previously, the compiled CSS kept the raw `@variant` rule, and browsers ignored those styles. `prefer-variant-directive` now also reports conditions in `@utility` bodies that a variant can replace.
+
+- The packages now have npm keywords, so the npm search, the Astro integrations library, and other directories that read `keywords` can find them by the frameworks, build tools, and editors that they support. Each package description now states what the package does and which tools it supports.
+
+- Updated dependencies:
+  - @stillwind/config@0.6.0
+  - @stillwind/native@0.6.0
+  - @stillwind/projection@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes

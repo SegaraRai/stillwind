@@ -1,5 +1,21 @@
 # @stillwind/integration
 
+## 0.6.0
+
+### Patch Changes
+
+- Vite-based integrations, including Astro, now warn when application code or a framework option such as Starlight's `customCss` imports the CSS entrypoint selected in `stillwind.config.ts`. The integration already delivers the compiled CSS, and importing the entrypoint also sends its uncompiled `@theme` and `@utility` rules to the page. Remove the import to fix the warning.
+
+- In development, pages that link `/__stillwind/style.css?environment=ssr` now reload that stylesheet when the CSS changes. Theme edits now reach pages that never load the Stillwind client runtime, such as resumable Qwik pages, without importing the CSS entrypoint or reloading the page.
+
+- The packages now have npm keywords, so the npm search, the Astro integrations library, and other directories that read `keywords` can find them by the frameworks, build tools, and editors that they support. Each package description now states what the package does and which tools it supports.
+
+- Updated dependencies:
+  - @stillwind/config@0.6.0
+  - @stillwind/host@0.6.0
+  - @stillwind/native@0.6.0
+  - stillwind@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
