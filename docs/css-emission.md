@@ -11,6 +11,8 @@ A notice is a `/*! ... */` comment that the output keeps, such as a license.
 A nonempty published stylesheet starts with the Stillwind notice and the Tailwind
 notice. The notices that the output requires follow in lexical order, one per
 line. Each notice appears once per stylesheet and keeps its original text.
+The string that `style.css()` returns is not a published stylesheet, so the
+compiler adds no notices to it.
 
 Plugins and authored CSS declare a notice with:
 

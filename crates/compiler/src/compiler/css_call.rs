@@ -4,10 +4,12 @@
 //! variant that selects its element, or the call's `selector` option. The rules and the
 //! theme values, keyframes, and property support that they require are placed into the
 //! named output template that the call selects. The call contributes nothing to the
-//! document stylesheet; the string is the whole output.
+//! document stylesheet; the string is the whole output. The string has no notices, and
+//! [`minify_css_call_text`] shortens it for the transformed module.
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_css::{CssMinifyOptions, minify_css};
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::CssCall;
@@ -19,7 +21,7 @@ use super::document::{DocumentInput, emit_document_rules};
 use super::style_variants::collect_variant_and_applications;
 use super::stylesheet::{prefix_theme_variables, render_css_template, rewrite_generated_css};
 use crate::identifiers::IdentifierContext;
-use crate::{CompilerOptions, MappedStylesheet, finalize_stylesheet};
+use crate::{CompilerOptions, MappedStylesheet};
 
 /// Name of the template that a call without a `template` option selects.
 const DEFAULT_TEMPLATE: &str = "default";
@@ -39,7 +41,9 @@ pub(crate) enum CssOutput {
 /// A group key that does not resolve omits the literals beneath it. A template name
 /// that the stylesheet does not define reports a finding, and the call then returns
 /// its rules without theme values, keyframes, or property support. The returned text
-/// uses rewritten generated names, so callers must not rewrite it again.
+/// uses rewritten generated names, so callers must not rewrite it again. It contains
+/// no notices, such as the Stillwind license comment, unless the template or an
+/// authored rule writes one.
 ///
 /// `module_id` identifies the module of `call`, and it keeps the support queries of
 /// conditional rules distinct between calls.
@@ -127,7 +131,7 @@ pub(crate) fn css_call_text(
         }
         if output == CssOutput::Rules {
             prefix_theme_variables(&mut utilities, theme, options);
-            return Ok(finalize_stylesheet(utilities).css.into());
+            return Ok(utilities.css.into());
         }
         let name = call
             .template
@@ -143,10 +147,10 @@ pub(crate) fn css_call_text(
                     .as_ref()
                     .map_or(call.span, |template| template.span),
             ));
-            return Ok(finalize_stylesheet(utilities).css.into());
+            return Ok(utilities.css.into());
         };
         render_css_template(template, theme, &utilities, options, identifiers)
-            .map(|output| LeanStr::from(finalize_stylesheet(output).css))
+            .map(|output| LeanStr::from(output.css))
     });
     match rendered {
         Ok(css) if diagnostics.len() == start => css.to_lean_string(),
@@ -156,4 +160,17 @@ pub(crate) fn css_call_text(
             LeanString::new()
         }
     }
+}
+
+/// Returns `text` from [`css_call_text`] in minified form.
+///
+/// Lightning CSS removes ordinary comments and whitespace and may shorten values. When
+/// it cannot parse or print `text`, the function returns `text` unchanged, because the
+/// unminified string has the same meaning.
+pub(crate) fn minify_css_call_text(text: LeanString) -> LeanString {
+    if text.is_empty() {
+        return text;
+    }
+    minify_css(&text, &CssMinifyOptions::default())
+        .map_or(text, |output| output.css.to_lean_string())
 }

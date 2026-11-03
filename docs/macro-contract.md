@@ -723,6 +723,11 @@ they use together with `@theme static` values, `@property` registrations at
 that the template omits drops its output, so a template chooses which support it
 includes. The string never contains preflight or the project's other rules.
 
+The compiler minifies the string and adds no notices, such as license comments, to it.
+Minification removes ordinary comments, including the template's comments, and may
+merge rules or shorten values without changing the cascade. When the string cannot be
+minified, the compiler keeps it unminified.
+
 The package's `default` template above, from `stillwind/templates.css`, places theme
 values and inherited initial values on the root of the adopting tree, and initial values
 of properties that do not inherit on every element. It emits no `@property` rules,

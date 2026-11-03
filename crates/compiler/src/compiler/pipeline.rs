@@ -27,7 +27,7 @@ use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
 
 use super::conditionals::{lower, report_skipped_conditionals};
-use super::css_call::{CssOutput, css_call_text};
+use super::css_call::{CssOutput, css_call_text, minify_css_call_text};
 use super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::dynamic::dynamic_candidates;
 use super::emission::{
@@ -317,7 +317,7 @@ impl Compiler {
             });
         }
         for css in &module.css_calls {
-            let text = css_call_text(
+            let text = minify_css_call_text(css_call_text(
                 module_id,
                 css,
                 theme,
@@ -326,7 +326,7 @@ impl Compiler {
                 CssOutput::Template,
                 &mut diagnostics,
                 &mut result.lint_findings,
-            );
+            ));
             let replacement = js_string(&text);
             // The text already uses rewritten names. An anchored mapping keeps the final
             // rewrite of synthetic text from applying a second time.
