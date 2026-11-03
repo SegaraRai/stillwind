@@ -182,4 +182,85 @@ lists the packages that the test suite covers.
 
 Run the [CLI checks](/docs/guides/lint-adoption) over the migrated files. They
 report utilities that Stillwind cannot resolve and Tailwind features that it
-ignores. Then test the production build and your pages in the browser.
+ignores. Then test the production build, and compare your pages with the old
+version as described in the next section.
+
+### Compare computed styles
+
+A successful build and clean CLI checks do not prove that the pages look the
+same. For example, a class outside `style()` gets no CSS, and no check reports
+it. A diff of the generated CSS or HTML does not help either, because Stillwind
+renames the classes and reorders the rules. Instead, compare the computed styles
+of the migrated components in a build from before the migration and a build from
+after it. The test suite checks plugins in the same way, as
+[Tailwind CSS compatibility](/docs/guides/tailwind-compatibility#how-stillwind-checks-compatibility)
+describes.
+
+1. Build the project before and after the migration, and serve both builds.
+2. Open the same page in both builds, with the same viewport size, theme, and
+   other state.
+3. In each build, run the following function in the browser console. Pass a
+   selector that matches the root elements of the migrated components. In
+   Chrome DevTools, `copy(await snapshotStyles(".card"))` copies the result.
+4. Save the two results to files, and compare them with a diff tool, such as
+   `git diff --no-index before.txt after.txt`.
+
+```js
+async function snapshotStyles(rootSelector) {
+  await document.fonts.ready;
+  // Finishing a transition can start another one in a descendant that
+  // inherits the value, so repeat until no animation runs.
+  for (let round = 0; round < 20; round++) {
+    document.documentElement.getBoundingClientRect();
+    const running = document
+      .getAnimations()
+      .filter((animation) => animation.playState === "running");
+    if (running.length === 0) {
+      break;
+    }
+    for (const animation of running) {
+      if (animation.effect.getComputedTiming().endTime === Infinity) {
+        animation.pause();
+        animation.currentTime = 0;
+      } else {
+        animation.finish();
+      }
+    }
+  }
+  const lines = [];
+  document.querySelectorAll(rootSelector).forEach((root, rootIndex) => {
+    [root, ...root.querySelectorAll("*")].forEach((element, index) => {
+      for (const pseudo of ["", "::before", "::after"]) {
+        const style = getComputedStyle(element, pseudo);
+        if (pseudo && style.content === "none") {
+          continue;
+        }
+        for (const name of [...style].filter((name) => !name.startsWith("--")).sort()) {
+          const value = style.getPropertyValue(name);
+          lines.push(`${rootIndex}.${index} ${element.localName}${pseudo} ${name}: ${value}`);
+        }
+      }
+    });
+  });
+  return lines.join("\n");
+}
+```
+
+Each line of the result contains the position of the element, the element or
+pseudo-element, and one property with its value. The function finishes running
+transitions and animations, and stops infinite animations at their start, so
+a theme change just before the call does not leave intermediate values. It
+skips custom properties, because their names usually change in a migration.
+
+Repeat the comparison for each theme and for each breakpoint that the project
+uses. Then review the differences:
+
+- Some differences do not change the look. For example, when you move a margin
+  from one element to its neighbor, the lines of both elements differ, but the
+  layout stays the same.
+- The function reads only the current state. To compare states such as `:hover`
+  and `:focus-visible`, force the state in the browser's developer tools, or
+  hover and focus the element with a browser automation tool such as Playwright.
+- The function matches elements by their order inside each root. When the
+  migration adds or removes an element, the lines that follow it no longer
+  match, so compare that part by hand.

@@ -123,5 +123,8 @@ custom property in `style()`.
 ## Check the migrated code
 
 Run the [CLI checks](/docs/guides/lint-adoption) over the migrated files, and
-compare the pages with the old version in the browser. After you remove the last
+compare the pages with the old version in the browser. To compare them
+precisely, use the method in
+[Compare computed styles](/docs/guides/migrating-from-tailwind#compare-computed-styles),
+which works the same way for a migration from CSS. After you remove the last
 old stylesheet, switch to `@import "stillwind"` and check the pages again.

@@ -70,8 +70,13 @@ unless the user agrees.
 ## Verify
 
 - Build the project, and run `stillwind lint` and `stillwind fmt`.
-- Compare the migrated pages with the old version in a browser when you can.
-  Otherwise, list the pages that the user should check.
+- When you can use a browser, compare the computed styles of the migrated
+  components with the old version, as "Compare computed styles" in
+  `docs/guides/migrating-from-tailwind.md` describes. Use it for a migration
+  from CSS too. Compare each theme and each breakpoint that the project uses,
+  and do not rely on screenshots alone. Report each difference, and say whether
+  it is intended for the chosen level.
+- When you cannot use a browser, list the pages that the user should check.
 
 ## Finish
 
