@@ -25,20 +25,28 @@ const theme = {
   {example.stylesheet !== undefined && (
     <>
       <h3>Stylesheet</h3>
-      <Code code={example.stylesheet.trim()} lang="css" themes={theme} defaultColor={false} />
+      <figure class="nb-code-figure">
+        <Code code={example.stylesheet.trim()} lang="css" themes={theme} defaultColor={false} />
+      </figure>
     </>
   )}
   {example.source !== undefined && (
     <>
       <h3>Source</h3>
-      <Code code={example.source.trim()} lang="tsx" themes={theme} defaultColor={false} />
+      <figure class="nb-code-figure">
+        <Code code={example.source.trim()} lang="tsx" themes={theme} defaultColor={false} />
+      </figure>
       <h3>Compiled code</h3>
-      <Code code={example.code!.trim()} lang="ts" themes={theme} defaultColor={false} />
+      <figure class="nb-code-figure">
+        <Code code={example.code!.trim()} lang="ts" themes={theme} defaultColor={false} />
+      </figure>
     </>
   )}
   {!hideCss && <h3>{example.stylesheet === undefined ? "Generated CSS" : documentCssHeading}</h3>}
   {hideCss ? null : example.css ? (
-    <Code code={example.css} lang="css" themes={theme} defaultColor={false} />
+    <figure class="nb-code-figure">
+      <Code code={example.css} lang="css" themes={theme} defaultColor={false} />
+    </figure>
   ) : (
     <p>{noCssMessage}</p>
   )}

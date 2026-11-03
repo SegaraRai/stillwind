@@ -38,18 +38,32 @@ function annotations(sourceIndex: number): Transformer[] {
     {
       name: "stillwind-diagnostic-ranges",
       preprocess(_code, options) {
-        options.decorations = labels
-          .filter((label) => label.end > label.start)
-          .map((label) => ({
-            start: label.start,
-            end: label.end,
-            tagName: "mark",
-            alwaysWrap: true,
-            properties: {
-              className: ["diagnostic-range"],
-              "aria-describedby": label.id,
-            },
-          }));
+        // Shiki turns the line element itself into the decoration element when a multi-line
+        // decoration covers a whole line, which drops the line's class and the range class.
+        // Each decoration therefore stays on one line and skips the indentation of the lines
+        // after its first one.
+        options.decorations = labels.flatMap((label) =>
+          lines.flatMap((line, index) => {
+            const lineStart = offsets[index]!;
+            const indentation = label.start < lineStart ? /^\s*/.exec(line)![0].length : 0;
+            const start = Math.max(label.start, lineStart + indentation);
+            const end = Math.min(label.end, lineStart + line.length);
+            return end > start
+              ? [
+                  {
+                    start,
+                    end,
+                    tagName: "mark",
+                    alwaysWrap: true,
+                    properties: {
+                      className: ["diagnostic-range"],
+                      "aria-describedby": label.id,
+                    },
+                  },
+                ]
+              : [];
+          }),
+        );
       },
       line(node, line) {
         const start = offsets[line - 1]!;
@@ -68,7 +82,7 @@ function annotations(sourceIndex: number): Transformer[] {
             properties: {
               id,
               className: ["diagnostic-annotation"],
-              style: `--diagnostic-column: ${Math.max(0, range.start - start)}`,
+              style: `--diagnostic-column: ${range.start < start ? /^\s*/.exec(lines[line - 1]!)![0].length : range.start - start}`,
             },
             children: [
               {
