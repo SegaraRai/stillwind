@@ -1,7 +1,31 @@
 {
   "name": "stillwind",
   "version": "0.5.0",
-  "description": "CSS definitions and framework adapters for Stillwind",
+  "description": "Write Tailwind CSS v4 utilities in components, enforce your design system, and ship static CSS",
+  "keywords": [
+    "alpinejs",
+    "astro",
+    "atomic-css",
+    "css",
+    "css-compiler",
+    "design-system",
+    "design-tokens",
+    "lit",
+    "preact",
+    "qwik",
+    "react",
+    "solid-js",
+    "static-css",
+    "stillwind",
+    "svelte",
+    "tailwind",
+    "tailwindcss",
+    "utility-classes",
+    "utility-first",
+    "vue",
+    "web-components",
+    "zero-runtime"
+  ],
   "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"

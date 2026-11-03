@@ -1,7 +1,19 @@
 {
   "name": "@stillwind/cli",
   "version": "0.5.0",
-  "description": "Command wrappers for Stillwind tools",
+  "description": "Stillwind CLI to sort, lint, and fix utilities, inspect generated CSS, and query the design system",
+  "keywords": [
+    "ci",
+    "class-sorting",
+    "cli",
+    "css",
+    "design-system",
+    "formatter",
+    "lint",
+    "linter",
+    "stillwind",
+    "tailwindcss"
+  ],
   "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"

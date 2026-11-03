@@ -1,7 +1,10 @@
 {
   "name": "@stillwind/analysis",
   "version": "0.5.0",
-  "description": "Analysis services for Stillwind tools",
+  "description": "Analysis services for the Stillwind CLI, language server, and editors",
+  "keywords": [
+    "stillwind"
+  ],
   "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"

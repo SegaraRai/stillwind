@@ -1,7 +1,16 @@
 {
   "name": "@stillwind/plugin-iconify",
   "version": "0.5.0",
-  "description": "Iconify icons as Stillwind utilities",
+  "description": "Iconify icons as Stillwind utilities, with only the icons you use in the CSS",
+  "keywords": [
+    "css-icons",
+    "iconify",
+    "icons",
+    "stillwind",
+    "stillwind-plugin",
+    "svg",
+    "svg-icons"
+  ],
   "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"

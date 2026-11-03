@@ -1,7 +1,12 @@
 {
   "name": "@stillwind/language-server",
   "version": "0.5.0",
-  "description": "Stillwind language server for Node and browser transports",
+  "description": "Stillwind Language Server Protocol handlers with Node and browser transports",
+  "keywords": [
+    "language-server",
+    "lsp",
+    "stillwind"
+  ],
   "homepage": "https://stillwind.dev",
   "bugs": {
     "url": "https://github.com/SegaraRai/stillwind/issues"
