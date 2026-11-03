@@ -1,17 +1,19 @@
 //! `prefer-variant-directive`: nested style rules and conditional at-rules whose
 //! headers repeat the CSS of a registered variant.
 //!
-//! Inside a style rule, `@variant <name> { body }` expands to the headers of the
-//! variant around `body`. [`check_variant_directives`] reports authored headers that
-//! [`VariantIndex`] maps to such a variant. The fix replaces only the headers with
-//! `@variant <name>` and keeps the body, so the output selectors and their specificity
-//! stay the same.
+//! Inside a style rule or a `@utility` body, `@variant <name> { body }` expands to the
+//! headers of the variant around `body`. [`check_variant_directives`] reports authored
+//! headers that [`VariantIndex`] maps to such a variant. The fix replaces only the
+//! headers with `@variant <name>` and keeps the body, so the output selectors and their
+//! specificity stay the same.
 //!
 //! A variant with two levels, such as `hover`, which applies `&:hover` inside
 //! `@media (hover: hover)`, matches only when both levels are written, and its fix
-//! replaces both headers. At-rules outside style rules are not reported, because
-//! `@variant` there defines a variant. Definition bodies such as `@custom-variant` and
-//! `@utility` are skipped, because a variant there could refer to itself.
+//! replaces both headers. At-rules outside style rules and `@utility` bodies are not
+//! reported, because `@variant` there defines a variant. Other definition bodies such
+//! as `@custom-variant` are skipped, because the fix could make a variant refer to
+//! itself: `@custom-variant dark { @media (prefers-color-scheme: dark) { @slot; } }`
+//! would become `@variant dark` inside the definition of `dark`.
 
 use std::ops::Range;
 
@@ -55,8 +57,8 @@ pub(super) fn check_variant_directives(
     visit(checker, index, nodes, false, None);
 }
 
-/// Checks `nodes`. `in_rule` tells whether a style rule encloses them, and `covered` is
-/// a node whose header an enclosing finding already replaces.
+/// Checks `nodes`. `in_rule` tells whether a style rule or a `@utility` body encloses
+/// them, and `covered` is a node whose header an enclosing finding already replaces.
 fn visit(
     checker: &mut Checker<'_>,
     index: &VariantIndex,
@@ -72,6 +74,11 @@ fn visit(
                 block: Some(block),
                 ..
             } if name == "variant" && in_rule => (block, true),
+            CssNodeKind::AtRule {
+                name,
+                block: Some(block),
+                ..
+            } if name == "utility" && !in_rule => (block, true),
             CssNodeKind::AtRule {
                 name,
                 block: Some(block),
@@ -333,10 +340,24 @@ mod tests {
             ".card { @media (hover: hover) { &:hover { color: red; } color: blue; } }",
             "@media (width >= 40rem) { .card { color: red; } }",
             "@custom-variant wide { .card & { @media (width >= 40rem) { @slot; } } }",
-            "@utility wide { &:focus-visible { color: red; } }",
         ] {
             assert_eq!(directives(css, false), [], "{css}");
         }
+    }
+
+    #[test]
+    fn utility_bodies_are_checked_as_style_rules() {
+        assert_eq!(
+            directives(
+                "@utility code { & pre { @media (prefers-color-scheme: dark) { color: red; } } }",
+                false
+            ),
+            [fixed(
+                LintKind::PreferVariantDirective,
+                "@media (prefers-color-scheme: dark)",
+                "@utility code { & pre { @variant dark { color: red; } } }"
+            )]
+        );
     }
 
     #[test]

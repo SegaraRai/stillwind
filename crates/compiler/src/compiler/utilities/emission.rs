@@ -62,10 +62,11 @@ pub(crate) fn emit_utility_rules<const FLAGS: u8>(
         .flat_map(|utility| utility.required_properties.clone())
         .collect::<Vec<_>>();
     // A utility body can apply other utilities, as a Tailwind plugin's `@apply p-4`
-    // does. The rendered rules anchor the applications, so variants of the utility
-    // also select the applied declarations.
+    // does, and can write `@variant` blocks, as a style rule can. The rendered rules
+    // anchor both, so variants of the utility also select the applied declarations,
+    // and a `@variant` block in a nested rule applies to that rule's selector.
     let applied_banners = applied_banners(&css, theme);
-    if css.contains("@apply") {
+    if css.contains("@apply") || css.contains("@variant") {
         css = expand_authored_directives(&css, theme, &mut required_properties, identifiers)?;
     }
     // A utility body can define the keyframes and custom properties it uses, as

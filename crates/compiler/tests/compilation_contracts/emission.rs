@@ -400,6 +400,33 @@ fn utility_bodies_apply_other_utilities_under_their_variants() {
 }
 
 #[test]
+fn utility_bodies_expand_variant_blocks_on_the_element_and_nested_rules() {
+    let (_, result) = compile(
+        "const x = style('code-block hover:code-block-top !code-important');",
+        "@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));\n\
+         @variant hover { &:hover { @slot; } }\n\
+         @utility code-block { & pre { padding:1rem; @variant dark { color:white; } } }\n\
+         @utility code-block-top { @variant dark { color:black; } }\n\
+         @utility code-important { @variant dark { color:gray; } }",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let compact: String = result
+        .css
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    let dark = "&:where([data-theme=dark],[data-theme=dark]*)";
+    for fragment in [
+        format!("pre{{padding:1rem;{dark}{{color:white;}}"),
+        format!(":hover{{{dark}{{color:black;}}"),
+        format!("{{{dark}{{color:gray!important;}}"),
+    ] {
+        assert!(compact.contains(&fragment), "{}", result.css);
+    }
+    assert!(!result.css.contains("@variant"), "{}", result.css);
+}
+
+#[test]
 fn custom_utilities_keep_sibling_selectors_and_expand_applications() {
     let (_, result) = compile(
         "const x = style('hover:framework-link');",

@@ -1,6 +1,6 @@
 ---
 title: "@variant"
-description: Apply variants, such as hover or dark, to a block of declarations in a rule of your stylesheet.
+description: Apply variants, such as hover or dark, to a block of declarations in a rule or custom utility of your stylesheet.
 slug: docs/at-rules/variant
 sidebar:
   order: 6
@@ -15,7 +15,9 @@ selector {
 ```
 
 `@variant` wraps its block in the rules of the listed variants. Write it inside
-a style rule.
+a style rule or the body of a [@utility](/docs/at-rules/utility). The variants
+apply to the element that the enclosing rule selects. Directly in a `@utility`
+body, that element is the one that uses the utility.
 
 ## Example
 
@@ -48,7 +50,8 @@ a style rule.
 - A `@variant` statement without a block stays in the output unchanged.
 
 [prefer-variant-directive](/docs/lints/prefer-variant-directive) reports an
-`@media` query that a variant of your theme can replace, such as a breakpoint.
+`@media` query that a variant of your theme can replace, such as a breakpoint,
+in a style rule or a `@utility` body.
 
 ## Variant definitions
 

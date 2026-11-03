@@ -111,10 +111,12 @@ only. To remove built-in definitions, use
 
 ## Body
 
-A body can contain nested rules, `@apply`, `@keyframes`, and `@property`. A
-nested selector without `&` selects descendants: `[data-icon]` means
-`& [data-icon]`. Variants select the utility element, and the nested selector
-applies inside them.
+A body can contain nested rules, `@apply`, [@variant](/docs/at-rules/variant)
+blocks, `@keyframes`, and `@property`. A nested selector without `&` selects
+descendants: `[data-icon]` means `& [data-icon]`. Variants select the utility
+element, and the nested selector applies inside them. A `@variant` block applies
+its variants to the utility element, or to the selector of the nested rule that
+contains it.
 
 The compiler moves `@keyframes` and `@property` rules of a used utility to the
 `keyframes` slot, because browsers ignore them inside a style rule. An unused
