@@ -4,9 +4,11 @@ description: Reports a view transition applied without .for().
 slug: docs/lints/missing-view-transition-name
 ---
 
-This rule reports a `style()` call that applies a view transition without
-`.for()`. The transition adds its class, but the element has no
-`view-transition-name`, so the browser does not capture it.
+This rule reports a [`style()`](/docs/macros/style) call that applies a view
+transition without [`.for()`](/docs/macros/view-transition). The transition
+adds its class, but the element has no
+[`view-transition-name`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-name),
+so the browser does not capture it.
 
 ## Reported
 
@@ -28,8 +30,8 @@ style(transition.for("card"));
 
 ## How to fix
 
-- Call `.for()` with a key that stays the same for the item before and after the
-  update, such as its ID.
+- Call `.for()` with a key that stays the same
+  for the item before and after the update, such as its ID.
 - When the call combines several transitions, call `.for()` on one of them.
 
 The rule does not check that keys are unique across the page.

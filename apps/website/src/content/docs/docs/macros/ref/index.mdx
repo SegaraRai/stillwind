@@ -7,8 +7,8 @@ sidebar:
 ---
 
 `style.ref(label?)` creates a ref: a name for an element that other styles can
-refer to. Attach the ref to an element with `style(ref)`. Then use its methods to
-style other elements from that element's state, size, or position.
+refer to. Attach the ref to an element with `style(ref)`. Then use its methods
+to style other elements from that element's state, size, or position.
 
 ## Example
 
@@ -63,15 +63,15 @@ nearest one.
 
 ## Methods
 
-| Method                                                     | Where to write it           | Effect                                                 |
-| ---------------------------------------------------------- | --------------------------- | ------------------------------------------------------ |
-| `ref`                                                      | A `style()` argument        | Attaches the ref to the element                        |
-| [`ref()`](/docs/macros/ref/condition)                      | A computed key in `style()` | Matches inside the ref element, optionally in a state  |
-| [`ref().in()`](/docs/macros/ref/in)                        | After a ref condition       | Matches inside a shared ancestor, such as for siblings |
-| [`ref.at()`](/docs/macros/ref/at)                          | A computed key in `style()` | Matches a container query on the ref element           |
-| [`ref.asContainer()`](/docs/macros/ref/as-container)       | A `style()` argument        | Makes the ref element a named container                |
-| [`ref.asAnchor()`](/docs/macros/ref/as-anchor)             | A `style()` argument        | Makes the ref element a named anchor                   |
-| [`ref.positionAnchor()`](/docs/macros/ref/position-anchor) | A `style()` argument        | Positions the styled element against the anchor        |
+| Method                                                     | Where to write it                          | Effect                                                 |
+| ---------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `ref`                                                      | A [`style()`](/docs/macros/style) argument | Attaches the ref to the element                        |
+| [`ref()`](/docs/macros/ref/condition)                      | A computed key in `style()`                | Matches inside the ref element, optionally in a state  |
+| [`ref().in()`](/docs/macros/ref/in)                        | After a ref condition                      | Matches inside a shared ancestor, such as for siblings |
+| [`ref.at()`](/docs/macros/ref/at)                          | A computed key in `style()`                | Matches a container query on the ref element           |
+| [`ref.asContainer()`](/docs/macros/ref/as-container)       | A `style()` argument                       | Makes the ref element a named container                |
+| [`ref.asAnchor()`](/docs/macros/ref/as-anchor)             | A `style()` argument                       | Makes the ref element a named anchor                   |
+| [`ref.positionAnchor()`](/docs/macros/ref/position-anchor) | A `style()` argument                       | Positions the styled element against the anchor        |
 
 Write each method call directly in `style()`. You cannot store the result of a
 method call in a variable and use it later.

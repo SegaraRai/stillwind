@@ -39,7 +39,7 @@ you move its declarations.
 
 Collect the colors, spacing, font sizes, radii, and breakpoints that the old
 CSS repeats, such as Sass variables or custom properties in `:root`. Define them
-as `@theme` tokens by role:
+as [`@theme`](/docs/at-rules/theme) tokens by role:
 
 ```css
 @theme {
@@ -56,7 +56,7 @@ mean the same thing. Keep values separate when they are equal by chance.
 ## Move rules into style()
 
 Translate the declarations of each rule into utilities, and apply them with
-`style()` on the element:
+[`style()`](/docs/guides/style) on the element:
 
 ```css title="Button.module.css"
 .button {
@@ -108,8 +108,8 @@ utility instead.
 
 - Keep resets and base element styles until you enable the preflight reset.
   Then remove the rules that it replaces.
-- Move `@keyframes` next to the component that uses them with
-  [style.keyframes()](/docs/macros/keyframes).
+- Move [`@keyframes`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@keyframes)
+  next to the component that uses them with [`style.keyframes()`](/docs/macros/keyframes).
 - Move styles for HTML that you do not control, such as rendered Markdown, into
   a custom utility. See [Recommended practices](/docs/guides/recommended-practices#avoid-separate-css).
 

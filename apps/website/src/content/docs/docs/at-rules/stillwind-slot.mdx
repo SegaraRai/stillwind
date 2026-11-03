@@ -19,21 +19,21 @@ when you write your own entry stylesheet or a
 
 These slots insert complete rules. Write them outside style rules:
 
-| Slot         | Inserts                                             |
-| ------------ | --------------------------------------------------- |
-| `utilities`  | The rules of the utilities that modules use         |
-| `keyframes`  | The `@keyframes` rules that the used utilities need |
-| `properties` | The `@property` rules of the needed registrations   |
+| Slot         | Inserts                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `utilities`  | The rules of the utilities that modules use                                                                                     |
+| `keyframes`  | The [`@keyframes`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@keyframes) rules that the used utilities need |
+| `properties` | The [`@property`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@property) rules of the needed registrations    |
 
 These slots insert declarations. Write them inside a style rule, which supplies
 the selector:
 
-| Slot                              | Inserts                                                                    |
-| --------------------------------- | -------------------------------------------------------------------------- |
-| `theme`                           | The theme values that the generated CSS uses, and `@theme static` values   |
-| `property-initials`               | The initial values of the needed registrations                             |
-| `property-initials inherited`     | The initial values of the needed registrations with `inherits: true` only  |
-| `property-initials non-inherited` | The initial values of the needed registrations with `inherits: false` only |
+| Slot                              | Inserts                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `theme`                           | The theme values that the generated CSS uses, and [`@theme static`](/docs/at-rules/theme) values |
+| `property-initials`               | The initial values of the needed registrations                                                   |
+| `property-initials inherited`     | The initial values of the needed registrations with `inherits: true` only                        |
+| `property-initials non-inherited` | The initial values of the needed registrations with `inherits: false` only                       |
 
 ## Example
 
@@ -82,5 +82,5 @@ declarations win.
   `keyframes`, is [SW14002](/docs/errors/SW14002).
 - A repeated slot repeats its output at every position.
 
-`@stillwind-slot` places generated CSS. [@slot](/docs/at-rules/slot) is a
+`@stillwind-slot` places generated CSS. [`@slot`](/docs/at-rules/slot) is a
 different at-rule for variant definitions.

@@ -30,8 +30,8 @@ The compiler reads the utilities at build time and generates their CSS.
 In React, `style()` returns a `className` prop.
 
 Utilities and variants come from the stylesheet that `stillwind.config.ts`
-selects. A token that you add to `@theme` adds utilities, such as `bg-accent`
-for `--color-accent`.
+selects. A token that you add to [`@theme`](/docs/at-rules/theme) adds utilities,
+such as `bg-accent` for `--color-accent`.
 
 ## Add variants
 
@@ -180,4 +180,4 @@ such as state updates or I/O, before you call `style()`.
 - [Reusable styles](/docs/guides/reusable-styles): how to share styles and define component options
 - [Responsive styles](/docs/guides/responsive-styles): how to name breakpoints and use them in JavaScript
 - [Checks in the editor and CI](/docs/guides/lint-adoption): how to find misspelled utilities and other mistakes
-- [The style() reference](/docs/macros/style): every accepted input
+- [The `style()` reference](/docs/macros/style): every accepted input

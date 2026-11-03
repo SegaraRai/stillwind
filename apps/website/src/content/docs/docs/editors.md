@@ -21,9 +21,9 @@ configuration as JavaScript.
 
 ### Features
 
-- Hover over utilities, `style()` calls, or bound variables to see the generated CSS.
+- Hover over utilities, [`style()`](/docs/guides/style) calls, or bound variables to see the generated CSS.
 - Complete utilities, variants, and theme values.
-- Complete quoted `@plugin` paths, and follow links to their modules.
+- Complete quoted [`@plugin`](/docs/at-rules/plugin) paths, and follow links to their modules.
 - See colors, and open color pickers in utilities and theme references.
 - Apply compiler Quick Fixes.
 - Run **Stillwind: Sort Utilities**.

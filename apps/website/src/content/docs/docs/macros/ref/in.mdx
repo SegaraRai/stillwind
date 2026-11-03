@@ -4,9 +4,9 @@ description: Style an element from the state of a sibling, inside an ancestor th
 slug: docs/macros/ref/in
 ---
 
-`trigger("hover").in(card)` matches while the `trigger` element is hovered and an
-element with the `card` ref contains both the `trigger` element and the styled
-element. Use it to style an element from the state of a sibling.
+`trigger("hover").in(card)` matches while the `trigger` element is hovered and
+an element with the `card` ref contains both the `trigger` element and the
+styled element. Use it to style an element from the state of a sibling.
 
 ## Example
 
@@ -34,7 +34,7 @@ The receiver is a [ref condition](/docs/macros/ref/condition), such as
 | `card`                 | Has the `card` ref                          |
 | `card("focus-within")` | Has the `card` ref and matches the variants |
 
-The argument cannot use `.in()` or `.at()` itself.
+The argument cannot use `.in()` or [`.at()`](/docs/macros/ref/at) itself.
 
 ## Behavior
 
@@ -44,8 +44,8 @@ styled element itself.
 Calling `.in()` more than once adds each scope as another condition, and every
 condition must match.
 
-Write the whole chain directly as a computed key in `style()`. You cannot store it
-in a variable and use it later.
+Write the whole chain directly as a computed key in [`style()`](/docs/macros/style).
+You cannot store it in a variable and use it later.
 
 See [Element relationships](/docs/guides/element-relationships#react-to-a-siblings-state)
 for a task-based example.

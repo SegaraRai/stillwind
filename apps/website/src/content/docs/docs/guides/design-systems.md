@@ -60,7 +60,8 @@ export function Panel() {
 
 When a theme changes, you edit the stylesheet. The components stay the same.
 
-To use a breakpoint in JavaScript, pass its name to `style.media()`. See
+To use a breakpoint in JavaScript, pass its name to
+[`style.media()`](/docs/macros/media). See
 [Responsive styles](/docs/guides/responsive-styles).
 
 ## Report values outside the theme

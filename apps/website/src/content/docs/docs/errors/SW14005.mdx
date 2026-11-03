@@ -5,9 +5,9 @@ slug: docs/errors/SW14005
 ---
 
 This error occurs when a utility requires a custom property, but no
-`@stillwind-property` in the loaded stylesheets registers it. The registration
-provides the initial value and other support CSS. Assigning the property in a
-rule does not register it.
+[`@stillwind-property`](/docs/at-rules/stillwind-property) in the loaded
+stylesheets registers it. The registration provides the initial value and
+other support CSS. Assigning the property in a rule does not register it.
 
 ## Reported
 
@@ -47,6 +47,7 @@ style("spin-x");
 
 ## How to fix
 
-- Register the property with `@stillwind-property`, as in the example.
+- Register the property with `@stillwind-property`,
+  as in the example.
 - If the property comes from Stillwind or a plugin, check that the stylesheet
   imports the file that registers it, and check the spelling of the name.

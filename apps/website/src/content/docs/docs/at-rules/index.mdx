@@ -6,11 +6,11 @@ sidebar:
   order: 0
 ---
 
-Your stylesheet defines the design system that `style()` uses. Besides ordinary
-CSS, it can contain at-rules that define tokens, utilities, and variants, and
-at-rules that control where the generated CSS goes. Some of them come from
-Tailwind CSS v4, and Stillwind evaluates them with its own rules. The others
-start with `@stillwind-`.
+Your stylesheet defines the design system that [`style()`](/docs/macros/style)
+uses. Besides ordinary CSS, it can contain at-rules that define tokens,
+utilities, and variants, and at-rules that control where the generated CSS goes.
+Some of them come from Tailwind CSS v4, and Stillwind evaluates them with its
+own rules. The others start with `@stillwind-`.
 
 Each page shows the syntax of an at-rule and examples. An example shows the
 stylesheet, the source that uses it, and the complete generated stylesheet. The
@@ -18,41 +18,41 @@ generated stylesheet on these pages leaves out the preflight reset.
 
 ## Define the design system
 
-| At-rule                                                                      | Use it to                                                     | Origin    |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------- | --------- |
-| [@theme](/docs/at-rules/theme)                                               | Define design tokens and shared values                        | Tailwind  |
-| [@utility](/docs/at-rules/utility)                                           | Define a utility or add declarations to an existing one       | Tailwind  |
-| [@custom-variant](/docs/at-rules/custom-variant)                             | Define a variant                                              | Tailwind  |
-| [@slot](/docs/at-rules/slot)                                                 | Mark where a variant definition inserts the styled content    | Tailwind  |
-| [@plugin](/docs/at-rules/plugin)                                             | Load a Stillwind or Tailwind CSS v4 plugin                    | Tailwind  |
-| [@stillwind-property](/docs/at-rules/stillwind-property)                     | Register a custom property that utilities need                | Stillwind |
-| [@stillwind-require-properties](/docs/at-rules/stillwind-require-properties) | Declare the registered custom properties that a utility needs | Stillwind |
+| At-rule                                                                        | Use it to                                                     | Origin    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------- | --------- |
+| [`@theme`](/docs/at-rules/theme)                                               | Define design tokens and shared values                        | Tailwind  |
+| [`@utility`](/docs/at-rules/utility)                                           | Define a utility or add declarations to an existing one       | Tailwind  |
+| [`@custom-variant`](/docs/at-rules/custom-variant)                             | Define a variant                                              | Tailwind  |
+| [`@slot`](/docs/at-rules/slot)                                                 | Mark where a variant definition inserts the styled content    | Tailwind  |
+| [`@plugin`](/docs/at-rules/plugin)                                             | Load a Stillwind or Tailwind CSS v4 plugin                    | Tailwind  |
+| [`@stillwind-property`](/docs/at-rules/stillwind-property)                     | Register a custom property that utilities need                | Stillwind |
+| [`@stillwind-require-properties`](/docs/at-rules/stillwind-require-properties) | Declare the registered custom properties that a utility needs | Stillwind |
 
 ## Use utilities in your own rules
 
-| At-rule                            | Use it to                                             | Origin   |
-| ---------------------------------- | ----------------------------------------------------- | -------- |
-| [@apply](/docs/at-rules/apply)     | Insert the declarations of utilities into a rule      | Tailwind |
-| [@variant](/docs/at-rules/variant) | Apply variants, such as `hover` or `dark`, to a block | Tailwind |
+| At-rule                              | Use it to                                             | Origin   |
+| ------------------------------------ | ----------------------------------------------------- | -------- |
+| [`@apply`](/docs/at-rules/apply)     | Insert the declarations of utilities into a rule      | Tailwind |
+| [`@variant`](/docs/at-rules/variant) | Apply variants, such as `hover` or `dark`, to a block | Tailwind |
 
 ## Place the generated CSS
 
-| At-rule                                                          | Use it to                                              | Origin    |
-| ---------------------------------------------------------------- | ------------------------------------------------------ | --------- |
-| [@stillwind-slot](/docs/at-rules/stillwind-slot)                 | Place generated utilities, theme values, and other CSS | Stillwind |
-| [@stillwind-css-template](/docs/at-rules/stillwind-css-template) | Define the output of `style.css()`                     | Stillwind |
+| At-rule                                                            | Use it to                                              | Origin    |
+| ------------------------------------------------------------------ | ------------------------------------------------------ | --------- |
+| [`@stillwind-slot`](/docs/at-rules/stillwind-slot)                 | Place generated utilities, theme values, and other CSS | Stillwind |
+| [`@stillwind-css-template`](/docs/at-rules/stillwind-css-template) | Define the output of [`style.css()`](/docs/macros/css) | Stillwind |
 
 `@import "stillwind"` already places every slot. Use these at-rules when you
 write your own entry stylesheet or change the output of `style.css()`.
 
 ## Remove or limit definitions
 
-| At-rule                                                                                  | Use it to                                                | Origin    |
-| ---------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------- |
-| [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility)                       | Remove built-in or plugin utilities                      | Stillwind |
-| [@stillwind-undef-variant](/docs/at-rules/stillwind-undef-variant)                       | Remove built-in or plugin variants                       | Stillwind |
-| [@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property) | Reject arbitrary properties such as `[color:red]`        | Stillwind |
-| [@stillwind-registry](/docs/at-rules/stillwind-registry)                                 | Change definitions only in keyframes or view transitions | Stillwind |
+| At-rule                                                                                    | Use it to                                                | Origin    |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------- | --------- |
+| [`@stillwind-undef-utility`](/docs/at-rules/stillwind-undef-utility)                       | Remove built-in or plugin utilities                      | Stillwind |
+| [`@stillwind-undef-variant`](/docs/at-rules/stillwind-undef-variant)                       | Remove built-in or plugin variants                       | Stillwind |
+| [`@stillwind-undef-arbitrary-property`](/docs/at-rules/stillwind-undef-arbitrary-property) | Reject arbitrary properties such as `[color:red]`        | Stillwind |
+| [`@stillwind-registry`](/docs/at-rules/stillwind-registry)                                 | Change definitions only in keyframes or view transitions | Stillwind |
 
 ## Write a utility library
 

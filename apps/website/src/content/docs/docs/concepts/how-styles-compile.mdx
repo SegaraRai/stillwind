@@ -4,7 +4,7 @@ slug: docs/concepts/how-styles-compile
 description: See what Stillwind generates at build time, what JavaScript remains at runtime, and how CSS reaches the page.
 ---
 
-Stillwind compiles `style()` calls when your bundler builds the application.
+Stillwind compiles [`style()`](/docs/guides/style) calls when your bundler builds the application.
 This page shows what the compiler generates, what JavaScript remains at
 runtime, and how the CSS reaches the page.
 
@@ -53,8 +53,8 @@ chooses class names and sets property values.
 | Static utilities and variants          | A class name                                |
 | A condition, such as `active && "..."` | A helper that joins class names             |
 | A runtime custom property              | An inline `style` value                     |
-| `style.cva()`                          | A factory that selects compiled class names |
-| `style.media()`                        | A string with the media query               |
+| [`style.cva()`](/docs/macros/cva)      | A factory that selects compiled class names |
+| [`style.media()`](/docs/macros/media)  | A string with the media query               |
 | [`style.css()`](/docs/macros/css)      | A CSS string that you place yourself        |
 
 Development builds import checked versions of the helpers from

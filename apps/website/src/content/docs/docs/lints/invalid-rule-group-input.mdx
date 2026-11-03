@@ -4,9 +4,10 @@ description: Reports a class field, custom property, or ref inside an object wit
 slug: docs/lints/invalid-rule-group-input
 ---
 
-This rule reports a `class` field, a custom property, a ref, or a stored `style()`
-result inside an object with variant keys, such as `{ "hover:": ... }`. A variant
-can only condition utilities, so the input is left out.
+This rule reports a `class` field, a custom property, a ref, or a stored
+[`style()`](/docs/macros/style) result inside an object with variant keys,
+such as `{ "hover:": ... }`. A variant can only condition utilities, so the
+input is left out.
 
 ## Reported
 
@@ -19,7 +20,11 @@ can only condition utilities, so the input is left out.
 ```
 
 ```tsx
-style({ "hover:": { class: "external" } });
+style({
+  "hover:": {
+    class: "external",
+  },
+});
 ```
 
 </DiagnosticExample>
@@ -33,7 +38,9 @@ style({ "hover:": { class: "external" } });
 ```
 
 ```tsx
-style({ class: "external" });
+style({
+  class: "external",
+});
 ```
 
 ## How to fix

@@ -5,8 +5,8 @@ slug: docs/macros/css
 ---
 
 `style.css(...rules, options?)` compiles utilities into a CSS string. Unlike
-`style()`, it adds nothing to the page's stylesheet. You decide where the string
-goes, such as a shadow root.
+[`style()`](/docs/macros/style), it adds nothing to the page's stylesheet. You
+decide where the string goes, such as a shadow root.
 
 ## Example
 
@@ -32,10 +32,10 @@ reports them.
 
 The last argument can be an options object literal:
 
-| Option     | Value                                                                              |
-| ---------- | ---------------------------------------------------------------------------------- |
-| `selector` | The selector that utilities without their own selector style, such as `:host`      |
-| `template` | The name of an `@stillwind-css-template` in your stylesheet; defaults to `default` |
+| Option     | Value                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `selector` | The selector that utilities without their own selector style, such as `:host`                                               |
+| `template` | The name of an [`@stillwind-css-template`](/docs/at-rules/stillwind-css-template) in your stylesheet; defaults to `default` |
 
 A variant that sets its own selector, such as `host:` or `[button]:`, keeps that
 selector. A utility without `selector` and without such a variant produces no
@@ -50,8 +50,10 @@ The string contains the theme values, keyframes, and other supporting CSS that
 the template and the utilities need. It never contains the preflight reset.
 
 Add the string to the page yourself, for example with
-`CSSStyleSheet.replaceSync()` and a shadow root's `adoptedStyleSheets`. The
-results in [Built-in utilities and variants](/docs/utilities-and-variants)
+[`CSSStyleSheet.replaceSync()`](https://developer.mozilla.org/docs/Web/API/CSSStyleSheet/replaceSync)
+and a shadow root's
+[`adoptedStyleSheets`](https://developer.mozilla.org/docs/Web/API/ShadowRoot/adoptedStyleSheets).
+The results in [Built-in utilities and variants](/docs/utilities-and-variants)
 leave out the supporting CSS, so they cannot replace this string.
 
 To add all styles of a module to a shadow root, including the preflight reset,

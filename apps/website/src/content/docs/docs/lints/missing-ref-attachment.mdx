@@ -4,9 +4,10 @@ description: Reports asContainer() or asAnchor() in a call that does not attach 
 slug: docs/lints/missing-ref-attachment
 ---
 
-This rule reports `asContainer()` or `asAnchor()` in a `style()` call that does not
-also attach the ref. The container or anchor applies only to an element that has
-the ref, so without it, nothing happens.
+This rule reports [`asContainer()`](/docs/macros/ref/as-container) or
+[`asAnchor()`](/docs/macros/ref/as-anchor) in a [`style()`](/docs/macros/style)
+call that does not also attach the ref. The container or anchor applies only to
+an element that has the ref, so without it, nothing happens.
 
 ## Reported
 
@@ -30,7 +31,8 @@ style(card, card.asContainer("inline-size"));
 
 Pass the ref and the method in the same `style()` call, as in the example.
 
-`positionAnchor()` is not reported. The positioned element does not need the ref.
+[`positionAnchor()`](/docs/macros/ref/position-anchor) is not reported. The
+positioned element does not need the ref.
 
 ## Rule settings
 

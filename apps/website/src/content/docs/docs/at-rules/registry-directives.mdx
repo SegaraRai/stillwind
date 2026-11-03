@@ -10,8 +10,8 @@ Stillwind defines its built-in utilities and variants in CSS, in the files that
 `@import "stillwind"` loads. These files use registry directives, which describe
 cascade order, theme metadata, and other information that ordinary definitions
 cannot express. Use them when you write a utility library. An application
-stylesheet normally uses [@utility](/docs/at-rules/utility) and
-[@custom-variant](/docs/at-rules/custom-variant) instead.
+stylesheet normally uses [`@utility`](/docs/at-rules/utility) and
+[`@custom-variant`](/docs/at-rules/custom-variant) instead.
 
 Editors suggest these directives inside definitions and registry blocks. The
 [built-in definitions](https://github.com/SegaraRai/stillwind/tree/main/packages/core/css)
@@ -25,11 +25,12 @@ show complete examples.
 @stillwind-utility name-* (tw-sort: property) { ... }
 ```
 
-Defines a utility with the same body language as `@utility`. The position of the
-definition decides its cascade order: a later definition wins over an earlier
-one when both set the same property. The optional `tw-sort` descriptor names the
-property that Tailwind-compatible class sorting uses for the definition. The
-header also accepts `implementation`.
+Defines a utility with the same body language as
+[`@utility`](/docs/at-rules/utility). The position of the definition decides
+its cascade order: a later definition wins over an earlier one when both set
+the same property. The optional `tw-sort` descriptor names the property that
+Tailwind-compatible class sorting uses for the definition. The header also
+accepts `implementation`.
 
 All `@stillwind-utility` definitions of a name register before plugin
 definitions and the `@utility` definitions of the stylesheet.
@@ -40,9 +41,9 @@ definitions and the `@utility` definitions of the stylesheet.
 @stillwind-variant name (descriptors) { ... }
 ```
 
-Defines a variant with the body language of `@custom-variant`. Its position
-decides the output order of variant rules. The optional header is a
-comma-separated list:
+Defines a variant with the body language of
+[`@custom-variant`](/docs/at-rules/custom-variant). Its position decides the
+output order of variant rules. The optional header is a comma-separated list:
 
 | Descriptor  | Value                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------- |
@@ -82,7 +83,7 @@ Places arbitrary-property candidates for the matching properties, such as
 definitions end with `@stillwind-arbitrary-property *;`, so other arbitrary
 properties come after every built-in utility. The statement also accepts the
 matching properties again after
-[@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property).
+[`@stillwind-undef-arbitrary-property`](/docs/at-rules/stillwind-undef-arbitrary-property).
 
 ## Theme metadata
 
@@ -178,5 +179,5 @@ that their dynamic utilities use.
 Registers a pattern of utility or variant names that relate an element to
 another element, such as `group-*` and `peer-*`.
 [prefer-typed-relationships](/docs/lints/prefer-typed-relationships) reports
-candidates that match a pattern, because [style.ref()](/docs/macros/ref) can
+candidates that match a pattern, because [`style.ref()`](/docs/macros/ref) can
 express the same relationship. The patterns do not change the generated CSS.

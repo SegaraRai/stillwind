@@ -16,7 +16,7 @@ sidebar:
 register before it. A removed utility becomes unknown, and
 [unknown-utility](/docs/lints/unknown-utility) reports its uses. Write it at the
 top level of the stylesheet or in a
-[@stillwind-registry](/docs/at-rules/stillwind-registry) block.
+[`@stillwind-registry`](/docs/at-rules/stillwind-registry) block.
 
 ## Example
 
@@ -51,21 +51,22 @@ pattern for negative names starts with `-`.
 
 ## Order
 
-The statements that `@plugin` generates register first. The other statements,
-including the built-in definitions that `@import "stillwind"` loads, follow in
-source order. An undefinition removes only definitions that register before it:
+The statements that [`@plugin`](/docs/at-rules/plugin) generates register first.
+The other statements, including the built-in definitions that `@import "stillwind"`
+loads, follow in source order. An undefinition removes only definitions that
+register before it:
 
 - It removes plugin utilities, wherever the `@plugin` statement stands.
 - It removes the built-in utilities that `@import "stillwind"` loads before it.
-- It does not remove a `@utility` that comes after it, so you can remove a
-  built-in utility and define your own utility with the same name.
+- It does not remove a [`@utility`](/docs/at-rules/utility) that comes after it, so
+  you can remove a built-in utility and define your own utility with the same name.
 
 A replacement with the same name keeps the cascade position of the removed
 definition, so it wins against the same utilities as before. A definition with
 another name takes the position where you write it. A definition without `*`
 does not take the position of a removed `prefix-*` definition.
-The [logical stylesheets](/docs/concepts/stylesheets#logical-axis-utilities) replace
-utilities in this way.
+The [logical stylesheets](/docs/concepts/stylesheets#logical-axis-utilities)
+replace utilities in this way.
 
 Outside a block, the statement changes the `default`, `keyframe`, and
 `view-transition` registries.

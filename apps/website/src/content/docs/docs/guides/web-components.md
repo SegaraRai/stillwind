@@ -40,9 +40,9 @@ import { css, parts } from "stillwind/module-css";
 ```
 
 The compiler replaces this import in each module that contains it. The CSS
-contains the styles of the `style()` calls in that module and the styles that
-those calls compose from other modules. It also contains the theme values, the
-preflight reset, and the other rules of your stylesheet.
+contains the styles of the [`style()`](/docs/guides/style) calls in that module
+and the styles that those calls compose from other modules. It also contains the
+theme values, the preflight reset, and the other rules of your stylesheet.
 
 The import provides the CSS in two forms:
 
@@ -198,7 +198,7 @@ The `selector` option chooses the element that the utilities style. The string
 contains the theme values and keyframes that its utilities need, and it adds
 nothing to the page's stylesheet. Add it to the shadow root in the same way as
 the `css` string from `stillwind/module-css`, or create a stylesheet from it with
-`CSSStyleSheet.replaceSync()`. The [style.css() reference](/docs/macros/css)
+`CSSStyleSheet.replaceSync()`. The [`style.css()` reference](/docs/macros/css)
 describes variants that choose their own element and the `template` option.
 
 ## Style the shadow host

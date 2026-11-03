@@ -17,12 +17,12 @@ definitions, called a registry. `@stillwind-registry` selects the registries
 that the definitions inside the block change. Write it at the top level of the
 stylesheet, or inside another `@stillwind-registry` block.
 
-| Registry          | Resolves the utilities of                                                     |
-| ----------------- | ----------------------------------------------------------------------------- |
-| `default`         | `style()`, `style.cva()`, `style.css()`, and `@apply`                         |
-| `keyframe`        | The frames of `style.keyframes()`                                             |
-| `animation`       | The options of a keyframes use, such as `enter("both")`                       |
-| `view-transition` | The `group`, `old`, `new`, and `imagePair` fields of `style.viewTransition()` |
+| Registry          | Resolves the utilities of                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`         | [`style()`](/docs/macros/style), [`style.cva()`](/docs/macros/cva), [`style.css()`](/docs/macros/css), and [`@apply`](/docs/at-rules/apply) |
+| `keyframe`        | The frames of [`style.keyframes()`](/docs/macros/keyframes)                                                                                 |
+| `animation`       | The options of a keyframes use, such as `enter("both")`                                                                                     |
+| `view-transition` | The `group`, `old`, `new`, and `imagePair` fields of [`style.viewTransition()`](/docs/macros/view-transition)                               |
 
 A definition outside every block changes `default`, `keyframe`, and
 `view-transition`. `animation` starts empty and changes only through blocks that
@@ -31,7 +31,7 @@ name it.
 ## Example
 
 The built-in `keyframe` and `view-transition` registries replace `duration-*`
-with definitions that set animation properties. A top-level `@utility` with a
+with definitions that set animation properties. A top-level [`@utility`](/docs/at-rules/utility) with a
 name that they replace also reaches those registries, and
 [bypassed-undefinition](/docs/lints/bypassed-undefinition) reports it. A
 `default` block keeps the definition out of them:
@@ -69,10 +69,11 @@ animations instead:
 
 A block contains only these statements. Another statement is an error.
 
-- `@utility`, `@custom-variant`, and `@variant` definitions
-- [@stillwind-undef-utility](/docs/at-rules/stillwind-undef-utility),
-  [@stillwind-undef-variant](/docs/at-rules/stillwind-undef-variant), and
-  [@stillwind-undef-arbitrary-property](/docs/at-rules/stillwind-undef-arbitrary-property)
+- [`@utility`](/docs/at-rules/utility), [`@custom-variant`](/docs/at-rules/custom-variant),
+  and [`@variant`](/docs/at-rules/variant) definitions
+- [`@stillwind-undef-utility`](/docs/at-rules/stillwind-undef-utility),
+  [`@stillwind-undef-variant`](/docs/at-rules/stillwind-undef-variant), and
+  [`@stillwind-undef-arbitrary-property`](/docs/at-rules/stillwind-undef-arbitrary-property)
 - `@stillwind-arbitrary-property`, `@stillwind-utility`, and
   `@stillwind-variant` from the [registry directives](/docs/at-rules/registry-directives)
 - A nested `@stillwind-registry` block. The innermost block decides.

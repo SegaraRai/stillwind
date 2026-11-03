@@ -14,7 +14,13 @@ part.
 <DiagnosticExample code="invalid-cva-config">
 
 ```tsx
-style.cva("p-4", { variant: { size: { small: "p-2" } } });
+style.cva("p-4", {
+  variant: {
+    size: {
+      small: "p-2",
+    },
+  },
+});
 ```
 
 </DiagnosticExample>
@@ -22,7 +28,13 @@ style.cva("p-4", { variant: { size: { small: "p-2" } } });
 ## Fixed
 
 ```tsx
-style.cva("p-4", { variants: { size: { small: "p-2" } } });
+style.cva("p-4", {
+  variants: {
+    size: {
+      small: "p-2",
+    },
+  },
+});
 ```
 
 ## How to fix
@@ -32,7 +44,7 @@ style.cva("p-4", { variants: { size: { small: "p-2" } } });
 - In `defaultVariants` and `compoundVariants`, use only options and values that
   `variants` declares.
 
-See [style.cva()](/docs/macros/cva#configuration).
+See [`style.cva()`](/docs/macros/cva#configuration).
 
 ## Rule settings
 

@@ -5,9 +5,10 @@ slug: docs/lints/conflicting-provider-properties
 ---
 
 This rule reports a container or anchor property that a ref method, such as
-`asContainer()`, and another utility both set on the same element. For example,
-`asContainer("size")` sets `container-type: size`, and `@container` sets it to
-`inline-size`. Only one value takes effect, and the code does not show which.
+[`asContainer()`](/docs/macros/ref/as-container), and another utility both set
+on the same element. For example, `asContainer("size")` sets
+`container-type: size`, and `@container` sets it to `inline-size`. Only one
+value takes effect, and the code does not show which.
 
 ## Reported
 

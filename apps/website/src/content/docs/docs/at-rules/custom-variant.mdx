@@ -22,7 +22,8 @@ stylesheet.
 ## Example
 
 The short form takes a selector in parentheses. The block form wraps the
-content with any rules, and `@slot` marks where the content goes.
+content with any rules, and [`@slot`](/docs/at-rules/slot) marks where the
+content goes.
 
 <CompiledExample>
 
@@ -77,8 +78,9 @@ export const css = style.css("shell:block shell:p-4 [button]:rounded-md");
 
 </CompiledExample>
 
-In `style.css()`, the first such variant selects the element that the utility
-styles. In `style()`, the rule stays document-wide, and
+In [`style.css()`](/docs/macros/css), the first such variant selects the
+element that the utility styles. In [`style()`](/docs/macros/style), the rule
+stays document-wide, and
 [document-scoped-selector](/docs/lints/document-scoped-selector) reports it.
 
 ## Definitions with the same name

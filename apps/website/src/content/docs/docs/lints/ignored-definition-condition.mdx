@@ -4,9 +4,10 @@ description: Reports a media rule around a utility definition, which the compile
 slug: docs/lints/ignored-definition-condition
 ---
 
-This rule reports a `@utility` definition inside a condition such as `@media`.
-The compiler registers utilities when it reads the stylesheet, not in the
-browser, so it ignores the condition. The utility then applies at every width.
+This rule reports a [`@utility`](/docs/at-rules/utility) definition inside a
+condition such as `@media`. The compiler registers utilities when it reads the
+stylesheet, not in the browser, so it ignores the condition. The utility then
+applies at every width.
 
 ## Reported
 

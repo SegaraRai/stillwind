@@ -15,7 +15,7 @@ selector {
 ```
 
 `@variant` wraps its block in the rules of the listed variants. Write it inside
-a style rule or the body of a [@utility](/docs/at-rules/utility). The variants
+a style rule or the body of a [`@utility`](/docs/at-rules/utility). The variants
 apply to the element that the enclosing rule selects. Directly in a `@utility`
 body, that element is the one that uses the utility.
 
@@ -55,6 +55,7 @@ in a style rule or a `@utility` body.
 
 ## Variant definitions
 
-At the top level of the stylesheet, a `@variant` block that contains `@slot`
-defines a variant, for compatibility with older Tailwind CSS stylesheets. Use
-[@custom-variant](/docs/at-rules/custom-variant) for new definitions.
+At the top level of the stylesheet, a `@variant` block that contains
+[`@slot`](/docs/at-rules/slot) defines a variant, for compatibility with older
+Tailwind CSS stylesheets. Use [`@custom-variant`](/docs/at-rules/custom-variant)
+for new definitions.

@@ -12,7 +12,8 @@ The CLI, CI, the editor, and AI agents all use the same rules from
 ## What the build checks
 
 The build stops on compiler errors, such as a JavaScript syntax error or a
-`style()` call that cannot compile. See [Compiler errors](/docs/errors).
+[`style()`](/docs/guides/style) call that cannot compile. See
+[Compiler errors](/docs/errors).
 
 The build does not run lint rules. A misspelled utility such as `bg-acent`
 produces no CSS, and the page still renders without that style. Run the CLI or

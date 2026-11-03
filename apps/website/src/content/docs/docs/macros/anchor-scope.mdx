@@ -4,9 +4,11 @@ description: Limit where an anchor name is visible, so that each component insta
 slug: docs/macros/anchor-scope
 ---
 
-`style.anchorScope(scope)` sets `anchor-scope` on an element. Inside that
-element, a positioned element finds only the anchors that are also inside it.
-Use it when a component with an anchor renders more than once on a page.
+`style.anchorScope(scope)` sets
+[`anchor-scope`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/anchor-scope)
+on an element. Inside that element, a positioned element finds only the
+anchors that are also inside it. Use it when a component with an anchor
+renders more than once on a page.
 
 ## Example
 
@@ -25,11 +27,11 @@ export const popover = style("absolute", trigger.positionAnchor(), "top-[anchor(
 
 Three elements work together:
 
-| Element     | Call                                   | Sets              |
-| ----------- | -------------------------------------- | ----------------- |
-| The anchor  | `style(trigger, trigger.asAnchor())`   | `anchor-name`     |
-| An ancestor | `style(style.anchorScope([trigger]))`  | `anchor-scope`    |
-| The popover | `style(trigger.positionAnchor(), ...)` | `position-anchor` |
+| Element     | Call                                   | Sets                                                                                                 |
+| ----------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| The anchor  | `style(trigger, trigger.asAnchor())`   | [`anchor-name`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/anchor-name)         |
+| An ancestor | `style(style.anchorScope([trigger]))`  | [`anchor-scope`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/anchor-scope)       |
+| The popover | `style(trigger.positionAnchor(), ...)` | [`position-anchor`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/position-anchor) |
 
 Put the scope on the ancestor that contains one anchor and its popover.
 
@@ -48,10 +50,11 @@ An empty array sets nothing, and repeated refs add nothing.
 [ineffective-anchor-scope](/docs/lints/ineffective-anchor-scope) reports both.
 
 `style.anchorScope()` only sets the CSS property. It does not attach a ref, it
-does not create an anchor name, and it does not affect `.in()` conditions.
+does not create an anchor name, and it does not affect
+[`.in()`](/docs/macros/ref/in) conditions.
 
 You can also set the scope on the anchor itself with
-`trigger.asAnchor(scope)`. See [ref.asAnchor()](/docs/macros/ref/as-anchor).
+`trigger.asAnchor(scope)`. See [`ref.asAnchor()`](/docs/macros/ref/as-anchor).
 
 ## Generated code
 

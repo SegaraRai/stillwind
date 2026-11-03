@@ -4,10 +4,11 @@ description: Reports a condition in style.media() that is not a media query, suc
 slug: docs/lints/invalid-media-query
 ---
 
-This rule reports an argument of `style.media()` that is not a media condition.
-`hover:` matches a hovered element, not a property of the device, so it cannot
-become a query for `matchMedia()`. The argument is left out, and when no argument
-remains, the query is `not all`.
+This rule reports an argument of [`style.media()`](/docs/macros/media) that is not a
+media condition. `hover:` matches a hovered element, not a property of the device, so
+it cannot become a query for
+[`matchMedia()`](https://developer.mozilla.org/docs/Web/API/Window/matchMedia).
+The argument is left out, and when no argument remains, the query is `not all`.
 
 ## Reported
 
@@ -33,12 +34,13 @@ style.media("can-hover");
 
 - To check whether an input device can hover, define a media variant for that
   capability, as in the example.
-- To style an element while it is hovered, use `hover:` inside `style()`.
+- To style an element while it is hovered, use `hover:` inside
+  [`style()`](/docs/macros/style).
 - To check the viewport or user preferences, use media variants such as `md` or
   `motion-safe`.
 - `supports-*` and container queries are not media conditions either.
 
-See [style.media()](/docs/macros/media#inputs).
+See [`style.media()`](/docs/macros/media#inputs).
 
 ## Rule settings
 

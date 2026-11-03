@@ -5,8 +5,8 @@ slug: docs/lints/invalid-cva-input
 ---
 
 This rule reports a runtime condition, such as `&&` or a ternary, inside the base
-or an option value of `style.cva()`. The compiler generates every value when it
-creates the factory, so the condition cannot choose a style.
+or an option value of [`style.cva()`](/docs/macros/cva). The compiler generates
+every value when it creates the factory, so the condition cannot choose a style.
 
 ## Reported
 
@@ -24,7 +24,12 @@ style.cva(active && "bg-blue-500");
 ```tsx
 declare const active: boolean;
 const button = style.cva("", {
-  variants: { active: { true: "bg-blue-500", false: null } },
+  variants: {
+    active: {
+      true: "bg-blue-500",
+      false: null,
+    },
+  },
 });
 button({ active });
 ```
@@ -33,10 +38,10 @@ button({ active });
 
 - Turn the condition into an option, and pass the current value when you call the
   factory, as in the example.
-- Stored `style()` results, refs, animations, and `class` fields are not accepted
-  either. Use them in `style()` instead.
+- Stored [`style()`](/docs/macros/style) results, refs, animations, and `class`
+  fields are not accepted either. Use them in `style()` instead.
 
-See [style.cva()](/docs/macros/cva#style-values).
+See [`style.cva()`](/docs/macros/cva#style-values).
 
 ## Rule settings
 

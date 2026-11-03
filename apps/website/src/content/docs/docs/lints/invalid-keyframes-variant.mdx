@@ -5,16 +5,20 @@ slug: docs/lints/invalid-keyframes-variant
 ---
 
 This rule reports a state or container variant, such as `hover:`, around a
-definition inside `style.keyframes()`. A keyframes definition belongs to no
-element, so it cannot be hovered. Only media and `supports-*` variants can choose
-a definition.
+definition inside [`style.keyframes()`](/docs/macros/keyframes). A keyframes
+definition belongs to no element, so it cannot be hovered. Only media and
+`supports-*` variants can choose a definition.
 
 ## Reported
 
 <DiagnosticExample code="invalid-keyframes-variant">
 
 ```tsx
-const fade = style.keyframes({ "hover:": { to: "opacity-100" } });
+const fade = style.keyframes({
+  "hover:": {
+    to: "opacity-100",
+  },
+});
 style(fade("duration-300"));
 ```
 
@@ -23,18 +27,22 @@ style(fade("duration-300"));
 ## Fixed
 
 ```tsx
-const fade = style.keyframes({ to: "opacity-100" });
-style({ "hover:": fade("duration-300") });
+const fade = style.keyframes({
+  to: "opacity-100",
+});
+style({
+  "hover:": fade("duration-300"),
+});
 ```
 
 ## How to fix
 
 - To animate an element while it is in a state, put the variant around the
-  animation in `style()`, as in the example.
+  animation in [`style()`](/docs/macros/style), as in the example.
 - To use a different animation for a media condition, such as reduced motion,
   keep the variant in the definition: `"motion-reduce:": { ... }`.
 
-See [style.keyframes()](/docs/macros/keyframes#define-the-frames).
+See [`style.keyframes()`](/docs/macros/keyframes#define-the-frames).
 
 ## Rule settings
 

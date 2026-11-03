@@ -108,7 +108,7 @@ Paths in `css`, `files`, `exclude`, and `tsconfig` are relative to `root`.
 | `utilityOrder` | `"authored"` orders utilities as your stylesheet defines them; `"tailwind"` orders them as Tailwind does                    |
 | `important`    | `true` makes every utility `!important`; a selector nests utilities under that selector                                     |
 | `tailwind`     | A Tailwind configuration object; see [Migrating from Tailwind CSS](/docs/guides/migrating-from-tailwind#move-configuration) |
-| `plugins`      | Plugin objects for the `@plugin` rules of your stylesheet                                                                   |
+| `plugins`      | Plugin objects for the [`@plugin`](/docs/at-rules/plugin) rules of your stylesheet                                          |
 | `rootFontSize` | Pixels per `rem`, used by lint fixes and editor previews; defaults to 16                                                    |
 | `useCssIf`     | `true` lets [runtime conditions](/docs/guides/runtime-conditions) use the native CSS `if()` function; defaults to `false`   |
 
@@ -294,13 +294,13 @@ comment that suppresses nothing.
 The `sort` field controls where `stillwind fmt`, the editor, and the
 [Prettier plugin](/docs/formatters#prettier) sort utilities:
 
-| Option            | Sorts                                              | Default |
-| ----------------- | -------------------------------------------------- | ------- |
-| `stringLiterals`  | Utilities inside each string                       | `true`  |
-| `arrays`          | Arguments, array items, and object entries by kind | `true`  |
-| `applyUtilities`  | Utilities inside each `@apply` rule                | `true`  |
-| `applyStatements` | Adjacent `@apply` rules                            | `false` |
-| `variantBlocks`   | Adjacent `@variant` blocks                         | `false` |
+| Option            | Sorts                                                       | Default |
+| ----------------- | ----------------------------------------------------------- | ------- |
+| `stringLiterals`  | Utilities inside each string                                | `true`  |
+| `arrays`          | Arguments, array items, and object entries by kind          | `true`  |
+| `applyUtilities`  | Utilities inside each [`@apply`](/docs/at-rules/apply) rule | `true`  |
+| `applyStatements` | Adjacent `@apply` rules                                     | `false` |
+| `variantBlocks`   | Adjacent [`@variant`](/docs/at-rules/variant) blocks        | `false` |
 
 `sort: false` disables sorting, including `stillwind fmt` and the
 [prefer-sorted-utilities](/docs/lints/prefer-sorted-utilities) rule. Turning off

@@ -67,11 +67,13 @@ export function mountCandidateExplorer(root: HTMLElement): () => void {
     const variants = count("variant");
     const partial = [
       ...(variants < lookup.variantTotal
-        ? [`Showing ${variants} of ${lookup.variantTotal} variants that match “${text.trim()}”.`]
+        ? [
+            `Showing ${variants.toLocaleString("en-US")} of ${lookup.variantTotal.toLocaleString("en-US")} variants that match “${text.trim()}”.`,
+          ]
         : []),
       ...(prefixes < lookup.prefixTotal
         ? [
-            `Showing ${prefixes} of ${lookup.prefixTotal} utilities that start with “${text.trim()}”.`,
+            `Showing ${prefixes.toLocaleString("en-US")} of ${lookup.prefixTotal.toLocaleString("en-US")} utilities that start with “${text.trim()}”.`,
           ]
         : []),
     ];
@@ -81,7 +83,7 @@ export function mountCandidateExplorer(root: HTMLElement): () => void {
         ? `No utility, variant, or CSS declaration matches “${text.trim()}”.`
         : partial.length > 0
           ? partial.join(" ")
-          : `${lookup.matches.length} ${lookup.matches.length === 1 ? "match" : "matches"}.`;
+          : `${lookup.matches.length.toLocaleString("en-US")} ${lookup.matches.length === 1 ? "match" : "matches"}.`;
   };
   worker.addEventListener("message", ({ data }: MessageEvent<LookupReply>) => {
     if (data.id !== latest) {

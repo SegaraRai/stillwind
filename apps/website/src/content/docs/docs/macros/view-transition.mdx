@@ -5,8 +5,9 @@ slug: docs/macros/view-transition
 ---
 
 `style.viewTransition(definition)` defines the styles of view transition
-snapshots. Passing the result to `style()` adds its transition class to the
-element. Calling `.for(key)` also gives the element a `view-transition-name`.
+snapshots. Passing the result to [`style()`](/docs/macros/style) adds its
+transition class to the element. Calling `.for(key)` also gives the element a
+[`view-transition-name`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-name).
 
 ## Example
 
@@ -29,13 +30,13 @@ export const props = style(transition.for("product-42"));
 Write `style.viewTransition()` as the initial value of a variable, with an
 object literal as its argument:
 
-| Field       | Styles                                                        |
-| ----------- | ------------------------------------------------------------- |
-| `group`     | `::view-transition-group()`                                   |
-| `imagePair` | `::view-transition-image-pair()`                              |
-| `old`       | `::view-transition-old()`                                     |
-| `new`       | `::view-transition-new()`                                     |
-| `label`     | An optional string literal that appears in the generated name |
+| Field       | Styles                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `group`     | [`::view-transition-group()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-group)           |
+| `imagePair` | [`::view-transition-image-pair()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-image-pair) |
+| `old`       | [`::view-transition-old()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-old)               |
+| `new`       | [`::view-transition-new()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-new)               |
+| `label`     | An optional string literal that appears in the generated name                                                                   |
 
 Each field except `label` is a utility string literal. Timing utilities set
 animation properties, such as `animation-duration`. Media and `supports-*`
@@ -49,9 +50,9 @@ the definition and import it in other modules.
 
 ## Name the element
 
-`transition.for(key)` adds the transition class and sets
-`view-transition-name` from the key. The key is a string or a number. Without a
-key, Stillwind uses an empty string.
+`transition.for(key)` adds the transition class and sets `view-transition-name`
+from the key. The key is a string or a number. Without a key, Stillwind uses
+an empty string.
 
 Use a key that stays the same for the same item before and after the update.
 Items on the page at the same time need different keys. Stillwind cannot check

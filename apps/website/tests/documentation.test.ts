@@ -71,7 +71,7 @@ test("documents every stylesheet directive that editors suggest", async () => {
     const page = await readFile(new URL(`${name}.mdx`, directory), "utf8");
     expect(page, name).toMatch(new RegExp(`^slug: docs/at-rules/${name}$`, "m"));
     expect(page, name).toMatch(new RegExp(`^title: "@${name}"$`, "m"));
-    expect(index, name).toContain(`[@${name}](/docs/at-rules/${name})`);
+    expect(index, name).toContain(`[\`@${name}\`](/docs/at-rules/${name})`);
   }
   const registry = await readFile(new URL("registry-directives.mdx", directory), "utf8");
   for (const { name, purpose } of directives) {

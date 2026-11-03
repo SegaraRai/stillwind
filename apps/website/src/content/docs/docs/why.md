@@ -127,8 +127,8 @@ only the small runtime helpers that they use. See
 Stillwind supports Tailwind CSS v4 utilities, variants, and plugins. You write
 them in a different place:
 
-- You pass utilities to `style()` and spread the result onto the element,
-  instead of writing a `className` string.
+- You pass utilities to [`style()`](/docs/guides/style) and spread the result onto
+  the element, instead of writing a `className` string.
 - Stillwind needs a build tool. It supports Vite, Astro, Next.js, SvelteKit,
   Nuxt, webpack, Rspack, Rsbuild, and Turbopack.
 - Some Tailwind settings move to `stillwind.config.ts`.

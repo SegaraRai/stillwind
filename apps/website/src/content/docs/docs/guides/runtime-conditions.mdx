@@ -11,8 +11,10 @@ property reaches descendants through ordinary CSS inheritance.
 <Aside type="caution" title="Experimental">
 
 Runtime conditions can change between releases. The `if()` variant needs a browser
-that supports the CSS keyword `revert-rule`, which became Baseline in 2026. Check
-[Browser support](#browser-support) before you use it.
+that supports the CSS keyword
+[`revert-rule`](https://developer.mozilla.org/docs/Web/CSS/Reference/Values/revert-rule),
+which became Baseline in 2026. Check [Browser support](#browser-support)
+before you use it.
 
 </Aside>
 
@@ -70,7 +72,8 @@ In a stylesheet, write the same values yourself:
 ```
 
 Other values do not work as booleans. For example, `"true"` and `1` produce invalid
-CSS without `useCssIf`. Do not register a boolean custom property with `@property`,
+CSS without `useCssIf`. Do not register a boolean custom property with
+[`@property`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@property),
 because the registration changes its initial value.
 
 The browser evaluates the condition on the styled element. To test the state of
@@ -121,8 +124,10 @@ Put braces around a branch that contains a top-level comma:
 
 ## Enable native CSS if()
 
-By default, the compiler expresses conditions with `var()`. The `useCssIf` option
-makes it write the native CSS `if()` function instead, for values and variants:
+By default, the compiler expresses conditions with `var()`. The `useCssIf`
+option makes it write the native CSS
+[`if()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Values/if)
+function instead, for values and variants:
 
 ```ts title="stillwind.config.ts"
 import { defineConfig } from "stillwind/config";

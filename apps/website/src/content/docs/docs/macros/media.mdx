@@ -5,9 +5,9 @@ slug: docs/macros/media
 ---
 
 `style.media(...conditions)` returns a media query string, such as the argument
-of `matchMedia()`. It uses the definitions of variants such as `md:` and
-`motion-safe:` from your stylesheet, so JavaScript and CSS use the same
-conditions.
+of [`matchMedia()`](https://developer.mozilla.org/docs/Web/API/Window/matchMedia).
+It uses the definitions of variants such as `md:` and `motion-safe:` from your
+stylesheet, so JavaScript and CSS use the same conditions.
 
 ## Example
 
@@ -51,5 +51,6 @@ and no braces. The call adds no CSS.
 When you change a breakpoint in your stylesheet, the string changes the next
 time the module compiles.
 
-`matchMedia()` is a browser API. Call it on the client, and remove its listeners
-when their component unmounts. See [Responsive styles](/docs/guides/responsive-styles).
+`matchMedia()` is a browser API. Call it on the client, and remove its
+listeners when their component unmounts. See
+[Responsive styles](/docs/guides/responsive-styles).

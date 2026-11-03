@@ -5,10 +5,12 @@ slug: docs/guides/view-transitions
 ---
 
 You want an item to animate between two states of the page with the browser's
-View Transition API. In plain CSS, you write `view-transition-name` and the
-`::view-transition-*` rules in a global stylesheet, and you keep every name
-unique by hand. In Stillwind, you define the transition in the component and
-name each item with a key.
+[View Transition API](https://developer.mozilla.org/docs/Web/API/View_Transition_API).
+In plain CSS, you write
+[`view-transition-name`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-name)
+and the `::view-transition-*` rules in a global stylesheet, and you keep every
+name unique by hand. In Stillwind, you define the transition in the component
+and name each item with a key.
 
 ## Define the transition and name each item
 
@@ -25,15 +27,15 @@ export function Product({ id, name }: { id: string; name: string }) {
 }
 ```
 
-`style.viewTransition()` defines the styles of the snapshots. Each field styles
-one pseudo-element:
+[`style.viewTransition()`](/docs/macros/view-transition) defines the styles of
+the snapshots. Each field styles one pseudo-element:
 
-| Field       | Pseudo-element                   |
-| ----------- | -------------------------------- |
-| `group`     | `::view-transition-group()`      |
-| `imagePair` | `::view-transition-image-pair()` |
-| `old`       | `::view-transition-old()`        |
-| `new`       | `::view-transition-new()`        |
+| Field       | Pseudo-element                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `group`     | [`::view-transition-group()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-group)           |
+| `imagePair` | [`::view-transition-image-pair()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-image-pair) |
+| `old`       | [`::view-transition-old()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-old)               |
+| `new`       | [`::view-transition-new()`](https://developer.mozilla.org/docs/Web/CSS/Reference/Selectors/::view-transition-new)               |
 
 Timing utilities in these fields set animation properties. For example,
 `duration-150` sets `animation-duration`.
@@ -61,8 +63,8 @@ the View Transition API run the update without animation.
 
 ## Give each element one name
 
-Use `.for()` once for each element, in one `style()` call. To combine several
-transitions on one element, pass the others without `.for()`:
+Use `.for()` once for each element, in one [`style()`](/docs/guides/style) call.
+To combine several transitions on one element, pass the others without `.for()`:
 
 ```tsx
 import { style } from "stillwind/react";
@@ -79,5 +81,5 @@ The CLI reports a `style()` call that applies a transition without `.for()`, a
 call with two `.for()` calls, and transitions split across separate `style()`
 calls. It cannot check that keys are unique across the whole page.
 
-The [style.viewTransition() reference](/docs/macros/view-transition) covers
+The [`style.viewTransition()` reference](/docs/macros/view-transition) covers
 dynamic keys and the generated CSS.

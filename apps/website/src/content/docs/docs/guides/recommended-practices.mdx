@@ -9,8 +9,8 @@ It also lists the mistakes that silently produce no CSS. The examples use React.
 
 ## Keep styles next to their elements
 
-Write the utilities in a `style()` call on the element that they style. When
-several places need the same styles, reuse them in this order:
+Write the utilities in a [`style()`](/docs/guides/style) call on the element that
+they style. When several places need the same styles, reuse them in this order:
 
 1. Extract a component of your framework, and keep the `style()` call on its
    element. The styles stay next to the markup that they depend on.
@@ -73,8 +73,8 @@ for what the application needs.
 
 When an element's style depends on another element, such as a hovered parent, a
 sibling, a container, or an anchor, connect them with a ref from
-`style.ref()`. Do not use `group-*`, `peer-*`, named containers, or hand-written
-parent and sibling selectors:
+[`style.ref()`](/docs/macros/ref). Do not use `group-*`, `peer-*`, named
+containers, or hand-written parent and sibling selectors:
 
 ```tsx
 import { style } from "stillwind/react";
@@ -96,11 +96,14 @@ containers, and anchors.
 
 ## Define animations in their components
 
-Define keyframes with [style.keyframes()](/docs/macros/keyframes) and view
-transitions with [style.viewTransition()](/docs/macros/view-transition) in the
-code that uses them. Do not add global `@keyframes` rules or fixed
-`view-transition-name` values. The macros generate unique names, so you can
-add, move, or remove a component without checking other code.
+Define keyframes with [`style.keyframes()`](/docs/macros/keyframes) and view
+transitions with [`style.viewTransition()`](/docs/macros/view-transition) in
+the code that uses them. Do not add global
+[`@keyframes`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@keyframes)
+rules or fixed
+[`view-transition-name`](https://developer.mozilla.org/docs/Web/CSS/Reference/Properties/view-transition-name)
+values. The macros generate unique names, so you can add, move, or remove a
+component without checking other code.
 
 ## Declare refs and animations in the smallest scope
 
@@ -218,8 +221,8 @@ from a long string.
 
 ## Keep values in the theme
 
-Define colors, spacing, and breakpoints as `@theme` tokens, and use the
-utilities that they add. Avoid arbitrary values such as `text-[#abcdef]` and
+Define colors, spacing, and breakpoints as [`@theme`](/docs/at-rules/theme) tokens, and
+use the utilities that they add. Avoid arbitrary values such as `text-[#abcdef]` and
 `max-[768px]:`. [Design systems](/docs/guides/design-systems) enables lint
 rules that report them.
 
@@ -257,7 +260,7 @@ Set `data-theme` on the root element, or on a container to theme part of the
 page. The utilities, such as `bg-surface`, stay the same in every theme.
 
 When a theme needs styles beyond its tokens, define a variant for it with
-[@custom-variant](/docs/at-rules/custom-variant), and use the variant instead
+[`@custom-variant`](/docs/at-rules/custom-variant), and use the variant instead
 of a hand-written selector:
 
 ```css
@@ -267,7 +270,7 @@ of a hand-written selector:
 ## Use breakpoints from the theme in JavaScript
 
 When JavaScript needs a breakpoint, get its media query with
-[style.media()](/docs/macros/media) instead of repeating the value:
+[`style.media()`](/docs/macros/media) instead of repeating the value:
 
 ```ts
 import { style } from "stillwind/react";
@@ -281,8 +284,8 @@ change. [Responsive styles](/docs/guides/responsive-styles) shows more uses.
 
 ## Define utilities with @apply
 
-Write the body of a custom utility with `@apply`, and write its conditions as
-variants:
+Write the body of a custom utility with [`@apply`](/docs/at-rules/apply), and
+write its conditions as variants:
 
 ```css
 @utility link {
@@ -294,14 +297,14 @@ Do not write selectors or media queries by hand. The variants follow your
 theme, and they avoid differences that are easy to miss. For example, the
 `hover:` variant applies only on devices that can hover, while a plain `:hover`
 rule stays active after a tap on a touch screen. Inside a style rule, use
-[@variant](/docs/at-rules/variant) instead of a condition.
+[`@variant`](/docs/at-rules/variant) instead of a condition.
 
 ## Avoid separate CSS
 
 Write styles in `style()` calls and custom utilities, not in CSS files with
 your own class names. A custom utility works with every variant, such as
 `hover:link`, and a fixed class name does not. For a reusable condition, define
-a variant with [@custom-variant](/docs/at-rules/custom-variant) instead of
+a variant with [`@custom-variant`](/docs/at-rules/custom-variant) instead of
 writing its selector in several rules.
 
 For HTML that you do not control, such as rendered Markdown, define the styles

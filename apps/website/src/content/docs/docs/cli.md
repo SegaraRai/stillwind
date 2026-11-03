@@ -92,9 +92,9 @@ vp exec stillwind inspect src/Button.tsx:12:8
 vp exec stillwind inspect 'src/**/*.tsx' src/App.tsx:30 --format json
 ```
 
-`inspect` shows the CSS that `style()` calls, keyframes, and view transitions
-generate. The CSS writes the styled element as `&`, and it includes the styles that
-the call composes. `inspect` saves no files.
+`inspect` shows the CSS that [`style()`](/docs/macros/style) calls, keyframes, and
+view transitions generate. The CSS writes the styled element as `&`, and it includes
+the styles that the call composes. `inspect` saves no files.
 
 Each target is a [path or glob](#select-files), and you can pass several targets.
 Without a target, `inspect` covers every file that `files` selects.
@@ -142,8 +142,8 @@ leading `--`, because the CLI reads `--color-*` as an option.
 | ------------------- | ----------------------------------------------- |
 | `--source <origin>` | Shows only `project` tokens or `default` tokens |
 
-`project` tokens come from an ordinary `@theme`. `default` tokens come from `@theme default`
-or from a plugin, and an ordinary `@theme` can override them.
+`project` tokens come from an ordinary [`@theme`](/docs/at-rules/theme). `default` tokens
+come from `@theme default` or from a plugin, and an ordinary `@theme` can override them.
 
 Each token shows its value as written, including references to other tokens.
 

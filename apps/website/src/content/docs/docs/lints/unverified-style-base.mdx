@@ -4,9 +4,10 @@ description: Reports a base style whose source the CLI cannot find from its type
 slug: docs/lints/unverified-style-base
 ---
 
-This rule reports a base style whose type does not show which `style()` call
-created it, such as a value declared as `ReturnType<typeof style>`. The compiler
-cannot find the CSS of the base, so it cannot order the later utilities after it.
+This rule reports a base style whose type does not show which
+[`style()`](/docs/macros/style) call created it, such as a value declared as
+`ReturnType<typeof style>`. The compiler cannot find the CSS of the base, so
+it cannot order the later utilities after it.
 
 ## Project files
 

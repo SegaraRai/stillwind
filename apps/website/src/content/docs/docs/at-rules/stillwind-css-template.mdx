@@ -14,7 +14,7 @@ sidebar:
 ```
 
 `@stillwind-css-template` defines a template for the string that
-[style.css()](/docs/macros/css) returns. The `template` option of the call
+[`style.css()`](/docs/macros/css) returns. The `template` option of the call
 selects the template by name, and `default` applies when the call names none.
 Write it at the top level of the stylesheet.
 
@@ -97,9 +97,9 @@ export const css = style.css("p-4 text-blue-600", {
 }
 ```
 
-It places the theme values on the root of the tree that adopts the string. It
-emits no `@property` rules, because a registration inside a shadow root has no
-effect. No rule is in a layer.
+It places the theme values on the root of the tree that adopts the string. It emits no
+[`@property`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@property)
+rules, because a registration inside a shadow root has no effect. No rule is in a layer.
 
 A later template with the same name replaces an earlier one, so your stylesheet
 can redefine `default` after `@import "stillwind"`.
@@ -107,7 +107,8 @@ can redefine `default` after `@import "stillwind"`.
 ## Rules
 
 - A template must contain a `utilities` slot.
-- A template cannot contain definitions, such as `@theme` or `@utility`.
+- A template cannot contain definitions, such as [`@theme`](/docs/at-rules/theme)
+  or [`@utility`](/docs/at-rules/utility).
 - The loader skips a template that breaks these rules, and
   [invalid-css-directive](/docs/lints/invalid-css-directive) reports it.
 - A template name that the stylesheet does not define reports

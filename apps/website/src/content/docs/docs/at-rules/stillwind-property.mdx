@@ -14,9 +14,10 @@ sidebar:
 }
 ```
 
-`@stillwind-property` registers a custom property. The compiler emits a
-standard `@property` rule, and an initial value for each element, only when the
-generated CSS needs the property. Write it at the top level of the stylesheet.
+`@stillwind-property` registers a custom property. The compiler emits a standard
+[`@property`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@property)
+rule, and an initial value for each element, only when the generated CSS needs
+the property. Write it at the top level of the stylesheet.
 
 ## Example
 
@@ -45,7 +46,7 @@ export const icon = style("spin-[45deg]");
 
 The `properties` slot places the `@property` rule. The `property-initials` slot
 places the initial values, for browsers that ignore `@property`. See
-[@stillwind-slot](/docs/at-rules/stillwind-slot).
+[`@stillwind-slot`](/docs/at-rules/stillwind-slot).
 
 ## Descriptors
 
@@ -66,7 +67,7 @@ removes them from the output:
 both cases. `dependency` emits it only through `depends-on` or `group`.
 
 A utility can also require a registration with
-[@stillwind-require-properties](/docs/at-rules/stillwind-require-properties).
+[`@stillwind-require-properties`](/docs/at-rules/stillwind-require-properties).
 
 ## Value checks
 

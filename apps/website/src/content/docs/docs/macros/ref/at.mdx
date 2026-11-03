@@ -4,8 +4,9 @@ description: Style an element with a container query on the element that has a r
 slug: docs/macros/ref/at
 ---
 
-`card.at(query?)` creates a container query on the container that the `card` ref
-names. Make that element a container with
+`card.at(query?)` creates
+[a container query](https://developer.mozilla.org/docs/Web/CSS/Guides/Containment/Container_queries)
+on the container that the `card` ref names. Make that element a container with
 [`card.asContainer()`](/docs/macros/ref/as-container).
 
 ## Example
@@ -24,11 +25,11 @@ export const child = style({ [card.at("width >= 40rem")]: "grid-cols-2" });
 
 ## Inputs
 
-| Form                         | Generated condition                  |
-| ---------------------------- | ------------------------------------ |
-| `card.at("width >= 40rem")`  | `@container <name> (width >= 40rem)` |
-| ``card.at`width >= 40rem` `` | The same as the string form          |
-| `card.at()` or `card.at("")` | `@container <name>`                  |
+| Form                         | Generated condition                                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `card.at("width >= 40rem")`  | [`@container <name> (width >= 40rem)`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@container) |
+| ``card.at`width >= 40rem` `` | The same as the string form                                                                                      |
+| `card.at()` or `card.at("")` | `@container <name>`                                                                                              |
 
 Write the query as a string literal or a tagged template without interpolations.
 Leave out the outer parentheses.
@@ -38,8 +39,8 @@ Leave out the outer parentheses.
 Without a query, the condition matches whenever the styled element is inside a
 container with the name.
 
-Write the call directly as a computed key in `style()`. You cannot store it in a
-variable and use it later.
+Write the call directly as a computed key in [`style()`](/docs/macros/style).
+You cannot store it in a variable and use it later.
 
 See [Element relationships](/docs/guides/element-relationships#react-to-a-containers-size)
 for a task-based example.

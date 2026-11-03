@@ -5,8 +5,8 @@ slug: docs/macros/keyframes
 ---
 
 `style.keyframes(definition)` defines an animation. Calling the result inside
-`style()` applies the animation, and its argument sets the animation's options.
-The compiler generates a unique animation name.
+[`style()`](/docs/macros/style) applies the animation, and its argument sets
+the animation's options. The compiler generates a unique animation name.
 
 ## Example
 
@@ -63,8 +63,9 @@ as `{ "motion-safe:": fade("duration-300") }`.
 
 When the compiler knows which animation a call uses, the call becomes plain
 class names, and the definition variable can become `undefined` in JavaScript.
-The compiler writes every `@keyframes` rule that the calls need, together with
-the theme values that the frames use.
+The compiler writes every
+[`@keyframes`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@keyframes)
+rule that the calls need, together with the theme values that the frames use.
 
 See [Animations](/docs/guides/animations) for task-based examples, and
 [invalid-keyframes-variant](/docs/lints/invalid-keyframes-variant) for

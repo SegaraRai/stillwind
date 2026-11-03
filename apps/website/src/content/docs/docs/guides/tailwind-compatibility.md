@@ -15,17 +15,17 @@ utility or variant, use [Built-in utilities and variants](/docs/utilities-and-va
 
 ## What works
 
-| Tailwind feature                        | Support                                                              |
-| --------------------------------------- | -------------------------------------------------------------------- |
-| Default theme and preflight             | Included in `@import "stillwind"`                                    |
-| Utilities and variants                  | Supported, including arbitrary values, modifiers, and `!`            |
-| `@theme`, `@utility`, `@custom-variant` | Supported                                                            |
-| `@apply`, `@variant`                    | Supported                                                            |
-| `--theme()`, `--spacing()`, `--alpha()` | Supported                                                            |
-| `theme(--color-red-500)`                | Supported; v3 paths such as `theme(colors.red.500)` are not          |
-| `@plugin` with JavaScript plugins       | Supported; see [Plugins and CSS packages](#plugins-and-css-packages) |
-| `@import` of CSS packages               | Supported; see [Plugins and CSS packages](#plugins-and-css-packages) |
-| Tailwind configuration                  | Set the `tailwind` field of the project in `stillwind.config.ts`     |
+| Tailwind feature                                                                                                           | Support                                                              |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Default theme and preflight                                                                                                | Included in `@import "stillwind"`                                    |
+| Utilities and variants                                                                                                     | Supported, including arbitrary values, modifiers, and `!`            |
+| [`@theme`](/docs/at-rules/theme), [`@utility`](/docs/at-rules/utility), [`@custom-variant`](/docs/at-rules/custom-variant) | Supported                                                            |
+| [`@apply`](/docs/at-rules/apply), [`@variant`](/docs/at-rules/variant)                                                     | Supported                                                            |
+| `--theme()`, `--spacing()`, `--alpha()`                                                                                    | Supported                                                            |
+| `theme(--color-red-500)`                                                                                                   | Supported; v3 paths such as `theme(colors.red.500)` are not          |
+| [`@plugin`](/docs/at-rules/plugin) with JavaScript plugins                                                                 | Supported; see [Plugins and CSS packages](#plugins-and-css-packages) |
+| `@import` of CSS packages                                                                                                  | Supported; see [Plugins and CSS packages](#plugins-and-css-packages) |
+| Tailwind configuration                                                                                                     | Set the `tailwind` field of the project in `stillwind.config.ts`     |
 
 ## How Stillwind checks compatibility
 
@@ -76,7 +76,7 @@ Load these packages with `@import`:
 | `tailwind-scrollbar-hide/v4` | `scrollbar-hide`                       |
 | `preline/variants.css`       | `hs-dropdown-open:`                    |
 
-Other plugins can use the same features. [@plugin](/docs/at-rules/plugin#tailwind-css-plugins)
+Other plugins can use the same features. [`@plugin`](/docs/at-rules/plugin#tailwind-css-plugins)
 lists the supported plugin API. JavaScript plugins need the `tailwindcss` package,
 and CSS packages do not.
 
@@ -87,9 +87,9 @@ these combinations in your application.
 ### Class names that a plugin's selectors use
 
 A plugin can select an element by a fixed class name. For example, the rules of
-`prose` skip elements inside `not-prose`. `style()` keeps such a class in the
-`class` attribute, so `style("not-prose")` adds the class `not-prose`. The class
-keeps its name only without variants, so
+`prose` skip elements inside `not-prose`. [`style()`](/docs/guides/style) keeps
+such a class in the `class` attribute, so `style("not-prose")` adds the class
+`not-prose`. The class keeps its name only without variants, so
 [invalid-marker-use](/docs/lints/invalid-marker-use) reports `hover:not-prose`.
 
 ## What Stillwind adds

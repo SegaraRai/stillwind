@@ -11,8 +11,8 @@ Tailwind connects the two elements by name, such as `group/card` and
 they match. Nested groups or containers may also need names to target the right
 ancestor. You must avoid name collisions when nesting components.
 
-In Stillwind, you create the name as a variable with `style.ref()`. A misspelled
-ref is an undefined variable, so TypeScript reports it.
+In Stillwind, you create the name as a variable with [`style.ref()`](/docs/macros/ref).
+A misspelled ref is an undefined variable, so TypeScript reports it.
 
 ## React to a parent's state
 
@@ -42,8 +42,8 @@ components can use the label `"card"` without affecting each other.
 
 ## React to a sibling's state
 
-Without `.in()`, the ref must be on an ancestor of the styled element. To use a
-sibling, add `.in()` with a ref on an element that contains both:
+Without [`.in()`](/docs/macros/ref/in), the ref must be on an ancestor of the styled
+element. To use a sibling, add `.in()` with a ref on an element that contains both:
 
 ```tsx
 import { style } from "stillwind/react";
@@ -68,7 +68,8 @@ export function Card() {
 
 ## React to a container's size
 
-Make the element a container with `asContainer()`, and query it with `at()`:
+Make the element a container with [`asContainer()`](/docs/macros/ref/as-container),
+and query it with [`at()`](/docs/macros/ref/at):
 
 ```tsx
 import { style } from "stillwind/react";
@@ -86,14 +87,15 @@ export function Card() {
 }
 ```
 
-Pass `card` and `card.asContainer()` in the same `style()` call. The container
-applies only to an element that has the ref, and the CLI warns when the ref is
-missing.
+Pass `card` and `card.asContainer()` in the same [`style()`](/docs/guides/style)
+call. The container applies only to an element that has the ref, and the CLI warns
+when the ref is missing.
 
 ## Position an element at an anchor
 
-Make an element an anchor with `asAnchor()`, and position another element
-against it with `positionAnchor()`:
+Make an element an anchor with [`asAnchor()`](/docs/macros/ref/as-anchor), and
+position another element against it with
+[`positionAnchor()`](/docs/macros/ref/position-anchor):
 
 ```tsx
 import { style } from "stillwind/react";
@@ -114,10 +116,10 @@ export function AnchoredHint() {
 }
 ```
 
-`style.anchorScope([trigger])` limits the anchor name to the `<section>`, so
-each rendered `AnchoredHint` positions against its own button. Stillwind
-generates CSS anchor positioning only. Check that the browsers you support
-implement it.
+[`style.anchorScope([trigger])`](/docs/macros/anchor-scope) limits the anchor
+name to the `<section>`, so each rendered `AnchoredHint` positions against its
+own button. Stillwind generates CSS anchor positioning only. Check that the
+browsers you support implement it.
 
 ## Share refs between components
 
@@ -131,5 +133,5 @@ The `stylistic` preset includes
 [prefer-typed-relationships](/docs/lints/prefer-typed-relationships). The rule
 reports `group-*` and `peer-*` variants so that you can replace them with refs.
 
-The [style.ref() reference](/docs/macros/ref) lists every method and its
+The [`style.ref()` reference](/docs/macros/ref) lists every method and its
 accepted inputs.

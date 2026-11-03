@@ -4,8 +4,9 @@ description: A utility applies itself directly or through another utility.
 slug: docs/errors/SW14008
 ---
 
-This error occurs when an `@apply` dependency returns to a utility that is already
-being expanded. The cycle can pass through several utilities.
+This error occurs when an [`@apply`](/docs/at-rules/apply) dependency returns
+to a utility that is already being expanded. The cycle can pass through
+several utilities.
 
 ## Reported
 
@@ -38,5 +39,6 @@ being expanded. The cycle can pass through several utilities.
 
 ## How to fix
 
-Remove the `@apply` that closes the dependency cycle. A shared utility can contain
-the common declarations, provided that it does not apply the utilities that use it.
+Remove the `@apply` that closes the dependency cycle. A shared utility can
+contain the common declarations, provided that it does not apply the utilities
+that use it.

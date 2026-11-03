@@ -5,9 +5,9 @@ slug: docs/macros/cva
 ---
 
 `style.cva(base?, config?)` creates a factory with the configuration format of
-`cva` from class-variance-authority. The compiler generates the CSS for every
-option at build time. Calling the factory selects the compiled classes for the
-chosen options and returns props for an element.
+`cva` from [Class Variance Authority](https://cva.style/). The compiler
+generates the CSS for every option at build time. Calling the factory selects
+the compiled classes for the chosen options and returns props for an element.
 
 `style.cva()` exists mainly to migrate existing CVA components. For new
 components, see [Reusable styles](/docs/guides/reusable-styles).
@@ -64,11 +64,12 @@ options.
 The base and each option value accept utility strings, arrays, objects with
 variant keys, `true`, `false`, `null`, `undefined`, and custom properties.
 
-They do not accept `&&`, ternaries, stored `style()` results, refs, animations,
-or `class` fields. To choose a style at runtime, pass a different option to the
-factory. [invalid-cva-input](/docs/lints/invalid-cva-input) reports these
-values, and [invalid-cva-config](/docs/lints/invalid-cva-config) reports a
-malformed configuration.
+They do not accept `&&`, ternaries, stored [`style()`](/docs/macros/style)
+results, refs, animations, or `class` fields. To choose a style at runtime,
+pass a different option to the factory.
+[invalid-cva-input](/docs/lints/invalid-cva-input) reports these values, and
+[invalid-cva-config](/docs/lints/invalid-cva-config) reports a malformed
+configuration.
 
 A custom property value can be an expression. The factory evaluates it once,
 when the factory is created. Custom properties stay in the inline style, so a

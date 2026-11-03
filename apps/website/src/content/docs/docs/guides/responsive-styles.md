@@ -51,13 +51,14 @@ export function Layout() {
 
 ## Use breakpoints in authored CSS
 
-In a CSS rule, nest `@variant` with the breakpoint name, as in the `.navigation`
-rule above. In an `@utility` definition, use the variant in `@apply` instead,
-such as `@apply inline:flex-row`.
+In a CSS rule, nest [`@variant`](/docs/at-rules/variant) with the breakpoint name,
+as in the `.navigation` rule above. In an [`@utility`](/docs/at-rules/utility)
+definition, use the variant in [`@apply`](/docs/at-rules/apply) instead, such as
+`@apply inline:flex-row`.
 
 ## Use breakpoints in JavaScript
 
-`style.media()` returns the media query for a breakpoint name:
+[`style.media()`](/docs/macros/media) returns the media query for a breakpoint name:
 
 ```ts
 import { style } from "stillwind/react";
@@ -75,8 +76,10 @@ export function dispose() {
 ```
 
 The compiler replaces `style.media("sidebar")` with the query string, so the
-JavaScript always matches the CSS. `matchMedia()` is a browser API, so call it on
-the client. Remove the listener when its component unmounts.
+JavaScript always matches the CSS.
+[`matchMedia()`](https://developer.mozilla.org/docs/Web/API/Window/matchMedia)
+is a browser API, so call it on the client. Remove the listener when its
+component unmounts.
 
 To combine conditions, write them in one argument. To accept alternatives, pass
 several arguments:

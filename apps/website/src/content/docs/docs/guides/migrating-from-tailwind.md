@@ -6,7 +6,7 @@ slug: docs/guides/migrating-from-tailwind
 
 You want to move an existing Tailwind CSS v4 project to Stillwind. Your utilities,
 variants, theme, and plugins keep working. What changes is where you write them:
-in `style()` calls instead of `className` strings.
+in [`style()`](/docs/guides/style) calls instead of `className` strings.
 [Tailwind CSS compatibility](/docs/guides/tailwind-compatibility) lists the tested
 plugins and the differences.
 
@@ -27,8 +27,9 @@ In your stylesheet, replace `@import "tailwindcss"` with `@import "stillwind"`:
 }
 ```
 
-Keep your `@theme`, `@utility`, `@custom-variant`, `@variant`, `@apply`, and
-`@plugin` rules.
+Keep your [`@theme`](/docs/at-rules/theme), [`@utility`](/docs/at-rules/utility),
+[`@custom-variant`](/docs/at-rules/custom-variant), [`@variant`](/docs/at-rules/variant),
+[`@apply`](/docs/at-rules/apply), and [`@plugin`](/docs/at-rules/plugin) rules.
 
 Replace the Tailwind build plugin, such as `@tailwindcss/vite`, with the
 Stillwind integration. Then create `stillwind.config.ts`, as described in
@@ -57,14 +58,14 @@ write a one-off codemod for your repository that converts them in one pass.
 
 ## Replace class helpers
 
-`style()` and `style.cva()` replace the libraries that Tailwind projects use to
-build class strings:
+[`style()`](/docs/macros/style) and [`style.cva()`](/docs/macros/cva) replace
+the libraries that Tailwind projects use to build class strings:
 
-| Library                             | Stillwind                                 |
-| ----------------------------------- | ----------------------------------------- |
-| `clsx`, `classnames`                | `style()` with conditions                 |
-| `tailwind-merge`                    | Compose a base with new utilities         |
-| `cva` from class-variance-authority | `style.cva()` with the same configuration |
+| Library                                                                                           | Stillwind                                 |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [`clsx`](https://github.com/lukeed/clsx), [`classnames`](https://github.com/JedWatson/classnames) | `style()` with conditions                 |
+| [`tailwind-merge`](https://github.com/dcastil/tailwind-merge)                                     | Compose a base with new utilities         |
+| `cva` from [Class Variance Authority](https://cva.style/)                                         | `style.cva()` with the same configuration |
 
 ### clsx and classnames
 
@@ -122,8 +123,8 @@ export function Button({ tone }: VariantProps<typeof button>) {
 `variants`, `defaultVariants`, and `compoundVariants` work as in
 class-variance-authority. Write each option value as a plain utility string,
 without `&&` or a ternary. The props that the factory returns cannot be passed
-to `style()` as a base. The [style.cva() reference](/docs/macros/cva) lists the
-other differences.
+to `style()` as a base. The [`style.cva()` reference](/docs/macros/cva) lists
+the other differences.
 
 For new components, consider state variants and `data-*` attributes instead of
 options. See [Reusable styles](/docs/guides/reusable-styles).

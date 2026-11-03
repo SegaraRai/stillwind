@@ -5,9 +5,10 @@ slug: docs/guides/animations
 ---
 
 You want to animate a component. With Tailwind, as with plain CSS, you write
-`@keyframes` in a global stylesheet and register the animation in the theme.
-In Stillwind, you can define the keyframes in the component that uses them, so
-the animation stays next to the code that uses it.
+[`@keyframes`](https://developer.mozilla.org/docs/Web/CSS/Reference/At-rules/@keyframes)
+in a global stylesheet and register the animation in the theme. In Stillwind,
+you can define the keyframes in the component that uses them, so the animation
+stays next to the code that uses it.
 
 ## Define and apply keyframes
 
@@ -28,9 +29,9 @@ export function Notice() {
 }
 ```
 
-`style.keyframes()` defines the frames with utilities. `enter(...)` applies the
-animation, and its utilities set the animation's options. For example,
-`duration-300` sets `animation-duration`.
+[`style.keyframes()`](/docs/macros/keyframes) defines the frames with utilities.
+`enter(...)` applies the animation, and its utilities set the animation's options.
+For example, `duration-300` sets `animation-duration`.
 
 The compiler generates a unique animation name, so two components can both
 define an `enter` animation. When you delete the component, its keyframes are no
@@ -66,7 +67,8 @@ here. Container queries are not supported.
 
 Export the keyframes from their module, and import them in other components.
 Write the call that applies them, such as `enter("duration-300")`, directly in
-`style()`. You cannot store that call in a variable and use it later.
+[`style()`](/docs/guides/style). You cannot store that call in a variable and
+use it later.
 
-The [style.keyframes() reference](/docs/macros/keyframes) shows the generated
+The [`style.keyframes()` reference](/docs/macros/keyframes) shows the generated
 JavaScript and CSS.

@@ -5,7 +5,7 @@ slug: docs/errors/SW10004
 ---
 
 Some calls have no value of their own. The compiler turns them into CSS at the
-place where `style()` uses them. This error occurs when such a call is stored in
+place where [`style()`](/docs/macros/style) uses them. This error occurs when such a call is stored in
 a variable or passed to another function instead.
 
 ## Reported
@@ -30,11 +30,12 @@ const props = style(card, card.asContainer("inline-size"));
 
 Write the call directly where `style()` uses it:
 
-| Call                                                                                    | Where to write it                     |
-| --------------------------------------------------------------------------------------- | ------------------------------------- |
-| `card.asContainer()`, `card.asAnchor()`, `card.positionAnchor()`, `style.anchorScope()` | An argument of `style()`              |
-| An animation such as `fade("duration-300")`, and `transition.for(key)`                  | An argument of `style()`              |
-| `card()`, `card("hover")`, `.in()`, and `card.at()`                                     | A computed key, or a utility template |
+| Call                                                                                                                                                                                                                    | Where to write it                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| [`card.asContainer()`](/docs/macros/ref/as-container), [`card.asAnchor()`](/docs/macros/ref/as-anchor), [`card.positionAnchor()`](/docs/macros/ref/position-anchor), [`style.anchorScope()`](/docs/macros/anchor-scope) | An argument of `style()`              |
+| An animation such as [`fade("duration-300")`](/docs/macros/keyframes#apply-the-animation), and [`transition.for(key)`](/docs/macros/view-transition)                                                                    | An argument of `style()`              |
+| [`card()`, `card("hover")`](/docs/macros/ref/condition), [`.in()`](/docs/macros/ref/in), and [`card.at()`](/docs/macros/ref/at)                                                                                         | A computed key, or a utility template |
 
 You can still store and pass the definitions themselves, such as the result of
-`style.ref()` or `style.keyframes()`, and the result of `style()`.
+[`style.ref()`](/docs/macros/ref) or [`style.keyframes()`](/docs/macros/keyframes),
+and the result of `style()`.

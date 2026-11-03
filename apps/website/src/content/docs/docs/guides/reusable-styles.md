@@ -11,8 +11,8 @@ which styles apply.
 
 ## Share a base style
 
-Store a `style()` result, and pass it to other `style()` calls. You can export
-the base and import it in other modules:
+Store a [`style()`](/docs/guides/style) result, and pass it to other `style()`
+calls. You can export the base and import it in other modules:
 
 ```tsx
 import { style } from "stillwind/react";
@@ -106,4 +106,4 @@ set a custom property instead. See
 `style.cva()` accepts the configuration of `cva` from class-variance-authority.
 Use it to migrate existing CVA components. See
 [Replace class helpers](/docs/guides/migrating-from-tailwind#replace-class-helpers)
-and the [style.cva() reference](/docs/macros/cva).
+and the [`style.cva()` reference](/docs/macros/cva).
