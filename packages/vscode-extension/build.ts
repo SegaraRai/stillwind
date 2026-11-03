@@ -62,20 +62,7 @@ if (!packaging) {
     await capturePackage(path.resolve(root, directory), `/__stillwind/packages/${name}`, libraries);
   }
   await writeFile(path.join(browser, "libraries.json"), JSON.stringify(libraries));
-  await writeFile(
-    path.join(output, "package.json"),
-    JSON.stringify(
-      {
-        ...extensionManifest,
-        repository: {
-          type: "git",
-          url: "https://github.com/SegaraRai/stillwind",
-        },
-      },
-      null,
-      2,
-    ),
-  );
+  await writeFile(path.join(output, "package.json"), JSON.stringify(extensionManifest, null, 2));
   await cp(path.join(root, "css-data.json"), path.join(output, "dist/css-data.json"));
   await cp(path.join(root, "README.md"), path.join(output, "README.md"));
   await cp(path.join(root, "icon.png"), path.join(output, "icon.png"));
@@ -102,10 +89,6 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   const manifest: Record<string, unknown> = {
     ...extensionManifest,
     files: ["dist/**", "icon.png", "NPM-THIRD-PARTY-LICENSES", ...Object.keys(licenses)],
-    repository: {
-      type: "git",
-      url: "https://github.com/SegaraRai/stillwind",
-    },
   };
   manifest.main = "./dist/node/extension.cjs";
   if (!desktop) {
