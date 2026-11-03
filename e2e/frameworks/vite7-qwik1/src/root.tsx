@@ -1,8 +1,6 @@
 import { component$ } from "@builder.io/qwik";
 import { QwikCityProvider, RouterOutlet } from "@builder.io/qwik-city";
 
-import "./styles.css";
-
 export default component$(() => (
   <QwikCityProvider>
     <head>

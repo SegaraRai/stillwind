@@ -41,6 +41,9 @@ base. The response includes every observed automatic producer in that environmen
 Repeat `module` query parameters to select root-relative producer files, for example
 `&module=src/routes/index.tsx&module=src/server-style.ts`. Each selection includes
 its framework query modules and required style dependencies. The response is not cached.
+When the CSS of that environment changes, Vite's client reloads the link in open
+pages. Pages that never load Stillwind's client runtime, such as resumable Qwik
+pages, receive theme edits in this way.
 
 ## Astro
 

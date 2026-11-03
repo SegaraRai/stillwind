@@ -48,8 +48,8 @@ export default defineFixture({
       css: {
         color: "rgb(101, 67, 33)",
       },
-      document: "reload",
-      state: "reset",
+      document: "preserve",
+      state: "preserve",
     },
     component: {
       file: "src/App.tsx",

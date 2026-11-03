@@ -211,6 +211,15 @@ export interface ViteProject {
    */
   publish: (name: string | undefined, context: CssContext) => Promise<void>;
   /**
+   * Records a document stylesheet URL that the development server served for an environment.
+   * Later publications that change the environment's CSS ask the browser to reload each recorded
+   * stylesheet link.
+   *
+   * @param name - Environment whose document CSS the URL returns.
+   * @param url - Request path and query under the server origin, without Vite's `t` parameter.
+   */
+  observeDocumentStylesheet: (name: string, url: string) => void;
+  /**
    * Rewrites CSS map sources for browser delivery using the selected environment's sources.
    *
    * @param name - Environment name, or `undefined` for `client`.
@@ -284,6 +293,10 @@ export function createViteProject(
   let missingConfigurations: string[] = [];
 
   const environments = new Map<string, ViteEnvironment>();
+  /** Document stylesheet URLs served in development, keyed by environment name. */
+  const documentStylesheets = new Map<string, Set<string>>();
+  /** CSS of the latest publication that refreshed document stylesheets, keyed by environment name. */
+  const publishedDocumentCss = new Map<string, string>();
   let bindings = new WeakMap<EnvironmentOwner, ViteEnvironment>();
   /**
    * Gets or creates the compiler state owned by one Vite environment.
@@ -436,6 +449,8 @@ export function createViteProject(
   /** Detaches server listeners, closes discovery watchers, and closes every retained compiler environment. */
   const close = () => {
     stopCssWatching();
+    documentStylesheets.clear();
+    publishedDocumentCss.clear();
     for (const state of environments.values()) {
       state.close();
     }
@@ -452,11 +467,38 @@ export function createViteProject(
     if (!settings.watching || !settings.devServerRef) {
       return Promise.resolve();
     }
+    const environmentName = name ?? "client";
     return environment(name).publish(context, (snapshot) => {
-      settings.devServerRef?.environments[name ?? "client"]?.hot.send({
+      const environments = settings.devServerRef?.environments;
+      environments?.[environmentName]?.hot.send({
         type: "custom",
         event: "stillwind:css",
         data: snapshot satisfies InferCustomEventPayload<"stillwind:css">,
+      });
+      const urls = documentStylesheets.get(environmentName);
+      if (!urls) {
+        return;
+      }
+      const css = snapshot.parts.map((part) => part.css).join("\n");
+      if (publishedDocumentCss.get(environmentName) === css) {
+        return;
+      }
+      publishedDocumentCss.set(environmentName, css);
+      // Pages whose framework never loads the Stillwind runtime, such as resumable Qwik pages,
+      // receive no `stillwind:css` listener. Vite's client reloads a link whose URL contains the
+      // update path. Longer URLs come first so that a link with `module` selections is claimed
+      // by its own URL before a shorter URL that is a substring of it.
+      const timestamp = Date.now();
+      environments?.client?.hot.send({
+        type: "update",
+        updates: [...urls]
+          .sort((left, right) => right.length - left.length)
+          .map((path) => ({
+            type: "css-update",
+            path,
+            acceptedPath: path,
+            timestamp,
+          })),
       });
     });
   };
@@ -508,6 +550,14 @@ export function createViteProject(
     snapshot: (name: string | undefined, context: CssContext) =>
       environment(name).snapshot(context),
     publish,
+    observeDocumentStylesheet: (name: string, url: string) => {
+      let urls = documentStylesheets.get(name);
+      if (!urls) {
+        urls = new Set();
+        documentStylesheets.set(name, urls);
+      }
+      urls.add(url);
+    },
     publicSourceMap: (name: string | undefined, map: BrowserSourceMapInput) =>
       publicCssSourceMap(environment(name).browserSources, map),
     cssForBrowser: (

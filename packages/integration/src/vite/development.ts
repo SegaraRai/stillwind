@@ -127,8 +127,9 @@ export function developmentHooks(
     /**
      * Registers routes that serve document CSS and revisioned stylesheet snapshots.
      *
-     * The document route supports repeated `module` selections and defaults to `ssr`. The snapshot
-     * route defaults to `client`. Unknown environments return 404 and stylesheet failures return
+     * The document route supports repeated `module` selections and defaults to `ssr`. It records each
+     * served URL so that later CSS changes in that environment reload the document's link. The
+     * snapshot route defaults to `client`. Unknown environments return 404 and stylesheet failures return
      * 500.
      *
      * @param server - Active server with the project's initialized Vite environments.
@@ -142,6 +143,9 @@ export function developmentHooks(
         if (!environment) {
           return sendJson(response, { error: "Unknown environment" }, 404);
         }
+        const link = new URL(request.originalUrl ?? request.url ?? "", "http://stillwind.local");
+        link.searchParams.delete("t");
+        project.observeDocumentStylesheet(name, link.pathname + link.search);
         void documentPlan(
           name,
           {
