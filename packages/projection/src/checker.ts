@@ -90,14 +90,14 @@ export function checkerEnvironment(source: PreparedSource): CheckerEnvironment {
 }
 
 /**
- * Locates an unchanged Astro client script body in generated code using its source-map points.
+ * Locates an unchanged Astro client script body in generated code using its mapped points.
  *
- * @param source - Projected Astro source whose version 3 map identifies the original document.
+ * @param source - Projected Astro source whose map identifies the original document.
  * @param region - Nonempty original script body with half-open UTF-16 bounds.
  * @returns The unique inclusive UTF-16 offset at which the complete original body occurs in the
  * projection and agrees with its mapped points.
- * @throws {PreparationError} If the map is not version 3 or no unique matching location exists.
- * @throws If the source map cannot be decoded.
+ * @throws {PreparationError} If no unique matching location exists.
+ * @throws If a version 3 source map cannot be decoded.
  */
 function clientProjectionStart(
   source: Extract<
@@ -114,41 +114,15 @@ function clientProjectionStart(
     end: number;
   },
 ): number {
-  if (source.projection.map.kind !== "v3") {
-    throw new PreparationError(
-      {
-        kind: "projection",
-        detail: "Astro client scripts require a source map",
-      },
-      source.projection.converter,
-    );
-  }
-
-  const trace = new TraceMap(source.projection.map.json);
-  const selected = trace.sources.indexOf(source.projection.map.source);
-  /**
-   * Builds line starts for converting map positions to text offsets.
-   * @param text - Generated or original source whose LF characters delimit lines.
-   * @returns Ordered UTF-16 offsets, including zero and the position after every LF.
-   */
-  const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
-  const generated = lines(source.projection.code);
-  const original = lines(source.document.code);
   const text = source.document.code.slice(region.start, region.end);
   const candidates = new Set<number>();
-  for (const [line, segments] of decodedMappings(trace).entries()) {
-    for (const segment of segments) {
-      if (segment.length < 4 || segment[1] !== selected) {
-        continue;
-      }
-      const offset = original[segment[2]!] + segment[3]!;
-      if (offset < region.start || offset >= region.end) {
-        continue;
-      }
-      const start = generated[line] + segment[0] - (offset - region.start);
-      if (source.projection.code.slice(start, start + text.length) === text) {
-        candidates.add(start);
-      }
+  for (const [generated, original] of mappedPoints(source)) {
+    if (original < region.start || original >= region.end) {
+      continue;
+    }
+    const start = generated - (original - region.start);
+    if (source.projection.code.slice(start, start + text.length) === text) {
+      candidates.add(start);
     }
   }
   if (candidates.size !== 1) {
@@ -162,4 +136,51 @@ function clientProjectionStart(
   }
 
   return [...candidates][0];
+}
+
+/**
+ * Lists the starts of mapped spans or segments in a projection.
+ *
+ * @param source - Projected source whose map identifies the original document.
+ * @returns Pairs of generated and original UTF-16 offsets. Volar spans contribute their starts,
+ * and version 3 maps contribute the segments of the selected source.
+ * @throws If a version 3 source map cannot be decoded.
+ */
+function mappedPoints(
+  source: Extract<
+    PreparedSource,
+    {
+      /** Selects the prepared source variant that contains generated code and a map. */
+      kind: "projected";
+    }
+  >,
+): [generated: number, original: number][] {
+  const map = source.projection.map;
+  if (map.kind === "volar") {
+    return map.mappings.flatMap((entry) =>
+      entry.sourceOffsets.map(
+        (original, index) => [entry.generatedOffsets[index], original] as [number, number],
+      ),
+    );
+  }
+
+  const trace = new TraceMap(map.json);
+  const selected = trace.sources.indexOf(map.source);
+  /**
+   * Builds line starts for converting map positions to text offsets.
+   * @param text - Generated or original source whose LF characters delimit lines.
+   * @returns Ordered UTF-16 offsets, including zero and the position after every LF.
+   */
+  const lines = (text: string) => [0, ...[...text.matchAll(/\n/g)].map((match) => match.index + 1)];
+  const generated = lines(source.projection.code);
+  const original = lines(source.document.code);
+  const points: [number, number][] = [];
+  for (const [line, segments] of decodedMappings(trace).entries()) {
+    for (const segment of segments) {
+      if (segment.length >= 4 && segment[1] === selected) {
+        points.push([generated[line] + segment[0], original[segment[2]!] + segment[3]!]);
+      }
+    }
+  }
+  return points;
 }

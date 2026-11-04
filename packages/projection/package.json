@@ -35,7 +35,8 @@
     "typescript-6": "npm:typescript@^6.0.3"
   },
   "devDependencies": {
-    "@astrojs/compiler": "^4.0.0",
+    "@astrojs/astro2tsx": "^0.1.3",
+    "@emnapi/runtime": "1.11.3",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "@volar/typescript": "^2.4.30",
@@ -51,7 +52,7 @@
     "vue-language-core-3-0-2": "npm:@vue/language-core@3.0.2"
   },
   "peerDependencies": {
-    "@astrojs/compiler": "^4.0.0",
+    "@astrojs/astro2tsx": "^0.1.3",
     "@vue/compiler-dom": "^3.0.0",
     "@vue/compiler-sfc": "^3.0.0",
     "@vue/language-core": "^3.0.2",
@@ -59,7 +60,7 @@
     "svelte2tsx": "^0.7.56"
   },
   "peerDependenciesMeta": {
-    "@astrojs/compiler": {
+    "@astrojs/astro2tsx": {
       "optional": true
     },
     "@vue/compiler-dom": {

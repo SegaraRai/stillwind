@@ -27,7 +27,7 @@ test("packaged desktop server resolves framework compilers", () => {
     ),
   );
   for (const name of [
-    "@astrojs/compiler",
+    "@astrojs/astro2tsx",
     "@vue/compiler-dom",
     "@vue/compiler-sfc",
     "@vue/language-core",
@@ -38,6 +38,8 @@ test("packaged desktop server resolves framework compilers", () => {
     expect(require.resolve(name)).toContain(join("dist", "desktop"));
   }
   expect(require("@vue/language-core")).toHaveProperty("createVueLanguagePlugin");
+  // Loading instantiates the WebAssembly module with the packaged emnapi runtime.
+  expect(require("@astrojs/astro2tsx").convertToTsx("<p/>").hasParseErrors).toBe(false);
 });
 
 test.each([
