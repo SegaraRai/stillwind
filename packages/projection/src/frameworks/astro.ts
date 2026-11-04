@@ -46,12 +46,19 @@ export async function convert(source: string, filename: string): Promise<SourceP
   const scripts: ScriptRegion[] = [];
 
   const frontmatter = parsed.ast.children.find((node) => node.type === "frontmatter");
-  if (frontmatter?.type === "frontmatter" && frontmatter.position?.end) {
-    // Convert Astro's UTF-8 AST offset to UTF-16 before slicing the frontmatter body.
+  if (frontmatter?.type === "frontmatter" && frontmatter.position) {
+    // Convert Astro's UTF-8 AST offset to UTF-16 before slicing the frontmatter body. The start
+    // offset points to the opening fence. The end offset cannot locate the closing fence: it
+    // points before that fence when the body ends with a line comment, and after it otherwise.
     const bytes = Buffer.from(source);
-    const end = bytes.subarray(0, frontmatter.position.end.offset).toString("utf8").length - 3;
-    const start = end - frontmatter.value.length;
-    if (source.slice(start, end) !== frontmatter.value || source.slice(end, end + 3) !== "---") {
+    const fence = bytes.subarray(0, frontmatter.position.start.offset).toString("utf8").length;
+    const start = fence + 3;
+    const end = start + frontmatter.value.length;
+    if (
+      source.slice(fence, start) !== "---" ||
+      source.slice(start, end) !== frontmatter.value ||
+      source.slice(end, end + 3) !== "---"
+    ) {
       throw new PreparationError(
         {
           kind: "projection",
