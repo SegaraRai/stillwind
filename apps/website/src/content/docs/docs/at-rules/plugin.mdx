@@ -63,6 +63,13 @@ A plugin can select elements by fixed class names, such as `not-prose`.
 [Tailwind CSS compatibility](/docs/guides/tailwind-compatibility#class-names-that-a-plugins-selectors-use)
 describes. That page also lists the tested plugins.
 
+Each selector that a plugin passes to `addUtilities` or `addComponents` must
+name a class. An `@scope` rule can appear inside such a selector, as in
+`{ ".join": { "@scope (&)": { … } } }`, but not around it. When a plugin
+passes an `@scope` rule outside every selector, such as
+`{ "@scope (.theme)": { ".item": { … } } }`, the stylesheet fails to load with an
+error.
+
 A CSS package does not use `@plugin`. Load it with `@import`, such as
 `@import "tw-animate-css";`.
 

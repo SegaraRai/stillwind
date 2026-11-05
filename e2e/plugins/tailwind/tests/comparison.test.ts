@@ -654,6 +654,15 @@ const packageCases: ComparisonCase[] = [
     properties: ["background-color", "color", "height", "border-start-start-radius"],
   },
   {
+    name: "daisyUI: join keeps the outer radius of its first item from @scope (&)",
+    extension: daisyui,
+    separate: true,
+    candidates: ["join", "btn", "join-item"],
+    html: (_, [join, button, item]) =>
+      `<div class="${join}"><button id="target" class="${button} ${item}">x</button><button class="${button} ${item}">y</button></div>`,
+    properties: ["border-start-start-radius", "border-end-start-radius", "border-start-end-radius"],
+  },
+  {
     name: "daisyUI: the theme plugin defines a custom theme",
     extension: daisyuiTheme,
     options: 'name: "brand"; default: true; --color-primary: #123456;',

@@ -122,6 +122,52 @@ test("nested selector objects become one target per selector", () => {
   ]);
 });
 
+test("nested @scope rules keep their nested rules inside the scope", () => {
+  expect(
+    rules({
+      ".join": {
+        display: "inline-flex",
+        "@scope (&)": {
+          "> :where(:focus)": {
+            zIndex: "2",
+          },
+          ":where(:scope > :first-child)": {
+            borderStartStartRadius: "0.5rem",
+          },
+        },
+        "& > span": {
+          "@media (min-width: 1px)": {
+            "@scope (&)": {
+              ":scope > b": {
+                color: "red",
+              },
+            },
+          },
+        },
+      },
+    }),
+  ).toEqual([
+    ["join", "display:inline-flex;"],
+    [
+      "join",
+      "@scope (&){> :where(:focus){z-index:2;}:where(:scope > :first-child){border-start-start-radius:0.5rem;}}",
+    ],
+    ["join", "& > span{@media (min-width: 1px){@scope (&){:scope > b{color:red;}}}}"],
+  ]);
+
+  expect(() =>
+    rules({
+      "@media (min-width: 1px)": {
+        "@scope (.theme) to (.limit)": {
+          ".item": {
+            color: "red",
+          },
+        },
+      },
+    }),
+  ).toThrow("cannot be nested in @scope outside a selector: @scope (.theme) to (.limit)");
+});
+
 test("alpha values follow Tailwind's withAlpha", () => {
   expect(withAlpha("red", "0.5")).toBe("color-mix(in oklab, red 50%, transparent)");
   expect(withAlpha("red", "50%")).toBe("color-mix(in oklab, red 50%, transparent)");
