@@ -1,5 +1,26 @@
 # stillwind
 
+## 0.7.0
+
+### Minor Changes
+
+- `style.css()` now returns a minified stylesheet without the Stillwind and Tailwind license comments, so the strings in your bundle are smaller. The string still applies the same styles.
+
+### Patch Changes
+
+- Rules that a Tailwind CSS JavaScript plugin nests inside `@scope` within a selector, such as `@scope (&)`, now stay inside the `@scope` block, as the same rules in a CSS `@utility` do. Previously, each nested selector moved into the `@scope` prelude, so a selector that used `:scope` matched the document root instead of the scoping root and the rule never applied. For example, daisyUI's `join` lost the radius of its outer corners.
+
+  A plugin that passes `addUtilities()` or `addComponents()` an `@scope` rule outside any selector, such as `{ "@scope (.theme)": { ".item": { … } } }`, now fails with an error. Previously, Stillwind generated CSS that styled other elements than Tailwind CSS does, without a diagnostic.
+
+- Astro components whose frontmatter ends with a `//` line comment now pass `stillwind lint` and the build. Previously, such components failed with SW31005 ("Astro frontmatter coordinates do not match source"), so a trailing comment such as `// TODO` or a tool directive could fail the whole site build.
+
+- The npm package page now shows that each package includes TypeScript declarations. Packages without a root JavaScript entry declare an empty root module, so TypeScript setups that ignore `exports` report a missing export instead of resolving unrelated types.
+
+- Updated dependencies:
+  - @stillwind/config@0.7.0
+  - @stillwind/native@0.7.0
+  - @stillwind/projection@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

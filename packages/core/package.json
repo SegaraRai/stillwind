@@ -1,6 +1,6 @@
 {
   "name": "stillwind",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Write Tailwind CSS v4 utilities in components, enforce your design system, and ship static CSS",
   "keywords": [
     "alpinejs",
