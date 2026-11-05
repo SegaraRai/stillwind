@@ -66,6 +66,7 @@
     },
     "./sveltekit/handle": {
       "types": "./dist/sveltekit/handle.d.ts",
+      "svelte": "./dist/sveltekit/handle.js",
       "default": "./dist/sveltekit/handle.js"
     },
     "./turbopack": {
