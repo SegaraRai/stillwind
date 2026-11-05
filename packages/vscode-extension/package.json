@@ -19,12 +19,14 @@
   "files": [
     "dist/api",
     "dist/extension",
+    "index.d.ts",
     "README.md",
     "LICENSE",
     "TAILWINDCSS-MIT-LICENSE",
     "WEBREF-MIT-LICENSE"
   ],
   "type": "module",
+  "types": "./index.d.ts",
   "exports": {
     "./manifest": {
       "types": "./dist/api/manifest.d.ts",

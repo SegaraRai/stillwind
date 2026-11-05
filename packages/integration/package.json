@@ -36,9 +36,11 @@
     "directory": "packages/integration"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.d.ts"
   ],
   "type": "module",
+  "types": "./index.d.ts",
   "exports": {
     "./astro": {
       "types": "./dist/astro/index.d.ts",

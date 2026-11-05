@@ -39,6 +39,7 @@
   "files": [
     "dist",
     "index.css",
+    "index.d.ts",
     "css",
     "docs",
     "skills",
@@ -49,6 +50,7 @@
   "sideEffects": [
     "**/*.css"
   ],
+  "types": "./index.d.ts",
   "exports": {
     ".": "./index.css",
     "./builtins.css": "./css/builtins.css",
