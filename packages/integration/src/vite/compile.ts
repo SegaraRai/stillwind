@@ -18,6 +18,7 @@ import { finalizeModuleWithMap } from "./finalize.ts";
 import { sourceModuleId } from "./module-ids.ts";
 import type { ModuleRegistry } from "./module-registry.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
+import { resolveServerSource } from "./server-source-resolve.ts";
 
 /** Metadata retained in the Vite module graph to reconstruct a producer from a cached transform. */
 export interface ProducerMetadata {
@@ -157,10 +158,11 @@ export async function compileProducer(
       // Dependency reads supply type and style facts. Vite validates the imports retained in the
       // transformed application when it constructs the JavaScript graph.
       resolve: (specifier, importer) =>
-        context.resolve(specifier, importer, {
-          skipSelf: true,
-          custom: { "react-router:dot-server": true },
-        }),
+        resolveServerSource(
+          (specifier, importer, options) => context.resolve(specifier, importer, options),
+          specifier,
+          importer,
+        ),
       read: (id) => readFile(cleanModuleId(id), "utf8"),
       describe: (resolvedId) => {
         const virtual = resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:");

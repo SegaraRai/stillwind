@@ -287,3 +287,14 @@ as preview comments do.
 
 Sources: [design-system queries](../packages/host/src/editor/design-system.ts),
 [candidate completion](../crates/compiler/src/query/completion/candidates.rs).
+
+## Retried React Router resolutions
+
+Rolldown can pass the `custom` option of one `this.resolve()` call to a different call that runs
+at the same time ([rolldown#11180](https://github.com/rolldown/rolldown/issues/11180)). Stillwind
+resolves server-only sources with the flag that skips React Router's `.server` check, so it
+resolves again when React Router reports `Server-only module referenced by client`. After a
+Rolldown release gives each pending call its own key, update Vite+ and remove the retry.
+
+Sources: [server source resolution](../packages/integration/src/vite/server-source-resolve.ts),
+[React Router fixture](../e2e/frameworks/vite8-react19-reactrouter8/fixture.ts).

@@ -7,6 +7,7 @@ import type { Plugin } from "vite";
 import { readableFile } from "./file-access.ts";
 import type { ViteProject } from "./project.ts";
 import { projectionImports } from "./projection-imports.ts";
+import { resolveServerSource } from "./server-source-resolve.ts";
 
 /** Project settings whose configured CSS entrypoint has already produced an import warning. */
 const warnedEntrypointImports = new WeakSet<ViteProject["settings"]>();
@@ -130,12 +131,11 @@ export function transformHooks(
         }
         const projections = new Map<string, string>();
         for (const specifier of await projectionImports(code, id)) {
-          const source = await this.resolve(specifier.slice(0, -"?stillwind.css".length), id, {
-            skipSelf: true,
-            custom: {
-              "react-router:dot-server": true,
-            },
-          });
+          const source = await resolveServerSource(
+            this.resolve.bind(this),
+            specifier.slice(0, -"?stillwind.css".length),
+            id,
+          );
           if (!source || source.external) {
             this.error(`Cannot resolve Stillwind projection ${specifier}`);
           }
