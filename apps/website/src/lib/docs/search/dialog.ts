@@ -13,6 +13,12 @@ const optionExcerpt = style("line-clamp-2 mbs-1 text-caption text-muted search-e
 const optionSections = style("grid mbs-1.5 ps-3 border-border border-s");
 const optionSection = style("block truncate py-0.5 text-caption text-muted hover:text-foreground");
 
+/** Detail of the `search:open` event. */
+interface SearchOpenDetail {
+  /** Query that replaces the input value. When this is missing, the dialog keeps the previous input. */
+  query?: string;
+}
+
 /**
  * Connects the search dialog markup in `dialog` to Pagefind. Typing searches after a short
  * delay, the arrow keys move through the results, and Enter opens the highlighted result.
@@ -158,7 +164,13 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
   dialog.dataset.searchReady = "";
   dialog.addEventListener(
     "search:open",
-    () => {
+    (event) => {
+      const { query } = (event as CustomEvent<SearchOpenDetail>).detail;
+      if (query !== undefined) {
+        input.value = query;
+        clearTimeout(timer);
+        void search(query.trim());
+      }
       if (!dialog.open) {
         dialog.showModal();
       }
@@ -177,18 +189,24 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
 
 /**
  * Opens the search dialog from any element with `data-search-trigger` and from Ctrl+K, or Cmd+K
- * on macOS. Call it once per document. The listeners stay on `document`, which survives
- * client-side navigation, so they open the dialog of the current page.
+ * on macOS. When the trigger has `data-search-query`, the dialog searches for that value; otherwise
+ * it keeps the previous input. Call it once per document. The listeners stay on `document`, which
+ * survives client-side navigation, so they open the dialog of the current page.
  */
 export function bindSearchShortcuts(document: Document): void {
-  const open = () =>
-    document
-      .querySelector("dialog[data-search-dialog][data-search-ready]")
-      ?.dispatchEvent(new Event("search:open"));
+  const open = (query?: string) =>
+    document.querySelector("dialog[data-search-dialog][data-search-ready]")?.dispatchEvent(
+      new CustomEvent<SearchOpenDetail>("search:open", {
+        detail: {
+          query,
+        },
+      }),
+    );
 
   document.addEventListener("click", (event) => {
-    if ((event.target as Element).closest("[data-search-trigger]")) {
-      open();
+    const trigger = (event.target as Element).closest<HTMLElement>("[data-search-trigger]");
+    if (trigger) {
+      open(trigger.dataset.searchQuery);
     }
   });
   document.addEventListener("keydown", (event) => {
