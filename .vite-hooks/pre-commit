@@ -1,6 +1,19 @@
 #!/usr/bin/env sh
 set -eu
 
+# A linked worktree can set `core.hooksPath` to an absolute Windows path with backslashes. The hook
+# runner then derives a `node_modules/.bin` directory without its drive letter, and `vp` fails.
+# Git reports both checkout roots with forward slashes, but a drive prefix such as `F:` would split
+# a PATH entry, so `cygpath` converts the roots on Windows. Tools from the current checkout take
+# precedence over tools from the main checkout.
+checkout="$(git rev-parse --show-toplevel)"
+main="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+if command -v cygpath >/dev/null 2>&1; then
+  checkout="$(cygpath -u "$checkout")"
+  main="$(cygpath -u "$main")"
+fi
+export PATH="$checkout/node_modules/.bin:$main/node_modules/.bin:$PATH"
+
 files="$(git diff --cached --name-only --diff-filter=ACMR)"
 
 if [ -z "$files" ]; then
