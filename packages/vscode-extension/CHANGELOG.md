@@ -1,5 +1,18 @@
 # @stillwind/vscode-extension
 
+## 0.7.0
+
+### Patch Changes
+
+- The npm package page now shows that each package includes TypeScript declarations. Packages without a root JavaScript entry declare an empty root module, so TypeScript setups that ignore `exports` report a missing export instead of resolving unrelated types.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.7.0
+  - @stillwind/config@0.7.0
+  - @stillwind/host@0.7.0
+  - @stillwind/language-server@0.7.0
+  - @stillwind/native@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

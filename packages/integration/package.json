@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/integration",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Stillwind plugins for Vite, Astro, Next.js, Nuxt, SvelteKit, Fresh, webpack, Rspack, Rsbuild, and Turbopack",
   "keywords": [
     "astro",

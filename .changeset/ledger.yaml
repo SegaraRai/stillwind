@@ -1,3 +1,7 @@
+"@stillwind/analysis@0.7.0":
+  dir: packages/analysis
+  intents:
+    - typed-badges-show
 "@stillwind/cli@0.2.0":
   dir: packages/cli
   intents:
@@ -25,10 +29,22 @@
   dir: packages/cli
   intents:
     - package-keywords-list
+"@stillwind/cli@0.7.0":
+  dir: packages/cli
+  intents:
+    - typed-badges-show
 "@stillwind/config@0.2.0":
   dir: packages/config
   intents:
     - weak-moose-fail
+"@stillwind/config@0.7.0":
+  dir: packages/config
+  intents:
+    - typed-badges-show
+"@stillwind/host@0.7.0":
+  dir: packages/host
+  intents:
+    - typed-badges-show
 "@stillwind/integration@0.5.0":
   dir: packages/integration
   intents:
@@ -39,15 +55,31 @@
     - chilly-spoons-decide
     - clever-bottles-matter
     - package-keywords-list
+"@stillwind/integration@0.7.0":
+  dir: packages/integration
+  intents:
+    - good-spiders-open
+    - scoped-plugin-rules
+    - sveltekit-handle-bundled
+    - trailing-comments-parse
+    - typed-badges-show
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
     - clear-logs-show
     - light-jokes-dig
+"@stillwind/language-server@0.7.0":
+  dir: packages/language-server
+  intents:
+    - typed-badges-show
 "@stillwind/plugin-iconify@0.6.0":
   dir: plugins/iconify
   intents:
     - package-keywords-list
+"@stillwind/projection@0.7.0":
+  dir: packages/projection
+  intents:
+    - typed-badges-show
 "@stillwind/vscode-extension@0.2.0":
   dir: packages/vscode-extension
   intents:
@@ -79,10 +111,18 @@
   dir: packages/vscode-extension
   intents:
     - editor-components-activate
+"@stillwind/vscode-extension@0.7.0":
+  dir: packages/vscode-extension
+  intents:
+    - typed-badges-show
 prettier-plugin-stillwind@0.6.0:
   dir: packages/prettier-plugin
   intents:
     - package-keywords-list
+prettier-plugin-stillwind@0.7.0:
+  dir: packages/prettier-plugin
+  intents:
+    - typed-badges-show
 stillwind@0.1.0:
   dir: packages/core
   intents:
@@ -123,3 +163,10 @@ stillwind@0.6.0:
     - nested-imports-inline
     - nested-variants-expand
     - package-keywords-list
+stillwind@0.7.0:
+  dir: packages/core
+  intents:
+    - quiet-sheets-shrink
+    - scoped-plugin-rules
+    - trailing-comments-parse
+    - typed-badges-show
