@@ -1,4 +1,4 @@
-import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindToFragment, stillwindViewTransitionName } from "stillwind/runtime/class-name-object";
+import { stillwindClsx, stillwindViewTransitionName, stillwindClassNameObjectClassKey, stillwindClassNameObjectMerge, stillwindClassNameObjectToFragment } from "stillwind/runtime";
 
 export const pageTitle = {v:"sw-vt-page-title-56mrr"};
 export const pageCard = {v:"sw-vt-9jm9s"};
@@ -19,7 +19,7 @@ export const conditionalLiteralKey = {className:stillwindClsx("sw_wg0m9",({"sw-v
 export const keyedProps = {className:"sw_zu69b"};
 export const transitionData = { transition: pageCard, key: transitionKey };
 export const usesTransitionData = {className:"sw_y96tt",style:{"view-transition-name":stillwindViewTransitionName("sw-vt-9jm9s",transitionData.key)}};
-export const usesKeyedProps = stillwindMerge({[stillwindClassKey]:"sw_2ce4i"},stillwindToFragment((keyedProps)));
+export const usesKeyedProps = stillwindClassNameObjectMerge({[stillwindClassNameObjectClassKey]:"sw_2ce4i"},stillwindClassNameObjectToFragment((keyedProps)));
 
 // A name another declaration states, and several transitions in one call.
 export const namedExplicitly = {className:"sw_a2388"};

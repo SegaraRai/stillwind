@@ -155,9 +155,10 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     );
     const prepared = await project(code);
     const output = await compile(prepared);
-    for (const format of ["class-name-object", "class-object", "class-string"]) {
-      expect(output.code).toContain(`from "stillwind/runtime/${format}"`);
+    for (const format of ["ClassNameObject", "ClassObject", "ClassString"]) {
+      expect(output.code).toContain(`stillwind${format}Merge`);
     }
+    expect(output.code).toContain('from "stillwind/runtime"');
     expect(output.code).toContain("<script>");
     expect(output.code).not.toMatch(/style as|__stillwind_client/);
   });

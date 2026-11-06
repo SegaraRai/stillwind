@@ -34,55 +34,57 @@ async function bundle(source: string, minify = false): Promise<string> {
   }
 }
 
+const formats = [
+  ["ClassNameObject", "className"],
+  ["ClassObject", "class"],
+  ["ClassString", "class"],
+] as const;
+
 test("each packaged output format keeps only the requested style conversion", async () => {
-  for (const framework of ["class-name-object", "class-object", "class-string"]) {
+  for (const [format] of formats) {
     const code = await bundle(
-      `export { stillwindStyleValue as convert } from "stillwind/runtime/${framework}";`,
+      `export { stillwind${format}StyleValue as convert } from "stillwind/runtime";`,
     );
     const runtime = await import(
       `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
     );
     expect(runtime.convert({ color: "red" })).toEqual(
-      framework === "class-string" ? "color:red" : { color: "red" },
+      format === "ClassString" ? "color:red" : { color: "red" },
     );
-    expect(code).not.toMatch(
-      /mergeFragments|toFragment|stillwindClassKey|stillwindCustomPropertiesKey/,
-    );
+    expect(code).not.toMatch(/mergeFragments|toFragment|ClassKey|CustomPropertiesKey|Symbol/);
   }
 });
 
-test("packaged production merges exclude validation and unused conversion", async () => {
+test("packaged production merges exclude validation, other formats, and unused conversion", async () => {
   const code = await bundle(
-    'export { stillwindMerge as merge, stillwindClassKey as key } from "stillwind/runtime/class-name-object";',
+    'export { stillwindClassNameObjectMerge as merge, stillwindClassNameObjectClassKey as key } from "stillwind/runtime";',
   );
   const runtime = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
   );
   expect(runtime.merge({ [runtime.key]: "ready" })).toEqual({ className: "ready" });
-  expect(code).not.toMatch(/function toFragment\b|Checked|NODE_ENV|different runtime instance/);
+  expect(code).not.toMatch(
+    /function toFragment|Checked|NODE_ENV|different runtime instance|class-object|class-string/,
+  );
 });
 
 test("development readers can be bundled without materialization", async () => {
   const code = await bundle(
-    'export { stillwindRefClassChecked as read } from "stillwind/runtime/class-name-object-development";',
+    'export { stillwindRefClassChecked as read } from "stillwind/runtime/development";',
   );
   const runtime = await import(
     `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
   );
   expect(runtime.read({ c: "marker" })).toBe("marker");
   expect(() => runtime.read({})).toThrow(/class token/);
-  expect(code).not.toMatch(/mergeFragments|toFragment|stillwindClassKey/);
+  expect(code).not.toMatch(/mergeFragments|toFragment|Symbol/);
 });
 
-test("packaged CVA factories select validation through the output format entrypoint", async () => {
-  for (const framework of ["class-name-object", "class-object", "class-string"]) {
-    for (const development of [false, true]) {
-      const suffix = development ? "-development" : "";
-      const checked = development ? "Checked" : "";
-      const code = await bundle(
-        `export { stillwindCva${checked} as cva } from "stillwind/runtime/${framework}${suffix}";`,
-        true,
-      );
+test("packaged CVA factories select validation through the runtime entrypoint", async () => {
+  for (const [format, classProperty] of formats) {
+    for (const entry of ["stillwind/runtime", "stillwind/runtime/development"]) {
+      const development = entry.endsWith("/development");
+      const code = await bundle(`export { stillwind${format}Cva as cva } from "${entry}";`, true);
       const runtime = await import(
         `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
       );
@@ -103,7 +105,7 @@ test("packaged CVA factories select validation through the output format entrypo
         ],
       });
       expect(choose({ class: "extra" })).toEqual({
-        [framework === "class-name-object" ? "className" : "class"]: "base selected compound extra",
+        [classProperty]: "base selected compound extra",
       });
       if (development) {
         expect(() => choose({ class: Symbol("class") })).toThrow(/unsupported class value/);
@@ -115,18 +117,16 @@ test("packaged CVA factories select validation through the output format entrypo
 }, 30_000);
 
 test("minified output runtimes materialize fragments without configuration property names", async () => {
-  for (const framework of ["class-name-object", "class-object", "class-string"]) {
-    for (const development of [false, true]) {
-      const suffix = development ? "-development" : "";
-      const checked = development ? "Checked" : "";
+  for (const [format, classProperty] of formats) {
+    for (const entry of ["stillwind/runtime", "stillwind/runtime/development"]) {
+      const development = entry.endsWith("/development");
       const code = await bundle(
-        `export { stillwindMerge${checked} as merge, stillwindToFragment${checked} as convert } from "stillwind/runtime/${framework}${suffix}";`,
+        `export { stillwind${format}Merge as merge, stillwind${format}ToFragment as convert } from "${entry}";`,
         true,
       );
       const runtime = await import(
         `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
       );
-      const classProperty = framework === "class-name-object" ? "className" : "class";
       const props = {
         [classProperty]: "card",
         style: {
@@ -141,9 +141,7 @@ test("minified output runtimes materialize fragments without configuration prope
         expect(() => runtime.convert(null)).toThrow(/materialized props object/);
         expect(() => runtime.merge(props)).toThrow(/materialized props object/);
       }
-      expect(code).not.toMatch(
-        /classProperty|styleFormat|stillwindClassKey|stillwindStyleKey|stillwindCustomPropertiesKey/,
-      );
+      expect(code).not.toMatch(/classProperty|styleFormat|ClassKey|StyleKey|CustomPropertiesKey/);
     }
   }
 }, 30_000);

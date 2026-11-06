@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import * as runtime from "stillwind/runtime/class-name-object";
+import * as runtime from "stillwind/runtime";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
@@ -294,7 +294,7 @@ export function other() {
 }
 export const base = style("red");`,
   });
-  expect(output.code!).toMatch(/stillwindMerge/);
+  expect(output.code!).toMatch(/stillwind\w*Merge/);
 });
 
 test("logical values require checked candidates or a confirmed non-asset", async () => {
@@ -430,7 +430,7 @@ test("composition follows imported and re-exported style producers", async () =>
     const result = await compile();
     expect(result).toBeTruthy();
     expect(result!.code!).toMatch(
-      /\(flag\) \? \(stillwindToFragment\(\(a\)\)\) : \(stillwindToFragment\(\(b\)\)\)/,
+      /\(flag\) \? \(stillwind\w*ToFragment\(\(a\)\)\) : \(stillwind\w*ToFragment\(\(b\)\)\)/,
     );
     expect(result!.css).toMatch(/color:\s*blue/);
     expect(result!.css).not.toMatch(/color:\s*red|color:\s*green/);

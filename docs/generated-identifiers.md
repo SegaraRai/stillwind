@@ -78,9 +78,9 @@ participate in document-level checks.
 
 ## Development and release
 
-Compiler mode chooses explicit `stillwind/runtime/<output>-development` imports for
-runtime validation. Export conditions and `NODE_ENV` do not choose those helpers.
-Checked helpers share their framework's production symbol keys.
+Compiler mode chooses explicit `stillwind/runtime/development` imports for runtime
+validation. Export conditions and `NODE_ENV` do not choose those helpers. Checked helpers
+use the production export names and symbol keys.
 
 Release generation failures produce compilation diagnostics. Development mode can retain
 default names and records rejected host names for the host to report. Rejected names

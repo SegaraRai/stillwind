@@ -30,17 +30,20 @@ fn composition_keeps_distinct_calls_and_merges_selected_bases() {
     assert_eq!(names.len(), 3);
     let transformed = output.apply_to_source(&source).unwrap();
     assert!(
-        transformed.contains("stillwindMerge(stillwindToFragment((a)),"),
+        transformed
+            .contains("stillwindClassNameObjectMerge(stillwindClassNameObjectToFragment((a)),"),
         "{transformed}"
     );
     assert!(
         transformed.contains(
-            "stillwindMerge((flag) ? (stillwindToFragment((a))) : (stillwindToFragment((c))))"
+            "stillwindClassNameObjectMerge((flag) ? (stillwindClassNameObjectToFragment((a))) : (stillwindClassNameObjectToFragment((c))))"
         ),
         "{transformed}"
     );
     assert!(
-        transformed.contains("stillwindMerge(stillwindToFragment((a)),stillwindToFragment((c)))"),
+        transformed.contains(
+            "stillwindClassNameObjectMerge(stillwindClassNameObjectToFragment((a)),stillwindClassNameObjectToFragment((c)))"
+        ),
         "{transformed}"
     );
 }

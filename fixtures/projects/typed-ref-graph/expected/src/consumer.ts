@@ -1,4 +1,4 @@
-import { stillwindClsx } from "stillwind/runtime/class-name-object";
+import { stillwindClsx } from "stillwind/runtime";
 
 import { selectedRef, selectedScope } from "./barrel";
 

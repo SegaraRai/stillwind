@@ -44,9 +44,9 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .find(|replacement| replacement.starts_with("import "))
         .unwrap_or_else(|| panic!("{:?}", development.code_transforms));
     assert!(
-        import.contains("stillwindClsxChecked")
-            && import.contains("stillwindCvaChecked as stillwindCva")
-            && import.contains("stillwind/runtime/class-name-object-development"),
+        import.contains("stillwindClsx")
+            && import.contains("stillwindClassNameObjectCva")
+            && import.contains("from \"stillwind/runtime/development\""),
         "{import}"
     );
     let release = compile(IdentifierMode::Release);
@@ -58,8 +58,8 @@ fn development_mode_imports_the_checked_helper_from_the_dev_module() {
         .unwrap_or_else(|| panic!("{:?}", release.code_transforms));
     assert!(
         import.contains("stillwindClsx")
-            && import.contains("stillwindCva")
-            && import.contains("stillwind/runtime/class-name-object"),
+            && import.contains("stillwindClassNameObjectCva")
+            && import.contains("from \"stillwind/runtime\""),
         "{import}"
     );
 }

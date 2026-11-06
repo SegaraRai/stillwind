@@ -133,7 +133,7 @@ export const item = style("block", {expression});"#
         let transformed = result.apply_to_source(&component).unwrap();
         assert!(transformed.contains("(enabled) &&"), "{transformed}");
         assert!(
-            transformed.contains("[stillwindStyleKey]:{\"view-transition-name\":"),
+            transformed.contains("[stillwindClassNameObjectStyleKey]:{\"view-transition-name\":"),
             "{transformed}"
         );
         assert!(

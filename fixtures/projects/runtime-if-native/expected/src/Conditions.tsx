@@ -1,4 +1,4 @@
-import { stillwindCssValue } from "stillwind/runtime/class-name-object";
+import { stillwindCssValue } from "stillwind/runtime";
 
 export function Conditions({ enabled, second }: { enabled: boolean; second: boolean }) {
   return (

@@ -2,7 +2,7 @@ import { runInNewContext } from "node:vm";
 
 import { expect, test } from "vite-plus/test";
 
-import { stillwindCva } from "../../../core/src/runtime/class-name-object.ts";
+import { stillwindClassNameObjectCva } from "../../../core/src/runtime/formats.ts";
 import { sourceUri, cssInput, oneShotInput } from "./support.ts";
 
 /**
@@ -390,9 +390,9 @@ export function registerCompilationContract(bindingSpecifier: string): void {
     const { compileSource } = await import(bindingSpecifier);
     const css =
       "@utility a {color:red;} @utility b {color:blue;} @utility c {color:green;} @utility d {color:yellow;} @stillwind-slot utilities;";
-    const evaluate = (code: string): ReturnType<typeof stillwindCva> =>
+    const evaluate = (code: string): ReturnType<typeof stillwindClassNameObjectCva> =>
       runInNewContext(`${code.replace(/^import[^;]+;/gm, "")}\nchoose;`, {
-        stillwindCva,
+        stillwindClassNameObjectCva,
       });
     const selectedColors = (
       code: string,

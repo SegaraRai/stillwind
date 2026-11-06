@@ -93,7 +93,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
     let module = &output["modules"][0];
     assert_eq!(module["diagnostics"], serde_json::json!([]));
     let code = module["code"].as_str().unwrap();
-    let runtime = "import { stillwindClsx } from \"stillwind/runtime/class-string\";";
+    let runtime = "import { stillwindClsx } from \"stillwind/runtime\";";
     assert!(code.starts_with(&format!("{prefix}{runtime}")), "{code}");
     assert!(
         code.contains(&format!(
@@ -102,7 +102,7 @@ fn projected_runtime_imports_stay_in_their_verified_script_realms() {
         "{code}"
     );
     assert!(code.ends_with(suffix));
-    assert_eq!(code.matches("stillwind/runtime/class-string").count(), 2);
+    assert_eq!(code.matches("\"stillwind/runtime\"").count(), 2);
     assert!(!code.contains("style as"));
     let duplicate = input["projection"]["editableRegions"][0].clone();
     input["projection"]["editableRegions"]

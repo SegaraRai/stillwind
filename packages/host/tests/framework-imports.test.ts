@@ -8,7 +8,7 @@ import {
   type ProjectBindingOutput,
 } from "@stillwind/native";
 import { prepareSource, type ProjectInput } from "@stillwind/projection";
-import * as vueRuntime from "stillwind/runtime/class-object";
+import * as runtime from "stillwind/runtime";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
@@ -100,7 +100,7 @@ test("Vue JSX compiles to class and style object props with an explicit Vue adap
   expect(output.code).toBeTruthy();
   expect(output.code).toMatch(/const view = <div \{\.\.\.props\} \/>;/);
   expect(output.code).not.toMatch(/className|__VLS_ctx|style\('flex'/);
-  const sandbox: Record<string, unknown> = { ...vueRuntime };
+  const sandbox: Record<string, unknown> = { ...runtime };
   const declarations = output.code!.slice(0, output.code!.indexOf("const view"));
   runInNewContext(
     `${declarations.replace(/^import\s+[^;]+;\s*/gm, "")}\nglobalThis.result = props;`,
@@ -155,7 +155,7 @@ applyStyle(element, first);`,
   expect(output.code).toMatch(/import \{\s*applyStyle\s*\} from "stillwind\/vanilla"/);
   expect(output.code).toContain("applyStyle(element, first)");
   const sandbox = {
-    ...vueRuntime,
+    ...runtime,
     amount: 0.5,
     element: {},
     applyStyle: (element: unknown, props: unknown) => ({ element, props }),
@@ -180,7 +180,7 @@ import { style as vanilla, applyStyle } from "stillwind/vanilla";
 import { style as svelte } from "stillwind/svelte";
 import { style as vue } from "stillwind/vue";
 export { applyStyle };
-const stillwindMerge = "reserved";
+const stillwindClassNameObjectMerge = "reserved";
 export function values(active, tone) {
 ${formats.map(([name]) => `const ${name}Factory = ${name}.cva("flex", { variants: { enabled: { false: null, true: { "--enabled": tone } } } });`).join("\n")}
 return {
@@ -193,7 +193,7 @@ ${name}Choice: ${name}Factory({ enabled: active }),`,
   )
   .join("\n")}
 vue: vue(active && "flex", { "--tone": tone }, active && { "--enabled": tone }),
-reserved: stillwindMerge,
+reserved: stillwindClassNameObjectMerge,
 };
 }`;
   for (const mode of ["release", "development"]) {
@@ -350,9 +350,10 @@ const vueProps = vue(props.active && "flex", { "--tone": props.tone }, props.act
     [rule, '"stillwind/react"'],
     [rule, '"stillwind/svelte"'],
   ]);
-  for (const format of ["class-name-object", "class-object", "class-string"]) {
-    expect(output.code).toContain(`from "stillwind/runtime/${format}"`);
+  for (const format of ["ClassNameObject", "ClassObject", "ClassString"]) {
+    expect(output.code).toContain(`stillwind${format}Merge`);
   }
+  expect(output.code).toContain('from "stillwind/runtime"');
   expect(output.code).toContain('<template><div v-bind="vueProps" /></template>');
   expect(output.code).not.toMatch(/__VLS|style as|props\.value/);
 });

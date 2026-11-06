@@ -1,7 +1,7 @@
 import {  type VariantProps } from "stillwind/react";
-import { stillwindCva } from "stillwind/runtime/class-name-object";
+import { stillwindClassNameObjectCva } from "stillwind/runtime";
 
-export const button = stillwindCva(
+export const button = stillwindClassNameObjectCva(
   "sw_5z9t1",
   {
     variants: {

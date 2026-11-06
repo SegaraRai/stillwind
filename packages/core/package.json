@@ -119,29 +119,13 @@
       "types": "./dist/frameworks/vue.d.ts",
       "default": "./dist/frameworks/vue.js"
     },
-    "./runtime/class-name-object": {
-      "types": "./dist/runtime/class-name-object.d.ts",
-      "default": "./dist/runtime/class-name-object.js"
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "default": "./dist/runtime/index.js"
     },
-    "./runtime/class-name-object-development": {
-      "types": "./dist/runtime/class-name-object-development.d.ts",
-      "default": "./dist/runtime/class-name-object-development.js"
-    },
-    "./runtime/class-object": {
-      "types": "./dist/runtime/class-object.d.ts",
-      "default": "./dist/runtime/class-object.js"
-    },
-    "./runtime/class-object-development": {
-      "types": "./dist/runtime/class-object-development.d.ts",
-      "default": "./dist/runtime/class-object-development.js"
-    },
-    "./runtime/class-string": {
-      "types": "./dist/runtime/class-string.d.ts",
-      "default": "./dist/runtime/class-string.js"
-    },
-    "./runtime/class-string-development": {
-      "types": "./dist/runtime/class-string-development.d.ts",
-      "default": "./dist/runtime/class-string-development.js"
+    "./runtime/development": {
+      "types": "./dist/runtime/development.d.ts",
+      "default": "./dist/runtime/development.js"
     },
     "./package.json": "./package.json"
   },

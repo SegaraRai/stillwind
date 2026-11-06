@@ -25,12 +25,20 @@ impl OutputFormat {
     }
 }
 
+/// Module providing production helpers and fragment keys for every representation.
+pub const RUNTIME_IMPORT: &str = "stillwind/runtime";
+
+/// Module providing every export of [`RUNTIME_IMPORT`] under the same names.
+///
+/// Its operations validate their inputs, and it shares fragment keys with
+/// [`RUNTIME_IMPORT`].
+pub const RUNTIME_IMPORT_DEV: &str = "stillwind/runtime/development";
+
 /// Property and runtime conventions independent of the source framework.
 pub struct OutputSpec {
-    /// Module providing production helpers and fragment keys for this representation.
-    pub runtime_import: &'static str,
-    /// Module providing checked helpers with the production runtime's fragment keys.
-    pub runtime_import_dev: &'static str,
+    /// Prefix of the runtime exports that belong to this representation, such as
+    /// `stillwindClassObject` in `stillwindClassObjectMerge`.
+    pub runtime_export_prefix: &'static str,
     /// Property receiving class text: `class` or `className`.
     pub class_property: &'static str,
     /// Property receiving inline CSS declarations.
@@ -50,24 +58,21 @@ pub enum StyleFormat {
 }
 
 const CLASS_OBJECT: OutputSpec = OutputSpec {
-    runtime_import: "stillwind/runtime/class-object",
-    runtime_import_dev: "stillwind/runtime/class-object-development",
+    runtime_export_prefix: "stillwindClassObject",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::Object,
 };
 
 const CLASS_STRING: OutputSpec = OutputSpec {
-    runtime_import: "stillwind/runtime/class-string",
-    runtime_import_dev: "stillwind/runtime/class-string-development",
+    runtime_export_prefix: "stillwindClassString",
     class_property: "class",
     style_property: "style",
     style_format: StyleFormat::String,
 };
 
 const CLASS_NAME_OBJECT: OutputSpec = OutputSpec {
-    runtime_import: "stillwind/runtime/class-name-object",
-    runtime_import_dev: "stillwind/runtime/class-name-object-development",
+    runtime_export_prefix: "stillwindClassNameObject",
     class_property: "className",
     style_property: "style",
     style_format: StyleFormat::Object,

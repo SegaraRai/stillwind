@@ -1,15 +1,15 @@
-import { stillwindClassKey, stillwindCssValue, stillwindCustomPropertiesKey, stillwindCva, stillwindMerge } from "stillwind/runtime/class-name-object";
-import { stillwindClassKey as stillwindClassKey_2, stillwindCssValue as stillwindCssValue_2, stillwindCustomPropertiesKey as stillwindCustomPropertiesKey_2, stillwindMerge as stillwindMerge_2 } from "stillwind/runtime/class-string";
-import { stillwindClassKey as stillwindClassKey_1, stillwindCssValue as stillwindCssValue_1, stillwindCustomPropertiesKey as stillwindCustomPropertiesKey_1, stillwindMerge as stillwindMerge_1 } from "stillwind/runtime/class-object";
+import { stillwindCssValue, stillwindClassObjectClassKey, stillwindClassObjectCustomPropertiesKey, stillwindClassObjectMerge, stillwindClassStringClassKey, stillwindClassStringCustomPropertiesKey, stillwindClassStringMerge, stillwindClassNameObjectClassKey, stillwindClassNameObjectCustomPropertiesKey, stillwindClassNameObjectCva, stillwindClassNameObjectMerge } from "stillwind/runtime";
+
+
 
 export function frameworkProps(active: boolean, tone: string) {
-  const choose = stillwindCva("sw_9ij3v", {
-    variants: { active: { true: {[stillwindCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}}, false: "" } },
+  const choose = stillwindClassNameObjectCva("sw_9ij3v", {
+    variants: { active: { true: {[stillwindClassNameObjectCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}}, false: "" } },
   });
   return {
-    react: stillwindMerge({[stillwindClassKey]:"sw_oxkd1",[stillwindCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},(active) && ({[stillwindCustomPropertiesKey]:{"--active":" "}})),
-    vanilla: stillwindMerge_1({[stillwindClassKey_1]:"sw_23sbd",[stillwindCustomPropertiesKey_1]:{"--tone":stillwindCssValue_1(tone)}},(active) && ({[stillwindCustomPropertiesKey_1]:{"--active":" "}})),
-    svelte: stillwindMerge_2({[stillwindClassKey_2]:"sw_y15vs",[stillwindCustomPropertiesKey_2]:{"--tone":stillwindCssValue_2(tone)}},(active) && ({[stillwindCustomPropertiesKey_2]:{"--active":" "}})),
+    react: stillwindClassNameObjectMerge({[stillwindClassNameObjectClassKey]:"sw_oxkd1",[stillwindClassNameObjectCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},(active) && ({[stillwindClassNameObjectCustomPropertiesKey]:{"--active":" "}})),
+    vanilla: stillwindClassObjectMerge({[stillwindClassObjectClassKey]:"sw_23sbd",[stillwindClassObjectCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},(active) && ({[stillwindClassObjectCustomPropertiesKey]:{"--active":" "}})),
+    svelte: stillwindClassStringMerge({[stillwindClassStringClassKey]:"sw_y15vs",[stillwindClassStringCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},(active) && ({[stillwindClassStringCustomPropertiesKey]:{"--active":" "}})),
     choice: choose({ active }),
   };
 }

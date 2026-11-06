@@ -1,9 +1,17 @@
 import { expect, test, vi } from "vite-plus/test";
 
-import * as reactDevelopment from "./class-name-object-development.ts";
-import * as react from "./class-name-object.ts";
-import * as svelte from "./class-string.ts";
-import { stillwindClsxChecked, stillwindRefClassChecked } from "./development.ts";
+import {
+  stillwindClassNameObjectMergeChecked,
+  stillwindClassNameObjectToFragmentChecked,
+  stillwindClsxChecked,
+  stillwindRefClassChecked,
+} from "./checked.ts";
+import {
+  stillwindClassNameObjectClassKey,
+  stillwindClassNameObjectMerge,
+  stillwindClassNameObjectToFragment,
+  stillwindClassStringStyleKey,
+} from "./formats.ts";
 
 test("checked ref reads evaluate .c once and reject malformed ref records", () => {
   const read = vi.fn(() => "marker");
@@ -30,24 +38,28 @@ test("checked class concatenation retains external-class input conventions", () 
 });
 
 test("production and development runtimes share keys and valid materialization", () => {
-  const fragment = react.stillwindToFragment({
+  const fragment = stillwindClassNameObjectToFragment({
     className: "a",
     style: { color: "red" },
   });
-  expect(reactDevelopment.stillwindToFragmentChecked(fragment)).toEqual(fragment);
-  expect(reactDevelopment.stillwindMergeChecked(fragment)).toEqual(react.stillwindMerge(fragment));
-  expect(() => reactDevelopment.stillwindToFragmentChecked(null)).toThrow(
+  expect(stillwindClassNameObjectToFragmentChecked(fragment)).toEqual(fragment);
+  expect(stillwindClassNameObjectMergeChecked(fragment)).toEqual(
+    stillwindClassNameObjectMerge(fragment),
+  );
+  expect(() => stillwindClassNameObjectToFragmentChecked(null)).toThrow(
     /materialized props object/,
   );
   expect(() =>
-    reactDevelopment.stillwindMergeChecked({
-      [react.stillwindClassKey]: 7,
+    stillwindClassNameObjectMergeChecked({
+      [stillwindClassNameObjectClassKey]: 7,
     }),
   ).toThrow(/non-string/);
   expect(() =>
-    reactDevelopment.stillwindMergeChecked({
-      [svelte.stillwindStyleKey]: {},
+    stillwindClassNameObjectMergeChecked({
+      [stillwindClassStringStyleKey]: {},
     }),
   ).toThrow(/different runtime/);
-  expect(react.stillwindMerge({ [react.stillwindClassKey]: "a" })).toEqual({ className: "a" });
+  expect(stillwindClassNameObjectMerge({ [stillwindClassNameObjectClassKey]: "a" })).toEqual({
+    className: "a",
+  });
 });

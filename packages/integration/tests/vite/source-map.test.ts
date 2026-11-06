@@ -169,11 +169,20 @@ export const props = style('red', { '--x': progress },
     root,
     logLevel: "silent",
     resolve: {
-      alias: {
-        "stillwind/runtime/class-name-object": fileURLToPath(
-          new URL("../../../core/src/runtime/class-name-object.ts", import.meta.url),
-        ),
-      },
+      alias: [
+        {
+          find: /^stillwind\/runtime$/,
+          replacement: fileURLToPath(
+            new URL("../../../core/src/runtime/index.ts", import.meta.url),
+          ),
+        },
+        {
+          find: /^stillwind\/runtime\/development$/,
+          replacement: fileURLToPath(
+            new URL("../../../core/src/runtime/development.ts", import.meta.url),
+          ),
+        },
+      ],
     },
     plugins: [
       {
