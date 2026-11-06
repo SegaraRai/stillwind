@@ -158,6 +158,96 @@ Sources: [ref types](../packages/core/src/macro/refs.ts),
 [macro contract](macro-contract.md#ref-attachments-and-providers),
 [ref declarations](../crates/js-oxc/src/visit.rs).
 
+## Stored variants with `style.when()`
+
+Ref calls, `.in()`, and `.at()` must stand directly in `style()`, so every element that
+needs the same ref condition repeats it. Add `style.when(variants)`, which stores a
+variant sequence in a binding. Other `style()` calls can then use the binding as a key.
+
+```tsx
+const card = style.ref("card");
+const cardHover = style.when(card("hover"));
+const wideHover = style.when(`${card.at("width >= 40rem")}:${card("hover")}:md`);
+
+style({ [cardHover]: "text-blue-600" });
+style(`${cardHover}:underline`);
+style({ [wideHover]: "grid-cols-2" });
+```
+
+Contract: a use of a stored variant produces the same styles and diagnostics as its
+variant sequence written directly at the use. `` `${wideHover}:grid-cols-2` `` is equal
+to `` `${card.at("width >= 40rem")}:${card("hover")}:md:grid-cols-2` ``.
+
+Argument:
+
+- The call takes one variant sequence, and all its variants must hold, as in one
+  argument of `style.media()`. The sequence is one of these forms, with an optional
+  final `:`:
+  - a string literal or an interpolation-free template literal of variants, such as
+    `"has-[[data-state=open]]:max-md"`;
+  - a ref call or tag with optional `.in()` calls, or a `ref.at()` call or tag;
+  - a template literal whose substitutions occupy complete variant segments, with the
+    grammar of the variant part of a utility template;
+  - another stored variant.
+- An argument that is invalid in the direct form is invalid here with the same
+  diagnostic. Examples are unknown variants, a receiver that is not a ref, `.at()`
+  after `.in()`, and `if()` inside a ref wrapper.
+- Several arguments are reserved for alternatives (OR), as in `style.media()`. Until
+  the planned `or` variant defines how alternatives lower, a call with more than one
+  argument is invalid.
+- A call without arguments, a spread argument, a nonstatic argument, and extra
+  arguments report a new lint, `invalid-when-argument`. A use of an invalid stored
+  variant omits its input, as an invalid direct key does.
+
+Declaration and value:
+
+- Write the call as the initializer of a binding, as for `style.ref()`. A call inside a
+  `style()` or CVA input reports `NestedMacroCall`.
+- The value exists only at compile time, and the compiler replaces the call with
+  `undefined`. The binding can be stored, exported, imported, passed, and returned like
+  a ref declaration. Runtime code that reads it receives `undefined`.
+- At a use, the value must resolve to exactly one declaration, because a key cannot
+  choose its variant at runtime. A conditional choice such as `[c ? a : b]` is invalid.
+  A ref receiver inside an argument keeps its finite candidates, as in a direct key.
+
+Uses:
+
+- A computed key in a `style()` object, and a complete variant segment followed by `:`
+  in a utility template, in the positions that accept ref calls now.
+- An argument of another `style.when()`.
+- Not a `.in()` operand.
+- CVA values reject computed keys, so they reject stored variants. Accepting a stored
+  variant without a ref there is allowed but has low priority, because few use cases
+  need it.
+
+Diagnostics: report an argument error once, at the declaration, even when the binding
+has no use or several uses. Report an error that depends on the use, such as
+`unsatisfiable-variants` or `redundant-variant`, at the use, with the declaration as a
+related location.
+
+Implementation outline:
+
+- Types: add `StoredVariant<Id>`, which extends `StyleVariantKey` so that TypeScript
+  accepts it as a computed key and a template substitution. The checker supplies its
+  identity through `StillwindDeclarationIdentity`, as for refs.
+- Extraction: `computed_variant_entry` and the utility template scanner accept an
+  expression whose candidates are one stored-variant declaration, and expand it into
+  nested `StyleVariant` wrappers. The argument parser reuses the variant-segment
+  grammar of utility templates.
+- Modules: add an asset kind for stored variants. Its asset record carries the
+  sequence as `StyleVariant` values that refer to refs by `IdentityId`, so an
+  importing module can expand it. This changes the module summary schema.
+- Editors: hover shows the expanded sequence, string arguments complete variants as
+  keys do, and go to definition reaches the declaration.
+- Tests: fixtures compare the CSS and diagnostics of the stored and direct forms.
+  Generated class names may differ.
+
+Sources: [ref types](../packages/core/src/macro/refs.ts),
+[computed keys](../crates/js-oxc/src/expressions/class.rs),
+[utility templates](../crates/js-oxc/src/templates.rs),
+[asset records](../crates/semantic/src/assets.rs),
+[macro contract](macro-contract.md#materialization-and-consumption-sites).
+
 ## Remaining documentation capabilities
 
 The utility explorer searches the default registry's finite completion catalog.
