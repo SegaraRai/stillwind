@@ -30,7 +30,7 @@ function originalRange(code: string, text: string, from = 0) {
   };
 }
 
-describe("Astro @astrojs/compiler 4.0.0", () => {
+describe("Astro @astrojs/astro2tsx 0.1.3", () => {
   let facts: TypeScriptFactsService;
 
   beforeAll(() => {
@@ -117,8 +117,8 @@ describe("Astro @astrojs/compiler 4.0.0", () => {
     ).replaceAll("\n", "\r\n");
     const prepared = await project(code);
     expect(prepared.projection.converter).toMatchObject({
-      name: "@astrojs/compiler",
-      version: "4.0.0",
+      name: "@astrojs/astro2tsx",
+      version: "0.1.3",
     });
     expect(prepared.projection.syntax).toStrictEqual({
       language: "tsx",
@@ -280,7 +280,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
                 uri: prepared.document.uri,
               },
             },
-            notes: expect.arrayContaining(["Converter: @astrojs/compiler@4.0.0"]),
+            notes: expect.arrayContaining(["Converter: @astrojs/astro2tsx@0.1.3"]),
           },
         ],
       },
