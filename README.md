@@ -1,8 +1,10 @@
 <h1 align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg" />
-    <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
-  </picture>
+  <a href="https://stillwind.dev/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg" />
+      <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
+    </picture>
+  </a>
 </h1>
 
 <p align="center"><strong>Familiar utilities. Enforced rules.</strong></p>
