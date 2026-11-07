@@ -9,12 +9,12 @@ use std::ops::Range;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    declaration_ranges, properties_interfere, property_covers, reads_written_value,
+    declaration_ranges, properties_interfere_in, property_covers, reads_written_value,
 };
 use stillwind_design_system::VariantContext;
 use stillwind_diagnostics::{
-    FixAction, Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind,
-    MarkerUseErrorKind, SourceEdit,
+    ConflictingUtilitiesConfig, FixAction, Label, LabelScope, LintDiagnostic, LintFinding,
+    LintKind, MarkerUseErrorKind, SourceEdit,
 };
 use stillwind_source::Span;
 
@@ -25,7 +25,7 @@ use crate::compiler::utilities::{
     CompiledUtility, marker_use_finding, resolve_utility_targets, unresolved_lint_kind,
     unresolved_utility_finding,
 };
-use crate::utility_conflicts::{PropertyPairs, conflict_notes, describe_overlaps};
+use crate::utility_conflicts::{PropertyPairs, conflict_notes, conflict_policy, describe_overlaps};
 
 /// Checks the `candidates` of one `@apply` statement, which are byte ranges of the
 /// checker's source.
@@ -213,17 +213,16 @@ fn check_canonical_group(checker: &mut Checker<'_>, candidates: &[Range<usize>])
 ///
 /// Candidates compete when rules with the same variants and selector write
 /// interfering properties with different values. With `allow-shorthand-overrides`, a
-/// shorthand and a property that it covers do not compete.
+/// shorthand and a property that it covers do not compete. A logical property and a
+/// physical property compete only when they set one physical side in one of the
+/// configured writing modes.
 fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<CompiledUtility>)]) {
     let duplicate = checker.enabled(LintKind::DuplicateUtility);
     let conflict = checker.enabled(LintKind::ConflictingUtilities);
     if !duplicate && !conflict {
         return;
     }
-    let allow = matches!(
-        checker.settings.get(LintKind::ConflictingUtilities),
-        Some(LintConfig::ConflictingUtilities(config)) if config.allow_shorthand_overrides
-    );
+    let policy = conflict_policy(checker.settings);
     let text = checker.source.text();
     for (index, (range, utilities)) in resolved.iter().enumerate() {
         let raw = &text[range.clone()];
@@ -239,14 +238,14 @@ fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<Compile
                 }
             } else {
                 let overlaps = if conflict {
-                    overlapping_properties(utilities, previous, allow)
+                    overlapping_properties(utilities, previous, &policy)
                 } else {
                     PropertyPairs::new()
                 };
                 if overlaps.is_empty() {
                     continue;
                 }
-                notes = conflict_notes(&overlaps, allow);
+                notes = conflict_notes(&overlaps, policy.allow_shorthand_overrides);
                 LintDiagnostic::ConflictingUtilities {
                     previous: previous_raw.to_lean_str(),
                     utility: raw.to_lean_str(),
@@ -273,7 +272,7 @@ fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<Compile
 fn overlapping_properties(
     current: &[CompiledUtility],
     previous: &[CompiledUtility],
-    allow: bool,
+    policy: &ConflictingUtilitiesConfig,
 ) -> PropertyPairs {
     let mut overlaps = PropertyPairs::new();
     for a in current {
@@ -288,9 +287,10 @@ fn overlapping_properties(
             let b_declarations = declarations(&b.declaration);
             for (ap, av) in &a_declarations {
                 for (bp, bv) in &b_declarations {
-                    if !properties_interfere(ap, bp)
+                    if !properties_interfere_in(ap, bp, &policy.writing_modes)
                         || ap == bp && av == bv
-                        || allow && (property_covers(ap, bp) || property_covers(bp, ap))
+                        || policy.allow_shorthand_overrides
+                            && (property_covers(ap, bp) || property_covers(bp, ap))
                         || reads_written_value(ap, av, bp, bv, |name| {
                             custom_value(&b_declarations, name)
                         })

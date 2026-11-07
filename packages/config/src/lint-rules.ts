@@ -203,8 +203,9 @@ export const lintRules = {
     defaults: {
       severity: "warn",
       allowShorthandOverrides: false,
+      writingModes: ["horizontal-tb"],
     },
-    options: ["severity", "allowShorthandOverrides"],
+    options: ["severity", "allowShorthandOverrides", "writingModes"],
   },
   "conflicting-provider-properties": {
     category: "hazard",

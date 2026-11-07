@@ -643,8 +643,11 @@ directives, canonical suggestions, and `redundant-variant`. `strict` reports all
 recommended checks as errors and also checks unused lint suppressions. `stylistic`
 enables `prefer-direct-styling`, `prefer-logical-properties`,
 `prefer-typed-relationships`, `prefer-sorted-utilities`, `prefer-typed-variables`, and
-`prefer-variant-directive` as warnings. The stylistic preset adds no recommended checks.
-Project-specific restrictions remain off in these presets.
+`prefer-variant-directive` as warnings. It also sets `writingModes` of
+`conflicting-utilities` to every writing mode without a severity, so the rule keeps the
+severity of an earlier preset, or reports at `warn` when no earlier preset enables it.
+The stylistic preset adds no other recommended checks. Project-specific restrictions
+remain off in these presets.
 
 A severity-only override preserves inherited rule options. An option object changes
 only supplied fields; undefined fields preserve previous values. Arrays replace the
@@ -687,6 +690,18 @@ When every overlap is a shorthand and a property that it covers, and
 Webref logical group of a physical and a logical property that overlap only in some
 writing modes, such as `padding-inline` and `padding-top`.
 
+`conflicting-utilities.writingModes` lists the CSS `writing-mode` values in which such a
+pair is checked: `horizontal-tb`, `vertical-rl`, and `vertical-lr`. It defaults to
+`["horizontal-tb"]`. `properties_interfere_in` maps each logical longhand to the
+physical longhand that it sets in each listed mode, in both the `ltr` and the `rtl`
+direction, and the pair conflicts when the two properties then share a longhand. With
+both directions, `sideways-rl` and `sideways-lr` map sides as `vertical-rl` and
+`vertical-lr` do. For example, `px-2 pt-2` conflicts only in vertical modes,
+`mx-auto ml-4` and `ps-2 pl-4` conflict in `horizontal-tb`, and `pbs-2 pb-2` conflicts
+in no mode. A pair that overlaps in every mode, such as `p-2 px-4`, is checked even with
+an empty list. Only these lint rules use the option; CSS ordering, canonical
+replacements, and utility sorting treat every pair of one logical group as competing.
+
 For such a pair, `DesignSystemQuery::explain_conflicts` extends that note with a named
 logical utility when the physical utility writes one declaration. The text is
 conditional ("to use logical properties, replace ...") because the rule does not prefer
@@ -697,13 +712,14 @@ logical group. It then searches the canonical spelling of the arbitrary property
 same value and variants, such as `[padding-block-start:calc(var(--spacing) * 2)]`. The
 note names the result, such as `pbs-2`, only when it is not an arbitrary property. When
 the finding has no note for the group, the replacement becomes its own note. Hosts call
-this method after `check_style`, and the stylesheet lint calls it for `@apply`.
+this method after `check_style`, and the stylesheet lint calls it for `@apply`. The
+method adds nothing when `writingModes` leaves out `horizontal-tb`.
 
 `conflicting-utilities.allowShorthandOverrides` defaults to `false`, so `p-2 px-4`
 reports an overlap. Setting it to `true` allows a narrower declaration to override
 part of a shorthand. Two different values for the same property still conflict.
-Logical and physical longhands still conflict when their relationship depends on
-writing mode.
+Logical and physical longhands still conflict when they share a side in one of the
+configured writing modes.
 
 `invalid-marker-use` defaults to `warn`. Its `ignoredClasses` option lists exact
 decoded marker class names, such as `group` or `foo/bar`, whose findings are not

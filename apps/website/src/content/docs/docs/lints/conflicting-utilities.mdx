@@ -31,8 +31,8 @@ style("p-4");
   them, such as `p-2 md:p-4`.
 - If one utility overrides a shared style, pass the shared style as a base. See
   [Override a style](/docs/guides/style#override-a-style).
-- If a physical utility such as `pt-2` meets a logical utility such as `px-2`, use
-  logical utilities for both or physical utilities for both. The writing mode
+- If a physical utility such as `ml-4` meets a logical utility such as `mx-auto`,
+  use logical utilities for both or physical utilities for both. The writing mode
   decides how physical and logical properties overlap.
 
 Some pairs do not conflict because one utility reads a custom property that the
@@ -42,16 +42,41 @@ other utility sets to the value it writes, so the order does not change the resu
   `border-dashed` or `divide-dashed`
 - A font size utility, such as `text-sm`, and a `leading-*` utility
 
+A physical utility and a logical utility conflict only when they set the same
+side in one of the writing modes that `writingModes` lists. By default, the rule
+checks horizontal writing modes only, so `px-2 pt-2` does not conflict, but
+`mx-auto ml-4` does.
+
 When a physical utility meets a logical utility, the finding also shows how to
 use logical properties for both. It names a logical utility from your design
 system that writes the same value, such as `pbs-2` for `pt-2`, with the sides of
 horizontal left-to-right writing modes. The finding does not prefer logical
-properties; you can also replace the logical utility with physical utilities.
+properties; you can also replace the logical utility with physical utilities. It
+names no utility when `writingModes` does not include `horizontal-tb`.
 
 ## Options
 
 `allowShorthandOverrides` allows the supported overrides between a shorthand
 utility and a longhand utility. The rule still reports other conflicts.
+
+`writingModes` lists the CSS `writing-mode` values in which the rule compares
+physical and logical utilities: `horizontal-tb`, `vertical-rl`, and
+`vertical-lr`. The rule checks both the left-to-right and the right-to-left
+direction of each mode. `sideways-rl` and `sideways-lr` place the sides as
+`vertical-rl` and `vertical-lr` do. The default is `["horizontal-tb"]`, and the
+`stylistic` preset lists all three. Add the vertical modes if your pages use
+vertical text:
+
+```ts
+const rules = {
+  "conflicting-utilities": {
+    writingModes: ["horizontal-tb", "vertical-rl"],
+  },
+};
+```
+
+Utilities that conflict in every writing mode, such as `p-2 px-4`, are reported
+even when the list is empty.
 
 ## Rule settings
 

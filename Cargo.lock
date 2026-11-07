@@ -2096,6 +2096,7 @@ dependencies = [
  "parcel_sourcemap",
  "phf 0.14.0",
  "proptest",
+ "serde",
  "serde_json",
  "stillwind-source",
  "thiserror",

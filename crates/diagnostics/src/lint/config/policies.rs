@@ -1,7 +1,11 @@
 //! Detection policies and partial overrides for lint rules with options.
 
+use std::borrow::Cow;
+
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
+
+use stillwind_css::WritingMode;
 
 use super::LintSeverity;
 
@@ -126,6 +130,11 @@ pub struct ConflictingUtilitiesConfig {
     pub severity: LintSeverity,
     /// Allows a narrower shorthand or longhand to override part of a wider property.
     pub allow_shorthand_overrides: bool,
+    /// Writing modes in which a logical property and a physical property overlap. The
+    /// rule reports such a pair when the two properties set one physical side in one of
+    /// these modes, with the `ltr` or the `rtl` direction. A pair that overlaps in every
+    /// writing mode is reported even when the list is empty.
+    pub writing_modes: Cow<'static, [WritingMode]>,
 }
 
 impl Default for ConflictingUtilitiesConfig {
@@ -133,6 +142,7 @@ impl Default for ConflictingUtilitiesConfig {
         Self {
             severity: LintSeverity::Warn,
             allow_shorthand_overrides: false,
+            writing_modes: Cow::Borrowed(&[WritingMode::HorizontalTb]),
         }
     }
 }
@@ -145,6 +155,8 @@ pub struct ConflictingUtilitiesOverride {
     pub severity: Option<LintSeverity>,
     /// Omission preserves the shorthand policy.
     pub allow_shorthand_overrides: Option<bool>,
+    /// Omission preserves the writing modes; a supplied list replaces them.
+    pub writing_modes: Option<Vec<WritingMode>>,
 }
 
 /// One unit restriction selected by CSS property name.

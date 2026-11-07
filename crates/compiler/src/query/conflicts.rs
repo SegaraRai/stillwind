@@ -6,17 +6,20 @@
 //! direction, and asks the canonical search of this snapshot for a named utility with
 //! the same CSS. It offers only a candidate that this search finds, such as `pbs-2`, as
 //! the way to use logical properties. It does not recommend logical properties over
-//! physical ones.
+//! physical ones, and it offers nothing when the `writingModes` option of the rule
+//! leaves out `horizontal-tb`.
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{declaration_ranges, horizontal_logical_counterpart, writing_mode_group};
+use stillwind_css::{
+    WritingMode, declaration_ranges, horizontal_logical_counterpart, writing_mode_group,
+};
 use stillwind_design_system::{UtilityResolutionError, resolve_utility};
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use stillwind_syntax::{CandidatePrefix, print_arbitrary_value};
 
 use crate::query::DesignSystemQuery;
-use crate::utility_conflicts::writing_mode_note;
+use crate::utility_conflicts::{conflict_policy, writing_mode_note};
 
 /// A named logical utility that can replace a physical utility of a finding.
 struct LogicalReplacement {
@@ -34,13 +37,21 @@ impl DesignSystemQuery {
     /// named utility of this snapshot writes the logical form of the physical
     /// declaration with the same value.
     ///
-    /// The replacement extends the note about the logical group that the finding
-    /// already has, or becomes a new note when the finding has none. The candidates of
-    /// each finding must belong to this query's snapshot. Other findings stay unchanged.
-    /// A finding also stays unchanged when no named utility matches, or when a utility
+    /// The replacement extends the note about the logical group that the finding already
+    /// has, or becomes a new note when the finding has none. The candidates of each
+    /// finding must belong to this query's snapshot. Other findings stay unchanged. A
+    /// finding also stays unchanged when no named utility matches, or when a utility
     /// definition that the search checks is malformed; compilation reports such a
-    /// definition separately.
+    /// definition separately. All findings stay unchanged when the `writingModes` option
+    /// of the rule in the compiler options of this query leaves out `horizontal-tb`,
+    /// because the replacement uses the sides of that writing mode.
     pub fn explain_conflicts(&self, findings: &mut [LintFinding]) {
+        if !conflict_policy(&self.context.options.lint_settings())
+            .writing_modes
+            .contains(&WritingMode::HorizontalTb)
+        {
+            return;
+        }
         for finding in findings {
             let LintDiagnostic::ConflictingUtilities {
                 previous, utility, ..

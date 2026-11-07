@@ -146,6 +146,14 @@ export type ConflictingUtilitiesOptions = {
   severity?: LintSeverity;
   /** Allows a narrower property to override part of a shorthand. Defaults to false. */
   allowShorthandOverrides?: boolean;
+  /**
+   * CSS `writing-mode` values in which a logical utility and a physical utility are checked
+   * for overlap, in both the `ltr` and the `rtl` direction. `sideways-rl` and `sideways-lr`
+   * are covered by `vertical-rl` and `vertical-lr`. Omission preserves the inherited list,
+   * or uses `["horizontal-tb"]`. A pair that overlaps in every writing mode is reported even
+   * with an empty list.
+   */
+  writingModes?: readonly ("horizontal-tb" | "vertical-rl" | "vertical-lr")[];
 };
 
 /**
@@ -414,6 +422,7 @@ const ruleOptions = {
   "conflicting-utilities": strictObject({
     severity: v.optional(severitySchema),
     allowShorthandOverrides: v.optional(v.boolean()),
+    writingModes: v.optional(v.array(v.picklist(["horizontal-tb", "vertical-rl", "vertical-lr"]))),
   }),
   "invalid-marker-use": strictObject({
     severity: v.optional(severitySchema),

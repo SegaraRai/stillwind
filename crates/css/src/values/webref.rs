@@ -328,7 +328,7 @@ fn is_universal_exception(property: &str) -> bool {
 ///
 /// Names are lowercased because the generated table publishes them that way. A cycle
 /// would stop at the already-collected name rather than loop; Webref publishes none.
-fn longhand_family(property: &str) -> BTreeSet<LeanStr> {
+pub(super) fn longhand_family(property: &str) -> BTreeSet<LeanStr> {
     let mut family = BTreeSet::new();
     let mut pending = vec![property.to_lean_str().to_ascii_lowercase()];
     while let Some(name) = pending.pop() {
@@ -346,7 +346,10 @@ fn longhand_family(property: &str) -> BTreeSet<LeanStr> {
 
 /// Whether the two families meet across the logical/physical boundary of one Webref
 /// group.
-fn crosses_logical_boundary(left: &BTreeSet<LeanStr>, right: &BTreeSet<LeanStr>) -> bool {
+pub(super) fn crosses_logical_boundary(
+    left: &BTreeSet<LeanStr>,
+    right: &BTreeSet<LeanStr>,
+) -> bool {
     left.iter().any(|left_name| {
         let Some(group) = logical_group(left_name) else {
             return false;
@@ -359,7 +362,7 @@ fn crosses_logical_boundary(left: &BTreeSet<LeanStr>, right: &BTreeSet<LeanStr>)
 }
 
 /// The Webref logical group of one property name, when it publishes one.
-fn logical_group(property: &str) -> Option<&'static str> {
+pub(super) fn logical_group(property: &str) -> Option<&'static str> {
     webref_property(property).and_then(|definition| definition.logical_group)
 }
 

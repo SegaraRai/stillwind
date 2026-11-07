@@ -1,6 +1,10 @@
 //! Stable lint identities, reporting severities, and default detection options.
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
+
+use stillwind_css::WritingMode;
 
 use super::{
     ArbitrarySpacingConfig, CanonicalUtilitiesConfig, ConflictingUtilitiesConfig, ImportantConfig,
@@ -209,6 +213,7 @@ macro_rules! lint_config_value {
         ConflictingUtilitiesConfig {
             severity: $severity,
             allow_shorthand_overrides: false,
+            writing_modes: Cow::Borrowed(&[WritingMode::HorizontalTb]),
         }
     };
     (NoRestrictedLengthUnits, $severity:expr) => {

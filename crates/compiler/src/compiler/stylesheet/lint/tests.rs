@@ -2,10 +2,11 @@
 
 use std::sync::Arc;
 
+use stillwind_css::WritingMode;
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
-use stillwind_diagnostics::{LintKind, LintOverrides, LintSeverity};
+use stillwind_diagnostics::{ConflictingUtilitiesOverride, LintKind, LintOverrides, LintSeverity};
 use stillwind_source::{SourceRegistry, SourceUri};
 use stillwind_test_support::expand_css;
 
@@ -230,8 +231,18 @@ fn a_utility_that_reads_a_variable_and_one_that_sets_it_do_not_compete() {
 
 #[test]
 fn conflict_findings_of_an_application_offer_a_named_logical_utility() {
-    let snapshot = snapshot(".a { @apply px-2 pt-2; }", &CompilerOptions::default());
-    let notes: Vec<_> = lint_stylesheets(&snapshot, &CompilerOptions::default())
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            conflicting_utilities: Some(ConflictingUtilitiesOverride {
+                writing_modes: Some(WritingMode::ALL.to_vec()),
+                ..ConflictingUtilitiesOverride::default()
+            }),
+            ..LintOverrides::default()
+        },
+        ..CompilerOptions::default()
+    };
+    let snapshot = snapshot(".a { @apply px-2 pt-2; }", &options);
+    let notes: Vec<_> = lint_stylesheets(&snapshot, &options)
         .findings
         .iter()
         .filter(|finding| finding.kind() == LintKind::ConflictingUtilities)

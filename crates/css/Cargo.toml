@@ -19,8 +19,10 @@ lean_string.workspace = true
 lightningcss.workspace = true
 parcel_sourcemap = { workspace = true, optional = true }
 phf.workspace = true
+serde = { workspace = true }
 serde_json = { workspace = true, optional = true }
 thiserror.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+serde_json.workspace = true

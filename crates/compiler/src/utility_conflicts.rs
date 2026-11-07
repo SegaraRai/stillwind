@@ -11,7 +11,17 @@ use std::collections::BTreeSet;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{property_covers, writing_mode_group};
+use stillwind_diagnostics::{ConflictingUtilitiesConfig, LintConfig, LintKind, LintSettings};
 use stillwind_source::JoinText;
+
+/// Returns the `conflicting-utilities` policy of `settings`, or the rule defaults when
+/// `settings` does not configure the rule.
+pub(crate) fn conflict_policy(settings: &LintSettings) -> ConflictingUtilitiesConfig {
+    match settings.get(LintKind::ConflictingUtilities) {
+        Some(LintConfig::ConflictingUtilities(config)) => config.clone(),
+        _ => ConflictingUtilitiesConfig::default(),
+    }
+}
 
 /// Competing declarations of two candidates, as `(previous property, current property)`.
 pub(crate) type PropertyPairs = BTreeSet<(LeanStr, LeanStr)>;

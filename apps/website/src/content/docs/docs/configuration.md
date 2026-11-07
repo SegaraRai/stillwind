@@ -162,11 +162,11 @@ export default defineConfig({
 });
 ```
 
-| Preset        | Contents                                                               |
-| ------------- | ---------------------------------------------------------------------- |
-| `recommended` | Invalid input, conflicting styles, and other likely mistakes           |
-| `strict`      | Every `recommended` rule as an error, and unused suppression comments  |
-| `stylistic`   | Preferred spellings and utility sorting; combine it with `recommended` |
+| Preset        | Contents                                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| `recommended` | Invalid input, conflicting styles, and other likely mistakes                                                   |
+| `strict`      | Every `recommended` rule as an error, and unused suppression comments                                          |
+| `stylistic`   | Preferred spellings, utility sorting, and conflict checks in every writing mode; combine it with `recommended` |
 
 The [lint rule reference](/docs/lints) shows the severity of each rule in
 `recommended`. Each rule page shows its severity in every preset.
@@ -221,17 +221,17 @@ const rules = {
 };
 ```
 
-| Rule                         | Options                                                                                                                                                                                                |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `conflicting-utilities`      | `allowShorthandOverrides`: allows the supported overrides between shorthand and longhand utilities; defaults to `false`                                                                                |
-| `invalid-marker-use`         | `ignoredClasses`: marker class names that the rule ignores                                                                                                                                             |
-| `no-arbitrary-spacing`       | `properties`: properties to check in addition to margin, padding, and gap                                                                                                                              |
-| `no-restricted-utilities`    | `utilities`: utility patterns, each with an optional message                                                                                                                                           |
-| `no-restricted-declarations` | `rules`: patterns for properties and values; every matching entry applies                                                                                                                              |
-| `no-restricted-length-units` | `rules`: property patterns and the units to `disallow`; the last matching entry applies                                                                                                                |
-| `no-restricted-theme-tokens` | `tokens`: patterns for theme custom properties; required when the rule is on                                                                                                                           |
-| `prefer-canonical-utilities` | `pxToRem` and `collapse` default to `true`; `logicalToPhysical` defaults to `false`; `preserveSpecificity` defaults to `true`. See the [rule options](/docs/lints/prefer-canonical-utilities#options). |
-| `prefer-variant-directive`   | `pxToRem`: treats `px` and `rem` in media queries as equal at 16px per `rem`; defaults to `false`                                                                                                      |
+| Rule                         | Options                                                                                                                                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `conflicting-utilities`      | `allowShorthandOverrides`: allows the supported overrides between shorthand and longhand utilities; defaults to `false`. `writingModes`: writing modes in which physical and logical utilities are compared; defaults to `["horizontal-tb"]` |
+| `invalid-marker-use`         | `ignoredClasses`: marker class names that the rule ignores                                                                                                                                                                                   |
+| `no-arbitrary-spacing`       | `properties`: properties to check in addition to margin, padding, and gap                                                                                                                                                                    |
+| `no-restricted-utilities`    | `utilities`: utility patterns, each with an optional message                                                                                                                                                                                 |
+| `no-restricted-declarations` | `rules`: patterns for properties and values; every matching entry applies                                                                                                                                                                    |
+| `no-restricted-length-units` | `rules`: property patterns and the units to `disallow`; the last matching entry applies                                                                                                                                                      |
+| `no-restricted-theme-tokens` | `tokens`: patterns for theme custom properties; required when the rule is on                                                                                                                                                                 |
+| `prefer-canonical-utilities` | `pxToRem` and `collapse` default to `true`; `logicalToPhysical` defaults to `false`; `preserveSpecificity` defaults to `true`. See the [rule options](/docs/lints/prefer-canonical-utilities#options).                                       |
+| `prefer-variant-directive`   | `pxToRem`: treats `px` and `rem` in media queries as equal at 16px per `rem`; defaults to `false`                                                                                                                                            |
 
 Patterns accept `*` for any text and `?` for one character. Utility and theme
 token patterns are case-sensitive. Property and value patterns are not.

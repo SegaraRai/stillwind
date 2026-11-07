@@ -1073,6 +1073,12 @@ export interface NativeConflictingUtilitiesOptions {
   severity?: string
   /** Allows narrower declarations to override part of a shorthand. */
   allowShorthandOverrides?: boolean
+  /**
+   * Writing modes in which logical and physical utilities are checked for overlap:
+   * `horizontal-tb`, `vertical-rl`, or `vertical-lr`. A supplied list replaces the
+   * previous one.
+   */
+  writingModes?: Array<string>
 }
 
 /** Converter that produced a projected input. */

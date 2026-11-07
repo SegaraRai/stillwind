@@ -6,12 +6,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use stillwind_css::{properties_interfere, property_covers, reads_written_value};
-use stillwind_diagnostics::{Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind};
+use stillwind_css::{properties_interfere_in, property_covers, reads_written_value};
+use stillwind_diagnostics::{
+    ConflictingUtilitiesConfig, Label, LabelScope, LintDiagnostic, LintFinding, LintKind,
+};
 
 use super::composition::ResolvedSupply;
 use super::{DeclarationValue, ResolvedStyle, RuleContext, SupplyKind, UseId};
-use crate::utility_conflicts::{PropertyPairs, conflict_notes, describe_overlaps};
+use crate::utility_conflicts::{PropertyPairs, conflict_notes, conflict_policy, describe_overlaps};
 
 pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     let settings = &style.root.lint_settings;
@@ -20,7 +22,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     if !duplicate && !conflict {
         return Vec::new();
     }
-    let allow = matches!(settings.get(LintKind::ConflictingUtilities), Some(LintConfig::ConflictingUtilities(config)) if config.allow_shorthand_overrides);
+    let policy = conflict_policy(settings);
     let utilities: Vec<_> = style
         .supplies
         .iter()
@@ -75,12 +77,12 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                     declarations
                         .get(&previous.supply.site)
                         .map_or(&[][..], Vec::as_slice),
-                    allow,
+                    &policy,
                 );
                 if overlaps.is_empty() {
                     continue;
                 }
-                notes = conflict_notes(&overlaps, allow);
+                notes = conflict_notes(&overlaps, policy.allow_shorthand_overrides);
                 LintDiagnostic::ConflictingUtilities {
                     previous: previous_candidate.clone(),
                     utility: candidate.clone(),
@@ -132,7 +134,7 @@ fn declarations_by_site<'s, 'a>(
 fn overlapping_properties(
     current: &[&ResolvedSupply<'_>],
     previous: &[&ResolvedSupply<'_>],
-    allow: bool,
+    policy: &ConflictingUtilitiesConfig,
 ) -> PropertyPairs {
     let mut overlaps = BTreeSet::new();
     for a in current {
@@ -161,9 +163,10 @@ fn overlapping_properties(
             };
             if ac != bc
                 || !a.coexists(b)
-                || !properties_interfere(ap, bp)
+                || !properties_interfere_in(ap, bp, &policy.writing_modes)
                 || ap == bp && av == bv && ai == bi
-                || allow && (property_covers(ap, bp) || property_covers(bp, ap))
+                || policy.allow_shorthand_overrides
+                    && (property_covers(ap, bp) || property_covers(bp, ap))
                 || reads_site_value(ap, av, bp, bv, bc, previous)
                 || reads_site_value(bp, bv, ap, av, ac, current)
             {
