@@ -6,6 +6,10 @@
 //! imports so a value that crossed a module boundary can still be resolved back to the
 //! declaration that owns it.
 //!
+//! A `style.when()` declaration also publishes its variant sequence as a
+//! [`StoredVariantRecord`], because a module that imports the declaration must expand
+//! the sequence at each use.
+//!
 //! Records are plain values: nothing here registers, deduplicates or validates them,
 //! and a record must not be used to identify an asset without its
 //! [`AssetRecord::identity`] (labels are not unique).
@@ -23,6 +27,79 @@ pub struct AssetMetadata {
     /// `style.ref("trigger")`. Naming input only: identity never depends on it,
     /// so equal labels stay distinct assets.
     pub label: Option<LeanStr>,
+    /// Variant sequence of a `style.when()` declaration. `None` for other asset kinds
+    /// and for a declaration whose argument is invalid, whose uses contribute nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stored_variant: Option<StoredVariantRecord>,
+}
+
+/// The variant sequence that a `style.when()` declaration stores.
+///
+/// Segments are ordered from the outermost variant to the innermost, as in a utility
+/// template. A use applies every segment, so all of them must hold. Text segments
+/// are not validated against a design system; the compiler validates them at each use.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredVariantRecord {
+    /// Segments in application order. The list is never empty.
+    pub segments: Vec<StoredVariantSegment>,
+}
+
+/// One segment of a [`StoredVariantRecord`].
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum StoredVariantSegment {
+    /// Ordinary variant text that ends with `:`, such as `hover:md:`.
+    Prefix(LeanStr),
+    /// A named-container query written as `ref.at(query)`.
+    Container {
+        /// Ref candidates that supply the container name, in candidate order.
+        refs: Vec<IdentityId>,
+        /// Query condition without the container name. Empty text tests only the name.
+        query: LeanStr,
+    },
+    /// A ref condition written as a ref call or tag with optional `.in()` scopes.
+    Ref {
+        /// The condition on the referenced element.
+        condition: StoredRefCondition,
+        /// Independent scope conditions in source order.
+        scopes: Vec<StoredRefCondition>,
+    },
+}
+
+/// A condition on the elements that carry one of several refs.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredRefCondition {
+    /// Ref candidates in candidate order.
+    pub refs: Vec<IdentityId>,
+    /// Variant text tested on the referenced element. It is empty or ends with `:`.
+    pub prefix: LeanStr,
+}
+
+impl StoredVariantRecord {
+    /// Iterates the ref identities that the segments mention, including scopes and
+    /// container providers. An identity can occur more than once.
+    pub fn refs(&self) -> impl Iterator<Item = &IdentityId> {
+        self.segments.iter().flat_map(|segment| {
+            let refs: Box<dyn Iterator<Item = &IdentityId>> = match segment {
+                StoredVariantSegment::Prefix(_) => Box::new(std::iter::empty()),
+                StoredVariantSegment::Container { refs, .. } => Box::new(refs.iter()),
+                StoredVariantSegment::Ref { condition, scopes } => Box::new(
+                    condition
+                        .refs
+                        .iter()
+                        .chain(scopes.iter().flat_map(|scope| &scope.refs)),
+                ),
+            };
+            refs
+        })
+    }
 }
 
 /// One declared asset, keyed by its declaration-site identity.

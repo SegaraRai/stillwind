@@ -83,6 +83,8 @@ pub struct LintOverrides {
     pub invalid_css_input: Option<LintSeverity>,
     /// Reporting level for `invalid-ref-input`.
     pub invalid_ref_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-stored-variant`.
+    pub invalid_stored_variant: Option<LintSeverity>,
     /// Reporting level for `invalid-animation-option`.
     pub invalid_animation_option: Option<LintSeverity>,
     /// Reporting level for `invalid-style-composition`.
@@ -471,6 +473,7 @@ impl LintOverrides {
             (LintKind::InvalidMediaQuery, self.invalid_media_query),
             (LintKind::InvalidCssInput, self.invalid_css_input),
             (LintKind::InvalidRefInput, self.invalid_ref_input),
+            (LintKind::InvalidStoredVariant, self.invalid_stored_variant),
             (
                 LintKind::InvalidAnimationOption,
                 self.invalid_animation_option,

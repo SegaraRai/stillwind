@@ -305,6 +305,7 @@ define_lint_rules! {
         InvalidMediaQuery => "invalid-media-query",
         InvalidCssInput => "invalid-css-input",
         InvalidRefInput => "invalid-ref-input",
+        InvalidStoredVariant => "invalid-stored-variant",
         InvalidAnimationOption => "invalid-animation-option",
         InvalidStyleComposition => "invalid-style-composition",
         RuntimeConditionRequiresCssIf => "runtime-condition-requires-css-if",

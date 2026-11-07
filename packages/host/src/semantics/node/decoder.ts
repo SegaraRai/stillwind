@@ -179,7 +179,7 @@ export class AssetTypeDecoder {
   }
 
   /**
-   * Discovers ref, keyframe, and view-transition brands in a producer type's declaring module.
+   * Discovers ref, keyframe, view-transition, and stored-variant brands in a producer type's declaring module.
    *
    * @param type - Producer call type from this decoder's checker snapshot. The type is retained for
    * later decoding. Missing alias modules and already inspected modules are skipped. The discovered
@@ -196,6 +196,7 @@ export class AssetTypeDecoder {
       ["StyleRef", "ref", "refIdentity"],
       ["StyleKeyframes", "keyframes", "keyframesIdentity"],
       ["StyleViewTransition", "viewTransition", "viewTransitionIdentity"],
+      ["StyleStoredVariant", "storedVariant", "storedVariantIdentity"],
     ] as const) {
       const symbol = this.#checker.getMemberInModuleExports(module, name);
       if (!symbol) {
@@ -261,10 +262,13 @@ export class AssetTypeDecoder {
           const callable =
             candidateKind === "viewTransition" ? this.#property(constituent, "for") : undefined;
           const method = callable && this.#checker.getTypeOfSymbol(callable);
+          // A stored variant is a branded string without methods, so its brand alone
+          // identifies the declaration.
           const declaration =
-            candidateKind === "viewTransition"
+            candidateKind === "storedVariant" ||
+            (candidateKind === "viewTransition"
               ? method && this.#checker.getSignaturesOfType(method, SignatureKind.Call).length > 0
-              : this.#checker.getSignaturesOfType(constituent, SignatureKind.Call).length > 0;
+              : this.#checker.getSignaturesOfType(constituent, SignatureKind.Call).length > 0);
           if (!declaration) {
             continue;
           }
@@ -279,7 +283,8 @@ export class AssetTypeDecoder {
       }
       const name = (constituent.getAliasSymbol() ?? constituent.getSymbol())?.name;
       recognized ||=
-        !!kind || (!!name && /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(name));
+        !!kind ||
+        (!!name && /^Style(?:Result|Ref|Keyframes|ViewTransition|StoredVariant)$/.test(name));
       if (!kind) {
         valid = false;
         continue;
@@ -340,6 +345,7 @@ export class AssetTypeDecoder {
       ref: "refs",
       keyframes: "keyframes",
       viewTransition: "viewTransitions",
+      storedVariant: "storedVariants",
     } as const;
     return {
       kind: "asset",

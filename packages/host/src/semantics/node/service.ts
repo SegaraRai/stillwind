@@ -375,7 +375,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       const diagnostic = diagnostics.find(
         (d) =>
           !producerArgumentDiagnostic(d, sourceFile, mapping) &&
-          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|StyleStoredVariant|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
             diagnosticText(d),
           ),
       );

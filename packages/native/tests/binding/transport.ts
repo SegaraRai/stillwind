@@ -81,7 +81,7 @@ export function registerTransportContract(bindingSpecifier: string): void {
       "tsx",
       "unambiguous",
     );
-    expect(summary.schema).toBe(4);
+    expect(summary.schema).toBe(5);
     const handle = summary.exports.find(
       (entry: import("../../binding.js").NativeExport) => entry.name === "handle",
     ).value;

@@ -19,6 +19,8 @@ pub enum NativeAssetKind {
     Keyframes,
     /// A `style.viewTransition()` declaration.
     ViewTransition,
+    /// A `style.when()` declaration.
+    StoredVariant,
 }
 
 impl From<NativeAssetKind> for AssetKind {
@@ -28,6 +30,7 @@ impl From<NativeAssetKind> for AssetKind {
             NativeAssetKind::Ref => Self::Ref,
             NativeAssetKind::Keyframes => Self::Keyframes,
             NativeAssetKind::ViewTransition => Self::ViewTransition,
+            NativeAssetKind::StoredVariant => Self::StoredVariant,
         }
     }
 }
@@ -39,6 +42,7 @@ impl From<AssetKind> for NativeAssetKind {
             AssetKind::Ref => Self::Ref,
             AssetKind::Keyframes => Self::Keyframes,
             AssetKind::ViewTransition => Self::ViewTransition,
+            AssetKind::StoredVariant => Self::StoredVariant,
         }
     }
 }

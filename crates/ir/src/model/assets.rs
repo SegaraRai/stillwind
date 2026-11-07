@@ -24,6 +24,25 @@ pub struct RefDefinition {
     pub call_span: Span,
 }
 
+/// A `style.when()` declaration: a variant sequence that `style()` keys use.
+///
+/// Each use expands [`Self::variants`] into nested variant wrappers, so the use has the
+/// same meaning as the sequence written directly at that position. The compiler
+/// validates the sequence once at the declaration and replaces the call with
+/// `undefined`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredVariantDefinition {
+    /// Local binding; its span seeds the declaration identity.
+    pub binding: Spanned<LeanStr>,
+    /// Span of the producing call, used for replacement.
+    pub call_span: Span,
+    /// Variants from the outermost to the innermost, with spans in the declaration.
+    /// `None` when the argument is invalid; uses of such a declaration contribute
+    /// nothing.
+    pub variants: Option<Vec<StyleVariant>>,
+}
+
 /// A `style.keyframes()` declaration: named keyframes plus their identity.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

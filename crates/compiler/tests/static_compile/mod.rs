@@ -19,6 +19,7 @@
 //! - [`ref_variants`] checks ref variants in selectors and templates.
 //! - [`refs`] checks ref projections and selector scopes.
 //! - [`runtime_if`] checks experimental computed-value conditions.
+//! - [`stored_variants`] checks `style.when()` declarations and their uses.
 //! - [`support`] compiles cases and compares stylesheets for the other modules.
 //! - [`table_lookup`] checks lookups in array and object literals.
 //! - [`theme`] checks theme emission and token gating.
@@ -51,6 +52,7 @@ mod react;
 mod ref_variants;
 mod refs;
 mod runtime_if;
+mod stored_variants;
 mod table_lookup;
 mod theme;
 mod utilities;

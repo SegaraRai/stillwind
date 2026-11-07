@@ -95,6 +95,11 @@ pub enum NativeExportedValue {
         /// Reachable transition identities.
         value: NativeSymbolicValue,
     },
+    /// Exported `style.when()` declaration.
+    StoredVariants {
+        /// Reachable stored-variant identities.
+        value: NativeSymbolicValue,
+    },
 }
 
 impl TryFrom<NativeExportedValue> for ExportedValue {
@@ -113,12 +118,17 @@ impl TryFrom<NativeExportedValue> for ExportedValue {
                 AssetKind::ViewTransition,
             ),
             NativeExportedValue::Refs { value } => (Self::Refs(value.try_into()?), AssetKind::Ref),
+            NativeExportedValue::StoredVariants { value } => (
+                Self::StoredVariants(value.try_into()?),
+                AssetKind::StoredVariant,
+            ),
         };
         let actual = match &value {
             Self::Styles(value)
             | Self::Refs(value)
             | Self::Keyframes(value)
-            | Self::ViewTransitions(value) => value.kind(),
+            | Self::ViewTransitions(value)
+            | Self::StoredVariants(value) => value.kind(),
         };
         if actual != expected {
             return Err(Error::from_reason(
@@ -142,6 +152,9 @@ impl From<ExportedValue> for NativeExportedValue {
                 value: value.into(),
             },
             ExportedValue::Refs(value) => Self::Refs {
+                value: value.into(),
+            },
+            ExportedValue::StoredVariants(value) => Self::StoredVariants {
                 value: value.into(),
             },
         }

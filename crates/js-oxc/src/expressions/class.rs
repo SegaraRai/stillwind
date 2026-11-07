@@ -19,6 +19,7 @@ use stillwind_source::Span;
 use crate::local_span::LocalSpan;
 use crate::resolution::ResolutionFailure;
 use crate::state::MacroExtractor;
+use crate::stored_variants::StoredVariantUse;
 use stillwind_semantic::AssetKind;
 
 impl<'a> MacroExtractor<'a> {
@@ -305,40 +306,40 @@ impl<'a> MacroExtractor<'a> {
     }
 
     /// Resolves a computed variant key and omits its property when the key is unusable.
+    ///
+    /// The key is a ref variant or a stored variant. A stored variant expands into one
+    /// wrapper for each of its variants, nested from the outermost.
     fn computed_variant_entry(&mut self, property: &ObjectProperty<'a>) -> Option<GroupEntry> {
         // Nested receivers need checker queries even when this key cannot resolve yet.
         let inputs = self.rule_inputs(&property.value);
-        let previous_lints = self.lint_findings.len();
-        let previous_errors = self.diagnostics.len();
-        let Some(variant) = property
-            .key
-            .as_expression()
-            .filter(|key| {
-                matches!(
-                    key.get_inner_expression(),
-                    Expression::CallExpression(_) | Expression::TaggedTemplateExpression(_)
-                )
-            })
-            .and_then(|key| self.ref_variant(key))
-        else {
-            self.omit_input(property.span);
-            if self.lint_findings.len() == previous_lints
-                && self.diagnostics.len() == previous_errors
-            {
+        let key = property.key.as_expression();
+        let variants = match key.map(|key| self.template_substitution(key)) {
+            Some(StoredVariantUse::Variants(variants)) => variants,
+            Some(StoredVariantUse::Omitted) => {
+                self.omit_input(property.span);
+                return None;
+            }
+            Some(StoredVariantUse::NotStored) | None => {
+                self.omit_input(property.span);
                 self.lint_findings.push(LintFinding::new(
                     LintDiagnostic::InvalidComputedStyleKey,
                     self.source_span(property.key.span()),
                 ));
+                return None;
             }
-            return None;
         };
-        Some(GroupEntry::Class(Box::new(
-            RuleExpression::Variant {
+        let mut variants = variants.into_iter().rev();
+        let mut expression = RuleExpression::Variant {
+            variant: variants.next()?,
+            inputs: inputs?,
+        };
+        for variant in variants {
+            expression = RuleExpression::Variant {
                 variant,
-                inputs: inputs?,
-            }
-            .into(),
-        )))
+                inputs: vec![expression],
+            };
+        }
+        Some(GroupEntry::Class(Box::new(expression.into())))
     }
 
     /// Keeps the first key position and last value when literal objects overwrite keys.

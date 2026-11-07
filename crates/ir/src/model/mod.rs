@@ -13,7 +13,7 @@
 //!
 //! Modules:
 //!
-//! - [`assets`] describes named declarations and their uses.
+//! - [`assets`] describes named declarations, stored variants, and their uses.
 //! - [`expression`] stores recursive class and rule contributions and validates
 //!   conversion to the rule-only subset.
 //! - [`module`] groups the declarations and calls extracted from one source, including
@@ -27,7 +27,8 @@ mod style;
 
 pub use assets::{
     AssetReference, KeyframesBody, KeyframesBranch, KeyframesDefinition, KeyframesFrame,
-    RefDefinition, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+    RefDefinition, StoredVariantDefinition, ViewTransitionDefinition, ViewTransitionKey,
+    ViewTransitionName,
 };
 pub use expression::{
     BranchArm, ClassExpression, ConditionalBranches, CustomPropertyEntry, GroupEntry,

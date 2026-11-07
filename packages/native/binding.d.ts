@@ -844,7 +844,7 @@ export interface NativeArbitrarySpacingOptions {
 }
 
 /** Asset kinds as the host names them. */
-export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'viewTransition'
+export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'viewTransition' | 'storedVariant'
 
 /** User-facing metadata of a produced asset. */
 export interface NativeAssetMetadata {
@@ -1316,6 +1316,8 @@ export type NativeExportedValue =
   value: NativeSymbolicValue }
   | { kind: 'viewTransitions'; /** Reachable transition identities. */
   value: NativeSymbolicValue }
+  | { kind: 'storedVariants'; /** Reachable stored-variant identities. */
+  value: NativeSymbolicValue }
 
 /** Imports reachable from one export of a module. */
 export interface NativeExportImports {
@@ -1520,6 +1522,8 @@ export interface NativeLintOptions {
   invalidCssInput?: string
   /** Settings for `invalid-ref-input`. */
   invalidRefInput?: string
+  /** Settings for `invalid-stored-variant`. */
+  invalidStoredVariant?: string
   /** Settings for `invalid-animation-option`. */
   invalidAnimationOption?: string
   /** Settings for `invalid-style-composition`. */

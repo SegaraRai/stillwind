@@ -8,13 +8,13 @@
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_ir::{AssetReference, StyleVariant, ViewTransitionKey, ViewTransitionName};
-use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceError, Span};
 
 use super::super::fragment::{Emitted, EmittedEntry, Property, ValueExpr};
 use super::super::literal::{LiteralContribution, TransitionContribution};
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
+use super::super::symbols::DefinitionKind;
 use super::{CallEmitter, VIEW_TRANSITION_CLASS_KEY};
 use crate::identifiers::view_transition_name;
 use crate::runtime::RuntimeHelper;
@@ -40,7 +40,7 @@ impl CallEmitter<'_> {
     ) -> Option<Emitted> {
         self.required_definitions
             .insert(transition.identity.clone());
-        let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
+        let token = match self.record_definition_name(transition, DefinitionKind::ViewTransition) {
             Ok(token) => token,
             Err(failure) => {
                 self.reject_name(failure, self.call.span);
@@ -123,13 +123,14 @@ impl CallEmitter<'_> {
             }
             self.required_definitions
                 .insert(transition.identity.clone());
-            let token = match self.record_definition_name(transition, AssetKind::ViewTransition) {
-                Ok(token) => token,
-                Err(failure) => {
-                    self.reject_name(failure, self.call.span);
-                    return None;
-                }
-            };
+            let token =
+                match self.record_definition_name(transition, DefinitionKind::ViewTransition) {
+                    Ok(token) => token,
+                    Err(failure) => {
+                        self.reject_name(failure, self.call.span);
+                        return None;
+                    }
+                };
             let static_name = static_view_transition_name(name, &token);
             let contribution = self.transition_contribution(
                 token.clone(),

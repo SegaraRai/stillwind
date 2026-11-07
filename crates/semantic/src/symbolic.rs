@@ -157,6 +157,8 @@ pub enum ExportedValue {
     Keyframes(SymbolicValue),
     /// Candidate set of view-transition identities.
     ViewTransitions(SymbolicValue),
+    /// Candidate set of stored-variant identities.
+    StoredVariants(SymbolicValue),
 }
 
 impl ExportedValue {
@@ -170,7 +172,8 @@ impl ExportedValue {
             Self::Styles(value)
             | Self::Refs(value)
             | Self::Keyframes(value)
-            | Self::ViewTransitions(value) => {
+            | Self::ViewTransitions(value)
+            | Self::StoredVariants(value) => {
                 if value.kind != self.kind() {
                     return Err(SymbolicError::KindMismatch {
                         expected: self.kind(),
@@ -192,6 +195,7 @@ impl ExportedValue {
             Self::Refs(_) => AssetKind::Ref,
             Self::Keyframes(_) => AssetKind::Keyframes,
             Self::ViewTransitions(_) => AssetKind::ViewTransition,
+            Self::StoredVariants(_) => AssetKind::StoredVariant,
         }
     }
 }

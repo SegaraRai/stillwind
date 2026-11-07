@@ -94,6 +94,13 @@ impl ModuleIr {
         for definition in &mut result.ref_definitions {
             map_ref(definition, &mut map)?;
         }
+        for definition in &mut result.stored_variants {
+            map_value(&mut definition.binding, &mut map)?;
+            definition.call_span = map(definition.call_span)?;
+            for variant in definition.variants.iter_mut().flatten() {
+                map_variant(variant, &mut map)?;
+            }
+        }
         for keyframes in &mut result.keyframes_declarations {
             map_animation(keyframes, &mut map)?;
         }

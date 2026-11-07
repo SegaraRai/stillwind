@@ -210,21 +210,36 @@ an asset whose type was widened, so it needs facts. An absent fact or a nonfinit
 candidate set does not confirm that a value is unsupported. Required identities must be
 established before the compiler can produce output.
 
-## Materialization and consumption sites
+## Macro values and consumption sites
 
-Completed `style(...inputs)` results and declarations from `style.ref(...)`,
-`style.keyframes(...)`, and `style.viewTransition(...)` can be stored and passed
-independently. Place declarations in binding initializers, and compose completed
-props through variables.
+Every macro call is a value. The compiler replaces the call with that value, and the
+value has one of three forms:
+
+- A runtime value: completed `style(...inputs)` props, the declarations from
+  `style.ref()`, `style.keyframes()`, and `style.viewTransition()`, the factory from
+  `style.cva()`, and the strings from `style.media()` and `style.css()`. These values
+  can be stored, exported, passed, returned, and selected conditionally like other
+  JavaScript values.
+- A compile-time value: the stored variant from `style.when()`. The compiler replaces
+  the call with `undefined`. The binding can be stored, exported, imported, and passed,
+  and `style()` reads the stored variant sequence through it at compile time. Runtime
+  code that reads the binding receives `undefined`.
+- Input syntax: projections, animation uses, view-transition naming uses, and ref
+  variants. These have no value of their own. The `style()` input that contains them
+  consumes them, so they must stand directly at a supported position.
+
+Place the declarations from `style.ref()`, `style.keyframes()`,
+`style.viewTransition()`, and `style.when()` in binding initializers, and compose
+completed props through variables.
 
 A call of `style()`, `style.cva()`, `style.ref()`, `style.keyframes()`,
-`style.viewTransition()`, `style.media()`, or `style.css()` inside a `style()` or CVA
-input is unsupported input. The enclosing lowering would keep the call in JavaScript
-without its own lowering. It therefore omits the smallest input that contains the call:
-the input itself, the whole conditional for a call in its test, or the object property
-for a call in its key or in a `class` or custom-property value. A call
-inside a function in the input is also omitted, because the copied source contains it. A
-nested `style()` call reports `NestedStyleCall`, and the other macros report
+`style.viewTransition()`, `style.when()`, `style.media()`, or `style.css()` inside a
+`style()` or CVA input is unsupported input. The enclosing lowering would keep the
+call in JavaScript without its own lowering. It therefore omits the smallest input that
+contains the call: the input itself, the whole conditional for a call in its test, or
+the object property for a call in its key or in a `class` or custom-property value. A
+call inside a function in the input is also omitted, because the copied source contains
+it. A nested `style()` call reports `NestedStyleCall`, and the other macros report
 `NestedMacroCall`. Both belong to `invalid-style-input`. Declaration macros accept only
 literals, so their own input rules report a nested call.
 
@@ -235,8 +250,11 @@ Consume the following syntax directly at its supported input position in `style(
   belong at positions that accept classes or rules. Supported arrays,
   conditional branches, and variant values can contain them.
 - `ref()`, `ref("hover:")`, ref tags and their `.in(scope)` calls,
-  `ref.at(query?)`, and ref.at tags belong in computed variant-object keys or
-  supported utility-template interpolations.
+  `ref.at(query?)`, and ref.at tags belong in computed variant-object keys,
+  supported utility-template interpolations, or the argument of `style.when()`.
+
+A stored variant from `style.when()` belongs in the same positions as a ref variant,
+but it is read through a binding. See [Stored variants](#stored-variants).
 
 Arguments to arbitrary functions cannot consume these uses,
 even inside `style()`. Unconsumed keyframes calls, projections, and ref variants
@@ -336,6 +354,7 @@ const props = style({
 | `ref.at(query?)` / ref.at tags                                            | The receiver has finite raw-ref candidates. The static query returns a variant. An omitted or empty query emits `@container <container-name>` without a condition or parentheses.                                                        |
 | `ref()` / `ref("variant:")` / ref tags                                    | The prefix is static. Tags cannot contain interpolations.                                                                                                                                                                                |
 | `ref(state).in(scope)`                                                    | The scope is a raw ref or an unscoped ref call/tag. Scope operands cannot use `.in()` or `.at()`. Repeated `.in()` calls independently combine containment conditions for the original ref and target with AND.                          |
+| `style.when(variants)`                                                    | One variant sequence. See [Stored variants](#stored-variants).                                                                                                                                                                           |
 | `style.media(...variants)`                                                | String literals or interpolation-free template literals of variants whose definitions contain only media conditions. See [Media queries](#media-queries).                                                                                |
 | Utility strings and variant keys in `style()`                             | Static CSS descriptions. Utility templates accept only the specified ref-variant interpolations.                                                                                                                                         |
 | Arrays and variant objects                                                | Recursively contain supported inputs. Literal spreads and array holes are supported. Getters and methods are forbidden.                                                                                                                  |
@@ -348,7 +367,8 @@ focus state. The order of repeated `.in()` calls does not change their meaning.
 
 Selector calls/tags and `.in()` results cannot use `.at()`. Combine container
 queries and selector scopes by nesting `style()` keys. Consume calls/tags, scoped
-variants, and container queries directly inside `style()`; do not store them in variables.
+variants, and container queries directly inside `style()` or `style.when()`. To reuse
+them, store them with `style.when()`.
 
 Variant values accept utilities, ref projections, view-transition uses, keyframes
 uses, and arrays, conditionals, or variant objects containing those inputs.
@@ -375,6 +395,52 @@ definitions is internal checker information. Users must not use it to execute ef
 Every framework accepts `class` as input. React emits `className`; the others
 emit `class`. Svelte and Astro emit a string `style` prop; the others emit an
 object. Do not supply a `style` key directly as input.
+
+## Stored variants
+
+`style.when(variants)` stores one variant sequence. A use of the stored variant
+produces the same styles and diagnostics as the sequence written directly at the use.
+
+```ts
+const card = style.ref("card");
+const cardHover = style.when(card("hover"));
+const wideHover = style.when(`${card.at("width >= 40rem")}:${cardHover}:md`);
+
+style({ [cardHover]: "text-blue-600" });
+style(`${wideHover}:grid-cols-2`);
+```
+
+`` `${wideHover}:grid-cols-2` `` is equal to
+`` `${card.at("width >= 40rem")}:${card("hover")}:md:grid-cols-2` ``.
+
+The argument is one of these forms. A final `:` is optional, and all variants of the
+sequence must hold:
+
+- a string literal or an interpolation-free template literal of variants, such as
+  `"has-[[data-state=open]]:max-md"`;
+- a ref call or tag with optional `.in()` calls, or a `ref.at()` call or tag;
+- a template literal whose substitutions occupy complete variant segments, where each
+  substitution is a ref variant or a stored variant;
+- another stored variant.
+
+A use belongs in a computed key of a `style()` object, a complete variant segment
+followed by `:` in a utility template, or the argument of another `style.when()`. It
+cannot be a `.in()` operand, and CVA values reject it as they reject other computed
+keys. At each use, the value must resolve to exactly one declaration, because the
+compiler expands the sequence at compile time. A conditional choice such as
+`[c ? a : b]` is not a stored variant.
+
+`invalid-stored-variant` reports an argument that is not a variant sequence, a call
+with no argument, a spread argument, more than one argument, a declaration used by an
+earlier declaration in the same module, and a use that can resolve to several
+declarations. Several arguments are reserved for alternatives, which will match when
+any argument matches, as in `style.media()`.
+
+A sequence that is invalid at its use, such as one with an unknown variant, reports
+the same rule as the direct form. For a declaration in the same module, the finding
+points at the declaration and appears once, however many uses the declaration has.
+For a declaration in another module, the finding points at the use. A use of an
+invalid declaration omits its input.
 
 ## Optimization and diagnostics
 
@@ -641,7 +707,7 @@ arguments, report `invalid-media-query`, which defaults to `deny`. Severity sett
 suppression do not change the string.
 
 A call inside a `style()` or CVA input is omitted with that input, as
-[Materialization and consumption sites](#materialization-and-consumption-sites)
+[Macro values and consumption sites](#macro-values-and-consumption-sites)
 describes. Store the result in a binding outside the call.
 
 Editors complete only media variants inside the arguments and preview each argument's
@@ -740,7 +806,7 @@ redefine `default` after importing Stillwind, or add templates with other names.
 A template must contain a utilities slot and cannot contain definitions such as `@theme`
 or `@utility`; either problem is a compilation error. A call inside a `style()` or CVA
 input is omitted with that input, as
-[Materialization and consumption sites](#materialization-and-consumption-sites)
+[Macro values and consumption sites](#macro-values-and-consumption-sites)
 describes.
 
 Editors complete and preview each input as a document-level style with the call's group

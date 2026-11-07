@@ -5,7 +5,6 @@ use lean_string::{LeanStr, LeanString, ToLeanString};
 use stillwind_design_system::{ThemeIndex, UtilityOrder, VariantContext};
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{AssetReference, StyleVariant};
-use stillwind_semantic::AssetKind;
 use stillwind_source::{Span, Spanned};
 
 use super::super::animation_options::resolve_options;
@@ -13,7 +12,7 @@ use super::super::fragment::Emitted;
 use super::super::literal::LiteralContribution;
 use super::super::props::GuardStep;
 use super::super::style_variants::StyleVariantPlan;
-use super::super::symbols::identity_declaration;
+use super::super::symbols::{DefinitionKind, identity_declaration};
 use super::super::utilities::{CompiledUtility, CompiledUtilityDiagnosticData};
 use super::{CallEmitter, KEYFRAMES_KEY};
 use crate::identifiers::IdentifierContext;
@@ -100,7 +99,7 @@ impl CallEmitter<'_> {
                 self.runtime_assets.insert(keyframes.identity.clone());
             }
             self.required_definitions.insert(keyframes.identity.clone());
-            let identity = match self.record_definition_name(keyframes, AssetKind::Keyframes) {
+            let identity = match self.record_definition_name(keyframes, DefinitionKind::Keyframes) {
                 Ok(identity) => identity,
                 Err(failure) => {
                     self.reject_name(failure, self.call.span);

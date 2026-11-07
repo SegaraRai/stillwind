@@ -18,10 +18,12 @@ use std::collections::BTreeSet;
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSurface, finish_lint_findings};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintFinding, LintSurface, finish_lint_findings,
+};
 use stillwind_ir::{
-    IncompatibleComposition, ModuleAnalysis, composition_dependencies, ordered_style_calls,
-    validate_composition,
+    IncompatibleComposition, ModuleAnalysis, StoredVariantDefinition, composition_dependencies,
+    ordered_style_calls, validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
@@ -36,11 +38,12 @@ use super::emission::{
 use super::fragment::{render_cva_value, render_style_call};
 use super::media::media_query;
 use super::output::CompileResult;
+use super::style_variants::StyleVariantPlan;
+use super::symbols::{DefinitionKind, named_identity, ref_identity};
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol, generated_symbol,
     named_declaration, ref_marker_name,
 };
-use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
 use crate::compiler::rewrite_generated_css;
 use crate::editor_lint::detect;
@@ -207,7 +210,7 @@ impl Compiler {
                     generated_symbol(
                         identifiers,
                         module_id,
-                        AssetKind::Keyframes,
+                        DefinitionKind::Keyframes,
                         &definition.binding,
                         definition.label.as_ref(),
                     )
@@ -222,7 +225,7 @@ impl Compiler {
                     generated_symbol(
                         identifiers,
                         module_id,
-                        AssetKind::ViewTransition,
+                        DefinitionKind::ViewTransition,
                         &definition.binding,
                         definition.label.as_ref(),
                     )
@@ -459,6 +462,25 @@ impl Compiler {
                 expressions: Vec::new(),
             });
         }
+        for definition in &module.stored_variants {
+            // Validation reports problems in the sequence even when no use exists. The
+            // plan itself is discarded, because each use resolves its own wrappers.
+            if let Some(variants) = &definition.variants {
+                let _ = StyleVariantPlan::resolve(
+                    identifiers,
+                    variants,
+                    theme,
+                    &mut diagnostics,
+                    &mut result.lint_findings,
+                );
+            }
+            result.transforms.push(SourceTransform {
+                call_span: definition.call_span,
+                replacement: "undefined".to_lean_string(),
+                expressions: Vec::new(),
+            });
+        }
+        dedupe_stored_variant_findings(&module.stored_variants, &mut result.lint_findings);
 
         result.diagnostics = diagnostics;
         result.symbols = dedupe_name_symbols(symbols);
@@ -611,6 +633,35 @@ fn push_or_report<T>(
             None
         }
     }
+}
+
+/// Keeps the first of equal findings inside a `style.when()` declaration.
+///
+/// A local use expands the variants of the declaration with their original spans, so
+/// the validation of the declaration and each use report the same problem at the same
+/// place.
+fn dedupe_stored_variant_findings(
+    definitions: &[StoredVariantDefinition],
+    findings: &mut Vec<LintFinding>,
+) {
+    let inside = |finding: &LintFinding| {
+        let span = finding.info.labels[0].span;
+        definitions.iter().any(|definition| {
+            let call = definition.call_span;
+            call.file == span.file && call.start <= span.start && span.end <= call.end
+        })
+    };
+    let mut seen = Vec::<LintFinding>::new();
+    findings.retain(|finding| {
+        if !inside(finding) {
+            return true;
+        }
+        if seen.contains(finding) {
+            return false;
+        }
+        seen.push(finding.clone());
+        true
+    });
 }
 
 /// Whether the CSS of one asset kind belongs to this band.

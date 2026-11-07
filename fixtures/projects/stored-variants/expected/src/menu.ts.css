@@ -1,0 +1,41 @@
+.sw_4pgwt {
+  position: relative;
+}
+.sw_4pgwt:where(.sw_menu_y1wla) {
+  container-name: sw-c-menu-y1wla;
+  container-type: inline-size;
+}
+.sw_447xz {
+  padding-inline: calc(var(--spacing) * 2);
+}
+@media (hover: hover) {
+  .sw_z17k0:is(:is(:where(.sw_menu_y1wla)):has(:is(:where(.sw_trigger_1gc76):hover)) *) {
+    rotate: calc(90 * 1deg);
+  }
+}
+.sw_z17k0:active:focus-visible {
+  --tw-scale-x: calc(95 * 1%);
+  --tw-scale-y: calc(95 * 1%);
+  --tw-scale-z: calc(95 * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@container sw-c-menu-y1wla (width >= 40rem) {
+  @media (hover: hover) {
+    .sw_72ve1:is(:is(:where(.sw_menu_y1wla)):has(:is(:where(.sw_trigger_1gc76):hover)) *) {
+      --tw-font-weight: var(--font-weight-bold);
+      font-weight: var(--font-weight-bold);
+    }
+  }
+}
+@media (hover: hover) {
+  .sw_72ve1:is(:is(:where(.sw_menu_y1wla)):has(:is(:where(.sw_trigger_1gc76):hover)) *) {
+    text-decoration-line: underline;
+  }
+}
+@media (hover: hover) {
+  .sw_lpd2m:active:focus-visible:is(
+      :is(:where(.sw_menu_y1wla)):has(:is(:where(.sw_trigger_1gc76):hover)) *
+    ) {
+    opacity: calc(50 * 1%);
+  }
+}

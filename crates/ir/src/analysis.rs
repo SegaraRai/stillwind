@@ -253,6 +253,7 @@ impl ModuleAnalysis {
             support.ir.media_calls.clear();
             support.ir.css_calls.clear();
             support.ir.ref_definitions.clear();
+            support.ir.stored_variants.clear();
             support.ir.keyframes_declarations.retain(|declaration| {
                 identities.iter().any(|identity| {
                     identity.kind() == AssetKind::Keyframes

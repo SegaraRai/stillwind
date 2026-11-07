@@ -93,6 +93,7 @@ export default defineConfig({
                     "docs/macros/keyframes",
                     "docs/macros/media",
                     "docs/macros/view-transition",
+                    "docs/macros/when",
                     "docs/macros/ref",
                     "docs/macros/ref/condition",
                     "docs/macros/ref/in",

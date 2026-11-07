@@ -24,7 +24,9 @@ use super::super::fragment::{Emitted, Property, ValueExpr};
 use super::super::literal::LiteralContribution;
 use super::super::props::{GuardStep, StyleEmission, StyleEmissionPart};
 use super::super::symbols::GeneratedSymbol;
-use super::super::symbols::{definition_name_symbol, ref_identity, ref_marker_name};
+use super::super::symbols::{
+    DefinitionKind, definition_name_symbol, ref_identity, ref_marker_name,
+};
 use super::class_value::expression_position;
 use super::ref_projection::ref_class_read;
 use super::static_custom_properties;
@@ -420,7 +422,7 @@ impl<'a> CallEmitter<'a> {
     pub(super) fn record_definition_name(
         &mut self,
         reference: &AssetReference,
-        kind: AssetKind,
+        kind: DefinitionKind,
     ) -> Result<LeanString, CompileDiagnostic> {
         let symbol = definition_name_symbol(self.identifiers, reference, kind)?;
         let name = symbol.name.clone();

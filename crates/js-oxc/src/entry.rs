@@ -157,6 +157,7 @@ pub(crate) fn parse_with_coordinates(
     );
     extractor.lint = lint;
     extractor.seed_style_bindings(&result.program);
+    extractor.seed_declarations(&result.program);
     extractor.visit_program(&result.program);
     let mut summary = extractor.module_summary();
     collect_demand(
@@ -187,6 +188,7 @@ pub(crate) fn parse_with_coordinates(
         ref_definitions: extractor.ref_definitions,
         keyframes_declarations: extractor.keyframes_declarations,
         view_transition_declarations: extractor.view_transition_declarations,
+        stored_variants: extractor.stored_variants,
     };
     if lint {
         lint_findings.extend(validate(&result.program, &module, source.id()));

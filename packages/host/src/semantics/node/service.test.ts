@@ -388,7 +388,7 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
 });
 
 /**
- * Probes expressions against style, ref, keyframes, and view-transition brands.
+ * Probes expressions against style, ref, keyframes, view-transition, and stored-variant brands.
  * @param expressions - Expression text appended after the shared declarations, in probe order.
  * @returns Strict checker facts and the declaration records used to interpret them.
  * @throws If finite declaration candidates cannot be verified.
@@ -398,6 +398,7 @@ function collectBrands(expressions: readonly string[]) {
   let code = `import {style} from 'stillwind/react';
 const base=style('flex'),other=style('grid'),target=style.ref('target');
 const frames=style.keyframes({from:'opacity-0'}),transition=style.viewTransition({old:'opacity-0'});
+const stored=style.when(target('hover:'));
 type Anonymous<T> = {[K in keyof T]: T[K]};
 declare const anonymous:Anonymous<typeof base>;
 declare const selected:Anonymous<typeof base>|Anonymous<typeof other>;
@@ -479,10 +480,11 @@ test("style results with unknown declarations report every style as a candidate"
 });
 
 test("unique-symbol brands distinguish declarations from ref, animation, and transition uses", () => {
-  const { facts } = collectBrands([
+  const { facts, assets } = collectBrands([
     "target",
     "frames",
     "mappedTransition",
+    "stored",
     "refUse",
     "variant",
     "animationUse",
@@ -492,10 +494,15 @@ test("unique-symbol brands distinguish declarations from ref, animation, and tra
     "refs",
     "keyframes",
     "viewTransitions",
+    "storedVariants",
     undefined,
     undefined,
     undefined,
     undefined,
   ]);
-  expect(facts.slice(3).map((fact) => fact.value)).toStrictEqual([null, null, null, null]);
+  expect(facts[3].value?.value.candidates).toStrictEqual({
+    kind: "finite",
+    values: [assets.find((asset) => asset.identity.kind === "storedVariant")!.identity],
+  });
+  expect(facts.slice(4).map((fact) => fact.value)).toStrictEqual([null, null, null, null]);
 });

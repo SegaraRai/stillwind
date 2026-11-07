@@ -62,7 +62,8 @@ impl OxcSourceAnalyzer {
                 ExportedValue::Styles(value)
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value) => {
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::StoredVariants(value) => {
                     assets.extend(value.finite_candidates().into_iter().flatten().cloned());
                 }
             }
@@ -381,8 +382,8 @@ mod tests {
             ScriptLanguage::Ts,
             ScriptModuleKind::Module,
         );
-        assert_eq!(scan.summary.schema, 4);
-        for (schema, accepted) in [(3, false), (4, false), (TypeFacts::SCHEMA, true)] {
+        assert_eq!(scan.summary.schema, 5);
+        for (schema, accepted) in [(4, false), (5, false), (TypeFacts::SCHEMA, true)] {
             let facts = TypeFacts {
                 schema,
                 module_id: scan.module_id.clone(),

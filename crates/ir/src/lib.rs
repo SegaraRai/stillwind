@@ -69,6 +69,6 @@ pub use model::{
     CssCall, CssInput, CustomPropertyEntry, CvaCall, CvaReplacement, GroupEntry, KeyframesBody,
     KeyframesBranch, KeyframesDefinition, KeyframesFrame, MacroImport, MacroImportSpecifier,
     MediaCall, ModuleImports, ModuleIr, RefCondition, RefDefinition, RefProjection, RuleExpression,
-    RuleExpressionError, RuleExpressionErrorKind, SelectEntry, StyleCall, StyleInput, StyleVariant,
-    ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+    RuleExpressionError, RuleExpressionErrorKind, SelectEntry, StoredVariantDefinition, StyleCall,
+    StyleInput, StyleVariant, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };

@@ -155,6 +155,7 @@ mod tests {
             imported.clone(),
             AssetMetadata {
                 label: Some("label".into()),
+                stored_variant: None,
             },
         )]);
         let mut extractor = MacroExtractor::new(

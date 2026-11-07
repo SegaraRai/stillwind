@@ -96,7 +96,7 @@ pub struct ModuleSummary {
 
 impl ModuleSummary {
     /// Schema version hosts must understand before reading a summary.
-    pub const SCHEMA: u32 = 4;
+    pub const SCHEMA: u32 = 5;
 
     /// Creates an empty summary for [`Self::module_id`], preserving the identity and
     /// stamping the current schema.
@@ -125,7 +125,8 @@ impl ModuleSummary {
                 ExportedValue::Styles(value)
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value) => {
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::StoredVariants(value) => {
                     if let Some(candidates) = value.finite_candidates() {
                         identities.extend(candidates.iter().cloned());
                     } else {
@@ -156,7 +157,10 @@ mod tests {
         let animation = IdentityId::new(AssetKind::Keyframes, ModuleId::from("x"), 0, 1, "a");
         summary.assets.push(AssetRecord {
             identity: animation.clone(),
-            metadata: AssetMetadata { label: None },
+            metadata: AssetMetadata {
+                label: None,
+                stored_variant: None,
+            },
             call_start: 2,
             call_end: 8,
         });
@@ -179,7 +183,10 @@ mod tests {
         for identity in [owned_ref.clone(), animation] {
             summary.assets.push(AssetRecord {
                 identity,
-                metadata: AssetMetadata { label: None },
+                metadata: AssetMetadata {
+                    label: None,
+                    stored_variant: None,
+                },
                 call_start: 4,
                 call_end: 10,
             });

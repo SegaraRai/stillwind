@@ -108,6 +108,8 @@ export function decode(
         checker.getSignaturesOfType(member, ts.SignatureKind.Call).length
       ) {
         kind = "keyframes";
+      } else if (brands.get(property.name) === "storedVariant") {
+        kind = "storedVariant";
       } else if (brands.get(property.name) === "viewTransition") {
         const method = checker.getPropertyOfType(member, "for");
         if (
@@ -133,7 +135,8 @@ export function decode(
 
     const name = (member.aliasSymbol ?? member.getSymbol())?.name;
     recognized ||=
-      !!kind || (!!name && /^Style(?:Result|Ref|Keyframes|ViewTransition)$/.test(name));
+      !!kind ||
+      (!!name && /^Style(?:Result|Ref|Keyframes|ViewTransition|StoredVariant)$/.test(name));
     if (!kind || (family && kind !== family)) {
       valid = false;
       continue;
@@ -207,6 +210,7 @@ export function decode(
     ref: "refs",
     keyframes: "keyframes",
     viewTransition: "viewTransitions",
+    storedVariant: "storedVariants",
   } as const;
   return {
     kind: "asset",

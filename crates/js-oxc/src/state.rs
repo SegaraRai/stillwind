@@ -20,7 +20,7 @@ use oxc::span::Span as OxcSpan;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     CssCall, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, OutputFormat, RefDefinition,
-    StyleCall, ViewTransitionDefinition,
+    StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, ExportedValue, IdentityId, ImportBinding,
@@ -66,6 +66,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<LeanStr>>,
     /// View-transition declarations in declaration order.
     pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    /// `style.when()` declarations in declaration order.
+    pub(crate) stored_variants: Vec<StoredVariantDefinition>,
     /// Symbolic value of each local binding the pass could resolve.
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
     /// Style call sites in source order.
@@ -146,6 +148,7 @@ impl<'a> MacroExtractor<'a> {
             consumed_use_spans: BTreeSet::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
+            stored_variants: Vec::new(),
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             cva_calls: Vec::new(),
@@ -212,11 +215,11 @@ impl<'a> MacroExtractor<'a> {
 
     /// Builds the module summary from the collected state.
     ///
-    /// Assets are appended in kind order (styles, refs, keyframes, view transitions),
-    /// not source order. Exports are keyed by exported name and only contain bindings
-    /// whose value resolved to a symbolic form; a binding that was reassigned or chosen
-    /// conditionally is absent so that the host checker can answer instead of
-    /// this pass guessing.
+    /// Assets are appended in kind order (styles, refs, keyframes, view transitions,
+    /// stored variants), not source order. Exports are keyed by exported name and only
+    /// contain bindings whose value resolved to a symbolic form; a binding that was
+    /// reassigned or chosen conditionally is absent so that the host checker can answer
+    /// instead of this pass guessing.
     pub(crate) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.module_id.clone());
         summary.imports.clone_from(&self.imports);
@@ -235,7 +238,10 @@ impl<'a> MacroExtractor<'a> {
                     span.end.0,
                     "",
                 ),
-                metadata: AssetMetadata { label: None },
+                metadata: AssetMetadata {
+                    label: None,
+                    stored_variant: None,
+                },
                 call_start: call.span.start.0,
                 call_end: call.span.end.0,
             });
@@ -268,6 +274,21 @@ impl<'a> MacroExtractor<'a> {
             );
         }
 
+        for definition in &self.stored_variants {
+            summary.assets.push(AssetRecord {
+                identity: self.identity(AssetKind::StoredVariant, &definition.binding),
+                metadata: AssetMetadata {
+                    label: None,
+                    stored_variant: definition
+                        .variants
+                        .as_deref()
+                        .map(|variants| self.stored_variant_record(variants)),
+                },
+                call_start: definition.call_span.start.0,
+                call_end: definition.call_span.end.0,
+            });
+        }
+
         for (symbol, exported) in &self.export_symbols {
             if let Some(value) = self.local_values.get(symbol) {
                 summary.exports.insert(exported.clone(), value.clone());
@@ -293,6 +314,7 @@ impl<'a> MacroExtractor<'a> {
             identity: self.identity(kind, binding),
             metadata: AssetMetadata {
                 label: label.map(|label| label.value.clone()),
+                stored_variant: None,
             },
             call_start: call_span.start.0,
             call_end: call_span.end.0,

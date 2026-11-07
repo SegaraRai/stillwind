@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 
 use stillwind_ir::{ModuleScan, TypeScriptFactsProvider};
 use stillwind_semantic::{
-    AssetMetadata, CheckedValue, ExportedValue, IdentityId, TypeFact, TypeFacts, TypeFactsUpdate,
+    AssetMetadata, CheckedValue, ExportedValue, IdentityId, StoredVariantRecord, TypeFact,
+    TypeFacts, TypeFactsUpdate,
 };
 use stillwind_source::Fingerprint;
 
@@ -59,37 +60,49 @@ impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
     }
 }
 
-/// Returns the entries of `assets` for the finite candidates of `facts`.
+/// Returns the entries of `assets` for the finite candidates of `facts`, and for the
+/// refs that the records of mentioned stored variants name.
 ///
-/// Fact-based extraction reads asset metadata only for these candidates, so a
+/// Fact-based extraction reads asset metadata only for these identities, so a
 /// module's semantic revision does not depend on assets its facts do not mention.
+/// Expanding an imported stored variant reads the labels of its refs, which the
+/// facts of the using module do not name.
 fn mentioned_assets(
     facts: &[TypeFact],
     assets: &BTreeMap<IdentityId, AssetMetadata>,
 ) -> BTreeMap<IdentityId, AssetMetadata> {
-    facts
+    let entry = |identity: &IdentityId| {
+        assets
+            .get_key_value(identity)
+            .map(|(identity, metadata)| (identity.clone(), metadata.clone()))
+    };
+    let mentioned: BTreeMap<_, _> = facts
         .iter()
         .filter_map(|fact| match &fact.value {
             CheckedValue::Asset(
                 ExportedValue::Styles(value)
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value),
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::StoredVariants(value),
             ) => value.finite_candidates(),
             CheckedValue::NonAsset => None,
         })
         .flatten()
-        .filter_map(|identity| {
-            assets
-                .get_key_value(identity)
-                .map(|(identity, metadata)| (identity.clone(), metadata.clone()))
-        })
-        .collect()
+        .filter_map(entry)
+        .collect();
+    let refs: Vec<_> = mentioned
+        .values()
+        .filter_map(|metadata| metadata.stored_variant.as_ref())
+        .flat_map(StoredVariantRecord::refs)
+        .filter_map(entry)
+        .collect();
+    mentioned.into_iter().chain(refs).collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use stillwind_semantic::{AssetKind, SymbolicValue};
+    use stillwind_semantic::{AssetKind, StoredVariantSegment, SymbolicValue};
     use stillwind_source::ModuleId;
 
     use super::*;
@@ -107,6 +120,7 @@ mod tests {
         };
         let metadata = |label: &str| AssetMetadata {
             label: Some(label.into()),
+            stored_variant: None,
         };
         let assets = BTreeMap::from([
             (identity(0), metadata("mentioned")),
@@ -132,5 +146,40 @@ mod tests {
             BTreeMap::from([(identity(0), metadata("mentioned"))])
         );
         assert!(mentioned_assets(&[], &assets).is_empty());
+    }
+
+    #[test]
+    fn mentioned_stored_variants_bring_the_metadata_of_their_refs() {
+        let module = || ModuleId::from("base.tsx");
+        let stored = IdentityId::new(AssetKind::StoredVariant, module(), 0, 1, "stored");
+        let named = IdentityId::new(AssetKind::Ref, module(), 2, 3, "named");
+        let other = IdentityId::new(AssetKind::Ref, module(), 4, 5, "other");
+        let stored_metadata = AssetMetadata {
+            label: None,
+            stored_variant: Some(StoredVariantRecord {
+                segments: vec![StoredVariantSegment::Container {
+                    refs: vec![named.clone()],
+                    query: "@sm".into(),
+                }],
+            }),
+        };
+        let label = |label: &str| AssetMetadata {
+            label: Some(label.into()),
+            stored_variant: None,
+        };
+        let assets = BTreeMap::from([
+            (stored.clone(), stored_metadata.clone()),
+            (named.clone(), label("named")),
+            (other, label("other")),
+        ]);
+        let facts = [TypeFact {
+            start: 0,
+            end: 1,
+            value: ExportedValue::StoredVariants(SymbolicValue::exact(stored.clone())).into(),
+        }];
+        assert_eq!(
+            mentioned_assets(&facts, &assets),
+            BTreeMap::from([(stored, stored_metadata), (named, label("named"))])
+        );
     }
 }

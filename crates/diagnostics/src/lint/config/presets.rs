@@ -28,6 +28,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidMediaQuery, LintSeverity::Deny),
     (LintKind::InvalidCssInput, LintSeverity::Deny),
     (LintKind::InvalidRefInput, LintSeverity::Deny),
+    (LintKind::InvalidStoredVariant, LintSeverity::Deny),
     (LintKind::InvalidAnimationOption, LintSeverity::Deny),
     (LintKind::InvalidStyleComposition, LintSeverity::Deny),
     (LintKind::RuntimeConditionRequiresCssIf, LintSeverity::Deny),

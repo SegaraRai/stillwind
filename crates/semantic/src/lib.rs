@@ -44,7 +44,9 @@ mod module_summary;
 mod symbolic;
 mod type_facts;
 
-pub use assets::{AssetMetadata, AssetRecord};
+pub use assets::{
+    AssetMetadata, AssetRecord, StoredRefCondition, StoredVariantRecord, StoredVariantSegment,
+};
 pub use identity::{AssetKind, IdentityId};
 pub use module::{IntegrationDiagnostic, TypeFacts, TypeFactsUpdate};
 pub use module_summary::{ImportBinding, ModuleSpecifier, ModuleSummary, ReExport};

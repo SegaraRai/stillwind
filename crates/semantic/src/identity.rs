@@ -29,6 +29,8 @@ pub enum AssetKind {
     Keyframes,
     /// A `style.viewTransition()` named view-transition asset.
     ViewTransition,
+    /// A `style.when()` declaration: a stored variant sequence that `style()` keys use.
+    StoredVariant,
 }
 
 /// Full declaration-site identity. The generated 32-bit name is derived later;

@@ -4,7 +4,7 @@
 //! identity alongside each written name so document-wide collision checks can
 //! distinguish name reuse from a collision.
 
-use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
+use lean_string::{LeanStr, ToLeanString};
 use serde::Serialize;
 
 use stillwind_diagnostics::CompileDiagnostic;
@@ -13,9 +13,8 @@ use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
 
 use crate::identifiers::{
-    AnchorName, ClassContext, ContainerName, DeclarationContext, DetachedName, IdentifierContext,
-    IdentifierKind, IdentifierPool, Label, LocatorContext, LocatorProjection, RefMarker,
-    declaration_fields,
+    AnchorName, ContainerName, DeclarationContext, DetachedName, IdentifierContext, IdentifierKind,
+    IdentifierPool, Label, LocatorContext, LocatorProjection, RefMarker, declaration_fields,
 };
 
 /// A generated CSS identifier with the identity of its owner.
@@ -128,13 +127,32 @@ impl From<IdentifierKind> for GeneratedSymbolKind {
     }
 }
 
-impl From<AssetKind> for GeneratedSymbolKind {
-    fn from(kind: AssetKind) -> Self {
+/// An asset kind whose declaration defines CSS under a generated name.
+///
+/// Refs and stored variants have other naming paths: a ref names its marker and
+/// projections, and a stored variant has no name.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(in crate::compiler) enum DefinitionKind {
+    /// A `style.keyframes()` declaration.
+    Keyframes,
+    /// A `style.viewTransition()` declaration.
+    ViewTransition,
+}
+
+impl From<DefinitionKind> for AssetKind {
+    fn from(kind: DefinitionKind) -> Self {
         match kind {
-            AssetKind::Style => Self::Style,
-            AssetKind::Ref => Self::Ref,
-            AssetKind::Keyframes => Self::Keyframes,
-            AssetKind::ViewTransition => Self::ViewTransition,
+            DefinitionKind::Keyframes => Self::Keyframes,
+            DefinitionKind::ViewTransition => Self::ViewTransition,
+        }
+    }
+}
+
+impl From<DefinitionKind> for GeneratedSymbolKind {
+    fn from(kind: DefinitionKind) -> Self {
+        match kind {
+            DefinitionKind::Keyframes => Self::Keyframes,
+            DefinitionKind::ViewTransition => Self::ViewTransition,
         }
     }
 }
@@ -279,16 +297,15 @@ fn kind_name(kind: AssetKind) -> &'static str {
         AssetKind::Ref => "ref",
         AssetKind::Keyframes => "keyframes",
         AssetKind::ViewTransition => "view-transition",
+        AssetKind::StoredVariant => "stored-variant",
     }
 }
 
 /// The CSS namespace a named asset's generated name is written into.
-fn kind_pool(kind: AssetKind) -> IdentifierPool {
+fn kind_pool(kind: DefinitionKind) -> IdentifierPool {
     match kind {
-        AssetKind::Style => IdentifierPool::ClassToken,
-        AssetKind::Ref => IdentifierPool::AnchorName,
-        AssetKind::Keyframes => IdentifierPool::KeyframesName,
-        AssetKind::ViewTransition => IdentifierPool::ViewTransitionClass,
+        DefinitionKind::Keyframes => IdentifierPool::KeyframesName,
+        DefinitionKind::ViewTransition => IdentifierPool::ViewTransitionClass,
     }
 }
 
@@ -332,36 +349,16 @@ pub(super) fn identity_declaration(reference: &AssetReference) -> DeclarationCon
 /// Returns the host generator's failure for the declaration's family.
 fn declared_name(
     context: &IdentifierContext,
-    kind: AssetKind,
+    kind: DefinitionKind,
     declaration: &DeclarationContext,
 ) -> Result<LeanStr, CompileDiagnostic> {
     let name = match kind {
-        AssetKind::Keyframes => context.keyframes_name(declaration)?.as_str().into(),
-        AssetKind::ViewTransition => context.view_transition_class(declaration)?.as_str().into(),
-        AssetKind::Style => context
-            .class_name(&ClassContext {
-                module: declaration.module.clone(),
-                namespace: (LeanString::new()).into(),
-                call: declaration.start,
-                branch: declaration.binding.to_lean_str(),
-            })?
-            .as_str()
-            .into(),
-        AssetKind::Ref => context.anchor_name(&locator(declaration))?.as_str().into(),
+        DefinitionKind::Keyframes => context.keyframes_name(declaration)?.as_str().into(),
+        DefinitionKind::ViewTransition => {
+            context.view_transition_class(declaration)?.as_str().into()
+        }
     };
     Ok(name)
-}
-
-/// The locator position one declaration names, without a projection.
-fn locator(declaration: &DeclarationContext) -> LocatorContext {
-    LocatorContext {
-        module: declaration.module.clone(),
-        start: declaration.start,
-        end: declaration.end,
-        binding: declaration.binding.clone(),
-        label: declaration.label.clone(),
-        projection: None,
-    }
 }
 
 /// Builds the reportable symbol for a named class or motion declaration.
@@ -375,7 +372,7 @@ fn locator(declaration: &DeclarationContext) -> LocatorContext {
 pub(super) fn generated_symbol(
     context: &IdentifierContext,
     module_id: &ModuleId,
-    kind: AssetKind,
+    kind: DefinitionKind,
     definition: &Spanned<LeanStr>,
     label: Option<&Spanned<LeanStr>>,
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
@@ -389,7 +386,7 @@ pub(super) fn generated_symbol(
         pool: kind_pool(kind),
         identity: owner_declaration_identity(
             module_id,
-            kind_name(kind),
+            kind_name(kind.into()),
             definition.span.start.0,
             definition.span.end.0,
             &definition.value,
@@ -485,7 +482,7 @@ pub(super) fn generated_class_symbol(
 pub(super) fn definition_name_symbol(
     context: &IdentifierContext,
     reference: &AssetReference,
-    kind: AssetKind,
+    kind: DefinitionKind,
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
     let name = declared_name(context, kind, &identity_declaration(reference))?;
     Ok(GeneratedSymbol {
@@ -575,12 +572,13 @@ pub(crate) fn projection_symbol(
 }
 #[cfg(test)]
 mod tests {
+    use lean_string::{LeanString, ToLeanStr};
     use stillwind_source::FileId;
 
     use super::*;
     use crate::identifiers::{
-        DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode, KeyframesNameRequest,
-        Label, NameRequest, RefMarker,
+        ClassContext, DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
+        KeyframesNameRequest, Label, NameRequest, RefMarker,
     };
 
     fn identifiers() -> IdentifierContext {
@@ -677,9 +675,8 @@ mod tests {
         let identifiers = identifiers();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
         for (kind, prefix) in [
-            (AssetKind::Ref, "sw-a-"),
-            (AssetKind::Keyframes, "sw-kf-"),
-            (AssetKind::ViewTransition, "sw-vt-"),
+            (DefinitionKind::Keyframes, "sw-kf-"),
+            (DefinitionKind::ViewTransition, "sw-vt-"),
         ] {
             let symbol = generated_symbol(
                 &identifiers,
@@ -699,7 +696,7 @@ mod tests {
                 symbol.identity,
                 owner_declaration_identity(
                     &ModuleId::from("src/x.tsx"),
-                    kind_name(kind),
+                    kind_name(kind.into()),
                     0,
                     3,
                     &name.value

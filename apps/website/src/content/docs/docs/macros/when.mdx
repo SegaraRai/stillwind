@@ -1,0 +1,78 @@
+---
+title: style.when()
+description: Store a variant sequence, such as a ref condition, and use it in several style() calls.
+slug: docs/macros/when
+---
+
+`style.when(variants)` stores a sequence of variants in a variable. Use the
+variable in [`style()`](/docs/macros/style) where you would write the variants.
+This helps when several elements need the same
+[ref condition](/docs/macros/ref/condition), because a ref call must otherwise
+be repeated in each `style()` call.
+
+## Example
+
+<CompiledExample>
+
+```tsx
+import { style } from "stillwind/react";
+
+const card = style.ref("card");
+const cardHover = style.when(card("hover"));
+
+export const root = style(card, "rounded-lg border");
+export const title = style({ [cardHover]: "text-blue-600" });
+export const arrow = style(`${cardHover}:translate-x-1`);
+```
+
+</CompiledExample>
+
+`title` and `arrow` change while the card is hovered, as if each one wrote
+`card("hover")` itself.
+
+## Inputs
+
+The argument is one sequence of variants, and every variant in it must match.
+The final colon is optional.
+
+| Form                                                          | Example                                 |
+| ------------------------------------------------------------- | --------------------------------------- |
+| A string literal of variants                                  | `style.when("hover:md")`                |
+| A [ref condition](/docs/macros/ref/condition), with `.in()`   | `style.when(card("hover").in(list))`    |
+| A [container query](/docs/macros/ref/at)                      | `style.when(card.at("width >= 40rem"))` |
+| A template literal whose interpolations are complete variants | ``style.when(`md:${card("hover")}`)``   |
+| Another stored variant                                        | `style.when(cardHover)`                 |
+
+The rules for each variant are the same as when you write it directly in
+`style()`. An interpolation in a template literal must be a ref condition, a
+container query, or a stored variant, followed by `:` or at the end.
+
+Write the call as the initial value of a variable, outside other Stillwind
+calls. Declare a stored variant before another `style.when()` call uses it.
+A `style()` call can use one that is declared later in the module.
+
+[invalid-stored-variant](/docs/lints/invalid-stored-variant) reports an
+argument that is not a sequence of variants. The call accepts one argument.
+
+## Uses
+
+Use a stored variant in these positions:
+
+- a computed key in a `style()` object, such as `{ [cardHover]: "underline" }`;
+- an interpolation in a utility template, followed by `:`, such as
+  `` `${cardHover}:underline` ``;
+- the argument of another `style.when()`.
+
+You can export the variable and import it in another module. Each use must
+refer to one stored variant. A choice at runtime, such as
+`[active ? cardHover : cardFocus]`, does not work, because the compiler
+expands the variants at build time. Write a key for each stored variant instead.
+
+[`style.cva()`](/docs/macros/cva) values and [`.in()`](/docs/macros/ref/in)
+do not accept a stored variant.
+
+## Output
+
+The compiler replaces the call with `undefined`, and each use with the stored
+variants. The call adds no CSS by itself. JavaScript that reads the variable at
+runtime gets `undefined`.

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "stored-variants",
+  "title": "Stored variants",
+  "description": "style.when() declarations store ref, container, and plain variant sequences, compose them, and reach style() keys and utility templates in other modules through a barrel re-export.",
+  "tags": ["typescript", "ref", "variant", "cross-module", "re-export"],
+  "theme": "stillwind.css",
+  "sources": ["src/conditions.ts", "src/barrel.ts", "src/menu.ts"]
+}

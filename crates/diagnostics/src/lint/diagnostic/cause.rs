@@ -223,6 +223,18 @@ pub enum LintDiagnostic {
         /// What the argument or call supplies instead.
         reason: LeanStr,
     },
+    /// A `style.when()` call does not have exactly one supported argument, or its
+    /// argument is not a variant sequence. Uses of the declaration contribute nothing.
+    #[error("style.when() requires one static variant sequence: {reason}")]
+    InvalidStoredVariantArgument {
+        /// What the argument or call supplies instead.
+        reason: LeanStr,
+    },
+    /// A key or template substitution can be one of several `style.when()`
+    /// declarations. A key cannot choose its variants at runtime, so the input
+    /// contributes nothing.
+    #[error("a stored variant must resolve to one style.when() declaration")]
+    AmbiguousStoredVariant,
     /// A `style.css()` input is not a static utility string, array, or variant group.
     /// The input contributes no rules.
     #[error(
@@ -878,6 +890,9 @@ impl LintDiagnostic {
             Self::InvalidViewTransitionVariant => LintKind::InvalidViewTransitionVariant,
             Self::InvalidMediaArgument { .. } | Self::NonMediaVariant { .. } => {
                 LintKind::InvalidMediaQuery
+            }
+            Self::InvalidStoredVariantArgument { .. } | Self::AmbiguousStoredVariant => {
+                LintKind::InvalidStoredVariant
             }
             Self::InvalidCssInput { .. } | Self::InvalidCssOption { .. } => {
                 LintKind::InvalidCssInput
