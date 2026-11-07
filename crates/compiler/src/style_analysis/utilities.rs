@@ -6,14 +6,12 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lean_string::{LeanStr, ToLeanStr};
-
-use stillwind_css::{properties_interfere, property_covers};
+use stillwind_css::{properties_interfere, property_covers, reads_written_value};
 use stillwind_diagnostics::{Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind};
-use stillwind_source::JoinText;
 
 use super::composition::ResolvedSupply;
-use super::{ResolvedStyle, SupplyKind, UseId};
+use super::{DeclarationValue, ResolvedStyle, RuleContext, SupplyKind, UseId};
+use crate::utility_conflicts::{PropertyPairs, conflict_notes, describe_overlaps};
 
 pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     let settings = &style.root.lint_settings;
@@ -58,6 +56,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
             {
                 continue;
             }
+            let mut notes = Vec::new();
             let diagnostic = if candidate == previous_candidate {
                 if !duplicate {
                     continue;
@@ -81,10 +80,11 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                 if overlaps.is_empty() {
                     continue;
                 }
+                notes = conflict_notes(&overlaps, allow);
                 LintDiagnostic::ConflictingUtilities {
                     previous: previous_candidate.clone(),
                     utility: candidate.clone(),
-                    properties: (overlaps.into_iter().collect::<Vec<_>>().join_text(", ")).into(),
+                    properties: describe_overlaps(&overlaps),
                 }
             };
             if reported.insert((
@@ -98,6 +98,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                     span: previous.supply.site.span,
                     message: Some("previous utility".into()),
                 });
+                finding.info.notes = notes;
                 findings.push(finding);
             }
         }
@@ -132,7 +133,7 @@ fn overlapping_properties(
     current: &[&ResolvedSupply<'_>],
     previous: &[&ResolvedSupply<'_>],
     allow: bool,
-) -> BTreeSet<LeanStr> {
+) -> PropertyPairs {
     let mut overlaps = BTreeSet::new();
     for a in current {
         let SupplyKind::Declaration {
@@ -163,15 +164,52 @@ fn overlapping_properties(
                 || !properties_interfere(ap, bp)
                 || ap == bp && av == bv && ai == bi
                 || allow && (property_covers(ap, bp) || property_covers(bp, ap))
+                || reads_site_value(ap, av, bp, bv, bc, previous)
+                || reads_site_value(bp, bv, ap, av, ac, current)
             {
                 continue;
             }
-            overlaps.insert(if ap == bp {
-                ap.clone()
-            } else {
-                format_args!("{bp} and {ap}").to_lean_str()
-            });
+            overlaps.insert((bp.clone(), ap.clone()));
         }
     }
     overlaps
+}
+
+/// Returns whether the reader declaration computes the value of the writer declaration
+/// in either order, because the writer's utility also sets the custom property that the
+/// reader copies. `writer_site` holds every declaration of the writer's utility.
+fn reads_site_value(
+    reader_property: &str,
+    reader_value: &DeclarationValue,
+    writer_property: &str,
+    writer_value: &DeclarationValue,
+    writer_context: &RuleContext,
+    writer_site: &[&ResolvedSupply<'_>],
+) -> bool {
+    let (DeclarationValue::Css(reader_value), DeclarationValue::Css(writer_value)) =
+        (reader_value, writer_value)
+    else {
+        return false;
+    };
+    reads_written_value(
+        reader_property,
+        reader_value,
+        writer_property,
+        writer_value,
+        |name| {
+            writer_site
+                .iter()
+                .find_map(|supply| match &supply.supply.kind {
+                    SupplyKind::Declaration {
+                        property,
+                        value: DeclarationValue::Css(value),
+                        context,
+                        ..
+                    } if property.as_str() == name && context == writer_context => {
+                        Some(value.as_str())
+                    }
+                    _ => None,
+                })
+        },
+    )
 }

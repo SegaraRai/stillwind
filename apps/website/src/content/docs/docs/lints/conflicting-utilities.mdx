@@ -31,6 +31,13 @@ style("p-4");
   them, such as `p-2 md:p-4`.
 - If one utility overrides a shared style, pass the shared style as a base. See
   [Override a style](/docs/guides/style#override-a-style).
+- If a physical utility such as `pt-2` meets a logical utility such as `px-2`, use
+  logical utilities for both, such as `pbs-2`. The writing mode decides how
+  physical and logical properties overlap.
+
+A utility that sets a side, such as `border-t` or `divide-y`, and a style utility,
+such as `border-dashed` or `divide-dashed`, do not conflict. The side reads the
+style through a custom property that the style utility also sets.
 
 ## Options
 

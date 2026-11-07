@@ -211,6 +211,24 @@ fn candidates_of_one_application_are_compared() {
 }
 
 #[test]
+fn a_width_utility_and_a_style_utility_that_sets_its_variable_do_not_compete() {
+    assert_eq!(
+        default_findings(
+            ".a { @apply border-t border-dashed; } .b { @apply divide-y divide-dashed; }"
+        ),
+        []
+    );
+    assert_eq!(
+        default_findings(".a { @apply border-dashed border-dotted; }")
+            .iter()
+            .filter(|(kind, _, _)| *kind == LintKind::ConflictingUtilities)
+            .map(|(kind, covered, _)| (*kind, covered.as_str()))
+            .collect::<Vec<_>>(),
+        [(LintKind::ConflictingUtilities, "border-dotted")]
+    );
+}
+
+#[test]
 fn selector_variants_are_checked_against_the_rule_selector() {
     assert_eq!(
         default_findings(".a { @apply [:root]:flex; @variant [:root] { color: red; } }"),

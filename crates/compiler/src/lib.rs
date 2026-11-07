@@ -35,6 +35,7 @@
 //!   markers.
 //! - [`stylesheet_map`] retains the origins of CSS ranges.
 //! - [`transforms`] converts source edits to UTF-16 mappings for host source maps.
+//! - [`utility_conflicts`] describes and explains competing utilities.
 
 #![cfg_attr(
     not(test),
@@ -65,6 +66,7 @@ mod runtime;
 mod style_analysis;
 mod stylesheet_map;
 mod transforms;
+mod utility_conflicts;
 
 pub use banner::{finalize_stylesheet, stylesheet_banners};
 pub use compiled_module::{

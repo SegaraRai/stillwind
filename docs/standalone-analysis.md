@@ -672,7 +672,18 @@ utilities supplied directly to one `style()` call, including its arrays and
 variant wrappers. Comparisons require compatible source conditions and identical
 expanded CSS selector and at-rule contexts. Composed bases and ref providers use
 the existing composition rules. Identical declarations shared by separate utilities
-do not conflict. Duplicate findings compare candidate spellings.
+do not conflict. A declaration whose value is only `var(--x)` does not conflict with a
+utility that sets `--x` and the same or a covering property to one value, because the
+result does not depend on their order. For example, `border-t` writes
+`border-top-style: var(--tw-border-style)`, and `border-dashed` writes
+`--tw-border-style: dashed` and `border-style: dashed`. Duplicate findings compare
+candidate spellings.
+
+A conflict finding has notes that explain the overlap from Webref property data.
+When every overlap is a shorthand and a property that it covers, and
+`allowShorthandOverrides` is `false`, a note names that option. A note names the
+Webref logical group of a physical and a logical property that overlap only in some
+writing modes, such as `padding-inline` and `padding-top`.
 
 `conflicting-utilities.allowShorthandOverrides` defaults to `false`, so `p-2 px-4`
 reports an overlap. Setting it to `true` allows a narrower declaration to override

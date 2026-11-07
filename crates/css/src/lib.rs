@@ -75,7 +75,7 @@ pub use colors::{
 pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
     custom_property_references, custom_property_usage, extract_authored_property_names,
-    extract_authored_property_syntaxes, parse_property_definitions,
+    extract_authored_property_syntaxes, parse_property_definitions, sole_var_reference,
 };
 pub use declarations::{
     DeclarationError, ParsedDeclaration, declaration_ranges, declaration_values,
@@ -108,7 +108,8 @@ pub use values::{
     CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,
     declaration_is_physical, inspect_css_value, is_length_unit, media_has_size_comparison,
     media_size_comparisons, policy_glob_matches, properties_interfere, property_covers,
-    property_value_domains, repeated_longhands, value_is_well_formed,
+    property_value_domains, reads_written_value, repeated_longhands, value_is_well_formed,
+    writing_mode_group,
 };
 
 #[cfg(feature = "minify")]

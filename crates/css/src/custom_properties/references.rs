@@ -6,7 +6,8 @@
 //! is not reported. The scan does not parse declarations or rules, so a declaration
 //! such as `--x: 1` and a reference such as `var(--x)` are reported the same way. The
 //! result is a cheap dependency set for activation decisions. [`super::usage`]
-//! classifies properties precisely from the syntax tree.
+//! classifies properties precisely from the syntax tree. [`sole_var_reference`] instead
+//! recognizes a declaration value that only copies one custom property.
 
 use std::collections::BTreeSet;
 
@@ -25,6 +26,20 @@ pub fn custom_property_references(css: &str) -> BTreeSet<LeanStr> {
     let mut names = BTreeSet::new();
     collect_names(&mut Parser::new(css), &mut names);
     names
+}
+
+/// Returns the custom property name when `value` consists of one `var(--name)`
+/// reference without a fallback, such as `var(--tw-border-style)`.
+///
+/// Surrounding whitespace is ignored. A value with a fallback, a priority suffix, or any
+/// other token returns `None`, so the caller can rely on the value being exactly the
+/// computed value of the named property.
+pub fn sole_var_reference(value: &str) -> Option<&str> {
+    let name = value.trim().strip_prefix("var(")?.strip_suffix(')')?.trim();
+    (name.len() > 2
+        && name.starts_with("--")
+        && !name.contains(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '!')))
+    .then_some(name)
 }
 
 fn collect_names(parser: &mut Parser<'_>, names: &mut BTreeSet<LeanStr>) {
@@ -95,6 +110,23 @@ mod tests {
                 .map(LeanStr::from)
             )
         );
+    }
+
+    #[test]
+    fn sole_var_reference_accepts_only_a_bare_reference() {
+        assert_eq!(
+            sole_var_reference(" var( --tw-border-style ) "),
+            Some("--tw-border-style")
+        );
+        for value in [
+            "var(--x, solid)",
+            "var(--x) !important",
+            "calc(var(--x))",
+            "var(x)",
+            "dashed",
+        ] {
+            assert_eq!(sole_var_reference(value), None, "{value}");
+        }
     }
 
     #[test]

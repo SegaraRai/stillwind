@@ -15,6 +15,8 @@ use std::collections::BTreeSet;
 
 use lean_string::{LeanStr, ToLeanStr};
 
+use crate::custom_properties::sole_var_reference;
+
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for
 /// supported property names and their formal value syntax.
@@ -130,6 +132,54 @@ pub fn property_covers(wider: &str, narrower: &str) -> bool {
     physical.len() == 4
         && physical.iter().all(|name| wide.contains(*name))
         && leaves.iter().all(|name| logical_group(name) == Some(group))
+}
+
+/// Returns whether the declaration `reader_property: reader_value` computes the value
+/// that the declaration `writer_property: writer_value` writes, whichever of the two
+/// applies last.
+///
+/// This holds when `reader_value` is a bare `var(--name)` reference, `writer_property`
+/// is `reader_property` or a shorthand that covers it, and `writer_custom` returns
+/// `writer_value` for `--name`. The caller must make `writer_custom` return the value
+/// that the writer's own rule assigns to a custom property, under the same selector and
+/// conditions. For example, `border-top-style: var(--tw-border-style)` reads the value
+/// of a rule that sets `--tw-border-style: dashed; border-style: dashed`.
+pub fn reads_written_value<'a>(
+    reader_property: &str,
+    reader_value: &str,
+    writer_property: &str,
+    writer_value: &str,
+    writer_custom: impl FnOnce(&str) -> Option<&'a str>,
+) -> bool {
+    let Some(name) = sole_var_reference(reader_value) else {
+        return false;
+    };
+    (reader_property.eq_ignore_ascii_case(writer_property)
+        || property_covers(writer_property, reader_property))
+        && writer_custom(name).is_some_and(|value| value.trim() == writer_value.trim())
+}
+
+/// Returns the Webref logical group through which `left` and `right` interfere when they
+/// share no longhand, such as `padding` for `padding-inline` and `padding-top`.
+///
+/// Such properties overlap only in some writing modes. The function returns `None` when
+/// the properties share a longhand or belong to no common logical group.
+pub fn writing_mode_group(left: &str, right: &str) -> Option<&'static str> {
+    let left_family = longhand_family(left);
+    let right_family = longhand_family(right);
+    if left_family.iter().any(|name| right_family.contains(name)) {
+        return None;
+    }
+    left_family.iter().find_map(|left_name| {
+        let group = logical_group(left_name)?;
+        right_family
+            .iter()
+            .any(|right_name| {
+                logical_group(right_name) == Some(group)
+                    && is_logical(left_name) != is_logical(right_name)
+            })
+            .then_some(group)
+    })
 }
 
 /// Returns the physical longhands of one Webref logical group.
