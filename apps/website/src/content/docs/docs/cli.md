@@ -63,7 +63,10 @@ vp exec stillwind lint --max-warnings 0
 ```
 
 `lint` reports findings and saves no files. Text output shows a `help:` message when
-a finding has a suggested edit. Not every suggested edit is an automatic fix.
+a finding has a suggested edit. Not every suggested edit is an automatic fix. A
+`docs:` line gives the page that explains the rule or error. It is the page in the
+installed `stillwind` package when the package has one, and otherwise the page on
+this website.
 
 | Option               | Effect                                                                |
 | -------------------- | --------------------------------------------------------------------- |

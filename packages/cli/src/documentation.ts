@@ -2,6 +2,8 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
+import { documentationSection, documentationUrl } from "@stillwind/analysis";
+
 /**
  * Finds the documentation page of a report code.
  *
@@ -11,12 +13,12 @@ import path from "node:path";
  * Otherwise, the page on the website. Codes without a page return undefined.
  */
 export function documentationPage(code: string, root: string | undefined): string | undefined {
-  const section = /^SW\d+$/.test(code) ? "errors" : /^[a-z][a-z-]*$/.test(code) ? "lints" : null;
+  const section = documentationSection(code);
   if (!section) {
     return undefined;
   }
   const file = root && path.join(root, "docs", section, `${code}.md`);
-  return file && existsSync(file) ? file : `https://stillwind.dev/docs/${section}/${code}`;
+  return file && existsSync(file) ? file : documentationUrl(code);
 }
 
 /**

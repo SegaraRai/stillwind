@@ -7,7 +7,8 @@ description: Install the Stillwind extension, sort and fix on save, and connect 
 The Stillwind language server shows diagnostics, generated CSS, and completion
 from the active design system while you edit. It reads the same
 `stillwind.config.ts` as the CLI and the build, and it checks unsaved files too.
-Create that file with [Getting started](/docs) first.
+Create that file with [Getting started](/docs) first. The code of each diagnostic
+links to the page on this website that explains the rule or error.
 
 ## VS Code
 
