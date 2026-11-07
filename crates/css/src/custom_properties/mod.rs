@@ -18,7 +18,7 @@ mod references;
 mod registration;
 mod usage;
 
-pub use references::{custom_property_references, sole_var_reference};
+pub use references::{custom_property_references, var_reference};
 pub use registration::{
     CustomPropertyActivation, CustomPropertyDefinition, extract_authored_property_names,
     extract_authored_property_syntaxes, parse_property_definitions,

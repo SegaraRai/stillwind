@@ -6,7 +6,7 @@ use napi::Error;
 use napi_derive::napi;
 
 use stillwind_compiler::{
-    CompilerOptions, Identifiers, ModuleCompiler, StyleResolver, check_style,
+    CompilerOptions, DesignSystemQuery, Identifiers, ModuleCompiler, StyleResolver, check_style,
     is_style_analysis_lint,
 };
 use stillwind_design_system::DesignSystemSnapshot;
@@ -94,6 +94,7 @@ pub fn compile_project_input(
         })
         .collect::<Vec<_>>();
     if options.lint_settings().has_enabled_rules() {
+        let query = DesignSystemQuery::new(snapshot.clone(), options.clone());
         let mut resolver =
             StyleResolver::new(results.iter().flat_map(|artifact| &artifact.style_effects));
         let findings = results
@@ -106,6 +107,7 @@ pub fn compile_project_input(
                     .filter_map(|effects| resolver.resolve(effects.identity()))
                     .flat_map(|style| check_style(&style))
                     .collect::<Vec<_>>();
+                query.explain_conflicts(&mut findings);
                 filter_lint_findings(&scan.source, &scan.lint_directives, &mut findings);
                 findings
             })

@@ -6,8 +6,8 @@
 //! is not reported. The scan does not parse declarations or rules, so a declaration
 //! such as `--x: 1` and a reference such as `var(--x)` are reported the same way. The
 //! result is a cheap dependency set for activation decisions. [`super::usage`]
-//! classifies properties precisely from the syntax tree. [`sole_var_reference`] instead
-//! recognizes a declaration value that only copies one custom property.
+//! classifies properties precisely from the syntax tree. [`var_reference`] instead
+//! recognizes a declaration value that copies one custom property.
 
 use std::collections::BTreeSet;
 
@@ -28,17 +28,36 @@ pub fn custom_property_references(css: &str) -> BTreeSet<LeanStr> {
     names
 }
 
-/// Returns the custom property name when `value` consists of one `var(--name)`
-/// reference without a fallback, such as `var(--tw-border-style)`.
+/// Returns the custom property name when `value` consists of one `var()` reference,
+/// such as `var(--tw-border-style)` or `var(--tw-leading, var(--text-sm--line-height))`.
 ///
-/// Surrounding whitespace is ignored. A value with a fallback, a priority suffix, or any
-/// other token returns `None`, so the caller can rely on the value being exactly the
-/// computed value of the named property.
-pub fn sole_var_reference(value: &str) -> Option<&str> {
-    let name = value.trim().strip_prefix("var(")?.strip_suffix(')')?.trim();
+/// Surrounding whitespace is ignored. The fallback does not take part: when the named
+/// property has a value, the reference computes to that value. A value with a priority
+/// suffix or any token outside the `var()` returns `None`.
+pub fn var_reference(value: &str) -> Option<&str> {
+    let inner = value.trim().strip_prefix("var(")?;
+    let mut depth = 0_usize;
+    let mut end = None;
+    for (index, character) in inner.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' if depth == 0 => {
+                end = Some(index);
+                break;
+            }
+            ')' => depth -= 1,
+            _ => {}
+        }
+    }
+    let end = end?;
+    if end + 1 != inner.len() {
+        return None;
+    }
+    let inner = &inner[..end];
+    let name = inner.split_once(',').map_or(inner, |(name, _)| name).trim();
     (name.len() > 2
         && name.starts_with("--")
-        && !name.contains(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '!')))
+        && !name.contains(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '!')))
     .then_some(name)
 }
 
@@ -113,19 +132,23 @@ mod tests {
     }
 
     #[test]
-    fn sole_var_reference_accepts_only_a_bare_reference() {
+    fn var_reference_accepts_one_reference_with_or_without_a_fallback() {
         assert_eq!(
-            sole_var_reference(" var( --tw-border-style ) "),
+            var_reference(" var( --tw-border-style ) "),
             Some("--tw-border-style")
         );
+        assert_eq!(
+            var_reference("var(--tw-leading, var(--text-sm--line-height))"),
+            Some("--tw-leading")
+        );
         for value in [
-            "var(--x, solid)",
             "var(--x) !important",
+            "var(--a) + var(--b)",
             "calc(var(--x))",
             "var(x)",
             "dashed",
         ] {
-            assert_eq!(sole_var_reference(value), None, "{value}");
+            assert_eq!(var_reference(value), None, "{value}");
         }
     }
 

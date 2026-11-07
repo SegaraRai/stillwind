@@ -1,9 +1,9 @@
 # Standalone analysis
 
 Stillwind analysis reads source and semantic information without starting a bundler.
-`@stillwind/cli` wraps sorting, lint, inspection, design-system lookups, and stdio commands. `@stillwind/analysis` owns analysis
-services, and `@stillwind/language-server` owns LSP handlers and Node/browser transports.
-The LSP can run independently of the CLI.
+`@stillwind/cli` wraps sorting, lint, inspection, design-system lookups, and stdio commands.
+`@stillwind/analysis` owns analysis services, and `@stillwind/language-server` owns LSP
+handlers and Node/browser transports. The LSP can run independently of the CLI.
 
 Node configuration runs in an isolated worker. Configuration stdout goes to stderr,
 so it cannot corrupt CLI JSON or LSP messages. Analysis does not evaluate application modules.
@@ -672,11 +672,13 @@ utilities supplied directly to one `style()` call, including its arrays and
 variant wrappers. Comparisons require compatible source conditions and identical
 expanded CSS selector and at-rule contexts. Composed bases and ref providers use
 the existing composition rules. Identical declarations shared by separate utilities
-do not conflict. A declaration whose value is only `var(--x)` does not conflict with a
-utility that sets `--x` and the same or a covering property to one value, because the
-result does not depend on their order. For example, `border-t` writes
-`border-top-style: var(--tw-border-style)`, and `border-dashed` writes
-`--tw-border-style: dashed` and `border-style: dashed`. Duplicate findings compare
+do not conflict. A declaration whose value is one `var(--x)` reference, with or
+without a fallback, does not conflict with a utility that sets `--x` and the same or a
+covering property to one value, because the result does not depend on their order.
+For example, `border-t` writes `border-top-style: var(--tw-border-style)`, and
+`border-dashed` writes `--tw-border-style: dashed` and `border-style: dashed`.
+`text-sm` writes `line-height: var(--tw-leading, ...)`, and `leading-relaxed` writes
+`--tw-leading` and `line-height` with the same value. Duplicate findings compare
 candidate spellings.
 
 A conflict finding has notes that explain the overlap from Webref property data.
@@ -684,6 +686,18 @@ When every overlap is a shorthand and a property that it covers, and
 `allowShorthandOverrides` is `false`, a note names that option. A note names the
 Webref logical group of a physical and a logical property that overlap only in some
 writing modes, such as `padding-inline` and `padding-top`.
+
+For such a pair, `DesignSystemQuery::explain_conflicts` extends that note with a named
+logical utility when the physical utility writes one declaration. The text is
+conditional ("to use logical properties, replace ...") because the rule does not prefer
+logical properties over physical ones. It maps the physical property to its logical
+counterpart in the `horizontal-tb` writing mode with the `ltr` direction, as CSS Logical
+Properties defines it, and keeps the counterpart only when Webref lists it in the same
+logical group. It then searches the canonical spelling of the arbitrary property with the
+same value and variants, such as `[padding-block-start:calc(var(--spacing) * 2)]`. The
+note names the result, such as `pbs-2`, only when it is not an arbitrary property. When
+the finding has no note for the group, the replacement becomes its own note. Hosts call
+this method after `check_style`, and the stylesheet lint calls it for `@apply`.
 
 `conflicting-utilities.allowShorthandOverrides` defaults to `false`, so `p-2 px-4`
 reports an overlap. Setting it to `true` allows a narrower declaration to override

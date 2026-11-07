@@ -211,10 +211,10 @@ fn candidates_of_one_application_are_compared() {
 }
 
 #[test]
-fn a_width_utility_and_a_style_utility_that_sets_its_variable_do_not_compete() {
+fn a_utility_that_reads_a_variable_and_one_that_sets_it_do_not_compete() {
     assert_eq!(
         default_findings(
-            ".a { @apply border-t border-dashed; } .b { @apply divide-y divide-dashed; }"
+            ".a { @apply border-t border-dashed; } .b { @apply divide-y divide-dashed; } .c { @apply text-sm leading-relaxed; }"
         ),
         []
     );
@@ -225,6 +225,23 @@ fn a_width_utility_and_a_style_utility_that_sets_its_variable_do_not_compete() {
             .map(|(kind, covered, _)| (*kind, covered.as_str()))
             .collect::<Vec<_>>(),
         [(LintKind::ConflictingUtilities, "border-dotted")]
+    );
+}
+
+#[test]
+fn conflict_findings_of_an_application_offer_a_named_logical_utility() {
+    let snapshot = snapshot(".a { @apply px-2 pt-2; }", &CompilerOptions::default());
+    let notes: Vec<_> = lint_stylesheets(&snapshot, &CompilerOptions::default())
+        .findings
+        .iter()
+        .filter(|finding| finding.kind() == LintKind::ConflictingUtilities)
+        .flat_map(|finding| finding.notes.clone())
+        .collect();
+    assert!(
+        notes
+            .iter()
+            .any(|note| note.ends_with("to use logical properties, replace `pt-2` with `pbs-2`, which sets `padding-block-start` in place of `padding-top` in horizontal left-to-right writing modes")),
+        "{notes:?}"
     );
 }
 

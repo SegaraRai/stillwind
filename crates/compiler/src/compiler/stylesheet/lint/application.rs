@@ -260,6 +260,9 @@ fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<Compile
                 message: Some("previous utility".into()),
             });
             finding.info.notes = notes;
+            checker
+                .query
+                .explain_conflicts(std::slice::from_mut(&mut finding));
             checker.report(finding);
         }
     }

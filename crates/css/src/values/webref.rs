@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use crate::custom_properties::sole_var_reference;
+use crate::custom_properties::var_reference;
 
 /// One curated CSS property definition extracted from the CSSWG Web Living
 /// Standards by W3C Webref. The generated table is the source of truth for
@@ -138,12 +138,15 @@ pub fn property_covers(wider: &str, narrower: &str) -> bool {
 /// that the declaration `writer_property: writer_value` writes, whichever of the two
 /// applies last.
 ///
-/// This holds when `reader_value` is a bare `var(--name)` reference, `writer_property`
-/// is `reader_property` or a shorthand that covers it, and `writer_custom` returns
-/// `writer_value` for `--name`. The caller must make `writer_custom` return the value
-/// that the writer's own rule assigns to a custom property, under the same selector and
-/// conditions. For example, `border-top-style: var(--tw-border-style)` reads the value
-/// of a rule that sets `--tw-border-style: dashed; border-style: dashed`.
+/// This holds when `reader_value` is one `var(--name)` reference, with or without a
+/// fallback, `writer_property` is `reader_property` or a shorthand that covers it, and
+/// `writer_custom` returns `writer_value` for `--name`. The caller must make
+/// `writer_custom` return the value that the writer's own rule assigns to a custom
+/// property, under the same selector and conditions. Because the writer sets `--name`,
+/// the fallback never applies. For example, `border-top-style: var(--tw-border-style)`
+/// reads the value of a rule that sets `--tw-border-style: dashed; border-style: dashed`
+/// and `line-height: var(--tw-leading, 1.4)` reads the value of a rule that sets
+/// `--tw-leading: 1.6; line-height: 1.6`.
 pub fn reads_written_value<'a>(
     reader_property: &str,
     reader_value: &str,
@@ -151,7 +154,7 @@ pub fn reads_written_value<'a>(
     writer_value: &str,
     writer_custom: impl FnOnce(&str) -> Option<&'a str>,
 ) -> bool {
-    let Some(name) = sole_var_reference(reader_value) else {
+    let Some(name) = var_reference(reader_value) else {
         return false;
     };
     (reader_property.eq_ignore_ascii_case(writer_property)
@@ -180,6 +183,46 @@ pub fn writing_mode_group(left: &str, right: &str) -> Option<&'static str> {
             })
             .then_some(group)
     })
+}
+
+/// Returns the logical property that equals the physical `property` in the
+/// `horizontal-tb` writing mode with the `ltr` direction, such as `padding-block-start`
+/// for `padding-top` and `inset-block-start` for `top`.
+///
+/// The mapping follows CSS Logical Properties and Values: `top`, `bottom`, `left`, and
+/// `right` become `block-start`, `block-end`, `inline-start`, and `inline-end`, and
+/// `width` and `height` become `inline-size` and `block-size`. The result must be a
+/// logical member of the same Webref logical group, so the function returns `None` for
+/// a logical property and for a property without such a counterpart.
+pub fn horizontal_logical_counterpart(property: &str) -> Option<&'static str> {
+    let property = property.to_ascii_lowercase();
+    let group = logical_group(&property)?;
+    if is_logical(&property) {
+        return None;
+    }
+    let mut parts: Vec<&str> = property.split('-').collect();
+    let side = parts.iter().position(|part| {
+        matches!(
+            *part,
+            "top" | "bottom" | "left" | "right" | "width" | "height"
+        )
+    })?;
+    parts[side] = match parts[side] {
+        "top" => "block-start",
+        "bottom" => "block-end",
+        "left" => "inline-start",
+        "right" => "inline-end",
+        "width" => "inline-size",
+        _ => "block-size",
+    };
+    let replaced = parts.join("-");
+    [replaced.clone(), format!("{group}-{replaced}")]
+        .into_iter()
+        .find_map(|name| {
+            let definition = webref_property(&name)?;
+            (definition.logical_group == Some(group) && is_logical(definition.name))
+                .then_some(definition.name)
+        })
 }
 
 /// Returns the physical longhands of one Webref logical group.
@@ -334,6 +377,25 @@ pub(super) fn is_logical(property: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn horizontal_logical_counterparts_stay_in_their_logical_group() {
+        for (physical, logical) in [
+            ("padding-top", Some("padding-block-start")),
+            ("margin-right", Some("margin-inline-end")),
+            ("top", Some("inset-block-start")),
+            ("border-left-width", Some("border-inline-start-width")),
+            ("max-height", Some("max-block-size")),
+            ("padding-block-start", None),
+            ("color", None),
+        ] {
+            assert_eq!(
+                horizontal_logical_counterpart(physical),
+                logical,
+                "{physical}"
+            );
+        }
+    }
 
     #[test]
     fn property_lookup_matches_every_published_name_in_either_case() {

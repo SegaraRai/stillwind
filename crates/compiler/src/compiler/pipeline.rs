@@ -563,11 +563,14 @@ impl Compiler {
             result.style_effects.clear();
         } else if result.lint_settings.has_enabled_rules() {
             let mut resolver = StyleResolver::new(&result.style_effects);
+            let mut findings = Vec::new();
             for effects in &result.style_effects {
                 if let Some(style) = resolver.resolve(effects.identity()) {
-                    result.lint_findings.extend(check_style(&style));
+                    findings.extend(check_style(&style));
                 }
             }
+            query.explain_conflicts(&mut findings);
+            result.lint_findings.extend(findings);
         }
         finish_lint_findings(
             source,

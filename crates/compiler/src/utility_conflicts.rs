@@ -60,18 +60,23 @@ pub(crate) fn conflict_notes(
             continue;
         }
         if let Some(group) = writing_mode_group(previous, current) {
-            let note = format_args!(
-                "`{previous}` and `{current}` overlap through the `{group}` logical group, so \
-                 the writing mode decides which sides they share; set both with logical \
-                 properties or both with physical properties"
-            )
-            .to_lean_str();
+            let note = writing_mode_note(previous, current, group);
             if !notes.contains(&note) {
                 notes.push(note);
             }
         }
     }
     notes
+}
+
+/// Returns the note for `previous` and `current`, properties that overlap only through
+/// the Webref logical group `group`. [`crate::DesignSystemQuery::explain_conflicts`]
+/// finds this note again to append a replacement.
+pub(crate) fn writing_mode_note(previous: &str, current: &str, group: &str) -> LeanStr {
+    format_args!(
+        "`{previous}` and `{current}` overlap through the `{group}` logical group, so the writing mode decides which sides they share; set both with logical properties or both with physical properties"
+    )
+    .to_lean_str()
 }
 
 #[cfg(test)]

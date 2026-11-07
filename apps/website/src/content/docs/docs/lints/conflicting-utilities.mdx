@@ -32,12 +32,21 @@ style("p-4");
 - If one utility overrides a shared style, pass the shared style as a base. See
   [Override a style](/docs/guides/style#override-a-style).
 - If a physical utility such as `pt-2` meets a logical utility such as `px-2`, use
-  logical utilities for both, such as `pbs-2`. The writing mode decides how
-  physical and logical properties overlap.
+  logical utilities for both or physical utilities for both. The writing mode
+  decides how physical and logical properties overlap.
 
-A utility that sets a side, such as `border-t` or `divide-y`, and a style utility,
-such as `border-dashed` or `divide-dashed`, do not conflict. The side reads the
-style through a custom property that the style utility also sets.
+Some pairs do not conflict because one utility reads a custom property that the
+other utility sets to the value it writes, so the order does not change the result:
+
+- A side utility, such as `border-t` or `divide-y`, and a style utility, such as
+  `border-dashed` or `divide-dashed`
+- A font size utility, such as `text-sm`, and a `leading-*` utility
+
+When a physical utility meets a logical utility, the finding also shows how to
+use logical properties for both. It names a logical utility from your design
+system that writes the same value, such as `pbs-2` for `pt-2`, with the sides of
+horizontal left-to-right writing modes. The finding does not prefer logical
+properties; you can also replace the logical utility with physical utilities.
 
 ## Options
 

@@ -34,6 +34,6 @@ pub use properties::CssProperty;
 pub use syntax::value_is_well_formed;
 pub use validation::ValueType;
 pub use webref::{
-    csswg_formal_syntax, properties_interfere, property_covers, reads_written_value,
-    repeated_longhands, writing_mode_group,
+    csswg_formal_syntax, horizontal_logical_counterpart, properties_interfere, property_covers,
+    reads_written_value, repeated_longhands, writing_mode_group,
 };
