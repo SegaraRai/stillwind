@@ -115,7 +115,9 @@ fn check_interference(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                     current.supply.site.clone(),
                 ))
             {
-                findings.push(LintFinding::new(diagnostic, style.root.span));
+                let mut finding = LintFinding::new(diagnostic, style.root.span);
+                finding.info.notes = vec![ARGUMENT_ORDER_NOTE.into()];
+                findings.push(finding);
             }
         }
     }
@@ -223,6 +225,11 @@ fn describe_properties(a: &str, b: &str) -> LeanString {
     }
 }
 
+/// Note for order findings. Placement comes from composition and stylesheet order,
+/// so an author who swaps the arguments keeps the same CSS and the same finding.
+const ARGUMENT_ORDER_NOTE: &str =
+    "reordering the style() arguments does not change which declaration wins";
+
 /// Returns the order diagnostic for an already verified declaration overlap.
 /// Callers must first verify source coexistence, property overlap, and equal CSS
 /// contexts. Direct declarations only warn against an imported base. Two distinct
@@ -259,6 +266,8 @@ fn base_interference(
 
 #[cfg(test)]
 mod tests {
+    use lean_string::LeanStr;
+
     use stillwind_semantic::AssetKind;
 
     use super::super::test_support as f;
@@ -492,10 +501,9 @@ mod tests {
             ]),
         );
         let mut resolver = StyleResolver::new([&left, &right, &root]);
-        assert_eq!(
-            check_interference(&resolver.resolve(root.identity()).unwrap())[0].kind(),
-            LintKind::AmbiguousStyleBaseOrder
-        );
+        let findings = check_interference(&resolver.resolve(root.identity()).unwrap());
+        assert_eq!(findings[0].kind(), LintKind::AmbiguousStyleBaseOrder);
+        assert_eq!(findings[0].info.notes, [LeanStr::from(ARGUMENT_ORDER_NOTE)]);
         let ordered = local_style(
             30,
             StyleEffect::All(vec![

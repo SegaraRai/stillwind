@@ -94,14 +94,40 @@ The receiving call returns its own framework's props. The base's inline style an
 custom properties do not carry over, and [invalid-style-composition](/docs/lints/invalid-style-composition)
 reports them. Set them in the call that receives the base.
 
-When two independent bases in one call set the same property, their argument
-order does not decide which one wins.
-[ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order) reports
-this case.
-
 Store a base in a variable before you pass it. A `style()` call written
 directly inside another call produces no CSS, and
 [invalid-style-input](/docs/lints/invalid-style-input) reports it.
+
+## Argument order
+
+For utilities and bases, the position of an argument does not decide which
+declaration wins. A later argument does not override an earlier one:
+
+| Arguments                                                          | Which CSS comes later                                                                                            |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| Utilities without a condition, in strings, arrays, or variant keys | The stylesheet's order of utility definitions decides. The order in the call and in each string does not.        |
+| A base and the utilities of the call                               | The utilities of the call. `style("p-4", base)` and `style(base, "p-4")` produce the same CSS.                   |
+| Two bases                                                          | The base that is built on the other one. When neither is built on the other, the argument order does not decide. |
+| Items with a condition                                             | They come after the items without a condition, in the order in which you write them.                             |
+
+These calls produce the same CSS, and `p-4` wins in both:
+
+```tsx
+style("p-2", "p-4");
+style("p-4", "p-2");
+```
+
+Custom properties in the inline style follow argument order. When two
+arguments set the same custom property, the later one wins.
+
+Do not reorder arguments to fix a conflict. Reordering does not change the
+result, and it does not remove a finding of
+[conflicting-utilities](/docs/lints/conflicting-utilities),
+[ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order), or
+[interfering-imported-style-base](/docs/lints/interfering-imported-style-base).
+Remove the utility that should not apply, or build the overriding style on the
+other style. [CSS ordering](/docs/concepts/css-ordering) describes the complete
+rules.
 
 ## How props combine at runtime
 

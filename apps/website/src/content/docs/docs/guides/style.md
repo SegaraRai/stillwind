@@ -147,6 +147,17 @@ export function DeleteButton() {
 In this example, `dangerButton` has a red background because both background
 rules use equally specific selectors. The order of the class names does not
 affect the result. You can export a stored style and use it in other modules.
+When another module adds utilities that set the same property as the imported
+style, [interfering-imported-style-base](/docs/lints/interfering-imported-style-base)
+reports the call. Define the overriding style in the module that defines the
+base, and import that style instead.
+
+The order of the arguments does not affect the result either.
+`style("bg-red-600", button)` also produces a red background, and
+`style("p-4", "p-2")` produces the same CSS as `style("p-2", "p-4")`. To change
+which utility wins, remove the other utility or build a new style on a base. Do
+not reorder the arguments. See [Argument order](/docs/macros/style#argument-order)
+for the exceptions.
 
 More specific selectors and `!important` can change which declaration wins.
 See [CSS ordering](/docs/concepts/css-ordering) for variants, conditions, and multiple
