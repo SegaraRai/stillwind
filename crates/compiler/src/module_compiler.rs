@@ -474,9 +474,9 @@ fn collect_rule(expression: &RuleExpression, prefix: &str, candidates: &mut BTre
                 StyleVariant::Prefix(value) => {
                     format_args!("{prefix}{}", value.value).to_lean_string()
                 }
-                StyleVariant::Ref { .. } | StyleVariant::Container { .. } => {
-                    prefix.to_lean_string()
-                }
+                StyleVariant::Ref { .. }
+                | StyleVariant::Container { .. }
+                | StyleVariant::Alternatives(_) => prefix.to_lean_string(),
             };
             for input in inputs {
                 collect_rule(input, &prefix, candidates);

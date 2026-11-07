@@ -131,7 +131,7 @@ fn a_style_call_may_use_a_declaration_that_follows_it() {
 fn invalid_declarations_report_one_finding() {
     for declarations in [
         "const s = style.when();",
-        "const s = style.when('hover', 'focus');",
+        "const s = style.when('hover', '');",
         "const s = style.when(...['hover']);",
         "const s = style.when('');",
         "const s = style.when(`${'hover'}:`);",
@@ -169,7 +169,7 @@ fn invalid_declarations_report_one_finding() {
 fn an_imported_declaration_expands_through_checker_facts() {
     let provider_text = "import { style } from 'stillwind/react'; \
                          export const trigger = style.ref('trigger'); \
-                         export const hovered = style.when(`md:${trigger('hover')}`);";
+                         export const hovered = style.when(`md:${trigger('hover')}`, 'focus');";
     let provider = OxcSourceAnalyzer.scan(
         std::sync::Arc::new(SourceFile::new(FileId(3), None, None, provider_text).unwrap()),
         ModuleId::from("provider.tsx"),
@@ -243,4 +243,5 @@ fn an_imported_declaration_expands_through_checker_facts() {
     assert!(utilities.contains("@media (width >= 48rem)"), "{utilities}");
     assert!(utilities.contains(":where(.sw_trigger_"), "{utilities}");
     assert!(utilities.contains(":hover"), "{utilities}");
+    assert!(utilities.contains(":focus"), "{utilities}");
 }

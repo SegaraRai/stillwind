@@ -327,25 +327,12 @@ impl CallEmitter<'_> {
         choice: Option<(usize, usize)>,
     ) {
         let mut declarations = Vec::new();
-        if let Some(plan) = contribution
+        let plans = contribution
             .view_transitions
-            .first()
-            .and_then(|transition| transition.plan.as_ref())
-        {
-            let probe = rule_contribution(plan, "view-transition-class:initial;".into(), None);
-            for utility in &probe.utilities {
-                if let Ok(css) = render_utility_rule(
-                    "&",
-                    utility,
-                    self.theme,
-                    &utility.declaration,
-                    None,
-                    self.identifiers,
-                ) {
-                    collect_declarations(&css, "", &[], false, None, &mut declarations);
-                }
-            }
-        } else {
+            .iter()
+            .filter_map(|transition| transition.plan.as_ref())
+            .collect::<Vec<_>>();
+        if plans.is_empty() {
             declarations.push(SupplyKind::Declaration {
                 property: "view-transition-class".into(),
                 value: DeclarationValue::Css("initial".into()),
@@ -358,6 +345,20 @@ impl CallEmitter<'_> {
                 provider: false,
                 gate: None,
             });
+        } else {
+            let probe = rule_contribution(plans, "view-transition-class:initial;", None);
+            for utility in &probe.utilities {
+                if let Ok(css) = render_utility_rule(
+                    "&",
+                    utility,
+                    self.theme,
+                    &utility.declaration,
+                    None,
+                    self.identifiers,
+                ) {
+                    collect_declarations(&css, "", &[], false, None, &mut declarations);
+                }
+            }
         }
         let mut supplies = Vec::new();
         for declaration in declarations {

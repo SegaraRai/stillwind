@@ -38,11 +38,13 @@ pub(crate) enum StoredVariantUse {
 }
 
 impl<'a> MacroExtractor<'a> {
-    /// Reads one `style.when(variants)` call that initializes `binding`.
+    /// Reads one `style.when(...variants)` call that initializes `binding`.
     ///
-    /// The call is erased with its arguments, so the main visit does not report the
-    /// ref variants inside it as unconsumed uses. An invalid call adds a lint and
-    /// returns a definition without variants.
+    /// Each argument is one variant sequence. Several arguments become one
+    /// [`StyleVariant::Alternatives`] wrapper, which holds when any sequence holds.
+    /// The call is erased with its arguments, so the main visit does not report the ref
+    /// variants inside it as unconsumed uses. An invalid argument adds a lint, and the
+    /// definition then has no variants.
     pub(crate) fn collect_stored_variant(
         &mut self,
         binding: Spanned<LeanStr>,
@@ -51,18 +53,31 @@ impl<'a> MacroExtractor<'a> {
         self.omit_input(call.span);
         self.consumed_use_spans
             .insert(LocalSpan::from(call.callee.span()));
-        let variants = match call.arguments.as_slice() {
-            [] => self.stored_variant_error("the call has no arguments", call.span),
-            [Argument::SpreadElement(spread)] => {
-                self.stored_variant_error("spread arguments are unsupported", spread.span)
-            }
-            [argument] => argument
-                .as_expression()
-                .and_then(|expression| self.variant_sequence(expression)),
-            [_, extra, ..] => self.stored_variant_error(
-                "alternatives in several arguments are not supported yet",
-                extra.span(),
-            ),
+        let variants = if call.arguments.is_empty() {
+            self.stored_variant_error("the call has no arguments", call.span)
+        } else {
+            // Every argument is read, so each one reports its own problems.
+            let sequences =
+                call.arguments
+                    .iter()
+                    .map(|argument| match argument {
+                        Argument::SpreadElement(spread) => self
+                            .stored_variant_error("spread arguments are unsupported", spread.span),
+                        _ => argument
+                            .as_expression()
+                            .and_then(|expression| self.variant_sequence(expression)),
+                    })
+                    .collect::<Vec<_>>();
+            sequences
+                .into_iter()
+                .collect::<Option<Vec<_>>>()
+                .map(|mut sequences| {
+                    if sequences.len() == 1 {
+                        sequences.swap_remove(0)
+                    } else {
+                        vec![StyleVariant::Alternatives(sequences)]
+                    }
+                })
         };
         StoredVariantDefinition {
             binding,
@@ -305,6 +320,12 @@ impl<'a> MacroExtractor<'a> {
                         condition: condition(subject),
                         scopes: scopes.iter().map(condition).collect(),
                     },
+                    StyleVariant::Alternatives(alternatives) => StoredVariantSegment::Alternatives(
+                        alternatives
+                            .iter()
+                            .map(|sequence| self.stored_variant_record(sequence))
+                            .collect(),
+                    ),
                 })
                 .collect(),
         }
@@ -344,6 +365,12 @@ impl<'a> MacroExtractor<'a> {
                     condition: condition(subject),
                     scopes: scopes.iter().map(condition).collect(),
                 },
+                StoredVariantSegment::Alternatives(alternatives) => StyleVariant::Alternatives(
+                    alternatives
+                        .iter()
+                        .map(|sequence| self.expand_record(sequence, span))
+                        .collect(),
+                ),
             })
             .collect()
     }

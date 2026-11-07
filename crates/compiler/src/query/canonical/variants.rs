@@ -37,7 +37,8 @@ fn capture_probes(
             | StillwindVariantValueType::Data
             | StillwindVariantValueType::SupportsCondition,
         ) => &[("[sw-canonical-probe]", "sw-canonical-probe")],
-        Some(StillwindVariantValueType::IfCondition) | None => &[],
+        Some(StillwindVariantValueType::IfCondition | StillwindVariantValueType::VariantList)
+        | None => &[],
     }
 }
 

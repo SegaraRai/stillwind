@@ -5,6 +5,8 @@
 //! the fragment renderer chooses framework props, while definition emission owns the
 //! transition's pseudo-element rules.
 
+use std::fmt::Write as _;
+
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_ir::{AssetReference, StyleVariant, ViewTransitionKey, ViewTransitionName};
@@ -56,9 +58,9 @@ impl CallEmitter<'_> {
             Some(self.view_transition_name_property(transition.span.start.0)?)
         };
         let contribution = self.transition_contribution(
-            token,
-            static_name,
-            name_property.clone(),
+            &token,
+            static_name.as_ref(),
+            name_property.as_ref(),
             wrappers,
             transition.span.start.0,
         )?;
@@ -133,9 +135,9 @@ impl CallEmitter<'_> {
                 };
             let static_name = static_view_transition_name(name, &token);
             let contribution = self.transition_contribution(
-                token.clone(),
-                static_name,
-                name_property.clone(),
+                &token,
+                static_name.as_ref(),
+                name_property.as_ref(),
                 wrappers,
                 value.start.0,
             )?;
@@ -178,41 +180,44 @@ impl CallEmitter<'_> {
     /// resolution fails, it adds a diagnostic and returns `None`.
     fn transition_contribution(
         &mut self,
-        token: LeanString,
-        name: Option<LeanString>,
-        dynamic_name_property: Option<LeanString>,
+        token: &LeanString,
+        name: Option<&LeanString>,
+        dynamic_name_property: Option<&LeanString>,
         wrappers: &[StyleVariant],
         source_offset: u32,
     ) -> Option<LiteralContribution> {
-        let plan = if wrappers.is_empty() {
-            None
+        let plans = if wrappers.is_empty() {
+            vec![None]
         } else {
-            Some(StyleVariantPlan::resolve(
+            StyleVariantPlan::resolve(
                 self.identifiers,
                 wrappers,
                 self.theme,
                 self.diagnostics,
                 self.lint_findings,
-            )?)
+            )?
+            .into_iter()
+            .map(Some)
+            .collect()
         };
-        let canonical = format_args!(
-            "{}\0view-transition\0{token}\0{}\0{}\0",
-            plan.as_ref().map_or("", |plan| plan.canonical.as_str()),
-            name.as_deref().unwrap_or(""),
-            dynamic_name_property.as_deref().unwrap_or("")
-        )
-        .to_lean_string();
-        Some(LiteralContribution {
-            canonical: (canonical),
-            view_transitions: vec![TransitionContribution {
+        let mut contribution = LiteralContribution::default();
+        for plan in plans {
+            let _ = write!(
+                contribution.canonical,
+                "{}\0view-transition\0{token}\0{}\0{}\0",
+                plan.as_ref().map_or("", |plan| plan.canonical.as_str()),
+                name.map_or("", LeanString::as_str),
+                dynamic_name_property.map_or("", LeanString::as_str)
+            );
+            contribution.view_transitions.push(TransitionContribution {
                 source_offset,
-                token: (token).into(),
-                name: (name).map(Into::into),
-                dynamic_name_property: (dynamic_name_property).map(Into::into),
+                token: token.clone().into(),
+                name: name.cloned().map(Into::into),
+                dynamic_name_property: dynamic_name_property.cloned().map(Into::into),
                 plan,
-            }],
-            ..LiteralContribution::default()
-        })
+            });
+        }
+        Some(contribution)
     }
 
     /// Returns the custom-property name for a dynamic transition name at an original

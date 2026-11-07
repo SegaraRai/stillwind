@@ -175,6 +175,9 @@ pub enum StillwindVariantValueType {
     SupportsCondition,
     /// A runtime custom-property presence test, negation, or value comparison.
     IfCondition,
+    /// Variant sequences separated by `,`, which the compiler expands into one candidate
+    /// for each sequence.
+    VariantList,
 }
 
 impl StillwindVariantValueType {
@@ -186,6 +189,7 @@ impl StillwindVariantValueType {
             "nth" => Some(Self::Nth),
             "supports-condition" => Some(Self::SupportsCondition),
             "if-condition" => Some(Self::IfCondition),
+            "variant-list" => Some(Self::VariantList),
             _ => None,
         }
     }
@@ -200,6 +204,7 @@ impl StillwindVariantValueType {
             Self::Nth => &["1"],
             Self::SupportsCondition => &["display:grid"],
             Self::IfCondition => &["--flag"],
+            Self::VariantList => &["hover,focus"],
         }
     }
 
@@ -222,7 +227,7 @@ impl StillwindVariantValueType {
             Self::SupportsCondition => {
                 format_args!("@supports ({value}) {{ .x {{ color: red; }} }}").to_lean_string()
             }
-            Self::Variant | Self::Aria | Self::Data => return false,
+            Self::Variant | Self::Aria | Self::Data | Self::VariantList => return false,
         };
         let Ok(stylesheet) = StyleSheet::parse(&stylesheet, ParserOptions::default()) else {
             return false;

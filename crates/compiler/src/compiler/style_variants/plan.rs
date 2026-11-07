@@ -14,6 +14,7 @@ use stillwind_syntax::Variant;
 
 use super::super::symbols::ref_container_name;
 use super::super::utilities::CompiledUtility;
+use super::alternatives::expand_wrappers;
 use super::prefix::{collect_variant_and_applications, parse_prefix};
 use super::reference::element_conditions;
 use crate::identifiers::IdentifierContext;
@@ -51,7 +52,33 @@ impl StyleVariantPlan {
         &self.paths
     }
 
-    /// Resolves the wrappers of one utility literal.
+    /// Resolves the wrappers of one contribution into one plan for each combination of
+    /// its variant alternatives, in the order that
+    /// [`expand_wrappers`](super::alternatives::expand_wrappers) describes. Wrappers
+    /// without alternatives produce exactly one plan.
+    ///
+    /// Returns `None` when an alternative is malformed or when any expanded sequence
+    /// fails as [`Self::resolve_sequence`] describes, and the caller must lower the
+    /// contribution as empty. One failing sequence omits the whole contribution, as one
+    /// failing variant omits a utility.
+    pub fn resolve(
+        context: &IdentifierContext,
+        wrappers: &[StyleVariant],
+        theme: &ThemeIndex,
+        diagnostics: &mut Vec<CompileError>,
+        lint_findings: &mut Vec<LintFinding>,
+    ) -> Option<Vec<Self>> {
+        let sequences = expand_wrappers(wrappers, theme, lint_findings)?;
+        let plans = sequences
+            .iter()
+            .map(|wrappers| {
+                Self::resolve_sequence(context, wrappers, theme, diagnostics, lint_findings)
+            })
+            .collect::<Vec<_>>();
+        plans.into_iter().collect()
+    }
+
+    /// Resolves wrappers without alternatives.
     ///
     /// Returns `None` when a wrapper condition is false or cannot be generated, and the
     /// caller must lower the contribution as empty. A malformed or unknown prefix, a
@@ -59,7 +86,7 @@ impl StyleVariantPlan {
     /// referenced element add lint findings. A ref condition never falls back to an
     /// unrelated selector, because that would apply the rules to the wrong element. A
     /// failure to generate a ref marker name adds a fatal diagnostic.
-    pub fn resolve(
+    fn resolve_sequence(
         context: &IdentifierContext,
         wrappers: &[StyleVariant],
         theme: &ThemeIndex,
@@ -105,6 +132,8 @@ impl StyleVariantPlan {
                         lint_findings,
                     )?;
                 }
+                // `Self::resolve` expands alternatives before it calls this function.
+                StyleVariant::Alternatives(_) => return None,
             }
         }
         Some(plan)
@@ -338,6 +367,13 @@ fn independent_variant_key(variant: &StyleVariant) -> LeanString {
             format_args!("container({:?},{:?})", ref_keys(refs), query.value).to_lean_string()
         }
         StyleVariant::Prefix(prefix) => format_args!("prefix({:?})", prefix.value).to_lean_string(),
+        StyleVariant::Alternatives(sequences) => {
+            let sequences = sequences
+                .iter()
+                .map(|sequence| sequence.iter().map(independent_variant_key).collect())
+                .collect::<Vec<Vec<_>>>();
+            format_args!("alternatives({sequences:?})").to_lean_string()
+        }
     }
 }
 

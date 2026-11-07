@@ -96,15 +96,16 @@ such a class in the `class` attribute, so `style("not-prose")` adds the class
 
 These features have no equivalent in Tailwind CSS:
 
-| Feature                                 | Page                                                                        |
-| --------------------------------------- | --------------------------------------------------------------------------- |
-| `if()` variant and `--if()` function    | [Runtime conditions](/docs/guides/runtime-conditions)                       |
-| `host:` variant                         | [Style the shadow host](/docs/guides/web-components#style-the-shadow-host)  |
-| Keyframes defined in a component        | [Animations](/docs/guides/animations)                                       |
-| View transitions defined in a component | [View transitions](/docs/guides/view-transitions)                           |
-| Refs to other elements                  | [Element relationships](/docs/guides/element-relationships)                 |
-| Logical properties for axis utilities   | [Logical axis utilities](/docs/concepts/stylesheets#logical-axis-utilities) |
-| Lint rules                              | [Checks in the editor and CI](/docs/guides/lint-adoption)                   |
+| Feature                                 | Page                                                                              |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| `if()` variant and `--if()` function    | [Runtime conditions](/docs/guides/runtime-conditions)                             |
+| `host:` variant                         | [Style the shadow host](/docs/guides/web-components#style-the-shadow-host)        |
+| `or(...)` variant                       | [Match any of several variants](/docs/guides/style#match-any-of-several-variants) |
+| Keyframes defined in a component        | [Animations](/docs/guides/animations)                                             |
+| View transitions defined in a component | [View transitions](/docs/guides/view-transitions)                                 |
+| Refs to other elements                  | [Element relationships](/docs/guides/element-relationships)                       |
+| Logical properties for axis utilities   | [Logical axis utilities](/docs/concepts/stylesheets#logical-axis-utilities)       |
+| Lint rules                              | [Checks in the editor and CI](/docs/guides/lint-adoption)                         |
 
 ## What Stillwind does not support
 

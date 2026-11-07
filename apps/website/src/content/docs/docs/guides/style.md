@@ -64,6 +64,27 @@ export function Link() {
 }
 ```
 
+### Match any of several variants
+
+`or(...)` applies a utility when any of its variants matches. Separate the
+variants with commas. Each one can contain several variants separated by colons:
+
+```tsx
+import { style } from "stillwind/react";
+
+export function MenuItem() {
+  return <li {...style("px-4 py-2 or(hover,focus-within,md:aria-current):bg-gray-100")}>Inbox</li>;
+}
+```
+
+`or(hover,md:focus):p-4` is the same as `hover:p-4 md:focus:p-4`. Each
+variant keeps the position in the stylesheet that it has when you write it alone,
+so [CSS order](/docs/concepts/css-ordering) does not change. You can also use
+`or(...)` in an object key, such as `{ "or(hover,focus):": "underline" }`.
+To reuse alternatives that include
+[ref conditions](/docs/macros/ref/condition), pass several arguments to
+[`style.when()`](/docs/macros/when#alternatives).
+
 ## Style states
 
 When the element has an attribute for the state, use a variant:

@@ -196,6 +196,11 @@ pub enum StyleVariant {
         /// and the target. Their order does not define an ancestor path.
         scopes: Vec<RefCondition>,
     },
+    /// Variant sequences of which at least one must hold, written as several
+    /// arguments of `style.when()`. Each sequence lists its wrappers from the outermost
+    /// to the innermost and contains at least one wrapper. The compiler lowers a
+    /// contribution under this wrapper once for each sequence.
+    Alternatives(Vec<Vec<StyleVariant>>),
 }
 
 /// One evaluated argument of a `style(...)` call.

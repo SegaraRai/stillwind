@@ -6,6 +6,7 @@
 //! Modules:
 //!
 //! - [`acceptance`] checks the acceptance cases of the compatibility slice.
+//! - [`alternatives`] checks `or(...)` variants.
 //! - [`conditional_flow`] checks the structure-preserving lowering of conditional class
 //!   expressions.
 //! - [`css_call`] checks `style.css()` lowering.
@@ -40,6 +41,7 @@ mod support;
 use support::*;
 
 mod acceptance;
+mod alternatives;
 mod conditional_flow;
 mod css_call;
 mod cva;

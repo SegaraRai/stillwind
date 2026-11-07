@@ -160,11 +160,9 @@ Sources: [ref types](../packages/core/src/macro/refs.ts),
 
 ## Stored variant follow-ups
 
-`style.when()` stores one variant sequence. These parts are not designed or built yet:
+`style.when()` stores a variant sequence or alternatives. These parts are not
+designed or built yet:
 
-- Alternatives: several arguments are reserved for alternatives that match when any
-  argument matches, as in `style.media()`. Define them together with the planned `or`
-  variant. A call with several arguments reports `invalid-stored-variant` until then.
 - Editors: hover over a use should show the expanded sequence, string arguments
   should complete variants as keys do, and go to definition should reach the
   declaration.
@@ -176,6 +174,23 @@ Sources: [ref types](../packages/core/src/macro/refs.ts),
 
 Sources: [extraction](../crates/js-oxc/src/stored_variants.rs),
 [macro contract](macro-contract.md#stored-variants).
+
+## Variant alternative follow-ups
+
+`or(...)` expands to one candidate for each sequence. These parts are open:
+
+- Nested values: `not-or(a,b)` could resolve as `not-a:not-b`, and `group-or(a,b)`
+  as the alternatives of `group-a` and `group-b`. They report `invalid-variant` now.
+- Media lists: `style.media("or(md,print)")` could produce the media query list
+  `(width >= 48rem), print`. It reports `invalid-variant` now.
+- Duplicates: `or(hover,hover)` emits the same rule twice. Only
+  `prefer-canonical-utilities` reports it.
+- Editors: completion and hover inside `or(...)` should treat each sequence as a
+  variant prefix. A finding for an expanded candidate covers the whole candidate,
+  not the failing sequence.
+
+Sources: [expansion](../crates/compiler/src/compiler/style_variants/alternatives.rs),
+[macro contract](macro-contract.md#variant-alternatives).
 
 ## Remaining documentation capabilities
 

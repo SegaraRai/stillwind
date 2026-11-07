@@ -472,6 +472,11 @@ fn map_variant<E>(
                 }
             }
         }
+        StyleVariant::Alternatives(alternatives) => {
+            for variant in alternatives.iter_mut().flatten() {
+                map_variant(variant, map)?;
+            }
+        }
     }
     Ok(())
 }

@@ -132,6 +132,16 @@ pub enum VariantFailureReason {
         /// Captured condition text.
         condition: LeanStr,
     },
+    /// An alternatives variant, such as `or(hover,focus)`, does not list complete
+    /// variant sequences, its alternatives expand to more sequences than the compiler
+    /// accepts, or it is not a direct variant of a candidate or key.
+    #[error("`{variant}` {problem}")]
+    InvalidAlternatives {
+        /// Variant text as written.
+        variant: LeanStr,
+        /// Description of the problem, such as an empty alternative.
+        problem: LeanStr,
+    },
     /// A negating variant cannot express the absence of its inner variant.
     #[error("`{variant}` cannot negate `{inner}`, which {obstacle}")]
     CannotNegate {

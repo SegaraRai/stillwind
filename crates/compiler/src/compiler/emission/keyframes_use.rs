@@ -34,14 +34,14 @@ impl CallEmitter<'_> {
         fold: bool,
     ) -> Option<Emitted> {
         self.required_definitions.insert(keyframes.identity.clone());
-        let plan = StyleVariantPlan::resolve(
+        let plans = StyleVariantPlan::resolve(
             self.identifiers,
             wrappers,
             self.theme,
             self.diagnostics,
             self.lint_findings,
         )?;
-        let mut utility = resolve_keyframes_use(
+        let utility = resolve_keyframes_use(
             self.identifiers,
             keyframes,
             options,
@@ -49,17 +49,18 @@ impl CallEmitter<'_> {
             self.diagnostics,
             self.lint_findings,
         );
-        plan.apply_rule(&mut utility);
-        let canonical = format_args!(
-            "{}\0keyframes\0{}\0{}\0",
-            plan.canonical,
-            keyframes.identity.binding_name(),
-            options.value
-        )
-        .to_lean_string();
+        let (canonical, utilities) = apply_plans(&plans, &utility, |plan| {
+            format_args!(
+                "{}\0keyframes\0{}\0{}\0",
+                plan.canonical,
+                keyframes.identity.binding_name(),
+                options.value
+            )
+            .to_lean_string()
+        });
         let contribution = LiteralContribution {
             canonical: (canonical),
-            utilities: vec![utility],
+            utilities,
             markers: Vec::new(),
             plain: Vec::new(),
             view_transitions: Vec::new(),
@@ -84,7 +85,7 @@ impl CallEmitter<'_> {
         guard: &[GuardStep],
         wrappers: &[StyleVariant],
     ) -> Option<Emitted> {
-        let plan = StyleVariantPlan::resolve(
+        let plans = StyleVariantPlan::resolve(
             self.identifiers,
             wrappers,
             self.theme,
@@ -106,7 +107,7 @@ impl CallEmitter<'_> {
                     return None;
                 }
             };
-            let mut utility = resolve_keyframes_use(
+            let utility = resolve_keyframes_use(
                 self.identifiers,
                 keyframes,
                 options,
@@ -114,15 +115,16 @@ impl CallEmitter<'_> {
                 self.diagnostics,
                 self.lint_findings,
             );
-            plan.apply_rule(&mut utility);
-            let canonical = format_args!(
-                "{}\0dynamic-keyframes\0{identity}\0{}\0",
-                plan.canonical, options.value
-            )
-            .to_lean_string();
+            let (canonical, utilities) = apply_plans(&plans, &utility, |plan| {
+                format_args!(
+                    "{}\0dynamic-keyframes\0{identity}\0{}\0",
+                    plan.canonical, options.value
+                )
+                .to_lean_string()
+            });
             let contribution = LiteralContribution {
                 canonical: (canonical),
-                utilities: vec![utility],
+                utilities,
                 markers: Vec::new(),
                 plain: Vec::new(),
                 view_transitions: Vec::new(),
@@ -131,6 +133,27 @@ impl CallEmitter<'_> {
         }
         self.emit_candidate_units(value, KEYFRAMES_KEY, candidates, guard)
     }
+}
+
+/// Applies each plan to a copy of `utility`. Returns the canonical spellings that
+/// `canonical` builds for the plans, joined in plan order, and the utilities in the
+/// same order.
+fn apply_plans(
+    plans: &[StyleVariantPlan],
+    utility: &CompiledUtility,
+    canonical: impl Fn(&StyleVariantPlan) -> LeanString,
+) -> (LeanString, Vec<CompiledUtility>) {
+    let mut spelling = LeanString::new();
+    let utilities = plans
+        .iter()
+        .map(|plan| {
+            spelling.push_str(&canonical(plan));
+            let mut utility = utility.clone();
+            plan.apply_rule(&mut utility);
+            utility
+        })
+        .collect();
+    (spelling, utilities)
 }
 
 /// Returns the resolved utility containing the declarations one keyframes use

@@ -6,12 +6,12 @@
 //! their independent props channels. Final framework fields and helper imports are
 //! selected later by fragment rendering.
 
-use lean_string::{LeanString, ToLeanStr, ToLeanString};
+use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::repeated_subject_selector;
 use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::{ClassExpression, GroupEntry, RuleExpression, StyleVariant};
-use stillwind_source::{JoinText, Span};
+use stillwind_source::{JoinText, Span, Spanned};
 
 use super::super::fragment::{Emitted, EmittedEntry, ValueExpr};
 use super::super::literal::LiteralContribution;
@@ -28,13 +28,8 @@ impl CallEmitter<'_> {
     /// Reports source policies once per authored variant wrapper, even when that
     /// wrapper covers several literals. Container queries have no viewport policy.
     fn report_wrapper_lints(&mut self, variant_wrapper: &StyleVariant) {
-        let prefixes = match variant_wrapper {
-            StyleVariant::Prefix(prefix) => vec![prefix],
-            StyleVariant::Ref { condition, scopes } => std::iter::once(&condition.prefix)
-                .chain(scopes.iter().map(|scope| &scope.prefix))
-                .collect(),
-            StyleVariant::Container { .. } => Vec::new(),
-        };
+        let mut prefixes = Vec::new();
+        wrapper_prefixes(variant_wrapper, &mut prefixes);
         for prefix in prefixes {
             if let Some(variants) = parse_prefix(prefix) {
                 if self
@@ -238,22 +233,30 @@ impl CallEmitter<'_> {
     ) -> Option<Emitted> {
         let emitted = match expression {
             RuleExpression::Utilities(value) => {
-                let plan = StyleVariantPlan::resolve(
+                let plans = StyleVariantPlan::resolve(
                     self.identifiers,
                     wrappers,
                     self.theme,
                     self.diagnostics,
                     self.lint_findings,
                 )?;
-                let mut contribution = LiteralContribution::resolve(
-                    value,
-                    &plan,
-                    self.theme,
-                    &self.lint_settings,
-                    self.use_css_if,
-                    self.diagnostics,
-                    self.lint_findings,
-                );
+                let mut contribution: Option<LiteralContribution> = None;
+                for plan in &plans {
+                    let resolved = LiteralContribution::resolve(
+                        value,
+                        plan,
+                        self.theme,
+                        &self.lint_settings,
+                        self.use_css_if,
+                        self.diagnostics,
+                        self.lint_findings,
+                    );
+                    match &mut contribution {
+                        Some(contribution) => contribution.append_rules(resolved),
+                        None => contribution = Some(resolved),
+                    }
+                }
+                let mut contribution = contribution?;
                 if let Some(boundaries) = literal_boundaries(self.source, value) {
                     for utility in &mut contribution.utilities {
                         for span in &mut utility.diagnostic_data.variant_spans {
@@ -594,6 +597,41 @@ pub(super) fn expression_position(expression: &ClassExpression) -> u32 {
     }
 }
 
+/// Appends the authored prefixes of `wrapper`: a prefix wrapper, the condition and scope
+/// prefixes of a ref wrapper, and the prefixes inside each alternative sequence.
+fn wrapper_prefixes<'a>(wrapper: &'a StyleVariant, prefixes: &mut Vec<&'a Spanned<LeanStr>>) {
+    match wrapper {
+        StyleVariant::Prefix(prefix) => prefixes.push(prefix),
+        StyleVariant::Ref { condition, scopes } => {
+            prefixes.extend(
+                std::iter::once(&condition.prefix).chain(scopes.iter().map(|scope| &scope.prefix)),
+            );
+        }
+        StyleVariant::Container { .. } => {}
+        StyleVariant::Alternatives(sequences) => {
+            for wrapper in sequences.iter().flatten() {
+                wrapper_prefixes(wrapper, prefixes);
+            }
+        }
+    }
+}
+
+/// Returns the original UTF-8 byte anchor of a wrapper. Alternatives use their first
+/// wrapper, and empty alternatives use zero.
+fn variant_position(variant: &StyleVariant) -> u32 {
+    match variant {
+        StyleVariant::Prefix(prefix) | StyleVariant::Container { query: prefix, .. } => {
+            prefix.span.start.0
+        }
+        StyleVariant::Ref { condition, .. } => condition.prefix.span.start.0,
+        StyleVariant::Alternatives(sequences) => sequences
+            .iter()
+            .flatten()
+            .next()
+            .map_or(0, variant_position),
+    }
+}
+
 /// Returns the original UTF-8 byte anchor of a rule for contribution ordering. An empty
 /// rule array uses zero.
 fn rule_position(expression: &RuleExpression) -> u32 {
@@ -601,12 +639,7 @@ fn rule_position(expression: &RuleExpression) -> u32 {
         RuleExpression::Utilities(value) => value.span.start.0,
         RuleExpression::Array(elements) => elements.first().map_or(0, rule_position),
         RuleExpression::Conditional { test, .. } => test.start.0,
-        RuleExpression::Variant { variant, .. } => match variant {
-            StyleVariant::Prefix(prefix) | StyleVariant::Container { query: prefix, .. } => {
-                prefix.span.start.0
-            }
-            StyleVariant::Ref { condition, .. } => condition.prefix.span.start.0,
-        },
+        RuleExpression::Variant { variant, .. } => variant_position(variant),
         RuleExpression::AnchorScope { span, .. } | RuleExpression::Group { span, .. } => {
             span.start.0
         }

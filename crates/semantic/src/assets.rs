@@ -70,6 +70,9 @@ pub enum StoredVariantSegment {
         /// Independent scope conditions in source order.
         scopes: Vec<StoredRefCondition>,
     },
+    /// Sequences of which at least one must hold, from a declaration with several
+    /// arguments. There are at least two sequences.
+    Alternatives(Vec<StoredVariantRecord>),
 }
 
 /// A condition on the elements that carry one of several refs.
@@ -83,22 +86,30 @@ pub struct StoredRefCondition {
 }
 
 impl StoredVariantRecord {
-    /// Iterates the ref identities that the segments mention, including scopes and
-    /// container providers. An identity can occur more than once.
-    pub fn refs(&self) -> impl Iterator<Item = &IdentityId> {
-        self.segments.iter().flat_map(|segment| {
-            let refs: Box<dyn Iterator<Item = &IdentityId>> = match segment {
-                StoredVariantSegment::Prefix(_) => Box::new(std::iter::empty()),
-                StoredVariantSegment::Container { refs, .. } => Box::new(refs.iter()),
-                StoredVariantSegment::Ref { condition, scopes } => Box::new(
-                    condition
-                        .refs
-                        .iter()
-                        .chain(scopes.iter().flat_map(|scope| &scope.refs)),
-                ),
-            };
-            refs
-        })
+    /// Returns the ref identities that the segments mention, including scopes,
+    /// container providers, and the segments of alternatives. An identity can occur
+    /// more than once.
+    #[must_use]
+    pub fn refs(&self) -> Vec<&IdentityId> {
+        let mut refs = Vec::new();
+        for segment in &self.segments {
+            match segment {
+                StoredVariantSegment::Prefix(_) => {}
+                StoredVariantSegment::Container {
+                    refs: providers, ..
+                } => {
+                    refs.extend(providers);
+                }
+                StoredVariantSegment::Ref { condition, scopes } => {
+                    refs.extend(&condition.refs);
+                    refs.extend(scopes.iter().flat_map(|scope| &scope.refs));
+                }
+                StoredVariantSegment::Alternatives(alternatives) => {
+                    refs.extend(alternatives.iter().flat_map(Self::refs));
+                }
+            }
+        }
+        refs
     }
 }
 

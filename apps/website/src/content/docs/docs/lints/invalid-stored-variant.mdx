@@ -34,7 +34,6 @@ style({ [selected]: "font-bold" });
 
 - Pass a string literal of variants, a ref condition, a container query, or a
   template literal whose interpolations are ref conditions or stored variants.
-- Pass one argument. Several arguments are reserved for alternatives.
 - Declare a stored variant before another `style.when()` call uses it.
 - To choose between stored variants at runtime, write a key for each one and
   guard the values, such as `{ [a]: active && "p-4", [b]: !active && "p-4" }`.

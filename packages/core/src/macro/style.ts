@@ -178,7 +178,7 @@ export type StyleMacro<Props = object> = {
   ): StyleViewTransition<Id>;
 
   /**
-   * Stores one variant sequence in a binding initializer for later use in `style()`.
+   * Stores variant sequences in a binding initializer for later use in `style()`.
    *
    * Use the result as a computed variant key, as a variant segment followed by `:` in
    * a utility template, or in the argument of another `style.when()`. Each use means
@@ -186,24 +186,32 @@ export type StyleMacro<Props = object> = {
    * the same rules as a variant key written in `style()`. A use must resolve to one
    * declaration. The compiler replaces the call with `undefined`.
    *
-   * @param variants - One static variant sequence: a string literal such as
+   * With several arguments, the stored variant matches when any argument matches. A
+   * use means the same as writing the use once for each argument, in argument order.
+   *
+   * @param variants - Static variant sequences. Each one is a string literal such as
    * `"hover:md"`, a ref variant call or tag with optional `.in()` calls, a container
    * variant, another stored variant, or a template literal whose substitutions are
    * complete variant segments. The final `:` is optional. Invalid sequences produce
    * lint findings.
    * @returns A stored variant that may be stored, exported, imported, and passed.
    */
-  when(variants: string | StyleVariantKey): StyleStoredVariant;
+  when(
+    ...variants: [string | StyleVariantKey, ...(string | StyleVariantKey)[]]
+  ): StyleStoredVariant;
 
   /**
    * Internal use only. The checker supplies identity for a stored variant declaration.
-   * Application code must use `when(variants)` without the identity argument.
+   * Application code must use `when(...variants)` without the identity argument.
    *
    * @internal
    */
   when<const Id extends string>(
-    variants: string | StyleVariantKey,
-    identity: StillwindDeclarationIdentity<Id>,
+    ...variants: [
+      string | StyleVariantKey,
+      ...(string | StyleVariantKey)[],
+      StillwindDeclarationIdentity<Id>,
+    ]
   ): StyleStoredVariant<Id>;
 
   /**

@@ -69,6 +69,26 @@ pub(in crate::evaluation) fn resolve_named_variant_with<T>(
     None
 }
 
+/// Returns the capture of `value` when an alternatives definition captures it.
+///
+/// An alternatives definition has the `[variant-list]` value type, no modifier
+/// declaration, and a body that is exactly the `builtin-or-variant` intrinsic, such as
+/// `@stillwind-variant or\(*\) (value: [variant-list])`. Project definitions are
+/// checked before `@stillwind-variant` definitions, in the order that variant
+/// resolution uses. Returns [`None`] when no such definition captures `value`.
+#[must_use]
+pub fn variant_alternatives<'a>(value: &'a str, theme: &ThemeIndex) -> Option<&'a str> {
+    [theme.variants(), stillwind_variants(theme)]
+        .into_iter()
+        .flat_map(|definitions| definitions.iter().rev())
+        .filter(|custom| {
+            custom.value_type == Some(StillwindVariantValueType::VariantList)
+                && custom.modifier_type.is_none()
+                && has_intrinsic_body(custom, "builtin-or-variant")
+        })
+        .find_map(|custom| custom.capture(value))
+}
+
 /// Returns whether the variant definition `custom` resolves for its own name.
 ///
 /// A definition without a capture resolves the same way for every use. When it
@@ -256,6 +276,23 @@ fn resolve_typed_variant(
     };
     match value_type {
         StillwindVariantValueType::IfCondition => Err(invalid_definition()),
+        // The compiler expands a direct alternatives variant before resolution, so a
+        // resolved one is nested in another variant's value or in `style.media()`.
+        StillwindVariantValueType::VariantList => {
+            if custom.modifier_type.is_some() || !has_intrinsic_body(custom, "builtin-or-variant") {
+                return Err(invalid_definition());
+            }
+            Err(VariantFailure::new(
+                capture_offset..capture_offset + capture.len(),
+                VariantFailureReason::InvalidAlternatives {
+                    variant: custom.wildcard_parts().map_or_else(
+                        || custom.name.clone(),
+                        |(start, end)| format_args!("{start}{capture}{end}").to_lean_str(),
+                    ),
+                    problem: "must be a direct variant of a candidate or variant key".into(),
+                },
+            ))
+        }
         StillwindVariantValueType::Variant => {
             let inner = parse_nested_variant(value);
             if let Some(selector) = relative_selector(&inner) {

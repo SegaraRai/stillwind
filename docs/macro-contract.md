@@ -354,7 +354,7 @@ const props = style({
 | `ref.at(query?)` / ref.at tags                                            | The receiver has finite raw-ref candidates. The static query returns a variant. An omitted or empty query emits `@container <container-name>` without a condition or parentheses.                                                        |
 | `ref()` / `ref("variant:")` / ref tags                                    | The prefix is static. Tags cannot contain interpolations.                                                                                                                                                                                |
 | `ref(state).in(scope)`                                                    | The scope is a raw ref or an unscoped ref call/tag. Scope operands cannot use `.in()` or `.at()`. Repeated `.in()` calls independently combine containment conditions for the original ref and target with AND.                          |
-| `style.when(variants)`                                                    | One variant sequence. See [Stored variants](#stored-variants).                                                                                                                                                                           |
+| `style.when(...variants)`                                                 | One or more variant sequences. See [Stored variants](#stored-variants).                                                                                                                                                                  |
 | `style.media(...variants)`                                                | String literals or interpolation-free template literals of variants whose definitions contain only media conditions. See [Media queries](#media-queries).                                                                                |
 | Utility strings and variant keys in `style()`                             | Static CSS descriptions. Utility templates accept only the specified ref-variant interpolations.                                                                                                                                         |
 | Arrays and variant objects                                                | Recursively contain supported inputs. Literal spreads and array holes are supported. Getters and methods are forbidden.                                                                                                                  |
@@ -398,8 +398,9 @@ object. Do not supply a `style` key directly as input.
 
 ## Stored variants
 
-`style.when(variants)` stores one variant sequence. A use of the stored variant
-produces the same styles and diagnostics as the sequence written directly at the use.
+`style.when(...variants)` stores one variant sequence, or alternatives when it has
+several arguments. A use of the stored variant produces the same styles and diagnostics
+as the sequence written directly at the use.
 
 ```ts
 const card = style.ref("card");
@@ -413,7 +414,7 @@ style(`${wideHover}:grid-cols-2`);
 `` `${wideHover}:grid-cols-2` `` is equal to
 `` `${card.at("width >= 40rem")}:${card("hover")}:md:grid-cols-2` ``.
 
-The argument is one of these forms. A final `:` is optional, and all variants of the
+Each argument is one of these forms. A final `:` is optional, and all variants of the
 sequence must hold:
 
 - a string literal or an interpolation-free template literal of variants, such as
@@ -423,6 +424,12 @@ sequence must hold:
   substitution is a ref variant or a stored variant;
 - another stored variant.
 
+With several arguments, a use means the same as an `or(...)` variant with one
+sequence for each argument, as [Variant alternatives](#variant-alternatives) describes.
+An argument may be a ref variant, which an `or(...)` string cannot contain:
+`style.when("hover", card("focus"))` matches when the element is hovered or the card is
+focused.
+
 A use belongs in a computed key of a `style()` object, a complete variant segment
 followed by `:` in a utility template, or the argument of another `style.when()`. It
 cannot be a `.in()` operand, and CVA values reject it as they reject other computed
@@ -431,10 +438,8 @@ compiler expands the sequence at compile time. A conditional choice such as
 `[c ? a : b]` is not a stored variant.
 
 `invalid-stored-variant` reports an argument that is not a variant sequence, a call
-with no argument, a spread argument, more than one argument, a declaration used by an
-earlier declaration in the same module, and a use that can resolve to several
-declarations. Several arguments are reserved for alternatives, which will match when
-any argument matches, as in `style.media()`.
+with no argument, a spread argument, a declaration used by an earlier declaration in
+the same module, and a use that can resolve to several declarations.
 
 A sequence that is invalid at its use, such as one with an unknown variant, reports
 the same rule as the direct form. For a declaration in the same module, the finding
@@ -1153,6 +1158,51 @@ media query lists, and combined conditions such as `(a) and (b)`.
 A `[variant]` definition without a `modifier:` declaration passes a modifier to its inner
 variant. `not-group-hover/menu`, `has-group-hover/menu`, and `in-group-hover/menu`
 therefore test the `group/menu` element.
+
+## Variant alternatives
+
+`or(a,b)` matches when any of its comma-separated sequences matches. Each sequence
+may contain several variants separated by `:`, such as `or(hover,md:focus)`. A
+candidate with an `or(...)` variant means the candidates that replace the variant with
+each sequence, in written order:
+
+```ts
+style("or(hover,md:focus):p-4");
+// is equal to
+style("hover:p-4 md:focus:p-4");
+```
+
+The compiler expands the variant before it resolves the candidate, so each expanded
+candidate keeps its own variant position, cascade order, and lint findings. With
+`or(hover,md):p-4 md:p-8`, the `md:p-4` alternative and `md:p-8` have the same
+position, and `conflicting-utilities` reports them. Several `or(...)` variants in one
+candidate expand to every combination, and a sequence may contain another `or(...)`.
+
+Variant keys in `style()` and `style.css()` objects, ref condition prefixes such as
+`card("or(hover,focus-within)")`, and view-transition definitions accept `or(...)` in
+the same way. Keyframes frames reject it as they reject other variants.
+
+`invalid-variant` reports an `or(...)` variant that has an empty sequence or
+unbalanced delimiters, or that makes one candidate expand to more than 32 candidates.
+`or()` captures no value, so it is an unknown variant. When any sequence does not
+resolve, the candidate reports the finding of that sequence and adds no CSS.
+
+`or(...)` must be a direct variant of the candidate or key. In the value of another
+variant, such as `not-or(hover,focus)`, and in `style.media()` arguments,
+`invalid-variant` reports it.
+
+The package declares the variant with a compiler intrinsic:
+
+```css
+@stillwind-variant or\(*\) (value: [variant-list]) {
+  @stillwind-intrinsic builtin-or-variant;
+}
+```
+
+A definition with the `[variant-list]` value type must have exactly this body and no
+modifier declaration. Any name pattern works, so a design system can declare the same
+intrinsic under another name, such as `any\(*\)`. A variant is expanded when such a
+definition captures it.
 
 ## Arbitrary values
 

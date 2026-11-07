@@ -1,5 +1,14 @@
-/* Built-in Stillwind conditional variant. */
+/* Built-in Stillwind conditional variants. */
 
 @stillwind-variant if\(*\) (value: [if-condition]) {
   @stillwind-intrinsic builtin-if-variant;
+}
+
+/*
+`or(a,b)` holds when any of its variant sequences holds. The compiler expands a
+candidate into one candidate for each sequence before it resolves variants, so each
+sequence keeps its own position in the stylesheet.
+*/
+@stillwind-variant or\(*\) (value: [variant-list]) {
+  @stillwind-intrinsic builtin-or-variant;
 }

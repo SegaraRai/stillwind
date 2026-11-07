@@ -1,10 +1,10 @@
 ---
 title: style.when()
-description: Store a variant sequence, such as a ref condition, and use it in several style() calls.
+description: Store a variant sequence or alternatives, such as a ref condition, and use them in several style() calls.
 slug: docs/macros/when
 ---
 
-`style.when(variants)` stores a sequence of variants in a variable. Use the
+`style.when(...variants)` stores a sequence of variants in a variable. Use the
 variable in [`style()`](/docs/macros/style) where you would write the variants.
 This helps when several elements need the same
 [ref condition](/docs/macros/ref/condition), because a ref call must otherwise
@@ -32,7 +32,7 @@ export const arrow = style(`${cardHover}:translate-x-1`);
 
 ## Inputs
 
-The argument is one sequence of variants, and every variant in it must match.
+Each argument is one sequence of variants, and every variant in it must match.
 The final colon is optional.
 
 | Form                                                          | Example                                 |
@@ -52,7 +52,24 @@ calls. Declare a stored variant before another `style.when()` call uses it.
 A `style()` call can use one that is declared later in the module.
 
 [invalid-stored-variant](/docs/lints/invalid-stored-variant) reports an
-argument that is not a sequence of variants. The call accepts one argument.
+argument that is not a sequence of variants.
+
+## Alternatives
+
+With several arguments, the stored variant matches when any argument matches:
+
+```tsx
+const card = style.ref("card");
+const active = style.when("hover", card("focus-within"));
+
+export const title = style({ [active]: "text-blue-600" });
+```
+
+A use means the same as writing the use once for each argument, in argument
+order. `title` is equal to
+`style({ "hover:": "text-blue-600", [card("focus-within")]: "text-blue-600" })`.
+Unlike an [`or(...)`](/docs/guides/style#match-any-of-several-variants)
+variant, the arguments can be ref conditions and container queries.
 
 ## Uses
 

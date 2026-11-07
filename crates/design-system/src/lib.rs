@@ -81,7 +81,7 @@ pub use evaluation::{
     stillwind_definitions, stillwind_omit_token_prefixes, stillwind_property_definitions,
     stillwind_theme_order, stillwind_utility_token_prefixes, suggested_theme_token,
     theme_value_mismatch, unresolvable_value_namespaces, unsatisfiable_variants,
-    utility_value_range,
+    utility_value_range, variant_alternatives,
 };
 pub use loading::{
     CssDependencyKind, CssFileInput, CssFileRequest, CssResourceReference, CssSource,

@@ -41,7 +41,7 @@ export function registerStylesheetEditorContract(specifier: string): void {
       query
         .completeStylesheet(intrinsic, intrinsic.length)
         .map((item: { label: string }) => item.label),
-    ).toEqual(["builtin-if-variant", "builtin-not-variant"]);
+    ).toEqual(["builtin-if-variant", "builtin-not-variant", "builtin-or-variant"]);
     const written = "@stillwind-utility";
     expect(query.hoverStylesheet(written, written.length).documentation).toContain(
       "Registry authoring",

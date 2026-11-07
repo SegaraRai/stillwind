@@ -86,10 +86,14 @@ impl DesignSystemQuery {
                         .names()
                         .map(Into::into)
                         .collect(),
-                    "stillwind-intrinsic" if first => ["builtin-if-variant", "builtin-not-variant"]
-                        .into_iter()
-                        .map(Into::into)
-                        .collect(),
+                    "stillwind-intrinsic" if first => [
+                        "builtin-if-variant",
+                        "builtin-not-variant",
+                        "builtin-or-variant",
+                    ]
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
                     "stillwind-format" if first => {
                         theme.declaration_formats().keys().cloned().collect()
                     }
