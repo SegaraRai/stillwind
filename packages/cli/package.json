@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/cli",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Stillwind CLI to sort, lint, and fix utilities, inspect generated CSS, and query the design system",
   "keywords": [
     "ci",

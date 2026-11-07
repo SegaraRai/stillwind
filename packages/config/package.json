@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/config",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Configuration loading, lint presets, and plugin contracts for Stillwind. Applications import them from stillwind/config",
   "keywords": [
     "stillwind"

@@ -33,6 +33,10 @@
   dir: packages/cli
   intents:
     - typed-badges-show
+"@stillwind/cli@0.8.0":
+  dir: packages/cli
+  intents:
+    - clean-doors-clap
 "@stillwind/config@0.2.0":
   dir: packages/config
   intents:
@@ -63,6 +67,10 @@
     - sveltekit-handle-bundled
     - trailing-comments-parse
     - typed-badges-show
+"@stillwind/integration@0.8.0":
+  dir: packages/integration
+  intents:
+    - react-router-server-source-retry
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
@@ -72,6 +80,10 @@
   dir: packages/language-server
   intents:
     - typed-badges-show
+"@stillwind/language-server@0.8.0":
+  dir: packages/language-server
+  intents:
+    - clean-doors-clap
 "@stillwind/plugin-iconify@0.6.0":
   dir: plugins/iconify
   intents:
@@ -170,3 +182,16 @@ stillwind@0.7.0:
     - scoped-plugin-rules
     - trailing-comments-parse
     - typed-badges-show
+stillwind@0.8.0:
+  dir: packages/core
+  intents:
+    - brave-sizes-read
+    - modern-bats-stare
+    - named-sides-suggest
+    - quiet-args-stay
+    - silly-eggs-dream
+    - single-runtime-entry
+    - stored-variants
+    - variant-alternatives
+    - wild-boxes-boil
+    - writing-modes-conflict

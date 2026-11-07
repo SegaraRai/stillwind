@@ -1,5 +1,18 @@
 # @stillwind/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- `stillwind lint` prints a `docs:` line with the page that explains each finding, and the GitHub output includes it in the annotation. The language server links the code of each diagnostic to its page on the website.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/analysis@0.8.0
+  - @stillwind/language-server@0.8.0
+  - @stillwind/native@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

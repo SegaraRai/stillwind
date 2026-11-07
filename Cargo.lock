@@ -2046,7 +2046,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stillwind-cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "oxc_resolver",
  "pathdiff",
@@ -2064,7 +2064,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-compiler"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "blake3",
  "cssparser 0.38.0",
@@ -2088,7 +2088,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-css"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "cssparser 0.38.0",
  "lean_string",
@@ -2104,7 +2104,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-design-system"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "cssparser 0.38.0",
  "lean_string",
@@ -2122,7 +2122,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-diagnostics"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "lean_string",
  "serde",
@@ -2134,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-ir"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "lean_string",
  "serde",
@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-js-oxc"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "lean_string",
  "oxc",
@@ -2159,7 +2159,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-napi"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "lean_string",
  "napi",
@@ -2183,7 +2183,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-project"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "cssparser 0.38.0",
  "lean_string",
@@ -2202,7 +2202,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-semantic"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "lean_string",
  "proptest",
@@ -2215,7 +2215,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-source"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "blake3",
  "lean_string",
@@ -2228,7 +2228,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-syntax"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "lean_string",
  "proptest",
@@ -2237,7 +2237,7 @@ dependencies = [
 
 [[package]]
 name = "stillwind-test-support"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "cssparser 0.38.0",
  "stillwind-css",
