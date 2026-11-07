@@ -9,9 +9,9 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/stillwind"><img src="https://img.shields.io/npm/v/stillwind?style=flat-square&color=354fa2" alt="npm version" /></a>
-  <a href="https://github.com/SegaraRai/stillwind/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SegaraRai/stillwind/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-354fa2?style=flat-square" alt="MIT License" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=stillwind.stillwind"><img src="https://img.shields.io/open-vsx/v/stillwind/stillwind?style=flat-square&label=VS%20Code&color=d9725b" alt="VS Code extension version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-354fa2?style=flat-square" alt="MIT License" /></a>
+  <a href="https://github.com/SegaraRai/stillwind/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SegaraRai/stillwind/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
 </p>
 
 <p align="center">
