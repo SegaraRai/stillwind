@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/native-win32-arm64-msvc",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Node-API and WASM bindings for the Stillwind compiler",
   "homepage": "https://stillwind.dev",
   "bugs": {

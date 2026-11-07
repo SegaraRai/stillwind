@@ -1,5 +1,12 @@
 # @stillwind/plugin-iconify
 
+## 0.8.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes
