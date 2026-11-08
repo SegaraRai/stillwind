@@ -12,10 +12,6 @@ export default defineConfig(({ mode }) => ({
     },
     environment: "node",
     fileParallelism: !mode.startsWith("benchmark") && !mode.startsWith("performance"),
-    execArgv:
-      mode.startsWith("benchmark") || mode.startsWith("performance")
-        ? ["--experimental-transform-types"]
-        : [],
     provide: {
       performanceFull: mode === "performance-full",
       benchmarkWasm: mode === "benchmark-wasm",

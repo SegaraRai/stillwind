@@ -19,11 +19,12 @@ processes do not compete for CPU time.
 | `vp run test:performance:full`  | Full workloads including 1000 modules and 10,000 unused utility definitions         |
 
 Vitest benchmarks use `vite-plus/test`. Benchmark and performance modes measure
-native Node ESM modules with TypeScript transformation enabled. They retain raw
-samples and record Git revision, Node version, platform, timestamp, and workload
-settings. Reports go to ignored `benchmarks/results/`. Timings describe the chosen
-workloads on the current machine. Ordinary verification checks budget settings
-without checking elapsed time.
+native Node ESM modules, and Node strips TypeScript types from them. Benchmark
+code must use only syntax that type stripping supports, so it cannot use `enum` or
+parameter properties. Benchmark and performance modes retain raw samples and record
+Git revision, Node version, platform, timestamp, and workload settings. Reports go to
+ignored `benchmarks/results/`. Timings describe the chosen workloads on the current
+machine. Ordinary verification checks budget settings without checking elapsed time.
 
 Measurements use fixed iteration counts and disable time-based repetition.
 Callbacks state whether they are asynchronous so Tinybench does not execute them
