@@ -17,12 +17,11 @@ and name each item with a key.
 ```tsx
 import { style } from "stillwind/react";
 
-const productTransition = style.viewTransition({
-  old: "duration-150 motion-reduce:duration-0",
-  new: "delay-150 duration-150 motion-reduce:delay-0 motion-reduce:duration-0",
-});
-
 export function Product({ id, name }: { id: string; name: string }) {
+  const productTransition = style.viewTransition({
+    old: "duration-150 motion-reduce:duration-0",
+    new: "delay-150 duration-150 motion-reduce:delay-0 motion-reduce:duration-0",
+  });
   return <article {...style(productTransition.for(id), "rounded-lg p-4")}>{name}</article>;
 }
 ```
@@ -69,10 +68,9 @@ To combine several transitions on one element, pass the others without `.for()`:
 ```tsx
 import { style } from "stillwind/react";
 
-const fade = style.viewTransition({ old: "duration-150" });
-const slide = style.viewTransition({ new: "duration-300" });
-
 export function Card({ id }: { id: string }) {
+  const fade = style.viewTransition({ old: "duration-150" });
+  const slide = style.viewTransition({ new: "duration-300" });
   return <article {...style(fade, slide.for(id))}>Card</article>;
 }
 ```
