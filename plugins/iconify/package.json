@@ -22,7 +22,9 @@
     "directory": "plugins/iconify"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "exports": {

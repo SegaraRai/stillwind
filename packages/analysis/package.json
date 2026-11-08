@@ -16,7 +16,9 @@
     "directory": "packages/analysis"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "types": "./dist/index.d.ts",

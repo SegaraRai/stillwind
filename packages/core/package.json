@@ -43,6 +43,8 @@
     "css",
     "docs",
     "skills",
+    "README.md",
+    "CHANGELOG.md",
     "AGENTS_TEMPLATE.md",
     "TAILWINDCSS-MIT-LICENSE"
   ],

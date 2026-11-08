@@ -37,7 +37,9 @@
   },
   "files": [
     "dist",
-    "index.d.ts"
+    "index.d.ts",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "types": "./index.d.ts",

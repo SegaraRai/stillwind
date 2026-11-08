@@ -13,18 +13,21 @@ if (!overview) {
 }
 
 // `napi create-npm-dirs` rewrites `files` for each platform package. npm includes
-// `LICENSE` without a `files` entry, but the copies of third-party licenses need one.
+// `LICENSE` without a `files` entry, but the changelog and the copies of third-party
+// licenses need one.
 for (const target of config.targets) {
   const directory = path.join(root, "npm", target.platformArchABI);
   const platformManifestPath = path.join(directory, "package.json");
   const platformManifest = JSON.parse(await readFile(platformManifestPath, "utf8"));
-  for (const license of [
+  for (const file of [
+    "README.md",
+    "CHANGELOG.md",
     "RUST-THIRD-PARTY-LICENSES",
     "TAILWINDCSS-MIT-LICENSE",
     "WEBREF-MIT-LICENSE",
   ]) {
-    if (!platformManifest.files.includes(license)) {
-      platformManifest.files.push(license);
+    if (!platformManifest.files.includes(file)) {
+      platformManifest.files.push(file);
     }
   }
   platformManifest.homepage = manifest.homepage;

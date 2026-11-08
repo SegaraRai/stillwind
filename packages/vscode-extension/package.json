@@ -21,6 +21,7 @@
     "dist/extension",
     "index.d.ts",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "TAILWINDCSS-MIT-LICENSE",
     "WEBREF-MIT-LICENSE"
