@@ -184,8 +184,25 @@ fn write_math_text(tokens: &[TokenOrValue<'_>], output: &mut String) -> Option<(
 /// The token printer writes adjacent tokens without a separator. Whitespace next to `*`
 /// or `/` stays when the other neighbor is a delimiter or a comment, because `/ *` would
 /// print as the comment opener `/*` and `* =` as the `*=` token.
+///
+/// Most token lists have no whitespace to drop, so the list is rebuilt only after a scan
+/// finds a whitespace token that the rebuild would drop. The first dropped token has its
+/// original neighbors in both passes, so the scan finds a token exactly when the rebuild
+/// drops one.
 fn remove_separator_whitespace(tokens: &mut Vec<TokenOrValue<'_>>, math: bool) {
-    let mut input = std::mem::take(tokens).into_iter().peekable();
+    let removable = |index: usize| {
+        let before = index.checked_sub(1).map(|before| &tokens[before]);
+        let after = tokens.get(index + 1);
+        tokens[index].is_whitespace()
+            && (separates(before, after, math) || separates(after, before, math))
+    };
+    if !(0..tokens.len()).any(removable) {
+        return;
+    }
+    let capacity = tokens.len();
+    let mut input = std::mem::replace(tokens, Vec::with_capacity(capacity))
+        .into_iter()
+        .peekable();
     while let Some(token) = input.next() {
         let removable = token.is_whitespace()
             && (separates(tokens.last(), input.peek(), math)
