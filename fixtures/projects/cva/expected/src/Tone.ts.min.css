@@ -5,7 +5,7 @@
   --tw-font-weight: var(--font-weight-bold);
   font-weight: var(--font-weight-bold);
 }
-@media (hover: hover) {
+@media (hover) {
   .sw_jtu0n:hover {
     text-decoration-line: underline;
   }

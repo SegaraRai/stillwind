@@ -7,26 +7,26 @@
 .sw_447xz {
   padding-inline: calc(var(--spacing)*2);
 }
-@media (hover: hover) {
+@media (hover) {
   .sw_z17k0:is(:where(.sw_menu_y1wla):has(:where(.sw_trigger_1gc76):hover) *) {
     rotate: 90deg;
   }
 }
 .sw_z17k0:active:focus-visible {
-  --tw-scale-x: calc(95*1%);
-  --tw-scale-y: calc(95*1%);
-  --tw-scale-z: calc(95*1%);
+  --tw-scale-x: 95%;
+  --tw-scale-y: 95%;
+  --tw-scale-z: 95%;
   scale: var(--tw-scale-x) var(--tw-scale-y);
 }
 @container sw-c-menu-y1wla (width>=40rem) {
-  @media (hover: hover) {
+  @media (hover) {
     .sw_72ve1:is(:where(.sw_menu_y1wla):has(:where(.sw_trigger_1gc76):hover) *) {
       --tw-font-weight: var(--font-weight-bold);
       font-weight: var(--font-weight-bold);
     }
   }
 }
-@media (hover: hover) {
+@media (hover) {
   .sw_72ve1:is(:where(.sw_menu_y1wla):has(:where(.sw_trigger_1gc76):hover) *) {
     text-decoration-line: underline;
   }

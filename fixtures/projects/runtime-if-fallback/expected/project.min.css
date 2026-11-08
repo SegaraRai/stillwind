@@ -15,7 +15,7 @@
     --sw-if-s6okf: var(--enabled) flex;
     display: var(--sw-if-s6okf, revert-rule);
     --sw-ifg-qhl3x: var(--second) var(--enabled);
-    --sw-if-kbo56: var(--sw-ifg-qhl3x) calc(50*1%);
+    --sw-if-kbo56: var(--sw-ifg-qhl3x) 50%;
     opacity: var(--sw-if-kbo56, revert-rule) !important;
   }
 }

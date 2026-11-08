@@ -251,7 +251,7 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_o2uqu:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_ya42g):hover) *) {
       color: var(--color-accent);
     }
@@ -259,7 +259,7 @@
   .sw_lc4mp:where(.sw_menu_ja0oq) {
     container: sw-c-menu-ja0oq/inline-size;
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_3fwti:is(:where(.sw_trigger_7z9al):hover *) {
       color: var(--color-accent);
     }
@@ -267,7 +267,7 @@
   .sw_9v9ia:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al)) *) {
     color: var(--color-accent);
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_dqr19:is(:where(.sw_menu_ja0oq):focus:has(:where(.sw_trigger_7z9al):hover) *),
     .sw_ux4n0:is(:where(.sw_menu_ja0oq):focus:has(:where(.sw_trigger_7z9al):hover) *),
     .sw_anm5g:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al):hover) *):is(
@@ -280,7 +280,7 @@
     }
   }
   @container sw-c-menu-ja0oq (width>=40rem) {
-    @media (hover: hover) {
+    @media (hover) {
       .sw_1ml1x:is(:where(.sw_menu_ja0oq):has(:where(.sw_trigger_7z9al):hover) *) {
         color: var(--color-accent);
       }

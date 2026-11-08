@@ -243,7 +243,7 @@
   .sw_1agbk {
     opacity: 0.5;
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_9fmy7:hover {
       --tw-shadow:
         0 4px 6px -1px var(--tw-shadow-color, #0000001a),
@@ -260,7 +260,7 @@
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_jtu0n:hover {
       text-decoration-line: underline;
     }
@@ -271,7 +271,7 @@
   .sw_n5qi8 {
     padding: calc(var(--spacing)*4);
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_4oh6j:hover {
       --tw-shadow:
         0 4px 6px -1px var(--tw-shadow-color, #0000001a),

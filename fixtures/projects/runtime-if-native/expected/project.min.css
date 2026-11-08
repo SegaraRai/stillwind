@@ -11,7 +11,7 @@
   .sw_wmvay {
     display: if(style(--enabled): flex;else: revert-rule);
     --sw-ifg-qhl3x: var(--second) var(--enabled);
-    opacity: if(style(--sw-ifg-qhl3x): calc(50*1%);else: revert-rule) !important;
+    opacity: if(style(--sw-ifg-qhl3x): 50%;else: revert-rule) !important;
   }
 }
 .sw_b4p9x {

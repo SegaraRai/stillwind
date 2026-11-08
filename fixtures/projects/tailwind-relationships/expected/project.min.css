@@ -254,7 +254,7 @@
     border-radius: var(--radius-lg);
     container: sidebar/inline-size;
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_5yn5y:is(:where(.group\/menu):hover *) {
       color: var(--color-brand);
     }

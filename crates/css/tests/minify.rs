@@ -37,6 +37,73 @@ fn removes_separator_whitespace_from_unparsed_values() {
 }
 
 #[test]
+fn folds_numeric_calc_only_when_the_literal_is_equivalent() {
+    let css = ".a{--p:calc(95 * 1%);--l:calc(2 * 3px);--z:calc(0 * 1px);--i:calc(2 * 2);--n:calc(50 * 1% * -1);--g:calc(90 * 1deg);--t:calc(2 * 100ms);--d:calc(10px / 4);--o:calc(100 / 100);--f:calc(98 / 100);--h:calc(1.5 * 1);--r:calc(1px / 3);--u:calc(10px / 2px);--v:calc(var(--a) * 2);opacity:if(style(--x:1):calc(50 * 1%);else:1)}";
+    let output = minify_css(css, &CssMinifyOptions::default()).unwrap();
+    assert_eq!(
+        output.css,
+        ".a{--p:95%;--l:6px;--z:0px;--i:4;--n:-50%;--g:90deg;--t:200ms;--d:2.5px;--o:1;--f:calc(98/100);--h:calc(1.5*1);--r:calc(1px/3);--u:calc(10px/2px);--v:calc(var(--a)*2);opacity:if(style(--x:1):50%;else:1)}"
+    );
+}
+
+#[test]
+fn folds_fractions_only_for_properties_registered_as_numbers() {
+    let css = "@property --n{syntax:\"<number>\";inherits:false;initial-value:1}@property --i{syntax:\"<integer> | <number>\";inherits:false;initial-value:1}@layer l{@property --m{syntax:\"<number>+\";inherits:false;initial-value:1}}.a{--n:calc(98 / 100);--i:calc(98 / 100);--m:calc(98 / 100);--u:calc(98 / 100)}";
+    let output = minify_css(css, &CssMinifyOptions::default()).unwrap();
+    assert!(
+        output
+            .css
+            .ends_with(".a{--n:.98;--i:calc(98/100);--m:.98;--u:calc(98/100)}"),
+        "{}",
+        output.css
+    );
+}
+
+#[test]
+fn shortens_media_queries_without_changing_their_matches() {
+    let css = "@media (hover:hover) and (prefers-reduced-motion:reduce){.a{color:red}}@media (pointer:fine){.b{color:red}}@media screen and (min-width:640px) and (hover:hover) and (max-width:1023.98px){.c{color:red}}@container x (width>=1px) and (width<9px){.d{color:red}}";
+    let output = minify_css(css, &CssMinifyOptions::default()).unwrap();
+    assert_eq!(
+        output.css,
+        "@media (hover) and (prefers-reduced-motion){.a{color:red}}@media (pointer:fine){.b{color:red}}@media screen and (640px<=width<=1023.98px) and (hover){.c{color:red}}@container x (1px<=width<9px){.d{color:red}}"
+    );
+    let options = CssMinifyOptions {
+        targets: Some([("safari".into(), 15 << 16)].into()),
+        ..CssMinifyOptions::default()
+    };
+    assert_eq!(
+        minify_css(
+            "@media (min-width:640px) and (max-width:1023px){.c{color:red}}",
+            &options
+        )
+        .unwrap()
+        .css,
+        "@media (min-width:640px) and (max-width:1023px){.c{color:red}}"
+    );
+}
+
+#[test]
+fn compacts_supports_declarations_without_rewriting_their_tokens() {
+    let css =
+        "@supports (color:color-mix(in lab, red , red)) and (font: 1px / 2 a , b){.a{color:red}}";
+    let output = minify_css(css, &CssMinifyOptions::default()).unwrap();
+    assert_eq!(
+        output.css,
+        "@supports (color:color-mix(in lab,red,red)) and (font:1px / 2 a,b){.a{color:red}}"
+    );
+}
+
+#[test]
+fn removes_repeated_selectors_and_merges_equal_keyframes() {
+    let css = ".a,.b,.a{color:red}@keyframes k{0%{opacity:0}50%{opacity:0}to{opacity:1}}@keyframes d{from{opacity:0}50%{opacity:0}0%{opacity:1}}";
+    let output = minify_css(css, &CssMinifyOptions::default()).unwrap();
+    assert_eq!(
+        output.css,
+        ".a,.b{color:red}@keyframes k{0%,50%{opacity:0}to{opacity:1}}@keyframes d{0%{opacity:0}50%{opacity:0}0%{opacity:1}}"
+    );
+}
+
+#[test]
 fn targets_features_and_unused_symbols_are_forwarded() {
     let css = ".a{color:red;&:hover{color:blue}}.unused{height:1px}";
     let mut options = CssMinifyOptions {

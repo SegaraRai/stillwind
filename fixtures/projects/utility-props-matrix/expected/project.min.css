@@ -238,7 +238,7 @@
     align-items: center;
     display: inline-flex;
   }
-  @media (hover: hover) {
+  @media (hover) {
     .sw_hpdco:hover {
       background-color: #1187eee6;
       @supports (color: color-mix(in lab, red, red)) {

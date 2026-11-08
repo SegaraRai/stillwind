@@ -235,7 +235,7 @@
   ::view-transition-old(.sw-vt-9jm9s) {
     opacity: 1;
   }
-  @media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion) {
     ::view-transition-old(.sw-vt-9jm9s) {
       opacity: 0.75;
     }
