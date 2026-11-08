@@ -8,11 +8,6 @@ identifies a remaining limitation and the evidence needed to resolve it.
 
 The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need work:
 
-- Plugin `theme('boxShadow')` returns a string when CSS defines only `--shadow`.
-  Namespace root lookups must keep the object shape, including `DEFAULT`.
-- Plugin value inference does not recognize `cap`, `ic`, `rex`, `rch`, `rcap`,
-  `ric`, or the additional small, large, and dynamic viewport units as lengths.
-  Native utility resolution already accepts representative values such as `text-[10dvmin]`.
 - Built-in color utilities resolve numeric alpha modifiers without looking up
   `--opacity-*` tokens. Define named opacity support and verify its precedence
   against numeric modifiers, including inline theme values and canonicalization.
@@ -27,9 +22,6 @@ The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need wor
 - A custom variant containing `@scope` does not resolve, and declarations directly
   inside a scope do not get a `:where(:scope)` rule.
   Define and test these cases across document and module output.
-- A `color-mix()` without an interpolation method is retained in both the base rule
-  and its capability fallback. Validate the function before constructing a fallback;
-  do not invent a color for malformed input.
 
 Sources: [Tailwind 4.3.4](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.4),
 [Tailwind 4.3.5](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.5),

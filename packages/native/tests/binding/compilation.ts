@@ -11,6 +11,25 @@ import { sourceUri, cssInput, oneShotInput } from "./support.ts";
  * @param bindingSpecifier - Absolute URL of the binding module.
  */
 export function registerCompilationContract(bindingSpecifier: string): void {
+  test("color mixes without an interpolation method retain their authored value", async () => {
+    const { NativeDesignSystemLoader } = await import(bindingSpecifier);
+    for (const value of [
+      "color-mix(currentcolor 50%,transparent)",
+      "color-mix(var(--external),red)",
+      "color-mix(var(--brand))",
+      "color-mix(currentcolor,red,blue)",
+      "color-mix(in)",
+    ]) {
+      const loader = new NativeDesignSystemLoader();
+      loader.provide(
+        0,
+        "root.css",
+        `@utility probe { color:${value}; } @stillwind-slot utilities;`,
+      );
+      expect(loader.editorQuery().previewCandidate("probe"), value).toBe(`&{color:${value};}`);
+    }
+  });
+
   test("pseudo-element utilities omit impossible nested branches and retain valid selectors", async () => {
     const { NativeDesignSystemLoader } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader();

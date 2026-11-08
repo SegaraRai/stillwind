@@ -168,6 +168,35 @@ const sized = plugin((api) =>
 );
 
 const cases: ComparisonCase[] = [
+  ...["10cap", "10rex", "10dvmin", "10svi"].map((value): ComparisonCase => ({
+    name: `typed plugin lengths: ${value}`,
+    extension: sized,
+    preflight: true,
+    candidates: [`probe-[${value}]`],
+    properties: ["width"],
+  })),
+  {
+    name: "theme namespace roots: CSS DEFAULT values can be spread into plugin values",
+    extension: plugin((api) =>
+      api.matchUtilities(
+        {
+          shade: (value) => ({
+            boxShadow: value,
+          }),
+        },
+        {
+          values: {
+            ...api.theme("boxShadow"),
+          },
+        },
+      ),
+    ),
+    themeless: true,
+    after: "@theme { --shadow:0 1px 2px #000; }",
+    candidates: ["shade"],
+    properties: ["box-shadow"],
+    expected: ["rgb(0, 0, 0) 0px 1px 2px 0px"],
+  },
   {
     name: "diff 1: a stylesheet utility after @plugin overrides the plugin",
     extension: red,

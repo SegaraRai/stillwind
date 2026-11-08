@@ -94,6 +94,62 @@ test("only the plugins' own configuration is written back as CSS", () => {
   expect(new PluginTheme([{}], [], legacyKeys).css()).toBe("");
 });
 
+test("namespace roots retain DEFAULT while leaf lookups return the value", () => {
+  const shadow = "0 1px 2px #000";
+  for (const extra of [[], [token("--shadow-soft", "0 2px 4px #123")]]) {
+    const theme = new PluginTheme(
+      [],
+      [
+        token("--shadow", shadow),
+        ...extra,
+        token("--color-brand", "red"),
+        token("--color-brand-deep", "maroon"),
+      ],
+      legacyKeys,
+    );
+    for (const root of ["boxShadow", "shadow"]) {
+      expect(theme.get(root)).toEqual(
+        expect.objectContaining({
+          DEFAULT: shadow,
+        }),
+      );
+      expect(theme.get(`${root}.DEFAULT`)).toBe(shadow);
+    }
+    expect(theme.get("colors.brand")).toBe("red");
+    expect(theme.get("colors.brand.DEFAULT")).toBe("red");
+    expect(theme.get("--shadow")).toBe(shadow);
+  }
+});
+
+test("namespace DEFAULT values keep CSS and config precedence", () => {
+  for (const fallback of [false, true]) {
+    const theme = new PluginTheme(
+      [
+        {
+          theme: {
+            extend: {
+              boxShadow: {
+                DEFAULT: "0 4px 8px blue",
+                custom: "0 8px 16px green",
+              },
+            },
+          },
+        },
+      ],
+      [token("--shadow", "0 1px 2px red", fallback)],
+      legacyKeys,
+    );
+    const expected = fallback ? "0 4px 8px blue" : "0 1px 2px red";
+    expect(theme.get("boxShadow")).toEqual(
+      expect.objectContaining({
+        DEFAULT: expected,
+        custom: "0 8px 16px green",
+      }),
+    );
+    expect(theme.get("boxShadow.DEFAULT")).toBe(expected);
+  }
+});
+
 test("values that refer to their own variable are inlined instead of declared", () => {
   expect(
     new PluginTheme(

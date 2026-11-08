@@ -50,6 +50,30 @@ async function graph(
 // keys that their plugins read.
 const legacyColors = "@stillwind-legacy-theme-key colors --color-* replace;";
 
+test("plugins can register a default utility from a CSS namespace root", async () => {
+  const extension = plugin((api) => {
+    api.matchUtilities(
+      {
+        shade: (value) => ({
+          boxShadow: value,
+        }),
+      },
+      {
+        values: {
+          ...api.theme("boxShadow"),
+        },
+      },
+    );
+  });
+  const loaded = await graph(
+    '@stillwind-legacy-theme-key boxShadow --shadow-* extend; @plugin "test"; @theme { --shadow:0 1px 2px #000; } @stillwind-slot utilities;',
+    extension,
+  );
+  expect((await loaded.plugins!.query("shade")).previewCandidate("shade")).toBe(
+    "&{box-shadow:0 1px 2px #000;}",
+  );
+});
+
 test("theme edits re-evaluate previously requested plugin candidates", async () => {
   const extension = plugin((api) =>
     api.matchUtilities(
@@ -107,6 +131,9 @@ test("decoded values and modifiers register definitions that the compiler resolv
   expect(await preview("probe-(length:--my-size)")).toBe(
     "&{width:var(--my-size);--modifier:none;}",
   );
+  for (const value of ["10cap", "10dvmin"]) {
+    expect(await preview(`probe-[${value}]`)).toBe(`&{width:${value};--modifier:none;}`);
+  }
 });
 
 test("editor catalogs resolve selected script and CSS candidates without emitting unused CSS", async () => {

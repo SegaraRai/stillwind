@@ -1,4 +1,4 @@
-// Ported from Tailwind CSS 4.3.3 (MIT), utils/infer-data-type.ts and utils/is-color.ts. Keep
+// Ported from Tailwind CSS 4.3.5 (MIT), utils/infer-data-type.ts and utils/is-color.ts. Keep
 // the checks aligned with upstream: they decide which `matchUtilities` registration receives an
 // arbitrary value without a type hint, which is a different question from whether the value is
 // valid CSS for a property.
@@ -450,7 +450,13 @@ const LENGTH_UNITS = [
   "em",
   "ex",
   "ch",
+  "cap",
+  "ic",
   "rem",
+  "rex",
+  "rch",
+  "rcap",
+  "ric",
   "lh",
   "rlh",
   "vw",
@@ -461,10 +467,22 @@ const LENGTH_UNITS = [
   "vi",
   "svw",
   "svh",
+  "svi",
+  "svb",
+  "svmin",
+  "svmax",
   "lvw",
   "lvh",
+  "lvi",
+  "lvb",
+  "lvmin",
+  "lvmax",
   "dvw",
   "dvh",
+  "dvi",
+  "dvb",
+  "dvmin",
+  "dvmax",
   "cqw",
   "cqh",
   "cqi",

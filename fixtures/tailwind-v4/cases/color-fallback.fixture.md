@@ -1,5 +1,57 @@
 # Color fallbacks
 
+## `color-fallback.omitted-interpolation`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@utility mix-current { color: color-mix(currentcolor 50%, transparent); }
+@utility mix-unknown { color: color-mix(var(--external), red); }
+@utility mix-theme { color: color-mix(var(--color-red-500) 50%, transparent); }
+@utility mix-single { color: color-mix(var(--color-red-500)); }
+@utility mix-explicit { --tint: color-mix(/* tint, blue */ in oklab, currentcolor 50%, transparent); }
+```
+
+### Candidates
+
+```text
+mix-current mix-unknown mix-theme mix-single mix-explicit
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --color-red-500: oklch(63.7% 0.237 25.331);
+  }
+}
+@layer utilities {
+  .mix-current {
+    color: color-mix(currentcolor 50%, transparent);
+  }
+  .mix-single {
+    color: color-mix(var(--color-red-500));
+  }
+  .mix-theme {
+    color: color-mix(var(--color-red-500) 50%, transparent);
+  }
+  .mix-unknown {
+    color: color-mix(var(--external), red);
+  }
+  .mix-explicit {
+    --tint: currentcolor;
+    @supports (color: color-mix(in lab, red, red)) {
+      --tint: color-mix(/* tint, blue */ in oklab, currentcolor 50%, transparent);
+    }
+  }
+}
+```
+
 ## `color-fallback.opacity-boundaries`
 
 ### Input CSS
