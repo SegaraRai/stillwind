@@ -13,10 +13,9 @@ The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need wor
 - Plugin value inference does not recognize `cap`, `ic`, `rex`, `rch`, `rcap`,
   `ric`, or the additional small, large, and dynamic viewport units as lengths.
   Native utility resolution already accepts representative values such as `text-[10dvmin]`.
-- Canonicalization changes `text-[theme(colors.red.500/.12345)]` to
-  `text-red-500/1234.5`. Preserve the opacity with an arbitrary percentage modifier.
-  With `--opacity-50: 10%`, it changes `text-[theme(colors.red.500/50%)]` to
-  `text-red-500/50`; retain the authored 50% instead of selecting that token.
+- Built-in color utilities resolve numeric alpha modifiers without looking up
+  `--opacity-*` tokens. Define named opacity support and verify its precedence
+  against numeric modifiers, including inline theme values and canonicalization.
 - Arbitrary breakpoint variants such as `max-[64rem]:flex` and selector variants
   such as `[&_::before]:flex` remain unchanged instead of using the named or child
   variants that Tailwind suggests. Verify equivalent output before adding replacements.

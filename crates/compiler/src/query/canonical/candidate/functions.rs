@@ -193,7 +193,7 @@ fn theme_value(
                 && modifier_count == 1
                 && let Some(value) = alpha
             {
-                extracted = Some(opacity_modifier(value));
+                extracted = Some(opacity_modifier(value, theme));
                 alpha = None;
             }
             let fallback = fallback
@@ -237,24 +237,27 @@ fn theme_value(
 /// Returns the opacity `value` written as a candidate modifier, including its leading
 /// `/`.
 ///
-/// A whole percentage such as `50%` becomes `/50`. A fraction such as `.5` becomes
-/// `/50`, or an arbitrary modifier when the percentage is not whole. `var(--x)` becomes
-/// `/(--x)`. Any other value becomes an arbitrary modifier such as `/[calc(...)]`.
-fn opacity_modifier(value: &str) -> String {
-    if let Some(number) = value
+/// A percentage on a quarter step becomes a bare modifier when no opacity token has
+/// that key. Other percentages keep their unit in an arbitrary modifier, so the
+/// equivalence search can check named replacements against the utility's definitions.
+/// Fractions are converted to percentages. `var(--x)` becomes `/(--x)`; other
+/// expressions become arbitrary modifiers such as `/[calc(...)]`.
+fn opacity_modifier(value: &str, theme: &ThemeIndex) -> String {
+    let percentage = value
         .strip_suffix('%')
-        .filter(|number| number.bytes().all(|byte| byte.is_ascii_digit()))
-    {
-        return format!("/{number}");
-    }
-    if (value.starts_with('.') || value.starts_with("0."))
-        && let Ok(number) = value.parse::<f64>()
-    {
-        let number = number * 100.0;
-        if number.fract() == 0.0 {
-            return format!("/{number}");
+        .and_then(|number| number.parse::<f64>().ok())
+        .or_else(|| {
+            (value.starts_with('.') || value.starts_with("0."))
+                .then(|| value.parse::<f64>().ok().map(fraction_percentage))
+                .flatten()
+        })
+        .filter(|number| number.is_finite());
+    if let Some(percentage) = percentage {
+        let key = percentage.to_string();
+        if (percentage * 4.0).fract() == 0.0 && theme.namespace_token("opacity", &key).is_none() {
+            return format!("/{key}");
         }
-        return format!("/[{number}]");
+        return format!("/[{key}%]");
     }
     if let Some(value) = value
         .strip_prefix("var(")
@@ -263,6 +266,19 @@ fn opacity_modifier(value: &str) -> String {
         return format!("/({value})");
     }
     format!("/[{}]", print_arbitrary_value(value))
+}
+
+/// Converts a fraction to a percentage without leaving floating-point noise next to
+/// a quarter step. For example, `.29 * 100` is just below `29`, which otherwise misses
+/// the named modifier. Values farther from a step retain their full precision.
+fn fraction_percentage(value: f64) -> f64 {
+    let percentage = value * 100.0;
+    let quarter = (percentage * 4.0).round() / 4.0;
+    if (percentage - quarter).abs() <= f64::EPSILON * percentage.abs() * 4.0 {
+        quarter
+    } else {
+        percentage
+    }
 }
 
 /// Returns the custom property of the active token that the legacy theme `path` names,

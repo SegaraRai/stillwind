@@ -8,6 +8,49 @@ import { completionLabels } from "./support.ts";
  * @param specifier - Absolute URL of the binding module.
  */
 export function registerCanonicalEditorContract(specifier: string): void {
+  test("legacy theme alphas retain fractional precision", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "theme.css",
+      `@theme { --color-red:red; }
+@utility tone-* { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier())); }
+@stillwind-slot utilities;`,
+    );
+    const query = loader.editorQuery();
+    for (const [alpha, expected] of [
+      [".12345", "tone-red/[12.345%]"],
+      [".29", "tone-red/29"],
+    ]) {
+      expect(query.canonicalCandidate(`tone-[theme(--color-red/${alpha})]`)).toBe(expected);
+    }
+  });
+
+  test("legacy theme alphas keep their percentage with opacity tokens", async () => {
+    const { NativeDesignSystemLoader } = await import(specifier);
+    for (const mode of ["", "inline"]) {
+      for (const [opacity, expected] of [
+        ["10%", "tone-red/[50%]"],
+        ["50%", "tone-red/50"],
+      ]) {
+        const loader = new NativeDesignSystemLoader();
+        loader.provide(
+          0,
+          "theme.css",
+          `@theme ${mode} { --color-red:red; --opacity-50:${opacity}; }
+@utility tone-* { color:--compat-color(--value(--color-*, [color]), --alpha(--modifier(--opacity-*, number, [percentage]))); }
+@stillwind-slot utilities;`,
+        );
+        const query = loader.editorQuery();
+        for (const alpha of ["50%", ".5"]) {
+          const input = `tone-[theme(--color-red/${alpha})]`;
+          expect(query.canonicalCandidate(input), `${mode} ${opacity} ${alpha}`).toBe(expected);
+        }
+      }
+    }
+  });
+
   test("canonical dynamic suggestions require resolved names", async () => {
     const { NativeDesignSystemLoader } = await import(specifier);
     const css = `@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*];
