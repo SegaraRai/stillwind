@@ -11,8 +11,8 @@
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_selector, selector_list_branches,
-    selector_uses_subject,
+    append_element_condition, fold_host_conditions, instantiate_selector, selector_cannot_match,
+    selector_list_branches, selector_uses_subject,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
@@ -209,18 +209,14 @@ fn render_utility_steps(
         }
     }
     if let Some(template) = utility.selector.as_deref() {
-        selector = instantiate_selector(template, &selector);
+        selector = nested_utility_selector(template, &selector);
+        if selector.is_empty() {
+            return Ok(LeanString::new());
+        }
     }
     let selector = fold_host_conditions(&selector);
     let conditional = !conditions.is_empty();
-    // Every conditional guards the body the previous one produced, and the gate declarations a
-    // pass writes are part of that body, so the names only have to survive this rule's own steps.
-    let mut gates = Vec::new();
-    for condition in conditions {
-        let guarded = guard(&declaration, condition, identifiers, &gates)?;
-        declaration = (guarded.css).into();
-        gates.extend(guarded.gates);
-    }
+    declaration = guard_declaration(declaration, &conditions, identifiers)?;
     let mut rule = format_args!("{selector}{{{declaration}}}").to_lean_string();
     if let Some(nested) = nested_rule {
         rule = wrap_condition(&rule, nested.at_rule, &nested.condition);
@@ -244,6 +240,43 @@ fn render_utility_steps(
         rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
     }
     Ok(if conditional { protect(&rule) } else { rule })
+}
+
+/// Applies each runtime condition to the declaration body produced by the previous
+/// condition. Returns a diagnostic if a condition cannot be lowered.
+fn guard_declaration(
+    mut declaration: LeanString,
+    conditions: &[&str],
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    // Each pass includes the gate declarations from earlier passes in its body, so gate
+    // names only have to survive this rule's own steps.
+    let mut gates = Vec::new();
+    for condition in conditions {
+        let guarded = guard(&declaration, condition, identifiers, &gates)?;
+        declaration = (guarded.css).into();
+        gates.extend(guarded.gates);
+    }
+    Ok(declaration)
+}
+
+/// Substitutes each parent branch into `template` and drops branches that cannot match
+/// after nesting. Substituting a whole parent list into `& > *` would leave its earlier
+/// pseudo-element branches untouched.
+fn nested_utility_selector(template: &str, parent: &str) -> LeanString {
+    selector_list_branches(parent)
+        .into_iter()
+        .flat_map(|parent| {
+            let nested = instantiate_selector(template, parent);
+            selector_list_branches(&nested)
+                .into_iter()
+                .filter(|branch| !selector_cannot_match(branch))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+        .into()
 }
 
 /// Returns the selector that a rule starts from and, in [`VariantContext::Document`],

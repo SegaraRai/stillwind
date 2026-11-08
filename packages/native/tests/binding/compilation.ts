@@ -11,6 +11,32 @@ import { sourceUri, cssInput, oneShotInput } from "./support.ts";
  * @param bindingSpecifier - Absolute URL of the binding module.
  */
 export function registerCompilationContract(bindingSpecifier: string): void {
+  test("pseudo-element utilities omit impossible nested branches and retain valid selectors", async () => {
+    const { NativeDesignSystemLoader } = await import(bindingSpecifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "root.css",
+      `@stillwind-variant selection { & ::selection, &::selection { @slot; } }
+@stillwind-variant hover { &:hover { @slot; } }
+@stillwind-variant mixed { &::selection, &:hover { @slot; } }
+@utility children { color:blue; & > * { color:red; } }
+@utility branches { & > *, & { color:green; } }
+@utility descendants { & > * { color:red; } }
+@stillwind-slot utilities;`,
+    );
+    const query = loader.editorQuery();
+    for (const [candidate, expected] of [
+      ["selection:children", "& ::selection, &::selection{color:blue;}"],
+      ["selection:descendants", ""],
+      ["selection:branches", "& ::selection,&::selection{color:green;}"],
+      ["mixed:descendants", "&:hover > *{color:red;}"],
+      ["hover:descendants", "&:hover > *{color:red;}"],
+    ]) {
+      expect(query.previewCandidate(candidate), candidate).toBe(expected);
+    }
+  });
+
   test("browser targets retain color fallbacks unless every target supports the value", async () => {
     const { NativeDesignSystemLoader, compileSource } = await import(bindingSpecifier);
     const css =

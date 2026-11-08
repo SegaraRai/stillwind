@@ -27,8 +27,6 @@ The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need wor
 - A custom variant containing `@scope` does not resolve, and declarations directly
   inside a scope do not get a `:where(:scope)` rule.
   Define and test these cases across document and module output.
-- `selection:` applied to a utility with `& > *` emits a combinator after
-  `::selection`. Drop branches that cannot select an element.
 - A `color-mix()` without an interpolation method is retained in both the base rule
   and its capability fallback. Validate the function before constructing a fallback;
   do not invent a color for malformed input.
