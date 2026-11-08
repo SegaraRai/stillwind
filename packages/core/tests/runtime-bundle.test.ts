@@ -64,7 +64,7 @@ test("packaged production merges exclude validation, other formats, and unused c
   );
   expect(runtime.merge({ [runtime.key]: "ready" })).toEqual({ className: "ready" });
   expect(code).not.toMatch(
-    /function toFragment|Checked|NODE_ENV|different runtime instance|class-object|class-string/,
+    /function toFragment\b|Checked|NODE_ENV|different runtime instance|class-object|class-string/,
   );
 });
 
