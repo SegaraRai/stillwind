@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@sveltejs/kit": "2.70.3",
+    "@sveltejs/kit": "2.70.4",
     "stillwind": "workspace:*",
     "svelte": "5.57.3"
   },
   "devDependencies": {
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@sveltejs/adapter-node": "5.5.7",
+    "@sveltejs/adapter-node": "5.5.8",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "catalog:",
     "typescript": "catalog:",

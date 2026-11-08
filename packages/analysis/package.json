@@ -48,7 +48,7 @@
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
-    "minimatch": "^11.0.3",
+    "minimatch": "^11.0.5",
     "pathe": "catalog:"
   },
   "devDependencies": {

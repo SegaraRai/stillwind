@@ -6,8 +6,8 @@
   "license": "MIT",
   "type": "module",
   "devDependencies": {
-    "@cloudflare/build-output-utils": "^0.9.6",
-    "@cloudflare/config": "^0.29.0",
+    "@cloudflare/build-output-utils": "^0.9.10",
+    "@cloudflare/config": "^0.30.2",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
     "cf": "catalog:",
