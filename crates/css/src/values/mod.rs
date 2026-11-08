@@ -40,3 +40,6 @@ pub use webref::{
     reads_written_value, repeated_longhands, writing_mode_group,
 };
 pub use writing_modes::{WritingMode, properties_interfere_in};
+
+#[cfg(feature = "minify")]
+pub(crate) use syntax::MATH_FUNCTIONS;

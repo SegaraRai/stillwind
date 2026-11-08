@@ -35,7 +35,7 @@ pub(super) fn contains_custom_property_reference(value: &str) -> bool {
 }
 
 /// Math functions whose arguments [`value_is_well_formed`] parses.
-const MATH_FUNCTIONS: &[&str] = &[
+pub(crate) const MATH_FUNCTIONS: &[&str] = &[
     "calc", "min", "max", "clamp", "round", "mod", "rem", "abs", "sign", "sin", "cos", "tan",
     "asin", "acos", "atan", "atan2", "pow", "sqrt", "hypot", "log", "exp",
 ];

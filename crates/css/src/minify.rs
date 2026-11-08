@@ -4,12 +4,18 @@
 //! Hosts own resource resolution, asset boundaries, and source-map publication.
 
 use std::collections::{BTreeMap, HashSet};
+use std::convert::Infallible;
 use std::sync::{Arc, PoisonError, RwLock};
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
+use lightningcss::properties::custom::{Function, Token, TokenList, TokenOrValue};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
 use lightningcss::targets::{Browsers, Features, Targets};
+use lightningcss::visit_types;
+use lightningcss::visitor::{Visit, VisitTypes, Visitor};
 use parcel_sourcemap::SourceMap;
+
+use crate::values::MATH_FUNCTIONS;
 
 /// Failure in a final CSS processing stage. No partial output is returned.
 #[derive(Debug, thiserror::Error)]
@@ -47,7 +53,8 @@ pub struct MinifiedCss {
 /// `css` must have its Stillwind directives expanded and resource URLs resolved.
 /// `options.input_source_map`, when present, must map this exact input to its sources.
 /// Returns CSS, an optional v3 map, and parser warnings. Inputs remain unchanged.
-/// Source-map precision and CSS transformations follow the underlying libraries.
+/// Source-map precision and CSS transformations follow the underlying libraries, except
+/// that unparsed values also lose whitespace next to separators.
 /// Embedded source-map URLs are ignored, and no source-map comment is appended.
 ///
 /// # Errors
@@ -88,6 +95,7 @@ pub fn minify_css(css: &str, options: &CssMinifyOptions) -> Result<MinifiedCss, 
                 .collect::<HashSet<_>>(),
         })
         .map_err(|error| CssMinifyError::Minify(error.to_lean_str()))?;
+    let Ok(()) = sheet.visit(&mut TokenWhitespace);
     let mut map = options.source_map.then(|| SourceMap::new(""));
     if let Some(map) = &mut map {
         let source = map.add_source(&options.filename);
@@ -261,4 +269,71 @@ fn parse_source_map(json: &str) -> Result<(SourceMap, Option<LeanString>), CssMi
     let map = SourceMap::from_json("", json)
         .map_err(|error| CssMinifyError::SourceMap(error.to_lean_str()))?;
     Ok((map, root))
+}
+
+/// Removes whitespace tokens from unparsed values when the printed tokens keep their
+/// meaning without them.
+///
+/// Every token list loses whitespace next to commas. The arguments of an unparsed math
+/// function such as `calc(var(--a) * 2)` also lose whitespace next to `*` and `/`.
+/// Outside math functions, whitespace around `*` can be a descendant combinator, as in
+/// `.a * .b` inside the block of an unknown at-rule.
+struct TokenWhitespace;
+
+impl<'i> Visitor<'i> for TokenWhitespace {
+    type Error = Infallible;
+
+    fn visit_types(&self) -> VisitTypes {
+        visit_types!(TOKENS | FUNCTIONS)
+    }
+
+    fn visit_token_list(&mut self, tokens: &mut TokenList<'i>) -> Result<(), Self::Error> {
+        remove_separator_whitespace(&mut tokens.0, false);
+        tokens.visit_children(self)
+    }
+
+    fn visit_function(&mut self, function: &mut Function<'i>) -> Result<(), Self::Error> {
+        if MATH_FUNCTIONS
+            .iter()
+            .any(|name| function.name.0.eq_ignore_ascii_case(name))
+        {
+            remove_separator_whitespace(&mut function.arguments.0, true);
+        }
+        function.visit_children(self)
+    }
+}
+
+/// Drops each whitespace token next to a comma, or next to `*` or `/` when `math` is
+/// true.
+///
+/// The token printer writes adjacent tokens without a separator. Whitespace next to
+/// `*` or `/` stays when the other neighbor is a delimiter or a comment, because
+/// `/ *` would print as the comment opener `/*` and `* =` as the `*=` token.
+fn remove_separator_whitespace(tokens: &mut Vec<TokenOrValue<'_>>, math: bool) {
+    let mut input = std::mem::take(tokens).into_iter().peekable();
+    while let Some(token) = input.next() {
+        let removable = token.is_whitespace()
+            && (separates(tokens.last(), input.peek(), math)
+                || separates(input.peek(), tokens.last(), math));
+        if !removable {
+            tokens.push(token);
+        }
+    }
+}
+
+/// Whether `separator` is a token that whitespace between it and `other` may be
+/// dropped next to.
+fn separates(
+    separator: Option<&TokenOrValue<'_>>,
+    other: Option<&TokenOrValue<'_>>,
+    math: bool,
+) -> bool {
+    match separator {
+        Some(TokenOrValue::Token(Token::Comma)) => true,
+        Some(TokenOrValue::Token(Token::Delim('*' | '/'))) if math => !matches!(
+            other,
+            Some(TokenOrValue::Token(Token::Delim(_) | Token::Comment(_)))
+        ),
+        _ => false,
+    }
 }

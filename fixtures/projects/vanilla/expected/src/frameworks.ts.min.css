@@ -5,5 +5,5 @@
 .sw_oxkd1,
 .sw_23sbd,
 .sw_y15vs {
-  padding: calc(var(--spacing) * 4);
+  padding: calc(var(--spacing)*4);
 }

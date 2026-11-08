@@ -27,6 +27,16 @@ fn combines_equal_queries_and_retains_conflicting_rule_barriers() {
 }
 
 #[test]
+fn removes_separator_whitespace_from_unparsed_values() {
+    let css = ".a{--f:Arial, \"Segoe UI\" , sans-serif;--m:a * b / c;--c:calc(1 / * 2) calc(1 * = 2);font-family:var(--f,Arial, sans-serif);padding:calc(var(--s) * 4) calc(var(--s) / 2 - 1px) max(var(--s) * 2, 1px)}";
+    let output = minify_css(css, &CssMinifyOptions::default()).unwrap();
+    assert_eq!(
+        output.css,
+        ".a{--f:Arial,\"Segoe UI\",sans-serif;--m:a * b / c;--c:calc(1/ *2) calc(1* = 2);font-family:var(--f,Arial,sans-serif);padding:calc(var(--s)*4) calc(var(--s)/2 - 1px) max(var(--s)*2,1px)}"
+    );
+}
+
+#[test]
 fn targets_features_and_unused_symbols_are_forwarded() {
     let css = ".a{color:red;&:hover{color:blue}}.unused{height:1px}";
     let mut options = CssMinifyOptions {

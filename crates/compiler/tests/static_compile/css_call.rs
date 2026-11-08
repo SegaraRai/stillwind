@@ -66,9 +66,9 @@ fn the_default_template_places_used_support_before_the_rules() {
         "--color-red-500:",
         "--spacing:.25rem",
         "display:block",
-        "padding:calc(var(--spacing) * 4)",
+        "padding:calc(var(--spacing)*4)",
         "button:hover{background-color:var(--color-red-500)}",
-        "button{--tw-translate-x:calc(var(--spacing) * 2);",
+        "button{--tw-translate-x:calc(var(--spacing)*2);",
     ] {
         assert!(css.contains(expected), "{expected}: {css}");
     }
@@ -97,7 +97,7 @@ fn the_selector_option_targets_utilities_that_select_no_element() {
     assert_eq!(kinds(&result), [LintKind::MissingDocumentTarget]);
     assert_eq!(
         css,
-        ":where(:root,:host){--spacing:.25rem}button{margin:calc(var(--spacing) * 2)}"
+        ":where(:root,:host){--spacing:.25rem}button{margin:calc(var(--spacing)*2)}"
     );
 }
 
@@ -111,7 +111,7 @@ fn named_templates_choose_placement_and_omit_missing_slots() {
           .note { color: gray; } \
         }";
     let (css, _) = compile(r#"export const sheet = style.css("host:p-4");"#, templates);
-    assert_eq!(css, ":host{padding:calc(var(--spacing) * 4)}");
+    assert_eq!(css, ":host{padding:calc(var(--spacing)*4)}");
     let (css, _) = compile(
         r#"export const sheet = style.css("host:p-4", { template: "shadow" });"#,
         templates,

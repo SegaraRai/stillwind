@@ -798,6 +798,11 @@ Integration tests separately check real resource owners, URLs, maps, and deliver
 selection. Call it after expanding Stillwind directives, selecting the asset's
 rules, and resolving resource URLs.
 
+After Lightning CSS optimizes the stylesheet, the operation removes whitespace that
+Lightning CSS keeps in unparsed values, such as custom property values and values that
+contain `var()`. It removes whitespace next to commas in these values. Inside unparsed
+math functions such as `calc()`, it also removes whitespace next to `*` and `/`.
+
 ```rust
 use stillwind_css::{CssMinifyOptions, minify_css};
 
@@ -864,8 +869,8 @@ Embedded `sourceMappingURL` comments are ignored. The host publishes the returne
 map and attaches its URL to the CSS if needed. Neither CSS imports nor map URLs
 are fetched by this API.
 
-Mapping granularity, coordinate behavior, and CSS optimization follow Lightning
-CSS and Parcel Source Map. The wrapper does not repair upstream map coordinates.
+Mapping granularity, coordinate behavior, and the other CSS optimizations follow
+Lightning CSS and Parcel Source Map. The wrapper does not repair upstream map coordinates.
 Merged rules can have coarser source attribution than the compiler's original
 range mappings. The returned map is debugging metadata, not an exact edit map.
 
