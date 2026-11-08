@@ -102,6 +102,74 @@ test("Vite aliases and explicit TypeScript settings select the same asset in the
   }
 });
 
+test("A multi-entry build reads assets through plain modules and compiles transformed entry text", async () => {
+  const root = mkdtempSync(path.join(path.dirname(fixtureRoot), "../../.test-session-"));
+  const put = (name: string, text: string) => writeFileSync(path.join(root, name), text);
+  put(
+    "root.css",
+    "@utility first {color:rgb(11,22,33)} @utility second {color:rgb(44,55,66)} @utility third {color:rgb(77,88,99)} @stillwind-slot utilities; @stillwind-slot keyframes;",
+  );
+  put(
+    "asset.ts",
+    "import {style} from 'stillwind/react'; export const token=style.keyframes({from:'first',to:'first'});",
+  );
+  // The barrel has no Stillwind import, so only its re-export connects the entries to the asset.
+  put("barrel.ts", "export {token} from './asset.ts'; export const unused = 1;");
+  put(
+    "a.ts",
+    "import {style} from 'stillwind/react'; import {token} from './barrel.ts'; declare const selected: typeof token; console.log(style(selected('')));",
+  );
+  put(
+    "b.ts",
+    "import {style} from 'stillwind/react'; import {token} from './barrel.ts'; console.log(style('second'), token);",
+  );
+  try {
+    const result = await build({
+      configFile: false,
+      root,
+      logLevel: "silent",
+      plugins: [
+        {
+          name: "append-style",
+          enforce: "pre",
+          // Stillwind transforms before other pre transforms, so this hook declares the same order.
+          transform: {
+            order: "pre",
+            handler(code, id) {
+              return id.endsWith("b.ts") ? `${code}\nconsole.log(style('third'));` : undefined;
+            },
+          },
+        },
+        stillwind({
+          css: path.join(root, "root.css"),
+        }),
+      ],
+      build: {
+        write: false,
+        minify: false,
+        cssMinify: false,
+        rollupOptions: {
+          input: [path.join(root, "a.ts"), path.join(root, "b.ts")],
+        },
+      },
+    });
+    if (!("output" in result)) {
+      expect.fail('Unexpected value: "output" in result');
+    }
+    const css = result.output
+      .flatMap((asset) =>
+        asset.type === "asset" && asset.fileName.endsWith(".css") ? [String(asset.source)] : [],
+      )
+      .join("\n");
+    expect(css).toMatch(/@keyframes/);
+    expect(css).toMatch(/11,\s*22,\s*33/);
+    expect(css).toMatch(/44,\s*55,\s*66/);
+    expect(css).toMatch(/77,\s*88,\s*99/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 const sources = ["producer.ts", "chooser.ts", "barrel.ts", "consumer.ts"]
   .map((name) => ({
     resolverId: path.join(fixtureRoot, name),

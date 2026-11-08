@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { extname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
@@ -174,6 +174,13 @@ export async function compileProducer(
             )
           : cleanModuleId(resolvedId);
         const { syntax, format } = fileSourceKind(resolvedId);
+        // A query can select different text for the same file. Each identity needs its own checker
+        // file because one checker project can contain both. The name keeps the directory and
+        // extension so relative imports and the parser language stay unchanged.
+        const checkerFile =
+          virtual || file === resolvedId
+            ? file
+            : `${file}.stillwind-${createHash("sha256").update(resolvedId).digest("hex").slice(0, 16)}${extname(file)}`;
         return {
           moduleId: virtual
             ? `virtual:${encodeURIComponent(resolvedId)}`
@@ -182,7 +189,7 @@ export async function compileProducer(
             uri: documentUri(resolvedId),
             format,
           },
-          checkerFileName: file,
+          checkerFileName: checkerFile,
           projectionFileName: file.replaceAll("\\", "/"),
           syntax,
         };

@@ -262,6 +262,7 @@ export class DesignSystem {
         this.settings.watching,
         this.settings.compilerMode,
         loaded.plugins,
+        this.settings.fixedEntries,
       );
       this.#plugins = loaded.plugins;
       this.#initialized = true;

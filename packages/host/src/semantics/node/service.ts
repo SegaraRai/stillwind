@@ -15,12 +15,13 @@ import {
   type TypeFactsBackend,
   type UnverifiedRange,
 } from "../backend.ts";
-import { checkerId, withRequestedProbes } from "../checker-source.ts";
+import { type CheckerSource, checkerId, withRequestedProbes } from "../checker-source.ts";
 import { NodeChecker, type TypeScriptFactsStats } from "./checker.ts";
 import { AssetTypeDecoder } from "./decoder.ts";
 import { visit, diagnosticText, producerArgumentDiagnostic, factsForSource } from "./facts.ts";
 import {
   normalize,
+  type CheckerSourceCache,
   type PreparedProject,
   type TypeFactsEnvironment,
   type TypeFactsInputs,
@@ -48,6 +49,9 @@ export class TypeScriptFactsService implements TypeFactsBackend {
 
   /** Checker buffers prepared from the installed project inputs. */
   #prepared?: PreparedProject;
+
+  /** Checker buffers of earlier preparations, reused while their inputs stay the same. */
+  readonly #checkerSources: CheckerSourceCache = new WeakMap();
 
   /**
    * Whether close has been requested. Subsequent collections reject and repeated close calls do
@@ -223,23 +227,28 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     if (this.#closed) {
       throw new Error("TypeScript facts service is closed");
     }
-    if (this.#installed) {
-      const updated = withRequestedProbes(this.#installed.sources, sources);
-      if (updated !== this.#installed.sources) {
-        this.#installed = { ...this.#installed, sources: updated };
-        this.#prepared = undefined;
+    let full: PreparedProject;
+    if (this.#installed && !installedText(this.#installed.sources, sources)) {
+      // A bundler can transform an entry before the compiler receives it. The installed project
+      // keeps the file text, so this query prepares only its own sources.
+      full = this.#checker.prepareProject(sources, assetsByModuleId, inputs, this.#checkerSources);
+    } else {
+      if (this.#installed) {
+        const updated = withRequestedProbes(this.#installed.sources, sources);
+        if (updated !== this.#installed.sources) {
+          this.#installed = {
+            ...this.#installed,
+            sources: updated,
+          };
+          this.#prepared = undefined;
+        }
       }
+      full = this.#prepare(sources, assetsByModuleId, inputs);
     }
-    const full = this.#prepare(sources, assetsByModuleId, inputs);
     const selected = new Set(sources.map((source) => source.resolverId));
     const mappings = full.mappings.filter((mapping) => selected.has(mapping.source.resolverId));
-    const prepared = {
-      ...full,
-      mappings,
-      identities: new Map(mappings.flatMap((mapping) => [...mapping.identities])),
-    };
     try {
-      return this.#collectPrepared(prepared, available);
+      return this.#collectPrepared(full, mappings, available);
     } catch (firstError) {
       if (firstError instanceof TypeFactsError) {
         throw firstError;
@@ -247,7 +256,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       this.stats.restarts += 1;
       this.#restartApi();
       try {
-        return this.#collectPrepared(prepared, available);
+        return this.#collectPrepared(full, mappings, available);
       } catch (retryError) {
         throw new AggregateError(
           [firstError, retryError],
@@ -282,6 +291,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
           this.#installed.sources,
           this.#installed.assets,
           this.#installed.inputs,
+          this.#checkerSources,
         );
         return this.#prepared;
       } catch {
@@ -292,6 +302,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       resolutionOnly ? sources.map((source) => ({ ...source, probes: [] })) : sources,
       assets,
       inputs,
+      this.#checkerSources,
     );
   }
 
@@ -323,17 +334,24 @@ export class TypeScriptFactsService implements TypeFactsBackend {
   }
 
   /**
-   * Updates the snapshot and collects facts from the prepared checker buffers.
+   * Updates the snapshot and collects facts from the selected checker buffers.
    *
    * @param prepared - Virtual files, original-coordinate mappings, and serialized declaration identities.
+   * @param selected - Mappings of `prepared` whose facts and diagnostics the query requests.
    * @param available - Whether contract failures become unverified ranges where recovery is possible.
    * @returns Deduplicated facts by compiler identity and unverified original UTF-8 ranges.
    * @throws If snapshot update fails, a checker file is missing, facts conflict, or strict collection fails.
    */
-  #collectPrepared(prepared: PreparedProject, available: boolean): AvailableFacts {
+  #collectPrepared(
+    prepared: PreparedProject,
+    selected: readonly CheckerSource[],
+    available: boolean,
+  ): AvailableFacts {
     const project = this.#checker.updateProject(prepared);
     const unverified: UnverifiedRange[] = [];
     const result = new Map<string, TypeFact[]>();
+    // Facts of a buffer can name declarations of any buffer that it imports. Every prepared buffer
+    // supplies producers and identities, so the facts of a buffer do not depend on the selection.
     const decoder = new AssetTypeDecoder(
       project.checker,
       prepared.identities,
@@ -359,7 +377,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
         decoder.register(type);
       }
     }
-    for (const mapping of prepared.mappings) {
+    for (const mapping of selected) {
       const sourceFile = project.program.getSourceFile(mapping.id);
       if (!sourceFile) {
         throw new Error(`TypeScript 7 omitted ${mapping.id}`);
@@ -439,6 +457,21 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     this.#prepared = undefined;
     this.#checker.restart();
   }
+}
+
+/**
+ * Tests whether the installed project provides the text of every requested source.
+ *
+ * @param installed - Sources installed in the checker.
+ * @param requested - Sources of one query.
+ * @returns False when a requested source is missing or has different text.
+ */
+function installedText(
+  installed: readonly TypeFactSource[],
+  requested: readonly TypeFactSource[],
+): boolean {
+  const texts = new Map(installed.map((source) => [source.resolverId, source.document.code]));
+  return requested.every((source) => texts.get(source.resolverId) === source.document.code);
 }
 
 /**

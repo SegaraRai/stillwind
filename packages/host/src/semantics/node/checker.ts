@@ -19,6 +19,7 @@ import { withHiddenSpawnWindows } from "./hidden-spawn.ts";
 import {
   normalize,
   prepareProject,
+  type CheckerSourceCache,
   type PreparedProject,
   type TypeFactsEnvironment,
   type TypeFactsInputs,
@@ -132,6 +133,7 @@ export class NodeChecker {
    * @param sources - Prepared sources and probes for this request.
    * @param assets - Declarations grouped by compiler module ID.
    * @param inputs - Overlays and ambient declarations used for config reads and checker files.
+   * @param cache - Checker buffers to reuse and update, as {@link prepareProject} describes.
    * @returns Virtual files, checker mappings, and declaration identities for the supplied sources.
    * @throws If configuration parsing, checker mapping, or declaration preparation fails.
    */
@@ -139,6 +141,7 @@ export class NodeChecker {
     sources: readonly TypeFactSource[],
     assets: ReadonlyMap<string, readonly AssetRecord[]>,
     inputs: TypeFactsInputs,
+    cache?: CheckerSourceCache,
   ): PreparedProject {
     return prepareProject(
       sources,
@@ -147,6 +150,7 @@ export class NodeChecker {
       this.#project,
       inputs,
       this.#configuredDeclarations(inputs),
+      cache,
     );
   }
 

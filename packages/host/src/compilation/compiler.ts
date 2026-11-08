@@ -97,6 +97,8 @@ export async function analyzeModule(
  * @param id - Full resolver identity of the entry source, including its query suffix.
  * @param host - Source metadata, resolution, reading, dependency tracking, and warning operations.
  * @param options - Diagnostic behavior, captured checker inputs, and generated imports for the entry.
+ * @param project - Optional sources shared across compilations whose dependency text does not
+ * change. When the project holds different text for the entry, this compilation does not use it.
  * @returns A promise for the entry output and composition metadata, or undefined when normal mode
  * produces no entry code.
  * @throws If compilation rejects diagnostics, source preparation fails, or host or checker operations fail.
@@ -108,8 +110,13 @@ export async function compileModule(
   id: string,
   host: CompilerHost,
   options: ModuleCompileOptions = {},
+  project?: CompilationProject,
 ) {
-  return compileGraph(session, factsService, code, id, host, options);
+  const captured = project?.source(id);
+  // A bundler plugin can transform the entry before Stillwind receives it. The project keeps the
+  // file text that dependencies observe, so this compilation uses only the received text.
+  const shared = captured && captured.document.code !== code ? undefined : project;
+  return compileGraph(session, factsService, code, id, host, options, undefined, undefined, shared);
 }
 
 /**
@@ -149,7 +156,9 @@ async function compileGraph(
         code,
       },
     };
-    const entrySource = await graph.prepare(descriptor);
+    // Copy the entry because this compilation assigns transport imports to it, and a project
+    // shares its prepared sources with other compilations.
+    const entrySource = { ...(await graph.prepare(descriptor)) };
     const entrySummary = graph.scan(entrySource);
     hasModuleCssImport = entrySummary.moduleCssImports > 0;
     if (entrySummary.macroImports > 0) {

@@ -1,5 +1,5 @@
 import { watch } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
@@ -40,6 +40,11 @@ export interface ProjectSettings {
   cssWatching: boolean;
   /** Native compilation mode: `development` for serving and `release` for production builds. */
   compilerMode: string;
+  /**
+   * Files named by the build inputs of all environments, without queries, when no source file
+   * changes while a compiler session exists. Undefined for development and watched builds.
+   */
+  fixedEntries?: string[];
   /** Absolute project root after configuration, including the optional compiler root override. */
   projectRoot: string;
   /** Active development server used for resource checks, file watching, and CSS hot messages. */
@@ -257,6 +262,38 @@ export interface ViteProject {
 }
 
 /**
+ * Lists the source files that the build inputs name.
+ *
+ * @param config - Resolved build configuration.
+ * @returns Absolute script and component paths from the top-level and environment inputs, without
+ * queries and duplicates. Virtual and relative inputs are left out.
+ */
+function buildEntries(config: ResolvedConfig): string[] {
+  // Vite 8 deprecates `rollupOptions` as an alias of `rolldownOptions`, and Vite 7 has only
+  // `rollupOptions`.
+  const input = (build: Partial<ResolvedConfig["build"]> | undefined) =>
+    (build?.rolldownOptions ?? build?.rollupOptions)?.input;
+  const inputs = [
+    input(config.build),
+    ...Object.values(config.environments).map((environment) => input(environment.build)),
+  ];
+  return [
+    ...new Set(
+      inputs
+        .flatMap((input) =>
+          typeof input === "string"
+            ? [input]
+            : Array.isArray(input)
+              ? input
+              : Object.values(input ?? {}),
+        )
+        .map(cleanModuleId)
+        .filter((id) => isAbsolute(id) && /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(id)),
+    ),
+  ];
+}
+
+/**
  * Creates project state shared by compiler, development, and build plugins.
  *
  * Call `configure` before environment initialization, then `attachServer` when serving. Close the
@@ -387,6 +424,8 @@ export function createViteProject(
     settings.cssTargets = settings.minifyCss ? minifyTargets(config.target) : undefined;
     settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
+    settings.fixedEntries =
+      settings.watching || viteConfig.build.watch ? undefined : buildEntries(viteConfig);
   };
 
   /** Detaches the current server's change listeners and closes its configuration discovery watchers. */

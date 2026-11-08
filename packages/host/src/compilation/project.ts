@@ -2,11 +2,13 @@ import type {
   NativeAssetRecord,
   NativeModuleSummary,
   NativeProjectSession,
+  NativeTypeFact,
 } from "@stillwind/native";
 import { checkerEnvironment, prepareSource, type PreparedSource } from "@stillwind/projection";
 
 import type { SemanticInputs, TypeFactSource, TypeFactsBackend } from "../semantics/backend.ts";
 import { loadSource, type CompilerHost } from "./host.ts";
+import { sourceSupport } from "./module-graph.ts";
 
 /** A prepared source, its scan results, and the inputs needed by the checker. */
 interface CapturedSource {
@@ -26,6 +28,13 @@ interface CapturedSource {
 export class CompilationProject {
   /** Sources keyed by normalized resolver ID. Windows paths ignore case. */
   readonly #sources = new Map<string, CapturedSource>();
+  /** Collected facts keyed by normalized resolver ID. Present only when sources stay unchanged. */
+  readonly #facts?: Map<string, NativeTypeFact[]>;
+  /**
+   * Host import resolutions keyed by importer resolver ID and specifier. Present only when sources
+   * stay unchanged.
+   */
+  readonly #imports?: Map<string, ReturnType<CompilerHost["resolve"]>>;
   /** Import answers for the currently installed checker inputs. */
   #resolutions?: ReadonlyMap<string, ReadonlyMap<string, string>>;
   /** Advances on invalidation so pending loads cannot publish old sources. */
@@ -39,6 +48,19 @@ export class CompilationProject {
     inputs?: SemanticInputs;
     sources: readonly TypeFactSource[];
   };
+
+  /**
+   * Creates an empty project.
+   *
+   * @param fixedSources - True when no source text and no import resolution changes until
+   * invalidation. The project then keeps collected facts and host import resolutions. With every
+   * file that a source imports installed, the facts of a source depend only on its own text, so
+   * other analyses can reuse them.
+   */
+  constructor(fixedSources = false) {
+    this.#facts = fixedSources ? new Map() : undefined;
+    this.#imports = fixedSources ? new Map() : undefined;
+  }
 
   /** Revision that a pending load must still match before it stores a source. */
   get revision(): number {
@@ -72,7 +94,28 @@ export class CompilationProject {
    * @returns Shared scan results, or undefined when the source is not retained. Do not mutate them.
    */
   summary(source: PreparedSource): NativeModuleSummary | undefined {
-    return this.#sources.get(sourceKey(source.resolverId))?.summary;
+    const record = this.#sources.get(sourceKey(source.resolverId));
+    return record?.source.document.code === source.document.code ? record.summary : undefined;
+  }
+
+  /**
+   * Finds facts that an earlier analysis collected for a checker source.
+   *
+   * @param source - Checker source that {@link install} returned.
+   * @returns Shared facts, or undefined when they are not kept. Do not mutate them.
+   */
+  facts(source: TypeFactSource): readonly NativeTypeFact[] | undefined {
+    return this.#facts?.get(sourceKey(source.resolverId));
+  }
+
+  /**
+   * Keeps collected facts for reuse when the project was created with fixed sources.
+   *
+   * @param source - Checker source that {@link install} returned for the current revision.
+   * @param facts - Complete facts that the checker collected for that source.
+   */
+  retainFacts(source: TypeFactSource, facts: NativeTypeFact[]): void {
+    this.#facts?.set(sourceKey(source.resolverId), facts);
   }
 
   /**
@@ -95,6 +138,34 @@ export class CompilationProject {
       resolutions: [],
     });
     this.#changed();
+  }
+
+  /**
+   * Resolves an import through the host. A project with fixed sources asks the host once for each
+   * importer and specifier.
+   *
+   * @param host - Host that resolves the import.
+   * @param specifier - Authored module request.
+   * @param importer - Full resolver ID of the importing source.
+   * @returns The host's answer. A failed resolution is not kept.
+   * @throws If the host resolution fails.
+   */
+  resolveImport(
+    host: CompilerHost,
+    specifier: string,
+    importer: string,
+  ): ReturnType<CompilerHost["resolve"]> {
+    if (!this.#imports) {
+      return host.resolve(specifier, importer, { skipSelf: true });
+    }
+    const key = `${importer}\0${specifier}`;
+    let resolved = this.#imports.get(key);
+    if (!resolved) {
+      resolved = host.resolve(specifier, importer, { skipSelf: true });
+      this.#imports.set(key, resolved);
+      resolved.catch(() => this.#imports?.delete(key));
+    }
+    return resolved;
   }
 
   /**
@@ -124,9 +195,7 @@ export class CompilationProject {
       }
       const resolutions = await Promise.all(
         summary.moduleSpecifiers.map(async (specifier) => {
-          const resolved = await host.resolve(specifier.source, source.resolverId, {
-            skipSelf: true,
-          });
+          const resolved = await this.resolveImport(host, specifier.source, source.resolverId);
           if (!resolved || resolved.external) {
             return undefined;
           }
@@ -157,6 +226,8 @@ export class CompilationProject {
    */
   invalidate(ids?: string | Iterable<string>): void {
     this.#revision++;
+    this.#facts?.clear();
+    this.#imports?.clear();
     if (ids === undefined) {
       this.#sources.clear();
     } else {
@@ -296,7 +367,7 @@ export class CompilationProject {
     session: NativeProjectSession,
     revision: number,
   ): Promise<void> {
-    if (revision !== this.#revision || this.source(id) || host.supports?.(id) === false) {
+    if (revision !== this.#revision || this.source(id) || sourceSupport(host, id) !== "source") {
       return;
     }
     const input = await loadSource(host, id);

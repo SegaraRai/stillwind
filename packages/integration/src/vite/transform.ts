@@ -7,6 +7,7 @@ import type { Plugin } from "vite";
 import { readableFile } from "./file-access.ts";
 import type { ViteProject } from "./project.ts";
 import { projectionImports } from "./projection-imports.ts";
+import { isReactRouterClientRoute } from "./react-router.ts";
 import { resolveServerSource } from "./server-source-resolve.ts";
 
 /** Project settings whose configured CSS entrypoint has already produced an import warning. */
@@ -121,7 +122,8 @@ export function transformHooks(
           !/\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(cleanModuleId(id)) ||
           id.includes("node_modules") ||
           id.startsWith("\0") ||
-          /[?&](?:raw|url|type)(?:[=&]|$)/.test(id)
+          /[?&](?:raw|url|type)(?:[=&]|$)/.test(id) ||
+          (this.environment && isReactRouterClientRoute(id, this.environment.getTopLevelConfig()))
         ) {
           return;
         }

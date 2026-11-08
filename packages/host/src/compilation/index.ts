@@ -10,6 +10,7 @@ export { finalizeModuleWithMap, type FinalizedModuleEdit } from "./finalize.ts";
 export type { CompilerHost } from "./host.ts";
 export { CompilationFailure } from "./module-graph.ts";
 export { cleanModuleId, fileSourceKind, type ModuleDescriptor } from "./module-source.ts";
+export { CompilationProject } from "./project.ts";
 export type { PreparedSource } from "./protocol.ts";
 export type { ModuleAnalysis, ModuleCompileOptions, SemanticDependency } from "./request.ts";
 export {

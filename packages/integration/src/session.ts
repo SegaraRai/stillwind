@@ -1,6 +1,7 @@
 import type { BuildConfig } from "@stillwind/config";
 import {
   attachPlugins,
+  CompilationProject,
   compileModule,
   compilerOptions,
   resolveTypeFactsEnvironment,
@@ -64,6 +65,13 @@ export class IntegrationSession {
   readonly #moduleIdsByResolverId = new Map<string, string>();
   /** Lazily started Node checker, released and recreated independently of native compiler state. */
   #facts?: TypeScriptFactsService;
+  /**
+   * Sources, scans, and checker inputs shared by compilations while source files stay unchanged.
+   * Absent when files can change during the session.
+   */
+  readonly #project?: CompilationProject;
+  /** Entries that the next compilation prepares together with its own entry. */
+  #entries: readonly string[];
 
   /**
    * Creates compiler state without starting the TypeScript checker.
@@ -74,6 +82,10 @@ export class IntegrationSession {
    * @param watch - Whether failed native updates retain the last successful output.
    * @param mode - Native compilation mode selected by the adapter.
    * @param plugins - Plugin runtime of the loader's CSS graph, which resolves dynamic utilities.
+   * @param fixedEntries - Present when no source file changes before the session closes. The
+   * session then scans each file once and gives the checker one project for every compilation.
+   * The first compilation prepares the files that these absolute paths reach, together with its own
+   * entry, so later compilations seldom add files to the checker project.
    * @throws If the selected TypeScript configuration does not exist or native session creation fails.
    */
   constructor(
@@ -83,8 +95,11 @@ export class IntegrationSession {
     watch: boolean,
     mode: string,
     plugins?: PluginRuntime,
+    fixedEntries?: readonly string[],
   ) {
     this.root = root;
+    this.#project = fixedEntries ? new CompilationProject(true) : undefined;
+    this.#entries = fixedEntries ?? [];
     this.#typeFactsEnvironment = resolveTypeFactsEnvironment(root, config.tsconfig);
     this.native = new NativeProjectSession(loader, watch, mode, config.naming, false);
     attachPlugins(this.native, plugins);
@@ -106,6 +121,20 @@ export class IntegrationSession {
     host: CompilerHost,
     transport: ModuleCompileOptions = {},
   ) {
+    // Loading every file that the entries reach lets later compilations share one checker
+    // project. Adding files after a checker query would replace the checker snapshot.
+    const entries = this.#entries;
+    this.#entries = [];
+    // The host resolver gives each path the identity spelling that its compilations use. The
+    // entries only speed up later compilations, so an entry that does not resolve is skipped.
+    const resolved = await Promise.all(
+      entries.map((entry) => host.resolve(entry, id, { skipSelf: true }).catch(() => null)),
+    );
+    await this.#project?.prepare(
+      [...resolved.flatMap((entry) => (entry && !entry.external ? [entry.id] : [])), id],
+      host,
+      this.native,
+    );
     const pending = new Map<string, string>();
     const pendingByResolverId = new Map<string, string>();
     const output = await compileModule(
@@ -135,6 +164,7 @@ export class IntegrationSession {
         },
       },
       transport,
+      this.#project,
     );
     for (const [moduleId, resolverId] of pending) {
       this.#resolverIdsByModuleId.set(moduleId, resolverId);
@@ -166,6 +196,8 @@ export class IntegrationSession {
    * @throws If checker cleanup fails.
    */
   close(): void {
+    this.#project?.invalidate();
+    this.#entries = [];
     this.#facts?.close();
     this.#facts = undefined;
   }
