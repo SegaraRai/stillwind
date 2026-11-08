@@ -290,20 +290,30 @@ pub fn selector_selects_host(selector: &str) -> bool {
 /// Whether `selector` tests a shadow host in a way that cannot match.
 ///
 /// Elements outside a shadow tree are not visible to selectors inside it, so a compound
-/// before the host, as in `.page :host`, prevents a match. So does a complex selector
-/// in `:is()` or `:where()` inside `:host()`, as in `:host(:is(.page *))`.
+/// before the host, as in `.page :host`, prevents a match. So does a complex selector in
+/// `:is()` or `:where()` inside `:host()`, as in `:host(:is(.page *))`.
+/// Selector branches inside `:is()` and `:where()` receive the same checks.
 /// Apply [`fold_host_conditions`] first, because this check reads `:host()` arguments.
 pub fn selector_cannot_match_host(selector: &str) -> bool {
     if !mentions_host(selector) {
         return false;
     }
     compounds(selector).iter().any(|compound| {
-        compound.selects_host()
+        (compound.selects_host()
             && (compound.has_predecessor
                 || compound.parts.iter().any(|part| match part {
                     Part::Host(Some(range)) => tests_ancestors(&selector[range.clone()]),
                     _ => false,
-                }))
+                })))
+            || compound.conditions().any(|range| {
+                let condition = &selector[range.clone()];
+                [":is(", ":where("].iter().any(|name| {
+                    condition
+                        .get(..name.len())
+                        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(name))
+                        && selector_cannot_match_host(&condition[name.len()..condition.len() - 1])
+                })
+            })
     })
 }
 
@@ -411,6 +421,7 @@ mod tests {
         for (selector, expected) in [
             (":host", false),
             (":host(:hover)", false),
+            (":is(:host(:hover), :host(.a))", false),
             (":host > .item", false),
             (":host(:is(.a, .b))", false),
             (":host(:not(.page *))", false),
@@ -422,6 +433,7 @@ mod tests {
             (":host(:is(:where(.group):hover *))", true),
             (":host(.a:where(.page > *))", true),
             (":host, .page :host", true),
+            (":is(:where(.group):hover :host)", true),
         ] {
             assert_eq!(selector_cannot_match_host(selector), expected, "{selector}");
         }

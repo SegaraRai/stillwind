@@ -149,7 +149,8 @@
     },
     {
       "input": ["max-[theme(screens.lg)]:flex"],
-      "expected": ["max-[--theme(--breakpoint-lg)]:flex"],
+      "expected": ["max-lg:flex"],
+      "stillwindExpected": ["max-[--theme(--breakpoint-lg)]:flex"],
       "options": {
         "rem": 16,
         "collapse": true,

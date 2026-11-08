@@ -17,25 +17,25 @@
 }
 
 @stillwind-variant group-* (value: [variant]) {
-  &:is(:where(.group):--value() *) {
+  :is(:where(.group):--value() &) {
     @slot;
   }
 }
 
 @stillwind-variant group-* (value: [variant], modifier: [class-identifier]) {
-  &:is(:where(:--modifier(".group\/{modifier}")):--value() *) {
+  :is(:where(:--modifier(".group\/{modifier}")):--value() &) {
     @slot;
   }
 }
 
 @stillwind-variant peer-* (value: [variant]) {
-  &:is(:where(.peer):--value() ~ *) {
+  :is(:where(.peer):--value() ~ &) {
     @slot;
   }
 }
 
 @stillwind-variant peer-* (value: [variant], modifier: [class-identifier]) {
-  &:is(:where(:--modifier(".peer\/{modifier}")):--value() ~ *) {
+  :is(:where(:--modifier(".peer\/{modifier}")):--value() ~ &) {
     @slot;
   }
 }

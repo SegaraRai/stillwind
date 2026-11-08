@@ -704,7 +704,7 @@ mod tests {
             ),
             (
                 ".btn { @apply group-hover:flex; }",
-                ".btn{&:is(:where(.group):hover*){@media(hover:hover){display:flex;}}}",
+                ".btn{:is(:where(.group):hover&){@media(hover:hover){display:flex;}}}",
             ),
             (
                 ".btn { @apply [&>svg]:flex; }",

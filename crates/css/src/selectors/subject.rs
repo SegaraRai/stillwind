@@ -1,9 +1,43 @@
-//! The nesting selector `&`: finding it, counting it, inserting it, and replacing it.
+//! The nesting selector `&`: finding, counting, inserting, and replacing it, and
+//! recognizing wrappers that test its element.
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::LeanString;
 
+use crate::functions::find_css_functions;
+use crate::lists::split_top_level;
 use crate::parser::{consume_css_block, validate_css_syntax};
+
+use super::element::selector_is_element_condition;
+
+/// Returns the element condition of a complete `:is()` wrapper whose branches end
+/// in one nesting selector, such as `:is(.group:hover &)`. Each branch must have
+/// exactly one subject, at its end, and cannot contain pseudo-elements. The subject
+/// becomes `*`, so callers can test the condition without moving their styled element.
+/// Returns [`None`] for every other selector form.
+pub fn wrapped_subject_condition(selector: &str) -> Option<LeanString> {
+    if !selector_is_element_condition(selector, false) {
+        return None;
+    }
+    let wrapper = find_css_functions(selector, &["is"], 0)
+        .into_iter()
+        .next()?;
+    if wrapper.start != 1 || wrapper.end != Some(selector.len()) || !selector.starts_with(':') {
+        return None;
+    }
+    let branches = split_top_level(&selector[wrapper.arguments], |token| {
+        matches!(token, Token::Comma)
+    });
+    if branches.iter().any(|branch| {
+        branch
+            .trim()
+            .strip_suffix(" &")
+            .is_none_or(selector_uses_subject)
+    }) {
+        return None;
+    }
+    Some(subject_as_universal(selector))
+}
 
 /// Splits the simple selectors following a nesting selector into authored slices.
 /// Returns None for an empty suffix, combinators, pseudo-elements, type selectors,

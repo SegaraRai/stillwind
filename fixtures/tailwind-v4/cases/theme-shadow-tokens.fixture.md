@@ -23,7 +23,7 @@ shadow-lg inset-shadow-sm drop-shadow-sm
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -42,7 +42,7 @@ shadow-lg inset-shadow-sm drop-shadow-sm
   .drop-shadow-sm {
     --tw-drop-shadow-size: drop-shadow(0 0 4px var(--tw-drop-shadow-color, rgb(128 0 128 / 0.5)));
     --tw-drop-shadow: drop-shadow(var(--drop-shadow-sm));
-    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
+    filter: var(--tw-blur, ) var(--tw-brightness, ) var(--tw-contrast, ) var(--tw-grayscale, ) var(--tw-hue-rotate, ) var(--tw-invert, ) var(--tw-saturate, ) var(--tw-sepia, ) var(--tw-drop-shadow, );
   }
 }
 @property --tw-shadow {
@@ -164,7 +164,7 @@ shadow-lg inset-shadow-sm drop-shadow-sm
   inherits: false;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-shadow: 0 0 #0000;
       --tw-shadow-color: initial;
@@ -221,7 +221,7 @@ shadow-xs inset-shadow-xs drop-shadow-xs
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -240,7 +240,7 @@ shadow-xs inset-shadow-xs drop-shadow-xs
   .drop-shadow-xs {
     --tw-drop-shadow-size: drop-shadow(3px 4px 7px var(--tw-drop-shadow-color, rgb(70 80 90 / 0.8)));
     --tw-drop-shadow: drop-shadow(var(--drop-shadow-xs));
-    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
+    filter: var(--tw-blur, ) var(--tw-brightness, ) var(--tw-contrast, ) var(--tw-grayscale, ) var(--tw-hue-rotate, ) var(--tw-invert, ) var(--tw-saturate, ) var(--tw-sepia, ) var(--tw-drop-shadow, );
   }
 }
 @property --tw-shadow {
@@ -362,7 +362,7 @@ shadow-xs inset-shadow-xs drop-shadow-xs
   inherits: false;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-shadow: 0 0 #0000;
       --tw-shadow-color: initial;
@@ -419,6 +419,6 @@ shadow-xs shadow-lg inset-shadow-xs inset-shadow-sm drop-shadow-xs drop-shadow-s
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities;
 ```

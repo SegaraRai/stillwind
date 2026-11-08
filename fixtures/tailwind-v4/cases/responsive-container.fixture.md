@@ -18,7 +18,7 @@ sm:grid md:grid-cols-3 lg:gap-8 max-md:hidden min-[900px]:flex @container @sm:gr
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.25rem;

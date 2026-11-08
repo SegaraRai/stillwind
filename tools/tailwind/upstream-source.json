@@ -1,10 +1,10 @@
 {
-  "version": "4.3.3",
-  "revision": "c2b24dd15fed1c59dd521bd86082f520c9f5ad0d",
+  "version": "4.3.5",
+  "revision": "9b2c925c19aae46ff4f9cf54a2fa6d2dbac7fa19",
   "files": {
-    "packages/tailwindcss/package.json": "0b5949a1be5a419528ddf767fa2224a66ca179d0200d9a65c0f3512e5b9d679f",
-    "packages/tailwindcss/src/utilities.ts": "c9aeba905ac9d6129e2174f377098735a64a1fec917312af372ae8cc291cac2f",
-    "packages/tailwindcss/src/variants.ts": "a633c91c11ebe30e69474a447f8cc985b1616cc57ead48fd441599cc9df24b47",
+    "packages/tailwindcss/package.json": "ec7c14e0aea985358cfc9f5248873e5f5e6461bae3c9164c1bb39aa45244fe97",
+    "packages/tailwindcss/src/utilities.ts": "97e27404f8ebc8b860bd86ec3d266a717d45dcb2592dfe8d263771be3531a685",
+    "packages/tailwindcss/src/variants.ts": "2cf3868219e630a9d0e6dc0826e076cfbc162f9bb9fe283b3d3df248b9ff365d",
     "packages/tailwindcss/src/__snapshots__/intellisense.test.ts.snap": "2447a9074540a52e71b98d739fee620f8c41e1c1254a01bfdfa3059f16218cf3"
   }
 }

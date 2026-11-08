@@ -4,6 +4,44 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
+## Tailwind compatibility gaps
+
+The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need work:
+
+- Plugin `theme('boxShadow')` returns a string when CSS defines only `--shadow`.
+  Namespace root lookups must keep the object shape, including `DEFAULT`.
+- Plugin value inference does not recognize `cap`, `ic`, `rex`, `rch`, `rcap`,
+  `ric`, or the additional small, large, and dynamic viewport units as lengths.
+  Native utility resolution already accepts representative values such as `text-[10dvmin]`.
+- Canonicalization changes `text-[theme(colors.red.500/.12345)]` to
+  `text-red-500/1234.5`. Preserve the opacity with an arbitrary percentage modifier.
+  With `--opacity-50: 10%`, it changes `text-[theme(colors.red.500/50%)]` to
+  `text-red-500/50`; retain the authored 50% instead of selecting that token.
+- Arbitrary breakpoint variants such as `max-[64rem]:flex` and selector variants
+  such as `[&_::before]:flex` remain unchanged instead of using the named or child
+  variants that Tailwind suggests. Verify equivalent output before adding replacements.
+- Canonical collapse picks `text-z` for `text-foreground text-primary` when all three
+  custom utilities emit `color: red`. Decide whether input candidates take precedence
+  over shorter aliases. Measure index preparation with thousands of
+  functional variant values and collapse with many utilities linked through `sr-only`;
+  the independent implementations do not establish equivalent performance.
+- A custom variant containing `@scope` does not resolve, and declarations directly
+  inside a scope do not get a `:where(:scope)` rule.
+  Define and test these cases across document and module output.
+- `selection:` applied to a utility with `& > *` emits a combinator after
+  `::selection`. Drop branches that cannot select an element.
+- A `color-mix()` without an interpolation method is retained in both the base rule
+  and its capability fallback. Validate the function before constructing a fallback;
+  do not invent a color for malformed input.
+
+Sources: [Tailwind 4.3.4](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.4),
+[Tailwind 4.3.5](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.5),
+[plugin theme](../packages/host/src/css/plugins/tailwind/theme.ts),
+[plugin value inference](../packages/host/src/css/plugins/tailwind/data-type.ts),
+[canonical candidates](../crates/compiler/src/query/canonical/candidate/functions.rs),
+[variant bodies](../crates/design-system/src/evaluation/variants/body.rs),
+[utility rendering](../crates/compiler/src/compiler/utilities/render.rs).
+
 ## Type facts under Deno on Linux
 
 The synchronous TypeScript 7 API passes `child.stdin._handle.fd` to `fs.writeSync` on

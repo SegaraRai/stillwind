@@ -23,11 +23,11 @@
   border-radius: var(--radius-lg);
 }
 @media (hover: hover) {
-  .sw_5yn5y:is(:where(.group\/menu):hover *) {
+  :is(:where(.group\/menu):hover .sw_5yn5y) {
     color: var(--color-brand);
   }
 }
-.sw_5yn5y:is(:where(.peer\/field):checked ~ *) {
+:is(:where(.peer\/field):checked ~ .sw_5yn5y) {
   text-decoration-line: underline;
 }
 @container (width < 28rem) {

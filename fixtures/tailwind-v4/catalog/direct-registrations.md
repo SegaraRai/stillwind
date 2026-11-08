@@ -1,4 +1,4 @@
-# Tailwind CSS v4.3.3 direct registrations
+# Tailwind CSS v4.3.5 direct registrations
 
 This file is generated from the upstream source matching the tools dependency. It records every
 direct `staticUtility`, `functionalUtility`, and static/functional/compound

@@ -3,7 +3,7 @@
 This file lists third-party material in this repository and in the published
 packages. Stillwind itself is licensed under the [MIT License](LICENSE).
 
-## Tailwind CSS v4.3.3
+## Tailwind CSS v4.3.5
 
 Tailwind CSS is licensed under the MIT License. Its license text is in
 [TAILWINDCSS-MIT-LICENSE](TAILWINDCSS-MIT-LICENSE). The packages that contain
@@ -13,11 +13,11 @@ of `@stillwind/native`, and the VS Code extension.
 The `stillwind` package contains these files:
 
 - `packages/core/css/preflight.css` and `packages/core/css/theme.css` are adapted
-  from `preflight.css` and `theme.css` of Tailwind CSS v4.3.3.
+  from `preflight.css` and `theme.css` of Tailwind CSS v4.3.5.
 - The files whose names start with `tw-` in `packages/core/css/builtin-utilities/`,
   `packages/core/css/builtin-variants/`, and `packages/core/css/builtin-metadata/`
   define the utilities and variants of Tailwind CSS as Stillwind CSS definitions.
-  They follow `src/utilities.ts` and `src/variants.ts` of Tailwind CSS v4.3.3.
+  They follow `src/utilities.ts` and `src/variants.ts` of Tailwind CSS v4.3.5.
 
 The native binaries contain this code and data:
 

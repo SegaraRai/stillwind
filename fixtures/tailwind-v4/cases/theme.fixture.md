@@ -23,7 +23,7 @@ bg-brand p-4 bg-red-500
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.5rem;
@@ -72,7 +72,7 @@ bg-action animate-enter [--brand-color:rebeccapurple]
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --animate-enter: enter 200ms ease-out;

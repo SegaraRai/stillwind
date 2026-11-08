@@ -18,7 +18,7 @@ relative absolute sticky inset-0 top-4 -left-px z-10 z-[100] isolate overflow-hi
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.25rem;
@@ -99,7 +99,7 @@ inset-40 inset-x-20 left-10 overflow-hidden overflow-x-auto
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.25rem;

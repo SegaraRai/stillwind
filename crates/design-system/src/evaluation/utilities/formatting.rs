@@ -2,12 +2,15 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::{declaration_ranges, format_numeric_zero, important_declarations};
+use stillwind_css::{
+    declaration_ranges, find_css_functions, format_numeric_zero, important_declarations,
+};
 
 use super::super::stillwind::stillwind_declaration_formats;
 use crate::{ThemeIndex, declaration_format};
 
-/// Emits resolved declarations with candidate priority, without optimizing values.
+/// Emits resolved declarations with candidate priority and spaces in empty `var()`
+/// fallbacks, without optimizing values.
 pub(in crate::evaluation) fn finalize_declaration(
     declaration: LeanStr,
     is_important: bool,
@@ -16,6 +19,18 @@ pub(in crate::evaluation) fn finalize_declaration(
     let declaration = theme
         .inline_asset_references(&declaration)
         .map_or(declaration, Into::into);
+    let mut spaced = None;
+    for call in find_css_functions(&declaration, &["var"], 0)
+        .into_iter()
+        .rev()
+    {
+        if call.end.is_some() && declaration[call.arguments.clone()].ends_with(',') {
+            spaced
+                .get_or_insert_with(|| declaration.to_lean_string())
+                .insert(call.arguments.end, ' ');
+        }
+    }
+    let declaration = spaced.map_or(declaration, Into::into);
     if is_important {
         important_declarations(&declaration).into()
     } else {
@@ -90,6 +105,19 @@ mod tests {
         assert_eq!(
             finalize_declaration("width:calc(1px + 2px);".into(), true, &theme),
             "width:calc(1px + 2px)!important;"
+        );
+    }
+
+    #[test]
+    fn empty_variable_fallbacks_keep_a_space_without_changing_literals() {
+        let theme = ThemeBuilder::default().finish();
+        assert_eq!(
+            finalize_declaration(
+                "filter:var(--a,) var(--b,var(--c,));content:'var(--literal,)';width:var(--width, 1px);".into(),
+                false,
+                &theme,
+            ),
+            "filter:var(--a, ) var(--b,var(--c, ));content:'var(--literal,)';width:var(--width, 1px);"
         );
     }
 }

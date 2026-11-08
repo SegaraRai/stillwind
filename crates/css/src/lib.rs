@@ -101,7 +101,7 @@ pub use selectors::{
     selector_cannot_match_host, selector_class_names, selector_is_element_condition,
     selector_is_subject_condition, selector_is_valid, selector_list_branches,
     selector_repeats_subject, selector_selects_host, selector_target, selector_uses_subject,
-    subject_as_universal, subject_compound_parts,
+    subject_as_universal, subject_compound_parts, wrapped_subject_condition,
 };
 pub use structure::{CssBlock, CssNode, CssNodeKind, parse_structure};
 pub use values::{

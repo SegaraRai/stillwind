@@ -18,7 +18,7 @@ sr-only not-sr-only pointer-events-none pointer-events-auto select-none select-t
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -58,7 +58,7 @@ sr-only not-sr-only pointer-events-none pointer-events-auto select-none select-t
   }
   .touch-pan-x {
     --tw-pan-x: pan-x;
-    touch-action: var(--tw-pan-x,) var(--tw-pan-y,) var(--tw-pinch-zoom,);
+    touch-action: var(--tw-pan-x, ) var(--tw-pan-y, ) var(--tw-pinch-zoom, );
   }
   .resize-y {
     resize: vertical;
@@ -111,7 +111,7 @@ sr-only not-sr-only pointer-events-none pointer-events-auto select-none select-t
   initial-value: proximity;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-pan-x: initial;
       --tw-pan-y: initial;
@@ -140,7 +140,7 @@ scroll-m-40 scroll-mx-20 scroll-ml-10 scroll-p-40 scroll-px-20 scroll-pl-10
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.25rem;

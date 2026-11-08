@@ -82,12 +82,8 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
             .css
             .contains_css("container-name:sidebar;container-type:inline-size;")
     );
-    assert!(result.css.contains(":is(:where(.group\\/menu):hover *)"));
-    assert!(
-        result
-            .css
-            .contains(":is(:where(.peer\\/field):checked ~ *)")
-    );
+    assert!(result.css.contains(":is(:where(.group\\/menu):hover ."));
+    assert!(result.css.contains(":is(:where(.peer\\/field):checked ~ ."));
     assert!(result.css.contains("@container (width >= 24rem)"));
 }
 

@@ -18,7 +18,7 @@ bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue-500 bg-cover bg-cent
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -171,7 +171,7 @@ bg-red-500/50 bg-linear-to-r from-red-500 via-white to-blue-500 bg-cover bg-cent
   initial-value: transparent;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-gradient-position: initial;
       --tw-gradient-from: #0000;
@@ -213,7 +213,7 @@ bg-linear-(--x) bg-linear-[to_right,red,blue] bg-conic-(--x) bg-radial-[at_cente
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .bg-conic-\(--x\) {
     --tw-gradient-position: var(--x);

@@ -1,4 +1,4 @@
-//! Generated from tailwindcss 4.3.3 by tools/tailwind/utility-order.ts.
+//! Generated from tailwindcss 4.3.5 by tools/tailwind/utility-order.ts.
 //! Property indices used by the Tailwind utility comparator.
 
 pub(super) static PROPERTIES: phf::OrderedSet<&'static str> = phf::phf_ordered_set! {

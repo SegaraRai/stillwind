@@ -22,7 +22,7 @@ font-東京 東京:grid content-['雪'] [--名前:緑] w-[calc(100%_-_var(--余�
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer utilities {
   .w-\[calc\(100\%_-_var\(--余白\)\)\] {
@@ -47,7 +47,7 @@ font-東京 東京:grid content-['雪'] [--名前:緑] w-[calc(100%_-_var(--余�
   initial-value: "";
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-content: "";
     }
@@ -76,7 +76,7 @@ bg-🎨 content-['👋'] [--状態:🚀] [&:has(.✅)]:outline-2
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer utilities {
   .content-\[\'👋\'\] {
@@ -102,7 +102,7 @@ bg-🎨 content-['👋'] [--状態:🚀] [&:has(.✅)]:outline-2
   initial-value: solid;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-content: "";
       --tw-outline-style: solid;

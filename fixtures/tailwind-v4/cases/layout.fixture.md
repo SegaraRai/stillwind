@@ -18,7 +18,7 @@ grid grid-cols-3 gap-4 inline-flex items-center justify-between px-4 -mt-2 size-
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.25rem;
@@ -77,7 +77,7 @@ m-40 mx-20 ml-10 p-40 px-20 pl-10 size-40 w-20 h-16 block-10 inline-8
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --spacing: 0.25rem;

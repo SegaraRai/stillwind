@@ -18,7 +18,7 @@
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -63,7 +63,7 @@
   initial-value: "";
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-content: "";
     }
@@ -89,7 +89,7 @@ text-[length:1.25rem] text-(length:--font-size) bg-red-500/50 bg-red-500/[.35] t
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -164,7 +164,7 @@ text-[length:1.25rem] text-(length:--font-size) bg-red-500/50 bg-red-500/[.35] t
   initial-value: "";
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-translate-x: 0;
       --tw-translate-y: 0;
@@ -193,7 +193,7 @@ border-(--x) border-[var(--x)] from-(--x) via-(--x) to-(--x) text-(--x) text-[va
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -262,7 +262,7 @@ border-(--x) border-[var(--x)] from-(--x) via-(--x) to-(--x) text-(--x) text-[va
   .drop-shadow-\(--x\) {
     --tw-drop-shadow-size: drop-shadow(var(--x));
     --tw-drop-shadow: var(--tw-drop-shadow-size);
-    filter: var(--tw-blur,) var(--tw-brightness,) var(--tw-contrast,) var(--tw-grayscale,) var(--tw-hue-rotate,) var(--tw-invert,) var(--tw-saturate,) var(--tw-sepia,) var(--tw-drop-shadow,);
+    filter: var(--tw-blur, ) var(--tw-brightness, ) var(--tw-contrast, ) var(--tw-grayscale, ) var(--tw-hue-rotate, ) var(--tw-invert, ) var(--tw-saturate, ) var(--tw-sepia, ) var(--tw-drop-shadow, );
   }
   .transition-\(--x\) {
     transition-property: var(--x);
@@ -440,7 +440,7 @@ border-(--x) border-[var(--x)] from-(--x) via-(--x) to-(--x) text-(--x) text-[va
   inherits: false;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-gradient-position: initial;
       --tw-gradient-from: #0000;
@@ -502,7 +502,7 @@ border-(--x) border-[var(--x)] from-(--x) via-(--x) to-(--x) text-(--x) text-[va
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .\[--x\:theme\(--color-red-500\)\] {
     --x: oklch(63.7% 0.237 25.331);
@@ -528,7 +528,7 @@ p-[calc(1rem+2px)] m-[calc(100%-2*var(--x))] bg-[theme(--color-red-500)] w-[them
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -576,11 +576,11 @@ p-[calc(1rem+2px)] m-[calc(100%-2*var(--x))] bg-[theme(--color-red-500)] w-[them
     text-decoration-thickness: 3px;
   }
   .ring-\(length\:--x\) {
-    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(var(--x) + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    --tw-ring-shadow: var(--tw-ring-inset, ) 0 0 0 calc(var(--x) + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .ring-\[3px\] {
-    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+    --tw-ring-shadow: var(--tw-ring-inset, ) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .ring-\(--x\) {
@@ -681,7 +681,7 @@ p-[calc(1rem+2px)] m-[calc(100%-2*var(--x))] bg-[theme(--color-red-500)] w-[them
   inherits: false;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-shadow: 0 0 #0000;
       --tw-shadow-color: initial;

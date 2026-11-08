@@ -50,13 +50,12 @@
     },
     {
       "input": ["w-(--a)", "h-(--b)"],
-      "expected": ["size-4"],
+      "expected": ["w-(--a)", "h-(--b)"],
       "options": {
         "rem": 16,
         "collapse": true,
         "logicalToPhysical": true
-      },
-      "stillwindExpected": ["w-(--a)", "h-(--b)"]
+      }
     }
   ]
 }

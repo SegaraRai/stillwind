@@ -90,7 +90,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *,
     ::before,

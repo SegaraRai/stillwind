@@ -22,7 +22,7 @@ disabled:block active:block focus-visible:block hover:block checked:block focus:
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .visited\:block:visited {
     display: block;
@@ -77,7 +77,7 @@ print:block dark:block forced-colors:block landscape:block portrait:block contra
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   @supports (display:grid) {
     .supports-\[display\:grid\]\:block {
@@ -196,7 +196,7 @@ md:block peer-focus:block hover:block data-[state=open]:block first:block dark:b
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .not-hover\:block:not(:hover) {
     display: block;
@@ -206,26 +206,26 @@ md:block peer-focus:block hover:block data-[state=open]:block first:block dark:b
       display: block;
     }
   }
-  .group-checked\:block:is(:where(.group):checked *) {
+  :is(:where(.group):checked .group-checked\:block) {
     display: block;
   }
   @media (hover: hover) {
-    .group-hover\:block:is(:where(.group):hover *) {
+    :is(:where(.group):hover .group-hover\:block) {
       display: block;
     }
   }
-  .group-focus\:block:is(:where(.group):focus *) {
+  :is(:where(.group):focus .group-focus\:block) {
     display: block;
   }
-  .peer-checked\:block:is(:where(.peer):checked ~ *) {
+  :is(:where(.peer):checked ~ .peer-checked\:block) {
     display: block;
   }
   @media (hover: hover) {
-    .peer-hover\:block:is(:where(.peer):hover ~ *) {
+    :is(:where(.peer):hover ~ .peer-hover\:block) {
       display: block;
     }
   }
-  .peer-focus\:block:is(:where(.peer):focus ~ *) {
+  :is(:where(.peer):focus ~ .peer-focus\:block) {
     display: block;
   }
   .first\:block:first-child {
@@ -298,7 +298,7 @@ md:block peer-focus:block hover:block data-[state=open]:block first:block dark:b
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .\[\:hover\]\:block:is(:hover) {
     display: block;

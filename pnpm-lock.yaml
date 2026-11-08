@@ -198,8 +198,8 @@ catalogs:
       specifier: ^1.3.0
       version: 1.3.0
     tailwindcss:
-      specifier: 4.3.3
-      version: 4.3.3
+      specifier: 4.3.5
+      version: 4.3.5
     typescript:
       specifier: ^6.0.3
       version: 6.0.3
@@ -2349,13 +2349,13 @@ importers:
     devDependencies:
       '@headlessui/tailwindcss':
         specifier: 0.2.2
-        version: 0.2.2(tailwindcss@4.3.3)
+        version: 0.2.2(tailwindcss@4.3.5)
       '@iconify-json/lucide':
         specifier: ^1.2.152
         version: 1.2.152
       '@iconify/tailwind4':
         specifier: 1.2.3
-        version: 1.2.3(tailwindcss@4.3.3)
+        version: 1.2.3(tailwindcss@4.3.5)
       '@rspack/core':
         specifier: 2.3.1
         version: 2.3.1(@swc/helpers@0.5.23)
@@ -2376,10 +2376,10 @@ importers:
         version: link:../../../packages/native
       '@tailwindcss/forms':
         specifier: 0.5.11
-        version: 0.5.11(tailwindcss@4.3.3)
+        version: 0.5.11(tailwindcss@4.3.5)
       '@tailwindcss/typography':
         specifier: 0.5.20
-        version: 0.5.20(tailwindcss@4.3.3)
+        version: 0.5.20(tailwindcss@4.3.5)
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
@@ -2397,34 +2397,34 @@ importers:
         version: link:../../../packages/core
       tailwind-scrollbar:
         specifier: 4.0.2
-        version: 4.0.2(react@19.3.1)(tailwindcss@4.3.3)
+        version: 4.0.2(react@19.3.1)(tailwindcss@4.3.5)
       tailwind-scrollbar-hide:
         specifier: 4.0.0
-        version: 4.0.0(tailwindcss@4.3.3)
+        version: 4.0.0(tailwindcss@4.3.5)
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.3.3
+        version: 4.3.5
       tailwindcss-animate:
         specifier: 1.0.7
-        version: 1.0.7(tailwindcss@4.3.3)
+        version: 1.0.7(tailwindcss@4.3.5)
       tailwindcss-animated:
         specifier: 2.1.0
-        version: 2.1.0(tailwindcss@4.3.3)
+        version: 2.1.0(tailwindcss@4.3.5)
       tailwindcss-intersect:
         specifier: 3.0.0
-        version: 3.0.0(tailwindcss@4.3.3)
+        version: 3.0.0(tailwindcss@4.3.5)
       tailwindcss-motion:
         specifier: 1.1.1
-        version: 1.1.1(tailwindcss@4.3.3)
+        version: 1.1.1(tailwindcss@4.3.5)
       tailwindcss-radix:
         specifier: 4.0.2
-        version: 4.0.2(tailwindcss@4.3.3)
+        version: 4.0.2(tailwindcss@4.3.5)
       tailwindcss-react-aria-components:
         specifier: 2.2.0
-        version: 2.2.0(tailwindcss@4.3.3)
+        version: 2.2.0(tailwindcss@4.3.5)
       tailwindcss-safe-area:
         specifier: 1.3.0
-        version: 1.3.0(tailwindcss@4.3.3)
+        version: 1.3.0(tailwindcss@4.3.5)
       tw-animate-css:
         specifier: 1.4.0
         version: 1.4.0
@@ -2690,7 +2690,7 @@ importers:
         version: 26.6.6
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.3.3
+        version: 4.3.5
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -2788,7 +2788,7 @@ importers:
         version: 5.57.3
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.3.3
+        version: 4.3.5
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -3314,7 +3314,7 @@ importers:
         version: 3.2.1
       tailwindcss:
         specifier: 'catalog:'
-        version: 4.3.3
+        version: 4.3.5
     devDependencies:
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
@@ -16865,8 +16865,8 @@ packages:
     peerDependencies:
       tailwindcss: ^4.0.0
 
-  tailwindcss@4.3.3:
-    resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
+  tailwindcss@4.3.5:
+    resolution: {integrity: sha512-FcQk9BuffmEHJP2G0XmB2SplU1aLTI7j07Kunk+U74Ny+XiWOtzXz9aujFZ/avntw1e2cOv/3PkgzflQ7gX2vQ==}
 
   tapable@1.1.3:
     resolution: {integrity: sha512-4WK/bYZmj8xLr+HUCODHGF1ZFzsYffasLUgEiMBY4fgtltdO6B4WJtlSbPaDTLpYTcGVwM2qLnFTICEcNxs3kA==}
@@ -21104,9 +21104,9 @@ snapshots:
     dependencies:
       '@hapi/hoek': 9.3.0
 
-  '@headlessui/tailwindcss@0.2.2(tailwindcss@4.3.3)':
+  '@headlessui/tailwindcss@0.2.2(tailwindcss@4.3.5)':
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
   '@humanwhocodes/config-array@0.5.0(supports-color@10.2.2)':
     dependencies:
@@ -21126,12 +21126,12 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify/tailwind4@1.2.3(tailwindcss@4.3.3)':
+  '@iconify/tailwind4@1.2.3(tailwindcss@4.3.5)':
     dependencies:
       '@iconify/tools': 5.0.14
       '@iconify/types': 2.0.0
       '@iconify/utils': 3.1.7
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
   '@iconify/tools@5.0.14':
     dependencies:
@@ -25162,15 +25162,15 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tailwindcss/forms@0.5.11(tailwindcss@4.3.3)':
+  '@tailwindcss/forms@0.5.11(tailwindcss@4.3.5)':
     dependencies:
       mini-svg-data-uri: 1.4.4
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  '@tailwindcss/typography@0.5.20(tailwindcss@4.3.3)':
+  '@tailwindcss/typography@0.5.20(tailwindcss@4.3.5)':
     dependencies:
       postcss-selector-parser: 6.0.10
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
   '@tanstack/history@1.162.5': {}
 
@@ -35523,46 +35523,46 @@ snapshots:
 
   tailwind-merge@3.7.0: {}
 
-  tailwind-scrollbar-hide@4.0.0(tailwindcss@4.3.3):
+  tailwind-scrollbar-hide@4.0.0(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwind-scrollbar@4.0.2(react@19.3.1)(tailwindcss@4.3.3):
+  tailwind-scrollbar@4.0.2(react@19.3.1)(tailwindcss@4.3.5):
     dependencies:
       prism-react-renderer: 2.4.1(react@19.3.1)
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
     transitivePeerDependencies:
       - react
 
-  tailwindcss-animate@1.0.7(tailwindcss@4.3.3):
+  tailwindcss-animate@1.0.7(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss-animated@2.1.0(tailwindcss@4.3.3):
+  tailwindcss-animated@2.1.0(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss-intersect@3.0.0(tailwindcss@4.3.3):
+  tailwindcss-intersect@3.0.0(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss-motion@1.1.1(tailwindcss@4.3.3):
+  tailwindcss-motion@1.1.1(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss-radix@4.0.2(tailwindcss@4.3.3):
+  tailwindcss-radix@4.0.2(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss-react-aria-components@2.2.0(tailwindcss@4.3.3):
+  tailwindcss-react-aria-components@2.2.0(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss-safe-area@1.3.0(tailwindcss@4.3.3):
+  tailwindcss-safe-area@1.3.0(tailwindcss@4.3.5):
     dependencies:
-      tailwindcss: 4.3.3
+      tailwindcss: 4.3.5
 
-  tailwindcss@4.3.3: {}
+  tailwindcss@4.3.5: {}
 
   tapable@1.1.3: {}
 
