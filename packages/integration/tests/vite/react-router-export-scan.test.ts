@@ -10,7 +10,13 @@ import { createViteProject } from "../../src/vite/project.ts";
 test.each([
   { name: "React Router export scan", route: true, main: false, watched: false, compiled: false },
   { name: "React Router application", route: true, main: true, watched: false, compiled: true },
-  { name: "watched route host", route: true, main: false, watched: true, compiled: true },
+  {
+    name: "React Router development export scan",
+    route: true,
+    main: false,
+    watched: true,
+    compiled: false,
+  },
   { name: "ordinary unwatched host", route: false, main: false, watched: false, compiled: true },
 ])("$name preserves its style compilation contract", async ({ route, main, watched, compiled }) => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-route-exports-"));

@@ -4,15 +4,15 @@ import type { ResolvedConfig } from "vite";
  * Identifies React Router's child compiler that transforms routes only to read export names.
  *
  * @param config - Resolved configuration of the compiler that owns the hook.
- * @returns True for the unwatched child compiler with React Router's route plugins and without
- * its main plugin. The child does not generate application JavaScript or CSS.
+ * @returns True for the child compiler with React Router's route plugins and without its main
+ * plugin, in both development and builds. The child does not generate application JavaScript or
+ * CSS.
  */
 export function isReactRouterExportScan(
-  config: Pick<ResolvedConfig, "command" | "plugins" | "server">,
+  config: Pick<ResolvedConfig, "command" | "plugins">,
 ): boolean {
   return (
     config.command === "serve" &&
-    config.server.watch === null &&
     config.plugins.some((plugin) => plugin.name === "react-router:virtual-modules") &&
     !config.plugins.some((plugin) => plugin.name === "react-router")
   );
