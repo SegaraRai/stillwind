@@ -2,9 +2,84 @@
 
 #![cfg(feature = "minify")]
 
+use lean_string::LeanStr;
 use parcel_sourcemap::{OriginalLocation, SourceMap};
 
 use stillwind_css::{CssMinifyError, CssMinifyOptions, minify_css};
+
+#[test]
+fn implicit_scope_roots_are_preserved_or_reported_when_lowering_is_required() {
+    let css = ".parent{@scope{.item{color:red}}}";
+    assert_eq!(
+        minify_css(css, &CssMinifyOptions::default()).unwrap().css,
+        ".parent{@scope{& .item{color:red}}}"
+    );
+    let options = CssMinifyOptions {
+        include: vec!["Nesting".into()],
+        ..CssMinifyOptions::default()
+    };
+    assert!(
+        minify_css(css, &options)
+            .unwrap_err()
+            .to_string()
+            .contains("implicit @scope")
+    );
+}
+
+#[test]
+fn scope_nesting_keeps_ancestor_constraints_and_zero_specificity() {
+    let options = CssMinifyOptions {
+        include: vec!["Nesting".into()],
+        ..CssMinifyOptions::default()
+    };
+    let result = minify_css(
+        ".parent{@scope (.from) to (& .stop){color:red;.item{display:flex}}}",
+        &options,
+    )
+    .unwrap();
+    assert_eq!(
+        result.css,
+        "@scope(.parent .from) to (:where(:scope) .stop){:where(:scope){color:red}.item{display:flex}}"
+    );
+    assert_eq!(result.warnings, [] as [LeanStr; 0]);
+}
+
+#[test]
+fn nested_scopes_keep_each_boundary() {
+    let result = minify_css(
+        "@scope (.outer){@scope (& .inner){color:red}}",
+        &CssMinifyOptions {
+            include: vec!["Nesting".into()],
+            ..CssMinifyOptions::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        result.css,
+        "@scope(.outer){@scope(:scope .inner){:where(:scope){color:red}}}"
+    );
+}
+
+#[test]
+fn scoped_source_maps_keep_original_declaration_coordinates() {
+    let css = "/* 日本語 */\n@scope (.card) {\n color:red;\n}";
+    let options = CssMinifyOptions {
+        source_map: true,
+        ..CssMinifyOptions::default()
+    };
+    let output = minify_css(css, &options).unwrap();
+    let json = output.source_map.unwrap();
+    let mut map = SourceMap::from_json("", &json).unwrap();
+    let column = u32::try_from(output.css.find(":where").unwrap()).unwrap();
+    let original = map
+        .find_closest_mapping(0, column)
+        .unwrap()
+        .original
+        .unwrap();
+    assert_eq!((original.original_line, original.original_column), (2, 1));
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(value["sourcesContent"][0], css);
+}
 
 #[test]
 fn preserves_notice_text_during_minification() {

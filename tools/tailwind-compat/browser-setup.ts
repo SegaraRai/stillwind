@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
+import { minifyCss } from "@stillwind/native";
 import type { TestProject } from "vite-plus/test/node";
 
 import { compileParity } from "./comparison.ts";
@@ -148,6 +149,42 @@ export default async function setup(project: TestProject) {
       actual: native.css,
       expectedClass: entry.candidates.join(" "),
       actualClass: native.classes[0].className,
+    });
+  }
+  for (const [name, source, color] of [
+    [
+      "scope declarations keep zero specificity",
+      "#parent{@scope (& > #probe){color:red}}div{color:blue}",
+      "blue",
+    ],
+    [
+      "scope limits exclude the limit element",
+      "#parent{@scope (&) to (#probe){#probe{color:red}}}div{color:blue}",
+      "blue",
+    ],
+    [
+      "scope keeps a missing style ancestor",
+      ".missing{@scope (#parent){#probe{color:red}}}#probe{color:blue}",
+      "blue",
+    ],
+    [
+      "scope keeps an explicit parent root",
+      "#parent{@scope (&){color:green;#probe{color:red}}}",
+      "red",
+    ],
+    [
+      "nested scopes keep their outer boundary",
+      "@scope (.missing){@scope (#probe){#probe{color:red}}}#probe{color:blue}",
+      "blue",
+    ],
+  ]) {
+    payload.push({
+      name,
+      properties: ["color"],
+      expected: `#probe{color:${color}}`,
+      actual: minifyCss(source, { include: ["Nesting"] }).css,
+      expectedClass: "",
+      actualClass: "",
     });
   }
   project.provide("tailwindCases", payload);

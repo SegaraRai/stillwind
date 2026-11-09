@@ -11,6 +11,17 @@ import { sourceUri, cssInput, oneShotInput } from "./support.ts";
  * @param bindingSpecifier - Absolute URL of the binding module.
  */
 export function registerCompilationContract(bindingSpecifier: string): void {
+  test("authored scopes keep declaration roots and ancestor constraints", async () => {
+    const { renderStylesheet, minifyCss } = await import(bindingSpecifier);
+    const css = ".parent{@scope (.from) to (& .stop){color:red;.item{display:flex}}}";
+    const rendered = renderStylesheet("", `${css} @stillwind-slot utilities;`);
+    expect(rendered).toContain(":where(:scope){color:red;");
+    const result = minifyCss(rendered, { include: ["Nesting"] });
+    expect(result.css).toContain("@scope(.parent .from) to (:where(:scope) .stop)");
+    expect(result.css).toContain(".item{display:flex}");
+    expect(result.warnings).toEqual([]);
+  });
+
   test("color mixes without an interpolation method retain their authored value", async () => {
     const { NativeDesignSystemLoader } = await import(bindingSpecifier);
     for (const value of [

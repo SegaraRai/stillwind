@@ -9,7 +9,7 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{CssNode, CssNodeKind, parse_structure};
+use stillwind_css::{CssNode, CssNodeKind, normalize_scopes, parse_structure};
 use stillwind_design_system::{ThemeIndex, take_property_requirements};
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::ReplaceText;
@@ -48,6 +48,7 @@ pub(super) fn render_authored(
         }
     })?;
     required_properties.extend(requirements);
+    let css = normalize_scopes(&css).css;
     let css = expand_authored_directives(&css, theme, required_properties, identifiers)?;
     let css = theme.resolve_css_functions(&css).unwrap_or(css);
     let css = theme.inline_asset_references(&css).unwrap_or(css);

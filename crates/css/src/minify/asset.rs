@@ -5,8 +5,11 @@ use std::sync::{Arc, PoisonError, RwLock};
 
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 use lightningcss::stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet};
+use lightningcss::targets::Targets;
 use lightningcss::visitor::Visit;
-use parcel_sourcemap::SourceMap;
+use parcel_sourcemap::{OriginalLocation, SourceMap};
+
+use crate::{ScopedCss, normalize_scopes};
 
 use super::optimizer::Optimizer;
 use super::options::CssMinifyOptions;
@@ -54,8 +57,10 @@ pub struct MinifiedCss {
 ///
 /// # Errors
 ///
-/// Returns an option, parse, optimization, serialization, or source-map error.
-/// Recovery only applies to parsing and reports skipped input through warnings.
+/// Returns an option, parse, optimization, serialization, or source-map error. Recovery
+/// only applies to parsing and reports skipped input through warnings. Nesting lowering
+/// rejects implicit `@scope` roots inside style rules because their roots depend on
+/// stylesheet placement.
 pub fn minify_css(css: &str, options: &CssMinifyOptions) -> Result<MinifiedCss, CssMinifyError> {
     if options.input_source_map.is_some() && !options.source_map {
         return Err(CssMinifyError::Options(
@@ -68,9 +73,11 @@ pub fn minify_css(css: &str, options: &CssMinifyOptions) -> Result<MinifiedCss, 
         .as_deref()
         .map(parse_source_map)
         .transpose()?;
+    let normalized = normalize_scopes(css);
+    validate_scope_lowering(&normalized, targets)?;
     let warnings = Arc::new(RwLock::new(Vec::new()));
     let mut sheet = StyleSheet::parse(
-        css,
+        &normalized.css,
         ParserOptions {
             filename: options.filename.to_string(),
             error_recovery: options.error_recovery,
@@ -108,6 +115,10 @@ pub fn minify_css(css: &str, options: &CssMinifyOptions) -> Result<MinifiedCss, 
         .map_err(|error| CssMinifyError::Print(error.to_lean_str()))?;
     let source_map = map
         .map(|mut map| {
+            if !normalized.origins.is_empty() {
+                map.extends(&mut scope_source_map(css, &normalized, &options.filename)?)
+                    .map_err(|error| CssMinifyError::SourceMap(error.to_lean_str()))?;
+            }
             let mut source_root = None;
             if let Some((mut upstream, root)) = input_map {
                 map.extends(&mut upstream)
@@ -140,6 +151,75 @@ pub fn minify_css(css: &str, options: &CssMinifyOptions) -> Result<MinifiedCss, 
         source_map,
         warnings,
     })
+}
+
+/// Returns an error when nesting lowering could rebind an implicit scope root.
+fn validate_scope_lowering(normalized: &ScopedCss, targets: Targets) -> Result<(), CssMinifyError> {
+    if normalized.implicit_style_scope && compiles_nesting(targets) {
+        return Err(CssMinifyError::Minify("cannot lower an implicit @scope inside a style rule without changing its root; use an explicit scope-start or preserve CSS nesting".into()));
+    }
+    Ok(())
+}
+
+/// Queries the serializer's target policy without duplicating its browser table.
+fn compiles_nesting(targets: Targets) -> bool {
+    StyleSheet::parse(".a{&:hover{color:red}}", ParserOptions::default())
+        .ok()
+        .and_then(|sheet| {
+            sheet
+                .to_css(PrinterOptions {
+                    minify: true,
+                    targets,
+                    ..PrinterOptions::default()
+                })
+                .ok()
+        })
+        .is_none_or(|output| !output.code.contains('&'))
+}
+
+/// Maps transformed scope syntax back to UTF-16 coordinates in the original asset.
+fn scope_source_map(
+    css: &str,
+    normalized: &ScopedCss,
+    filename: &str,
+) -> Result<SourceMap, CssMinifyError> {
+    let mut map = SourceMap::new("");
+    let source = map.add_source(filename);
+    map.set_source_content(source as usize, css)
+        .map_err(|error| CssMinifyError::SourceMap(error.to_lean_str()))?;
+    let mut positions = vec![(0, 0); css.len() + 1];
+    let (mut line, mut column) = (0, 0);
+    for (byte, character) in css.char_indices() {
+        positions[byte] = (line, column);
+        if character == '\n' {
+            line += 1;
+            column = 0;
+        } else {
+            column += u32::try_from(character.len_utf16()).unwrap_or(0);
+        }
+    }
+    positions[css.len()] = (line, column);
+    let (mut line, mut column) = (0, 0);
+    for (byte, character) in normalized.css.char_indices() {
+        let (original_line, original_column) = positions[normalized.origins[byte]];
+        map.add_mapping(
+            line,
+            column,
+            Some(OriginalLocation::new(
+                original_line,
+                original_column,
+                source,
+                None,
+            )),
+        );
+        if character == '\n' {
+            line += 1;
+            column = 0;
+        } else {
+            column += u32::try_from(character.len_utf16()).unwrap_or(0);
+        }
+    }
+    Ok(map)
 }
 
 fn parse_source_map(json: &str) -> Result<(SourceMap, Option<LeanString>), CssMinifyError> {

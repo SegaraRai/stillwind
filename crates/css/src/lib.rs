@@ -26,6 +26,7 @@
 //!   or chunk layout.
 //! - [`parser`] shares token traversal, block boundaries, and syntax validation.
 //! - [`resources`] finds URLs without resolving them.
+//! - [`scopes`] normalizes scoped declarations and preserves enclosing selectors.
 //! - [`selectors`] expands nesting selector templates.
 //! - [`structure`] parses the rule tree of authored stylesheets with byte ranges.
 //! - [`values`] validates value grammars and inspects property effects.
@@ -56,6 +57,7 @@ mod normalization;
 mod output;
 mod parser;
 mod resources;
+mod scopes;
 mod selectors;
 mod structure;
 mod values;
@@ -95,6 +97,7 @@ pub use parser::{
     validate_css_syntax_recovering,
 };
 pub use resources::{CssUrl, relative_css_urls};
+pub use scopes::{ScopedCss, normalize_scopes};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition, fold_host_conditions,
     fold_nested_host_conditions, implicit_nesting_positions, instantiate_selector,

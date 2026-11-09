@@ -19,9 +19,10 @@ The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need wor
   over shorter aliases. Measure index preparation with thousands of
   functional variant values and collapse with many utilities linked through `sr-only`;
   the independent implementations do not establish equivalent performance.
-- A custom variant containing `@scope` does not resolve, and declarations directly
-  inside a scope do not get a `:where(:scope)` rule.
-  Define and test these cases across document and module output.
+- A custom variant containing `@scope` does not resolve.
+  Define its selector context and test document and module output.
+- Nesting lowering rejects implicit `@scope` roots inside style rules. Preserve their
+  stylesheet-dependent root before enabling this transformation.
 
 Sources: [Tailwind 4.3.4](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.4),
 [Tailwind 4.3.5](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.5),
