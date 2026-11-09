@@ -328,7 +328,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
 #[cfg(test)]
 mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
-    use stillwind_semantic::{AssetKind, SymbolicValue, TypeFact};
+    use stillwind_semantic::{AssetKind, DeclarationKey, SymbolicValue, TypeFact};
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
@@ -413,7 +413,12 @@ mod tests {
 
     #[test]
     fn external_ref_assets_include_only_finite_candidates() {
-        let reference = IdentityId::new(AssetKind::Ref, "refs.ts".into(), 0, 1, "handle");
+        let reference = IdentityId::new(
+            AssetKind::Ref,
+            "refs.ts".into(),
+            DeclarationKey::top(0),
+            "handle",
+        );
         let facts = TypeFacts {
             schema: TypeFacts::SCHEMA,
             module_id: "consumer.ts".into(),

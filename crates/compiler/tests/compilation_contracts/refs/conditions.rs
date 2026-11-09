@@ -1,6 +1,7 @@
 //! Checks ref conditions, scope combinations, and selector targets.
 
 use stillwind_diagnostics::LintDiagnostic;
+use stillwind_semantic::DeclarationKey;
 
 use super::*;
 
@@ -420,12 +421,10 @@ fn finite_ref_candidates_keep_one_identity_across_all_scope_conditions() {
             SymbolicValue::finite(
                 AssetKind::Ref,
                 ["first", "second"].map(|name| {
-                    let start = u32::try_from(source.text().find(name).unwrap()).unwrap();
                     IdentityId::new(
                         AssetKind::Ref,
                         ModuleId::from("test.tsx"),
-                        start,
-                        start + u32::try_from(name.len()).unwrap(),
+                        DeclarationKey::top(0),
                         name,
                     )
                 }),

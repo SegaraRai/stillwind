@@ -212,6 +212,7 @@ impl Compiler {
                         module_id,
                         DefinitionKind::Keyframes,
                         &definition.binding,
+                        &definition.key,
                         definition.label.as_ref(),
                     )
                 })
@@ -227,6 +228,7 @@ impl Compiler {
                         module_id,
                         DefinitionKind::ViewTransition,
                         &definition.binding,
+                        &definition.key,
                         definition.label.as_ref(),
                     )
                 })
@@ -362,6 +364,7 @@ impl Compiler {
                 module_id,
                 AssetKind::Keyframes,
                 &animation.binding,
+                &animation.key,
             )) {
                 definition_css.push(contribution);
             }
@@ -382,6 +385,7 @@ impl Compiler {
                 module_id,
                 AssetKind::ViewTransition,
                 &transition.binding,
+                &transition.key,
             )) {
                 definition_css.push(contribution);
             }
@@ -412,10 +416,12 @@ impl Compiler {
                     module_id,
                     AssetKind::Keyframes,
                     &animation.binding,
+                    &animation.key,
                 )) {
                     match identifiers.keyframes_name(&named_declaration(
                         module_id,
                         &animation.binding,
+                        &animation.key,
                         animation.label.as_ref(),
                     )) {
                         Ok(name) => {
@@ -440,10 +446,12 @@ impl Compiler {
                     module_id,
                     AssetKind::ViewTransition,
                     &transition.binding,
+                    &transition.key,
                 )) {
                     match identifiers.view_transition_class(&named_declaration(
                         module_id,
                         &transition.binding,
+                        &transition.key,
                         transition.label.as_ref(),
                     )) {
                         Ok(class) => format_args!(

@@ -284,8 +284,10 @@ impl<'a> MacroExtractor<'a> {
                 }
             }
         }
+        let key = self.declaration_key(AssetKind::ViewTransition, binding.span, &binding.value);
         ViewTransitionDefinition {
             binding,
+            key,
             call_span: self.source_span(call.span),
             label,
             group,

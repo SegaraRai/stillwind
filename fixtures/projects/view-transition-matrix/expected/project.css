@@ -427,131 +427,131 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ::view-transition-old(.sw-vt-page-title-56mrr) {
+  ::view-transition-old(.sw-vt-page-title-0b9dx) {
     opacity: calc(0 * 1%);
   }
-  ::view-transition-new(.sw-vt-page-title-56mrr) {
+  ::view-transition-new(.sw-vt-page-title-0b9dx) {
     opacity: calc(100 * 1%);
   }
-  ::view-transition-old(.sw-vt-9jm9s) {
+  ::view-transition-old(.sw-vt-hl4nk) {
     opacity: calc(100 * 1%);
   }
   @media (prefers-reduced-motion: reduce) {
-    ::view-transition-old(.sw-vt-9jm9s) {
+    ::view-transition-old(.sw-vt-hl4nk) {
       opacity: calc(75 * 1%);
     }
   }
-  ::view-transition-new(.sw-vt-9jm9s) {
+  ::view-transition-new(.sw-vt-hl4nk) {
     opacity: calc(0 * 1%);
   }
-  ::view-transition-image-pair(.sw-vt-9jm9s) {
+  ::view-transition-image-pair(.sw-vt-hl4nk) {
     isolation: auto;
   }
-  .sw_ib2y3 {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_1xcps {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_dsj5u {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_pz6bl {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_49cip {
+  .sw_00q1e {
     display: block;
   }
-  .sw_49cip {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_00q1e {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_49cip {
-    view-transition-name: sw-vt-page-title-56mrr-hero;
+  .sw_00q1e {
+    view-transition-name: sw-vt-page-title-0b9dx-hero;
   }
   .sw_07l45 {
-    view-transition-class: var(--sw-vtc-bat1w,) var(--sw-vtc-0es8n,);
+    view-transition-class: var(--sw-vtc-0bjwa,) var(--sw-vtc-lbo1f,);
   }
-  .sw_b9mfe {
-    --sw-vtc-bat1w: sw-vt-page-title-56mrr;
+  .sw_5jpjv {
+    --sw-vtc-0bjwa: sw-vt-hl4nk;
   }
-  .sw_xivv8 {
-    --sw-vtc-0es8n: sw-vt-9jm9s;
+  .sw_ys5a3 {
+    --sw-vtc-lbo1f: sw-vt-page-title-0b9dx;
   }
   .sw_eg4yn {
-    view-transition-class: var(--sw-vtc-v7plm,) var(--sw-vtc-jr7gd,);
+    view-transition-class: var(--sw-vtc-84p19,) var(--sw-vtc-gvstv,);
   }
-  .sw_4qjib {
-    --sw-vtc-v7plm: sw-vt-page-title-56mrr;
+  .sw_q3o0f {
+    --sw-vtc-84p19: sw-vt-hl4nk;
   }
-  .sw_yq1jw {
-    --sw-vtc-jr7gd: sw-vt-9jm9s;
+  .sw_rdjv1 {
+    --sw-vtc-gvstv: sw-vt-page-title-0b9dx;
   }
   .sw_wg0m9 {
     display: block;
   }
   .sw_wg0m9 {
-    view-transition-class: var(--sw-vtc-9os4x,) var(--sw-vtc-fmi0t,);
+    view-transition-class: var(--sw-vtc-ihu86,) var(--sw-vtc-emnqv,);
   }
-  .sw_w8eru {
-    --sw-vtc-9os4x: sw-vt-page-title-56mrr;
-    view-transition-name: sw-vt-page-title-56mrr-hero;
+  .sw_4s6o8 {
+    --sw-vtc-ihu86: sw-vt-hl4nk;
+    view-transition-name: sw-vt-hl4nk-hero;
   }
-  .sw_54tbn {
-    --sw-vtc-fmi0t: sw-vt-9jm9s;
-    view-transition-name: sw-vt-9jm9s-hero;
+  .sw_tii40 {
+    --sw-vtc-emnqv: sw-vt-page-title-0b9dx;
+    view-transition-name: sw-vt-page-title-0b9dx-hero;
   }
-  .sw_zu69b {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_15xh2 {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_zu69b {
-    view-transition-name: sw-vt-page-title-56mrr-outside;
+  .sw_15xh2 {
+    view-transition-name: sw-vt-page-title-0b9dx-outside;
   }
-  .sw_y96tt {
+  .sw_9q7tz {
     display: block;
   }
-  .sw_y96tt {
-    view-transition-class: sw-vt-9jm9s;
+  .sw_9q7tz {
+    view-transition-class: sw-vt-hl4nk;
   }
   .sw_2ce4i {
     display: block;
   }
-  .sw_a2388 {
+  .sw_5hjl1 {
     display: block;
     view-transition-name: hero;
   }
-  .sw_a2388 {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_5hjl1 {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_gpk2a {
+  .sw_shfd5 {
     display: block;
   }
-  .sw_gpk2a {
-    view-transition-class: sw-vt-page-title-56mrr sw-vt-9jm9s;
+  .sw_shfd5 {
+    view-transition-class: sw-vt-page-title-0b9dx sw-vt-hl4nk;
   }
-  .sw_gpk2a {
-    view-transition-name: sw-vt-page-title-56mrr-one;
+  .sw_shfd5 {
+    view-transition-name: sw-vt-page-title-0b9dx-one;
   }
-  .sw_gpk2a {
-    view-transition-name: sw-vt-9jm9s-two;
+  .sw_shfd5 {
+    view-transition-name: sw-vt-hl4nk-two;
   }
-  .sw_dud2z {
+  .sw_u0flf {
     display: block;
   }
-  .sw_dud2z {
-    view-transition-class: sw-vt-page-title-56mrr var(--sw-vtc-htsqo,);
+  .sw_u0flf {
+    view-transition-class: sw-vt-page-title-0b9dx var(--sw-vtc-z1p43,);
   }
-  .sw_dud2z {
-    view-transition-name: sw-vt-page-title-56mrr-base;
+  .sw_u0flf {
+    view-transition-name: sw-vt-page-title-0b9dx-base;
   }
-  .sw_jpu0d {
-    --sw-vtc-htsqo: sw-vt-9jm9s;
-    view-transition-name: sw-vt-9jm9s-guarded;
+  .sw_kgrf9 {
+    --sw-vtc-z1p43: sw-vt-hl4nk;
+    view-transition-name: sw-vt-hl4nk-guarded;
   }
-  .sw_yieb3 {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_zxi01 {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
   .sw_m1ewp {
-    view-transition-class: var(--sw-vtc-4wcp5,) var(--sw-vtc-ssrq9,);
+    view-transition-class: var(--sw-vtc-23tdq,) var(--sw-vtc-xgfmv,);
   }
-  .sw_x2sz9 {
-    --sw-vtc-4wcp5: sw-vt-page-title-56mrr;
+  .sw_3cwa7 {
+    --sw-vtc-23tdq: sw-vt-hl4nk;
   }
-  .sw_pyfzj {
-    --sw-vtc-ssrq9: sw-vt-9jm9s;
+  .sw_sukls {
+    --sw-vtc-xgfmv: sw-vt-page-title-0b9dx;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.

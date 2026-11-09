@@ -52,18 +52,22 @@ impl<'a> MacroExtractor<'a> {
             self.ref_symbols.insert(symbol_id, definition.clone());
             self.local_values.insert(
                 symbol_id,
-                ExportedValue::Refs(SymbolicValue::exact(
-                    self.identity(AssetKind::Ref, &definition.binding),
-                )),
+                ExportedValue::Refs(SymbolicValue::exact(self.identity(
+                    AssetKind::Ref,
+                    &definition.binding,
+                    &definition.key,
+                ))),
             );
             self.ref_definitions.push(definition);
         } else if self.is_style_when_call(call) {
             let definition = self.collect_stored_variant(name, call);
             self.local_values.insert(
                 symbol_id,
-                ExportedValue::StoredVariants(SymbolicValue::exact(
-                    self.identity(AssetKind::StoredVariant, &definition.binding),
-                )),
+                ExportedValue::StoredVariants(SymbolicValue::exact(self.identity(
+                    AssetKind::StoredVariant,
+                    &definition.binding,
+                    &definition.key,
+                ))),
             );
             self.stored_variants.push(definition);
         }

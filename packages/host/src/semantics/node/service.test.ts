@@ -179,14 +179,13 @@ declare const label: string | undefined;
   });
   const moduleId = "ref-facts.ts";
   const assets: AssetRecord[] = ["a", "b"].map((bindingName) => {
-    const start = declarations.indexOf(`const ${bindingName} =`) + "const ".length;
     const callStart = declarations.indexOf(`style.ref('${bindingName}')`);
     return {
       identity: {
         kind: "ref",
         moduleId,
-        start,
-        end: start + 1,
+        path: [],
+        ordinal: 0,
         bindingName,
       },
       metadata: {

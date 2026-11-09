@@ -1213,10 +1213,16 @@ export interface NativeCssResource {
 export interface NativeDeclarationContext {
   /** Module identity of the declaring module. */
   module: string
-  /** Byte offset of the first character of the declaration's name. */
-  start: number
-  /** Byte offset just past the declaration's name. */
-  end: number
+  /**
+   * Names of the declarations that enclose the declaration, from the outermost to
+   * the innermost.
+   */
+  path: Array<string>
+  /**
+   * Zero-based position among earlier declarations of the module with the same
+   * kind, path, and binding name.
+   */
+  ordinal: number
   /** Binding name the declaration is assigned to. */
   binding: string
   /** Authored label, when the declaration has one. */
@@ -1436,13 +1442,13 @@ export interface NativeIdentity {
   kind: NativeAssetKind
   /** Module identity of the declaring module. */
   moduleId: string
+  /** Names of the enclosing declarations from the outermost to the innermost. */
+  path: Array<string>
   /**
-   * Byte start of the declaration identity: binding-name span for named assets,
-   * call span for styles.
+   * Zero-based position among earlier declarations of the module with the same
+   * kind, path, and binding name.
    */
-  start: number
-  /** Exclusive byte end of the declaration identity span. */
-  end: number
+  ordinal: number
   /** Lexical binding name, or the empty string for anonymous calls. */
   bindingName: string
 }
@@ -1662,10 +1668,16 @@ export interface NativeLintOptions {
 export interface NativeLocatorContext {
   /** Module identity of the declaration that owns the name. */
   module: string
-  /** Byte offset of the first character of the declaration's name. */
-  start: number
-  /** Byte offset just past the declaration's name. */
-  end: number
+  /**
+   * Names of the declarations that enclose the owning declaration, from the
+   * outermost to the innermost.
+   */
+  path: Array<string>
+  /**
+   * Zero-based position of the owning declaration among earlier declarations of the
+   * module with the same kind, path, and binding name.
+   */
+  ordinal: number
   /** Binding name of the declaration that owns the name. */
   binding: string
   /** Projection the name is written for, when the writer has one. */

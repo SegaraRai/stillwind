@@ -1,6 +1,7 @@
 //! Checks static and runtime projections and explicit CSS roles.
 
 use stillwind_diagnostics::LintDiagnostic;
+use stillwind_semantic::DeclarationKey;
 
 use super::*;
 
@@ -17,7 +18,12 @@ fn static_ref_projection_resolves_alias_without_runtime_marker() {
         .unwrap()
         .try_into()
         .unwrap();
-    let reference = IdentityId::new(AssetKind::Ref, ModuleId::from("refs.tsx"), 6, 13, "primary");
+    let reference = IdentityId::new(
+        AssetKind::Ref,
+        ModuleId::from("refs.tsx"),
+        DeclarationKey::top(6),
+        "primary",
+    );
     let facts = [TypeFact {
         start: receiver,
         end: receiver + 1,
@@ -57,8 +63,7 @@ fn static_ref_projection_resolves_member_without_runtime_marker() {
     let reference = IdentityId::new(
         AssetKind::Ref,
         ModuleId::from("holder.tsx"),
-        6,
-        13,
+        DeclarationKey::top(6),
         "trigger",
     );
     let facts = [TypeFact {
@@ -98,9 +103,14 @@ fn dynamic_ref_projection_reads_the_receiver_and_plans_each_candidate() {
         .unwrap();
     let refs = SymbolicValue::finite(
         AssetKind::Ref,
-        ["first", "second"]
-            .into_iter()
-            .map(|name| IdentityId::new(AssetKind::Ref, ModuleId::from("refs.tsx"), 6, 13, name)),
+        ["first", "second"].into_iter().map(|name| {
+            IdentityId::new(
+                AssetKind::Ref,
+                ModuleId::from("refs.tsx"),
+                DeclarationKey::top(6),
+                name,
+            )
+        }),
     )
     .unwrap();
     let facts = [TypeFact {

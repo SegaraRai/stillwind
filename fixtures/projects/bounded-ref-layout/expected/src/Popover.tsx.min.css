@@ -1,27 +1,27 @@
-.sw_xrl2a {
-  anchor-scope: --sw-a-trigger-ya42g;
+.sw_wgch1 {
+  anchor-scope: --sw-a-trigger-dca4r;
 }
-.sw_xrl2a:where(.sw_container_gxe38) {
-  container: sw-c-container-gxe38/inline-size;
+.sw_wgch1:where(.sw_container_gmrbn) {
+  container: sw-c-container-gmrbn/inline-size;
 }
-.sw_i6zgp {
+.sw_j6zq3 {
   display: inline-flex;
   position: relative;
 }
-.sw_i6zgp:where(.sw_trigger_ya42g) {
-  anchor-name: --sw-a-trigger-ya42g;
+.sw_j6zq3:where(.sw_trigger_dca4r) {
+  anchor-name: --sw-a-trigger-dca4r;
 }
-.sw_o2uqu {
-  position-anchor: --sw-a-trigger-ya42g;
+.sw_imz7m {
+  position-anchor: --sw-a-trigger-dca4r;
   position: absolute;
 }
-@container sw-c-container-gxe38 (width>=40rem) {
-  .sw_o2uqu {
+@container sw-c-container-gmrbn (width>=40rem) {
+  .sw_imz7m {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (hover) {
-  .sw_o2uqu:is(:where(.sw_menu_qgtyh):has(:where(.sw_trigger_ya42g):hover) *) {
+  .sw_imz7m:is(:where(.sw_menu_vn2tg):has(:where(.sw_trigger_dca4r):hover) *) {
     color: var(--color-accent);
   }
 }

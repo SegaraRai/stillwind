@@ -7,23 +7,23 @@ test("checker declaration identity has its own namespace", () => {
   const key = identityKey({
     kind: "ref",
     moduleId: "src/a.tsx",
-    start: 2,
-    end: 6,
+    path: ["Menu"],
+    ordinal: 1,
     bindingName: "item",
   });
-  expect(Buffer.from(key.slice("stillwind-identity/v1:".length), "base64url").toString()).toBe(
-    '{"kind":"ref","moduleId":"src/a.tsx","start":2,"end":6,"bindingName":"item"}',
+  expect(Buffer.from(key.slice("stillwind-identity/v2:".length), "base64url").toString()).toBe(
+    '{"kind":"ref","moduleId":"src/a.tsx","path":["Menu"],"ordinal":1,"bindingName":"item"}',
   );
   expect(
     identityKey({
       bindingName: "item",
-      end: 6,
-      start: 2,
+      ordinal: 1,
+      path: ["Menu"],
       moduleId: "src/a.tsx",
       kind: "ref",
     }),
   ).toBe(key);
-  expect(key).toMatch(/^stillwind-identity\/v1:/);
+  expect(key).toMatch(/^stillwind-identity\/v2:/);
 });
 
 test("one authored producer can stamp distinct generated copies once each", () => {
@@ -35,8 +35,8 @@ test("one authored producer can stamp distinct generated copies once each", () =
     identity: {
       kind: "style" as const,
       moduleId: "Copied.vue",
-      start: callStart,
-      end: callEnd,
+      path: ["value"],
+      ordinal: 0,
       bindingName: "value",
     },
     metadata: {

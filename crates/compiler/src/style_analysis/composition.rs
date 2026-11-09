@@ -345,7 +345,7 @@ pub(super) fn can_omit(required: &[&ResolvedSupply<'_>], excluded: &[&ResolvedSu
 mod tests {
     use stillwind_diagnostics::{LintFinding, LintKind, LintSettings};
     use stillwind_ir::ConditionalBranches;
-    use stillwind_semantic::AssetKind;
+    use stillwind_semantic::{AssetKind, DeclarationKey};
     use stillwind_source::{FileId, ModuleId, Span};
 
     use super::super::test_support as f;
@@ -355,7 +355,12 @@ mod tests {
     use super::*;
 
     fn identity(module: &str) -> IdentityId {
-        IdentityId::new(AssetKind::Style, ModuleId::from(module), 0, 100, "")
+        IdentityId::new(
+            AssetKind::Style,
+            ModuleId::from(module),
+            DeclarationKey::top(0),
+            "",
+        )
     }
 
     fn site(module: &str) -> UseId {
@@ -417,8 +422,7 @@ mod tests {
                 identity: IdentityId::new(
                     AssetKind::ViewTransition,
                     ModuleId::from("transition"),
-                    0,
-                    10,
+                    DeclarationKey::top(0),
                     "vt",
                 ),
                 context: RuleContext {
@@ -477,7 +481,12 @@ mod tests {
 
     #[test]
     fn unavailable_bases_only_hide_absence_in_compatible_branches() {
-        let reference = IdentityId::new(AssetKind::Ref, ModuleId::from("ref"), 0, 10, "ref");
+        let reference = IdentityId::new(
+            AssetKind::Ref,
+            ModuleId::from("ref"),
+            DeclarationKey::top(0),
+            "ref",
+        );
         let provider = supply(
             "root",
             SupplyKind::Provider {

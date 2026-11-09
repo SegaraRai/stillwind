@@ -321,8 +321,7 @@ fn base_identity(module: &ModuleAnalysis) -> IdentityId {
     IdentityId::new(
         AssetKind::Style,
         module.module_id.clone(),
-        call.span.start.0,
-        call.span.end.0,
+        call.key.clone(),
         "",
     )
 }

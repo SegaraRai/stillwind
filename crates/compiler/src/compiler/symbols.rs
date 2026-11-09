@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_ir::{AssetReference, RefDefinition, RefProjection};
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
 use stillwind_source::{CssSourceName, ModuleId, Span, Spanned};
 
 use crate::identifiers::{
@@ -206,8 +206,7 @@ pub(super) fn ref_context(
 ) -> LocatorContext {
     LocatorContext {
         module: definition.module_id.clone(),
-        start: definition.binding.span.start.0,
-        end: definition.binding.span.end.0,
+        key: definition.key.clone(),
         binding: definition.binding.value.as_str().into(),
         label: declared_label(definition.label.as_ref()),
         projection,
@@ -218,8 +217,7 @@ pub(super) fn ref_context(
 fn ref_declaration_context(definition: &RefDefinition) -> DeclarationContext {
     DeclarationContext {
         module: definition.module_id.clone(),
-        start: definition.binding.span.start.0,
-        end: definition.binding.span.end.0,
+        key: definition.key.clone(),
         binding: definition.binding.value.as_str().into(),
         label: declared_label(definition.label.as_ref()),
     }
@@ -278,13 +276,12 @@ pub(crate) fn ref_container_name(
 fn owner_declaration_identity(
     module_id: &ModuleId,
     kind: &str,
-    start: u32,
-    end: u32,
+    key: &DeclarationKey,
     binding: &str,
 ) -> LeanStr {
     format_args!(
-        "stillwind-identity/v1\0{}",
-        declaration_fields(module_id, kind, start, end, binding),
+        "stillwind-identity/v2\0{}",
+        declaration_fields(module_id, kind, key, binding),
     )
     .to_lean_string()
     .into()
@@ -316,12 +313,12 @@ fn kind_pool(kind: DefinitionKind) -> IdentifierPool {
 pub(super) fn named_declaration(
     module_id: &ModuleId,
     definition: &Spanned<LeanStr>,
+    key: &DeclarationKey,
     label: Option<&Spanned<LeanStr>>,
 ) -> DeclarationContext {
     DeclarationContext {
         module: module_id.clone(),
-        start: definition.span.start.0,
-        end: definition.span.end.0,
+        key: key.clone(),
         binding: definition.value.as_str().into(),
         label: declared_label(label),
     }
@@ -335,8 +332,7 @@ pub(super) fn named_declaration(
 pub(super) fn identity_declaration(reference: &AssetReference) -> DeclarationContext {
     DeclarationContext {
         module: reference.identity.module_id().clone(),
-        start: reference.identity.start(),
-        end: reference.identity.end(),
+        key: reference.identity.key().clone(),
         binding: reference.identity.binding_name().clone(),
         label: declared_label(reference.label.as_ref()),
     }
@@ -374,21 +370,21 @@ pub(super) fn generated_symbol(
     module_id: &ModuleId,
     kind: DefinitionKind,
     definition: &Spanned<LeanStr>,
+    key: &DeclarationKey,
     label: Option<&Spanned<LeanStr>>,
 ) -> Result<GeneratedSymbol, CompileDiagnostic> {
     Ok(GeneratedSymbol {
         name: declared_name(
             context,
             kind,
-            &named_declaration(module_id, definition, label),
+            &named_declaration(module_id, definition, key, label),
         )?,
         kind: kind.into(),
         pool: kind_pool(kind),
         identity: owner_declaration_identity(
             module_id,
             kind_name(kind.into()),
-            definition.span.start.0,
-            definition.span.end.0,
+            key,
             &definition.value,
         ),
         origin: SymbolOrigin::Module(module_id.clone()),
@@ -491,8 +487,8 @@ pub(super) fn definition_name_symbol(
         pool: kind_pool(kind),
         identity: identity_input(&reference.identity),
         origin: SymbolOrigin::Module(reference.identity.module_id().clone()),
-        start: Some(reference.identity.start()),
-        end: Some(reference.identity.end()),
+        start: None,
+        end: None,
     })
 }
 
@@ -501,8 +497,7 @@ fn identity_input(identity: &IdentityId) -> LeanStr {
     owner_declaration_identity(
         identity.module_id(),
         kind_name(identity.kind()),
-        identity.start(),
-        identity.end(),
+        identity.key(),
         identity.binding_name(),
     )
 }
@@ -512,21 +507,14 @@ fn identity_input(identity: &IdentityId) -> LeanStr {
 /// The identity is what a symbol report compares, so it must not depend on the family
 /// it was written for.
 pub(super) fn identity_input_parts(context: &LocatorContext) -> LeanStr {
-    owner_declaration_identity(
-        &context.module,
-        "ref",
-        context.start,
-        context.end,
-        &context.binding,
-    )
+    owner_declaration_identity(&context.module, "ref", &context.key, &context.binding)
 }
 
 pub(super) fn ref_identity(definition: &RefDefinition) -> IdentityId {
     IdentityId::new(
         AssetKind::Ref,
         definition.module_id.clone(),
-        definition.binding.span.start.0,
-        definition.binding.span.end.0,
+        definition.key.clone(),
         definition.binding.value.clone(),
     )
 }
@@ -536,14 +524,9 @@ pub(super) fn named_identity(
     module_id: &ModuleId,
     kind: AssetKind,
     name: &Spanned<LeanStr>,
+    key: &DeclarationKey,
 ) -> IdentityId {
-    IdentityId::new(
-        kind,
-        module_id.clone(),
-        name.span.start.0,
-        name.span.end.0,
-        name.value.clone(),
-    )
+    IdentityId::new(kind, module_id.clone(), key.clone(), name.value.clone())
 }
 
 /// Builds one reportable symbol for a name a declaration writes into a pool.
@@ -598,14 +581,14 @@ mod tests {
             call: 0,
             branch: branch.to_lean_str(),
         };
-        let name = Spanned::new("ref".to_lean_str(), Span::new(FileId(1), 2, 5));
+        let key = DeclarationKey::top(0);
         assert_ne!(
-            owner_declaration_identity(&ModuleId::from(r"src\x.tsx"), "ref", 2, 5, &name.value),
-            owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", 2, 5, &name.value)
+            owner_declaration_identity(&ModuleId::from(r"src\x.tsx"), "ref", &key, "ref"),
+            owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", &key, "ref")
         );
         assert_ne!(
-            owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", 2, 5, &name.value),
-            owner_declaration_identity(&ModuleId::from("src/y.tsx"), "ref", 2, 5, &name.value)
+            owner_declaration_identity(&ModuleId::from("src/x.tsx"), "ref", &key, "ref"),
+            owner_declaration_identity(&ModuleId::from("src/y.tsx"), "ref", &key, "ref")
         );
         assert_eq!(
             identifiers.class_name(&class("flex")),
@@ -642,27 +625,27 @@ mod tests {
     fn owner_identities_share_one_declaration_spelling() {
         let module = ModuleId::from("src/x.tsx");
         let name = Spanned::new("item".to_lean_str(), Span::new(FileId(1), 2, 6));
-        let identity = IdentityId::new(AssetKind::Ref, module.clone(), 2, 6, "item");
+        let key = DeclarationKey::new(vec!["Menu".into()], 1);
+        let identity = IdentityId::new(AssetKind::Ref, module.clone(), key.clone(), "item");
         let context = LocatorContext {
             module: module.clone(),
-            start: 2,
-            end: 6,
+            key: key.clone(),
             binding: "item".into(),
             label: None,
             projection: Some(LocatorProjection::Container),
         };
-        let expected = "stillwind-identity/v1\0src/x.tsx\0ref\x002:6\0item\0";
+        let expected = "stillwind-identity/v2\0src/x.tsx\0ref\0Menu\u{1f}\x001\0item\0";
         assert_eq!(
-            owner_declaration_identity(&module, "ref", 2, 6, &name.value),
+            owner_declaration_identity(&module, "ref", &key, &name.value),
             expected
         );
         assert_eq!(identity_input(&identity), expected);
         assert_eq!(identity_input_parts(&context), expected);
-        let keyframes = IdentityId::new(AssetKind::Keyframes, module.clone(), 2, 6, "item");
-        let request = KeyframesNameRequest(named_declaration(&module, &name, None));
+        let keyframes = IdentityId::new(AssetKind::Keyframes, module.clone(), key.clone(), "item");
+        let request = KeyframesNameRequest(named_declaration(&module, &name, &key, None));
         assert_eq!(
-            request.identity().strip_prefix("stillwind/v1\0"),
-            identity_input(&keyframes).strip_prefix("stillwind-identity/v1\0"),
+            request.identity().strip_prefix("stillwind/v2\0"),
+            identity_input(&keyframes).strip_prefix("stillwind-identity/v2\0"),
         );
         assert_eq!(
             generated_class_symbol(&module, "sw_class", "class-input", name.span).identity,
@@ -671,9 +654,10 @@ mod tests {
     }
 
     #[test]
-    fn asset_names_distinguish_kinds_and_spans_and_keep_metadata() {
+    fn asset_names_follow_kinds_and_keys_and_keep_metadata() {
         let identifiers = identifiers();
         let name = Spanned::new("ref".into(), Span::new(FileId(1), 0, 3));
+        let key = DeclarationKey::top(0);
         for (kind, prefix) in [
             (DefinitionKind::Keyframes, "sw-kf-"),
             (DefinitionKind::ViewTransition, "sw-vt-"),
@@ -683,6 +667,7 @@ mod tests {
                 &ModuleId::from("src/x.tsx"),
                 kind,
                 &name,
+                &key,
                 None,
             )
             .unwrap();
@@ -697,19 +682,25 @@ mod tests {
                 owner_declaration_identity(
                     &ModuleId::from("src/x.tsx"),
                     kind_name(kind.into()),
-                    0,
-                    3,
+                    &key,
                     &name.value
                 )
             );
-            let shifted = Spanned::new("ref".into(), Span::new(FileId(1), 1, 3));
-            let shifted_name = declared_name(
-                &identifiers,
-                kind,
-                &named_declaration(&ModuleId::from("src/x.tsx"), &shifted, None),
-            )
-            .unwrap();
-            assert_ne!(symbol.name, shifted_name);
+            let name_of = |span: Span, key: &DeclarationKey| {
+                declared_name(
+                    &identifiers,
+                    kind,
+                    &named_declaration(
+                        &ModuleId::from("src/x.tsx"),
+                        &Spanned::new("ref".into(), span),
+                        key,
+                        None,
+                    ),
+                )
+                .unwrap()
+            };
+            assert_eq!(symbol.name, name_of(Span::new(FileId(1), 7, 10), &key));
+            assert_ne!(symbol.name, name_of(name.span, &DeclarationKey::top(1)));
         }
     }
 

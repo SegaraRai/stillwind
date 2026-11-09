@@ -1,7 +1,7 @@
 
 
-export const menu = {c:"sw_menu_y1wla"};
-export const trigger = {c:"sw_trigger_1gc76"};
+export const menu = {c:"sw_menu_mg4fw"};
+export const trigger = {c:"sw_trigger_ga2g3"};
 
 export const triggerHovered = undefined;
 

@@ -411,6 +411,7 @@ mod add_ref_tests {
     use std::rc::Rc;
 
     use stillwind_diagnostics::CompileDiagnostic;
+    use stillwind_semantic::DeclarationKey;
     use stillwind_source::{FileId, Span};
 
     use super::super::super::symbols::ref_marker_name;
@@ -443,6 +444,7 @@ mod add_ref_tests {
         RefDefinition {
             module_id: module.into(),
             binding: Spanned::new(binding.to_lean_str(), Span::new(FileId(1), 0, 3)),
+            key: DeclarationKey::top(0),
             label: None,
             call_span: Span::new(FileId(1), call_start, call_start + 4),
         }

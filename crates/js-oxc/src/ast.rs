@@ -87,14 +87,19 @@ impl<'a> MacroExtractor<'a> {
                 .keyframes_declarations
                 .iter()
                 .find(|declaration| {
-                    self.identity(AssetKind::Keyframes, &declaration.binding) == *identity
+                    self.identity(AssetKind::Keyframes, &declaration.binding, &declaration.key)
+                        == *identity
                 })
                 .and_then(|declaration| declaration.label.clone()),
             AssetKind::ViewTransition => self
                 .view_transition_declarations
                 .iter()
                 .find(|declaration| {
-                    self.identity(AssetKind::ViewTransition, &declaration.binding) == *identity
+                    self.identity(
+                        AssetKind::ViewTransition,
+                        &declaration.binding,
+                        &declaration.key,
+                    ) == *identity
                 })
                 .and_then(|declaration| declaration.label.clone()),
             _ => None,

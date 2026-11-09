@@ -3,7 +3,7 @@
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
-use stillwind_semantic::IdentityId;
+use stillwind_semantic::{DeclarationKey, IdentityId};
 use stillwind_source::{ModuleId, Span, Spanned};
 
 use super::StyleVariant;
@@ -16,8 +16,12 @@ use super::StyleVariant;
 pub struct RefDefinition {
     /// Module identity of the declaring module.
     pub module_id: ModuleId,
-    /// Lexical binding of the ref; its span seeds the declaration identity.
+    /// Lexical binding of the ref. Its name is part of the declaration identity, and
+    /// its span locates the declaration.
     pub binding: Spanned<LeanStr>,
+    /// Enclosing declarations and ordinal that identify the ref within its module.
+    #[serde(default)]
+    pub key: DeclarationKey,
     /// Optional user label that participates in the declaration's generated names.
     pub label: Option<Spanned<LeanStr>>,
     /// Span of the producing call, used for replacement.
@@ -33,8 +37,13 @@ pub struct RefDefinition {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredVariantDefinition {
-    /// Local binding; its span seeds the declaration identity.
+    /// Local binding. Its name is part of the declaration identity, and its span
+    /// locates the declaration.
     pub binding: Spanned<LeanStr>,
+    /// Enclosing declarations and ordinal that identify the declaration within its
+    /// module.
+    #[serde(default)]
+    pub key: DeclarationKey,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Variants from the outermost to the innermost, with spans in the declaration.
@@ -47,8 +56,13 @@ pub struct StoredVariantDefinition {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyframesDefinition {
-    /// Local binding; its span seeds the declaration identity.
+    /// Local binding. Its name is part of the declaration identity, and its span
+    /// locates the declaration.
     pub binding: Spanned<LeanStr>,
+    /// Enclosing declarations and ordinal that identify the declaration within its
+    /// module.
+    #[serde(default)]
+    pub key: DeclarationKey,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Authored label, which the default generator spells into the keyframes name.
@@ -94,8 +108,13 @@ pub struct KeyframesFrame {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewTransitionDefinition {
-    /// Local binding; its span seeds the declaration identity. Every use shares it.
+    /// Local binding. Its name is part of the declaration identity, which every use
+    /// shares, and its span locates the declaration.
     pub binding: Spanned<LeanStr>,
+    /// Enclosing declarations and ordinal that identify the declaration within its
+    /// module.
+    #[serde(default)]
+    pub key: DeclarationKey,
     /// Span of the producing call, used for replacement.
     pub call_span: Span,
     /// Authored label, which the default generator spells into the class token.

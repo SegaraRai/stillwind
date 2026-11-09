@@ -40,6 +40,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     let class = match identifiers.view_transition_class(&named_declaration(
         module_id,
         &transition.binding,
+        &transition.key,
         transition.label.as_ref(),
     )) {
         Ok(class) => class,

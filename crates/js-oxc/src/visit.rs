@@ -230,6 +230,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         }
         self.style_calls.push(StyleCall {
             span: self.source_span(call.span),
+            key: self.style_key(self.source_span(call.span)),
             output,
             inputs,
         });
@@ -260,9 +261,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             self.keyframes_symbols.insert(symbol_id, name);
             self.local_values.insert(
                 symbol_id,
-                ExportedValue::Keyframes(SymbolicValue::exact(
-                    self.identity(AssetKind::Keyframes, &definition.binding),
-                )),
+                ExportedValue::Keyframes(SymbolicValue::exact(self.identity(
+                    AssetKind::Keyframes,
+                    &definition.binding,
+                    &definition.key,
+                ))),
             );
             self.keyframes_declarations.push(definition);
         }
@@ -281,9 +284,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             self.view_transition_symbols.insert(symbol_id, name);
             self.local_values.insert(
                 symbol_id,
-                ExportedValue::ViewTransitions(SymbolicValue::exact(
-                    self.identity(AssetKind::ViewTransition, &definition.binding),
-                )),
+                ExportedValue::ViewTransitions(SymbolicValue::exact(self.identity(
+                    AssetKind::ViewTransition,
+                    &definition.binding,
+                    &definition.key,
+                ))),
             );
             self.view_transition_declarations.push(definition);
         }

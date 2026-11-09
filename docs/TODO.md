@@ -367,11 +367,13 @@ that keeps the interface of a dependency should not compile, transform, or query
 facts for its consumers again. Linking should resolve the names that cross module
 boundaries.
 
-Moving every declaration of a dependency to a later offset shows these couplings:
+Each declaration has a key that survives edits elsewhere in its module: kind,
+module, enclosing declaration path, ordinal, and binding name. Checker identities
+and cross-module references use this key, and the names of ref markers, anchors,
+containers, keyframes, and view-transition tokens derive from it. An edit that only
+moves the declarations of a dependency therefore changes no facts of a consumer.
+These couplings remain:
 
-- Checker identity keys contain declaration spans. An edit that changes the length
-  of a dependency before a declaration changes the types and facts of every
-  consumer.
 - The JavaScript of a consumer contains names from the dependency:
   - A literal ref attachment writes the ref marker as the class name.
   - The identity of a consumer's own utility class includes the rendered selector
@@ -384,7 +386,7 @@ Moving every declaration of a dependency to a later offset shows these couplings
 - The CSS of a consumer contains the imported names. It also contains copies of
   imported keyframes and view-transition declarations, and the artifact key
   contains the copied IR and the imported identities.
-- Composition changes only the base span in `compositionTopology`. The consumer's
+- Composition records only the base key in `compositionTopology`. The consumer's
   JavaScript and CSS stay the same. Conditional ref attachments read `.c` at
   runtime and also stay the same. An edit of a utility string after the last
   declaration changes no consumer output.
@@ -399,26 +401,22 @@ semantic diagnostics of each queried file, and reading facts.
 
 Planned direction:
 
-1. Give declarations a key that survives edits elsewhere in the module: kind,
-   module, enclosing declaration path, and ordinal. Use it for checker identities
-   and cross-module references, and keep spans inside the declaring module.
-2. Derive declaration names (ref markers, anchor and container names, keyframes,
-   and view-transition tokens) from that key, and build consumer class identities
-   from keys instead of rendered selectors. A consumer can then compute imported
-   names without the declaring module, and those names change only when the key
-   or label changes.
-3. Let linking include the declaration rules of the declaring module for each
+1. Build consumer class identities from declaration keys instead of rendered
+   selectors, and give class naming callbacks the key of their call instead of its
+   span. A consumer can then compute imported names without the declaring module,
+   and those names change only when the key or label changes.
+2. Let linking include the declaration rules of the declaring module for each
    imported keyframes or view-transition use, which replaces asset support copies.
    Read stored-variant sequences and inline-style flags of bases from the interface
    of the dependency.
-4. Compile one module for each transform with the facts of its own probes. Key
+3. Compile one module for each transform with the facts of its own probes. Key
    artifacts by the dependency interfaces that they read, and move cycle and
    missing-producer checks to linking. Style-effect lints such as
    `interfering-imported-style-base` already run over published artifacts and stay
    there.
-5. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
+4. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
    without transforming a consumer whose JavaScript does not change.
-6. Share compiled artifacts between Vite environments whose design systems and
+5. Share compiled artifacts between Vite environments whose design systems and
    compiler settings are equal. This step does not need the steps above.
 
 Open decisions: whether the checker diagnostic check stays on the compilation

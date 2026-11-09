@@ -209,6 +209,7 @@ impl ModuleEditor {
                 &self.module.module_id,
                 AssetKind::Keyframes,
                 &definition.binding,
+                &definition.key,
             )),
             None,
             EditorPlan::Keyframes(definition.clone()),
@@ -236,6 +237,7 @@ impl ModuleEditor {
                 &self.module.module_id,
                 AssetKind::ViewTransition,
                 &definition.binding,
+                &definition.key,
             )),
             None,
             EditorPlan::Transition(definition.clone()),
@@ -317,8 +319,7 @@ impl ModuleEditor {
             Some(IdentityId::new(
                 AssetKind::Style,
                 self.module.module_id.clone(),
-                call.span.start.0,
-                call.span.end.0,
+                call.key.clone(),
                 "",
             )),
             None,
@@ -338,6 +339,7 @@ impl ModuleEditor {
                     context,
                     EditorPlan::Call(StyleCall {
                         span: call.span,
+                        key: call.key.clone(),
                         output: call.output,
                         inputs: vec![input],
                     }),

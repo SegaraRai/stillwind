@@ -154,8 +154,7 @@ impl<'a> CallEmitter<'a> {
             identity: IdentityId::new(
                 AssetKind::Style,
                 self.module_id.clone(),
-                self.call.span.start.0,
-                self.call.span.end.0,
+                self.call.key.clone(),
                 "",
             ),
             span: self.call.span,

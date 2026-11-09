@@ -1,6 +1,6 @@
 
 
-export const primary = {c:"sw_primary_z410i"};
-export const secondary = {c:"sw_secondary_63olu"};
-export const compactScope = {c:"sw_compact_vl0wg"};
-export const spaciousScope = {c:"sw_spacious_fwe7s"};
+export const primary = {c:"sw_primary_hzxpi"};
+export const secondary = {c:"sw_secondary_f1hru"};
+export const compactScope = {c:"sw_compact_5lq1p"};
+export const spaciousScope = {c:"sw_spacious_dz0c5"};

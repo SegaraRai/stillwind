@@ -31,6 +31,7 @@
 //! - [`expressions`] lowers style inputs.
 //! - [`imports`] records bindings and their reads.
 //! - [`keyframes`] extracts keyframes declarations and their uses.
+//! - [`keys`] allocates declaration keys that survive edits elsewhere in a module.
 //! - [`local_span`] supplies file-local range keys for extraction and checker
 //!   bookkeeping.
 //! - [`media`] records `style.media()` arguments.
@@ -72,6 +73,7 @@ mod entry;
 mod expressions;
 mod imports;
 mod keyframes;
+mod keys;
 mod local_span;
 mod media;
 mod normalization;

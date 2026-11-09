@@ -51,6 +51,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
     let name = match identifiers.keyframes_name(&named_declaration(
         module_id,
         &keyframes.binding,
+        &keyframes.key,
         keyframes.label.as_ref(),
     )) {
         Ok(name) => name,

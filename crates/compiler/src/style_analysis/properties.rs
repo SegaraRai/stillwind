@@ -268,14 +268,19 @@ fn base_interference(
 mod tests {
     use lean_string::LeanStr;
 
-    use stillwind_semantic::AssetKind;
+    use stillwind_semantic::{AssetKind, DeclarationKey};
 
     use super::super::test_support as f;
     use super::super::{RuleContext, StyleEffect, StyleEffects, StyleResolver};
     use super::*;
 
     fn reference(label: &str) -> IdentityId {
-        IdentityId::new(AssetKind::Ref, ModuleId::from("root"), 80, 90, label)
+        IdentityId::new(
+            AssetKind::Ref,
+            ModuleId::from("root"),
+            DeclarationKey::top(80),
+            label,
+        )
     }
 
     fn provider(property: &str, gate: Option<IdentityId>) -> SupplyKind {
@@ -297,8 +302,7 @@ mod tests {
         effects.identity = IdentityId::new(
             AssetKind::Style,
             ModuleId::from("root"),
-            offset,
-            offset + 10,
+            DeclarationKey::top(offset),
             "",
         );
         effects.span = Span::new(effects.span.file, offset, offset + 10);

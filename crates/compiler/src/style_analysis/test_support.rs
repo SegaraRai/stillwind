@@ -2,7 +2,7 @@
 
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::ConditionalBranches;
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
 use stillwind_source::{FileId, ModuleId, Span};
 
 use super::{
@@ -12,7 +12,12 @@ use super::{
 
 /// Builds a style identity with the same call span in the requested module.
 pub(super) fn identity(module: &str) -> IdentityId {
-    IdentityId::new(AssetKind::Style, ModuleId::from(module), 0, 100, "")
+    IdentityId::new(
+        AssetKind::Style,
+        ModuleId::from(module),
+        DeclarationKey::top(0),
+        "",
+    )
 }
 
 /// Builds a source occurrence whose module and byte offset identify its decision.

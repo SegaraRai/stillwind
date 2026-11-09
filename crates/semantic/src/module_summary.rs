@@ -148,13 +148,18 @@ impl ModuleSummary {
 mod tests {
     use super::*;
     use crate::assets::{AssetMetadata, AssetRecord};
-    use crate::identity::{AssetKind, IdentityId};
+    use crate::identity::{AssetKind, DeclarationKey, IdentityId};
     use crate::symbolic::SymbolicValue;
 
     #[test]
     fn exported_universe_retains_owned_assets_of_its_kind() {
         let mut summary = ModuleSummary::new("x".into());
-        let animation = IdentityId::new(AssetKind::Keyframes, ModuleId::from("x"), 0, 1, "a");
+        let animation = IdentityId::new(
+            AssetKind::Keyframes,
+            ModuleId::from("x"),
+            DeclarationKey::top(0),
+            "a",
+        );
         summary.assets.push(AssetRecord {
             identity: animation.clone(),
             metadata: AssetMetadata {
@@ -177,9 +182,20 @@ mod tests {
     #[test]
     fn ref_exports_retain_finite_candidates_and_universe_roots() {
         let mut summary = ModuleSummary::new("x".into());
-        let owned_ref = IdentityId::new(AssetKind::Ref, "x".into(), 0, 1, "handle");
-        let imported_ref = IdentityId::new(AssetKind::Ref, "other".into(), 0, 1, "other");
-        let animation = IdentityId::new(AssetKind::Keyframes, "x".into(), 2, 3, "animation");
+        let owned_ref =
+            IdentityId::new(AssetKind::Ref, "x".into(), DeclarationKey::top(0), "handle");
+        let imported_ref = IdentityId::new(
+            AssetKind::Ref,
+            "other".into(),
+            DeclarationKey::top(0),
+            "other",
+        );
+        let animation = IdentityId::new(
+            AssetKind::Keyframes,
+            "x".into(),
+            DeclarationKey::top(2),
+            "animation",
+        );
         for identity in [owned_ref.clone(), animation] {
             summary.assets.push(AssetRecord {
                 identity,

@@ -103,19 +103,16 @@ for (const ext of ["vue", "svelte", "astro"]) {
     expect(first!.composition.length).toBe(1);
     const base = first!.composition[0].base;
     expect(base.moduleId).toBe(producer);
-    expect(Buffer.from(files[producer]).subarray(base.start, base.end).toString()).toBe(
-      "style('red')",
-    );
+    expect(base).toMatchObject({
+      path: ["base"],
+      ordinal: 0,
+    });
     expect(session.moduleCss(entry).css).toMatch(/color:\s*blue/);
-    expect(first!.code).not.toMatch(/stillwind-identity\/v1:|__stillwindDeclarationIdentity/);
+    expect(first!.code).not.toMatch(/stillwind-identity\/v2:|__stillwindDeclarationIdentity/);
     files[producer] = files[producer].replace("'red'", "'green'");
     const second = await compile();
     expect(second?.code).toBeTruthy();
-    expect(
-      Buffer.from(files[producer])
-        .subarray(second!.composition[0].base.start, second!.composition[0].base.end)
-        .toString(),
-    ).toBe("style('green')");
+    expect(second!.composition[0].base).toStrictEqual(base);
     expect(facts.stats.restarts).toBe(0);
     expect(facts.stats.incrementalSnapshots).toBe(1);
   });
@@ -193,7 +190,7 @@ for (const ext of ["vue", "svelte", "astro"]) {
     expect(result!.composition.length).toBe(ext === "svelte" ? 5 : 4);
   });
 
-  test(`${ext}: imported refs, keyframes and transitions keep original declaration positions`, async (t) => {
+  test(`${ext}: imported refs, keyframes and transitions keep their declaring identities`, async (t) => {
     const entry = `Assets.${ext}`;
     const producer = `AssetsBase.${ext}`;
     const script = `import {style} from 'stillwind/${ext}';import {r,k,v} from './${producer}';const selected=k;const transition=v;const props=style(r,selected(''),transition);`;
@@ -214,9 +211,12 @@ for (const ext of ["vue", "svelte", "astro"]) {
     );
     for (const symbol of assets) {
       expect(symbol.sourceId).toBe(producer);
-      expect(["r", "k", "v"], JSON.stringify(symbol)).toContain(
-        Buffer.from(files[producer]).subarray(symbol.start, symbol.end).toString(),
-      );
+      const fields = symbol.identity.split(" ");
+      expect(fields.slice(0, 2), JSON.stringify(symbol)).toStrictEqual([
+        "stillwind-identity/v2",
+        producer,
+      ]);
+      expect(["r", "k", "v"], JSON.stringify(symbol)).toContain(fields.at(-2));
     }
     expect(assets.length, JSON.stringify(result!.symbols)).toBeGreaterThanOrEqual(3);
   });
@@ -250,9 +250,10 @@ const base=style('red');const chosen=${reference}(base);`,
       expect(result!.diagnostics).toStrictEqual([]);
       expect(result!.composition).toHaveLength(1);
       const identity = result!.composition[0].base;
-      expect(Buffer.from(files[entry]).subarray(identity.start, identity.end).toString()).toBe(
-        "style('red')",
-      );
+      expect(identity).toMatchObject({
+        path: ["base"],
+        ordinal: 0,
+      });
     });
   }
 }

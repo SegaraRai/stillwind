@@ -1,4 +1,4 @@
-@keyframes sw-kf-enter-cxv19 {
+@keyframes sw-kf-enter-zhg87 {
   0% {
     opacity: 0;
     --sw-motion-translate-y: var(--spacing-2);
@@ -18,7 +18,7 @@
     scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
   }
 }
-@keyframes sw-kf-12rqq {
+@keyframes sw-kf-074gt {
   0% {
     opacity: 1;
   }

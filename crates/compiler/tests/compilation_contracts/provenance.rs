@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 use stillwind_diagnostics::LintFinding;
 use stillwind_ir::{ClassExpression, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput};
 use stillwind_js_oxc::parse;
-use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
+use stillwind_semantic::{
+    AssetKind, DeclarationKey, ExportedValue, IdentityId, SymbolicValue, TypeFact,
+};
 use stillwind_source::{FileId, ModuleId, SourceError, SourceFile, Span};
 
 use super::compile;
@@ -30,8 +32,7 @@ fn external_motion_identity_does_not_become_a_local_source_span() {
     let identity = IdentityId::new(
         AssetKind::Keyframes,
         ModuleId::from("producer.tsx"),
-        4000,
-        4006,
+        DeclarationKey::top(4000),
         "motion",
     );
     let facts = [TypeFact {
@@ -87,12 +88,8 @@ fn local_motion_identity_stays_original_while_analysis_spans_are_mapped() {
         panic!("keyframes")
     };
     assert_eq!(
-        keyframes.identity.start(),
-        parsed.module.keyframes_declarations[0].binding.span.start.0
-    );
-    assert_eq!(
-        keyframes.identity.end(),
-        parsed.module.keyframes_declarations[0].binding.span.end.0
+        keyframes.identity.key(),
+        &parsed.module.keyframes_declarations[0].key
     );
     let StyleInput::Class(ClassExpression::Rule(rule)) = &parsed.module.style_calls[0].inputs[0]
     else {

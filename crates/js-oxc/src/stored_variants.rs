@@ -79,8 +79,10 @@ impl<'a> MacroExtractor<'a> {
                     }
                 })
         };
+        let key = self.declaration_key(AssetKind::StoredVariant, binding.span, &binding.value);
         StoredVariantDefinition {
             binding,
+            key,
             call_span: self.source_span(call.span),
             variants,
         }
@@ -261,7 +263,11 @@ impl<'a> MacroExtractor<'a> {
         self.consumed_use_spans
             .insert(LocalSpan::from(expression.span()));
         if let Some(definition) = self.stored_variants.iter().find(|definition| {
-            self.identity(AssetKind::StoredVariant, &definition.binding) == identity
+            self.identity(
+                AssetKind::StoredVariant,
+                &definition.binding,
+                &definition.key,
+            ) == identity
         }) {
             return definition
                 .variants
@@ -289,10 +295,10 @@ impl<'a> MacroExtractor<'a> {
 
     /// Converts the variants of a local declaration into the record that other
     /// modules expand.
-    pub(crate) fn stored_variant_record(&self, variants: &[StyleVariant]) -> StoredVariantRecord {
+    pub(crate) fn stored_variant_record(variants: &[StyleVariant]) -> StoredVariantRecord {
         let refs = |refs: &[RefDefinition]| {
             refs.iter()
-                .map(|definition| self.ref_identity(definition))
+                .map(crate::refs::ref_identity)
                 .collect::<Vec<_>>()
         };
         let condition = |condition: &RefCondition| StoredRefCondition {
@@ -323,7 +329,7 @@ impl<'a> MacroExtractor<'a> {
                     StyleVariant::Alternatives(alternatives) => StoredVariantSegment::Alternatives(
                         alternatives
                             .iter()
-                            .map(|sequence| self.stored_variant_record(sequence))
+                            .map(|sequence| Self::stored_variant_record(sequence))
                             .collect(),
                     ),
                 })

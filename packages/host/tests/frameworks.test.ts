@@ -405,11 +405,10 @@ for (const { extension, source, name, imports } of [
     expect(module.diagnostics).toStrictEqual([]);
     if (source.includes("const base = style")) {
       expect(module.composition.length).toBe(1);
-      expect(
-        Buffer.from(source)
-          .subarray(module.composition[0].base.start, module.composition[0].base.end)
-          .toString("utf8"),
-      ).toBe('style("flex")');
+      expect(module.composition[0].base).toMatchObject({
+        path: ["base"],
+        ordinal: 0,
+      });
     }
     expect(module.code).toBeTruthy();
     const map = new TraceMap(

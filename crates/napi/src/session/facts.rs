@@ -102,7 +102,7 @@ fn mentioned_assets(
 
 #[cfg(test)]
 mod tests {
-    use stillwind_semantic::{AssetKind, StoredVariantSegment, SymbolicValue};
+    use stillwind_semantic::{AssetKind, DeclarationKey, StoredVariantSegment, SymbolicValue};
     use stillwind_source::ModuleId;
 
     use super::*;
@@ -113,8 +113,7 @@ mod tests {
             IdentityId::new(
                 AssetKind::Style,
                 ModuleId::from("base.tsx"),
-                start,
-                start + 1,
+                DeclarationKey::top(start),
                 "base",
             )
         };
@@ -151,9 +150,14 @@ mod tests {
     #[test]
     fn mentioned_stored_variants_bring_the_metadata_of_their_refs() {
         let module = || ModuleId::from("base.tsx");
-        let stored = IdentityId::new(AssetKind::StoredVariant, module(), 0, 1, "stored");
-        let named = IdentityId::new(AssetKind::Ref, module(), 2, 3, "named");
-        let other = IdentityId::new(AssetKind::Ref, module(), 4, 5, "other");
+        let stored = IdentityId::new(
+            AssetKind::StoredVariant,
+            module(),
+            DeclarationKey::top(0),
+            "stored",
+        );
+        let named = IdentityId::new(AssetKind::Ref, module(), DeclarationKey::top(2), "named");
+        let other = IdentityId::new(AssetKind::Ref, module(), DeclarationKey::top(4), "other");
         let stored_metadata = AssetMetadata {
             label: None,
             stored_variant: Some(StoredVariantRecord {

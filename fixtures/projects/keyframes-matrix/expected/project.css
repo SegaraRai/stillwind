@@ -432,7 +432,7 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  @keyframes sw-kf-enter-cxv19 {
+  @keyframes sw-kf-enter-zhg87 {
     from {
       opacity: calc(0 * 1%);
       --sw-motion-translate-y: var(--spacing-2);
@@ -452,7 +452,7 @@ Keep both selectors so the same theme values are available in either scope.
       scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
   }
-  @keyframes sw-kf-12rqq {
+  @keyframes sw-kf-074gt {
     from {
       opacity: calc(100 * 1%);
     }
@@ -467,19 +467,19 @@ Keep both selectors so the same theme values are available in either scope.
     border-radius: var(--radius-md);
   }
   .sw_rdg4x[data-state="closed"] {
-    animation-name: sw-kf-12rqq;
+    animation-name: sw-kf-074gt;
     animation-duration: var(--duration-fast);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;
   }
-  .sw_oyibx {
-    animation-name: sw-kf-enter-cxv19;
+  .sw_qndp2 {
+    animation-name: sw-kf-enter-zhg87;
     animation-duration: var(--duration-normal);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;
   }
-  .sw_0xhzs {
-    animation-name: sw-kf-12rqq;
+  .sw_bkvqj {
+    animation-name: sw-kf-074gt;
     animation-duration: var(--duration-normal);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;

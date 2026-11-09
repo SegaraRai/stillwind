@@ -13,7 +13,7 @@ use stillwind_ir::{
     ScriptModuleKind, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
 use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 use super::expression::{Atom, Emitted, EmittedEntry, Fragment, Property, ValueExpr};
@@ -65,7 +65,12 @@ fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
     StyleEmission {
         style_effects: StyleEffects {
             lint_settings: LintSettings::with_defaults(),
-            identity: IdentityId::new(AssetKind::Style, ModuleId::from("test"), 0, 0, ""),
+            identity: IdentityId::new(
+                AssetKind::Style,
+                ModuleId::from("test"),
+                DeclarationKey::top(0),
+                "",
+            ),
             span: Span::new(FileId(1), 0, 0),
             root: StyleEffect::All(Vec::new()),
         },

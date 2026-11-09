@@ -538,7 +538,7 @@ fn subject(selector: &str) -> RuleSubject {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_semantic::AssetKind;
+    use stillwind_semantic::{AssetKind, DeclarationKey};
     use stillwind_source::ModuleId;
 
     use super::*;
@@ -555,7 +555,12 @@ mod tests {
 
     #[test]
     fn declaration_collection_retains_nested_contexts_case_values_and_provider_gates() {
-        let gate = IdentityId::new(AssetKind::Ref, ModuleId::from("root"), 0, 10, "r");
+        let gate = IdentityId::new(
+            AssetKind::Ref,
+            ModuleId::from("root"),
+            DeclarationKey::top(0),
+            "r",
+        );
         let mut supplies = Vec::new();
         collect_declarations(
             "@media (width > 10px) { & { COLOR:red ! IMPORTANT; --Theme:{x:y}; &:hover { padding:1px; } } }",

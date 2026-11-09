@@ -225,8 +225,8 @@ function entryOutput(
   const compositionTopology = JSON.stringify(
     composition
       .map(({ derived, base }) => [
-        `${derived.moduleId}:${derived.start}`,
-        `${base.moduleId}:${base.start}`,
+        JSON.stringify([derived.moduleId, derived.path, derived.ordinal]),
+        JSON.stringify([base.moduleId, base.path, base.ordinal]),
       ])
       .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1])),
   );

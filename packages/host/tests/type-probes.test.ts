@@ -22,11 +22,6 @@ for (const [kind, language] of [
       ...asset,
       callStart: asset.callStart + byteOffset,
       callEnd: asset.callEnd + byteOffset,
-      identity: {
-        ...asset.identity,
-        start: asset.identity.start + byteOffset,
-        end: asset.identity.end + byteOffset,
-      },
     }));
     const common = {
       resolverId: "shadow",

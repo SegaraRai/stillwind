@@ -349,6 +349,7 @@ mod tests {
     use lean_string::ToLeanStr;
 
     use stillwind_ir::ContainerType;
+    use stillwind_semantic::DeclarationKey;
     use stillwind_source::{FileId, Span, Spanned};
 
     use super::*;
@@ -371,6 +372,7 @@ mod tests {
         let mut definition = RefDefinition {
             module_id: ModuleId::from("x"),
             binding: binding.clone(),
+            key: DeclarationKey::top(0),
             label: None,
             call_span: binding.span,
         };

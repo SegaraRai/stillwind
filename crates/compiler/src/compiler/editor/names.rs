@@ -18,8 +18,7 @@ pub(crate) fn reserve_preview_names(module: &ModuleAnalysis, names: &mut Preview
         let context = ref_context(definition, None);
         names.name(&RefMarkerName(DeclarationContext {
             module: context.module.clone(),
-            start: context.start,
-            end: context.end,
+            key: context.key.clone(),
             binding: context.binding.clone(),
             label: context.label.clone(),
         }));
@@ -30,6 +29,7 @@ pub(crate) fn reserve_preview_names(module: &ModuleAnalysis, names: &mut Preview
         names.name(&KeyframesNameRequest(named_declaration(
             &module.module_id,
             &definition.binding,
+            &definition.key,
             definition.label.as_ref(),
         )));
     }
@@ -37,6 +37,7 @@ pub(crate) fn reserve_preview_names(module: &ModuleAnalysis, names: &mut Preview
         names.name(&ViewTransitionClassRequest(named_declaration(
             &module.module_id,
             &definition.binding,
+            &definition.key,
             definition.label.as_ref(),
         )));
     }

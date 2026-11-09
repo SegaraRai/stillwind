@@ -30,6 +30,7 @@ use stillwind_source::{ModuleId, SourceFile, Span};
 use crate::contract::validate;
 use crate::demand::collect as collect_demand;
 use crate::imports::collect as collect_imports;
+use crate::keys::DeclarationScopes;
 use crate::state::MacroExtractor;
 
 /// The result of parsing one module.
@@ -156,6 +157,7 @@ pub(crate) fn parse_with_coordinates(
         coordinates,
     );
     extractor.lint = lint;
+    extractor.scopes = DeclarationScopes::collect(&result.program, source, original, coordinates);
     extractor.seed_style_bindings(&result.program);
     extractor.seed_declarations(&result.program);
     extractor.visit_program(&result.program);

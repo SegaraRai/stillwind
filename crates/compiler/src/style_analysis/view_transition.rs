@@ -126,7 +126,7 @@ fn maximum_names(names: &[&ResolvedSupply<'_>]) -> usize {
 #[cfg(test)]
 mod tests {
     use stillwind_diagnostics::LintKind;
-    use stillwind_semantic::{AssetKind, IdentityId};
+    use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
     use stillwind_source::ModuleId;
 
     use super::super::test_support as f;
@@ -141,8 +141,7 @@ mod tests {
                 identity: IdentityId::new(
                     AssetKind::ViewTransition,
                     ModuleId::from("definitions"),
-                    0,
-                    10,
+                    DeclarationKey::top(0),
                     "v",
                 ),
                 context,

@@ -215,8 +215,8 @@ export function registerTransportContract(bindingSpecifier: string): void {
     const reference = {
       kind: "ref",
       moduleId: "facts.ts",
-      start: 0,
-      end: 1,
+      path: [],
+      ordinal: 0,
       bindingName: "handle",
     };
     const symbolic = (kind: string) => ({

@@ -1,19 +1,19 @@
-.sw_r3fvt:where(.sw_primary_z410i) {
-  anchor-name: --sw-a-primary-z410i;
-  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;
+.sw_bgywv:where(.sw_primary_hzxpi) {
+  anchor-name: --sw-a-primary-hzxpi;
+  anchor-scope: --sw-a-primary-hzxpi, --sw-a-secondary-f1hru;
 }
-.sw_6pcxl:where(.sw_secondary_63olu) {
-  anchor-name: --sw-a-secondary-63olu;
-  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;
+.sw_d0nhe:where(.sw_secondary_f1hru) {
+  anchor-name: --sw-a-secondary-f1hru;
+  anchor-scope: --sw-a-primary-hzxpi, --sw-a-secondary-f1hru;
 }
 @media (hover) {
-  .sw_aadoi:is(:where(.sw_compact_vl0wg):has(:where(.sw_primary_z410i):hover) *),
-  .sw_aadoi:is(:where(.sw_spacious_fwe7s):has(:where(.sw_primary_z410i):hover) *),
-  .sw_aadoi:is(:where(.sw_compact_vl0wg):has(:where(.sw_secondary_63olu):hover) *),
-  .sw_aadoi:is(:where(.sw_spacious_fwe7s):has(:where(.sw_secondary_63olu):hover) *) {
+  .sw_lr8gt:is(:where(.sw_compact_5lq1p):has(:where(.sw_primary_hzxpi):hover) *),
+  .sw_lr8gt:is(:where(.sw_spacious_dz0c5):has(:where(.sw_primary_hzxpi):hover) *),
+  .sw_lr8gt:is(:where(.sw_compact_5lq1p):has(:where(.sw_secondary_f1hru):hover) *),
+  .sw_lr8gt:is(:where(.sw_spacious_dz0c5):has(:where(.sw_secondary_f1hru):hover) *) {
     display: flex;
   }
 }
-.sw_l02zv {
-  anchor-scope: --sw-a-primary-z410i, --sw-a-secondary-63olu;
+.sw_s511i {
+  anchor-scope: --sw-a-primary-hzxpi, --sw-a-secondary-f1hru;
 }

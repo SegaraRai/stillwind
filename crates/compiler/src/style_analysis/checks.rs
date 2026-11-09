@@ -41,7 +41,7 @@ pub const fn is_style_analysis_lint(kind: LintKind) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_semantic::{AssetKind, IdentityId};
+    use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
     use stillwind_source::ModuleId;
 
     use super::super::test_support::{context, declaration, effects, supply};
@@ -83,8 +83,7 @@ mod tests {
                         reference: IdentityId::new(
                             AssetKind::Ref,
                             ModuleId::from("root"),
-                            20,
-                            30,
+                            DeclarationKey::top(20),
                             "r",
                         ),
                         name: "r".into(),
@@ -97,8 +96,7 @@ mod tests {
                         identity: IdentityId::new(
                             AssetKind::ViewTransition,
                             ModuleId::from("root"),
-                            30,
-                            40,
+                            DeclarationKey::top(30),
                             "v",
                         ),
                         context: context("&"),

@@ -225,8 +225,10 @@ impl<'a> MacroExtractor<'a> {
             },
             |object| self.keyframes_body(object, Some(&mut label)),
         );
+        let key = self.declaration_key(AssetKind::Keyframes, binding.span, &binding.value);
         KeyframesDefinition {
             binding,
+            key,
             call_span: self.source_span(call.span),
             label,
             body,
