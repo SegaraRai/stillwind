@@ -202,6 +202,9 @@ export class ModuleGraph {
   /**
    * Registers the entry and loads dependencies demanded by its semantic probes.
    *
+   * A loaded dependency is compiled with all of its style calls, so traversal also follows
+   * the probes of every loaded module, not only the imports of the demanded export.
+   *
    * @param entry - Prepared entry source.
    * @param entrySummary - Successful scan of that entry, with the same module identity.
    * @returns A promise that resolves after traversal. Analysis mode retains unresolved and
@@ -218,7 +221,7 @@ export class ModuleGraph {
     const pending: {
       /** Registered source whose exported value or entry probes remain to be traversed. */
       source: PreparedSource;
-      /** Null for entry probes, * for namespace demand, or a demanded export name. */
+      /** Null for the module's own probes, * for namespace demand, or a demanded export name. */
       requested: string | null;
     }[] = [
       {
@@ -246,10 +249,16 @@ export class ModuleGraph {
           semanticResolutions?.get(dependency.source),
         );
         if (next) {
-          pending.push({
-            source: next,
-            requested: dependency.imported,
-          });
+          pending.push(
+            {
+              source: next,
+              requested: dependency.imported,
+            },
+            {
+              source: next,
+              requested: null,
+            },
+          );
         }
       }
     }
