@@ -17,6 +17,15 @@ import type { CssContext } from "./design-system.ts";
 import { ViteEnvironment, type CssSnapshot } from "./environment.ts";
 import type { StylesheetPlan } from "./stylesheet.ts";
 
+/**
+ * Milliseconds without another compilation before a delayed development publication plans the
+ * stylesheet.
+ */
+const PUBLISH_DELAY = 20;
+
+/** Most milliseconds that a delayed development publication waits after its first request. */
+export const PUBLISH_MAX_DELAY = 200;
+
 /** Vite environment instance whose identity and top-level configuration own compiler state. */
 export type EnvironmentOwner = Pick<Environment, "name" | "getTopLevelConfig">;
 
@@ -218,6 +227,23 @@ export interface ViteProject {
    */
   publish: (name: string | undefined, context: CssContext) => Promise<void>;
   /**
+   * Advances the environment revision now and publishes one snapshot after compilations stop
+   * arriving, or after at most `PUBLISH_MAX_DELAY` milliseconds. A planning failure of the delayed
+   * publication is reported as a server warning and keeps the last published styles.
+   *
+   * @param name - Environment name, or `undefined` for `client`. Production and unattached servers
+   * do nothing.
+   */
+  publishSoon: (name: string | undefined) => void;
+  /**
+   * Waits for the delayed publication of an environment.
+   *
+   * @param name - Environment name, or `undefined` for `client`.
+   * @returns A promise that settles after the pending delayed publication has run or the project
+   * has closed, or immediately when no delayed publication is pending.
+   */
+  publications: (name: string | undefined) => Promise<void>;
+  /**
    * Records a document stylesheet URL that the development server served for an environment.
    * Later publications that change the environment's CSS ask the browser to reload each recorded
    * stylesheet link.
@@ -337,6 +363,16 @@ export function createViteProject(
   const documentStylesheets = new Map<string, Set<string>>();
   /** CSS of the latest publication that refreshed document stylesheets, keyed by environment name. */
   const publishedDocumentCss = new Map<string, string>();
+  /** Delayed publications keyed by environment name, with the time of their first request. */
+  const delayedPublications = new Map<
+    string,
+    {
+      timer: ReturnType<typeof setTimeout>;
+      first: number;
+      /** Settles after the publication has run, whether planning succeeded or not. */
+      done: PromiseWithResolvers<void>;
+    }
+  >();
   let bindings = new WeakMap<EnvironmentOwner, ViteEnvironment>();
   /**
    * Gets or creates the compiler state owned by one Vite environment.
@@ -492,6 +528,11 @@ export function createViteProject(
   /** Detaches server listeners, closes discovery watchers, and closes every retained compiler environment. */
   const close = () => {
     stopCssWatching();
+    for (const { timer, done } of delayedPublications.values()) {
+      clearTimeout(timer);
+      done.resolve();
+    }
+    delayedPublications.clear();
     documentStylesheets.clear();
     publishedDocumentCss.clear();
     for (const state of environments.values()) {
@@ -546,6 +587,54 @@ export function createViteProject(
     });
   };
 
+  const publishSoon = (name: string | undefined) => {
+    const server = settings.devServerRef;
+    if (!settings.watching || !server) {
+      return;
+    }
+    const environmentName = name ?? "client";
+    environment(name).advance();
+    const now = performance.now();
+    const pending = delayedPublications.get(environmentName);
+    if (pending) {
+      clearTimeout(pending.timer);
+    }
+    const first = pending?.first ?? now;
+    const done = pending?.done ?? Promise.withResolvers<void>();
+    const run = async () => {
+      delayedPublications.delete(environmentName);
+      const target = server.environments[environmentName];
+      try {
+        if (!target) {
+          return;
+        }
+        // The compilation that requested this publication has finished, so its plugin context no
+        // longer receives watch files. The server watcher and resolver remain valid.
+        await publish(name, {
+          resolve: (specifier, importer, options) =>
+            target.pluginContainer.resolveId(specifier, importer, options),
+          addWatchFile: (id: string) => {
+            server.watcher.add(id);
+          },
+          warn: (message: string) => {
+            server.config.logger.warn(message);
+          },
+        });
+      } catch (error) {
+        server.config.logger.warn(
+          `Stillwind update failed; retaining published styles: ${String(error)}`,
+        );
+      } finally {
+        done.resolve();
+      }
+    };
+    delayedPublications.set(environmentName, {
+      timer: setTimeout(run, Math.max(0, Math.min(PUBLISH_DELAY, first + PUBLISH_MAX_DELAY - now))),
+      first,
+      done,
+    });
+  };
+
   const project: ViteProject = {
     forConfig: (viteConfig) => {
       let generation = generations.get(viteConfig);
@@ -593,6 +682,9 @@ export function createViteProject(
     snapshot: (name: string | undefined, context: CssContext) =>
       environment(name).snapshot(context),
     publish,
+    publishSoon,
+    publications: (name: string | undefined) =>
+      delayedPublications.get(name ?? "client")?.done.promise ?? Promise.resolve(),
     observeDocumentStylesheet: (name: string, url: string) => {
       let urls = documentStylesheets.get(name);
       if (!urls) {

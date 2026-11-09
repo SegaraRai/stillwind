@@ -380,6 +380,17 @@ export class ViteEnvironment {
   }
 
   /**
+   * Advances the publication revision without planning a stylesheet.
+   *
+   * A producer module embeds the revision when it loads and requests a snapshot when its document
+   * holds an older one. Call this after a compilation whose snapshot is delivered later, so that
+   * producers loaded in between request a snapshot that includes the compilation.
+   */
+  advance(): void {
+    this.revision++;
+  }
+
+  /**
    * Advances the publication revision and delivers a current document stylesheet snapshot.
    *
    * The operation is serialized with compilation. A planning failure rejects before the callback is

@@ -24,8 +24,8 @@ export interface TransformOptions {
 /**
  * Creates source transform and watch hooks for the project compiler plugin.
  *
- * Development changes publish CSS after compilation. Invalid projection imports fail through the
- * Vite hook context.
+ * Development compilations advance the CSS revision and publish one snapshot after a burst of
+ * compilations. Invalid projection imports fail through the Vite hook context.
  *
  * @param project - Project configured and initialized by the compiler plugin.
  * @param virtualModules - Virtual module hooks for the same project, used to reload cached
@@ -40,7 +40,7 @@ export function transformHooks(
   virtualModules: Pick<Plugin, "load">,
   options: TransformOptions = {},
 ): Pick<Plugin, "shouldTransformCachedModule" | "watchChange" | "transform"> {
-  const { settings, publish, compile } = project;
+  const { settings, publish, publishSoon, compile } = project;
   const cachedVirtualModules = new Map<string, Set<string>>();
 
   return {
@@ -152,7 +152,7 @@ export function transformHooks(
           const input = project.inputs(name).get(id);
           if (input) {
             await project.environment(name).removeSource(id);
-            await publish(name, this);
+            publishSoon(name);
           }
           await project.environment(name).projections(id, projections);
           return;
@@ -166,7 +166,10 @@ export function transformHooks(
             }
           : this;
         const result = await compile(name, code, id, context);
-        await publish(name, this);
+        // Planning the whole document after each transform makes a cold start quadratic in the
+        // number of producers. A producer module that loads before the delayed snapshot requests
+        // the current revision through the snapshot endpoint instead.
+        publishSoon(name);
         return result;
       },
     },

@@ -492,11 +492,13 @@ async function createWatchedProject(
       if (!transform || typeof transform === "function" || !transform.handler) {
         expect.fail("Expected the compiler's transform handler");
       }
-      return transform.handler.call(
+      const result = await transform.handler.call(
         context(environment) as unknown as ThisParameterType<typeof transform.handler>,
         "import { style } from 'stillwind/react'; export const props = style('paint');" + suffix,
         path.join(root, "producer.ts"),
       );
+      await project.publications(environment);
+      return result;
     },
     /**
      * Waits until Vite's watcher includes the requested basename.
