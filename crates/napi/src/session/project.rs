@@ -19,7 +19,7 @@ use stillwind_project::{
     ProjectSession, SessionMode, StylesheetCoverage, StylesheetPlanError, StylesheetSelection,
 };
 
-use stillwind_source::{ModuleId, SourceRegistry};
+use stillwind_source::{ModuleId, SourceFile, SourceRegistry};
 
 use crate::api::{SourceScan, binding_output_with_batch, scan_prepared};
 use crate::module_editor::NativeModuleEditor;
@@ -614,6 +614,8 @@ impl NativeProjectSession {
             .collect();
         let mut modules = Vec::new();
         let mut attempted = Vec::new();
+        // Modules whose published batch still matches, with no output built yet.
+        let mut unchanged = Vec::new();
         let diagnostic_sources = transaction
             .diagnostic_sources()
             .map_err(|error| Error::from_reason(error.to_string()))?;
@@ -622,6 +624,12 @@ impl NativeProjectSession {
             let source = module_analysis.source.clone();
             let update = transaction.update_module(module_analysis.clone());
             attempted.push(module_analysis);
+            if update.diagnostics.is_empty()
+                && same_batch_inputs(&self.session, &transaction, &module_id)
+            {
+                unchanged.push((module_id, source));
+                continue;
+            }
             let result = if update.diagnostics.is_empty() {
                 transaction
                     .artifacts()
@@ -644,27 +652,23 @@ impl NativeProjectSession {
             let final_sources = transaction
                 .diagnostic_sources()
                 .map_err(|error| Error::from_reason(error.to_string()))?;
-            modules = attempted
+            let selected = attempted
                 .iter()
-                .map(|analysis| {
-                    let artifact = transaction
-                        .current_artifact(&analysis.module_id)
-                        .ok_or_else(|| {
-                            Error::from_reason("Successful compilation has no current artifact")
-                        })?;
-                    let (output, _) = binding_output_with_batch(
-                        transaction.linked_output(artifact),
-                        &analysis.source,
-                        &final_sources,
-                    )?;
-                    Ok(ProjectModuleOutput::new(analysis.module_id.clone(), output))
+                .filter(|analysis| {
+                    producer
+                        .as_ref()
+                        .is_none_or(|producer| *producer == analysis.module_id)
                 })
-                .collect::<napi::Result<Vec<_>>>()?;
+                .map(|analysis| (analysis.module_id.clone(), analysis.source.clone()))
+                .collect();
+            modules = Self::linked_outputs(&transaction, selected, &final_sources)?;
             self.session = transaction;
-            if let Some(producer) = &producer {
-                modules.retain(|module| module.module_id == producer.as_str());
-            }
         } else {
+            modules.extend(Self::linked_outputs(
+                &transaction,
+                unchanged,
+                &diagnostic_sources,
+            )?);
             self.session.reject_updates(attempted);
             self.session.retain_attempted_sources(&transaction);
             self.session.retain_attempted_diagnostics(&transaction);
@@ -674,7 +678,62 @@ impl NativeProjectSession {
     }
 }
 
+/// Returns whether `module` has the same diagnostic batch inputs in `session` as in
+/// `previous`, so the batch that `previous` published still applies.
+///
+/// `session` must be a transaction cloned from `previous` that has updated `module`.
+/// The inputs match when both sessions share the module's current artifact and source
+/// buffer and their latest analyses report the same errors and lint findings.
+/// Composition checks can change these reports without changing the artifact.
+fn same_batch_inputs(
+    previous: &ProjectSession,
+    session: &ProjectSession,
+    module: &ModuleId,
+) -> bool {
+    let (Some(before), Some(after)) = (
+        previous.analyses().get(module),
+        session.analyses().get(module),
+    ) else {
+        return false;
+    };
+    Arc::ptr_eq(&before.source, &after.source)
+        && before.diagnostics == after.diagnostics
+        && before.integration_diagnostics == after.integration_diagnostics
+        && before.lint_findings == after.lint_findings
+        && previous.current_artifact(module).is_some()
+        && previous
+            .artifacts()
+            .get(module)
+            .zip(session.artifacts().get(module))
+            .is_some_and(|(before, after)| Arc::ptr_eq(before, after))
+}
+
 impl NativeProjectSession {
+    /// Builds outputs from the published artifacts of `modules` in `transaction`.
+    /// A module without an artifact gets an empty output.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`binding_output_with_batch`].
+    fn linked_outputs(
+        transaction: &ProjectSession,
+        modules: Vec<(ModuleId, Arc<SourceFile>)>,
+        diagnostic_sources: &SourceRegistry,
+    ) -> napi::Result<Vec<ProjectModuleOutput>> {
+        modules
+            .into_iter()
+            .map(|(module_id, source)| {
+                let result = transaction
+                    .artifacts()
+                    .get(&module_id)
+                    .map(|artifact| transaction.linked_output(artifact))
+                    .unwrap_or_default();
+                let (output, _) = binding_output_with_batch(result, &source, diagnostic_sources)?;
+                Ok(ProjectModuleOutput::new(module_id, output))
+            })
+            .collect()
+    }
+
     /// Scans `sources` for a compile transaction.
     ///
     /// A source keeps the buffer of its module's latest analysis in `transaction` when
