@@ -71,6 +71,11 @@ export interface ProducerInput {
   javascript: string;
   /** Compiler module identities referenced through style composition. */
   dependencies: string[];
+  /**
+   * Files without queries that the compilation read as dependencies, for example to collect type
+   * facts. A development server compiles the producer again when one of them changes.
+   */
+  sourceDependencies: ReadonlySet<string>;
 }
 
 /** Vite operations needed to compile producers and compose their upstream source maps. */
@@ -151,6 +156,7 @@ export async function compileProducer(
       : pathToFileURL(clean).href;
   };
 
+  const sourceDependencies = new Set<string>();
   const output = await compiler.compile(
     code,
     id,
@@ -195,7 +201,13 @@ export async function compileProducer(
         };
       },
       watch: (id) => {
-        context.addWatchFile(id);
+        sourceDependencies.add(cleanModuleId(id));
+        // A development server checks these files in its hot update hook. A Vite watch file would
+        // make every change of a shared dependency transform all importers again, also when their
+        // output stays the same.
+        if (!settings.watching) {
+          context.addWatchFile(id);
+        }
       },
       warn: (message) => {
         context.warn(message);
@@ -249,6 +261,7 @@ export async function compileProducer(
     hasModuleCssImport: output.hasModuleCssImport,
     javascript,
     dependencies: output.compositionModules,
+    sourceDependencies,
   };
 
   const result = {

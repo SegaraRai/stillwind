@@ -30,9 +30,10 @@ export function developmentHooks(
      *
      * @param context - Vite hot-update event with the current server, changed file, and source
      * reader.
-     * @returns Modules affected by a design-system update, an empty list when a producer edit
-     * changes only CSS and no request has compiled the edited source yet, or `undefined` to retain
-     * normal Vite handling.
+     * @returns Modules affected by a design-system update, the changed modules together with the
+     * producers whose JavaScript changed after an edit of a file that they read as a dependency, an
+     * empty list when a producer edit changes only CSS and no request has compiled the edited source
+     * yet, or `undefined` to retain normal Vite handling.
      */
     async hotUpdate(context) {
       const name = this.environment.name;
@@ -76,10 +77,52 @@ export function developmentHooks(
           return modules;
         }
         const previous = inputs(name).get(id);
-        if (previous && context.type !== "delete") {
-          const source = await context.read();
-          const result = await compile(name, source, id, host);
-          await publish(name, host);
+        const consumers = [...inputs(name).values()].filter(
+          (input) => !input.manual && input.id !== id && input.sourceDependencies.has(id),
+        );
+        const source = previous && context.type !== "delete" ? await context.read() : undefined;
+        const result = source === undefined ? undefined : await compile(name, source, id, host);
+        // Producers that read the changed file are compiled again here instead of through Vite
+        // watch files. Only producers whose JavaScript changes need a hot update, because class
+        // names do not depend on the text of the modules that declare the composed styles.
+        const stale = [];
+        for (const consumer of consumers) {
+          let code: string | undefined;
+          if (context.type === "update") {
+            try {
+              code = (await compile(name, consumer.code, consumer.id, host))?.code;
+            } catch {
+              // The transform that the hot update starts reports the failure.
+            }
+          }
+          const module =
+            code === consumer.javascript
+              ? undefined
+              : this.environment.moduleGraph.getModuleById(consumer.id);
+          if (module) {
+            this.environment.moduleGraph.invalidateModule(
+              module,
+              new Set(),
+              context.timestamp,
+              true,
+            );
+            stale.push(module);
+          }
+        }
+        if (source !== undefined || consumers.length > 0) {
+          try {
+            await publish(name, host);
+          } catch (error) {
+            if (!stale.length) {
+              throw error;
+            }
+            // A producer that failed to compile blocks the stylesheet until the transform that
+            // this update starts reports the failure.
+            this.warn(`Stillwind update failed; retaining published styles: ${String(error)}`);
+            return [...new Set([...context.modules, ...stale])];
+          }
+        }
+        if (previous && source !== undefined) {
           const values = [];
           for (const input of inputs(name).values()) {
             if (!input.manual) {
@@ -104,8 +147,8 @@ export function developmentHooks(
               values.push(value);
             }
           }
-          if (values.length) {
-            return [...new Set([...context.modules, ...values])];
+          if (values.length || stale.length) {
+            return [...new Set([...context.modules, ...values, ...stale])];
           }
           // A transform request can compile the changed source before this hook runs, for example
           // when TanStack Start transforms a route for the server. The recorded output then
@@ -118,6 +161,9 @@ export function developmentHooks(
           ) {
             return [];
           }
+        }
+        if (stale.length) {
+          return [...new Set([...context.modules, ...stale])];
         }
       } catch (error) {
         this.warn(`Stillwind update failed; retaining published styles: ${String(error)}`);
