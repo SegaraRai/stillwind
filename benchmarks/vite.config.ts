@@ -37,6 +37,11 @@ export default defineConfig(({ mode }) => ({
         cache: false,
         dependsOn: ["@stillwind/cli#build"],
       },
+      "bench:apps": {
+        command: "node apps/run.ts",
+        cache: false,
+        dependsOn: ["@stillwind/integration#build", "stillwind#build"],
+      },
       "bench:architecture": {
         command:
           "vp test bench research/architecture.bench.ts --run --mode benchmark --reporter default --reporter json --outputFile results/architecture.json",

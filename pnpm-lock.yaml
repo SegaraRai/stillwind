@@ -600,6 +600,9 @@ importers:
         specifier: workspace:*
         version: link:../packages/core
     devDependencies:
+      '@stillwind-internal/e2e-harness':
+        specifier: workspace:*
+        version: link:../e2e/harness
       '@stillwind-internal/tools-fixture-css':
         specifier: workspace:*
         version: link:../tools/fixture-css

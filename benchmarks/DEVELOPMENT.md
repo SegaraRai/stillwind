@@ -14,6 +14,7 @@ processes do not compete for CPU time.
 | `vp run bench:sorting:wasm`     | The same sorting workloads through Node WASI                                        |
 | `vp run bench:sorting:profile`  | Identity lookup counts for ref and base input grouping                              |
 | `vp run bench:source-map`       | Production CSS map generation with Unicode, CRLF, and resource replacements         |
+| `vp run bench:apps`             | Generated React Router applications with and without Stillwind                      |
 | `vp run bench:architecture`     | CSS definition and import scale, native graphs, Vite builds and watch updates       |
 | `vp run test:performance`       | Quick workloads with soft targets and hard limits                                   |
 | `vp run test:performance:full`  | Full workloads including 1000 modules and 10,000 unused utility definitions         |
@@ -100,6 +101,47 @@ excludes the browser's subsequent module request and CSS application.
 `listenMs` excludes server closure; benchmark callbacks include closure.
 `watchReadyMs` also waits for the watcher's initial scan. Filter cases when
 investigating large graphs because their setup compiles all producers first.
+
+## Generated applications
+
+`bench:apps` generates React Router applications in two variants and measures them
+with the same workload. The `stillwind` variant uses the Vite integration. The `plain`
+variant replaces `style()` with a local function that joins class names and emits no
+CSS, so the difference between the variants is the cost of Stillwind. The applications
+resolve their dependencies from `e2e/frameworks/vite8-react19-reactrouter8` and are
+written to its ignored `.e2e/` directory.
+
+Each run measures:
+
+- a production build after removing the previous output and Vite's dependency cache;
+- development server startup until the first successful SSR response, also without
+  Vite's dependency cache;
+- the first page load and a reload until hydration, in installed Chrome;
+- three edits until the page shows them: a component that only its chain imports, the
+  shared style module that every module imports, and a theme token in the CSS entrypoint.
+  The `plain` variant waits for the changed class name and skips the theme edit.
+
+Sizes describe the module graph. `small` has 8 routes and 24 components, `medium` has
+30 routes and 240 components, and `large` has 100 routes and 1200 components. Every
+module imports the shared styles through a barrel module, and component exports compose
+the exported style of the next component in their chain. Set these variables to select
+workloads:
+
+| Variable                        | Default             | Meaning                               |
+| ------------------------------- | ------------------- | ------------------------------------- |
+| `STILLWIND_BENCH_APPS_SIZES`    | `small,medium`      | Comma-separated sizes                 |
+| `STILLWIND_BENCH_APPS_VARIANTS` | `plain,stillwind`   | Comma-separated variants              |
+| `STILLWIND_BENCH_APPS_RUNS`     | `3`                 | Runs for each size and variant        |
+| `STILLWIND_BENCH_APPS_KEEP`     | unset               | `1` keeps the generated applications  |
+| `STILLWIND_BENCH_APPS_OUTPUT`   | `results/apps.json` | Report path, relative to `benchmarks` |
+
+Every Node process that a measured command starts loads `apps/preload.mjs`. It records
+resource usage and the phases that `@stillwind/host` publishes on the
+`stillwind:host:phase` diagnostics channel. The report sums phases over processes, and
+the console shows them for the last run. Asynchronous phases include waiting time, so
+their totals can exceed elapsed time when Vite transforms modules concurrently. Phase
+counts show repeated work directly: for example, more `scan` calls than modules mean
+that the host scanned the same source for several entries.
 
 See [performance budgets](performance/DEVELOPMENT.md) for thresholds and
 [open work](../docs/TODO.md) for gaps in application-level measurement.

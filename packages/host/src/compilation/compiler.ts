@@ -16,6 +16,7 @@ import { loadSource, type CompilerHost } from "./host.ts";
 import { CompilationFailure, ModuleGraph } from "./module-graph.ts";
 import type { CompilationProject } from "./project.ts";
 import { createModuleAnalysis, type ModuleAnalysis, type ModuleCompileOptions } from "./request.ts";
+import { startPhase, tracePhase } from "./trace.ts";
 
 /** Most reloads with new plugin definitions during one compilation of a graph. */
 const PLUGIN_ROUNDS = 3;
@@ -146,6 +147,7 @@ async function compileGraph(
   project?: CompilationProject,
 ) {
   const graph = new ModuleGraph(session, factsService, host, options, analysis, project);
+  const end = startPhase("entry");
   let hasModuleCssImport = false;
   try {
     const descriptor = entryInput ?? {
@@ -170,10 +172,8 @@ async function compileGraph(
     await graph.collectDependencies(entrySource, entrySummary);
     const typedSources = await graph.collectTypedSources(entrySource);
     const producer = analysis ? undefined : entrySource.moduleId;
-    const projectOutput = await compileWithPlugins(
-      session,
-      () => session.compile(typedSources, producer),
-      PLUGIN_ROUNDS,
+    const projectOutput = await tracePhase("native-compile", typedSources.length, () =>
+      compileWithPlugins(session, () => session.compile(typedSources, producer), PLUGIN_ROUNDS),
     );
     if (analysis) {
       recordAnalysis(analysis, projectOutput.modules, session, typedSources, graph);
@@ -194,6 +194,8 @@ async function compileGraph(
       );
     }
     throw failure;
+  } finally {
+    end();
   }
 }
 

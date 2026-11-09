@@ -22,6 +22,7 @@ import { loadSource, type CompilerHost } from "./host.ts";
 import { byteToUtf16, cleanModuleId } from "./module-source.ts";
 import type { CompilationProject } from "./project.ts";
 import type { ModuleAnalysis, ModuleCompileOptions, SemanticDependency } from "./request.ts";
+import { startPhase, tracePhase } from "./trace.ts";
 
 /**
  * Compilation failure carrying diagnostic batches for the same report format used by collect mode.
@@ -137,7 +138,7 @@ export class ModuleGraph {
           ? captured
           : "kind" in input
             ? input
-            : await prepareSource(input);
+            : await tracePhase("prepare", 1, () => prepareSource(input));
       if (source.resolverId !== input.resolverId) {
         throw new Error(`Host changed resolver identity for ${input.resolverId}`);
       }
@@ -162,9 +163,10 @@ export class ModuleGraph {
   scan(source: PreparedSource): NativeModuleSummary {
     const cached = this.project?.summary(source);
     if (cached) {
+      startPhase("scan-reuse")();
       return cached;
     }
-    const result = this.session.scanSource(source);
+    const result = tracePhase("scan", 1, () => this.session.scanSource(source));
     if (result.kind === "failed") {
       throw new CompilationFailure([result.batch]);
     }
@@ -263,7 +265,11 @@ export class ModuleGraph {
    */
   async collectTypedSources(entry: PreparedSource) {
     const styled = this.analysis ? undefined : this.#styleSources(entry);
-    const facts = await this.#collectFacts(styled);
+    const facts = this.#needsTypeFacts
+      ? await tracePhase("type-facts", styled?.size ?? this.#sources.size, () =>
+          this.#collectFacts(styled),
+        )
+      : new Map<string, NativeTypeFact[]>();
     const sources = [...this.#sources.values()].filter(
       (source) => !styled || styled.has(source.resolverId),
     );
@@ -507,18 +513,17 @@ export class ModuleGraph {
     }
     try {
       const backend = this.factsService();
-      if (backend && this.project && this.project.revision === this.#projectRevision) {
-        return (
-          await this.project.resolve(backend, this.#checkerSources(), this.options.typeFactsInputs)
-        ).get(source.resolverId);
+      if (!backend) {
+        return undefined;
       }
-      return (
-        await backend?.resolveModules(
-          this.#checkerSources(),
-          this.#assets(),
-          this.options.typeFactsInputs,
-        )
-      )?.get(source.resolverId);
+      const end = startPhase("semantic-resolution");
+      const sources = this.#checkerSources();
+      const resolutions =
+        this.project && this.project.revision === this.#projectRevision
+          ? await this.project.resolve(backend, sources, this.options.typeFactsInputs)
+          : await backend.resolveModules(sources, this.#assets(), this.options.typeFactsInputs);
+      end(sources.length);
+      return resolutions.get(source.resolverId);
     } catch (error) {
       if (!this.analysis) {
         throw error;
@@ -542,7 +547,9 @@ export class ModuleGraph {
     specifier: string,
     semanticId?: string,
   ): Promise<PreparedSource | undefined> {
-    const resolved = await this.#resolveDependency(source, specifier, semanticId);
+    const resolved = await tracePhase("resolve", 1, () =>
+      this.#resolveDependency(source, specifier, semanticId),
+    );
     const observed: SemanticDependency = {
       importer: source.resolverId,
       specifier,
@@ -567,7 +574,7 @@ export class ModuleGraph {
     try {
       let dependency = this.#sources.get(id);
       if (!dependency) {
-        dependency = await this.prepare(await this.#load(id));
+        dependency = await this.prepare(await tracePhase("load", 1, () => this.#load(id)));
         this.#register(dependency);
       }
       return dependency;
