@@ -395,26 +395,35 @@ and no generated names. These couplings remain:
   runtime and also stay the same. An edit of a utility string after the last
   declaration changes no consumer output.
 
-Each compilation also compiles the semantic closure of its entry. Vite registers
-every dependency with `addWatchFile`, so an edit transforms every consumer again.
-Vite environments share one checker while they resolve every import alike, but
-each environment has its own native session and compiles every module again. In
-a build the checker installs the discovered sources once and keeps one snapshot.
-Its time goes to opening that snapshot, registering producer types, reading the
-semantic diagnostics of each queried file, and reading facts.
+Each compilation still sends the semantic closure of its entry to the native
+session. The session skips a module whose analysis has the same source buffer,
+input, facts, and reports as its stored analysis, but it still scans and finalizes
+that module. In the medium application benchmark, native compilation takes about
+700ms of a build. Most of it is the first compilation of each module. Scanning and
+finalizing unchanged dependencies take about 150ms.
+
+A development server does not register dependencies with `addWatchFile`. Its hot
+update hook compiles the producers that read the changed file again and sends a hot
+update only for those whose JavaScript changes. These producers still query facts
+for their own probes, so a shared edit still runs the checker for every consumer.
+Vite environments share one checker, but each environment has its own native session
+and compiles every module again. In a build the checker installs the discovered
+sources once and keeps one snapshot. Its time goes to opening that snapshot,
+registering producer types, reading the semantic diagnostics of each queried file,
+and reading facts.
 
 Planned direction:
 
-1. Compile one module for each transform with the facts of its own probes. Key
+1. Skip the fact query and the compilation of a consumer when the changed file keeps
+   its interface: the types of its exports and the asset records that they reach.
+   Define a fingerprint of that interface that the checker can compute for one file.
+2. Compile one module for each transform with the facts of its own probes. Key
    artifacts by the dependency interfaces that they read, and move cycle and
    missing-producer checks to linking. Read the inline-style flags of bases from
    the interface of the dependency. Style-effect lints such as
    `interfering-imported-style-base` already run over published artifacts and stay
-   there.
-2. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
-   without transforming a consumer whose JavaScript does not change.
-3. Share compiled artifacts between Vite environments whose design systems and
-   compiler settings are equal. This step does not need the steps above.
+   there. This removes only the scan and finalize work of dependencies, so measure
+   it against the cost of reporting composition errors at link time.
 
 Open decisions: whether the checker diagnostic check stays on the compilation
 path, and how development reports link-time errors.
@@ -425,7 +434,9 @@ Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
 [stylesheet plans](../crates/project/src/stylesheet_plan.rs),
 [artifact keys](../crates/compiler/src/module_compiler.rs),
 [module graph](../packages/host/src/compilation/module-graph.ts),
-[Vite compilation](../packages/integration/src/vite/compile.ts).
+[Vite compilation](../packages/integration/src/vite/compile.ts),
+[Vite hot updates](../packages/integration/src/vite/development.ts),
+[native compile batches](../crates/napi/src/session/project.rs).
 
 ## Transport options of dependencies
 
