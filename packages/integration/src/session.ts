@@ -66,8 +66,8 @@ export class IntegrationSession {
   /** Lazily started Node checker, released and recreated independently of native compiler state. */
   #facts?: TypeScriptFactsService;
   /**
-   * Sources, scans, and checker inputs shared by compilations while source files stay unchanged.
-   * Absent when files can change during the session.
+   * Sources, scans, checker inputs, and facts shared by compilations while source files stay
+   * unchanged. Absent when files can change without {@link sourceChanged} being called.
    */
   readonly #project?: CompilationProject;
   /** Entries that the next compilation prepares together with its own entry. */
@@ -86,6 +86,10 @@ export class IntegrationSession {
    * session then scans each file once and gives the checker one project for every compilation.
    * The first compilation prepares the files that these absolute paths reach, together with its own
    * entry, so later compilations seldom add files to the checker project.
+   * @param watchedEntries - Present when the caller reports every source file change through
+   * {@link sourceChanged}. Compilations then share sources, scans, checker inputs, and facts
+   * until a change. Like `fixedEntries`, the first compilation prepares the files that these
+   * absolute paths reach. Ignored when `fixedEntries` is present.
    * @throws If the selected TypeScript configuration does not exist or native session creation fails.
    */
   constructor(
@@ -96,10 +100,11 @@ export class IntegrationSession {
     mode: string,
     plugins?: PluginRuntime,
     fixedEntries?: readonly string[],
+    watchedEntries?: readonly string[],
   ) {
     this.root = root;
-    this.#project = fixedEntries ? new CompilationProject(true) : undefined;
-    this.#entries = fixedEntries ?? [];
+    this.#project = fixedEntries || watchedEntries ? new CompilationProject(true) : undefined;
+    this.#entries = fixedEntries ?? watchedEntries ?? [];
     this.#typeFactsEnvironment = resolveTypeFactsEnvironment(root, config.tsconfig);
     this.native = new NativeProjectSession(loader, watch, mode, config.naming, false);
     attachPlugins(this.native, plugins);
@@ -187,6 +192,16 @@ export class IntegrationSession {
       throw new Error(`Unknown Stillwind module identity: ${moduleId}`);
     }
     return id;
+  }
+
+  /**
+   * Discards shared sources read from a file and every collected fact.
+   *
+   * @param file - Absolute path of a file that changed, was added, or was removed.
+   * @param entry - Whether the file was added or removed rather than changed.
+   */
+  sourceChanged(file: string, entry: boolean): void {
+    this.#project?.invalidateFile(file, entry);
   }
 
   /**

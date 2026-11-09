@@ -40,9 +40,11 @@ export interface ProjectSettings {
   cssWatching: boolean;
   /** Native compilation mode: `development` for serving and `release` for production builds. */
   compilerMode: string;
+  /** Files named by the build inputs of all environments, without queries. */
+  entries: string[];
   /**
-   * Files named by the build inputs of all environments, without queries, when no source file
-   * changes while a compiler session exists. Undefined for development and watched builds.
+   * {@link entries} when no source file changes while a compiler session exists. Undefined for
+   * development and watched builds.
    */
   fixedEntries?: string[];
   /** Absolute project root after configuration, including the optional compiler root override. */
@@ -313,6 +315,7 @@ export function createViteProject(
     watching: false,
     cssWatching: false,
     compilerMode: "release",
+    entries: [],
     projectRoot: "",
     assetsDirectory: "assets",
     publicBase: "/",
@@ -424,8 +427,9 @@ export function createViteProject(
     settings.cssTargets = settings.minifyCss ? minifyTargets(config.target) : undefined;
     settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
+    settings.entries = buildEntries(viteConfig);
     settings.fixedEntries =
-      settings.watching || viteConfig.build.watch ? undefined : buildEntries(viteConfig);
+      settings.watching || viteConfig.build.watch ? undefined : settings.entries;
   };
 
   /** Detaches the current server's change listeners and closes its configuration discovery watchers. */

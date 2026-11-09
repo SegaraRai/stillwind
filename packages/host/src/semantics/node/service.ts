@@ -8,6 +8,7 @@ import {
   isStringLiteral,
 } from "typescript-7/unstable/ast/is";
 
+import { startPhase, tracePhase } from "../../compilation/trace.ts";
 import {
   TypeFactsError,
   type AvailableFacts,
@@ -49,6 +50,18 @@ export class TypeScriptFactsService implements TypeFactsBackend {
 
   /** Checker buffers prepared from the installed project inputs. */
   #prepared?: PreparedProject;
+
+  /**
+   * Producer types registered for one prepared project in one checker snapshot. Queries against
+   * the same installed project reuse it until the snapshot or the preparation changes.
+   */
+  #decoder?: {
+    snapshot: number;
+    prepared: PreparedProject;
+    decoder: AssetTypeDecoder;
+    /** Checker filenames whose producers the decoder has registered. */
+    registered: Set<string>;
+  };
 
   /** Checker buffers of earlier preparations, reused while their inputs stay the same. */
   readonly #checkerSources: CheckerSourceCache = new WeakMap();
@@ -231,7 +244,9 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     if (this.#installed && !installedText(this.#installed.sources, sources)) {
       // A bundler can transform an entry before the compiler receives it. The installed project
       // keeps the file text, so this query prepares only its own sources.
-      full = this.#checker.prepareProject(sources, assetsByModuleId, inputs, this.#checkerSources);
+      full = tracePhase("checker-prepare", sources.length, () =>
+        this.#checker.prepareProject(sources, assetsByModuleId, inputs, this.#checkerSources),
+      );
     } else {
       if (this.#installed) {
         const updated = withRequestedProbes(this.#installed.sources, sources);
@@ -287,23 +302,109 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     }
     if (this.#installed) {
       try {
-        this.#prepared = this.#checker.prepareProject(
-          this.#installed.sources,
-          this.#installed.assets,
-          this.#installed.inputs,
-          this.#checkerSources,
+        const installed = this.#installed;
+        this.#prepared = tracePhase("checker-prepare", installed.sources.length, () =>
+          this.#checker.prepareProject(
+            installed.sources,
+            installed.assets,
+            installed.inputs,
+            this.#checkerSources,
+          ),
         );
         return this.#prepared;
       } catch {
         // Unrelated invalid checker mappings must not reject a scoped query.
       }
     }
-    return this.#checker.prepareProject(
-      resolutionOnly ? sources.map((source) => ({ ...source, probes: [] })) : sources,
-      assets,
-      inputs,
-      this.#checkerSources,
+    return tracePhase("checker-prepare", sources.length, () =>
+      this.#checker.prepareProject(
+        resolutionOnly ? sources.map((source) => ({ ...source, probes: [] })) : sources,
+        assets,
+        inputs,
+        this.#checkerSources,
+      ),
     );
+  }
+
+  /**
+   * Registers the producer types of the selected buffers and of every prepared buffer that they
+   * import, directly or indirectly. Queries against the same preparation in the same checker
+   * snapshot share the registrations, so each buffer is registered once per snapshot.
+   *
+   * Facts of a buffer can name declarations of any buffer that it imports, so the facts of a
+   * buffer do not depend on the other buffers of a query.
+   *
+   * @param project - Checker project of the current snapshot.
+   * @param prepared - Preparation that produced the snapshot's virtual files.
+   * @param selected - Buffers whose facts the query reads.
+   * @returns A decoder for the identities of `prepared`.
+   */
+  #producers(
+    project: ReturnType<NodeChecker["updateProject"]>,
+    prepared: PreparedProject,
+    selected: readonly CheckerSource[],
+  ): AssetTypeDecoder {
+    if (this.#decoder?.snapshot !== this.stats.snapshots || this.#decoder.prepared !== prepared) {
+      this.#decoder = {
+        snapshot: this.stats.snapshots,
+        prepared,
+        decoder: new AssetTypeDecoder(
+          project.checker,
+          prepared.identities,
+          this.#checker.properties,
+        ),
+        registered: new Set(),
+      };
+    }
+    const { decoder, registered } = this.#decoder;
+    const bySource = new Map<string, CheckerSource[]>();
+    for (const mapping of prepared.mappings) {
+      const key = mapping.source.resolverId;
+      bySource.set(key, [...(bySource.get(key) ?? []), mapping]);
+    }
+    const pending = [...selected];
+    const reached = new Set<string>();
+    const unregistered: CheckerSource[] = [];
+    while (pending.length > 0) {
+      const mapping = pending.pop()!;
+      if (reached.has(mapping.id)) {
+        continue;
+      }
+      reached.add(mapping.id);
+      if (!registered.has(mapping.id)) {
+        unregistered.push(mapping);
+      }
+      for (const resolution of mapping.source.resolutions ?? []) {
+        pending.push(...(bySource.get(resolution.id) ?? []));
+      }
+    }
+    if (unregistered.length === 0) {
+      return decoder;
+    }
+    const end = startPhase("checker-producers");
+    const producers: Node[] = [];
+    for (const mapping of unregistered) {
+      registered.add(mapping.id);
+      const file = project.program.getSourceFile(mapping.id);
+      if (!file) {
+        continue;
+      }
+      producers.push(
+        ...this.#checker
+          .expressions(file)
+          .filter(
+            (node) =>
+              isCallExpression(node) && mapping.producers.has(`${node.getStart(file)}:${node.end}`),
+          ),
+      );
+    }
+    for (const type of this.#checker.types(project.checker, producers)) {
+      if (type) {
+        decoder.register(type);
+      }
+    }
+    end(producers.length);
+    return decoder;
   }
 
   /**
@@ -347,36 +448,12 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     selected: readonly CheckerSource[],
     available: boolean,
   ): AvailableFacts {
-    const project = this.#checker.updateProject(prepared);
+    const project = tracePhase("checker-update", prepared.mappings.length, () =>
+      this.#checker.updateProject(prepared),
+    );
     const unverified: UnverifiedRange[] = [];
     const result = new Map<string, TypeFact[]>();
-    // Facts of a buffer can name declarations of any buffer that it imports. Every prepared buffer
-    // supplies producers and identities, so the facts of a buffer do not depend on the selection.
-    const decoder = new AssetTypeDecoder(
-      project.checker,
-      prepared.identities,
-      this.#checker.properties,
-    );
-    const producers: Node[] = [];
-    for (const mapping of prepared.mappings) {
-      const file = project.program.getSourceFile(mapping.id);
-      if (!file) {
-        continue;
-      }
-      producers.push(
-        ...this.#checker
-          .expressions(file)
-          .filter(
-            (node) =>
-              isCallExpression(node) && mapping.producers.has(`${node.getStart(file)}:${node.end}`),
-          ),
-      );
-    }
-    for (const type of this.#checker.types(project.checker, producers)) {
-      if (type) {
-        decoder.register(type);
-      }
-    }
+    const decoder = this.#producers(project, prepared, selected);
     for (const mapping of selected) {
       const sourceFile = project.program.getSourceFile(mapping.id);
       if (!sourceFile) {
@@ -384,10 +461,10 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       }
       let diagnostics = this.#checker.diagnostics.get(mapping.id);
       if (!diagnostics) {
-        diagnostics = [
+        diagnostics = tracePhase("checker-diagnostics", 1, () => [
           ...project.program.getSyntacticDiagnostics(mapping.id),
           ...project.program.getSemanticDiagnostics(mapping.id),
-        ];
+        ]);
         this.#checker.diagnostics.set(mapping.id, diagnostics);
       }
       const diagnostic = diagnostics.find(
@@ -416,13 +493,15 @@ export class TypeScriptFactsService implements TypeFactsBackend {
         }
         unverified.push({ moduleId: error.moduleId, start, end, reason: error.message });
       }
-      const facts = factsForSource(
-        sourceFile,
-        mapping,
-        decoder,
-        this.#checker.expressions(sourceFile),
-        (nodes) => this.#checker.types(project.checker, nodes),
-        available ? unverified : undefined,
+      const facts = tracePhase("checker-facts", 1, () =>
+        factsForSource(
+          sourceFile,
+          mapping,
+          decoder,
+          this.#checker.expressions(sourceFile),
+          (nodes) => this.#checker.types(project.checker, nodes),
+          available ? unverified : undefined,
+        ),
       );
       const previous = result.get(mapping.source.moduleId) ?? [];
       for (const fact of facts) {
@@ -455,6 +534,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
    */
   #restartApi(): void {
     this.#prepared = undefined;
+    this.#decoder = undefined;
     this.#checker.restart();
   }
 }

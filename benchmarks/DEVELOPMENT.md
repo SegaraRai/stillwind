@@ -138,7 +138,9 @@ workloads:
 Every Node process that a measured command starts loads `apps/preload.mjs`. It records
 resource usage and the phases that `@stillwind/host` publishes on the
 `stillwind:host:phase` diagnostics channel. The report sums phases over processes, and
-the console shows them for the last run. Asynchronous phases include waiting time, so
+the console shows them for the last run, both for the whole command and for each edit
+with its restoration. Phases whose names start with `checker-` describe work inside the
+TypeScript checker. Asynchronous phases include waiting time, so
 their totals can exceed elapsed time when Vite transforms modules concurrently. Phase
 counts show repeated work directly: for example, more `scan` calls than modules mean
 that the host scanned the same source for several entries.

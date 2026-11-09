@@ -210,13 +210,15 @@ export class DesignSystem {
   }
 
   /**
-   * Marks a design-system revision pending when an observed file changes.
+   * Marks a design-system revision pending when an observed file changes, and discards the
+   * compiler's shared sources and facts for any changed file.
    *
    * @param file - Absolute path of the changed file. Paths that {@link DesignSystem.observes}
-   * rejects have no effect.
+   * rejects do not mark a revision pending.
    * @param entry - Whether the event adds or removes the file.
    */
   changed(file: string, entry: boolean): void {
+    this.#compiler?.sourceChanged(file, entry);
     if (this.observes(file, entry)) {
       this.cssChange++;
     }
@@ -263,6 +265,7 @@ export class DesignSystem {
         this.settings.compilerMode,
         loaded.plugins,
         this.settings.fixedEntries,
+        this.settings.watching && this.settings.cssWatching ? this.settings.entries : undefined,
       );
       this.#plugins = loaded.plugins;
       this.#initialized = true;

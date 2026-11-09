@@ -37,6 +37,8 @@ export class CompilationProject {
   readonly #imports?: Map<string, ReturnType<CompilerHost["resolve"]>>;
   /** Import answers for the currently installed checker inputs. */
   #resolutions?: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /** Resolver IDs of sources that {@link invalidateFile} removed and {@link prepare} loads again. */
+  readonly #reload = new Set<string>();
   /** Advances on invalidation so pending loads cannot publish old sources. */
   #revision = 0;
   /** Advances when sources or import links change so checker inputs are installed again. */
@@ -184,8 +186,15 @@ export class CompilationProject {
     session: NativeProjectSession,
   ): Promise<void> {
     const revision = this.#revision;
-    await Promise.allSettled(ids.map((id) => this.#load(id, host, session, revision)));
+    const reload = [...this.#reload];
+    this.#reload.clear();
+    await Promise.allSettled(
+      [...reload, ...ids].map((id) => this.#load(id, host, session, revision)),
+    );
     if (revision !== this.#revision) {
+      for (const id of reload) {
+        this.#reload.add(id);
+      }
       return;
     }
     for (const record of this.#sources.values()) {
@@ -230,6 +239,7 @@ export class CompilationProject {
     this.#imports?.clear();
     if (ids === undefined) {
       this.#sources.clear();
+      this.#reload.clear();
     } else {
       for (const id of typeof ids === "string" ? [ids] : ids) {
         this.#sources.delete(sourceKey(id));
@@ -243,6 +253,44 @@ export class CompilationProject {
       record.linked = false;
     }
     this.#changed();
+  }
+
+  /**
+   * Removes every source read from a file, including query-qualified sources, and clears every
+   * collected fact. The next {@link prepare} call loads the removed sources again.
+   *
+   * A content change keeps the import links of other sources, because their resolved targets
+   * keep the same IDs. Adding or removing a file can change any resolution, so it also clears
+   * all import links and cached resolution answers.
+   *
+   * @param file - Absolute path of a file that changed, was added, or was removed. A file that
+   * no source reads still clears the facts, because the checker reads unprepared files from disk.
+   * @param entry - Whether the file was added or removed rather than changed.
+   */
+  invalidateFile(file: string, entry: boolean): void {
+    const key = sourceKey(file);
+    const removed = this.sourceKeys().filter((id) => id === key || id.startsWith(`${key}?`));
+    for (const id of removed) {
+      this.#reload.add(this.#sources.get(id)!.source.resolverId);
+    }
+    if (entry) {
+      this.invalidate(removed);
+      return;
+    }
+    this.#revision++;
+    this.#facts?.clear();
+    for (const importKey of this.#imports?.keys() ?? []) {
+      const importer = sourceKey(importKey.slice(0, importKey.indexOf("\0")));
+      if (importer === key || importer.startsWith(`${key}?`)) {
+        this.#imports?.delete(importKey);
+      }
+    }
+    for (const id of removed) {
+      this.#sources.delete(id);
+    }
+    if (removed.length > 0) {
+      this.#changed();
+    }
   }
 
   /**

@@ -75,6 +75,8 @@ interface RunResult {
   reloadMs: number;
   /** Milliseconds from the file write until the page shows each edit. */
   edits: Partial<Record<AppEditName, number>>;
+  /** Phases recorded while each edit and its restoration were processed. */
+  editPhases: Partial<Record<AppEditName, Record<string, PhaseTotal>>>;
   dev: ProcessStats;
 }
 
@@ -102,6 +104,26 @@ async function readStats(directory: string): Promise<ProcessStats> {
   return stats;
 }
 
+function phaseDifference(
+  after: Record<string, PhaseTotal>,
+  before: Record<string, PhaseTotal>,
+): Record<string, PhaseTotal> {
+  const difference: Record<string, PhaseTotal> = {};
+  for (const [phase, value] of Object.entries(after)) {
+    const previous = before[phase] ?? { calls: 0, items: 0, total: 0, max: 0 };
+    if (value.calls > previous.calls) {
+      difference[phase] = {
+        calls: value.calls - previous.calls,
+        items: value.items - previous.items,
+        total: value.total - previous.total,
+        // A maximum cannot be separated by subtraction, so this is the maximum so far.
+        max: value.max,
+      };
+    }
+  }
+  return difference;
+}
+
 async function freshDirectory(path: string) {
   await rm(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   await mkdir(path, { recursive: true });
@@ -125,7 +147,7 @@ function measuredNode(args: string[], cwd: string, traceDirectory: string) {
 async function build(root: string): Promise<Pick<RunResult, "buildMs" | "build">> {
   await rm(join(root, "build"), { recursive: true, force: true });
   await rm(join(root, "node_modules/.vite"), { recursive: true, force: true });
-  const traces = await freshDirectory(join(root, ".trace-build"));
+  const traces = await freshDirectory(`${root}.trace-build`);
   const start = performance.now();
   const child = measuredNode(["build"], root, traces);
   const code = await child.done;
@@ -212,7 +234,7 @@ async function develop(
   variant: AppVariant,
 ): Promise<Omit<RunResult, "buildMs" | "build">> {
   await rm(join(root, "node_modules/.vite"), { recursive: true, force: true });
-  const traces = await freshDirectory(join(root, ".trace-dev"));
+  const traces = await freshDirectory(`${root}.trace-dev`);
   const port = await availablePort();
   const url = `http://localhost:${port}/`;
   const start = performance.now();
@@ -225,15 +247,19 @@ async function develop(
     const firstLoadMs = await hydrate(page, url);
     const reloadMs = await hydrate(page, url);
     const edits: RunResult["edits"] = {};
+    const editPhases: RunResult["editPhases"] = {};
     for (const name of Object.keys(appEdits) as AppEditName[]) {
       if (name === "theme" && variant === "plain") {
         continue;
       }
+      // Each wait covers the preload's periodic trace write.
+      await delay(1000);
+      const before = await readStats(traces);
       edits[name] = await edit(page, root, variant, name);
+      await delay(1000);
+      editPhases[name] = phaseDifference((await readStats(traces)).phases, before.phases);
     }
-    // Wait for the periodic trace write that follows the last edit.
-    await delay(1000);
-    return { devReadyMs, firstLoadMs, reloadMs, edits, dev: await readStats(traces) };
+    return { devReadyMs, firstLoadMs, reloadMs, edits, editPhases, dev: await readStats(traces) };
   } finally {
     await browser.close();
     await child.stop();
@@ -296,7 +322,10 @@ for (const size of sizes) {
       report.results.push({ size, shape, variant, runs: results });
     } finally {
       if (!keep) {
-        await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        // Traces live beside the application so that the development watcher ignores them.
+        for (const path of [root, `${root}.trace-build`, `${root}.trace-dev`]) {
+          await rm(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        }
       }
     }
   }
@@ -339,11 +368,12 @@ for (const size of sizes) {
     (result) => result.size === size && result.variant === "stillwind",
   );
   if (stillwind) {
-    for (const [label, pick] of [
-      ["build", (run: RunResult) => run.build],
-      ["dev", (run: RunResult) => run.dev],
+    const last = stillwind.runs.at(-1)!;
+    for (const [label, phases] of [
+      ["build", last.build.phases],
+      ["dev", last.dev.phases],
+      ...Object.entries(last.editPhases).map(([name, value]) => [`${name} edit`, value] as const),
     ] as const) {
-      const phases = pick(stillwind.runs.at(-1)!).phases;
       console.log(`Stillwind ${label} phases (last run)`);
       console.table(
         Object.fromEntries(
