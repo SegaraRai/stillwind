@@ -9,7 +9,8 @@ use lightningcss::traits::{ParseWithOptions, ToCss};
 
 use crate::{
     CssBlock, CssNode, CssNodeKind, absolutize_nested_selector, instantiate_selector,
-    parse_structure, selector_is_element_condition, selector_uses_subject, validate_css_syntax,
+    parse_structure, selector_is_element_condition, selector_list_branches, selector_uses_subject,
+    validate_css_syntax,
 };
 
 /// Selectors delimiting a scope. Missing selectors retain the implicit root or limit.
@@ -161,7 +162,12 @@ fn nested_selector(selector: &str, parent: &str) -> String {
 }
 
 fn scoped_selector(selector: &str) -> String {
-    let text = if selector.trim_start().starts_with(['>', '+', '~']) {
+    // A relative branch such as `> .b` in `.a, > .b` is invalid once the selector
+    // becomes a parent inside `:is()`, so any relative branch absolutizes the list.
+    let relative = selector_list_branches(selector)
+        .iter()
+        .any(|branch| branch.starts_with(['>', '+', '~']));
+    let text = if relative {
         absolutize_nested_selector(selector).to_string()
     } else {
         selector.to_string()
@@ -178,7 +184,9 @@ fn walk(
     out: &mut ScopedCss,
 ) {
     let mut cursor = range.start;
-    for node in nodes {
+    let mut index = 0;
+    while let Some(node) = nodes.get(index) {
+        index += 1;
         out.copy(css, cursor..node.range.start);
         match &node.kind {
             CssNodeKind::AtRule {
@@ -239,13 +247,25 @@ fn walk(
                 out.insert("}", node.range.end.saturating_sub(1));
             }
             CssNodeKind::Declaration { .. } if scoped || parent.is_some() => {
+                // Consecutive declarations share one rule. A nested rule between
+                // declarations starts a new rule, which keeps the authored order.
+                let mut end = node.range.end;
+                while let Some(next) = nodes
+                    .get(index)
+                    .filter(|next| matches!(next.kind, CssNodeKind::Declaration { .. }))
+                {
+                    end = next.range.end;
+                    index += 1;
+                }
                 out.insert(parent.unwrap_or(":where(:scope)"), node.range.start);
                 out.insert("{", node.range.start);
-                out.copy(css, node.range.clone());
-                if !css[node.range.clone()].ends_with(';') {
-                    out.insert(";", node.range.end);
+                out.copy(css, node.range.start..end);
+                if !css[..end].ends_with(';') {
+                    out.insert(";", end);
                 }
-                out.insert("}", node.range.end);
+                out.insert("}", end);
+                cursor = end;
+                continue;
             }
             CssNodeKind::StyleRule { selector, .. } if scoped && parent.is_none() => {
                 out.insert(&scoped_selector(&css[selector.clone()]), selector.start);
@@ -267,6 +287,9 @@ fn walk(
     out.copy(css, cursor..range.end);
 }
 
+/// Writes a compiler scope wrapper as `@scope` with its nesting selectors bound to
+/// `parent`. Omits the wrapper and its contents when the bound prelude cannot select an
+/// element, such as `(.card :is(.x::before))`, because a browser ignores that rule.
 fn variant_scope_rule(
     css: &str,
     node: &CssNode,
@@ -427,12 +450,21 @@ mod tests {
 
     #[test]
     fn scope_declarations_and_ancestors_keep_their_order() {
-        let css = ".parent{@scope (.from) to (& .stop){color:red;:where(:scope){color:blue}color:green;}}";
+        let css = ".parent{@scope (.from) to (& .stop){color:red;margin:0;:where(:scope){color:blue}color:green}}";
         let result = normalize_scopes(css);
         assert_eq!(
             result.css,
-            "@scope (:is(.parent) .from) to (:where(:scope) .stop){:where(:scope){color:red;}:where(:scope){color:blue}:where(:scope){color:green;}}"
+            "@scope (:is(.parent) .from) to (:where(:scope) .stop){:where(:scope){color:red;margin:0;}:where(:scope){color:blue}:where(:scope){color:green;}}"
         );
         assert_eq!(result.css.len(), result.origins.len());
+    }
+
+    #[test]
+    fn relative_branches_in_scoped_parents_bind_to_the_scope_root() {
+        let css = "@scope (.s){.a, > .b{@scope (.c){color:red}}}";
+        assert_eq!(
+            normalize_scopes(css).css,
+            "@scope (.s){@scope (:is(:where(:scope) .a, :where(:scope) > .b) .c){:where(:scope){color:red;}}}"
+        );
     }
 }

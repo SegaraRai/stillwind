@@ -12,7 +12,7 @@ use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
     append_element_condition, fold_host_conditions, instantiate_selector, selector_cannot_match,
-    selector_list_branches, selector_uses_subject,
+    selector_has_pseudo_element, selector_list_branches, selector_uses_subject,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
@@ -110,19 +110,6 @@ pub(in crate::compiler) fn render_utility_rule_path(
     variant_paths(applications)
         .iter()
         .map(|path| {
-            if path
-                .iter()
-                .any(|step| matches!(step, VariantStep::Scope(_)))
-            {
-                return render_scoped_utility_steps(
-                    class_selector,
-                    utility,
-                    declaration,
-                    nested_rule,
-                    path,
-                    identifiers,
-                );
-            }
             render_utility_steps(
                 class_selector,
                 utility,
@@ -147,7 +134,9 @@ pub(in crate::compiler) fn render_utility_rule_path(
 /// In [`VariantContext::Document`], the rule starts from the element that
 /// [`document_rule_target`] finds instead of `class_selector`, and the step that
 /// selects it contributes only its declarations and conditions. A path without such a
-/// step renders nothing.
+/// step renders nothing. A path with a scope step renders through
+/// [`render_scoped_utility_steps`] instead.
+#[allow(clippy::too_many_lines)] // One exhaustive match over the variant steps.
 fn render_utility_steps(
     class_selector: &str,
     utility: &CompiledUtility,
@@ -156,6 +145,7 @@ fn render_utility_steps(
     applications: &[VariantStep<'_>],
     identifiers: &IdentifierContext,
 ) -> Result<LeanString, CompileDiagnostic> {
+    let authored_declaration = declaration;
     let mut declaration = declaration.to_lean_string();
     let Some((mut selector, target)) = rule_start(class_selector, utility, applications) else {
         return Ok(LeanString::new());
@@ -219,7 +209,16 @@ fn render_utility_steps(
             VariantStep::StartingStyle => {
                 starting_style = true;
             }
-            VariantStep::Scope(_) => return Ok(LeanString::new()),
+            VariantStep::Scope(_) => {
+                return render_scoped_utility_steps(
+                    class_selector,
+                    utility,
+                    authored_declaration,
+                    nested_rule,
+                    applications,
+                    identifiers,
+                );
+            }
         }
     }
     if let Some(template) = utility.selector.as_deref() {
@@ -231,13 +230,10 @@ fn render_utility_steps(
     let selector = fold_host_conditions(&selector);
     let conditional = !conditions.is_empty();
     declaration = guard_declaration(declaration, &conditions, identifiers)?;
-    let mut rule = format_args!("{selector}{{{declaration}}}").to_lean_string();
-    if let Some(nested) = nested_rule {
-        rule = wrap_condition(&rule, nested.at_rule, &nested.condition);
-        if let Some((at_rule, condition)) = &nested.parent {
-            rule = wrap_condition(&rule, *at_rule, condition);
-        }
-    }
+    let mut rule = wrap_nested_rule(
+        format_args!("{selector}{{{declaration}}}").to_lean_string(),
+        nested_rule,
+    );
     for condition in supports.into_iter().rev() {
         rule = format_args!("@supports {condition}{{{rule}}}").to_lean_string();
     }
@@ -301,17 +297,14 @@ fn render_scoped_utility_steps(
             })
         })
         .collect::<Vec<_>>();
-    let mut body = if let Some(template) = &utility.selector {
-        format_args!("{template}{{{declaration}}}").to_lean_string()
-    } else {
-        declaration.to_lean_string()
-    };
-    if let Some(nested) = nested_rule {
-        body = wrap_condition(&body, nested.at_rule, &nested.condition);
-        if let Some((at_rule, condition)) = &nested.parent {
-            body = wrap_condition(&body, *at_rule, condition);
-        }
-    }
+    let body = wrap_nested_rule(
+        if let Some(template) = &utility.selector {
+            format_args!("{template}{{{declaration}}}").to_lean_string()
+        } else {
+            declaration.to_lean_string()
+        },
+        nested_rule,
+    );
     let body = super::super::stylesheet::render_authored_variant_steps(&body, &steps, identifiers)?;
     let mut nested = format_args!("{selector}{{{body}}}").to_lean_string();
     super::super::stylesheet::fold_nested_host_rules(&mut nested);
@@ -342,23 +335,35 @@ fn guard_declaration(
     Ok(declaration)
 }
 
-/// Substitutes each parent branch into `template` and drops branches that cannot match
-/// after nesting. Substituting a whole parent list into `& > *` would leave its earlier
-/// pseudo-element branches untouched.
+/// Substitutes `parent` into `template` as CSS Nesting does and drops branches that
+/// cannot match after nesting.
+///
+/// Branches without pseudo-elements are substituted together as `:is(...)`, so
+/// `:not(&)` excludes every branch and `& + &` pairs any two branches. `:is()` cannot
+/// contain a pseudo-element, so each pseudo-element branch is substituted on its own.
+/// Substituting the whole list as text into `& > *` would apply the combinator only to
+/// the last branch.
 fn nested_utility_selector(template: &str, parent: &str) -> LeanString {
-    selector_list_branches(parent)
+    let branches = selector_list_branches(parent);
+    let (elements, pseudo_elements): (Vec<&str>, Vec<&str>) = branches
         .into_iter()
-        .flat_map(|parent| {
-            let nested = instantiate_selector(template, parent);
+        .partition(|branch| !selector_has_pseudo_element(branch));
+    let grouped = match elements.as_slice() {
+        [] => None,
+        [branch] => Some((*branch).to_owned()),
+        _ => Some(format!(":is({})", elements.join(","))),
+    };
+    let mut output = Vec::new();
+    for parent in grouped.iter().map(String::as_str).chain(pseudo_elements) {
+        let nested = instantiate_selector(template, parent);
+        output.extend(
             selector_list_branches(&nested)
                 .into_iter()
                 .filter(|branch| !selector_cannot_match(branch))
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-        .join(",")
-        .into()
+                .map(str::to_owned),
+        );
+    }
+    output.join(",").into()
 }
 
 /// Returns the selector that a rule starts from and, in [`VariantContext::Document`],
@@ -437,6 +442,19 @@ fn nesting_parent(
     }
 }
 
+/// Wraps `rule` in the at-rules of the utility's conditional rule, innermost first.
+/// Returns `rule` unchanged when `nested_rule` is `None`.
+fn wrap_nested_rule(rule: LeanString, nested_rule: Option<&NestedUtilityRule>) -> LeanString {
+    let Some(nested) = nested_rule else {
+        return rule;
+    };
+    let rule = wrap_condition(&rule, nested.at_rule, &nested.condition);
+    match &nested.parent {
+        Some((at_rule, condition)) => wrap_condition(&rule, *at_rule, condition),
+        None => rule,
+    }
+}
+
 fn wrap_condition(rule: &str, at_rule: NestedUtilityAtRule, condition: &str) -> LeanString {
     match at_rule {
         NestedUtilityAtRule::Media => format_args!("@media {condition}{{{rule}}}").to_lean_string(),
@@ -457,6 +475,18 @@ mod render_step_tests {
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
     };
+
+    #[test]
+    fn nested_utility_selectors_group_element_branches_and_split_pseudo_elements() {
+        assert_eq!(
+            nested_utility_selector(":not(&)", ".a:hover, .a:focus"),
+            ":not(:is(.a:hover,.a:focus))"
+        );
+        assert_eq!(
+            nested_utility_selector("& > *", ".a *::selection, .a:before, .a"),
+            ".a > *"
+        );
+    }
 
     #[test]
     fn scope_paths_keep_the_utility_inside_absolute_roots_and_bind_explicit_subjects() {

@@ -91,7 +91,9 @@ pub(crate) fn applied_banners(css: &str, theme: &ThemeIndex) -> Vec<CssBanner> {
 /// by variants and then by utility order.
 /// Runtime guards remain unresolved `--if` expressions for the later options-aware
 /// lowering pass. A `@variant` statement without a block remains in the returned text,
-/// so this function is not a CSS validator.
+/// so this function is not a CSS validator. The result passes through
+/// [`normalize_scopes`](stillwind_css::normalize_scopes), which binds scope variants and
+/// wraps declarations placed directly in `@scope`.
 ///
 /// # Errors
 ///

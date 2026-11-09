@@ -475,7 +475,9 @@ utility selector and the declarations apply to the resulting root with zero
 specificity. In the end selector, `&` always means `:where(:scope)`. Scopes can nest
 and contain selector or conditional variants. Empty and end-only preludes keep
 their stylesheet-dependent implicit root. Scope variants cannot be negated or
-used as the inner variant of `group-*`, `peer-*`, or `has-*`.
+used as the inner variant of `group-*`, `peer-*`, or `has-*`. When the bound start
+cannot select an element, for example because `&` refers to a pseudo-element, the
+compiler omits the rule. A browser would ignore the rule in this case.
 
 ```css
 @custom-variant in-card {

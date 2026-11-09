@@ -84,6 +84,33 @@ fn branch_cannot_match(selector: &str) -> bool {
     false
 }
 
+/// Whether `selector` contains a pseudo-element outside functional arguments, such as
+/// `::selection`, `::part(label)`, or the legacy single-colon `:before`.
+///
+/// Every `::` name counts, including unknown ones, because no pseudo-element is valid
+/// inside `:is()`.
+pub fn selector_has_pseudo_element(selector: &str) -> bool {
+    let mut parser = Parser::new(selector);
+    let mut colons = 0;
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+        match token {
+            Token::Colon => {
+                colons += 1;
+                continue;
+            }
+            Token::Ident(name) if colons == 2 || (colons == 1 && legacy_pseudo_element(name)) => {
+                return true;
+            }
+            Token::Function(_) if colons == 2 => {
+                return true;
+            }
+            _ => {}
+        }
+        colons = 0;
+    }
+    false
+}
+
 fn legacy_pseudo_element(name: &str) -> bool {
     ["before", "after", "first-line", "first-letter"]
         .iter()

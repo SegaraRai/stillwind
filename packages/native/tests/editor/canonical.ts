@@ -22,6 +22,7 @@ export function registerCanonicalEditorContract(specifier: string): void {
     for (const [alpha, expected] of [
       [".12345", "tone-red/[12.345%]"],
       [".29", "tone-red/29"],
+      [".0145", "tone-red/[1.45%]"],
     ]) {
       expect(query.canonicalCandidate(`tone-[theme(--color-red/${alpha})]`)).toBe(expected);
     }

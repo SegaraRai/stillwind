@@ -24,7 +24,9 @@ pub use host::{
     fold_host_conditions, fold_nested_host_conditions, selector_cannot_match_host,
     selector_selects_host,
 };
-pub use list::{selector_cannot_match, selector_is_valid, selector_list_branches};
+pub use list::{
+    selector_cannot_match, selector_has_pseudo_element, selector_is_valid, selector_list_branches,
+};
 pub use subject::{
     absolutize_nested_selector, implicit_nesting_positions, instantiate_selector,
     selector_repeats_subject, selector_uses_subject, subject_as_universal, subject_compound_parts,
