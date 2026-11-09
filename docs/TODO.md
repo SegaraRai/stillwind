@@ -391,10 +391,11 @@ Moving every declaration of a dependency to a later offset shows these couplings
 
 Each compilation also compiles the semantic closure of its entry. Vite registers
 every dependency with `addWatchFile`, so an edit transforms every consumer again,
-and each transform plans the whole document. Each Vite environment has its own
-session and checker. In a build the checker answers each file once for each
-environment, and most checker time goes to snapshot updates while discovery adds
-files and to producer registration after each update.
+Each Vite environment has its own session and checker. In a build each checker
+installs the discovered sources once and keeps one snapshot. Its time goes to
+opening that snapshot, registering producer types, reading the semantic
+diagnostics of each queried file, and reading facts, all once for each
+environment.
 
 Planned direction:
 
@@ -416,10 +417,9 @@ Planned direction:
    `interfering-imported-style-base` already run over published artifacts and stay
    there.
 5. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
-   without transforming a consumer whose JavaScript does not change, and plan only
-   when a consumer requests CSS.
-6. Share the checker and artifacts between Vite environments, and add discovered
-   checker files in batches. Neither step needs the steps above.
+   without transforming a consumer whose JavaScript does not change.
+6. Share the checker and artifacts between Vite environments. This step does not
+   need the steps above.
 
 Open decisions: whether the checker diagnostic check stays on the compilation
 path, and how development reports link-time errors.
