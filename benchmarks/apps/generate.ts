@@ -3,7 +3,8 @@
  *
  * The `stillwind` variant imports `style()` from `stillwind/react`. The `plain` variant
  * imports a local `style()` that only joins class names and emits no CSS, so it measures
- * the same application without Stillwind.
+ * the same application without Stillwind. The `tailwind` variant uses the same local
+ * `style()` and generates CSS for the class names with Tailwind CSS.
  */
 
 /** Size and shape of a generated application. */
@@ -24,7 +25,15 @@ export interface AppShape {
   barrel: boolean;
 }
 
-export type AppVariant = "stillwind" | "plain";
+export type AppVariant = "stillwind" | "plain" | "tailwind";
+
+/** Absolute locations of the Tailwind CSS packages that the `tailwind` variant uses. */
+export interface TailwindPaths {
+  /** File URL of the `@tailwindcss/vite` entry module. */
+  plugin: string;
+  /** Absolute path of the stylesheet that `@import "tailwindcss"` loads. */
+  stylesheet: string;
+}
 
 /** Edits applied by the harness. Each `from` occurs exactly once in `file`. */
 export const appEdits = {
@@ -45,7 +54,7 @@ export const appEdits = {
     value: "12px",
   },
   theme: {
-    file: "app/stillwind.css",
+    file: "app/theme.css",
     from: "rgb(10, 20, 30)",
     to: "rgb(40, 50, 60)",
     selector: "#hmr-theme",
@@ -59,13 +68,22 @@ export type AppEditName = keyof typeof appEdits;
 /**
  * Builds the files of one application.
  *
- * @param variant - Whether the application uses Stillwind.
+ * @param variant - Which styling setup the application uses.
  * @param shape - Application size and graph shape.
+ * @param tailwind - Package locations, required for the `tailwind` variant. The generated
+ * application lives outside the benchmark package, so it cannot resolve them by name.
  * @returns File contents keyed by POSIX paths relative to the application root.
  */
-export function generateApp(variant: AppVariant, shape: AppShape): Map<string, string> {
+export function generateApp(
+  variant: AppVariant,
+  shape: AppShape,
+  tailwind?: TailwindPaths,
+): Map<string, string> {
   if (shape.routes < 1 || shape.components < shape.chain || shape.chain < 1) {
     throw new Error(`Invalid application shape: ${JSON.stringify(shape)}`);
+  }
+  if (variant === "tailwind" && !tailwind) {
+    throw new Error("The tailwind variant requires Tailwind CSS package locations");
   }
   const files = new Map<string, string>();
   const styleModule = (depth: number) =>
@@ -73,22 +91,24 @@ export function generateApp(variant: AppVariant, shape: AppShape): Map<string, s
   const uiModule = shape.barrel ? "../ui" : "../ui/base";
   const chains = Math.ceil(shape.components / shape.chain);
 
+  const plugins = {
+    stillwind: [
+      'import { stillwind } from "@stillwind/integration/vite";',
+      'stillwind({ css: "app/theme.css" })',
+    ],
+    plain: undefined,
+    tailwind: tailwind && [
+      `import tailwindcss from ${JSON.stringify(tailwind.plugin)};`,
+      "tailwindcss()",
+    ],
+  }[variant];
   files.set(
     "vite.config.ts",
-    variant === "stillwind"
-      ? `import { reactRouter } from "@react-router/dev/vite";
-import { stillwind } from "@stillwind/integration/vite";
-import { defineConfig } from "vite";
+    `import { reactRouter } from "@react-router/dev/vite";
+${plugins ? `${plugins[0]}\n` : ""}import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [stillwind({ css: "app/stillwind.css" }), reactRouter()],
-});
-`
-      : `import { reactRouter } from "@react-router/dev/vite";
-import { defineConfig } from "vite";
-
-export default defineConfig({
-  plugins: [reactRouter()],
+  plugins: [${plugins ? `${plugins[1]}, ` : ""}reactRouter()],
 });
 `,
   );
@@ -114,15 +134,15 @@ export default defineConfig({
     ) + "\n",
   );
   files.set(
-    "app/stillwind.css",
-    `@import "stillwind";
+    "app/theme.css",
+    `@import ${JSON.stringify(variant === "tailwind" ? tailwind!.stylesheet : "stillwind")};
 
 @theme {
   --color-brand: rgb(10, 20, 30);
 }
 `,
   );
-  if (variant === "plain") {
+  if (variant !== "stillwind") {
     files.set("app/plain-style.ts", plainStyle);
   }
 
@@ -192,7 +212,7 @@ ${i === 0 ? '      <div id="hmr-leaf" {...style(hmrLeaf)}>leaf</div>\n' : ""}${n
       `app/routes/r${r}.tsx`,
       `import { Link } from "react-router";
 import { style } from "${styleModule(1)}";
-import { caption, heading, hmrShared, stack } from "${uiModule}";
+import { heading, hmrShared, stack } from "${uiModule}";
 ${imports.join("\n")}
 
 const layout = style(stack, "max-w-3xl mx-auto p-6 gap-4");
@@ -201,7 +221,7 @@ export default function Route${r}() {
   return (
     <main {...style(layout)}>
       <h1 {...style(heading)}>Route ${r}</h1>
-      <p id="hmr-theme" {...style(caption, "text-brand")}>theme</p>
+      <p id="hmr-theme" {...style("text-xs text-brand")}>theme</p>
       <div id="hmr-shared" {...style(hmrShared)}>shared</div>
       <nav {...style("flex gap-2")}>
         <Link to="/r${(r + 1) % shape.routes}">Next</Link>
@@ -225,7 +245,7 @@ ${routes.map((route) => `  ${route},`).join("\n")}
   );
   files.set(
     "app/root.tsx",
-    `import { useEffect } from "react";
+    `${variant === "tailwind" ? 'import "./theme.css";\n' : ""}import { useEffect } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
 export default function Root() {

@@ -1,5 +1,6 @@
 /**
- * Measures generated React Router applications with and without Stillwind.
+ * Measures generated React Router applications with Stillwind, with Tailwind CSS, and without
+ * generated CSS.
  *
  * Each run measures a production build, development server startup, the first page
  * load, and edits until the page shows them. Results go to `results/apps.json`.
@@ -18,6 +19,7 @@ import { chromium, type Page } from "playwright";
 import {
   appEdits,
   generateApp,
+  type TailwindPaths,
   type AppEditName,
   type AppShape,
   type AppVariant,
@@ -33,6 +35,12 @@ const cli = join(
   "bin.cjs",
 );
 
+/** Tailwind CSS packages of this benchmark package, which the generated applications cannot resolve. */
+const tailwind: TailwindPaths = {
+  plugin: import.meta.resolve("@tailwindcss/vite"),
+  stylesheet: fileURLToPath(import.meta.resolve("tailwindcss/index.css")).replaceAll("\\", "/"),
+};
+
 const shapes: Record<string, AppShape> = {
   small: { routes: 8, components: 24, chain: 3, componentsPerRoute: 3, barrel: true },
   medium: { routes: 30, components: 240, chain: 4, componentsPerRoute: 4, barrel: true },
@@ -40,7 +48,7 @@ const shapes: Record<string, AppShape> = {
 };
 
 const sizes = list("STILLWIND_BENCH_APPS_SIZES", "small,medium");
-const variants = list("STILLWIND_BENCH_APPS_VARIANTS", "plain,stillwind") as AppVariant[];
+const variants = list("STILLWIND_BENCH_APPS_VARIANTS", "plain,tailwind,stillwind") as AppVariant[];
 const runs = Number(process.env.STILLWIND_BENCH_APPS_RUNS ?? 3);
 const keep = process.env.STILLWIND_BENCH_APPS_KEEP === "1";
 const output = process.env.STILLWIND_BENCH_APPS_OUTPUT ?? join(benchmarks, "results/apps.json");
@@ -208,7 +216,7 @@ async function edit(page: Page, root: string, variant: AppVariant, name: AppEdit
   }
   const shown = async () => {
     const current = await read();
-    return variant === "stillwind"
+    return variant !== "plain"
       ? current?.value === value
       : current !== null && current.className !== before.className;
   };
@@ -267,7 +275,7 @@ async function develop(
 }
 
 async function writeApp(root: string, variant: AppVariant, shape: AppShape) {
-  for (const [file, contents] of generateApp(variant, shape)) {
+  for (const [file, contents] of generateApp(variant, shape, tailwind)) {
     await mkdir(dirname(join(root, file)), { recursive: true });
     await writeFile(join(root, file), contents);
   }
@@ -358,7 +366,10 @@ for (const size of sizes) {
       }
     }
     if (medians.plain && medians.stillwind) {
-      row.ratio = `${(medians.stillwind / medians.plain).toFixed(2)}x`;
+      row["stillwind / plain"] = `${(medians.stillwind / medians.plain).toFixed(2)}x`;
+    }
+    if (medians.tailwind && medians.stillwind) {
+      row["stillwind / tailwind"] = `${(medians.stillwind / medians.tailwind).toFixed(2)}x`;
     }
     rows[label] = row;
   }

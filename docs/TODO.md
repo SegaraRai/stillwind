@@ -358,3 +358,48 @@ Rolldown release gives each pending call its own key, update Vite+ and remove th
 
 Sources: [server source resolution](../packages/integration/src/vite/server-source-resolve.ts),
 [React Router fixture](../e2e/frameworks/vite8-react19-reactrouter8/fixture.ts).
+
+## Dependents after a shared edit
+
+A Vite compilation registers every dependency that it reads with `addWatchFile`. Vite
+then transforms every module that read a changed file again, and each transform
+compiles its entry and plans the document. In the generated `medium` application
+of `bench:apps`, an edit to the shared style module transforms about 270 server
+modules again. Their JavaScript and CSS stay unchanged: only the part of the edited
+module changes. Skipping these transforms needs a fingerprint of what a consumer
+reads from a dependency, such as exported style identities and the types that
+checker facts use, and an invalidation in the integration that replaces
+`addWatchFile` for dependencies. Measure the edit path again before choosing the
+fingerprint, because the checker work below can dominate after the transforms are
+gone.
+
+Sources: [Vite compilation](../packages/integration/src/vite/compile.ts),
+[development hooks](../packages/integration/src/vite/development.ts),
+[application benchmark](../benchmarks/apps/run.ts).
+
+## Checker work for each entry
+
+Any file change clears every retained type fact, and each compilation then asks
+the checker for the facts of its entry and styled dependencies. The checker also
+reads the semantic diagnostics of each queried file to reject facts that depend
+on Stillwind type errors. In the `medium` application this costs about 4 ms for
+each transform, which is now the largest part of an entry compilation. Decide
+whether facts can be kept for files whose import closure did not change, or kept
+when the exported types of the changed file are equal, and whether the diagnostic
+check must stay on the compilation path.
+
+Sources: [checker service](../packages/host/src/semantics/node/service.ts),
+[compilation project](../packages/host/src/compilation/project.ts).
+
+## Transport options of dependencies
+
+An entry receives its stylesheet imports and module CSS import from the adapter,
+while the same module compiled as a dependency receives defaults. When the values
+differ, the native session compiles the module again each time it alternates
+between the two roles. Module CSS imports use the same default when the module
+has none, but stylesheet imports of component files still differ. Let the host
+supply the entry options for dependencies, or keep them out of the artifact key
+when they do not change the output.
+
+Sources: [entry compilation](../packages/host/src/compilation/compiler.ts),
+[prepared sources](../crates/napi/src/source_input/prepared.rs).

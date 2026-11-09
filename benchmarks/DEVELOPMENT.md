@@ -104,12 +104,16 @@ investigating large graphs because their setup compiles all producers first.
 
 ## Generated applications
 
-`bench:apps` generates React Router applications in two variants and measures them
+`bench:apps` generates React Router applications in three variants and measures them
 with the same workload. The `stillwind` variant uses the Vite integration. The `plain`
 variant replaces `style()` with a local function that joins class names and emits no
-CSS, so the difference between the variants is the cost of Stillwind. The applications
+CSS, so the difference from `plain` is the cost of Stillwind. The `tailwind` variant uses
+the same local function and generates CSS with `@tailwindcss/vite`, so it shows the cost
+of the usual alternative. Tailwind CSS does not read the object form of `style()`, so its
+variant generates no CSS for the `hover:` and `disabled:` groups. The applications
 resolve their dependencies from `e2e/frameworks/vite8-react19-reactrouter8` and are
-written to its ignored `.e2e/` directory.
+written to its ignored `.e2e/` directory. They import the Tailwind CSS packages of this
+benchmark package by absolute path, because that fixture does not install them.
 
 Each run measures:
 
@@ -119,7 +123,8 @@ Each run measures:
 - the first page load and a reload until hydration, in installed Chrome;
 - three edits until the page shows them: a component that only its chain imports, the
   shared style module that every module imports, and a theme token in the CSS entrypoint.
-  The `plain` variant waits for the changed class name and skips the theme edit.
+  The `plain` variant waits for the changed class name and skips the theme edit. The
+  other variants wait for the computed style.
 
 Sizes describe the module graph. `small` has 8 routes and 24 components, `medium` has
 30 routes and 240 components, and `large` has 100 routes and 1200 components. Every
@@ -127,13 +132,13 @@ module imports the shared styles through a barrel module, and component exports 
 the exported style of the next component in their chain. Set these variables to select
 workloads:
 
-| Variable                        | Default             | Meaning                               |
-| ------------------------------- | ------------------- | ------------------------------------- |
-| `STILLWIND_BENCH_APPS_SIZES`    | `small,medium`      | Comma-separated sizes                 |
-| `STILLWIND_BENCH_APPS_VARIANTS` | `plain,stillwind`   | Comma-separated variants              |
-| `STILLWIND_BENCH_APPS_RUNS`     | `3`                 | Runs for each size and variant        |
-| `STILLWIND_BENCH_APPS_KEEP`     | unset               | `1` keeps the generated applications  |
-| `STILLWIND_BENCH_APPS_OUTPUT`   | `results/apps.json` | Report path, relative to `benchmarks` |
+| Variable                        | Default                    | Meaning                               |
+| ------------------------------- | -------------------------- | ------------------------------------- |
+| `STILLWIND_BENCH_APPS_SIZES`    | `small,medium`             | Comma-separated sizes                 |
+| `STILLWIND_BENCH_APPS_VARIANTS` | `plain,tailwind,stillwind` | Comma-separated variants              |
+| `STILLWIND_BENCH_APPS_RUNS`     | `3`                        | Runs for each size and variant        |
+| `STILLWIND_BENCH_APPS_KEEP`     | unset                      | `1` keeps the generated applications  |
+| `STILLWIND_BENCH_APPS_OUTPUT`   | `results/apps.json`        | Report path, relative to `benchmarks` |
 
 Every Node process that a measured command starts loads `apps/preload.mjs`. It records
 resource usage and the phases that `@stillwind/host` publishes on the
