@@ -86,6 +86,13 @@ fn advance(
 ) -> Option<Vec<Option<usize>>> {
     let needs = || state.map(|_| vec![state]);
     match application {
+        VariantApplication::Scope(prelude) => {
+            if stillwind_css::parse_scope_prelude(prelude)?.uses_subject() {
+                needs()
+            } else {
+                Some(vec![state])
+            }
+        }
         VariantApplication::Compound(children) => {
             let mut states = Vec::new();
             for child in children {

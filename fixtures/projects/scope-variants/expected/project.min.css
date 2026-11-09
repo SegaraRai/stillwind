@@ -1,0 +1,25 @@
+/*! stillwind | MIT License | https://stillwind.dev */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
+@layer properties;
+@scope (.card) to (.stop) {
+  .authored {
+    display: flex;
+  }
+}
+@scope (.card) to (.stop) {
+  .sw_y8mz3 {
+    display: flex;
+  }
+}
+@scope (.card .sw_7qnbb) {
+  :where(:scope) {
+    display: flex;
+  }
+}
+@scope (.outer) {
+  @scope (.inner) {
+    .sw_icpd2 {
+      display: flex;
+    }
+  }
+}

@@ -4,9 +4,9 @@
 //! own selector or as the unit's class selector, and each step rewrites it. The
 //! at-rules that a step contributes wrap the finished rule in a fixed order
 //! (`@supports`, `@media`, `@container`, then `@starting-style`), so output is
-//! deterministic and
-//! conditions combine by containment instead of being merged into one query. Resolved
-//! values are emitted without minification.
+//! deterministic and conditions combine by containment instead of being merged into
+//! one query. Scope-bearing paths retain authored nesting while their roots bind.
+//! Resolved values are emitted without minification.
 
 use lean_string::{LeanString, ToLeanString};
 
@@ -110,6 +110,19 @@ pub(in crate::compiler) fn render_utility_rule_path(
     variant_paths(applications)
         .iter()
         .map(|path| {
+            if path
+                .iter()
+                .any(|step| matches!(step, VariantStep::Scope(_)))
+            {
+                return render_scoped_utility_steps(
+                    class_selector,
+                    utility,
+                    declaration,
+                    nested_rule,
+                    path,
+                    identifiers,
+                );
+            }
             render_utility_steps(
                 class_selector,
                 utility,
@@ -206,6 +219,7 @@ fn render_utility_steps(
             VariantStep::StartingStyle => {
                 starting_style = true;
             }
+            VariantStep::Scope(_) => return Ok(LeanString::new()),
         }
     }
     if let Some(template) = utility.selector.as_deref() {
@@ -240,6 +254,74 @@ fn render_utility_steps(
         rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
     }
     Ok(if conditional { protect(&rule) } else { rule })
+}
+
+/// Renders scope-bearing paths with selector boundaries intact until scopes bind
+/// their roots. Returns a diagnostic when a conditional helper cannot be generated.
+fn render_scoped_utility_steps(
+    class_selector: &str,
+    utility: &CompiledUtility,
+    declaration: &str,
+    nested_rule: Option<&NestedUtilityRule>,
+    applications: &[VariantStep<'_>],
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    let Some((selector, target)) = rule_start(class_selector, utility, applications) else {
+        return Ok(LeanString::new());
+    };
+    let steps = applications
+        .iter()
+        .enumerate()
+        .filter_map(|(index, step)| {
+            if target != Some(index) {
+                return Some(*step);
+            }
+            Some(match *step {
+                VariantStep::SelectorTemplate(_) | VariantStep::BareSelector { .. } => {
+                    return None;
+                }
+                VariantStep::SelectorRule { declarations, .. } => VariantStep::SelectorRule {
+                    selector: "&",
+                    declarations,
+                },
+                VariantStep::SelectorMedia { condition, .. } => VariantStep::SelectorMedia {
+                    selector: "&",
+                    condition,
+                },
+                VariantStep::SelectorMediaRule {
+                    declarations,
+                    condition,
+                    ..
+                } => VariantStep::SelectorMediaRule {
+                    selector: "&",
+                    declarations,
+                    condition,
+                },
+                _ => *step,
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut body = if let Some(template) = &utility.selector {
+        format_args!("{template}{{{declaration}}}").to_lean_string()
+    } else {
+        declaration.to_lean_string()
+    };
+    if let Some(nested) = nested_rule {
+        body = wrap_condition(&body, nested.at_rule, &nested.condition);
+        if let Some((at_rule, condition)) = &nested.parent {
+            body = wrap_condition(&body, *at_rule, condition);
+        }
+    }
+    let body = super::super::stylesheet::render_authored_variant_steps(&body, &steps, identifiers)?;
+    let mut nested = format_args!("{selector}{{{body}}}").to_lean_string();
+    super::super::stylesheet::fold_nested_host_rules(&mut nested);
+    let mut rule = stillwind_css::normalize_scopes(&nested)
+        .css
+        .to_lean_string();
+    if let Some(container) = &utility.container {
+        rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
+    }
+    Ok(rule)
 }
 
 /// Applies each runtime condition to the declaration body produced by the previous
@@ -320,6 +402,7 @@ fn document_rule_target<'a>(steps: &[VariantStep<'a>]) -> Option<(usize, &'a str
             VariantStep::Media(_)
             | VariantStep::Container(_)
             | VariantStep::Supports(_)
+            | VariantStep::Scope(_)
             | VariantStep::StartingStyle => return None,
         };
         Some((!selector_uses_subject(selector)).then_some((index, selector)))
@@ -343,6 +426,7 @@ fn nesting_parent(
                 VariantStep::Media(_)
                     | VariantStep::Container(_)
                     | VariantStep::Supports(_)
+                    | VariantStep::Scope(_)
                     | VariantStep::StartingStyle
             )
         });
@@ -373,6 +457,47 @@ mod render_step_tests {
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
     };
+
+    #[test]
+    fn scope_paths_keep_the_utility_inside_absolute_roots_and_bind_explicit_subjects() {
+        for (prelude, expected) in [
+            (
+                "(.card) to (& .stop)",
+                "@scope(.card) to (:where(:scope) .stop){.sw_x:hover{color:red}}",
+            ),
+            (
+                "(.card &)",
+                "@scope(.card .sw_x:hover){:where(:scope){color:red}}",
+            ),
+            (
+                "(& .card)",
+                "@scope(.sw_x:hover .card){:where(:scope){color:red}}",
+            ),
+        ] {
+            let css = render_utility_rule_path(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                None,
+                &[
+                    VariantApplication::SelectorSuffix(":hover"),
+                    VariantApplication::Scope(prelude.into()),
+                ],
+                &identifiers(),
+            )
+            .unwrap();
+            let css = stillwind_css::minify_css(
+                &css,
+                &stillwind_css::CssMinifyOptions {
+                    include: vec!["Nesting".into()],
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+            .css;
+            assert_eq!(css, expected, "{prelude}");
+        }
+    }
 
     fn identifiers() -> IdentifierContext {
         IdentifierContext::new(

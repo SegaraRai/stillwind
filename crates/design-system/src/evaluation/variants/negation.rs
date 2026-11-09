@@ -71,6 +71,7 @@ fn part_obstacle(application: &VariantApplication) -> Option<VariantObstacle> {
             Some(selector_obstacle(selector).unwrap_or(VariantObstacle::Declarations))
         }
         VariantApplication::StartingStyle => Some(VariantObstacle::StartingStyle),
+        VariantApplication::Scope(_) => Some(VariantObstacle::AtRule),
         VariantApplication::SelectorCondition(_) => Some(VariantObstacle::Unsupported),
         VariantApplication::Media(_)
         | VariantApplication::Container(_)
@@ -155,7 +156,8 @@ fn negated_branches(application: &VariantApplication) -> Option<Vec<Branch>> {
         VariantApplication::SelectorCondition(_)
         | VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }
-        | VariantApplication::StartingStyle => None,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => None,
     }
 }
 

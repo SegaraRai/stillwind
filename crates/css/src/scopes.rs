@@ -1,13 +1,91 @@
 //! Normalizes scoped declarations and retains style ancestors when lifting scopes.
 
-use std::ops::Range;
+use std::{fmt::Write as _, ops::Range};
 
 use cssparser::{ParseError, Parser, Token};
+use lightningcss::selector::SelectorList;
+use lightningcss::stylesheet::{ParserOptions, PrinterOptions};
+use lightningcss::traits::{ParseWithOptions, ToCss};
 
 use crate::{
     CssBlock, CssNode, CssNodeKind, absolutize_nested_selector, instantiate_selector,
-    parse_structure, selector_uses_subject, validate_css_syntax,
+    parse_structure, selector_is_element_condition, selector_uses_subject, validate_css_syntax,
 };
+
+/// Selectors delimiting a scope. Missing selectors retain the implicit root or limit.
+#[derive(Clone, Copy, Debug)]
+pub struct ScopePrelude<'a> {
+    /// Scope-start selector list, without parentheses.
+    pub start: Option<&'a str>,
+    /// Scope-end selector list, without parentheses.
+    pub end: Option<&'a str>,
+}
+
+impl ScopePrelude<'_> {
+    /// Whether the start selector refers to the surrounding style rule.
+    pub fn uses_subject(self) -> bool {
+        self.start.is_some_and(selector_uses_subject)
+    }
+
+    /// Binds a variant's explicit nesting selectors to `subject` and its scope root.
+    /// Selectors without nesting selectors keep their document-relative meaning.
+    /// `subject` must be a valid selector list for the surrounding style rule.
+    pub fn bind_variant(self, subject: &str) -> String {
+        let mut result = String::new();
+        if let Some(start) = self.start {
+            let selector = instantiate_selector(start, &format!(":is({subject})"));
+            let _ = write!(result, " ({selector})");
+        }
+        if let Some(end) = self.end {
+            let selector = instantiate_selector(end, ":where(:scope)");
+            let _ = write!(result, " to ({selector})");
+        }
+        result
+    }
+}
+
+/// Parses a complete scope prelude, including empty preludes and end-only scopes.
+/// Returns `None` for malformed grammar or selector lists.
+pub fn parse_scope_prelude(prelude: &str) -> Option<ScopePrelude<'_>> {
+    validate_css_syntax(prelude).ok()?;
+    let mut parser = Parser::new(prelude);
+    let (mut start, mut end, mut limit) = (None, None, false);
+    while let Ok(token) = parser.next() {
+        match token {
+            Token::Ident(name) if name.eq_ignore_ascii_case("to") && !limit => limit = true,
+            Token::ParenthesisBlock => {
+                let mut text = "";
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    let position = inner.position();
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    text = inner.slice_from(position);
+                    Ok(())
+                });
+                if !scope_selector_is_valid(text)
+                    || (limit && end.is_some())
+                    || (!limit && start.is_some())
+                {
+                    return None;
+                }
+                if limit {
+                    end = Some(text);
+                } else {
+                    start = Some(text);
+                }
+            }
+            _ => return None,
+        }
+    }
+    (!(limit && end.is_none())).then_some(ScopePrelude { start, end })
+}
+
+/// Checks real-element selectors after parsing removes invalid forgiving branches.
+fn scope_selector_is_valid(selector: &str) -> bool {
+    SelectorList::parse_string_with_options(selector, ParserOptions::default())
+        .ok()
+        .and_then(|selector| selector.to_css_string(PrinterOptions::default()).ok())
+        .is_some_and(|selector| selector_is_element_condition(&selector, false))
+}
 
 /// CSS normalized for parsers that do not accept declarations directly in `@scope`.
 pub struct ScopedCss {
@@ -37,11 +115,14 @@ impl ScopedCss {
 /// their selectors. Nested scopes retain their order and boundaries. Ordinary rules
 /// without scopes retain their CSS nesting. Input must be balanced CSS.
 /// Scopes with implicit roots retain their style ancestors.
+/// Compiler `@stillwind-scope` wrappers instead retain the utility selector inside
+/// absolute roots and bind explicit nesting selectors to the root.
 pub fn normalize_scopes(css: &str) -> ScopedCss {
     if !css
         .as_bytes()
         .windows(6)
         .any(|text| text.eq_ignore_ascii_case(b"@scope"))
+        && !css.contains("@stillwind-scope")
         || validate_css_syntax(css).is_err()
     {
         return ScopedCss {
@@ -67,7 +148,7 @@ pub fn normalize_scopes(css: &str) -> ScopedCss {
 }
 
 fn contains_scope(node: &CssNode) -> bool {
-    matches!(&node.kind, CssNodeKind::AtRule { name, .. } if name == "scope")
+    matches!(&node.kind, CssNodeKind::AtRule { name, .. } if name == "scope" || name == "stillwind-scope")
         || node.children().iter().any(contains_scope)
 }
 
@@ -104,6 +185,13 @@ fn walk(
                 name,
                 prelude,
                 block: Some(block),
+            } if name == "stillwind-scope" => {
+                variant_scope_rule(css, node, prelude, block, parent, out);
+            }
+            CssNodeKind::AtRule {
+                name,
+                prelude,
+                block: Some(block),
             } if name == "scope" => {
                 scope_rule(css, node, prelude, block, parent, out);
             }
@@ -131,7 +219,12 @@ fn walk(
             } if (contains_scope(node) || scoped || parent.is_some())
                 && matches!(
                     name.as_str(),
-                    "media" | "supports" | "container" | "layer" | "starting-style"
+                    "media"
+                        | "supports"
+                        | "container"
+                        | "layer"
+                        | "starting-style"
+                        | "-stillwind-rule-boundary"
                 ) =>
             {
                 out.copy(css, node.range.start..block.contents.start);
@@ -172,6 +265,40 @@ fn walk(
         cursor = node.range.end;
     }
     out.copy(css, cursor..range.end);
+}
+
+fn variant_scope_rule(
+    css: &str,
+    node: &CssNode,
+    prelude: &Range<usize>,
+    block: &CssBlock,
+    parent: Option<&str>,
+    out: &mut ScopedCss,
+) {
+    let Some(scope) = parse_scope_prelude(&css[prelude.clone()]) else {
+        return;
+    };
+    let bound = scope.bind_variant(parent.unwrap_or("&"));
+    if parse_scope_prelude(&bound).is_none() {
+        return;
+    }
+    out.insert("@scope", node.range.start);
+    out.insert(&bound, prelude.start);
+    out.insert("{", block.contents.start);
+    let inner = Some(if scope.uses_subject() {
+        ":where(:scope)"
+    } else {
+        parent.unwrap_or("&")
+    });
+    walk(
+        css,
+        &block.children,
+        block.contents.clone(),
+        inner,
+        true,
+        out,
+    );
+    out.insert("}", node.range.end.saturating_sub(1));
 }
 
 fn scope_rule(
@@ -268,6 +395,35 @@ fn scope_prelude(prelude: &str, parent: Option<&str>, origin: usize, out: &mut S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn variant_scopes_bind_only_explicit_subjects() {
+        for (prelude, expected) in [
+            ("(:is(.card,::before))", " (:is(.card,::before))"),
+            ("(.card) to (& .stop)", " (.card) to (:where(:scope) .stop)"),
+            ("(.card &)", " (.card :is(.target))"),
+            ("", ""),
+            ("to (.stop)", " to (.stop)"),
+        ] {
+            assert_eq!(
+                parse_scope_prelude(prelude)
+                    .unwrap()
+                    .bind_variant(".target"),
+                expected
+            );
+        }
+        for prelude in [
+            "()",
+            "to",
+            "(.a) (.b)",
+            "(.a) to (.b) to (.c)",
+            "(.a,)",
+            "(.a",
+            "(::before)",
+        ] {
+            assert!(parse_scope_prelude(prelude).is_none(), "{prelude}");
+        }
+    }
 
     #[test]
     fn scope_declarations_and_ancestors_keep_their_order() {

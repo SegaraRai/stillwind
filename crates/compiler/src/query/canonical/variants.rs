@@ -409,6 +409,7 @@ fn contextual(application: &VariantApplication) -> bool {
         | VariantApplication::SelectorMedia { selector, .. } => !selector.contains('&'),
         VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }
+        | VariantApplication::Scope(_)
         | VariantApplication::Conditional(_) => true,
         _ => false,
     }

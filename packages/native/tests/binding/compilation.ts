@@ -11,6 +11,84 @@ import { sourceUri, cssInput, oneShotInput } from "./support.ts";
  * @param bindingSpecifier - Absolute URL of the binding module.
  */
 export function registerCompilationContract(bindingSpecifier: string): void {
+  test("scope variants bind roots and limits in previews, authored CSS, and modules", async () => {
+    const {
+      NativeDesignSystemLoader,
+      NativeProjectSession,
+      compileSource,
+      minifyCss,
+      renderStylesheet,
+    } = await import(bindingSpecifier);
+    const definitions =
+      "@utility flex{display:flex;}@custom-variant scoped{@scope (.card) to (& .stop){@slot;}}@custom-variant self{@scope (.card &){@slot;}}";
+    const css = `${definitions}.authored{@variant scoped{display:flex;}}@stillwind-slot utilities;`;
+    const loader = new NativeDesignSystemLoader();
+    expect(loader.provide(0, "root.css", css).kind).toBe("complete");
+    const query = loader.editorQuery();
+    expect(
+      minifyCss(query.previewCandidate("scoped:flex")!.replaceAll("&", ".item"), {
+        include: ["Nesting"],
+      }).css,
+    ).toBe("@scope(.card) to (:where(:scope) .stop){.item{display:flex}}");
+    for (const candidate of ["not-scoped:flex", "group-scoped:flex", "peer-scoped:flex"]) {
+      expect(query.previewCandidate(candidate), candidate).toBeNull();
+    }
+    const code = 'import {style} from "stillwind/react";export const item=style("scoped:flex");';
+    const compiled = compileSource(oneShotInput(code, "scoped.tsx", css));
+    expect(compiled.diagnostics).toEqual([]);
+    expect(compiled.lintFindings).toEqual([]);
+    const result = minifyCss(compiled.css.replaceAll(compiled.classes[0].className, "item"), {
+      include: ["Nesting"],
+    }).css;
+    expect(result).toContain("@scope(.card) to (:where(:scope) .stop){.item{display:flex}}");
+    const authored = minifyCss(renderStylesheet("", css), { include: ["Nesting"] }).css;
+    expect(authored).toContain("@scope(.card) to (:where(:scope) .stop){.authored{display:flex}}");
+    const session = new NativeProjectSession(loader, false);
+    session.compile([
+      {
+        kind: "direct",
+        moduleId: "scoped.tsx",
+        document: {
+          uri: sourceUri("scoped.tsx"),
+          code,
+          format: "jsx",
+          sourceMapSource: "scoped.tsx",
+        },
+        syntax: { language: "tsx", moduleKind: "module" },
+      },
+    ]);
+    const module = minifyCss(session.moduleCss("scoped.tsx").css, { include: ["Nesting"] }).css;
+    expect(module).toContain("@scope(.card) to (:where(:scope) .stop)");
+    expect(module).not.toContain(".authored");
+    const conditional = String.raw`@stillwind-variant if\(*\) (value: [if-condition]) { @stillwind-intrinsic builtin-if-variant; }`;
+    for (const prefix of ["if(--on):scoped", "scoped:if(--on)"]) {
+      const guarded = compileSource(
+        oneShotInput(
+          `import {style} from "stillwind/react";export const item=style("${prefix}:flex");`,
+          "guarded.tsx",
+          `${conditional}${definitions}@stillwind-slot utilities;`,
+        ),
+      );
+      expect(guarded.diagnostics).toEqual([]);
+      expect(guarded.css).toContain("@scope (.card)");
+      expect(guarded.css).toContain("--on");
+    }
+    expect(
+      minifyCss(query.previewCandidate("self:flex")!.replaceAll("&", ".item"), {
+        include: ["Nesting"],
+      }).css,
+    ).toBe("@scope(.card .item){:where(:scope){display:flex}}");
+    for (const candidate of ["[@scope(.card)]:flex", "[@scope(:is(.card,::before))]:flex"]) {
+      const preview = query.previewCandidate(candidate);
+      expect(preview, candidate).not.toBeNull();
+      expect(
+        minifyCss(preview!.replaceAll("&", ".item"), {
+          include: ["Nesting"],
+        }).css,
+      ).toBe("@scope(.card){.item{display:flex}}");
+    }
+  });
+
   test("authored scopes keep declaration roots and ancestor constraints", async () => {
     const { renderStylesheet, minifyCss } = await import(bindingSpecifier);
     const css = ".parent{@scope (.from) to (& .stop){color:red;.item{display:flex}}}";

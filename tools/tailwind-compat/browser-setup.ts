@@ -33,6 +33,44 @@ export default async function setup(project: TestProject) {
     '@import "tailwindcss/theme" layer(theme);@import "tailwindcss/utilities" layer(utilities);';
   const cases = [
     {
+      name: "scope variants select the utility between root and limit",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent) to (.stop) { @slot; } }",
+    },
+    {
+      name: "scope variant limits exclude the utility",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent) to (#probe) { @slot; } }",
+    },
+    {
+      name: "scope variants bind an explicit utility root",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent &) to (#probe) { @slot; } }",
+    },
+    {
+      name: "scope variants keep nested boundaries",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent) { @scope (#probe) { @slot; } } }",
+    },
+    {
+      name: "scope variants keep outer limits around nested scopes",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input:
+        "@custom-variant scoped { @scope (#parent) to (#probe) { @scope (#probe) { @slot; } } }",
+    },
+    {
+      name: "scope variants retain selectors and conditions inside the boundary",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input:
+        "@custom-variant scoped { @scope (#parent) { @supports (display:flex) { &[id=probe] { @slot; } } } }",
+    },
+    {
       name: "arbitrary shadow composes with blur and color",
       candidates: ["blur-sm", "drop-shadow-[0_1px_2px_rgb(0_0_0/0.25)]", "drop-shadow-red-500"],
       properties: ["filter"],
@@ -186,6 +224,26 @@ export default async function setup(project: TestProject) {
       expectedClass: "",
       actualClass: "",
     });
+  }
+  for (const prefix of ["if(--on):scoped", "scoped:if(--on)"]) {
+    for (const active of [false, true]) {
+      const native = compileParity(
+        `import {style} from 'stillwind/react';style(${JSON.stringify(`${prefix}:flex`)});`,
+        stillwindFixtureCss(`${baseInput}@custom-variant scoped { @scope (#parent) { @slot; } }`),
+      );
+      if (native.diagnostics.length) {
+        throw new Error(JSON.stringify(native.diagnostics));
+      }
+      payload.push({
+        name: `${prefix} keeps the computed condition ${active ? "active" : "inactive"}`,
+        properties: ["display"],
+        expected: `#probe{display:${active ? "flex" : "block"}}`,
+        actual: minifyCss(native.css, { include: ["Nesting"] }).css,
+        expectedClass: "",
+        actualClass: native.classes[0].className,
+        extra: active ? "#probe{--on: ;}" : "#probe{--on:initial}",
+      });
+    }
   }
   project.provide("tailwindCases", payload);
 }

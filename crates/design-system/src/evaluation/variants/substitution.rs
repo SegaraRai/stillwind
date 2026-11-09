@@ -78,6 +78,9 @@ pub(in crate::evaluation) fn apply_nested_variant(
     body: &str,
     inner: &VariantApplication,
 ) -> Option<VariantApplication> {
+    if contains_scope(inner) {
+        return None;
+    }
     match inner {
         VariantApplication::Compound(applications) => applications
             .iter()
@@ -128,7 +131,8 @@ pub(in crate::evaluation) fn apply_nested_variant(
         | VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
-        | VariantApplication::StartingStyle => None,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => None,
     }
 }
 
@@ -138,6 +142,9 @@ pub(in crate::evaluation) fn apply_nested_variant(
 /// The first such part is reported, in the order the application lists its parts. A
 /// sequence that styles more than one element reports the second one.
 pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> VariantObstacle {
+    if contains_scope(inner) {
+        return VariantObstacle::AtRule;
+    }
     match inner {
         VariantApplication::Compound(applications) => applications
             .iter()
@@ -170,7 +177,18 @@ pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> Var
         VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
-        | VariantApplication::StartingStyle => VariantObstacle::AtRule,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => VariantObstacle::AtRule,
+    }
+}
+
+fn contains_scope(application: &VariantApplication) -> bool {
+    match application {
+        VariantApplication::Scope(_) => true,
+        VariantApplication::Sequence(children) | VariantApplication::Compound(children) => {
+            children.iter().any(contains_scope)
+        }
+        _ => false,
     }
 }
 

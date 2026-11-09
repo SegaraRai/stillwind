@@ -95,6 +95,8 @@ pub(super) enum VariantStep<'a> {
         /// parentheses.
         &'a str,
     ),
+    /// A scope boundary whose explicit nesting selectors bind when it is rendered.
+    Scope(&'a str),
     /// A CSS `@starting-style` wrapper with no prelude.
     StartingStyle,
 }
@@ -160,6 +162,7 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
                 VariantApplication::Media(condition) => VariantStep::Media(condition),
                 VariantApplication::Container(condition) => VariantStep::Container(condition),
                 VariantApplication::Supports(condition) => VariantStep::Supports(condition),
+                VariantApplication::Scope(prelude) => VariantStep::Scope(prelude),
                 VariantApplication::Conditional(condition) => VariantStep::Conditional(condition),
                 VariantApplication::StartingStyle => VariantStep::StartingStyle,
             };

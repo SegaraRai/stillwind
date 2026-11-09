@@ -9,6 +9,23 @@ use stillwind_test_support::css_source;
 
 use super::*;
 
+#[test]
+fn document_scopes_keep_the_selected_element_inside_the_scope() {
+    let (css, result) = compile(
+        r#"export const sheet = style.css({ "scoped:": { "[.item]:": "flex" } });"#,
+        "@custom-variant scoped { @scope (.card) to (.stop) { @slot; } }",
+    );
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+    assert!(
+        css.contains("@scope(.card) to (.stop){.item{display:flex}}"),
+        "{css}"
+    );
+}
+
 /// Compiles `body` after a React macro import against the standard package followed by
 /// `css`, and returns the stylesheet string of `export const sheet = ...`.
 fn compile(body: &str, css: &str) -> (String, CompileResult) {

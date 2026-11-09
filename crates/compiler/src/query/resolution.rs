@@ -154,7 +154,8 @@ impl QueryContext {
     /// output. This operation does not validate arbitrary CSS or add document support
     /// rules.
     pub(super) fn preview_declarations(&self, css: &str) -> Option<LeanStr> {
-        lower_conditionals(css, self.options.use_css_if, &candidate_identifiers(true))
+        let css = stillwind_css::normalize_scopes(css).css;
+        lower_conditionals(&css, self.options.use_css_if, &candidate_identifiers(true))
             .ok()
             .filter(|lowered| lowered.skipped.is_empty())
             .map(|lowered| LeanStr::from(preview_resource_urls(lowered.css, &self.design_system)))

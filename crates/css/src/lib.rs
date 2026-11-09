@@ -97,7 +97,7 @@ pub use parser::{
     validate_css_syntax_recovering,
 };
 pub use resources::{CssUrl, relative_css_urls};
-pub use scopes::{ScopedCss, normalize_scopes};
+pub use scopes::{ScopePrelude, ScopedCss, normalize_scopes, parse_scope_prelude};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition, fold_host_conditions,
     fold_nested_host_conditions, implicit_nesting_positions, instantiate_selector,

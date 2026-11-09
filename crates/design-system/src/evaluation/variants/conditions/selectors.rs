@@ -38,7 +38,8 @@ pub(super) fn is_filter(application: &VariantApplication) -> bool {
         }
         VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }
-        | VariantApplication::StartingStyle => false,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => false,
     }
 }
 
@@ -54,6 +55,7 @@ pub(super) fn moves_subject(application: &VariantApplication) -> bool {
         | VariantApplication::Supports(_)
         | VariantApplication::Conditional(_)
         | VariantApplication::StartingStyle => false,
+        VariantApplication::Scope(_) => true,
         VariantApplication::SelectorSuffix(suffix) => subject_compound_parts(suffix).is_none(),
         VariantApplication::SelectorTemplate(selector)
         | VariantApplication::BareSelector { selector, .. }

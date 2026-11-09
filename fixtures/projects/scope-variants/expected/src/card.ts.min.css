@@ -1,0 +1,17 @@
+@scope (.card) to (.stop) {
+  .sw_y8mz3 {
+    display: flex;
+  }
+}
+@scope (.card .sw_7qnbb) {
+  :where(:scope) {
+    display: flex;
+  }
+}
+@scope (.outer) {
+  @scope (.inner) {
+    .sw_icpd2 {
+      display: flex;
+    }
+  }
+}

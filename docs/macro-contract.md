@@ -468,6 +468,28 @@ do not produce `DocumentScopedSelector` findings. A definition with the
 `scope(document)` marker keeps its selectors as written; see
 [Variant targets](#variant-targets).
 
+A custom variant can wrap its slot in `@scope`. A scope-start without `&` selects
+roots independently of the generated class, and the utility applies inside those
+roots up to the scope-end. When the start contains `&`, it binds to the current
+utility selector and the declarations apply to the resulting root with zero
+specificity. In the end selector, `&` always means `:where(:scope)`. Scopes can nest
+and contain selector or conditional variants. Empty and end-only preludes keep
+their stylesheet-dependent implicit root. Scope variants cannot be negated or
+used as the inner variant of `group-*`, `peer-*`, or `has-*`.
+
+```css
+@custom-variant in-card {
+  @scope (.card) to (.stop) {
+    @slot;
+  }
+}
+@custom-variant card-root {
+  @scope (.card &) {
+    @slot;
+  }
+}
+```
+
 An arbitrary variant selector without `&` tests the styled element, as in Tailwind:
 `[:hover]:`, `[.is-open]:`, and `[:hover,:focus]:` become `&:is(...)`. The selector
 stays document-wide when `&:is(...)` would be invalid or could never match the styled

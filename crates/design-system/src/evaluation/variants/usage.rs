@@ -196,6 +196,7 @@ fn application_tokens(application: &VariantApplication) -> BTreeSet<LeanStr> {
         VariantApplication::SelectorMedia { condition, .. }
         | VariantApplication::Media(condition)
         | VariantApplication::Container(condition)
+        | VariantApplication::Scope(condition)
         | VariantApplication::Supports(condition) => {
             tokens.extend(inspect_css_value(condition).1);
         }

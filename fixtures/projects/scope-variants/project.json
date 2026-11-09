@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "scope-variants",
+  "title": "Scope variants",
+  "description": "Custom scope roots and limits wrap generated module styles, authored variant applications, and document CSS without moving document rules into modules.",
+  "tags": ["typescript", "variant", "scope", "document-css"],
+  "theme": "stillwind.css",
+  "sources": ["src/card.ts"]
+}

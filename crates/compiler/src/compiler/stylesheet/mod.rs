@@ -39,6 +39,8 @@ pub(crate) use template::{render_css_template, render_mapped};
 pub(crate) use theme_prefix::{prefix_theme_variables, rewrite_generated_css};
 
 pub(super) use authored_directives::expand_authored_directives;
+pub(super) use authored_directives::fold_nested_host_rules;
+pub(super) use authored_directives::render_authored_variant_steps;
 
 #[cfg(test)]
 pub(super) use authored_directives::render_authored_variant_path;

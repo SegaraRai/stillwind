@@ -11,8 +11,8 @@ use std::fmt;
 use lean_string::{LeanStr, LeanString};
 
 use stillwind_css::{
-    SelectorTarget, selector_is_element_condition, selector_repeats_subject, selector_target,
-    selector_uses_subject,
+    SelectorTarget, parse_scope_prelude, selector_is_element_condition, selector_repeats_subject,
+    selector_target, selector_uses_subject,
 };
 use stillwind_syntax::{Variant, VariantKind};
 
@@ -92,6 +92,9 @@ pub enum VariantApplication {
         /// `not (display:grid)`.
         LeanStr,
     ),
+    /// A complete `@scope` prelude. Its start binds explicit `&` to the current
+    /// selector; its end binds `&` to the scope root. Missing starts stay implicit.
+    Scope(LeanStr),
     /// The starting-style at-rule, which the emitter applies around the rule.
     StartingStyle,
 }
@@ -111,6 +114,9 @@ impl VariantApplication {
             | Self::SelectorMedia { selector, .. }
             | Self::SelectorMediaRule { selector, .. } => selector_uses_subject(selector),
             Self::Media(_) | Self::Container(_) | Self::Supports(_) | Self::StartingStyle => false,
+            Self::Scope(prelude) => {
+                parse_scope_prelude(prelude).is_some_and(stillwind_css::ScopePrelude::uses_subject)
+            }
         }
     }
 }
@@ -138,7 +144,7 @@ pub enum VariantObstacle {
     OtherElement,
     /// A selector does not refer to the styled element, such as `:root`.
     NoSubject,
-    /// A media, container, support, or starting-style condition, which a selector
+    /// A media, container, support, scope, or starting-style condition, which a selector
     /// cannot contain.
     AtRule,
     /// The `@starting-style` rule, which has no negated form.
@@ -221,6 +227,7 @@ pub fn document_scoped_selector(application: &VariantApplication) -> Option<&str
         | VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
+        | VariantApplication::Scope(_)
         | VariantApplication::StartingStyle => None,
     }
 }
@@ -269,6 +276,9 @@ fn repeated_application_selector(application: &VariantApplication) -> Option<&st
         | VariantApplication::SelectorMediaRule { selector, .. } => {
             selector_repeats_subject(selector).then_some(selector.as_str())
         }
+        VariantApplication::Scope(prelude) => parse_scope_prelude(prelude)?
+            .start
+            .filter(|selector| selector_repeats_subject(selector)),
         VariantApplication::Conditional(_)
         | VariantApplication::SelectorSuffix(_)
         | VariantApplication::Media(_)

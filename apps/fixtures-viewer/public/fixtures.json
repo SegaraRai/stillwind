@@ -986,6 +986,66 @@
     },
     {
       "schemaVersion": 1,
+      "id": "scope-variants",
+      "title": "Scope variants",
+      "description": "Custom scope roots and limits wrap generated module styles, authored variant applications, and document CSS without moving document rules into modules.",
+      "tags": [
+        "typescript",
+        "variant",
+        "scope",
+        "document-css"
+      ],
+      "theme": "stillwind.css",
+      "sources": [
+        "src/card.ts"
+      ],
+      "css": "/*! stillwind | MIT License | https://stillwind.dev */\n/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */\n/*\nThe property-initials slot inserts declarations for selected builtin registrations.\nEach element and the listed pseudo-elements receive their own fallback values in the\nqueried compatibility environments; a root-only reset would allow inherited state to\nreach descendants. Keep this declaration slot inside the selector rule.\n*/\n\n@layer properties {\n  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or\n    ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {\n  }\n}\n\n@scope (.card) to (.stop) {\n  .authored {\n    display: flex;\n  }\n}\n@scope (.card) to (.stop) {\n  .sw_y8mz3 {\n    display: flex;\n  }\n}\n@scope (.card :is(.sw_7qnbb)) {\n  :where(:scope) {\n    display: flex;\n  }\n}\n@scope (.outer) {\n  @scope (.inner) {\n    .sw_icpd2 {\n      display: flex;\n    }\n  }\n}\n",
+      "minifiedCss": "/*! stillwind | MIT License | https://stillwind.dev */\n/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */\n@layer properties;\n@scope (.card) to (.stop) {\n  .authored {\n    display: flex;\n  }\n}\n@scope (.card) to (.stop) {\n  .sw_y8mz3 {\n    display: flex;\n  }\n}\n@scope (.card .sw_7qnbb) {\n  :where(:scope) {\n    display: flex;\n  }\n}\n@scope (.outer) {\n  @scope (.inner) {\n    .sw_icpd2 {\n      display: flex;\n    }\n  }\n}\n",
+      "files": [
+        {
+          "path": "src/card.ts",
+          "language": "typescript",
+          "before": "import { style } from \"stillwind/react\";\n\nexport const item = style(\"in-card:flex\");\nexport const root = style(\"card-root:flex\");\nexport const nested = style(\"nested-card:flex\");\nexport const sheet = style.css({ \"in-card:\": { \"[.label]:\": \"flex\" } });\n",
+          "after": "\n\nexport const item = {className:\"sw_y8mz3\"};\nexport const root = {className:\"sw_7qnbb\"};\nexport const nested = {className:\"sw_icpd2\"};\nexport const sheet = \"@scope(.card) to (.stop){.label{display:flex}}\";\n",
+          "css": "@scope (.card) to (.stop) {\n  .sw_y8mz3 {\n    display: flex;\n  }\n}\n@scope (.card :is(.sw_7qnbb)) {\n  :where(:scope) {\n    display: flex;\n  }\n}\n@scope (.outer) {\n  @scope (.inner) {\n    .sw_icpd2 {\n      display: flex;\n    }\n  }\n}\n",
+          "minifiedCss": "@scope (.card) to (.stop) {\n  .sw_y8mz3 {\n    display: flex;\n  }\n}\n@scope (.card .sw_7qnbb) {\n  :where(:scope) {\n    display: flex;\n  }\n}\n@scope (.outer) {\n  @scope (.inner) {\n    .sw_icpd2 {\n      display: flex;\n    }\n  }\n}\n",
+          "diff": [
+            {
+              "fromA": 0,
+              "toA": 40,
+              "fromB": 0,
+              "toB": 0
+            },
+            {
+              "fromA": 62,
+              "toA": 83,
+              "fromB": 22,
+              "toB": 44
+            },
+            {
+              "fromA": 105,
+              "toA": 128,
+              "fromB": 66,
+              "toB": 88
+            },
+            {
+              "fromA": 152,
+              "toA": 177,
+              "fromB": 112,
+              "toB": 134
+            },
+            {
+              "fromA": 200,
+              "toA": 250,
+              "fromB": 157,
+              "toB": 205
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
       "id": "scoped-preflight",
       "title": "Scoped Preflight",
       "description": "Preflight imported inside a style rule, so the reset applies only to an embedded widget.",

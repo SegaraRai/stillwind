@@ -120,7 +120,7 @@ pub(in crate::compiler) fn expand_authored_directives(
         output.replace_range(range, &replacement);
     }
     fold_nested_host_rules(&mut output);
-    Ok(output)
+    Ok(stillwind_css::normalize_scopes(&output).css.into())
 }
 
 /// Moves conditions on a shadow host into `:host()` in the rules nested under a host.
@@ -128,7 +128,7 @@ pub(in crate::compiler) fn expand_authored_directives(
 /// `@apply` and `@variant` write nested rules such as `&:hover`, and a browser cannot
 /// match that rule under `:host`. The pass also covers nested rules in the authored
 /// CSS, because they have the same form. A top-level rule stays as written.
-fn fold_nested_host_rules(css: &mut LeanString) {
+pub(in crate::compiler) fn fold_nested_host_rules(css: &mut LeanString) {
     if !css.contains(":host") {
         return;
     }
@@ -446,80 +446,90 @@ pub(in crate::compiler) fn render_authored_variant_path(
 ) -> Result<LeanString, CompileDiagnostic> {
     variant_paths(applications)
         .iter()
-        .map(|path| {
-            path.iter()
-                .rev()
-                .try_fold(
-                    (body.to_lean_string(), Vec::new()),
-                    |(body, mut gates), application| match *application {
-                        VariantStep::SelectorSuffix(suffix) => {
-                            Ok((format_args!("&{suffix}{{{body}}}").to_lean_string(), gates))
-                        }
-                        VariantStep::SelectorCondition(condition) => Ok((
-                            format_args!("&{condition}{{{body}}}").to_lean_string(),
-                            gates,
-                        )),
-                        VariantStep::SelectorTemplate(selector)
-                        | VariantStep::BareSelector { selector, .. } => {
-                            Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
-                        }
-                        VariantStep::SelectorRule {
-                            selector,
-                            declarations,
-                        } => {
-                            let mut body = body;
-                            prepend_missing_declarations(&mut body, declarations);
-                            Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
-                        }
-                        VariantStep::SelectorMedia {
-                            selector,
-                            condition,
-                        } => Ok((
-                            format_args!("{selector}{{@media {condition}{{{body}}}}}")
-                                .to_lean_string(),
-                            gates,
-                        )),
-                        VariantStep::SelectorMediaRule {
-                            selector,
-                            declarations,
-                            condition,
-                        } => {
-                            let mut body = body;
-                            prepend_missing_declarations(&mut body, declarations);
-                            Ok((
-                                format_args!("{selector}{{@media {condition}{{{body}}}}}")
-                                    .to_lean_string(),
-                                gates,
-                            ))
-                        }
-                        VariantStep::Media(condition) => Ok((
-                            format_args!("@media {condition}{{{body}}}").to_lean_string(),
-                            gates,
-                        )),
-                        VariantStep::Container(condition) => Ok((
-                            format_args!("@container {condition}{{{body}}}").to_lean_string(),
-                            gates,
-                        )),
-                        VariantStep::Supports(condition) => Ok((
-                            format_args!("@supports {condition}{{{body}}}").to_lean_string(),
-                            gates,
-                        )),
-                        VariantStep::Conditional(condition) => {
-                            let guarded = guard(&body, condition, identifiers, &gates)?;
-                            gates.extend(guarded.gates);
-                            let rule = format_args!("&{{{}}}", guarded.css).to_lean_string();
-                            Ok((protect(&rule), gates))
-                        }
-                        VariantStep::StartingStyle => Ok((
-                            format_args!("@starting-style{{{body}}}").to_lean_string(),
-                            gates,
-                        )),
-                    },
-                )
-                // The gates are already written into the body; see the function documentation.
-                .map(|(body, _)| body)
-        })
+        .map(|path| render_authored_variant_steps(body, path, identifiers))
         .collect()
+}
+
+/// Wraps a declaration body in one resolved path, retaining scope boundaries.
+/// Returns a diagnostic when a conditional helper name cannot be generated.
+pub(in crate::compiler) fn render_authored_variant_steps(
+    body: &str,
+    path: &[VariantStep<'_>],
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    path.iter()
+        .rev()
+        .try_fold(
+            (body.to_lean_string(), Vec::new()),
+            |(body, mut gates), application| match *application {
+                VariantStep::SelectorSuffix(suffix) => {
+                    Ok((format_args!("&{suffix}{{{body}}}").to_lean_string(), gates))
+                }
+                VariantStep::SelectorCondition(condition) => Ok((
+                    format_args!("&{condition}{{{body}}}").to_lean_string(),
+                    gates,
+                )),
+                VariantStep::SelectorTemplate(selector)
+                | VariantStep::BareSelector { selector, .. } => {
+                    Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
+                }
+                VariantStep::SelectorRule {
+                    selector,
+                    declarations,
+                } => {
+                    let mut body = body;
+                    prepend_missing_declarations(&mut body, declarations);
+                    Ok((format_args!("{selector}{{{body}}}").to_lean_string(), gates))
+                }
+                VariantStep::SelectorMedia {
+                    selector,
+                    condition,
+                } => Ok((
+                    format_args!("{selector}{{@media {condition}{{{body}}}}}").to_lean_string(),
+                    gates,
+                )),
+                VariantStep::SelectorMediaRule {
+                    selector,
+                    declarations,
+                    condition,
+                } => {
+                    let mut body = body;
+                    prepend_missing_declarations(&mut body, declarations);
+                    Ok((
+                        format_args!("{selector}{{@media {condition}{{{body}}}}}").to_lean_string(),
+                        gates,
+                    ))
+                }
+                VariantStep::Media(condition) => Ok((
+                    format_args!("@media {condition}{{{body}}}").to_lean_string(),
+                    gates,
+                )),
+                VariantStep::Container(condition) => Ok((
+                    format_args!("@container {condition}{{{body}}}").to_lean_string(),
+                    gates,
+                )),
+                VariantStep::Supports(condition) => Ok((
+                    format_args!("@supports {condition}{{{body}}}").to_lean_string(),
+                    gates,
+                )),
+                VariantStep::Scope(prelude) => Ok((
+                    format_args!("@stillwind-scope {prelude}{{{body}}}").to_lean_string(),
+                    gates,
+                )),
+                VariantStep::Conditional(condition) => {
+                    let guarded = guard(&body, condition, identifiers, &gates)?;
+                    gates.extend(guarded.gates);
+                    let rule = format_args!("&{{{}}}", guarded.css).to_lean_string();
+                    Ok((protect(&rule), gates))
+                }
+                VariantStep::StartingStyle => Ok((
+                    format_args!("@starting-style{{{body}}}").to_lean_string(),
+                    gates,
+                )),
+            },
+        )
+        // The gates are already written into the body; see the function documentation.
+        .map(|(body, _)| body)
 }
 
 #[cfg(test)]

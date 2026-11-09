@@ -168,6 +168,24 @@ const sized = plugin((api) =>
 );
 
 const cases: ComparisonCase[] = [
+  ...(
+    [
+      ["scoped:flex", false, "flex"],
+      ["scoped:flex", true, "block"],
+      ["scope-root:flex", true, "flex"],
+    ] as const
+  ).map(([candidate, limited, display]): ComparisonCase => ({
+    name: `plugin scope variants: ${candidate} with limit ${limited}`,
+    extension: plugin((api) => {
+      api.addVariant("scoped", "@scope (.card) to (.stop)");
+      api.addVariant("scope-root", "@scope (.card &) to (.stop)");
+    }),
+    candidates: [candidate],
+    html: (classes) =>
+      `<section class="card"><div id="target" class="${classes}${limited ? " stop" : ""}"></div></section>`,
+    properties: ["display"],
+    expected: [display],
+  })),
   ...["10cap", "10rex", "10dvmin", "10svi"].map((value): ComparisonCase => ({
     name: `typed plugin lengths: ${value}`,
     extension: sized,
