@@ -359,37 +359,73 @@ Rolldown release gives each pending call its own key, update Vite+ and remove th
 Sources: [server source resolution](../packages/integration/src/vite/server-source-resolve.ts),
 [React Router fixture](../e2e/frameworks/vite8-react19-reactrouter8/fixture.ts).
 
-## Dependents after a shared edit
+## Separate module compilation from linking
 
-A Vite compilation registers every dependency that it reads with `addWatchFile`. Vite
-then transforms every module that read a changed file again, and each transform
-compiles its entry and plans the document. In the generated `medium` application
-of `bench:apps`, an edit to the shared style module transforms about 270 server
-modules again. Their JavaScript and CSS stay unchanged: only the part of the edited
-module changes. Skipping these transforms needs a fingerprint of what a consumer
-reads from a dependency, such as exported style identities and the types that
-checker facts use, and an invalidation in the integration that replaces
-`addWatchFile` for dependencies. Measure the edit path again before choosing the
-fingerprint, because the checker work below can dominate after the transforms are
-gone.
+The output of a module should depend only on its own source, the checker facts for
+its own probes, and the interfaces of the modules that those facts name. An edit
+that keeps the interface of a dependency should not compile, transform, or query
+facts for its consumers again. Linking should resolve the names that cross module
+boundaries.
 
-Sources: [Vite compilation](../packages/integration/src/vite/compile.ts),
-[development hooks](../packages/integration/src/vite/development.ts),
-[application benchmark](../benchmarks/apps/run.ts).
+Moving every declaration of a dependency to a later offset shows these couplings:
 
-## Checker work for each entry
+- Checker identity keys contain declaration spans. An edit that changes the length
+  of a dependency before a declaration changes the types and facts of every
+  consumer.
+- The JavaScript of a consumer contains names from the dependency:
+  - A literal ref attachment writes the ref marker as the class name.
+  - The identity of a consumer's own utility class includes the rendered selector
+    of an imported ref variant, stored variant, anchor, container, or view
+    transition. The consumer's class names therefore change too.
+  - The candidate tables of conditional anchors and keyframes use the imported
+    names as keys.
+  - A dynamic view-transition name passes the imported token as a literal. It does
+    not read the token from the receiver.
+- The CSS of a consumer contains the imported names. It also contains copies of
+  imported keyframes and view-transition declarations, and the artifact key
+  contains the copied IR and the imported identities.
+- Composition changes only the base span in `compositionTopology`. The consumer's
+  JavaScript and CSS stay the same. Conditional ref attachments read `.c` at
+  runtime and also stay the same. An edit of a utility string after the last
+  declaration changes no consumer output.
 
-Any file change clears every retained type fact, and each compilation then asks
-the checker for the facts of its entry and styled dependencies. The checker also
-reads the semantic diagnostics of each queried file to reject facts that depend
-on Stillwind type errors. In the `medium` application this costs about 4 ms for
-each transform, which is now the largest part of an entry compilation. Decide
-whether facts can be kept for files whose import closure did not change, or kept
-when the exported types of the changed file are equal, and whether the diagnostic
-check must stay on the compilation path.
+Each compilation also compiles the semantic closure of its entry. Vite registers
+every dependency with `addWatchFile`, so an edit transforms every consumer again,
+and each transform plans the whole document. Each Vite environment has its own
+session and checker. In a build the checker answers each file once for each
+environment, and most checker time goes to snapshot updates while discovery adds
+files and to producer registration after each update.
 
-Sources: [checker service](../packages/host/src/semantics/node/service.ts),
-[compilation project](../packages/host/src/compilation/project.ts).
+Planned direction:
+
+1. Give declarations a key that survives edits elsewhere in the module: kind,
+   module, enclosing declaration path, and ordinal. Use it for checker identities
+   and cross-module references, and keep spans inside the declaring module.
+2. Build consumer class identities and generated JavaScript from declaration keys
+   or runtime receiver values, never from imported names. This changes the
+   generated names of classes with ref variants once.
+3. Keep references to imported declarations as slots in consumer CSS. Linking fills
+   the names and includes the declaration rules of the declaring module, which
+   replaces asset support copies.
+4. Compile one module for each transform with the facts of its own probes. Key
+   artifacts by the dependency interfaces that they read, and move cycle and
+   missing-producer checks to linking.
+5. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
+   without transforming a consumer whose JavaScript does not change, and plan only
+   when a consumer requests CSS.
+6. Share the checker and artifacts between Vite environments, and add discovered
+   checker files in batches.
+
+Open decisions: whether generated declaration names should come from declaration
+keys, whether the checker diagnostic check stays on the compilation path, and how
+development reports link-time errors.
+
+Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
+[variant identities](../crates/compiler/src/compiler/style_variants/plan.rs),
+[asset support](../crates/ir/src/analysis.rs),
+[artifact keys](../crates/compiler/src/module_compiler.rs),
+[module graph](../packages/host/src/compilation/module-graph.ts),
+[Vite compilation](../packages/integration/src/vite/compile.ts).
 
 ## Transport options of dependencies
 
