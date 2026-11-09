@@ -401,24 +401,28 @@ Planned direction:
 1. Give declarations a key that survives edits elsewhere in the module: kind,
    module, enclosing declaration path, and ordinal. Use it for checker identities
    and cross-module references, and keep spans inside the declaring module.
-2. Build consumer class identities and generated JavaScript from declaration keys
-   or runtime receiver values, never from imported names. This changes the
-   generated names of classes with ref variants once.
-3. Keep references to imported declarations as slots in consumer CSS. Linking fills
-   the names and includes the declaration rules of the declaring module, which
-   replaces asset support copies.
+2. Derive declaration names (ref markers, anchor and container names, keyframes,
+   and view-transition tokens) from that key, and build consumer class identities
+   from keys instead of rendered selectors. A consumer can then compute imported
+   names without the declaring module, and those names change only when the key
+   or label changes.
+3. Let linking include the declaration rules of the declaring module for each
+   imported keyframes or view-transition use, which replaces asset support copies.
+   Read stored-variant sequences and inline-style flags of bases from the interface
+   of the dependency.
 4. Compile one module for each transform with the facts of its own probes. Key
    artifacts by the dependency interfaces that they read, and move cycle and
-   missing-producer checks to linking.
+   missing-producer checks to linking. Style-effect lints such as
+   `interfering-imported-style-base` already run over published artifacts and stay
+   there.
 5. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
    without transforming a consumer whose JavaScript does not change, and plan only
    when a consumer requests CSS.
 6. Share the checker and artifacts between Vite environments, and add discovered
-   checker files in batches.
+   checker files in batches. Neither step needs the steps above.
 
-Open decisions: whether generated declaration names should come from declaration
-keys, whether the checker diagnostic check stays on the compilation path, and how
-development reports link-time errors.
+Open decisions: whether the checker diagnostic check stays on the compilation
+path, and how development reports link-time errors.
 
 Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
 [variant identities](../crates/compiler/src/compiler/style_variants/plan.rs),
