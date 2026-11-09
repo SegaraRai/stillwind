@@ -344,7 +344,7 @@ fn graph_cycles_remain_fatal_across_output_formats() {
         let mut second = analyzed("second.ts", framework);
         compose_external(&mut first, base_identity(&second));
         compose_external(&mut second, base_identity(&first));
-        let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
+        let lowered = ModuleAnalysis::validate_composition_batch(&[first, second]);
         for module in &lowered {
             assert!(
                 module
@@ -404,7 +404,7 @@ fn composition_retains_candidates_with_different_class_properties() {
             candidates: candidates.clone(),
         },
     );
-    let lowered = ModuleAnalysis::attach_asset_support_batch(&[first, second]);
+    let lowered = ModuleAnalysis::validate_composition_batch(&[first, second]);
     assert_eq!(lowered[0].diagnostics, [] as [CompileError; 0]);
     assert!(lowered[0].lint_findings.is_empty(), "{:#?}", lowered[0]);
     let StyleInput::Composition {

@@ -55,7 +55,7 @@ Sources: [style declaration](../packages/core/src/macro/style.ts),
 
 Semantic revisions hash `Debug` representations of facts and asset metadata in
 several entrypoints. Define one deterministic representation shared by those
-entrypoints. Confirm invalidation when facts or asset support change without
+entrypoints. Confirm invalidation when facts or asset metadata change without
 making incidental debug formatting part of the cache contract.
 
 Sources: [project input](../crates/napi/src/api/project.rs),
@@ -385,9 +385,11 @@ and no generated names. These couplings remain:
     names as keys.
   - A dynamic view-transition name passes the imported token as a literal. It does
     not read the token from the receiver.
-- The CSS of a consumer contains the imported names. It also contains copies of
-  imported keyframes and view-transition declarations, and the artifact key
-  contains the copied IR and the imported identities.
+- The CSS of a consumer contains the imported names, and the artifact key contains
+  the imported identities. Planning adds the rules of imported keyframes and view
+  transitions from the artifact of the declaring module.
+- Compilation reads the inline-style flags of composed bases from the analyses of
+  the whole batch, not from the interface of the dependency.
 - Composition records only the base key in `compositionTopology`. The consumer's
   JavaScript and CSS stay the same. Conditional ref attachments read `.c` at
   runtime and also stay the same. An edit of a utility string after the last
@@ -403,18 +405,15 @@ semantic diagnostics of each queried file, and reading facts.
 
 Planned direction:
 
-1. Let linking include the declaration rules of the declaring module for each
-   imported keyframes or view-transition use, which replaces asset support copies.
-   Read stored-variant sequences and inline-style flags of bases from the interface
-   of the dependency.
-2. Compile one module for each transform with the facts of its own probes. Key
+1. Compile one module for each transform with the facts of its own probes. Key
    artifacts by the dependency interfaces that they read, and move cycle and
-   missing-producer checks to linking. Style-effect lints such as
+   missing-producer checks to linking. Read the inline-style flags of bases from
+   the interface of the dependency. Style-effect lints such as
    `interfering-imported-style-base` already run over published artifacts and stay
    there.
-3. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
+2. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
    without transforming a consumer whose JavaScript does not change.
-4. Share compiled artifacts between Vite environments whose design systems and
+3. Share compiled artifacts between Vite environments whose design systems and
    compiler settings are equal. This step does not need the steps above.
 
 Open decisions: whether the checker diagnostic check stays on the compilation
@@ -422,7 +421,8 @@ path, and how development reports link-time errors.
 
 Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
 [variant identities](../crates/compiler/src/compiler/style_variants/plan.rs),
-[asset support](../crates/ir/src/analysis.rs),
+[composition checks](../crates/ir/src/analysis.rs),
+[stylesheet plans](../crates/project/src/stylesheet_plan.rs),
 [artifact keys](../crates/compiler/src/module_compiler.rs),
 [module graph](../packages/host/src/compilation/module-graph.ts),
 [Vite compilation](../packages/integration/src/vite/compile.ts).

@@ -617,7 +617,7 @@ impl NativeProjectSession {
         let diagnostic_sources = transaction
             .diagnostic_sources()
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        for module_analysis in ModuleAnalysis::attach_asset_support_batch(&analyses) {
+        for module_analysis in ModuleAnalysis::validate_composition_batch(&analyses) {
             let module_id = module_analysis.module_id.clone();
             let source = module_analysis.source.clone();
             let update = transaction.update_module(module_analysis.clone());
@@ -626,7 +626,7 @@ impl NativeProjectSession {
                 transaction
                     .artifacts()
                     .get(&module_id)
-                    .map(|artifact| artifact.to_module_output())
+                    .map(|artifact| transaction.linked_output(artifact))
                     .unwrap_or_default()
             } else {
                 CompileResult {
@@ -653,7 +653,7 @@ impl NativeProjectSession {
                             Error::from_reason("Successful compilation has no current artifact")
                         })?;
                     let (output, _) = binding_output_with_batch(
-                        artifact.to_module_output(),
+                        transaction.linked_output(artifact),
                         &analysis.source,
                         &final_sources,
                     )?;

@@ -76,16 +76,11 @@ impl ModuleCompiler {
                     identifiers.clone(),
                     Fingerprint::of(
                         format_args!(
-                            "{:?}{:?}{:?}{:?}{:?}",
+                            "{:?}{:?}{:?}{:?}",
                             module.module_id,
                             module.source_revision,
                             self.design_system.fingerprints().content,
                             self.options,
-                            module
-                                .asset_support
-                                .iter()
-                                .map(|support| (&support.module_id, &support.source_revision))
-                                .collect::<Vec<_>>(),
                         )
                         .to_lean_string(),
                     ),
@@ -152,15 +147,14 @@ impl ModuleCompiler {
 
     /// Returns the cache key for `module` without compiling it.
     ///
-    /// If the module has asset support, `semantic_revision` also hashes the support
-    /// modules' revisions. Changing those modules can change this module's output
-    /// even when its own source is unchanged.
+    /// The key covers only this module's analysis. Definitions that linking takes from
+    /// other modules are not part of it.
     pub fn key_for(&self, module: &ModuleAnalysis) -> ModuleArtifactKey {
         ModuleArtifactKey {
             compiler_options: Fingerprint::of(format_args!("{:?}", self.options).to_lean_string()),
             analysis_revision: Fingerprint::of(
                 format_args!(
-                    "{:?}{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
+                    "{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
                     module.input.revision(),
                     module.ir,
                     module.summary,
@@ -168,7 +162,6 @@ impl ModuleCompiler {
                     module.lint_directives,
                     module.diagnostics,
                     module.lint_findings,
-                    module.asset_support,
                 )
                 .to_lean_string(),
             ),
@@ -183,34 +176,12 @@ impl ModuleCompiler {
             module_id: module.module_id.clone(),
             source_file_id: module.source.id().0,
             frontend_kind: (module.frontend_kind.clone()),
-            semantic_revision: if module.asset_support.is_empty() {
-                module.semantic_revision.clone()
-            } else {
-                Some(Fingerprint::of(
-                    format_args!(
-                        "{:?}{:?}",
-                        module.semantic_revision,
-                        module
-                            .asset_support
-                            .iter()
-                            .map(|support| (
-                                &support.module_id,
-                                &support.source_revision,
-                                &support.ir
-                            ))
-                            .collect::<Vec<_>>()
-                    )
-                    .to_lean_string(),
-                ))
-            },
+            semantic_revision: module.semantic_revision.clone(),
         }
     }
 
-    /// Compiles the module together with the support modules its assets came from.
-    ///
-    /// Support modules contribute declaration CSS and symbols, with resources owned by
-    /// their own source paths. Their source transforms are not returned here.
-    fn compile_support_closure(
+    /// Compiles the module and captures the URLs in its CSS as resources it owns.
+    fn compile_module(
         &self,
         module: &ModuleAnalysis,
         identifiers: &IdentifierContext,
@@ -223,22 +194,6 @@ impl ModuleCompiler {
             identifiers,
         );
         self.capture_resources(&mut result, &module.module_id);
-        for support in &module.asset_support {
-            let mut compiled = Compiler::compile_support_with_snapshot(
-                &support.source,
-                support,
-                &self.design_system,
-                &self.options,
-                identifiers,
-            );
-            self.capture_resources(&mut compiled, &support.module_id);
-            result.module_css.push_str(&compiled.module_css);
-            result.contributions.extend(compiled.contributions);
-            result.resources.extend(compiled.resources);
-            result.symbols.extend(compiled.symbols);
-            result.rejected_names.extend(compiled.rejected_names);
-            result.diagnostics.extend(compiled.diagnostics);
-        }
         result
             .rejected_names
             .extend(identifiers.drain_rejected().into_entries());
@@ -305,16 +260,17 @@ impl ModuleCompiler {
     /// Frontend integration errors receive the module's full source span. If any
     /// compilation error remains, the returned CSS artifact is empty.
     ///
-    /// Successful artifacts keep the effects of this module's own style calls.
-    /// Asset support modules supply declarations without adding style-call effects.
+    /// Successful artifacts keep the effects of this module's own style calls. Their CSS
+    /// contains only this module's rules; linking adds the definitions that
+    /// [`CompiledModule::linked_definitions`] names.
     ///
-    /// Spans in `module` must refer to its editable source, and its support records
-    /// must be valid. `identifiers` supplies the naming rules. Each call creates a
-    /// separate naming context. Errors are returned in the artifact's diagnostics.
-    /// Failed compilation clears style effects, CSS, classes, symbols, and transforms.
+    /// Spans in `module` must refer to its editable source. `identifiers` supplies the
+    /// naming rules. Each call creates a separate naming context. Errors are returned in
+    /// the artifact's diagnostics. Failed compilation clears style effects, CSS,
+    /// classes, symbols, and transforms.
     pub fn compile(&self, module: &ModuleAnalysis, identifiers: &Identifiers) -> CompiledModule {
         let identifiers = identifiers.context(self.options.hash_length);
-        let result = self.compile_support_closure(module, &identifiers);
+        let result = self.compile_module(module, &identifiers);
         let mut diagnostics = result.diagnostics;
         diagnostics.extend(
             module.integration_diagnostics.iter().map(|error| {
@@ -373,6 +329,11 @@ impl ModuleCompiler {
             },
             css,
             classes: if success { result.classes } else { Vec::new() },
+            linked_definitions: if success {
+                result.linked_definitions
+            } else {
+                BTreeSet::new()
+            },
             symbols: if success { result.symbols } else { Vec::new() },
             rejected_names: result.rejected_names,
             dynamic_candidates: result.dynamic_candidates,
@@ -386,10 +347,9 @@ impl ModuleCompiler {
 
 /// Candidate spellings a module can mention, including `container` query bodies.
 ///
-/// The walk is a conservative superset of what the module resolves: variant prefixes
-/// are concatenated so a qualified candidate is recorded in its spelled form, and
-/// unresolved candidates are included too, because they may resolve after a
-/// design-system change.
+/// The walk is a conservative superset of what the module resolves: variant prefixes are
+/// concatenated so a qualified candidate is recorded in its spelled form, and unresolved
+/// candidates are included too, because they may resolve after a design-system change.
 fn compilation_candidates(module: &ModuleAnalysis) -> BTreeSet<LeanStr> {
     let mut candidates = BTreeSet::new();
     for call in module.ir.style_inputs() {

@@ -262,7 +262,6 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
         ModuleAnalysis {
             input: scan.input,
             provenance,
-            asset_support: Vec::new(),
             external_assets: OxcSourceAnalyzer::external_assets(facts),
             module_id: scan.module_id,
             source: scan.source,

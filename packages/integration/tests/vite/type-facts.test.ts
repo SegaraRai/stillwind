@@ -366,7 +366,11 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
     },
   ]);
   expect(plan.coverage).toStrictEqual(selection.coverage);
-  expect(plan.producers.map((producer) => producer.module)).toStrictEqual(selection.modules);
+  // The producer that declares the linked keyframes is also a producer of the plan.
+  expect(plan.producers.map((producer) => producer.module)).toStrictEqual([
+    "src/consumer.ts",
+    "src/producer.ts",
+  ]);
   expect(plan.producers[0].sourceRevision).toMatch(/^[a-f0-9]{64}$/);
   expect(plan.producers[0].semanticRevision).toMatch(/^[a-f0-9]{64}$/);
   expect(() =>
@@ -391,7 +395,9 @@ test("TypeScript is required for cross-module conditional ref propagation", () =
     "src/consumer.ts",
   );
   const changedPlan = session.planStylesheet(selection) as typeof plan;
-  expect(changedPlan.producers[0].semanticRevision).not.toBe(plan.producers[0].semanticRevision);
+  // An edit of the linked keyframes changes the declaring producer, not the consumer.
+  expect(changedPlan.producers[0]).toStrictEqual(plan.producers[0]);
+  expect(changedPlan.producers[1].sourceRevision).not.toBe(plan.producers[1].sourceRevision);
   // CSS values may retain calc() until the bundler's optimization stage.
   expect(foldCalcExpressions(changedPlan.css, undefined)).toMatch(/opacity:5%/);
 

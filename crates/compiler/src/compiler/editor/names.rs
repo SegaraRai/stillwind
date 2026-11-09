@@ -41,7 +41,4 @@ pub(crate) fn reserve_preview_names(module: &ModuleAnalysis, names: &mut Preview
             definition.label.as_ref(),
         )));
     }
-    for support in &module.asset_support {
-        reserve_preview_names(support, names);
-    }
 }

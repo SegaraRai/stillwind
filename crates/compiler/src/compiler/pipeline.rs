@@ -360,12 +360,14 @@ impl Compiler {
                 &mut diagnostics,
                 &mut result.lint_findings,
             );
-            if required_definitions.contains(&named_identity(
+            let identity = named_identity(
                 module_id,
                 AssetKind::Keyframes,
                 &animation.binding,
                 &animation.key,
-            )) {
+            );
+            if required_definitions.contains(&identity) {
+                contribution.defines = Some(identity);
                 definition_css.push(contribution);
             }
         }
@@ -381,17 +383,24 @@ impl Compiler {
                 &mut diagnostics,
                 &mut result.lint_findings,
             );
-            if required_definitions.contains(&named_identity(
+            let identity = named_identity(
                 module_id,
                 AssetKind::ViewTransition,
                 &transition.binding,
                 &transition.key,
-            )) {
+            );
+            if required_definitions.contains(&identity) {
+                contribution.defines = Some(identity);
                 definition_css.push(contribution);
             }
         }
         definition_css.append(&mut utility_css);
         utility_css = definition_css;
+        result.linked_definitions = required_definitions
+            .iter()
+            .filter(|identity| identity.module_id() != module_id)
+            .cloned()
+            .collect();
         for ref_definition in module.ref_definitions {
             result.transforms.push(SourceTransform {
                 call_span: ref_definition.call_span,

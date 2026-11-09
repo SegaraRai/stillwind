@@ -362,6 +362,7 @@ impl<'a> ClassUnits<'a> {
                     banners: Vec::new(),
                     css: (declarations).into(),
                     definition: false,
+                    defines: None,
                     required_properties: Vec::new(),
                     keyframes: false,
                 });
