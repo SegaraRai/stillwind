@@ -614,7 +614,7 @@ impl NativeProjectSession {
             .collect();
         let mut modules = Vec::new();
         let mut attempted = Vec::new();
-        // Modules whose published batch still matches, with no output built yet.
+        // Modules whose stored analysis still applies, with no output built yet.
         let mut unchanged = Vec::new();
         let diagnostic_sources = transaction
             .diagnostic_sources()
@@ -622,14 +622,13 @@ impl NativeProjectSession {
         for module_analysis in ModuleAnalysis::validate_composition_batch(&analyses) {
             let module_id = module_analysis.module_id.clone();
             let source = module_analysis.source.clone();
-            let update = transaction.update_module(module_analysis.clone());
-            attempted.push(module_analysis);
-            if update.diagnostics.is_empty()
-                && same_batch_inputs(&self.session, &transaction, &module_id)
-            {
+            if same_analysis(&self.session, &module_analysis) {
+                attempted.push(module_analysis);
                 unchanged.push((module_id, source));
                 continue;
             }
+            let update = transaction.update_module(module_analysis.clone());
+            attempted.push(module_analysis);
             let result = if update.diagnostics.is_empty() {
                 transaction
                     .artifacts()
@@ -678,34 +677,24 @@ impl NativeProjectSession {
     }
 }
 
-/// Returns whether `module` has the same diagnostic batch inputs in `session` as in
-/// `previous`, so the batch that `previous` published still applies.
+/// Returns whether `session` holds a successful analysis that is interchangeable
+/// with `analysis`, so its artifact and published diagnostic batch still apply.
 ///
-/// `session` must be a transaction cloned from `previous` that has updated `module`.
-/// The inputs match when both sessions share the module's current artifact and source
-/// buffer and their latest analyses report the same errors and lint findings.
-/// Composition checks can change these reports without changing the artifact.
-fn same_batch_inputs(
-    previous: &ProjectSession,
-    session: &ProjectSession,
-    module: &ModuleId,
-) -> bool {
-    let (Some(before), Some(after)) = (
-        previous.analyses().get(module),
-        session.analyses().get(module),
-    ) else {
+/// The analyses match when they share the source buffer, the input revision, and the
+/// facts revision, and report the same errors and lint findings. Analysis derives
+/// the IR from these inputs, so an update would compute the same artifact key.
+/// Composition checks can change the reports without changing the inputs.
+fn same_analysis(session: &ProjectSession, analysis: &ModuleAnalysis) -> bool {
+    let Some(previous) = session.analyses().get(&analysis.module_id) else {
         return false;
     };
-    Arc::ptr_eq(&before.source, &after.source)
-        && before.diagnostics == after.diagnostics
-        && before.integration_diagnostics == after.integration_diagnostics
-        && before.lint_findings == after.lint_findings
-        && previous.current_artifact(module).is_some()
-        && previous
-            .artifacts()
-            .get(module)
-            .zip(session.artifacts().get(module))
-            .is_some_and(|(before, after)| Arc::ptr_eq(before, after))
+    session.current_artifact(&analysis.module_id).is_some()
+        && Arc::ptr_eq(&previous.source, &analysis.source)
+        && previous.semantic_revision == analysis.semantic_revision
+        && previous.diagnostics == analysis.diagnostics
+        && previous.integration_diagnostics == analysis.integration_diagnostics
+        && previous.lint_findings == analysis.lint_findings
+        && previous.input.revision() == analysis.input.revision()
 }
 
 impl NativeProjectSession {
