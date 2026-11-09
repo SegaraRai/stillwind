@@ -440,25 +440,51 @@ impl ProjectSession {
                 }
             }
         }
-        let mut remaining = modules.clone();
-        let mut order = Vec::new();
-        while !remaining.is_empty() {
-            let ready = remaining
-                .iter()
-                .find(|module| {
-                    self.artifacts().get(*module).is_none_or(|artifact| {
-                        artifact.composition.iter().all(|edge| {
-                            edge.base.module_id() == *module
-                                || !remaining.contains(edge.base.module_id())
-                        })
-                    })
-                })
-                .cloned();
-            let Some(module) = ready else {
-                return Err(StylesheetPlanError::CyclicModules(remaining));
-            };
-            remaining.remove(&module);
-            order.push(module);
+        // Each producer waits for its distinct bases. A ready set ordered by identity gives
+        // the same order as repeatedly taking the smallest ready producer, in time linear in
+        // the edges instead of quadratic in the producers.
+        let mut waiting = BTreeMap::new();
+        let mut consumers: BTreeMap<&ModuleId, Vec<&ModuleId>> = BTreeMap::new();
+        for module in modules.iter() {
+            let bases: BTreeSet<&ModuleId> = self
+                .artifacts()
+                .get(module)
+                .into_iter()
+                .flat_map(|artifact| &artifact.composition)
+                .map(|edge| edge.base.module_id())
+                .filter(|base| *base != module)
+                .collect();
+            waiting.insert(module, bases.len());
+            for base in bases {
+                consumers.entry(base).or_default().push(module);
+            }
+        }
+        let mut ready: BTreeSet<&ModuleId> = waiting
+            .iter()
+            .filter(|(_, count)| **count == 0)
+            .map(|(module, _)| *module)
+            .collect();
+        let mut order = Vec::with_capacity(modules.len());
+        while let Some(module) = ready.pop_first() {
+            order.push(module.clone());
+            for consumer in consumers.get(module).into_iter().flatten() {
+                if let Some(count) = waiting.get_mut(consumer) {
+                    *count -= 1;
+                    if *count == 0 {
+                        ready.insert(consumer);
+                    }
+                }
+            }
+        }
+        if order.len() < modules.len() {
+            let ordered: BTreeSet<&ModuleId> = order.iter().collect();
+            return Err(StylesheetPlanError::CyclicModules(
+                modules
+                    .iter()
+                    .filter(|module| !ordered.contains(module))
+                    .cloned()
+                    .collect(),
+            ));
         }
         Ok(order)
     }
