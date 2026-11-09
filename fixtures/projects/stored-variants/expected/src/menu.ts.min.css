@@ -1,18 +1,18 @@
-.sw_7mowq {
+.sw_lshss {
   position: relative;
 }
-.sw_7mowq:where(.sw_menu_mg4fw) {
+.sw_lshss:where(.sw_menu_mg4fw) {
   container: sw-c-menu-mg4fw/inline-size;
 }
-.sw_447xz {
+.sw_nefwu {
   padding-inline: calc(var(--spacing)*2);
 }
 @media (hover) {
-  .sw_trht8:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
+  .sw_vqac8:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
     rotate: 90deg;
   }
 }
-.sw_trht8:active:focus-visible {
+.sw_vqac8:active:focus-visible {
   --tw-scale-x: 95%;
   --tw-scale-y: 95%;
   --tw-scale-z: 95%;
@@ -20,17 +20,17 @@
 }
 @container sw-c-menu-mg4fw (width>=40rem) {
   @media (hover) {
-    .sw_2ed3f:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
+    .sw_u21ap:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
       --tw-font-weight: var(--font-weight-bold);
       font-weight: var(--font-weight-bold);
     }
   }
 }
 @media (hover) {
-  .sw_2ed3f:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
+  .sw_u21ap:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
     text-decoration-line: underline;
   }
-  .sw_8qe9c:active:focus-visible:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
+  .sw_8ak0a:active:focus-visible:is(:where(.sw_menu_mg4fw):has(:where(.sw_trigger_ga2g3):hover) *) {
     opacity: 0.5;
   }
 }

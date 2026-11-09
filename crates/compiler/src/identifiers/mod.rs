@@ -42,7 +42,7 @@ pub(crate) use generator::DetachedName;
 pub(crate) use kind::{DEFAULT_HASH_LENGTH, MAXIMUM_HASH_LENGTH, default_prefix};
 pub(crate) use name::{escaped_identifier, view_transition_name};
 pub(crate) use preview::{PreviewNames, PreviewRequest};
-pub(crate) use request::declaration_fields;
+pub(crate) use request::{declaration_fields, key_fields};
 
 #[cfg(test)]
 mod tests;

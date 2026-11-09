@@ -4,7 +4,7 @@ import { stillwindClsx, stillwindCssValue, stillwindClassObjectClassKey, stillwi
 import { base } from "./styles";
 
 export function update(button: HTMLButtonElement, active: boolean, tone: string) {
-  applyStyle(button, stillwindClassObjectMerge({[stillwindClassObjectClassKey]:"sw_0d02s"},stillwindClassObjectToFragment((base)),{[stillwindClassObjectClassKey]:stillwindClsx((active) && ("sw_5lom8")),[stillwindClassObjectCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}}));
+  applyStyle(button, stillwindClassObjectMerge({[stillwindClassObjectClassKey]:"sw_oplxh"},stillwindClassObjectToFragment((base)),{[stillwindClassObjectClassKey]:stillwindClsx((active) && ("sw_n7iyq")),[stillwindClassObjectCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}}));
 }
 
 export function dispose(button: HTMLButtonElement) {

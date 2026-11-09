@@ -35,8 +35,12 @@ pub struct NativeClassContext {
     pub module: String,
     /// The caller's class namespace.
     pub namespace: String,
-    /// Byte offset of the call.
-    pub call: u32,
+    /// Names of the declarations that enclose the `style()` call, from the outermost to
+    /// the innermost.
+    pub path: Vec<String>,
+    /// Zero-based position among earlier `style()` calls of the module with the same
+    /// path.
+    pub ordinal: u32,
     /// Branch discriminator and canonical spelling of the contribution.
     pub branch: String,
 }
@@ -233,7 +237,8 @@ impl IdentifierGenerator for NativeNaming {
                 NativeClassContext {
                     module: context.module.as_str().to_owned(),
                     namespace: (context.namespace.clone()).into(),
-                    call: context.call,
+                    path: context.key.path.iter().map(ToString::to_string).collect(),
+                    ordinal: context.key.ordinal,
                     branch: (context.branch.clone()).into(),
                 },
                 digest(hash),
@@ -343,7 +348,8 @@ impl IdentifierGenerator for NativeNaming {
                 NativeClassContext {
                     module: context.module.as_str().to_owned(),
                     namespace: (context.namespace.clone()).into(),
-                    call: context.call,
+                    path: context.key.path.iter().map(ToString::to_string).collect(),
+                    ordinal: context.key.ordinal,
                     branch: (context.branch.clone()).into(),
                 },
                 digest(hash),

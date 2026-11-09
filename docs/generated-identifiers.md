@@ -36,7 +36,9 @@ name, keyframes name, or view-transition class identifies the declaration by its
 the names of the enclosing declarations (`path`), an `ordinal` among earlier
 declarations with the same kind, path, and binding name, and the binding name. An edit
 elsewhere in the module that moves the declaration therefore keeps its context and
-hash. Returning the default choice preserves the compiler's generator. Host-generated
+hash. The context of a utility class or a view-transition slot identifies the
+`style()` call in the same way, by `path` and an `ordinal` among earlier calls with
+the same path. Returning the default choice preserves the compiler's generator. Host-generated
 names have no automatically added default prefix. Each compilation memoizes the family,
 identity, and label, including rejections. Hosts update `namingRevision` when callback
 behavior changes so old artifacts cannot reuse names from the previous generator.

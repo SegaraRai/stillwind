@@ -1,4 +1,4 @@
-.sw_5alcb {
+.sw_cgj73 {
   width: 100%;
   @media (width >= 40rem) {
     max-width: 40rem;
@@ -16,27 +16,27 @@
     max-width: 96rem;
   }
 }
-.sw_5alcb {
+.sw_cgj73 {
   container-name: sidebar;
   container-type: inline-size;
   padding: calc(var(--spacing) * 4);
   border-radius: var(--radius-lg);
 }
 @media (hover: hover) {
-  :is(:where(.group\/menu):hover .sw_5yn5y) {
+  :is(:where(.group\/menu):hover .sw_3e63i) {
     color: var(--color-brand);
   }
 }
-:is(:where(.peer\/field):checked ~ .sw_5yn5y) {
+:is(:where(.peer\/field):checked ~ .sw_3e63i) {
   text-decoration-line: underline;
 }
 @container (width < 28rem) {
-  .sw_5yn5y {
+  .sw_3e63i {
     display: none;
   }
 }
 @container (width >= 24rem) {
-  .sw_5yn5y {
+  .sw_3e63i {
     display: grid;
   }
 }

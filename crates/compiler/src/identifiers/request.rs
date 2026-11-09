@@ -83,8 +83,8 @@ pub struct ClassContext {
     pub module: ModuleId,
     /// The caller's class namespace, which separates independently built projects.
     pub namespace: LeanStr,
-    /// Byte offset of the call.
-    pub call: u32,
+    /// Key of the `style()` call in its module.
+    pub key: DeclarationKey,
     /// Branch discriminator and canonical spelling of the contribution.
     pub branch: LeanStr,
 }
@@ -356,13 +356,18 @@ pub(crate) fn declaration_fields(
     key: &DeclarationKey,
     binding: &str,
 ) -> LeanString {
+    format_args!("{module}\0{kind}\0{}\0{binding}\0", key_fields(key)).to_lean_string()
+}
+
+/// Spells `key` as its path segments, each followed by U+001F, then NUL and the
+/// ordinal.
+pub(crate) fn key_fields(key: &DeclarationKey) -> LeanString {
     let mut fields = LeanString::new();
-    fields.push_str(&format!("{module}\0{kind}\0"));
     for segment in &key.path {
         fields.push_str(segment);
         fields.push('\u{1f}');
     }
-    fields.push_str(&format!("\0{}\0{binding}\0", key.ordinal));
+    fields.push_str(&format!("\0{}", key.ordinal));
     fields
 }
 
@@ -460,10 +465,10 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
 
     fn identity(&self) -> LeanString {
         format_args!(
-            "stillwind/view-transition-slot/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
+            "stillwind/view-transition-slot/v2\0{namespace}\0{module}\0{key}\0{branch}\0",
             namespace = self.0.namespace,
             module = self.0.module,
-            call = self.0.call,
+            key = key_fields(&self.0.key),
             branch = self.0.branch,
         )
         .to_lean_string()
@@ -472,8 +477,11 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
     fn detached_owner_identity(&self) -> Option<LeanString> {
         Some(
             format_args!(
-                "stillwind-identity/v1\0slot\0{}\0{}\0{}\0{}\0",
-                self.0.module, self.0.namespace, self.0.call, self.0.branch,
+                "stillwind-identity/v2\0slot\0{}\0{}\0{}\0{}\0",
+                self.0.module,
+                self.0.namespace,
+                key_fields(&self.0.key),
+                self.0.branch,
             )
             .to_lean_string(),
         )
@@ -490,10 +498,10 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
 
 name_requests! {
     ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format_args!(
-        "stillwind/style/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
+        "stillwind/style/v2\0{namespace}\0{module}\0{key}\0{branch}\0",
         namespace = context.namespace,
         module = context.module,
-        call = context.call,
+        key = key_fields(&context.key),
         branch = context.branch,
     ).to_lean_string(), asks(utility_class);
     RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker), labels(label);

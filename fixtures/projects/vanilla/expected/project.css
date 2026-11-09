@@ -431,36 +431,36 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_y93br {
+  .sw_i24y6 {
     padding-inline: calc(var(--spacing) * 4);
     padding-block: calc(var(--spacing) * 2);
     border-radius: var(--radius-md);
   }
-  .sw_whric {
+  .sw_n0jq1 {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
   }
-  .sw_yl8kn {
+  .sw_vqt8l {
     text-decoration-line: underline;
   }
-  .sw_0d02s {
+  .sw_oplxh {
     color: var(--tone);
   }
-  .sw_5lom8 {
+  .sw_n7iyq {
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
   }
-  .sw_9ij3v {
+  .sw_1ki7e {
     --tw-font-weight: var(--font-weight-medium);
     font-weight: var(--font-weight-medium);
   }
-  .sw_oxkd1 {
+  .sw_g6run {
     padding: calc(var(--spacing) * 4);
   }
-  .sw_23sbd {
+  .sw_vjkdq {
     padding: calc(var(--spacing) * 4);
   }
-  .sw_y15vs {
+  .sw_pbuwh {
     padding: calc(var(--spacing) * 4);
   }
 } /*

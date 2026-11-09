@@ -28,7 +28,7 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_5h54z {
+  .sw_en7ne {
     padding-inline: calc(var(--spacing) * 4);
     padding-block: calc(var(--spacing) * 2);
     border-radius: var(--radius-md);

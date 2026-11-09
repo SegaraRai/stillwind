@@ -427,35 +427,35 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_bgywv:where(.sw_primary_hzxpi) {
+  .sw_u6492:where(.sw_primary_hzxpi) {
     anchor-name: --sw-a-primary-hzxpi;
     anchor-scope: --sw-a-primary-hzxpi, --sw-a-secondary-f1hru;
   }
-  .sw_d0nhe:where(.sw_secondary_f1hru) {
+  .sw_txs7z:where(.sw_secondary_f1hru) {
     anchor-name: --sw-a-secondary-f1hru;
     anchor-scope: --sw-a-primary-hzxpi, --sw-a-secondary-f1hru;
   }
   @media (hover: hover) {
-    .sw_lr8gt:is(:is(:where(.sw_compact_5lq1p)):has(:is(:where(.sw_primary_hzxpi):hover)) *) {
+    .sw_9zicc:is(:is(:where(.sw_compact_5lq1p)):has(:is(:where(.sw_primary_hzxpi):hover)) *) {
       display: flex;
     }
   }
   @media (hover: hover) {
-    .sw_lr8gt:is(:is(:where(.sw_spacious_dz0c5)):has(:is(:where(.sw_primary_hzxpi):hover)) *) {
+    .sw_9zicc:is(:is(:where(.sw_spacious_dz0c5)):has(:is(:where(.sw_primary_hzxpi):hover)) *) {
       display: flex;
     }
   }
   @media (hover: hover) {
-    .sw_lr8gt:is(:is(:where(.sw_compact_5lq1p)):has(:is(:where(.sw_secondary_f1hru):hover)) *) {
+    .sw_9zicc:is(:is(:where(.sw_compact_5lq1p)):has(:is(:where(.sw_secondary_f1hru):hover)) *) {
       display: flex;
     }
   }
   @media (hover: hover) {
-    .sw_lr8gt:is(:is(:where(.sw_spacious_dz0c5)):has(:is(:where(.sw_secondary_f1hru):hover)) *) {
+    .sw_9zicc:is(:is(:where(.sw_spacious_dz0c5)):has(:is(:where(.sw_secondary_f1hru):hover)) *) {
       display: flex;
     }
   }
-  .sw_s511i {
+  .sw_cdeip {
     anchor-scope: --sw-a-primary-hzxpi, --sw-a-secondary-f1hru;
   }
 } /*

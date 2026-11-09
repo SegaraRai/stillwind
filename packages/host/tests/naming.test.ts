@@ -13,10 +13,17 @@ test("host name generators decide the names the compiler writes", async () => {
   const seen: {
     hash: number;
     module: string;
+    path: string[];
+    ordinal: number;
   }[] = [];
   const session = new NativeProjectSession(loader, false, undefined, {
     utilityClass: (context, hash) => {
-      seen.push({ hash: hash.length, module: context.module });
+      seen.push({
+        hash: hash.length,
+        module: context.module,
+        path: context.path,
+        ordinal: context.ordinal,
+      });
       // A class a class attribute can hold, computed from the whole digest the host receives.
       return `app-${Buffer.from(hash).toString("hex").slice(0, 8)}`;
     },
@@ -44,10 +51,9 @@ test("host name generators decide the names the compiler writes", async () => {
     },
   );
   expect(output?.code).toBeTruthy();
-  // The host saw one request per generated class, with the whole digest and the module path.
-  expect(seen.length).toBe(1);
-  expect(seen[0]!.hash).toBe(32);
-  expect(seen[0]!.module).toBe("named.tsx");
+  // The host saw one request per generated class, with the whole digest, the module path,
+  // and the key of the call.
+  expect(seen).toStrictEqual([{ hash: 32, module: "named.tsx", path: ["x"], ordinal: 0 }]);
   const className = output!.symbols.find((symbol) => symbol.kind === "class")!.name;
   expect(className).toMatch(/^app-[0-9a-f]{8}$/);
   expect(output!.code!, output!.code!).toContain(className);

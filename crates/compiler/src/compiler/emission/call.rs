@@ -123,6 +123,7 @@ impl<'a> CallEmitter<'a> {
                 inputs.options,
                 inputs.identifiers,
                 inputs.theme,
+                &inputs.call.key,
                 inputs.call.span,
                 inputs.preview,
                 inputs.utility_css,

@@ -65,7 +65,7 @@ fn class_context(branch: &str) -> ClassContext {
     ClassContext {
         module: ModuleId::from("src/a.tsx"),
         namespace: (LeanString::new()).into(),
-        call: 12,
+        key: DeclarationKey::new(vec!["App".into()], 2),
         branch: branch.to_lean_str(),
     }
 }
@@ -343,12 +343,12 @@ fn identity_fields_use_nul_boundaries() {
     let class = ClassName(ClassContext {
         module: ModuleId::from("src/a:1.tsx"),
         namespace: "app:one".to_lean_str(),
-        call: 12,
+        key: DeclarationKey::new(vec!["App".into()], 2),
         branch: "0:flex:wide".to_lean_str(),
     });
     assert_eq!(
         class.identity(),
-        "stillwind/style/v1\0app:one\0src/a:1.tsx\x0012\x000:flex:wide\0"
+        "stillwind/style/v2\0app:one\0src/a:1.tsx\0App\u{1f}\x002\x000:flex:wide\0"
     );
     assert_eq!(
         LayerNameRequest(LayerContext {
@@ -394,7 +394,7 @@ fn detached_owner_identities_do_not_reuse_hash_inputs() {
     let name = context.drain_detached().pop().unwrap();
     assert_eq!(
         name.identity,
-        "stillwind-identity/v1\0slot\0src/a.tsx\0\x0012\0view-transition\0"
+        "stillwind-identity/v2\0slot\0src/a.tsx\0\0App\u{1f}\x002\0view-transition\0"
     );
     assert_ne!(name.identity, slot.identity());
 

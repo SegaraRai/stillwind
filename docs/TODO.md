@@ -370,15 +370,17 @@ boundaries.
 Each declaration has a key that survives edits elsewhere in its module: kind,
 module, enclosing declaration path, ordinal, and binding name. Checker identities
 and cross-module references use this key, and the names of ref markers, anchors,
-containers, keyframes, and view-transition tokens derive from it. An edit that only
-moves the declarations of a dependency therefore changes no facts of a consumer.
-These couplings remain:
+containers, keyframes, and view-transition tokens derive from it. Each `style()`
+call has a key of the same form, and its utility classes derive from that key. An
+edit that only moves declarations or calls therefore changes no facts of a consumer
+and no generated names. These couplings remain:
 
 - The JavaScript of a consumer contains names from the dependency:
   - A literal ref attachment writes the ref marker as the class name.
-  - The identity of a consumer's own utility class includes the rendered selector
-    of an imported ref variant, stored variant, anchor, container, or view
-    transition. The consumer's class names therefore change too.
+  - The identity of a consumer's own utility class spells imported refs, stored
+    variants, and containers by their keys and labels. It still includes the
+    generated names of imported anchors, keyframes, and view transitions, which
+    change only when the key, the label, or the naming configuration changes.
   - The candidate tables of conditional anchors and keyframes use the imported
     names as keys.
   - A dynamic view-transition name passes the imported token as a literal. It does
@@ -401,22 +403,18 @@ semantic diagnostics of each queried file, and reading facts.
 
 Planned direction:
 
-1. Build consumer class identities from declaration keys instead of rendered
-   selectors, and give class naming callbacks the key of their call instead of its
-   span. A consumer can then compute imported names without the declaring module,
-   and those names change only when the key or label changes.
-2. Let linking include the declaration rules of the declaring module for each
+1. Let linking include the declaration rules of the declaring module for each
    imported keyframes or view-transition use, which replaces asset support copies.
    Read stored-variant sequences and inline-style flags of bases from the interface
    of the dependency.
-3. Compile one module for each transform with the facts of its own probes. Key
+2. Compile one module for each transform with the facts of its own probes. Key
    artifacts by the dependency interfaces that they read, and move cycle and
    missing-producer checks to linking. Style-effect lints such as
    `interfering-imported-style-base` already run over published artifacts and stay
    there.
-4. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
+3. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
    without transforming a consumer whose JavaScript does not change.
-5. Share compiled artifacts between Vite environments whose design systems and
+4. Share compiled artifacts between Vite environments whose design systems and
    compiler settings are equal. This step does not need the steps above.
 
 Open decisions: whether the checker diagnostic check stays on the compilation

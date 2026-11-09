@@ -315,7 +315,7 @@ fn candidate_selector(candidate: &str) -> LeanString {
     .class_name(&ClassContext {
         module: ModuleId::from(""),
         namespace: (LeanString::new()).into(),
-        call: 0,
+        key: stillwind_semantic::DeclarationKey::default(),
         branch: format_args!("{candidate}\0").to_lean_str(),
     })
     .map(|name| name.selector())

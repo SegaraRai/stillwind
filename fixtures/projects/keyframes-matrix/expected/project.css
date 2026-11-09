@@ -463,22 +463,22 @@ Keep both selectors so the same theme values are available in either scope.
       scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
   }
-  .sw_rdg4x {
+  .sw_3sup4 {
     border-radius: var(--radius-md);
   }
-  .sw_rdg4x[data-state="closed"] {
+  .sw_3sup4[data-state="closed"] {
     animation-name: sw-kf-074gt;
     animation-duration: var(--duration-fast);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;
   }
-  .sw_qndp2 {
+  .sw_d6d1w {
     animation-name: sw-kf-enter-zhg87;
     animation-duration: var(--duration-normal);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;
   }
-  .sw_bkvqj {
+  .sw_gairg {
     animation-name: sw-kf-074gt;
     animation-duration: var(--duration-normal);
     animation-timing-function: var(--ease-standard);

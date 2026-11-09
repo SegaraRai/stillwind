@@ -970,8 +970,16 @@ export interface NativeClassContext {
   module: string
   /** The caller's class namespace. */
   namespace: string
-  /** Byte offset of the call. */
-  call: number
+  /**
+   * Names of the declarations that enclose the `style()` call, from the outermost to
+   * the innermost.
+   */
+  path: Array<string>
+  /**
+   * Zero-based position among earlier `style()` calls of the module with the same
+   * path.
+   */
+  ordinal: number
   /** Branch discriminator and canonical spelling of the contribution. */
   branch: string
 }

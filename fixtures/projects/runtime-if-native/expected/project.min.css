@@ -1,34 +1,34 @@
 /*! stillwind | MIT License | https://stillwind.dev */
 /*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
-.sw_wmvay {
+.sw_jf7wf {
   height: if(style(--enabled): if(style(--second): 30px;else: 20px);else: 10px);
   width: if(style(--enabled): 120px;else: 60px);
   opacity: 1;
   display: grid;
 }
-@supports (x: revert-rule) and (--w78xn:) {
-  .sw_wmvay {
+@supports (x: revert-rule) and (--c28d3:) {
+  .sw_jf7wf {
     display: if(style(--enabled): flex;else: revert-rule);
     --sw-ifg-qhl3x: var(--second) var(--enabled);
     opacity: if(style(--sw-ifg-qhl3x): 50%;else: revert-rule) !important;
   }
 }
-.sw_b4p9x {
+.sw_kfijd {
   width: if(style(--enabled): 80px;else: 40px);
   display: grid;
 }
-@supports (x: revert-rule) and (--hxnpo:) {
-  .sw_b4p9x {
+@supports (x: revert-rule) and (--3zpss:) {
+  .sw_kfijd {
     display: if(style(--enabled): revert-rule;else: flex);
   }
 }
-.sw_93e4i {
+.sw_wjuab {
   width: if(style(--mode: compact): 40px;else: 80px);
   display: grid;
 }
-@supports (x: revert-rule) and (--nenqb:) {
-  .sw_93e4i {
+@supports (x: revert-rule) and (--271bs:) {
+  .sw_wjuab {
     display: if(style(--mode: compact): flex;else: revert-rule);
   }
 }

@@ -2,13 +2,13 @@ import { stillwindCssValue, stillwindClassStringClassKey, stillwindClassStringCu
 
 export function createTone(tone: string) {
   return stillwindClassStringCva(
-    {[stillwindClassStringClassKey]:"sw_nr42u",[stillwindClassStringCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},
+    {[stillwindClassStringClassKey]:"sw_k7zjz",[stillwindClassStringCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},
     {
       variants: {
         kind: {
           inherited: "",
           fixed: {[stillwindClassStringCustomPropertiesKey]:{"--tone":"red"}},
-          emphasized: "sw_jtu0n",
+          emphasized: "sw_ur6v5",
         },
       },
       defaultVariants: {

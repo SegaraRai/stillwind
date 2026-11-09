@@ -1,7 +1,7 @@
 /*! stillwind | MIT License | https://stillwind.dev */
 /*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
-.sw_wmvay {
+.sw_jf7wf {
   --sw-if-o06ec: var(--second) 30px;
   --sw-if-xy63z: var(--enabled) var(--sw-if-o06ec, 20px);
   height: var(--sw-if-xy63z, 10px);
@@ -10,8 +10,8 @@
   opacity: 1;
   display: grid;
 }
-@supports (x: revert-rule) and (--w78xn:) {
-  .sw_wmvay {
+@supports (x: revert-rule) and (--c28d3:) {
+  .sw_jf7wf {
     --sw-if-s6okf: var(--enabled) flex;
     display: var(--sw-if-s6okf, revert-rule);
     --sw-ifg-qhl3x: var(--second) var(--enabled);
@@ -19,7 +19,7 @@
     opacity: var(--sw-if-kbo56, revert-rule) !important;
   }
 }
-.sw_45dpc {
+.sw_lr6al {
   --sw-if-n9v1g: var(--enabled) 80px;
   width: var(--sw-if-n9v1g, 40px);
 }

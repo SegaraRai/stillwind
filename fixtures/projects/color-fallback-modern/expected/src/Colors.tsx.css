@@ -1,64 +1,64 @@
-.sw_vy68q {
+.sw_brrzz {
   background-color: color-mix(in oklab, var(--color-red-500) 50%, transparent);
 }
-.sw_zepmw {
+.sw_s0yqy {
   background-color: color-mix(in oklab, var(--color-red-500) 0%, transparent);
 }
-.sw_nt6nv {
+.sw_mh87y {
   background-color: var(--color-red-500);
 }
-.sw_3l5bg {
+.sw_up1qm {
   background-color: color-mix(in oklab, red 50%, transparent);
 }
-.sw_kis31 {
+.sw_6rv1s {
   background-color: color-mix(in oklab, transparent 50%, transparent);
 }
-.sw_p6vlg {
+.sw_j8qim {
   background-color: color-mix(in oklab, currentcolor 50%, transparent);
 }
-.sw_gb0pv {
+.sw_b7btp {
   background-color: color-mix(in oklab, var(--brand) 50%, transparent);
 }
-.sw_3z62v {
+.sw_sc7k5 {
   background-color: color-mix(in oklab, red var(--opacity), transparent);
 }
-.sw_dc9bk {
+.sw_8lny9 {
   background-color: color-mix(in oklab, var(--color-red-500) var(--opacity), transparent);
 }
-.sw_i1fjv {
+.sw_1fei4 {
   background-color: color-mix(in oklab, var(--color-alias) 50%, transparent);
 }
-.sw_bplc1 {
+.sw_ixbyh {
   background-color: color-mix(in oklab, var(--color-linked) 50%, transparent);
 }
-.sw_8ddh8 {
+.sw_sosxr {
   background-color: color-mix(in oklab, var(--color-nested) 50%, transparent);
 }
-.sw_s0ive {
+.sw_hlu8a {
   --tw-shadow-color: color-mix(
     in oklab,
     color-mix(in oklab, var(--color-red-500) 50%, transparent) var(--tw-shadow-alpha),
     transparent
   );
 }
-.sw_i1cya {
+.sw_87jtp {
   --tw-shadow-color: color-mix(
     in oklab,
     color-mix(in oklab, red 50%, transparent) var(--tw-shadow-alpha),
     transparent
   );
 }
-.sw_spbjk {
+.sw_8i4us {
   --tw-shadow-color: color-mix(
     in oklab,
     color-mix(in oklab, var(--brand) 50%, transparent) var(--tw-shadow-alpha),
     transparent
   );
 }
-.sw_lito5 {
+.sw_3dxkq {
   --tw-ring-color: color-mix(in oklab, var(--color-red-500) 50%, transparent);
 }
-.sw_ftbn1 {
+.sw_983t2 {
   --tw-gradient-from: color-mix(in oklab, var(--brand) 50%, transparent);
   --tw-gradient-stops: var(
     --tw-gradient-via-stops,
@@ -67,6 +67,6 @@
     var(--tw-gradient-to) var(--tw-gradient-to-position)
   );
 }
-.sw_u0hce {
+.sw_3fyei {
   color: color-mix(in oklab, var(--brand) 50%, transparent);
 }

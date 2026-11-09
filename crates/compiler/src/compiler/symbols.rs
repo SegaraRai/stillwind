@@ -578,7 +578,7 @@ mod tests {
         let class = |branch: &str| ClassContext {
             module: ModuleId::from("src/x.tsx"),
             namespace: (LeanString::new()).into(),
-            call: 0,
+            key: DeclarationKey::default(),
             branch: branch.to_lean_str(),
         };
         let key = DeclarationKey::top(0);
@@ -608,7 +608,7 @@ mod tests {
         let namespaced = |namespace: &str| ClassContext {
             module: ModuleId::from("src/x.tsx"),
             namespace: namespace.to_lean_str(),
-            call: 0,
+            key: DeclarationKey::default(),
             branch: "flex".to_lean_str(),
         };
         assert_eq!(

@@ -24,6 +24,10 @@ pub(in crate::compiler) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
     pub(in crate::compiler) prefix: LeanString,
     /// Identity-aware spelling for class hashing; independent of source syntax.
+    ///
+    /// A ref or container wrapper spells the declaration keys and labels of its refs
+    /// instead of their generated names, so the spelling stays the same when only the
+    /// naming of the declaring module changes.
     pub(in crate::compiler) canonical: LeanString,
     /// Whether any wrapper uses ref identity and requires lowered selector
     /// applications.
@@ -222,12 +226,15 @@ impl StyleVariantPlan {
             }
             alternatives.extend(paths);
         }
-        let mut canonical = alternatives
+        let scope_keys = ordered_scopes
             .iter()
-            .map(|path| format_args!("{path:?}").to_lean_string())
+            .map(|scope| condition_key(scope))
             .collect::<Vec<_>>();
-        canonical.sort();
-        let _ = write!(self.canonical, "ref({canonical:?})\0");
+        let _ = write!(
+            self.canonical,
+            "ref({:?},{scope_keys:?})\0",
+            condition_key(condition)
+        );
         self.paths = self
             .paths
             .iter()
@@ -285,7 +292,12 @@ impl StyleVariantPlan {
                 return None;
             }
         };
-        let _ = write!(self.canonical, "container({conditions:?}):");
+        let _ = write!(
+            self.canonical,
+            "container({:?},{:?}):",
+            ref_keys(refs),
+            query.value
+        );
         self.paths = std::mem::take(&mut self.paths)
             .into_iter()
             .flat_map(|path| {
@@ -354,8 +366,8 @@ impl StyleVariantPlan {
     }
 }
 
-/// Orders independent target conditions using declaration identities and decoded
-/// predicate text. Source use spans do not change the generated condition order.
+/// Orders independent target conditions using declaration keys and decoded predicate
+/// text. Source use spans do not change the generated condition order.
 fn independent_variant_key(variant: &StyleVariant) -> LeanString {
     match variant {
         StyleVariant::Ref { condition, scopes } => {
@@ -377,6 +389,7 @@ fn independent_variant_key(variant: &StyleVariant) -> LeanString {
     }
 }
 
+/// Spells the refs and the authored prefix of `condition`.
 fn condition_key(condition: &RefCondition) -> LeanString {
     format_args!(
         "({:?},{:?})",
@@ -386,6 +399,7 @@ fn condition_key(condition: &RefCondition) -> LeanString {
     .to_lean_string()
 }
 
+/// Spells the declaration identity and label of each ref in `refs`, in sorted order.
 fn ref_keys(refs: &[RefDefinition]) -> Vec<LeanStr> {
     let mut identities = refs
         .iter()
@@ -394,8 +408,8 @@ fn ref_keys(refs: &[RefDefinition]) -> Vec<LeanStr> {
                 "{:?}",
                 (
                     &definition.module_id,
+                    &definition.key,
                     &definition.binding.value,
-                    definition.binding.span,
                     definition.label.as_ref().map(|label| &label.value),
                 )
             )

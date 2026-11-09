@@ -7,22 +7,22 @@ const trigger = undefined;
 export function Scopes() {
   return (
     <section {...{className:"sw_outer_i2rf6"}}>
-      <div {...{className:"sw_spo42 sw_menu_hm9ig"}} tabIndex={0}>
+      <div {...{className:"sw_6yn9k sw_menu_hm9ig"}} tabIndex={0}>
         <button {...{className:"sw_trigger_27eps"}}>
           Trigger
-          <span {...{className:"sw_3g5fx"}}>Descendant</span>
+          <span {...{className:"sw_aum6m"}}>Descendant</span>
         </button>
-        <span {...{className:"sw_z7l65"}}>Presence</span>
-        <span {...{className:"sw_73vwv"}}>
+        <span {...{className:"sw_e2esu"}}>Presence</span>
+        <span {...{className:"sw_joqen"}}>
           Stateful scope
         </span>
-        <span {...{className:"sw_a69g7"}}>Tagged scope</span>
-        <span {...{className:"sw_18ny0"}}>Two scopes</span>
-        <span {...{className:"sw_i1xzs"}}>
+        <span {...{className:"sw_lissf"}}>Tagged scope</span>
+        <span {...{className:"sw_qe0ad"}}>Two scopes</span>
+        <span {...{className:"sw_1jw71"}}>
           Reversed scopes
         </span>
         <span
-          {...{className:"sw_ajbkg"}}
+          {...{className:"sw_sg0kf"}}
         >
           Container and selector
         </span>

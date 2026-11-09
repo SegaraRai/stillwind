@@ -1,16 +1,16 @@
 @scope (.card) to (.stop) {
-  .sw_y8mz3 {
+  .sw_4yqs6 {
     display: flex;
   }
 }
-@scope (.card .sw_7qnbb) {
+@scope (.card .sw_o2jb4) {
   :where(:scope) {
     display: flex;
   }
 }
 @scope (.outer) {
   @scope (.inner) {
-    .sw_icpd2 {
+    .sw_g5o8i {
       display: flex;
     }
   }

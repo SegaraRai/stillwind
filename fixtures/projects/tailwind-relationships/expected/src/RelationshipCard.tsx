@@ -2,10 +2,10 @@
 
 export function RelationshipCard() {
   return (
-    <section {...{className:"sw_5alcb group/menu"}}>
+    <section {...{className:"sw_cgj73 group/menu"}}>
       <input type="checkbox" {...{className:"peer/field"}} />
       <h2
-        {...{className:"sw_5yn5y"}}
+        {...{className:"sw_3e63i"}}
       >
         Relationship compatibility
       </h2>

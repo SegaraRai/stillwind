@@ -142,7 +142,7 @@ test("captured callbacks retain inherited methods and provider receivers", async
   await expect(captured.projection.prepare(input)).resolves.toEqual({ ...input, kind: "direct" });
   expect(
     captured.naming?.utilityClass?.(
-      { module: input.moduleId, namespace: "", call: 0, branch: "test" },
+      { module: input.moduleId, namespace: "", path: [], ordinal: 0, branch: "test" },
       Buffer.alloc(0),
     ),
   ).toBe("card");

@@ -12,6 +12,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{ThemeIndex, UtilityImportance, UtilityOrder, VariantContext};
 use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_semantic::DeclarationKey;
 use stillwind_source::{JoinText, ModuleId, Span};
 
 use super::RuleBoundaries;
@@ -21,7 +22,7 @@ use super::props::{GeneratedClass, GuardStep};
 use super::symbols::generated_class_symbol;
 use super::utilities::{CompiledUtility, CompiledUtilityDiagnosticData, emit_utility_rules};
 use crate::identifiers::{
-    ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier,
+    ClassContext, ClassName, IdentifierContext, NameRequest, escaped_identifier, key_fields,
 };
 use crate::{CompilerOptions, CssContribution, GeneratedSymbol};
 
@@ -162,7 +163,9 @@ pub(super) struct ClassUnits<'a> {
     identifiers: &'a IdentifierContext,
     /// Registry used to emit resolved utilities.
     theme: &'a ThemeIndex,
-    /// Original call span used in class identities and guard metadata.
+    /// Key of the call, used in class, slot, and rule-boundary identities.
+    call_key: &'a DeclarationKey,
+    /// Original call span used in guard metadata and symbol provenance.
     call_span: Span,
     /// A present value selects `&` for generated element classes and captures or
     /// replays transition slots. Ref marker selectors retain their separately allocated
@@ -191,7 +194,7 @@ pub(super) struct ClassUnits<'a> {
 
 impl<'a> ClassUnits<'a> {
     /// Starts one call without publishing any CSS or allocating a class identity.
-    /// `module_id`, `call_span`, `theme`, and resolved `options` must describe the same
+    /// `module_id`, `call_key`, `call_span`, `theme`, and resolved `options` must describe the same
     /// compilation. `identifiers` allocates its names, and the mutable destinations may
     /// already contain output from earlier calls. A present `preview` replaces
     /// generated element selectors with `&` and supplies slot capture or replay state.
@@ -201,6 +204,7 @@ impl<'a> ClassUnits<'a> {
         options: &'a CompilerOptions,
         identifiers: &'a IdentifierContext,
         theme: &'a ThemeIndex,
+        call_key: &'a DeclarationKey,
         call_span: Span,
         preview: Option<&'a mut PreviewSlots>,
         utility_css: &'a mut Vec<CssContribution>,
@@ -212,6 +216,7 @@ impl<'a> ClassUnits<'a> {
             options,
             identifiers,
             theme,
+            call_key,
             call_span,
             preview,
             utility_css,
@@ -290,8 +295,7 @@ impl<'a> ClassUnits<'a> {
                 &mut contribution.utilities,
                 false,
             )?;
-            let (name, rules) =
-                self.name_unit(self.call_span.start.0, &branch, &contribution.utilities)?;
+            let (name, rules) = self.name_unit(&branch, &contribution.utilities)?;
             names.push(name.clone());
             self.view_transition_classes.push(unit);
             self.classes.push((
@@ -347,7 +351,7 @@ impl<'a> ClassUnits<'a> {
         if !self.base.utilities.is_empty() || base_declares {
             let branch = format_args!("0:{}", self.base.canonical).to_lean_string();
             let definitions = std::mem::take(&mut self.base.utilities);
-            let (name, rules) = self.name_unit(self.call_span.start.0, &branch, &definitions)?;
+            let (name, rules) = self.name_unit(&branch, &definitions)?;
             // The base unit must precede every conditional unit in the stylesheet.
             deferred.extend(rules);
             let slots = self.view_transition_slots();
@@ -384,7 +388,9 @@ impl<'a> ClassUnits<'a> {
         );
         let owner = format_args!(
             "style\0{}\0{}\0{}",
-            self.module_id, self.options.class_namespace, self.call_span.start.0
+            self.module_id,
+            self.options.class_namespace,
+            key_fields(self.call_key)
         )
         .to_lean_string();
         let mut boundaries = RuleBoundaries::new(owner, self.identifiers);
@@ -400,7 +406,7 @@ impl<'a> ClassUnits<'a> {
         ))
     }
 
-    /// Generates a class name from `call` and the canonical `branch`, then returns
+    /// Generates a class name from the call key and the canonical `branch`, then returns
     /// that name and the unpublished CSS for `definitions`.
     ///
     /// Rules and a symbol are recorded only for the first occurrence of each pair of
@@ -413,14 +419,13 @@ impl<'a> ClassUnits<'a> {
     /// compilation.
     fn name_unit(
         &mut self,
-        call: u32,
         branch: &str,
         definitions: &[CompiledUtility],
     ) -> Result<(LeanStr, Vec<CssContribution>), CompileDiagnostic> {
         let context = ClassContext {
             module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
-            call,
+            key: self.call_key.clone(),
             branch: branch.to_lean_str(),
         };
         let identity = ClassName(context.clone()).identity();
@@ -581,7 +586,9 @@ impl<'a> ClassUnits<'a> {
     }
 
     /// Returns a distinct custom-property name for one dynamic transition name use.
-    /// `source_offset` is the original UTF-8 start byte of the receiver expression.
+    /// `source_offset` is the original UTF-8 start byte of the receiver expression, which
+    /// must be inside the call. The name depends on the offset relative to the call, so
+    /// an edit outside the call keeps it.
     ///
     /// # Errors
     ///
@@ -591,7 +598,11 @@ impl<'a> ClassUnits<'a> {
         source_offset: u32,
     ) -> Result<LeanString, CompileDiagnostic> {
         self.view_transition_slot(
-            &format_args!("view-transition-name:{source_offset}").to_lean_string(),
+            &format_args!(
+                "view-transition-name:{}",
+                source_offset - self.call_span.start.0
+            )
+            .to_lean_string(),
         )
     }
 
@@ -615,7 +626,7 @@ impl<'a> ClassUnits<'a> {
         let context = ClassContext {
             module: self.module_id.clone(),
             namespace: self.options.class_namespace.clone(),
-            call: self.call_span.start.0,
+            key: self.call_key.clone(),
             branch: branch.to_lean_str(),
         };
         Ok(self.identifiers.view_transition_slot(&context)?.property())
