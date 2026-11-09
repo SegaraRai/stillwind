@@ -11,8 +11,9 @@
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_selector, selector_cannot_match,
-    selector_has_pseudo_element, selector_list_branches, selector_uses_subject,
+    append_element_condition, fold_host_conditions, instantiate_selector,
+    instantiate_variant_selector, selector_cannot_match, selector_has_pseudo_element,
+    selector_list_branches, selector_uses_subject,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
@@ -169,7 +170,7 @@ fn render_utility_steps(
             | VariantStep::BareSelector {
                 selector: template, ..
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
             }
             VariantStep::SelectorCondition(condition) => {
                 selector = append_element_condition(&selector, condition);
@@ -178,14 +179,14 @@ fn render_utility_steps(
                 selector: template,
                 declarations,
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
             }
             VariantStep::SelectorMedia {
                 selector: template,
                 condition,
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
                 media.push(condition.to_lean_string());
             }
             VariantStep::SelectorMediaRule {
@@ -193,7 +194,7 @@ fn render_utility_steps(
                 declarations,
                 condition,
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
                 media.push(condition.to_lean_string());
             }

@@ -90,25 +90,37 @@ fn branch_cannot_match(selector: &str) -> bool {
 /// Every `::` name counts, including unknown ones, because no pseudo-element is valid
 /// inside `:is()`.
 pub fn selector_has_pseudo_element(selector: &str) -> bool {
+    pseudo_element_start(selector).is_some()
+}
+
+/// Returns the byte offset of the first colon of the first pseudo-element in
+/// `selector` outside functional arguments, with the rules of
+/// [`selector_has_pseudo_element`].
+pub(super) fn pseudo_element_start(selector: &str) -> Option<usize> {
     let mut parser = Parser::new(selector);
     let mut colons = 0;
-    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+    let mut start = 0;
+    loop {
+        let position = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            return None;
+        };
         match token {
             Token::Colon => {
+                if colons == 0 {
+                    start = position;
+                }
                 colons += 1;
                 continue;
             }
             Token::Ident(name) if colons == 2 || (colons == 1 && legacy_pseudo_element(name)) => {
-                return true;
+                return Some(start);
             }
-            Token::Function(_) if colons == 2 => {
-                return true;
-            }
+            Token::Function(_) if colons == 2 => return Some(start),
             _ => {}
         }
         colons = 0;
     }
-    false
 }
 
 fn legacy_pseudo_element(name: &str) -> bool {

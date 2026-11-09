@@ -57,7 +57,7 @@ fn compiles_tailwind_group_peer_and_container_compatibility() {
         r#"import { style } from "stillwind/react";
 export const group = style("group/menu flex @container/sidebar");
 export const peer = style("peer/field");
-export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block @sm:grid");"#,
+export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block @sm:grid before:group-hover/menu:flex");"#,
     )
     .unwrap();
     let theme = css_source(FileId(2), "@import \"stillwind\";").unwrap();
@@ -84,6 +84,9 @@ export const child = style("group-hover/menu:bg-red-500 peer-checked/field:block
     );
     assert!(result.css.contains(":is(:where(.group\\/menu):hover ."));
     assert!(result.css.contains(":is(:where(.peer\\/field):checked ~ ."));
+    // A pseudo-element stays outside `:is()`, where it could never match.
+    assert!(result.css.contains(")::before{"), "{}", result.css);
+    assert!(!result.css.contains("::before)"), "{}", result.css);
     assert!(result.css.contains("@container (width >= 24rem)"));
 }
 

@@ -9,34 +9,102 @@ use crate::lists::split_top_level;
 use crate::parser::{consume_css_block, validate_css_syntax};
 
 use super::element::selector_is_element_condition;
+use super::list::{pseudo_element_start, selector_list_branches};
 
 /// Returns the element condition of a complete `:is()` wrapper whose branches end
 /// in one nesting selector, such as `:is(.group:hover &)`. Each branch must have
-/// exactly one subject, at its end, and cannot contain pseudo-elements. The subject
-/// becomes `*`, so callers can test the condition without moving their styled element.
-/// Returns [`None`] for every other selector form.
+/// exactly one subject, at its end after whitespace or a combinator, and cannot contain
+/// pseudo-elements. The subject becomes `*`, so callers can test the condition without
+/// moving their styled element. Returns [`None`] for every other selector form.
 pub fn wrapped_subject_condition(selector: &str) -> Option<LeanString> {
-    if !selector_is_element_condition(selector, false) {
-        return None;
+    is_wrapped_subject(selector).then(|| subject_as_universal(selector))
+}
+
+/// Emits a variant selector template with CSS nesting tokens bound to `parent`.
+///
+/// A wrapper that [`wrapped_subject_condition`] accepts, such as
+/// `:is(.group:hover &)`, binds each branch of `parent` separately. A pseudo-element
+/// at the end of a branch moves outside the wrapper, so `.x::before` gives
+/// `:is(.group:hover .x)::before`. `:is()` cannot contain a pseudo-element, so
+/// `:is(.group:hover .x::before)` would never match. Other templates are bound as
+/// [`instantiate_selector`] binds them.
+pub fn instantiate_variant_selector(template: &str, parent: &str) -> LeanString {
+    if !is_wrapped_subject(template) {
+        return instantiate_selector(template, parent);
     }
-    let wrapper = find_css_functions(selector, &["is"], 0)
+    let branches = selector_list_branches(parent)
         .into_iter()
-        .next()?;
+        .map(|branch| match pseudo_element_start(branch) {
+            Some(start) if !branch[..start].trim().is_empty() => {
+                let (element, pseudo_element) = branch.split_at(start);
+                // `.x ::before` selects the pseudo-element of every descendant.
+                let element = if element.ends_with(|character: char| {
+                    character.is_ascii_whitespace() || matches!(character, '>' | '+' | '~')
+                }) {
+                    format!("{element}*")
+                } else {
+                    element.to_owned()
+                };
+                format!(
+                    "{}{pseudo_element}",
+                    instantiate_selector(template, &element)
+                )
+            }
+            _ => instantiate_selector(template, branch).to_string(),
+        })
+        .collect::<Vec<_>>();
+    branches.join(",").into()
+}
+
+fn is_wrapped_subject(selector: &str) -> bool {
+    if !selector_is_element_condition(selector, false) {
+        return false;
+    }
+    let Some(wrapper) = find_css_functions(selector, &["is"], 0).into_iter().next() else {
+        return false;
+    };
     if wrapper.start != 1 || wrapper.end != Some(selector.len()) || !selector.starts_with(':') {
-        return None;
+        return false;
     }
-    let branches = split_top_level(&selector[wrapper.arguments], |token| {
+    split_top_level(&selector[wrapper.arguments], |token| {
         matches!(token, Token::Comma)
-    });
-    if branches.iter().any(|branch| {
-        branch
-            .trim()
-            .strip_suffix(" &")
-            .is_none_or(selector_uses_subject)
-    }) {
-        return None;
+    })
+    .iter()
+    .all(|branch| ends_with_separate_subject(branch))
+}
+
+/// Whether `branch` ends with its only nesting selector, after whitespace or a
+/// combinator and a non-empty prefix. Comments do not separate compounds, so
+/// `.a/**/&` puts the subject in the same compound as `.a`.
+fn ends_with_separate_subject(branch: &str) -> bool {
+    let mut parser = Parser::new(branch);
+    let mut separated = false;
+    let mut subject = None;
+    loop {
+        let start = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            break;
+        };
+        match token {
+            Token::WhiteSpace(_) => {
+                separated = true;
+                continue;
+            }
+            Token::Comment(_) => continue,
+            Token::Delim('>' | '+' | '~') => {
+                separated = true;
+                subject = None;
+                continue;
+            }
+            Token::Delim('&') => subject = separated.then_some(start),
+            _ => subject = None,
+        }
+        separated = false;
     }
-    Some(subject_as_universal(selector))
+    subject.is_some_and(|start| {
+        let prefix = &branch[..start];
+        !prefix.trim().is_empty() && !selector_uses_subject(prefix)
+    })
 }
 
 /// Splits the simple selectors following a nesting selector into authored slices.
@@ -279,6 +347,51 @@ fn collect(parser: &mut Parser<'_>, positions: &mut Vec<usize>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wrapped_subjects_follow_whitespace_or_a_combinator() {
+        for selector in [
+            ":is(.group:hover &)",
+            ":is(.peer:checked~&)",
+            ":is(.a>&, .b
+&)",
+        ] {
+            assert!(wrapped_subject_condition(selector).is_some(), "{selector}");
+        }
+        for selector in [
+            ":is(.a&)",
+            ":is(.a/**/&)",
+            ":is(& .a)",
+            ":is(& &)",
+            ":is(.a &, .b)",
+        ] {
+            assert!(wrapped_subject_condition(selector).is_none(), "{selector}");
+        }
+    }
+
+    #[test]
+    fn variant_wrappers_bind_branches_and_keep_pseudo_elements_outside() {
+        let template = ":is(.group:hover &)";
+        for (parent, expected) in [
+            (".x::before", ":is(.group:hover .x)::before"),
+            (
+                ".x *::selection, .x::selection",
+                ":is(.group:hover .x *)::selection,:is(.group:hover .x)::selection",
+            ),
+            (".x ::marker", ":is(.group:hover .x *)::marker"),
+            (".x:hover", ":is(.group:hover .x:hover)"),
+        ] {
+            assert_eq!(
+                instantiate_variant_selector(template, parent),
+                expected,
+                "{parent}"
+            );
+        }
+        assert_eq!(
+            instantiate_variant_selector("& > *", ".x::before"),
+            ".x::before > *"
+        );
+    }
 
     #[test]
     fn substitutes_only_nesting_tokens_without_reinterpreting_the_parent() {

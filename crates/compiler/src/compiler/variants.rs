@@ -10,7 +10,7 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_selector,
+    append_element_condition, fold_host_conditions, instantiate_variant_selector,
     selector_cannot_match_host, selector_is_subject_condition, selector_list_branches,
 };
 use stillwind_design_system::{
@@ -244,7 +244,7 @@ pub(super) fn path_selector(path: &[VariantStep<'_>]) -> LeanString {
             | VariantStep::SelectorMediaRule {
                 selector: template, ..
             } => {
-                selector = instantiate_selector(template, &selector);
+                selector = instantiate_variant_selector(template, &selector);
             }
             VariantStep::SelectorCondition(condition) => {
                 selector = append_element_condition(&selector, condition);
