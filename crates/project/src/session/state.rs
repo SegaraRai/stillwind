@@ -20,6 +20,7 @@ use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
 use super::{CompositionConsumers, DiagnosticState, DocumentNames, ModuleNames, SymbolIndex};
+use crate::stylesheet_plan::StylesheetCache;
 use crate::{DependencyIndex, ProjectStylesheet, ReservedNames};
 
 /// Why a design-system reload could not be applied.
@@ -120,6 +121,8 @@ pub struct ProjectSession {
     /// Most recent rejected load, or None when the active configuration loaded
     /// successfully.
     load_error: Option<DesignSystemLoadError>,
+    /// Render of the latest stylesheet plan, shared between session clones.
+    stylesheet_cache: StylesheetCache,
 }
 
 impl ProjectSession {
@@ -172,6 +175,7 @@ impl ProjectSession {
             stylesheet: ProjectStylesheet::default(),
             dependencies: Arc::default(),
             load_error: None,
+            stylesheet_cache: StylesheetCache::default(),
         }
     }
 
@@ -353,6 +357,11 @@ impl ProjectSession {
         let key = self.analysis_keys.get(module)?;
         let artifact = self.artifacts.get(module)?;
         (artifact.key() == key.as_ref()).then_some(artifact.as_ref())
+    }
+
+    /// Render of the latest stylesheet plan.
+    pub(crate) fn stylesheet_cache(&self) -> &StylesheetCache {
+        &self.stylesheet_cache
     }
 
     /// Analyses by module, including ones whose compilation failed.

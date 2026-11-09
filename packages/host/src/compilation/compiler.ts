@@ -166,9 +166,12 @@ async function compileGraph(
     if (entrySummary.macroImports > 0) {
       entrySource.stylesheetImports = options.stylesheetImports;
     }
-    if (hasModuleCssImport) {
-      entrySource.moduleCssImport = options.moduleCssImport;
-    }
+    // Dependencies receive the package specifier. A source without module CSS imports compiles to
+    // the same output with any specifier, so the entry receives the same input as a dependency and
+    // keeps the artifact that an earlier dependency compilation published.
+    entrySource.moduleCssImport = hasModuleCssImport
+      ? options.moduleCssImport
+      : "stillwind/module-css";
     await graph.collectDependencies(entrySource, entrySummary);
     const typedSources = await graph.collectTypedSources(entrySource);
     const producer = analysis ? undefined : entrySource.moduleId;

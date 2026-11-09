@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use napi::Error;
 use napi::bindgen_prelude::Env;
@@ -12,7 +13,7 @@ use stillwind_compiler::{
     ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer, TypeScriptFactsProvider};
+use stillwind_ir::{ModuleAnalysis, ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{
     ProjectSession, SessionMode, StylesheetCoverage, StylesheetPlanError, StylesheetSelection,
@@ -605,12 +606,7 @@ impl NativeProjectSession {
         }
         let mut transaction = self.session.clone();
         let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
-        let scans: Vec<_> = sources
-            .iter()
-            .map(|source| {
-                Ok::<_, Error>(analyzer.scan_input(source.input(transaction.sources_mut())?))
-            })
-            .collect::<Result<_, _>>()?;
+        let scans = Self::scan_sources(&analyzer, &mut transaction, &sources)?;
         let facts = ProvidedTypeScriptFacts::new(&sources).update(&scans);
         let analyses: Vec<_> = scans
             .iter()
@@ -644,7 +640,7 @@ impl NativeProjectSession {
             modules.push(ProjectModuleOutput::new(module_id, output));
         }
         if modules.iter().all(|module| module.diagnostics.is_empty()) {
-            Self::refresh_batches(&mut transaction)?;
+            Self::refresh_batches_since(&mut transaction, Some(&self.session))?;
             let final_sources = transaction
                 .diagnostic_sources()
                 .map_err(|error| Error::from_reason(error.to_string()))?;
@@ -679,6 +675,32 @@ impl NativeProjectSession {
 }
 
 impl NativeProjectSession {
+    /// Scans `sources` for a compile transaction.
+    ///
+    /// A source keeps the buffer of its module's latest analysis in `transaction` when
+    /// the document is unchanged, so an unchanged module keeps its artifact key.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`HostPreparedSource::input_after`].
+    fn scan_sources(
+        analyzer: &impl SourceAnalyzer,
+        transaction: &mut ProjectSession,
+        sources: &[HostPreparedSource],
+    ) -> napi::Result<Vec<ModuleScan>> {
+        sources
+            .iter()
+            .map(|source| {
+                let previous = transaction
+                    .analyses()
+                    .get(source.module_id())
+                    .map(|analysis| Arc::clone(&analysis.source));
+                Ok(analyzer
+                    .scan_input(source.input_after(transaction.sources_mut(), previous.as_ref())?))
+            })
+            .collect()
+    }
+
     /// Updates diagnostic batches for artifacts that match the latest analyses in
     /// `session`. The caller must update the graph and composition findings first.
     /// Output kept after a watch failure is skipped if its analysis changed, keeping
@@ -694,9 +716,42 @@ impl NativeProjectSession {
     /// Returns an error when a required source snapshot or diagnostic span cannot be
     /// resolved, or source pruning fails. Batches published before an error remain.
     fn refresh_batches(session: &mut ProjectSession) -> napi::Result<()> {
+        Self::refresh_batches_since(session, None)
+    }
+
+    /// Updates diagnostic batches like [`Self::refresh_batches`], skipping modules that
+    /// `previous` already reported.
+    ///
+    /// `previous` must be the session that `session` was cloned from, with current
+    /// batches. A module is skipped when it shares its artifact and source buffer with
+    /// `previous`, because its batch inputs are then unchanged. Artifact updates
+    /// replace the shared [`Arc`], so a changed artifact is never skipped. With
+    /// `None`, every module is updated.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Self::refresh_batches`].
+    fn refresh_batches_since(
+        session: &mut ProjectSession,
+        previous: Option<&ProjectSession>,
+    ) -> napi::Result<()> {
+        let reported = |module: &ModuleId, analysis: &ModuleAnalysis| {
+            previous.is_some_and(|previous| {
+                previous
+                    .analyses()
+                    .get(module)
+                    .is_some_and(|reported| Arc::ptr_eq(&reported.source, &analysis.source))
+                    && previous
+                        .artifacts()
+                        .get(module)
+                        .zip(session.artifacts().get(module))
+                        .is_some_and(|(reported, current)| Arc::ptr_eq(reported, current))
+            })
+        };
         let refreshed = session
             .analyses()
             .iter()
+            .filter(|(module, analysis)| !reported(module, analysis))
             .filter_map(|(module, analysis)| {
                 session.current_artifact(module).map(|artifact| {
                     (

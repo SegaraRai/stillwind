@@ -1,5 +1,7 @@
 //! Registers direct and projected host inputs in their required source order.
 
+use std::sync::Arc;
+
 use napi::Error;
 use napi_derive::napi;
 use serde::Deserialize;
@@ -9,7 +11,7 @@ use stillwind_ir::{
     SourceInput,
 };
 use stillwind_semantic::TypeFact;
-use stillwind_source::{ModuleId, SourceRegistry};
+use stillwind_source::{ModuleId, SourceFile, SourceRegistry};
 
 use super::{
     HostSourceDocument, HostSourceProjection, NativeFramework, NativeScriptSyntax,
@@ -141,6 +143,25 @@ impl HostPreparedSource {
     /// script or JSX document, invalid UTF-16 coordinates, reversed ranges, exhausted
     /// file IDs, or invalid projection metadata rejected by core constructors.
     pub fn input(&self, sources: &mut SourceRegistry) -> napi::Result<SourceInput> {
+        self.input_after(sources, None)
+    }
+
+    /// Returns the analyzer input like [`Self::input`], reusing `previous` when it fits.
+    ///
+    /// `previous` must be a buffer that `sources` retains, such as the source of this
+    /// module's latest analysis. A direct input whose URI, source-map name, and text
+    /// equal `previous` keeps its file ID instead of registering a new buffer. The
+    /// equal ID keeps the artifact key equal, so the session reuses the compiled
+    /// module. Projected inputs always register new buffers.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Self::input`].
+    pub fn input_after(
+        &self,
+        sources: &mut SourceRegistry,
+        previous: Option<&Arc<SourceFile>>,
+    ) -> napi::Result<SourceInput> {
         let (
             document,
             syntax,
@@ -185,23 +206,7 @@ impl HostPreparedSource {
                 module_css_import,
             ),
         };
-        let code = sources
-            .register(
-                if projection.is_some() {
-                    None
-                } else {
-                    Some(document.uri.clone())
-                },
-                if projection.is_some() {
-                    None
-                } else {
-                    document.source_map_source.as_deref().map(Into::into)
-                },
-                projection.map_or(document.code.as_str(), |projection| {
-                    projection.code.as_str()
-                }),
-            )
-            .map_err(|error| Error::from_reason(error.to_string()))?;
+        let code = parser_buffer(sources, document, projection, previous)?;
         let prepared = if let Some(projection) = projection {
             let original = sources
                 .register(
@@ -240,6 +245,45 @@ impl HostPreparedSource {
         input.module_css_import = module_css_import.as_deref().map(Into::into);
         Ok(input)
     }
+}
+
+/// Returns the parser buffer of `document`, reusing `previous` when it fits.
+///
+/// A direct document whose URI, source-map name, and text equal `previous` gets
+/// `previous`, which `sources` then retains. Otherwise the buffer is registered: a
+/// projection's generated code without a URI, or the document itself.
+///
+/// # Errors
+///
+/// Returns an error when `previous` conflicts with a retained buffer, or registration
+/// fails because the text is too large or file IDs are exhausted.
+fn parser_buffer(
+    sources: &mut SourceRegistry,
+    document: &HostSourceDocument,
+    projection: Option<&HostSourceProjection>,
+    previous: Option<&Arc<SourceFile>>,
+) -> napi::Result<Arc<SourceFile>> {
+    let reusable = previous.filter(|previous| {
+        projection.is_none()
+            && previous.uri() == Some(&document.uri)
+            && previous.source_map_source() == document.source_map_source.as_deref()
+            && previous.text() == document.code
+    });
+    if let Some(previous) = reusable {
+        sources
+            .retain(Arc::clone(previous))
+            .map_err(|error| Error::from_reason(error.to_string()))?;
+        return Ok(Arc::clone(previous));
+    }
+    let registered = match projection {
+        Some(projection) => sources.register(None, None, projection.code.as_str()),
+        None => sources.register(
+            Some(document.uri.clone()),
+            document.source_map_source.as_deref().map(Into::into),
+            document.code.as_str(),
+        ),
+    };
+    registered.map_err(|error| Error::from_reason(error.to_string()))
 }
 
 impl TryFrom<NativePreparedSource> for HostPreparedSource {

@@ -388,6 +388,37 @@ fn editing_a_session_clone_keeps_the_original_revision_and_dependency_view() {
 }
 
 #[test]
+fn plans_follow_each_session_clone_after_an_edit() {
+    let mut original = ProjectSession::new(
+        brand_snapshot("red"),
+        &SourceRegistry::default(),
+        SessionMode::Watch,
+        CompilerOptions::default(),
+        Identifiers::default(),
+    );
+    original.update_module(module("a.tsx", "flex"));
+    let plan = |session: &ProjectSession| {
+        session
+            .plan_stylesheet(
+                StylesheetSelection {
+                    modules: BTreeSet::from([ModuleId::from("a.tsx")]),
+                    coverage: StylesheetCoverage::Observed,
+                },
+                StylesheetPlacement::Document,
+            )
+            .unwrap()
+            .css
+    };
+    let before = plan(&original);
+    let mut edited = original.clone();
+    edited.update_module(module("a.tsx", "grid"));
+    let after = plan(&edited);
+    assert!(after.contains("display: grid") || after.contains("display:grid"));
+    assert_eq!(plan(&original), before);
+    assert_eq!(plan(&edited), after);
+}
+
+#[test]
 fn changed_frontend_inputs_invalidate_an_artifact_with_unchanged_source() {
     let mut session = ProjectSession::new(
         brand_snapshot("red"),

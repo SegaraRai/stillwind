@@ -21,3 +21,4 @@ export {
   type CompilerMapping,
   type UpstreamSourceMap,
 } from "./source-map.ts";
+export { startPhase, tracePhase, type PhaseMessage } from "./trace.ts";
