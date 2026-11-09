@@ -1,5 +1,6 @@
 import { cleanModuleId, compilerModuleId } from "@stillwind/host";
 
+import type { SharedTypeFacts } from "../session.ts";
 import type { BrowserCssSources } from "./browser-css.ts";
 import type { BuildOutput } from "./build.ts";
 import { compileProducer, type CompileContext, type ProducerInput } from "./compile.ts";
@@ -57,14 +58,16 @@ export class ViteEnvironment {
    * @param config - Compiler options shared by the project.
    * @param invalidate - Invalidates Vite source identities whose JavaScript changes after a
    * design-system reload.
+   * @param shared - Returns type facts shared with the other environments of the project.
    */
   constructor(
     readonly name: string,
     private readonly settings: ProjectSettings,
     private readonly config: IntegrationConfig,
     private readonly invalidate: (ids: readonly string[]) => void,
+    shared?: () => SharedTypeFacts,
   ) {
-    this.#designSystem = new DesignSystem(settings, config);
+    this.#designSystem = new DesignSystem(settings, config, name, shared);
   }
 
   /**

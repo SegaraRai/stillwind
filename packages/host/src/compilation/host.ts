@@ -11,6 +11,11 @@ export interface CompilerHost {
   /** Requests checker import resolutions. A non-null host resolve result still takes precedence. */
   typeFactsResolution?: boolean;
   /**
+   * Names the resolver that answers `resolve`. Hosts that share a CompilationProject and can
+   * resolve the same import differently must use different domains. Omission is one domain.
+   */
+  resolverDomain?: string;
+  /**
    * Loads source before or after preparation, including its original document and projection.
    *
    * @param id - Full resolver identity. The returned resolverId must equal this value.

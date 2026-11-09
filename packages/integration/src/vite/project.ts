@@ -4,10 +4,15 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
 import { resolveIntegrationConfig } from "@stillwind/config/node";
-import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
+import {
+  cleanModuleId,
+  resolveTypeFactsEnvironment,
+  type CssSourceMapInput,
+} from "@stillwind/host";
 import type { NativeCssMinifyOptions } from "@stillwind/native";
 import type { Environment, InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
+import { SharedTypeFacts } from "../session.ts";
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
 import type { BrowserSourceMapInput } from "./browser-source-map.ts";
 import type { BuildOutput } from "./build.ts";
@@ -375,6 +380,15 @@ export function createViteProject(
   >();
   let bindings = new WeakMap<EnvironmentOwner, ViteEnvironment>();
   /**
+   * Type facts that the environments share while they resolve imports alike. Configuration
+   * replaces it because the TypeScript settings may change.
+   */
+  let sharedTypeFacts: SharedTypeFacts | undefined;
+  const shareTypeFacts = () =>
+    (sharedTypeFacts ??= new SharedTypeFacts(
+      resolveTypeFactsEnvironment(settings.projectRoot, config.tsconfig),
+    ));
+  /**
    * Gets or creates the compiler state owned by one Vite environment.
    * @param owner - Owning Vite instance, or a name selecting the current state. Omission selects `client`.
    * @returns The retained environment state. Newly created non-client states invalidate their
@@ -384,17 +398,23 @@ export function createViteProject(
     const name = typeof owner === "string" ? owner : owner.name;
     let state = typeof owner === "string" ? environments.get(name) : bindings.get(owner);
     if (!state) {
-      state = new ViteEnvironment(name, settings, config, (ids) => {
-        if (name === "client") {
-          return;
-        }
-        const graph = settings.devServerRef?.environments[name]?.moduleGraph;
-        for (const id of ids) {
-          for (const module of graph?.getModulesByFile(cleanModuleId(id)) ?? []) {
-            graph!.invalidateModule(module);
+      state = new ViteEnvironment(
+        name,
+        settings,
+        config,
+        (ids) => {
+          if (name === "client") {
+            return;
           }
-        }
-      });
+          const graph = settings.devServerRef?.environments[name]?.moduleGraph;
+          for (const id of ids) {
+            for (const module of graph?.getModulesByFile(cleanModuleId(id)) ?? []) {
+              graph!.invalidateModule(module);
+            }
+          }
+        },
+        shareTypeFacts,
+      );
       environments.set(name, state);
       if (typeof owner !== "string") {
         bindings.set(owner, state);
@@ -419,6 +439,7 @@ export function createViteProject(
     for (const state of environments.values()) {
       state.closeTypeFacts();
     }
+    sharedTypeFacts?.close();
   };
 
   /**
@@ -440,6 +461,8 @@ export function createViteProject(
     for (const state of environments.values()) {
       state.close();
     }
+    sharedTypeFacts?.close();
+    sharedTypeFacts = undefined;
     environments.clear();
     bindings = new WeakMap();
     for (const key of Object.keys(config) as (keyof IntegrationConfig)[]) {
@@ -538,6 +561,7 @@ export function createViteProject(
     for (const state of environments.values()) {
       state.close();
     }
+    sharedTypeFacts?.close();
   };
 
   /**

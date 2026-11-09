@@ -20,7 +20,7 @@ import {
 } from "../semantics/backend.ts";
 import { loadSource, type CompilerHost } from "./host.ts";
 import { byteToUtf16, cleanModuleId } from "./module-source.ts";
-import type { CompilationProject } from "./project.ts";
+import { ResolutionMismatchError, type CompilationProject } from "./project.ts";
 import type { ModuleAnalysis, ModuleCompileOptions, SemanticDependency } from "./request.ts";
 import { startPhase, tracePhase } from "./trace.ts";
 
@@ -618,7 +618,7 @@ export class ModuleGraph {
         (semanticId ? { id: semanticId } : null)
       );
     } catch (error) {
-      if (!this.analysis) {
+      if (!this.analysis || error instanceof ResolutionMismatchError) {
         throw error;
       }
       return null;

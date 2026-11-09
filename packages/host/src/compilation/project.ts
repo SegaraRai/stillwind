@@ -20,11 +20,42 @@ interface CapturedSource {
   resolutions: NonNullable<TypeFactSource["resolutions"]>;
   /** Whether the host has tried to resolve every import in this source. */
   linked: boolean;
+  /** Resolver domains whose answers for every import of this source match the stored links. */
+  verified: Set<string | undefined>;
   /** Created on the first semantic query. Framework dependencies may fail to load. */
   checker?: TypeFactSource;
 }
 
-/** Keeps prepared sources and checker inputs between analyses of one project. */
+/**
+ * Two resolver domains resolved the same import to different source targets, so they cannot share
+ * one project. Answers that analysis does not read, such as an external package and its runtime
+ * file, may differ. The project keeps the answer that it stored first.
+ */
+export class ResolutionMismatchError extends Error {
+  /**
+   * @param importer - Full resolver ID of the importing source.
+   * @param specifier - Authored module request.
+   * @param domain - Resolver domain whose answer differs from the stored answer.
+   */
+  constructor(
+    readonly importer: string,
+    readonly specifier: string,
+    readonly domain: string | undefined,
+  ) {
+    super(
+      `Resolver domain ${String(domain)} resolves ${JSON.stringify(specifier)} from ${importer} differently`,
+    );
+    this.name = "ResolutionMismatchError";
+  }
+}
+
+/**
+ * Keeps prepared sources and checker inputs between analyses of one project.
+ *
+ * Hosts whose resolvers can answer differently, such as the client and server environments of one
+ * bundler, can share a project when each host sets its own `resolverDomain`. The project stores the
+ * first answer for an import, and every other domain checks that answer once before using it.
+ */
 export class CompilationProject {
   /** Sources keyed by normalized resolver ID. Windows paths ignore case. */
   readonly #sources = new Map<string, CapturedSource>();
@@ -34,7 +65,14 @@ export class CompilationProject {
    * Host import resolutions keyed by importer resolver ID and specifier. Present only when sources
    * stay unchanged.
    */
-  readonly #imports?: Map<string, ReturnType<CompilerHost["resolve"]>>;
+  readonly #imports?: Map<
+    string,
+    {
+      resolved: ReturnType<CompilerHost["resolve"]>;
+      /** Resolver domains that produced the stored answer or whose own answer matched it. */
+      domains: Set<string | undefined>;
+    }
+  >;
   /** Import answers for the currently installed checker inputs. */
   #resolutions?: ReadonlyMap<string, ReadonlyMap<string, string>>;
   /** Resolver IDs of sources that {@link invalidateFile} removed and {@link prepare} loads again. */
@@ -137,6 +175,7 @@ export class CompilationProject {
       source,
       summary,
       linked: false,
+      verified: new Set(),
       resolutions: [],
     });
     this.#changed();
@@ -144,13 +183,14 @@ export class CompilationProject {
 
   /**
    * Resolves an import through the host. A project with fixed sources asks the host once for each
-   * importer and specifier.
+   * importer, specifier, and resolver domain.
    *
-   * @param host - Host that resolves the import.
+   * @param host - Host that resolves the import. Its `resolverDomain` selects the domain.
    * @param specifier - Authored module request.
    * @param importer - Full resolver ID of the importing source.
-   * @returns The host's answer. A failed resolution is not kept.
-   * @throws If the host resolution fails.
+   * @returns The stored answer. A failed resolution is not kept.
+   * @throws If the host resolution fails, or a ResolutionMismatchError if the host's domain
+   * resolves the import to a source target that differs from the stored answer.
    */
   resolveImport(
     host: CompilerHost,
@@ -161,13 +201,29 @@ export class CompilationProject {
       return host.resolve(specifier, importer, { skipSelf: true });
     }
     const key = `${importer}\0${specifier}`;
-    let resolved = this.#imports.get(key);
-    if (!resolved) {
-      resolved = host.resolve(specifier, importer, { skipSelf: true });
-      this.#imports.set(key, resolved);
+    const domain = host.resolverDomain;
+    const entry = this.#imports.get(key);
+    if (!entry) {
+      const resolved = host.resolve(specifier, importer, { skipSelf: true });
+      this.#imports.set(key, { resolved, domains: new Set([domain]) });
       resolved.catch(() => this.#imports?.delete(key));
+      return resolved;
     }
-    return resolved;
+    if (entry.domains.has(domain)) {
+      return entry.resolved;
+    }
+    return Promise.all([
+      entry.resolved,
+      host.resolve(specifier, importer, { skipSelf: true }),
+    ]).then(([stored, own]) => {
+      // Analysis reads only source targets. A package that SSR externalizes and the client
+      // resolves to a runtime file gives the same analysis, because the checker supplies its types.
+      if (analyzedTarget(host, stored) !== analyzedTarget(host, own)) {
+        throw new ResolutionMismatchError(importer, specifier, domain);
+      }
+      entry.domains.add(domain);
+      return stored;
+    });
   }
 
   /**
@@ -197,20 +253,36 @@ export class CompilationProject {
       }
       return;
     }
+    const domain = host.resolverDomain;
     for (const record of this.#sources.values()) {
       const { source, summary } = record;
+      if (record.linked && record.verified.has(domain)) {
+        continue;
+      }
       if (record.linked) {
+        // Another domain stored these links. Checking each import throws when this domain
+        // resolves it differently.
+        await Promise.all(
+          summary.moduleSpecifiers.map((specifier) =>
+            this.resolveImport(host, specifier.source, source.resolverId),
+          ),
+        );
+        if (revision !== this.#revision) {
+          return;
+        }
+        record.verified.add(domain);
         continue;
       }
       const resolutions = await Promise.all(
         summary.moduleSpecifiers.map(async (specifier) => {
           const resolved = await this.resolveImport(host, specifier.source, source.resolverId);
-          if (!resolved || resolved.external) {
+          const target = analyzedTarget(host, resolved);
+          if (target === undefined) {
             return undefined;
           }
-          await this.#load(resolved.id, host, session, revision).catch(() => {});
+          await this.#load(target, host, session, revision).catch(() => {});
           return {
-            id: this.source(resolved.id)?.resolverId ?? resolved.id,
+            id: this.source(target)?.resolverId ?? target,
             start: specifier.start,
             end: specifier.end,
           };
@@ -220,6 +292,7 @@ export class CompilationProject {
         return;
       }
       record.linked = true;
+      record.verified.add(domain);
       this.#setResolutions(
         record,
         resolutions.filter((value) => value !== undefined),
@@ -251,6 +324,7 @@ export class CompilationProject {
         record.checker.resolutions = record.resolutions;
       }
       record.linked = false;
+      record.verified.clear();
     }
     this.#changed();
   }
@@ -503,4 +577,21 @@ function sameFiles(a?: ReadonlyMap<string, string>, b?: ReadonlyMap<string, stri
   return (
     (a?.size ?? 0) === (b?.size ?? 0) && [...(a ?? [])].every(([id, text]) => b?.get(id) === text)
   );
+}
+
+/**
+ * Selects the part of a host resolution that analysis reads.
+ *
+ * @param host - Host whose `supports` and `typeFactsResolution` settings apply.
+ * @param resolved - Host resolution, or null when unresolved.
+ * @returns The resolved identity when it is loaded as source. Undefined for unresolved, external,
+ * declaration, package, and unsupported targets, whose types the checker resolves itself.
+ */
+function analyzedTarget(
+  host: CompilerHost,
+  resolved: Awaited<ReturnType<CompilerHost["resolve"]>>,
+): string | undefined {
+  return resolved && !resolved.external && sourceSupport(host, resolved.id) === "source"
+    ? resolved.id
+    : undefined;
 }

@@ -390,12 +390,12 @@ Moving every declaration of a dependency to a later offset shows these couplings
   declaration changes no consumer output.
 
 Each compilation also compiles the semantic closure of its entry. Vite registers
-every dependency with `addWatchFile`, so an edit transforms every consumer again,
-Each Vite environment has its own session and checker. In a build each checker
-installs the discovered sources once and keeps one snapshot. Its time goes to
-opening that snapshot, registering producer types, reading the semantic
-diagnostics of each queried file, and reading facts, all once for each
-environment.
+every dependency with `addWatchFile`, so an edit transforms every consumer again.
+Vite environments share one checker while they resolve every import alike, but
+each environment has its own native session and compiles every module again. In
+a build the checker installs the discovered sources once and keeps one snapshot.
+Its time goes to opening that snapshot, registering producer types, reading the
+semantic diagnostics of each queried file, and reading facts.
 
 Planned direction:
 
@@ -418,8 +418,8 @@ Planned direction:
    there.
 5. Replace `addWatchFile` for dependencies with interface fingerprints. Update CSS
    without transforming a consumer whose JavaScript does not change.
-6. Share the checker and artifacts between Vite environments. This step does not
-   need the steps above.
+6. Share compiled artifacts between Vite environments whose design systems and
+   compiler settings are equal. This step does not need the steps above.
 
 Open decisions: whether the checker diagnostic check stays on the compilation
 path, and how development reports link-time errors.

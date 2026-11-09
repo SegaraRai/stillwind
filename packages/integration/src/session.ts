@@ -4,6 +4,7 @@ import {
   CompilationProject,
   compileModule,
   compilerOptions,
+  ResolutionMismatchError,
   resolveTypeFactsEnvironment,
   TypeScriptFactsService,
   type CompilerHost,
@@ -48,6 +49,46 @@ export function warnSkippedCss(
 }
 
 /**
+ * Prepared sources, scans, facts, and one checker that several adapter environments of one project
+ * share. Each environment resolves imports in its own resolver domain, and the shared project
+ * checks that the domains agree. Close it when the adapter releases the project.
+ */
+export class SharedTypeFacts {
+  /** Sources, checker inputs, and facts for every environment that agrees on import resolution. */
+  readonly project = new CompilationProject(true);
+  /** Lazily started checker. */
+  #facts?: TypeScriptFactsService;
+
+  /**
+   * @param environment - TypeScript settings that every sharing environment uses.
+   */
+  constructor(readonly environment: TypeFactsEnvironment) {}
+
+  /** Returns the shared checker, starting it on first use. */
+  facts(): TypeScriptFactsService {
+    this.#facts ??= new TypeScriptFactsService(this.environment);
+    return this.#facts;
+  }
+
+  /**
+   * Discards shared sources read from a file and every collected fact.
+   *
+   * @param file - Absolute path of a file that changed, was added, or was removed.
+   * @param entry - Whether the file was added or removed rather than changed.
+   */
+  sourceChanged(file: string, entry: boolean): void {
+    this.project.invalidateFile(file, entry);
+  }
+
+  /** Closes the checker and discards shared sources. A later compilation starts a new checker. */
+  close(): void {
+    this.project.invalidate();
+    this.#facts?.close();
+    this.#facts = undefined;
+  }
+}
+
+/**
  * Owns a compiler session and a reusable checker for one adapter environment. TypeScript settings
  * are selected at construction. Close the checker when the adapter releases or reloads the project.
  */
@@ -69,7 +110,14 @@ export class IntegrationSession {
    * Sources, scans, checker inputs, and facts shared by compilations while source files stay
    * unchanged. Absent when files can change without {@link sourceChanged} being called.
    */
-  readonly #project?: CompilationProject;
+  #project?: CompilationProject;
+  /**
+   * State shared with other environments, used until an import resolves differently here. The
+   * shared checker then serves only the other environments.
+   */
+  #shared?: SharedTypeFacts;
+  /** Resolver domain of this environment in the shared project. */
+  readonly #domain?: string;
   /** Entries that the next compilation prepares together with its own entry. */
   #entries: readonly string[];
 
@@ -90,6 +138,11 @@ export class IntegrationSession {
    * {@link sourceChanged}. Compilations then share sources, scans, checker inputs, and facts
    * until a change. Like `fixedEntries`, the first compilation prepares the files that these
    * absolute paths reach. Ignored when `fixedEntries` is present.
+   * @param shared - State to share with the other environments of the project, used only with
+   * `fixedEntries` or `watchedEntries`. Its TypeScript settings must equal the settings that `root`
+   * and `config` select. The caller owns and closes it.
+   * @param domain - Name of this environment's resolver, which must differ between environments
+   * that use `shared`.
    * @throws If the selected TypeScript configuration does not exist or native session creation fails.
    */
   constructor(
@@ -101,9 +154,14 @@ export class IntegrationSession {
     plugins?: PluginRuntime,
     fixedEntries?: readonly string[],
     watchedEntries?: readonly string[],
+    shared?: SharedTypeFacts,
+    domain?: string,
   ) {
     this.root = root;
-    this.#project = fixedEntries || watchedEntries ? new CompilationProject(true) : undefined;
+    const fixed = Boolean(fixedEntries || watchedEntries);
+    this.#shared = fixed ? shared : undefined;
+    this.#domain = domain;
+    this.#project = this.#shared?.project ?? (fixed ? new CompilationProject(true) : undefined);
     this.#entries = fixedEntries ?? watchedEntries ?? [];
     this.#typeFactsEnvironment = resolveTypeFactsEnvironment(root, config.tsconfig);
     this.native = new NativeProjectSession(loader, watch, mode, config.naming, false);
@@ -126,6 +184,34 @@ export class IntegrationSession {
     host: CompilerHost,
     transport: ModuleCompileOptions = {},
   ) {
+    const entries = this.#entries;
+    try {
+      return await this.#compile(code, id, { ...host, resolverDomain: this.#domain }, transport);
+    } catch (error) {
+      if (!(error instanceof ResolutionMismatchError) || !this.#shared) {
+        throw error;
+      }
+      // Facts collected in the shared project followed another environment's imports. This
+      // environment continues with its own project and checker.
+      this.#shared = undefined;
+      this.#project = new CompilationProject(true);
+      this.#entries = entries;
+      return this.#compile(code, id, host, transport);
+    }
+  }
+
+  /**
+   * Compiles a module with the current project and checker and records its resolver identities.
+   *
+   * @param code - Entry text before Stillwind transformation.
+   * @param id - Full adapter resolver identity, including any query suffix.
+   * @param host - Host whose resolver domain matches the current project.
+   * @param transport - Diagnostics, checker inputs, and generated imports for this compilation.
+   * @returns The entry output, or undefined when compilation produces no entry code.
+   * @throws If module identities conflict, the shared project receives a different import answer,
+   * or host, checker, or compiler operations fail.
+   */
+  async #compile(code: string, id: string, host: CompilerHost, transport: ModuleCompileOptions) {
     // Loading every file that the entries reach lets later compilations share one checker
     // project. Adding files after a checker query would replace the checker snapshot.
     const entries = this.#entries;
@@ -145,6 +231,9 @@ export class IntegrationSession {
     const output = await compileModule(
       this.native,
       () => {
+        if (this.#shared) {
+          return this.#shared.facts();
+        }
         this.#facts ??= new TypeScriptFactsService(this.#typeFactsEnvironment);
         return this.#facts;
       },
@@ -201,6 +290,10 @@ export class IntegrationSession {
    * @param entry - Whether the file was added or removed rather than changed.
    */
   sourceChanged(file: string, entry: boolean): void {
+    if (this.#shared) {
+      this.#shared.sourceChanged(file, entry);
+      return;
+    }
     this.#project?.invalidateFile(file, entry);
   }
 
@@ -211,7 +304,9 @@ export class IntegrationSession {
    * @throws If checker cleanup fails.
    */
   close(): void {
-    this.#project?.invalidate();
+    if (!this.#shared) {
+      this.#project?.invalidate();
+    }
     this.#entries = [];
     this.#facts?.close();
     this.#facts = undefined;
