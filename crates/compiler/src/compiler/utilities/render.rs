@@ -11,9 +11,9 @@
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_selector,
-    instantiate_variant_selector, selector_cannot_match, selector_has_pseudo_element,
-    selector_list_branches, selector_uses_subject,
+    append_element_condition, fold_host_conditions, hoist_pseudo_element_conditions,
+    instantiate_selector, instantiate_variant_selector, normalize_scopes, selector_cannot_match,
+    selector_has_pseudo_element, selector_list_branches, selector_uses_subject,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
@@ -23,6 +23,7 @@ use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
+use super::super::stylesheet::{fold_nested_host_rules, render_authored_variant_steps};
 use super::super::variants::{VariantStep, variant_paths};
 use super::declaration_order::prepend_missing_declarations;
 use super::resolve::CompiledUtility;
@@ -306,12 +307,13 @@ fn render_scoped_utility_steps(
         },
         nested_rule,
     );
-    let body = super::super::stylesheet::render_authored_variant_steps(&body, &steps, identifiers)?;
+    let body = render_authored_variant_steps(&body, &steps, identifiers)?;
     let mut nested = format_args!("{selector}{{{body}}}").to_lean_string();
-    super::super::stylesheet::fold_nested_host_rules(&mut nested);
-    let mut rule = stillwind_css::normalize_scopes(&nested)
-        .css
-        .to_lean_string();
+    fold_nested_host_rules(&mut nested);
+    if let Some(hoisted) = hoist_pseudo_element_conditions(&nested) {
+        nested = hoisted.into();
+    }
+    let mut rule = normalize_scopes(&nested).css.to_lean_string();
     if let Some(container) = &utility.container {
         rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
     }
@@ -469,6 +471,7 @@ fn wrap_condition(rule: &str, at_rule: NestedUtilityAtRule, condition: &str) -> 
 mod render_step_tests {
     use lean_string::ToLeanStr;
 
+    use stillwind_css::{CssMinifyOptions, minify_css};
     use stillwind_design_system::{UtilityOrder, VariantDeclaration};
 
     use super::super::resolve::CompiledUtilityDiagnosticData;
@@ -517,9 +520,9 @@ mod render_step_tests {
                 &identifiers(),
             )
             .unwrap();
-            let css = stillwind_css::minify_css(
+            let css = minify_css(
                 &css,
-                &stillwind_css::CssMinifyOptions {
+                &CssMinifyOptions {
                     include: vec!["Nesting".into()],
                     ..Default::default()
                 },

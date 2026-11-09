@@ -92,8 +92,10 @@ pub(crate) fn applied_banners(css: &str, theme: &ThemeIndex) -> Vec<CssBanner> {
 /// Runtime guards remain unresolved `--if` expressions for the later options-aware
 /// lowering pass. A `@variant` statement without a block remains in the returned text,
 /// so this function is not a CSS validator. The result passes through
-/// [`normalize_scopes`](stillwind_css::normalize_scopes), which binds scope variants and
-/// wraps declarations placed directly in `@scope`.
+/// [`hoist_pseudo_element_conditions`](stillwind_css::hoist_pseudo_element_conditions),
+/// so `before:group-hover:` tests the element that originates `::before`, and then
+/// through [`normalize_scopes`](stillwind_css::normalize_scopes), which binds scope
+/// variants and wraps declarations placed directly in `@scope`.
 ///
 /// # Errors
 ///
@@ -122,6 +124,9 @@ pub(in crate::compiler) fn expand_authored_directives(
         output.replace_range(range, &replacement);
     }
     fold_nested_host_rules(&mut output);
+    if let Some(hoisted) = stillwind_css::hoist_pseudo_element_conditions(&output) {
+        output = hoisted.into();
+    }
     Ok(stillwind_css::normalize_scopes(&output).css.into())
 }
 
@@ -717,6 +722,14 @@ mod tests {
             (
                 ".btn { @apply group-hover:flex; }",
                 ".btn{:is(:where(.group):hover&){@media(hover:hover){display:flex;}}}",
+            ),
+            (
+                ".btn { @apply before:group-hover:flex; }",
+                ".btn{&::before{content:var(--tw-content);}&{:is(:where(.group):hover&){&::before{@media(hover:hover){display:flex;}}}}}",
+            ),
+            (
+                ".btn { @variant before { @variant group-hover { display: flex; } } }",
+                ".btn{&::before{content:var(--tw-content);}&{:is(:where(.group):hover&){&::before{@media(hover:hover){display:flex;}}}}}",
             ),
             (
                 ".btn { @apply [&>svg]:flex; }",

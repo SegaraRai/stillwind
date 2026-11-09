@@ -96,7 +96,7 @@ pub fn selector_has_pseudo_element(selector: &str) -> bool {
 /// Returns the byte offset of the first colon of the first pseudo-element in
 /// `selector` outside functional arguments, with the rules of
 /// [`selector_has_pseudo_element`].
-pub(super) fn pseudo_element_start(selector: &str) -> Option<usize> {
+fn pseudo_element_start(selector: &str) -> Option<usize> {
     let mut parser = Parser::new(selector);
     let mut colons = 0;
     let mut start = 0;
@@ -121,6 +121,27 @@ pub(super) fn pseudo_element_start(selector: &str) -> Option<usize> {
         }
         colons = 0;
     }
+}
+
+/// Splits a selector branch before its first pseudo-element into the selector of the
+/// originating element and the pseudo-element part, such as `.x` and `::before` for
+/// `.x::before`. A branch that puts whitespace or a combinator before the
+/// pseudo-element, such as `.x ::marker`, gets `*` as its element. Returns `None` when
+/// the branch has no pseudo-element or no element before it.
+pub(super) fn split_pseudo_element(branch: &str) -> Option<(String, &str)> {
+    let start = pseudo_element_start(branch)?;
+    let (element, pseudo_element) = branch.split_at(start);
+    if element.trim().is_empty() {
+        return None;
+    }
+    let element = if element.ends_with(|character: char| {
+        character.is_ascii_whitespace() || matches!(character, '>' | '+' | '~')
+    }) {
+        format!("{element}*")
+    } else {
+        element.to_owned()
+    };
+    Some((element, pseudo_element))
 }
 
 fn legacy_pseudo_element(name: &str) -> bool {

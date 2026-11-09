@@ -4,12 +4,11 @@
 use cssparser::{ParseError, Parser, Token};
 use lean_string::LeanString;
 
+use super::element::selector_is_element_condition;
+use super::list::{selector_list_branches, split_pseudo_element};
 use crate::functions::find_css_functions;
 use crate::lists::split_top_level;
 use crate::parser::{consume_css_block, validate_css_syntax};
-
-use super::element::selector_is_element_condition;
-use super::list::{pseudo_element_start, selector_list_branches};
 
 /// Returns the element condition of a complete `:is()` wrapper whose branches end
 /// in one nesting selector, such as `:is(.group:hover &)`. Each branch must have
@@ -34,29 +33,20 @@ pub fn instantiate_variant_selector(template: &str, parent: &str) -> LeanString 
     }
     let branches = selector_list_branches(parent)
         .into_iter()
-        .map(|branch| match pseudo_element_start(branch) {
-            Some(start) if !branch[..start].trim().is_empty() => {
-                let (element, pseudo_element) = branch.split_at(start);
-                // `.x ::before` selects the pseudo-element of every descendant.
-                let element = if element.ends_with(|character: char| {
-                    character.is_ascii_whitespace() || matches!(character, '>' | '+' | '~')
-                }) {
-                    format!("{element}*")
-                } else {
-                    element.to_owned()
-                };
+        .map(|branch| match split_pseudo_element(branch) {
+            Some((element, pseudo_element)) => {
                 format!(
                     "{}{pseudo_element}",
                     instantiate_selector(template, &element)
                 )
             }
-            _ => instantiate_selector(template, branch).to_string(),
+            None => instantiate_selector(template, branch).to_string(),
         })
         .collect::<Vec<_>>();
     branches.join(",").into()
 }
 
-fn is_wrapped_subject(selector: &str) -> bool {
+pub(super) fn is_wrapped_subject(selector: &str) -> bool {
     if !selector_is_element_condition(selector, false) {
         return false;
     }
