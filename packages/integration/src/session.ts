@@ -332,6 +332,16 @@ export class IntegrationSession {
   }
 
   /**
+   * Tests whether the prepared sources hold the text of a file.
+   *
+   * @param file - Absolute file path.
+   * @returns True when a source read from the file without a query is prepared.
+   */
+  holdsSource(file: string): boolean {
+    return Boolean((this.#shared?.project ?? this.#project)?.source(file));
+  }
+
+  /**
    * Discards the shared sources read from a file when they hold text other than the file's current
    * text, as {@link sourceChanged} does for a changed file. A caller that cannot learn about changes
    * before a compilation reads a file reports the text that it read.

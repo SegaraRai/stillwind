@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
@@ -34,6 +34,28 @@ for (const backend of ["webpack", "rspack"] as const) {
       });
       expect(global.css).toMatch(new RegExp(`color:\\s*${color}`));
     }
+  });
+
+  test(`${backend} watch compiles a producer with the current types of an edited import`, async () => {
+    const { root, watch } = await compilerFixture(backend, "plugin");
+    // Scripts receive type facts only in TypeScript files. The helper has no Stillwind import, so
+    // only the checker reads its type.
+    await writeFile(path.join(root, "main.js"), "import './app.ts';");
+    await writeFile(
+      path.join(root, "app.ts"),
+      "import {style} from 'stillwind/react';import {keep} from './keep.ts';const base=style.ref('base');const token=keep(base);globalThis.props=style({[token('')]:'red'});",
+    );
+    const keep = path.join(root, "keep.ts");
+    await writeFile(keep, "export const keep=structuredClone;");
+    // The watcher reports files written shortly before it starts as changed in its second build.
+    const past = new Date(Date.now() - 60_000);
+    for (const file of await readdir(root)) {
+      await utimes(path.join(root, file), past, past);
+    }
+    const nextBuild = watch();
+    await nextBuild();
+    await writeFile(keep, "export const keep=JSON.parse;");
+    await nextBuild(true);
   });
 
   test(`${backend} skips denied lint findings in scripts and stylesheets while rejecting compiler errors`, async () => {
@@ -222,14 +244,14 @@ async function compilerFixture(
           results.push(result);
         }
       });
-      return async () => {
+      return async (failure = false) => {
         const result =
           results.shift() ??
           (await new Promise<Result>((resolve) => {
             waiting = resolve;
           }));
         expect(result.error).toBeNull();
-        expect(result.stats?.hasErrors(), result.stats?.toString()).toBe(false);
+        expect(result.stats?.hasErrors(), result.stats?.toString()).toBe(failure);
       };
     },
     build: () =>
