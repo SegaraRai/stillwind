@@ -205,7 +205,8 @@ pub struct NativeCheckerBinding {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeModuleSummary {
-    /// Correspondences of original and projected expressions and imports; empty for plain inputs.
+    /// Correspondences of original and projected expressions and imports; empty for
+    /// plain inputs.
     pub checker_spans: Vec<NativeCheckerSpan>,
     /// Generated helper references protected from bindings in authored scopes.
     pub checker_bindings: Vec<NativeCheckerBinding>,

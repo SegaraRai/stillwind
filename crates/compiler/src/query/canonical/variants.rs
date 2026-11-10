@@ -12,7 +12,7 @@ use std::collections::{BTreeSet, HashMap};
 use lean_string::{LeanStr, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{StillwindVariantValueType, VariantApplication, resolve_variant};
-use stillwind_syntax::{parse_candidate, print_arbitrary_value};
+use stillwind_syntax::{decode_arbitrary_value, parse_candidate, print_arbitrary_value};
 
 use super::selectors::selector_signatures;
 use crate::query::QueryContext;
@@ -241,8 +241,7 @@ impl VariantTemplate {
                 .strip_prefix('[')
                 .and_then(|probe| probe.strip_suffix(']'))
                 .unwrap_or(self.probe);
-            let value =
-                stillwind_syntax::decode_arbitrary_value(value).replace(self.token, captured);
+            let value = decode_arbitrary_value(value).replace(self.token, captured);
             let written = format!("[{}]", print_arbitrary_value(&value));
             let names = child(&written);
             if names.is_empty() {
@@ -297,7 +296,7 @@ pub(super) fn test_css(query: &QueryContext, variant: &str) -> Option<String> {
 /// followed by the test rule. Returns `None` when `raw` is not an arbitrary variant.
 pub(super) fn written_test_css(raw: &str) -> Option<String> {
     let value = raw.strip_prefix('[')?.strip_suffix(']')?;
-    let value = stillwind_syntax::decode_arbitrary_value(value);
+    let value = decode_arbitrary_value(value);
     let value = value.trim();
     let selector = if value.contains('&') {
         value.to_owned()

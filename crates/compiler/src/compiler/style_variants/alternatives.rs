@@ -27,7 +27,7 @@ use stillwind_design_system::{
 };
 use stillwind_diagnostics::LintFinding;
 use stillwind_ir::{RefCondition, StyleVariant};
-use stillwind_source::Spanned;
+use stillwind_source::{Span, Spanned};
 use stillwind_syntax::{parse_candidate, parse_variant_prefix};
 
 use super::super::utilities::unresolved_utility_finding;
@@ -355,7 +355,7 @@ pub(in crate::compiler) fn expand_spanned_prefix(
 }
 
 /// The source span of a wrapper, used to report an expansion that is too large.
-fn wrapper_span(wrapper: &StyleVariant) -> Option<stillwind_source::Span> {
+fn wrapper_span(wrapper: &StyleVariant) -> Option<Span> {
     match wrapper {
         StyleVariant::Prefix(prefix) => Some(prefix.span),
         StyleVariant::Container { query, .. } => Some(query.span),

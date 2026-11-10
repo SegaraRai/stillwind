@@ -6,11 +6,13 @@ use std::rc::Rc;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_css::normalize_scopes;
 use stillwind_design_system::{
     DesignSystemRevision, UtilityFailure, UtilityResolutionError, VariantContext,
     stillwind_property_definitions,
 };
 use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_semantic::DeclarationKey;
 use stillwind_source::ModuleId;
 use stillwind_syntax::{Candidate, parse_candidate};
 
@@ -154,7 +156,7 @@ impl QueryContext {
     /// output. This operation does not validate arbitrary CSS or add document support
     /// rules.
     pub(super) fn preview_declarations(&self, css: &str) -> Option<LeanStr> {
-        let css = stillwind_css::normalize_scopes(css).css;
+        let css = normalize_scopes(css).css;
         lower_conditionals(&css, self.options.use_css_if, &candidate_identifiers(true))
             .ok()
             .filter(|lowered| lowered.skipped.is_empty())
@@ -315,7 +317,7 @@ fn candidate_selector(candidate: &str) -> LeanString {
     .class_name(&ClassContext {
         module: ModuleId::from(""),
         namespace: (LeanString::new()).into(),
-        key: stillwind_semantic::DeclarationKey::default(),
+        key: DeclarationKey::default(),
         branch: format_args!("{candidate}\0").to_lean_str(),
     })
     .map(|name| name.selector())

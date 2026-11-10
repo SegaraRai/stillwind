@@ -17,8 +17,9 @@ use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{
-    CssBanner, CssNode, CssNodeKind, fold_nested_host_conditions, parse_structure,
-    selector_selects_host, split_top_level, whitespace_separated_ranges,
+    CssBanner, CssNode, CssNodeKind, fold_nested_host_conditions, hoist_pseudo_element_conditions,
+    normalize_scopes, parse_structure, selector_selects_host, split_top_level,
+    whitespace_separated_ranges,
 };
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences, resolve_variant,
@@ -92,9 +93,8 @@ pub(crate) fn applied_banners(css: &str, theme: &ThemeIndex) -> Vec<CssBanner> {
 /// Runtime guards remain unresolved `--if` expressions for the later options-aware
 /// lowering pass. A `@variant` statement without a block remains in the returned text,
 /// so this function is not a CSS validator. The result passes through
-/// [`hoist_pseudo_element_conditions`](stillwind_css::hoist_pseudo_element_conditions),
-/// so `before:group-hover:` tests the element that originates `::before`, and then
-/// through [`normalize_scopes`](stillwind_css::normalize_scopes), which binds scope
+/// [`hoist_pseudo_element_conditions`], so `before:group-hover:` tests the element that
+/// originates `::before`, and then through [`normalize_scopes`], which binds scope
 /// variants and wraps declarations placed directly in `@scope`.
 ///
 /// # Errors
@@ -124,10 +124,10 @@ pub(in crate::compiler) fn expand_authored_directives(
         output.replace_range(range, &replacement);
     }
     fold_nested_host_rules(&mut output);
-    if let Some(hoisted) = stillwind_css::hoist_pseudo_element_conditions(&output) {
+    if let Some(hoisted) = hoist_pseudo_element_conditions(&output) {
         output = hoisted.into();
     }
-    Ok(stillwind_css::normalize_scopes(&output).css.into())
+    Ok(normalize_scopes(&output).css.into())
 }
 
 /// Moves conditions on a shadow host into `:host()` in the rules nested under a host.

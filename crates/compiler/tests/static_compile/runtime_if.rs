@@ -1,5 +1,7 @@
 //! Experimental computed-value conditions through the public compiler API.
 
+use lightningcss::stylesheet::MinifyOptions;
+
 use stillwind_compiler::{CompileResult, CompilerOptions};
 use stillwind_diagnostics::{CompileError, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
@@ -112,9 +114,7 @@ fn runtime_if_independent_rules_share_barriers_but_conflicts_do_not() {
         assert_eq!(names[2], names[3]);
         assert!(!result.module_css.contains("-stillwind-rule-boundary"));
         let mut sheet = StyleSheet::parse(&result.module_css, ParserOptions::default()).unwrap();
-        sheet
-            .minify(lightningcss::stylesheet::MinifyOptions::default())
-            .unwrap();
+        sheet.minify(MinifyOptions::default()).unwrap();
         let minified = sheet
             .to_css(PrinterOptions {
                 minify: true,

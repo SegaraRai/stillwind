@@ -7,7 +7,11 @@
 
 use std::collections::BTreeMap;
 
-use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
+use stillwind_compiler::{
+    CompileResult, CompilerOptions, Identifiers, ModuleCompiler, StylesheetRenderer,
+    render_transforms,
+};
+use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{LintFinding, LintKind};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
 use stillwind_js_oxc::OxcSourceAnalyzer;
@@ -221,17 +225,17 @@ fn an_imported_declaration_expands_through_checker_facts() {
         assets,
     };
     let analysis = OxcSourceAnalyzer.finalize(scan, Some(&facts));
-    let snapshot = stillwind_design_system::DesignSystemSnapshot::from_source(
+    let snapshot = DesignSystemSnapshot::from_source(
         &css_source(FileId(2), "@import 'stillwind';").unwrap(),
         CssSourceName::from("stillwind.css"),
         CompilerOptions::default().design_system(),
     )
     .unwrap();
     let options = CompilerOptions::default();
-    let identifiers = stillwind_compiler::Identifiers::default();
-    let module = stillwind_compiler::ModuleCompiler::new(snapshot.clone(), options.clone())
-        .compile(&analysis, &identifiers);
-    let result = stillwind_compiler::StylesheetRenderer::new(&snapshot, &options, &identifiers)
+    let identifiers = Identifiers::default();
+    let module =
+        ModuleCompiler::new(snapshot.clone(), options.clone()).compile(&analysis, &identifiers);
+    let result = StylesheetRenderer::new(&snapshot, &options, &identifiers)
         .render_compilation(&module, source.full_span());
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     assert!(

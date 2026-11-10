@@ -9,7 +9,7 @@ use lightningcss::media_query::{
     MediaCondition, MediaFeature, MediaFeatureComparison, MediaFeatureId, MediaFeatureName,
     MediaFeatureValue, MediaQuery, Operator, QueryFeature,
 };
-use lightningcss::rules::container::ContainerCondition;
+use lightningcss::rules::container::{ContainerCondition, ContainerSizeFeatureId};
 use lightningcss::rules::supports::SupportsCondition;
 
 /// Shortens boolean media features and merges range pairs in `query`.
@@ -150,7 +150,7 @@ impl<'i> QueryNode<'i> for MediaCondition<'i> {
 }
 
 impl<'i> QueryNode<'i> for ContainerCondition<'i> {
-    type FeatureId = lightningcss::rules::container::ContainerSizeFeatureId;
+    type FeatureId = ContainerSizeFeatureId;
 
     fn feature(&self) -> Option<&QueryFeature<'i, Self::FeatureId>> {
         match self {

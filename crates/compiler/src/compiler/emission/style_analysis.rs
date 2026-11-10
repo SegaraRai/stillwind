@@ -8,7 +8,7 @@
 
 use std::collections::BTreeSet;
 
-use cssparser::{Parser, Token};
+use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, ToLeanString};
 
 use stillwind_css::{
@@ -517,11 +517,10 @@ fn subject(selector: &str) -> RuleSubject {
                     token,
                     Token::Function(_) | Token::SquareBracketBlock | Token::ParenthesisBlock
                 ) {
-                    let _: Result<(), cssparser::ParseError<()>> =
-                        parser.parse_nested_block(|inner| {
-                            while inner.next_including_whitespace_and_comments().is_ok() {}
-                            Ok(())
-                        });
+                    let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                        while inner.next_including_whitespace_and_comments().is_ok() {}
+                        Ok(())
+                    });
                 }
             }
         }
