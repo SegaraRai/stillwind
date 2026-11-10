@@ -473,3 +473,19 @@ the error and document how to set a longer hash.
 
 Sources: [identifier kinds](../crates/compiler/src/identifiers/kind.rs),
 [application generator](../benchmarks/apps/generate.ts).
+
+## Document CSS in Turbopack worker processes
+
+Turbopack runs loaders in a pool of worker processes. Each process keeps its own
+compiler for document CSS and compiles only the modules whose sources, or the
+sources of the local modules that they import, changed since its previous
+reconstruction. Turbopack chooses the process for each reconstruction, so the first
+edit that reaches a process without a previous reconstruction compiles the whole
+entry graph. In a generated Next application with about 270 modules, such an edit
+takes about 9 seconds, and a later edit in the same process takes under a second.
+Decide whether reconstruction should reuse compiled modules across processes, for
+example through a cache on disk, or whether the document CSS should combine
+per-module results instead of compiling the graph in one process.
+
+Sources: [graph reconstruction](../packages/integration/src/turbopack/project.ts),
+[application benchmark](../benchmarks/apps/run.ts).

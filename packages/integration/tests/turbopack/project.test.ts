@@ -1,3 +1,4 @@
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import fs from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -53,6 +54,91 @@ test("Turbopack plans document CSS without imports that cannot be resolved and w
       `stillwind: invalid-css-import: \`./missing.css\` cannot be resolved or read (${path.join(root, "root.css")}:1:1)`,
     ]);
   } finally {
-    project.compiler.close();
+    project.release();
   }
+});
+
+test("Turbopack invocations share a compiler until the CSS changes and compile only edited modules and their importers", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-shared-project-"));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  const css = path.join(root, "root.css");
+  await writeFile(
+    css,
+    "@utility paint{color:red} @utility wide{width:3px} @stillwind-slot utilities;",
+  );
+  await writeFile(
+    path.join(root, "entry.tsx"),
+    'import {style} from "stillwind/react"; import {tone} from "./tone"; export const props = [tone, style("paint")];',
+  );
+  const tone = path.join(root, "tone.ts");
+  await writeFile(tone, 'export const tone = "first";');
+  const dependencies: string[] = [];
+  const context = {
+    rootContext: root,
+    getOptions: () =>
+      ({
+        compiler: { configFile: false, css: "root.css" },
+        root: ".",
+        entries: ["entry.tsx"],
+        mode: "release",
+      }) satisfies TurbopackLoaderOptions,
+    fs,
+    addDependency: (id: string) => dependencies.push(id),
+    addMissingDependency: () => {},
+    getResolve:
+      () =>
+      (directory: string, specifier: string, done: (error: Error | null, id?: string) => void) =>
+        done(null, `${path.resolve(directory, specifier)}.ts`),
+    emitWarning: () => {},
+  } as unknown as LoaderContext<TurbopackLoaderOptions>;
+  let compilations = 0;
+  const listener = (message: unknown) => {
+    if ((message as { phase: string }).phase === "entry") {
+      compilations += 1;
+    }
+  };
+  subscribe("stillwind:host:phase", listener);
+  onTestFinished(() => {
+    unsubscribe("stillwind:host:phase", listener);
+  });
+  const plan = async () => {
+    compilations = 0;
+    const project = await createProject(context);
+    try {
+      return {
+        compiler: project.compiler,
+        css: (await compileGraph(["entry.tsx"], project)).parts.map((part) => part.css).join("\n"),
+        compilations,
+      };
+    } finally {
+      project.release();
+    }
+  };
+
+  const first = await plan();
+  expect(first.compilations).toBe(1);
+  dependencies.length = 0;
+  const second = await plan();
+  expect(second).toMatchObject({ compiler: first.compiler, css: first.css, compilations: 0 });
+  expect(dependencies).toContain(css);
+
+  // A per-module compilation of an edit that is reverted before the next reconstruction.
+  const entry = path.join(root, "entry.tsx");
+  const original = await fs.promises.readFile(entry, "utf8");
+  const edited = original.replace('style("paint")', 'style("wide")');
+  const project = await createProject(context);
+  try {
+    await project.compiler.compile(edited, entry, project.host);
+  } finally {
+    project.release();
+  }
+  expect((await plan()).css).toBe(first.css);
+
+  await writeFile(tone, 'export const tone = "second";');
+  expect(await plan()).toMatchObject({ compiler: first.compiler, compilations: 1 });
+
+  await writeFile(css, "@utility paint{color:blue} @stillwind-slot utilities;");
+  const third = await plan();
+  expect(third.compiler).not.toBe(first.compiler);
+  expect(third.css).toMatch(/color:\s*blue/);
 });

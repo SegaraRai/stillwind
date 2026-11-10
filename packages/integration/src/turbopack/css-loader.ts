@@ -25,7 +25,7 @@ export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOp
  * @param context - Loader context whose callback receives CSS and a decoded map, or the operation error.
  * @param entries - Callback that selects absolute or project-relative entries after configuration is evaluated.
  * Repeats reconstruction if entry discovery changes during compilation or resource resolution.
- * Dependency watches are registered during traversal, and each attempt closes its compiler's checker.
+ * Dependency watches are registered during traversal, and each attempt releases its project.
  */
 export function emitStylesheet(
   context: LoaderContext<TurbopackLoaderOptions>,
@@ -54,7 +54,7 @@ export function emitStylesheet(
           const file = await project.resolveAsset(
             resource.specifier,
             "moduleId" in resource
-              ? project.compiler.resolverId(resource.moduleId)
+              ? project.graphCompiler.resolverId(resource.moduleId)
               : resource.sourceName,
           );
           project.host.watch(file);
@@ -80,7 +80,7 @@ export function emitStylesheet(
         callback(null, output.code, output.map);
         return;
       } finally {
-        project.compiler.close();
+        project.release();
       }
     }
   })().catch(callback);

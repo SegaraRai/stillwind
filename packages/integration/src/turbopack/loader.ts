@@ -18,7 +18,7 @@ import { createProject, type TurbopackLoaderOptions } from "./project.ts";
  * @param source - Original module text. Sources without recognized Stillwind imports pass through unchanged.
  * @param inputMap - Optional upstream map composed with compiler replacements for producer output.
  * @returns The immediate callback result for pass-through source, or undefined while asynchronous compilation runs.
- * Compilation registers dependencies, may add an automatic document carrier import, and closes its checker afterward.
+ * Compilation registers dependencies, may add an automatic document carrier import, and releases its project afterward.
  */
 export default function turbopackLoader(
   this: LoaderContext<TurbopackLoaderOptions>,
@@ -110,7 +110,7 @@ export default function turbopackLoader(
         ),
       );
     } finally {
-      project.compiler.close();
+      project.release();
     }
   })().catch(callback);
 }

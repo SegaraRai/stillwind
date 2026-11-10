@@ -83,7 +83,7 @@ test.each(["next", "turbopack"])(
         project.compiler.compile("export const =;", path.join(root, "entry.tsx"), project.host),
       ).rejects.toThrow();
     } finally {
-      project.compiler.close();
+      project.release();
     }
   },
 );
