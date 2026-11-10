@@ -236,7 +236,8 @@ export interface ViteProject {
   /**
    * Advances the environment revision now and publishes one snapshot after compilations stop
    * arriving, or after at most `PUBLISH_MAX_DELAY` milliseconds. A planning failure of the delayed
-   * publication is reported as a server warning and keeps the last published styles.
+   * publication is reported as a server warning and keeps the last published styles. The delayed
+   * publication plans nothing when no browser is connected to the server.
    *
    * @param name - Environment name, or `undefined` for `client`. Production and unattached servers
    * do nothing.
@@ -633,7 +634,11 @@ export function createViteProject(
       delayedPublications.delete(environmentName);
       const target = server.environments[environmentName];
       try {
-        if (!target) {
+        // Snapshots reach documents only through connected browsers, and a browser that connects
+        // later loads a current snapshot with the runtime module. Without this check, a cold start
+        // that compiles for a long time without a browser plans the document every
+        // `PUBLISH_MAX_DELAY` milliseconds, and each plan delays the next compilation.
+        if (!target || server.ws.clients.size === 0) {
           return;
         }
         // The compilation that requested this publication has finished, so its plugin context no
