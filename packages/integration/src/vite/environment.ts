@@ -124,6 +124,20 @@ export class ViteEnvironment {
   }
 
   /**
+   * Tests whether a changed file exposes the same exports to other producers as before the change.
+   *
+   * @param file - Resolver identity of a file that {@link changed} received with `entry` false and
+   * that a producer compilation prepared again since then.
+   * @returns False when the compiler is not initialized, no producer imports the file, or the
+   * exports cannot be compared. True means that compiling the importing producers again gives the
+   * same JavaScript and CSS.
+   * @throws If checker input installation fails.
+   */
+  keepsInterface(file: string): boolean {
+    return this.#designSystem.initialized && this.#designSystem.compiler.keepsInterface(file);
+  }
+
+  /**
    * Closes the environment's type-facts service while retaining native compiler state and producer
    * inputs.
    */

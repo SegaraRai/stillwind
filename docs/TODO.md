@@ -403,9 +403,20 @@ that module. In the medium application benchmark, native compilation takes about
 finalizing unchanged dependencies take about 150ms.
 
 A development server does not register dependencies with `addWatchFile`. Its hot
-update hook compiles the producers that read the changed file again and sends a hot
-update only for those whose JavaScript changes. These producers still query facts
-for their own probes, so a shared edit still runs the checker for every consumer.
+update hook compiles the changed producer and then compares the interface of the
+changed file before and after the edit: the asset records of its scan and the types
+of its exports as facts decode them. Utility strings in a style output type do not
+take part. When the interface is the same, the hook does not compile the producers
+that read the file. Otherwise it compiles them again and sends a hot update only for
+those whose JavaScript changes. The comparison does not cover these cases, so a
+development server can keep stale results until the consumer compiles again:
+
+- Checker diagnostics and Stillwind lint findings of a consumer.
+- A producer type that the edit adds or removes and that changes how facts classify
+  a consumer type that the exports do not reach.
+- Global declarations and module augmentation in the changed file.
+
+A changed file that is not itself a producer always compiles its consumers again.
 Vite environments share one checker, but each environment has its own native session
 and compiles every module again. In a build the checker installs the discovered
 sources once and keeps one snapshot. Its time goes to opening that snapshot,
@@ -414,10 +425,7 @@ and reading facts.
 
 Planned direction:
 
-1. Skip the fact query and the compilation of a consumer when the changed file keeps
-   its interface: the types of its exports and the asset records that they reach.
-   Define a fingerprint of that interface that the checker can compute for one file.
-2. Compile one module for each transform with the facts of its own probes. Key
+1. Compile one module for each transform with the facts of its own probes. Key
    artifacts by the dependency interfaces that they read, and move cycle and
    missing-producer checks to linking. Read the inline-style flags of bases from
    the interface of the dependency. Style-effect lints such as
@@ -436,6 +444,7 @@ Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
 [module graph](../packages/host/src/compilation/module-graph.ts),
 [Vite compilation](../packages/integration/src/vite/compile.ts),
 [Vite hot updates](../packages/integration/src/vite/development.ts),
+[export interfaces](../packages/host/src/semantics/node/export-interface.ts),
 [native compile batches](../crates/napi/src/session/project.rs).
 
 ## Transport options of dependencies

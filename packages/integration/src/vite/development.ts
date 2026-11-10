@@ -77,11 +77,17 @@ export function developmentHooks(
           return modules;
         }
         const previous = inputs(name).get(id);
-        const consumers = [...inputs(name).values()].filter(
+        let consumers = [...inputs(name).values()].filter(
           (input) => !input.manual && input.id !== id && input.sourceDependencies.has(id),
         );
         const source = previous && context.type !== "delete" ? await context.read() : undefined;
         const result = source === undefined ? undefined : await compile(name, source, id, host);
+        // Producers read only the exports of the changed file. When the exports are unchanged,
+        // compiling the producers again gives the same JavaScript and CSS. Their checker
+        // diagnostics are then not refreshed until they are compiled for another reason.
+        if (result !== undefined && consumers.length > 0 && state.keepsInterface(id)) {
+          consumers = [];
+        }
         // Producers that read the changed file are compiled again here instead of through Vite
         // watch files. Only producers whose JavaScript changes need a hot update, because class
         // names do not depend on the text of the modules that declare the composed styles.

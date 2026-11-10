@@ -298,6 +298,22 @@ export class IntegrationSession {
   }
 
   /**
+   * Tests whether a changed file exposes the same exports to other modules as before the change.
+   * When it does, compilations of the modules that import it give the same output as before,
+   * except for their checker diagnostics.
+   *
+   * @param file - Absolute path that {@link sourceChanged} received with `entry` false. A
+   * compilation must have prepared the file again since then.
+   * @returns False when the file was not compiled before and after the change, no other module
+   * imports it, or its exports cannot be compared.
+   * @throws If checker input installation fails.
+   */
+  keepsInterface(file: string): boolean {
+    const facts = this.#shared ? this.#shared.facts() : this.#facts;
+    return Boolean(facts && this.#project?.keepsInterface(file, facts));
+  }
+
+  /**
    * Closes the current checker while retaining native compiler state and selected TypeScript settings.
    * Later compilation can start a new checker. Repeated calls have no effect until that happens.
    *

@@ -19,6 +19,7 @@ import {
 import { type CheckerSource, checkerId, withRequestedProbes } from "../checker-source.ts";
 import { NodeChecker, type TypeScriptFactsStats } from "./checker.ts";
 import { AssetTypeDecoder } from "./decoder.ts";
+import { exportInterface } from "./export-interface.ts";
 import { visit, diagnosticText, producerArgumentDiagnostic, factsForSource } from "./facts.ts";
 import {
   normalize,
@@ -219,6 +220,46 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       });
     }
     return result;
+  }
+
+  /**
+   * Describes the exports of an installed source as consumers read them through facts.
+   *
+   * @param resolverId - Resolver identity of a source passed to {@link setProjectSources}.
+   * @returns A description that is equal in two installations when consumers read the same facts
+   * from the exports. Returns undefined when the service is closed, no project is installed, the
+   * source is not installed, the exports are too large to describe, or the checker fails.
+   */
+  exportInterface(resolverId: string): string | undefined {
+    if (this.#closed || !this.#installed) {
+      return undefined;
+    }
+    try {
+      const { sources, assets, inputs } = this.#installed;
+      const prepared = this.#prepare(sources, assets, inputs);
+      const mappings = prepared.mappings.filter(
+        (mapping) => mapping.source.resolverId === resolverId,
+      );
+      if (mappings.length === 0) {
+        return undefined;
+      }
+      const project = tracePhase("checker-update", prepared.mappings.length, () =>
+        this.#checker.updateProject(prepared),
+      );
+      const decoder = this.#producers(project, prepared, mappings);
+      const parts: string[] = [];
+      for (const mapping of mappings) {
+        const file = project.program.getSourceFile(mapping.id);
+        const description = file && exportInterface(project.checker, file, decoder);
+        if (description === undefined) {
+          return undefined;
+        }
+        parts.push(description);
+      }
+      return parts.join("\n\n");
+    } catch {
+      return undefined;
+    }
   }
 
   /**

@@ -75,6 +75,12 @@ export class CompilationProject {
   >;
   /** Import answers for the currently installed checker inputs. */
   #resolutions?: ReadonlyMap<string, ReadonlyMap<string, string>>;
+  /**
+   * Export descriptions of sources that {@link invalidateFile} removed after a content change,
+   * keyed by normalized resolver ID. Undefined records a source whose exports could not be
+   * described. {@link keepsInterface} compares them with the reloaded sources.
+   */
+  readonly #interfaces = new Map<string, string | undefined>();
   /** Resolver IDs of sources that {@link invalidateFile} removed and {@link prepare} loads again. */
   readonly #reload = new Set<string>();
   /** Advances on invalidation so pending loads cannot publish old sources. */
@@ -310,6 +316,7 @@ export class CompilationProject {
     this.#revision++;
     this.#facts?.clear();
     this.#imports?.clear();
+    this.#interfaces.clear();
     if (ids === undefined) {
       this.#sources.clear();
       this.#reload.clear();
@@ -351,6 +358,9 @@ export class CompilationProject {
       this.invalidate(removed);
       return;
     }
+    for (const id of removed) {
+      this.#interfaces.set(id, this.#imported(id) ? this.#describe(id) : undefined);
+    }
     this.#revision++;
     this.#facts?.clear();
     for (const importKey of this.#imports?.keys() ?? []) {
@@ -365,6 +375,70 @@ export class CompilationProject {
     if (removed.length > 0) {
       this.#changed();
     }
+  }
+
+  /**
+   * Tests whether every source read from a changed file exposes the same exports as before the
+   * last {@link invalidateFile} call for that file. When it does, the facts and scans that other
+   * sources read from it are unchanged, so analyses of those sources may be kept.
+   *
+   * Call it after the reloaded sources were prepared again. The result does not cover checker
+   * diagnostics of the other sources, global declarations that the file adds, or module
+   * augmentation.
+   *
+   * @param file - Absolute path passed to {@link invalidateFile} with `entry` false.
+   * @param backend - Backend for later queries. Receives the current inputs if they changed.
+   * @param inputs - File overlays and ambient declarations of the current analyses.
+   * @returns False when no source was removed, a removed source is not prepared again, another
+   * source did not import it, or the backend cannot describe its exports before and after.
+   * @throws If checker input installation fails.
+   */
+  keepsInterface(file: string, backend: TypeFactsBackend, inputs?: SemanticInputs): boolean {
+    const key = sourceKey(file);
+    const ids = [...this.#interfaces.keys()].filter((id) => id === key || id.startsWith(`${key}?`));
+    if (ids.length === 0 || ids.some((id) => !this.#sources.has(id))) {
+      return false;
+    }
+    this.install(backend, [], inputs);
+    return ids.every((id) => {
+      const before = this.#interfaces.get(id);
+      return before !== undefined && before === this.#describe(id);
+    });
+  }
+
+  /**
+   * Tests whether another prepared source has a resolved import of a source.
+   *
+   * @param id - Normalized resolver ID of a prepared source.
+   */
+  #imported(id: string): boolean {
+    const resolverId = this.#sources.get(id)?.source.resolverId;
+    return [...this.#sources.values()].some((record) =>
+      record.resolutions.some((resolution) => resolution.id === resolverId),
+    );
+  }
+
+  /**
+   * Describes the exports of a source in the installed checker inputs and its declaration
+   * metadata.
+   *
+   * @param id - Normalized resolver ID of a prepared source.
+   * @returns Undefined when the installed inputs do not contain the current source or the backend
+   * cannot describe its exports.
+   */
+  #describe(id: string): string | undefined {
+    const record = this.#sources.get(id);
+    const installed = this.#installed;
+    if (!record || installed?.generation !== this.#generation) {
+      return undefined;
+    }
+    const exports = installed.backend.exportInterface?.(record.source.resolverId);
+    if (exports === undefined) {
+      return undefined;
+    }
+    const assets = record.summary.assets.map(({ identity, metadata }) => ({ identity, metadata }));
+    return `${JSON.stringify(assets)}
+${exports}`;
   }
 
   /**

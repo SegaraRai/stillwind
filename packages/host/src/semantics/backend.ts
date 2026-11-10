@@ -153,6 +153,16 @@ export interface TypeFactsBackend {
     inputs?: SemanticInputs,
   ): void;
   /**
+   * Describes the exports of an installed source as consumers read them through facts. Without
+   * this method, every edit of a source counts as a change of its exports.
+   *
+   * @param resolverId - Resolver identity of a source passed to {@link setProjectSources}.
+   * @returns A description that is equal in two installations when consumers read the same facts
+   * from the exports, or undefined when the backend cannot describe them. Undefined must be treated
+   * as a change.
+   */
+  exportInterface?(resolverId: string): string | undefined;
+  /**
    * Resolves imports using the checker environment before source-provider fallback resolution.
    *
    * @param sources - Prepared sources with original probes and checker correspondences.

@@ -18,7 +18,7 @@ export const props = style('red');
 export async function createTestServer(
   config: BaseConfig = {},
   css = "@utility red{color:red} @stillwind-slot utilities;",
-  vite: Pick<InlineConfig, "build" | "environments"> = {},
+  vite: Pick<InlineConfig, "build" | "environments" | "server"> = {},
 ) {
   const root = await mkdtemp(path.join(packageRoot, ".test-security-"));
   let server: ViteDevServer | undefined = undefined;
@@ -58,6 +58,7 @@ export async function createTestServer(
         allow: [root],
         deny: ["**/blocked.ts"],
       },
+      ...vite.server,
     },
   });
   await server.listen();
