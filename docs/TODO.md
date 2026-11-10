@@ -463,3 +463,18 @@ per-module results instead of compiling the graph in one process.
 
 Sources: [graph reconstruction](../packages/integration/src/turbopack/project.ts),
 [application benchmark](../benchmarks/apps/run.ts).
+
+## Component projection on the first page load
+
+A Vite development server converts each Vue and Svelte component to a checker
+script when a request first compiles it. In a generated application with about
+240 components, the first page load takes about 0.9 seconds, while a Solid
+application of the same shape takes about 0.4 seconds and the application
+without Stillwind takes about 0.15 seconds. Loading the converters before the
+first request does not shorten it, so the time goes to the conversions. Decide
+whether conversions can start before the first request, for example for the
+components that the entries import, or whether a cache on disk should keep
+converted scripts between server starts.
+
+Sources: [component conversion](../packages/projection/src/frameworks/index.ts),
+[application benchmark](../benchmarks/apps/run.ts).

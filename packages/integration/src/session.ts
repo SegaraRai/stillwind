@@ -251,13 +251,7 @@ export class IntegrationSession {
     const pendingByResolverId = new Map<string, string>();
     const output = await compileModule(
       this.native,
-      () => {
-        if (this.#shared) {
-          return this.#shared.facts();
-        }
-        this.#facts ??= new TypeScriptFactsService(this.#typeFactsEnvironment);
-        return this.#facts;
-      },
+      () => this.#checker(),
       code,
       id,
       {
@@ -290,6 +284,16 @@ export class IntegrationSession {
   }
 
   /**
+   * Starts the checker process that later compilations query, unless it is running. Compilations
+   * start it on demand, so a caller uses this only to start it before the first compilation.
+   *
+   * @throws If the checker process cannot start.
+   */
+  startChecker(): void {
+    this.#checker();
+  }
+
+  /**
    * Returns the host identity recorded after a compilation returned successfully.
    *
    * @param moduleId - Compiler identity previously observed during this session's compilation.
@@ -302,6 +306,15 @@ export class IntegrationSession {
       throw new Error(`Unknown Stillwind module identity: ${moduleId}`);
     }
     return id;
+  }
+
+  /** Returns the checker of the shared project or of this session, starting it on first use. */
+  #checker(): TypeScriptFactsService {
+    if (this.#shared) {
+      return this.#shared.facts();
+    }
+    this.#facts ??= new TypeScriptFactsService(this.#typeFactsEnvironment);
+    return this.#facts;
   }
 
   /**

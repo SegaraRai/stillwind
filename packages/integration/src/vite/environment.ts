@@ -173,6 +173,10 @@ export class ViteEnvironment {
       await this.#designSystem.ensure(context, () => {
         this.revision++;
       });
+      // The checker process loads TypeScript while the server waits for its first request.
+      if (this.settings.watching) {
+        this.#designSystem.compiler.startChecker();
+      }
     });
   }
 
