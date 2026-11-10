@@ -460,20 +460,6 @@ when they do not change the output.
 Sources: [entry compilation](../packages/host/src/compilation/compiler.ts),
 [prepared sources](../crates/napi/src/source_input/prepared.rs).
 
-## Generated name collisions in large projects
-
-Release builds name generated classes with a 5-character base36 hash. In a
-generated application with about 2,000 components (about 8,000 names), two names
-collided and the build failed with SW03001. The birthday bound gives a collision
-probability of roughly 40% at that size, so the failure depends on the source
-text and appears without warning as a project grows. Decide whether the compiler
-should resolve a collision deterministically (for example, by extending only the
-colliding hashes), choose the default length from the number of names, or keep
-the error and document how to set a longer hash.
-
-Sources: [identifier kinds](../crates/compiler/src/identifiers/kind.rs),
-[application generator](../benchmarks/apps/generate.ts).
-
 ## Document CSS in Turbopack worker processes
 
 Turbopack runs loaders in a pool of worker processes. Each process keeps its own
