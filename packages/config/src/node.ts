@@ -1,6 +1,7 @@
 /**
  * Node configuration discovery, evaluation, and project selection. `loadConfiguration` opens an
  * explicit file. `resolveIntegrationConfig` also discovers files and applies build overrides.
+ * `listProjectFiles` enumerates the target files of a project.
  * `evaluateModule` bundles and evaluates other local modules, such as plugin files. Consumers
  * retaining compiler state use the returned dependency paths for change tracking.
  */
@@ -67,6 +68,36 @@ export interface ResolvedIntegrationConfig {
   dependencies: string[];
   /** Absolute missing candidate paths before the selected file, nearest directory first. Watch their creation. */
   missing: string[];
+  /** Target globs of the selected project. Undefined when no configuration file selects a project. */
+  scope?: ProjectScope;
+}
+
+/** Target globs of one project, which {@link listProjectFiles} enumerates. */
+export interface ProjectScope {
+  /** Absolute project directory that the globs are relative to. */
+  root: string;
+  /** Nonempty include globs from the project's `files` setting. */
+  files: readonly string[];
+  /** Globs from the project's `exclude` setting. */
+  exclude: readonly string[];
+}
+
+/**
+ * Lists the existing files that a project's target globs select.
+ *
+ * @param scope - Target globs and the directory that they are relative to.
+ * @returns Absolute paths with forward slashes, including dot files. Paths below `node_modules`
+ * and `.git` and paths that `exclude` matches are omitted. The order is unspecified.
+ * @throws If filesystem enumeration fails.
+ */
+export function listProjectFiles(scope: ProjectScope): Promise<string[]> {
+  return glob([...scope.files], {
+    cwd: scope.root,
+    absolute: true,
+    onlyFiles: true,
+    dot: true,
+    ignore: ["**/node_modules/**", "**/.git/**", ...scope.exclude],
+  });
 }
 
 /**
@@ -395,6 +426,11 @@ export async function resolveIntegrationConfig(
     configFile: file,
     dependencies: loaded?.dependencies ?? [],
     missing,
+    scope: selected && {
+      root: selected.root,
+      files: selected.files,
+      exclude: selected.exclude ?? [],
+    },
   };
 }
 

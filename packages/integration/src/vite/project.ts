@@ -3,7 +3,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
-import { resolveIntegrationConfig } from "@stillwind/config/node";
+import { listProjectFiles, resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   resolveTypeFactsEnvironment,
@@ -57,8 +57,9 @@ export interface ProjectSettings {
   /** Files named by the build inputs of all environments, without queries. */
   entries: string[];
   /**
-   * {@link entries} when no source file changes while a compiler session exists. Undefined for
-   * development and watched builds.
+   * Present when no source file changes while a compiler session exists: {@link entries} and the
+   * source files that the selected project's `files` globs select. Undefined for development and
+   * watched builds.
    */
   fixedEntries?: string[];
   /** Absolute project root after configuration, including the optional compiler root override. */
@@ -321,9 +322,19 @@ function buildEntries(config: ResolvedConfig): string[] {
               : Object.values(input ?? {}),
         )
         .map(cleanModuleId)
-        .filter((id) => isAbsolute(id) && /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(id)),
+        .filter((id) => isAbsolute(id) && isSourceEntry(id)),
     ),
   ];
+}
+
+/**
+ * Tests whether a file can be a compilation entry.
+ *
+ * @param id - Path without a query.
+ * @returns True for script and component files. Declaration files are not entries.
+ */
+function isSourceEntry(id: string): boolean {
+  return /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(id) && !/\.d\.[cm]?ts$/.test(id);
 }
 
 /**
@@ -487,8 +498,20 @@ export function createViteProject(
     settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
     settings.entries = buildEntries(viteConfig);
+    // Build inputs such as an HTML page or framework routes can reach source files only through
+    // dynamic imports, which preparation does not follow. Each source that a later compilation
+    // adds then rebuilds the checker project.
     settings.fixedEntries =
-      settings.watching || viteConfig.build.watch ? undefined : settings.entries;
+      settings.watching || viteConfig.build.watch
+        ? undefined
+        : [
+            ...new Set([
+              ...settings.entries,
+              ...(resolved.scope ? await listProjectFiles(resolved.scope) : []).filter(
+                isSourceEntry,
+              ),
+            ]),
+          ];
   };
 
   /** Detaches the current server's change listeners and closes its configuration discovery watchers. */

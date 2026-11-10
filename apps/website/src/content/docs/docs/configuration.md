@@ -77,10 +77,10 @@ settings. Stillwind calls it once and uses the result.
 
 ### Required
 
-| Field   | Value                                                                              |
-| ------- | ---------------------------------------------------------------------------------- |
-| `css`   | Path to the stylesheet that defines the theme, utilities, and variants             |
-| `files` | Globs for the files that the CLI and the editor check; the build does not use them |
+| Field   | Value                                                                                        |
+| ------- | -------------------------------------------------------------------------------------------- |
+| `css`   | Path to the stylesheet that defines the theme, utilities, and variants                       |
+| `files` | Globs for the files that the CLI and the editor check, and that Vite builds type-check first |
 
 ### Scope
 

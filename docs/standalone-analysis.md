@@ -59,7 +59,9 @@ export default defineConfig(async () => ({
 ```
 
 `files` and `exclude` select diagnostic targets. They do not restrict imports or
-global declarations read by the checker. Target enumeration always excludes
+global declarations read by the checker. Vite builds also load the selected source
+files into the checker before the first compilation, but they compile only the
+modules that the application imports. Target enumeration always excludes
 `node_modules` and `.git`. Matching projects run independently, including overlapping
 scopes. Results identify the configuration path and the project array index.
 
