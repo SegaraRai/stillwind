@@ -554,8 +554,23 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
   }
   const outputs = graphOutputs.get(compiler) ?? new Map<string, GraphOutput>();
   graphOutputs.set(compiler, outputs);
-  // A module's output depends on the types of the local modules that it imports, so a change
-  // also compiles every module that reaches the changed module.
+  /**
+   * Compiles a module and records its output.
+   * @param node - Visited module.
+   * @returns Whether a producer compilation ran.
+   */
+  const compile = async (node: GraphNode) => {
+    const compiled = node.producer
+      ? await compiler.compile(node.source, node.id, host, {
+          moduleCssImport: "stillwind/module-css",
+        })
+      : undefined;
+    outputs.set(node.id, {
+      source: node.source,
+      selected: compiled && !compiled.hasModuleCssImport ? compiled.moduleId : undefined,
+    });
+    return node.producer;
+  };
   const importers = new Map<string, string[]>();
   for (const node of nodes) {
     for (const imported of node.imports) {
@@ -563,8 +578,22 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
     }
   }
   const byId = new Map(nodes.map((node) => [node.id, node]));
+  // A module's output depends on the types of the local modules that it imports, so a change
+  // also compiles every module that reaches the changed module. A changed producer that keeps
+  // its exports gives its importers the same output, except for their checker diagnostics, which
+  // are not refreshed until they are compiled for another reason.
+  const queue: GraphNode[] = [];
+  const compiled = new Set<string>();
+  for (const node of nodes) {
+    if (outputs.get(node.id)?.source === node.source) {
+      continue;
+    }
+    compiled.add(node.id);
+    if (!(await compile(node)) || !compiler.keepsInterface(node.id)) {
+      queue.push(...(importers.get(node.id) ?? []).map((importer) => byId.get(importer)!));
+    }
+  }
   const stale = new Set<string>();
-  const queue = nodes.filter((node) => outputs.get(node.id)?.source !== node.source);
   for (let node = queue.pop(); node; node = queue.pop()) {
     if (stale.has(node.id)) {
       continue;
@@ -576,21 +605,12 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
   }
   const selection: string[] = [];
   for (const node of nodes) {
-    let output = outputs.get(node.id);
-    if (stale.has(node.id) || !output) {
-      const compiled = node.producer
-        ? await compiler.compile(node.source, node.id, host, {
-            moduleCssImport: "stillwind/module-css",
-          })
-        : undefined;
-      output = {
-        source: node.source,
-        selected: compiled && !compiled.hasModuleCssImport ? compiled.moduleId : undefined,
-      };
-      outputs.set(node.id, output);
+    if (stale.has(node.id) && !compiled.has(node.id)) {
+      await compile(node);
     }
-    if (output.selected) {
-      selection.push(output.selected);
+    const selected = outputs.get(node.id)?.selected;
+    if (selected) {
+      selection.push(selected);
     }
   }
   const plan = compiler.native.planStylesheet({

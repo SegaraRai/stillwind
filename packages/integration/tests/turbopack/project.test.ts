@@ -148,6 +148,74 @@ test("Turbopack invocations share a compiler until the CSS changes and compile o
   expect(third.css).toMatch(/color:\s*blue/);
 });
 
+test("Turbopack reconstruction compiles only an edited producer that keeps its exports", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-kept-interface-"));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  await writeFile(
+    path.join(root, "root.css"),
+    "@utility paint{color:red} @utility wide{width:3px} @stillwind-slot utilities;",
+  );
+  await writeFile(
+    path.join(root, "entry.tsx"),
+    'import {style} from "stillwind/react"; import {base} from "./base"; export const props = style(base, "wide");',
+  );
+  const base = path.join(root, "base.ts");
+  await writeFile(
+    base,
+    'import {style} from "stillwind/react"; export const base = style("paint");',
+  );
+  const context = {
+    rootContext: root,
+    getOptions: () =>
+      ({
+        compiler: { configFile: false, css: "root.css" },
+        root: ".",
+        entries: ["entry.tsx"],
+        mode: "release",
+      }) satisfies TurbopackLoaderOptions,
+    fs,
+    addDependency: () => {},
+    addMissingDependency: () => {},
+    getResolve:
+      () =>
+      (directory: string, specifier: string, done: (error: Error | null, id?: string) => void) =>
+        done(
+          null,
+          specifier.startsWith(".")
+            ? `${path.resolve(directory, specifier)}.ts`
+            : fileURLToPath(import.meta.resolve(specifier)),
+        ),
+    emitWarning: () => {},
+  } as unknown as LoaderContext<TurbopackLoaderOptions>;
+  let compilations = 0;
+  const listener = (message: unknown) => {
+    if ((message as { phase: string }).phase === "entry") {
+      compilations += 1;
+    }
+  };
+  subscribe("stillwind:host:phase", listener);
+  onTestFinished(() => {
+    unsubscribe("stillwind:host:phase", listener);
+  });
+  const plan = async () => {
+    compilations = 0;
+    const project = await createProject(context);
+    try {
+      return (await compileGraph(["entry.tsx"], project)).parts.map((part) => part.css).join("\n");
+    } finally {
+      project.release();
+    }
+  };
+
+  const first = await plan();
+  await writeFile(
+    base,
+    'import {style} from "stillwind/react"; const unused = 1; export const base = style("paint");',
+  );
+  expect(await plan()).toBe(first);
+  expect(compilations).toBe(1);
+});
+
 test("Turbopack development compilers read the current text of an edited dependency", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-development-edit-"));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
