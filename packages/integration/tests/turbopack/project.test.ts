@@ -2,6 +2,7 @@ import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import fs from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { stillwindRules } from "@stillwind/integration/turbopack";
 import { expect, onTestFinished, test } from "vite-plus/test";
@@ -42,8 +43,12 @@ test("Turbopack plans document CSS without imports that cannot be resolved and w
     fs,
     addDependency: () => {},
     addMissingDependency: () => {},
-    getResolve: () => (_directory: string, specifier: string, done: (error: Error) => void) =>
-      done(new Error(`Cannot resolve ${specifier}`)),
+    getResolve:
+      (settings: { extensions?: string[] }) =>
+      (_directory: string, specifier: string, done: (error: Error | null, id?: string) => void) =>
+        settings.extensions?.includes(".css")
+          ? done(new Error(`Cannot resolve ${specifier}`))
+          : done(null, fileURLToPath(import.meta.resolve(specifier))),
     emitWarning: (error: Error) => warnings.push(error.message),
   } as unknown as LoaderContext<TurbopackLoaderOptions>;
   const project = await createProject(context);

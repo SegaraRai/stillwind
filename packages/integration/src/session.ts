@@ -120,6 +120,8 @@ export class IntegrationSession {
   readonly #domain?: string;
   /** Entries that the next compilation prepares together with its own entry. */
   #entries: readonly string[];
+  /** Loading of the entries, which every compilation awaits before it queries the checker. */
+  #preparation?: Promise<void>;
 
   /**
    * Creates compiler state without starting the TypeScript checker.
@@ -196,6 +198,7 @@ export class IntegrationSession {
       this.#shared = undefined;
       this.#project = new CompilationProject(true);
       this.#entries = entries;
+      this.#preparation = undefined;
       return this.#compile(code, id, host, transport);
     }
   }
@@ -213,19 +216,31 @@ export class IntegrationSession {
    */
   async #compile(code: string, id: string, host: CompilerHost, transport: ModuleCompileOptions) {
     // Loading every file that the entries reach lets later compilations share one checker
-    // project. Adding files after a checker query would replace the checker snapshot.
+    // project. Adding files after a checker query would replace the checker snapshot, so
+    // compilations that start while the entries load wait for them before they query the checker.
     const entries = this.#entries;
     this.#entries = [];
-    // The host resolver gives each path the identity spelling that its compilations use. The
-    // entries only speed up later compilations, so an entry that does not resolve is skipped.
-    const resolved = await Promise.all(
-      entries.map((entry) => host.resolve(entry, id, { skipSelf: true }).catch(() => null)),
-    );
-    await this.#project?.prepare(
-      [...resolved.flatMap((entry) => (entry && !entry.external ? [entry.id] : [])), id],
-      host,
-      this.native,
-    );
+    const project = this.#project;
+    const waiting = this.#preparation;
+    if (project && entries.length > 0) {
+      this.#preparation = (async () => {
+        // The host resolver gives each path the identity spelling that its compilations use. The
+        // entries only speed up later compilations, so an entry that does not resolve is skipped.
+        const resolved = await Promise.all(
+          entries.map((entry) => host.resolve(entry, id, { skipSelf: true }).catch(() => null)),
+        );
+        await project.prepare(
+          resolved.flatMap((entry) => (entry && !entry.external ? [entry.id] : [])),
+          host,
+          this.native,
+        );
+      })();
+      // The compilation that loads the entries reports their failure.
+      await this.#preparation;
+    } else {
+      await waiting?.catch(() => {});
+    }
+    await project?.prepare([id], host, this.native);
     const pending = new Map<string, string>();
     const pendingByResolverId = new Map<string, string>();
     const output = await compileModule(
@@ -324,6 +339,7 @@ export class IntegrationSession {
       this.#project?.invalidate();
     }
     this.#entries = [];
+    this.#preparation = undefined;
     this.#facts?.close();
     this.#facts = undefined;
   }

@@ -12,6 +12,7 @@ import {
   fileModuleDescriptor,
   loadCssGraph,
   nodePluginHost,
+  resolveTypeFactsEnvironment,
   warnRejectedNames,
   type CompilerHost,
   type LoadedCssGraph,
@@ -21,7 +22,13 @@ import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
 import { LoaderCache, recordInputs, type InputReader } from "../loader-cache.ts";
-import { buildCompilerOptions, IntegrationSession, warnSkippedCss } from "../session.ts";
+import {
+  buildCompilerOptions,
+  IntegrationSession,
+  SharedTypeFacts,
+  warnSkippedCss,
+} from "../session.ts";
+import { buildSourceEntries } from "../source-entries.ts";
 
 /** Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport. */
 type MutableSettings<T> = T extends readonly (infer Item)[]
@@ -83,6 +90,8 @@ interface SharedDesignSystem {
   loaded: LoadedCssGraph;
   compiler: IntegrationSession;
   graphCompiler: IntegrationSession;
+  /** Checker and prepared sources of both compilers in release mode, absent in development. */
+  shared?: SharedTypeFacts;
 }
 
 /**
@@ -95,9 +104,10 @@ const configurations = new LoaderCache<ResolvedIntegrationConfig>();
  * Design systems keyed by evaluated settings and mode. The checker of an idle compiler stops after
  * this time, so that a worker process does not keep a checker process running.
  */
-const designSystems = new LoaderCache<SharedDesignSystem>(({ compiler, graphCompiler }) => {
+const designSystems = new LoaderCache<SharedDesignSystem>(({ compiler, graphCompiler, shared }) => {
   compiler.close();
   graphCompiler.close();
+  shared?.close();
 }, 30_000);
 
 /** Compiler host whose resolver returns an identity or rejects instead of returning null. */
@@ -260,7 +270,20 @@ export async function createProject(
           root: options.root,
         },
       );
-      const session = () =>
+      // Files do not change during a production build, so both compilers can load the project
+      // files into one checker with the first compilation. A development server does not report
+      // file changes to loaders, so each of its compilations reads the files again.
+      const release = options.mode === "release";
+      const shared = release
+        ? new SharedTypeFacts(resolveTypeFactsEnvironment(options.root, options.compiler.tsconfig))
+        : undefined;
+      const entries = release
+        ? await buildSourceEntries(
+            options.entries.map((entry) => path.resolve(options.root, entry)),
+            configuration.scope,
+          )
+        : undefined;
+      const session = (domain: string) =>
         new IntegrationSession(
           options.root,
           loaded.loader,
@@ -268,9 +291,18 @@ export async function createProject(
           false,
           options.mode,
           loaded.plugins,
+          entries,
+          undefined,
+          shared,
+          domain,
         );
       return {
-        value: { loaded, compiler: session(), graphCompiler: session() },
+        value: {
+          loaded,
+          compiler: session("loader"),
+          graphCompiler: session("graph"),
+          shared,
+        },
         inputs: await recorder.finish(),
       };
     },
@@ -298,7 +330,12 @@ export async function createProject(
             external: true,
           }
         : {
-            id: await resolveJs(specifier, importer),
+            // Turbopack's resolver rewrites an absolute request to a relative one with native
+            // separators, which it cannot resolve. Project files reach the compiler as absolute
+            // paths.
+            id: path.isAbsolute(specifier)
+              ? path.normalize(specifier)
+              : await resolveJs(specifier, importer),
           },
     warn: (message: string) => {
       context.emitWarning(new Error(message));

@@ -3,7 +3,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
-import { listProjectFiles, resolveIntegrationConfig } from "@stillwind/config/node";
+import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   resolveTypeFactsEnvironment,
@@ -13,6 +13,7 @@ import type { NativeCssMinifyOptions } from "@stillwind/native";
 import type { Environment, InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
 import { SharedTypeFacts } from "../session.ts";
+import { buildSourceEntries, isSourceEntry } from "../source-entries.ts";
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
 import type { BrowserSourceMapInput } from "./browser-source-map.ts";
 import type { BuildOutput } from "./build.ts";
@@ -328,16 +329,6 @@ function buildEntries(config: ResolvedConfig): string[] {
 }
 
 /**
- * Tests whether a file can be a compilation entry.
- *
- * @param id - Path without a query.
- * @returns True for script and component files. Declaration files are not entries.
- */
-function isSourceEntry(id: string): boolean {
-  return /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(id) && !/\.d\.[cm]?ts$/.test(id);
-}
-
-/**
  * Creates project state shared by compiler, development, and build plugins.
  *
  * Call `configure` before environment initialization, then `attachServer` when serving. Close the
@@ -498,20 +489,10 @@ export function createViteProject(
     settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
     settings.entries = buildEntries(viteConfig);
-    // Build inputs such as an HTML page or framework routes can reach source files only through
-    // dynamic imports, which preparation does not follow. Each source that a later compilation
-    // adds then rebuilds the checker project.
     settings.fixedEntries =
       settings.watching || viteConfig.build.watch
         ? undefined
-        : [
-            ...new Set([
-              ...settings.entries,
-              ...(resolved.scope ? await listProjectFiles(resolved.scope) : []).filter(
-                isSourceEntry,
-              ),
-            ]),
-          ];
+        : await buildSourceEntries(settings.entries, resolved.scope);
   };
 
   /** Detaches the current server's change listeners and closes its configuration discovery watchers. */
