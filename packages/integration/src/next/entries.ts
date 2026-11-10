@@ -27,16 +27,17 @@ export async function routeEntries(
    * Traverses a route directory and appends matching files to entries.
    * @param directory - Absolute directory registered as a context dependency before reading.
    * @param app - Whether app-directory private folders and route filename constraints apply.
-   * @returns Completion of recursive traversal.
+   * @returns Completion of recursive traversal. Subdirectories are traversed concurrently.
    * @throws If enumeration fails.
    */
   const visit = async (directory: string, app: boolean): Promise<void> => {
     context.addContextDependency(directory);
+    const directories: Promise<void>[] = [];
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       if (entry.isDirectory()) {
         if (!app || !entry.name.startsWith("_")) {
-          await visit(file, app);
+          directories.push(visit(file, app));
         }
       } else if (
         entry.isFile() &&
@@ -53,6 +54,7 @@ export async function routeEntries(
         }
       }
     }
+    await Promise.all(directories);
   };
   for (const name of ["app", "pages"]) {
     for (const prefix of ["", "src"]) {

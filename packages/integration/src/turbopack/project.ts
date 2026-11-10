@@ -73,6 +73,12 @@ export interface TurbopackProject {
   /** Completed CSS graph and authored resources used by the compiler. */
   loaded: LoadedCssGraph;
   /**
+   * Modules that earlier reconstructions visited, keyed by absolute file path. A reconstruction
+   * reuses the imports of a module whose source is unchanged. Absent when the process cannot learn
+   * about added and removed files, which can change how an unchanged import resolves.
+   */
+  scans?: Map<string, GraphNode>;
+  /**
    * Resolves an asset with the loader context's default resolver.
    *
    * @param specifier - Resource request text from CSS or a producer.
@@ -97,6 +103,8 @@ interface SharedDesignSystem {
    * watch the application directory.
    */
   shared?: SharedTypeFacts;
+  /** Modules that reconstructions visited, as {@link TurbopackProject.scans} describes. */
+  scans?: Map<string, GraphNode>;
   /** Whether the directory watcher missed changes since the compilers last compared their sources. */
   unverified?: boolean;
   /** Comparison of the sources with the files after missed changes, which loader calls await. */
@@ -138,8 +146,9 @@ const sourceWatchers = new Map<string, Set<WeakRef<SharedDesignSystem>>>();
  * under an application directory to the compilers of registered design systems. Changes under
  * `node_modules`, `.next`, and `.git` are not reported. When the watcher reports a change without
  * a file name, which happens when changes overflow its buffer, the registered design systems
- * compare their sources with the files before their next use. When the watcher fails, it closes and
- * every registered design system discards its shared sources.
+ * compare their sources with the files before their next use. That event and every added or removed
+ * file also discard the modules that reconstructions visited. When the watcher fails, it closes, and
+ * every registered design system discards its shared sources and stops reusing visited modules.
  *
  * Events can arrive after a compilation already read a changed file, so callers must also report
  * the text that they read through {@link IntegrationSession.sourceRead}.
@@ -174,6 +183,7 @@ function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefine
       if (!name) {
         each((designSystem) => {
           designSystem.unverified = true;
+          designSystem.scans?.clear();
         });
         return;
       }
@@ -185,9 +195,12 @@ function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefine
       }
       const file = path.join(root, name);
       // A rename event reports an added or removed file, which can change import resolution.
-      each(({ compiler, graphCompiler }) => {
-        compiler.sourceChanged(file, event === "rename");
-        graphCompiler.sourceChanged(file, event === "rename");
+      each((designSystem) => {
+        designSystem.compiler.sourceChanged(file, event === "rename");
+        designSystem.graphCompiler.sourceChanged(file, event === "rename");
+        if (event === "rename") {
+          designSystem.scans?.clear();
+        }
       });
     });
   } catch {
@@ -196,7 +209,10 @@ function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefine
   watcher.on("error", () => {
     watcher.close();
     sourceWatchers.delete(root);
-    each(closeDesignSystem);
+    each((designSystem) => {
+      designSystem.scans = undefined;
+      closeDesignSystem(designSystem);
+    });
   });
   sourceWatchers.set(root, targets);
   return targets;
@@ -396,6 +412,7 @@ export async function createProject(
         compiler: session("loader"),
         graphCompiler: session("graph"),
         shared,
+        scans: shared ? new Map<string, GraphNode>() : undefined,
       };
       watcher?.add(new WeakRef(value));
       return {
@@ -465,6 +482,7 @@ export async function createProject(
     graphCompiler,
     host,
     loaded,
+    scans: designSystem.value.scans,
     resolveAsset,
     release: designSystem.done,
   };
@@ -501,20 +519,21 @@ export function compileGraph(entries: readonly string[], project: TurbopackProje
  */
 async function reconstruct(entries: readonly string[], project: TurbopackProject) {
   const { options, graphCompiler: compiler, host } = project;
-  const pending = entries.map((entry) => path.resolve(options.root, entry));
-  const visited = new Set<string>();
-  const revision = createHash("sha256");
-  const nodes: GraphNode[] = [];
-  while (pending.length) {
-    const id = pending.shift()!;
-    if (visited.has(id)) {
-      continue;
-    }
-    visited.add(id);
+  const scans = project.scans;
+  /**
+   * Reads a module, registers it as a dependency, and lists the local modules that it imports.
+   * @param id - Absolute file path.
+   * @returns The visited module.
+   * @throws If reading, scanning, or resolving one of its imports fails.
+   */
+  const visit = async (id: string): Promise<GraphNode> => {
     host.watch(id);
     const source = await host.read(id);
     compiler.sourceRead(id, source);
-    revision.update(id).update("\0").update(source).update("\0");
+    const cached = scans?.get(id);
+    if (cached?.source === source) {
+      return cached;
+    }
     const descriptor = fileModuleDescriptor(options.root, id);
     const scan = scanSource({
       kind: "direct",
@@ -529,28 +548,52 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
       throw new CompilationFailure([scan.batch]);
     }
     const summary = scan.summary;
+    const resolved = await Promise.all(
+      summary.moduleSpecifiers.map(({ source: specifier }) =>
+        isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")
+          ? Promise.resolve(undefined)
+          : host.resolve(specifier, id),
+      ),
+    );
     const imports: string[] = [];
-    for (const { source: specifier } of summary.moduleSpecifiers) {
-      if (isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")) {
-        continue;
-      }
-      const resolved = await host.resolve(specifier, id);
-      const file = cleanModuleId(resolved.id);
+    for (const result of resolved) {
+      const file = result && cleanModuleId(result.id);
       if (
-        !resolved.external &&
+        file &&
+        !result.external &&
         !/[\\/]node_modules[\\/]/.test(file) &&
         /\.[cm]?[jt]sx?$/.test(file)
       ) {
         imports.push(file);
-        pending.push(file);
       }
     }
-    nodes.push({
+    const node = {
       id,
       source,
       imports,
       producer: Boolean(summary.macroImports || summary.moduleCssImports),
-    });
+    };
+    scans?.set(id, node);
+    return node;
+  };
+  // Modules of one breadth-first level are visited concurrently. The node order equals the order
+  // of a sequential breadth-first traversal, so the revision and compilation order do not depend
+  // on read timing.
+  const visited = new Set<string>();
+  const revision = createHash("sha256");
+  const nodes: GraphNode[] = [];
+  let level = entries.map((entry) => path.resolve(options.root, entry));
+  while (level.length) {
+    const unvisited = [...new Set(level)].filter((id) => !visited.has(id));
+    for (const id of unvisited) {
+      visited.add(id);
+    }
+    const visitedLevel = await Promise.all(unvisited.map(visit));
+    for (const node of visitedLevel) {
+      revision.update(node.id).update("\0").update(node.source).update("\0");
+      nodes.push(node);
+    }
+    level = visitedLevel.flatMap((node) => node.imports);
   }
   const outputs = graphOutputs.get(compiler) ?? new Map<string, GraphOutput>();
   graphOutputs.set(compiler, outputs);

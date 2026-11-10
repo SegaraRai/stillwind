@@ -216,6 +216,63 @@ test("Turbopack reconstruction compiles only an edited producer that keeps its e
   expect(compilations).toBe(1);
 });
 
+test("Turbopack development reconstruction follows an import that an added file resolves", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-added-file-"));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  await writeFile(
+    path.join(root, "root.css"),
+    "@utility paint{color:red} @utility wide{width:3px} @stillwind-slot utilities;",
+  );
+  await writeFile(
+    path.join(root, "entry.tsx"),
+    'import {style} from "stillwind/react"; import {base} from "./base"; export const props = style(base);',
+  );
+  await writeFile(
+    path.join(root, "base.ts"),
+    'import {style} from "stillwind/react"; export const base = style("paint");',
+  );
+  const context = {
+    rootContext: root,
+    getOptions: () =>
+      ({
+        compiler: { configFile: false, css: "root.css" },
+        root: ".",
+        entries: ["entry.tsx"],
+        mode: "development",
+      }) satisfies TurbopackLoaderOptions,
+    fs,
+    addDependency: () => {},
+    addMissingDependency: () => {},
+    addContextDependency: () => {},
+    getResolve:
+      () =>
+      (directory: string, specifier: string, done: (error: Error | null, id?: string) => void) => {
+        if (!specifier.startsWith(".")) {
+          return done(null, fileURLToPath(import.meta.resolve(specifier)));
+        }
+        const file = path.resolve(directory, specifier);
+        done(null, fs.existsSync(`${file}.tsx`) ? `${file}.tsx` : `${file}.ts`);
+      },
+    emitWarning: () => {},
+  } as unknown as LoaderContext<TurbopackLoaderOptions>;
+  const plan = async () => {
+    const project = await createProject(context);
+    try {
+      return (await compileGraph(["entry.tsx"], project)).parts.map((part) => part.css).join("\n");
+    } finally {
+      project.release();
+    }
+  };
+
+  expect(await plan()).toMatch(/color:\s*red/);
+  await writeFile(
+    path.join(root, "base.tsx"),
+    'import {style} from "stillwind/react"; export const base = style("wide");',
+  );
+  // The directory watcher reports the added file after a delay.
+  await expect.poll(plan, { timeout: 10_000 }).toMatch(/width:\s*3px/);
+});
+
 test("Turbopack development compilers read the current text of an edited dependency", async () => {
   const root = await mkdtemp(path.join(import.meta.dirname, ".test-development-edit-"));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
