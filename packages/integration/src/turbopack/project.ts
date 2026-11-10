@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { watch as watchDirectory, type FSWatcher } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -90,8 +92,15 @@ interface SharedDesignSystem {
   loaded: LoadedCssGraph;
   compiler: IntegrationSession;
   graphCompiler: IntegrationSession;
-  /** Checker and prepared sources of both compilers in release mode, absent in development. */
+  /**
+   * Checker and prepared sources of both compilers. Absent in development when the process cannot
+   * watch the application directory.
+   */
   shared?: SharedTypeFacts;
+  /** Whether the directory watcher missed changes since the compilers last compared their sources. */
+  unverified?: boolean;
+  /** Comparison of the sources with the files after missed changes, which loader calls await. */
+  verification?: Promise<void>;
 }
 
 /**
@@ -104,11 +113,94 @@ const configurations = new LoaderCache<ResolvedIntegrationConfig>();
  * Design systems keyed by evaluated settings and mode. The checker of an idle compiler stops after
  * this time, so that a worker process does not keep a checker process running.
  */
-const designSystems = new LoaderCache<SharedDesignSystem>(({ compiler, graphCompiler, shared }) => {
+const designSystems = new LoaderCache<SharedDesignSystem>(closeDesignSystem, 30_000);
+
+/**
+ * Closes the checkers of a design system's compilers and discards their shared sources. The design
+ * system stays usable, and a later compilation loads the sources again.
+ *
+ * @param designSystem - Design system whose compilers to close.
+ */
+function closeDesignSystem({ compiler, graphCompiler, shared }: SharedDesignSystem): void {
   compiler.close();
   graphCompiler.close();
   shared?.close();
-}, 30_000);
+}
+
+/**
+ * Design systems of development compilers, keyed by the application directory that one recursive
+ * watcher of this process observes. A design system that the cache dropped can be collected.
+ */
+const sourceWatchers = new Map<string, Set<WeakRef<SharedDesignSystem>>>();
+
+/**
+ * Starts or reuses a recursive watcher that reports changes of script, component, and JSON files
+ * under an application directory to the compilers of registered design systems. Changes under
+ * `node_modules`, `.next`, and `.git` are not reported. When the watcher reports a change without
+ * a file name, which happens when changes overflow its buffer, the registered design systems
+ * compare their sources with the files before their next use. When the watcher fails, it closes and
+ * every registered design system discards its shared sources.
+ *
+ * Events can arrive after a compilation already read a changed file, so callers must also report
+ * the text that they read through {@link IntegrationSession.sourceRead}.
+ *
+ * @param root - Absolute application directory.
+ * @returns The set in which to register design systems, or undefined when the platform cannot
+ * watch the directory recursively.
+ */
+function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefined {
+  const existing = sourceWatchers.get(root);
+  if (existing) {
+    return existing;
+  }
+  const targets = new Set<WeakRef<SharedDesignSystem>>();
+  /**
+   * Calls an operation for every registered design system that is still reachable.
+   * @param operation - Operation that receives the design system.
+   */
+  const each = (operation: (designSystem: SharedDesignSystem) => void) => {
+    for (const target of targets) {
+      const designSystem = target.deref();
+      if (designSystem) {
+        operation(designSystem);
+      } else {
+        targets.delete(target);
+      }
+    }
+  };
+  let watcher: FSWatcher;
+  try {
+    watcher = watchDirectory(root, { recursive: true, persistent: false }, (event, name) => {
+      if (!name) {
+        each((designSystem) => {
+          designSystem.unverified = true;
+        });
+        return;
+      }
+      if (
+        /(?:^|[\\/])(?:node_modules|\.next|\.git)[\\/]/.test(name) ||
+        !/\.(?:[cm]?[jt]sx?|json|astro|svelte|vue)$/.test(name)
+      ) {
+        return;
+      }
+      const file = path.join(root, name);
+      // A rename event reports an added or removed file, which can change import resolution.
+      each(({ compiler, graphCompiler }) => {
+        compiler.sourceChanged(file, event === "rename");
+        graphCompiler.sourceChanged(file, event === "rename");
+      });
+    });
+  } catch {
+    return undefined;
+  }
+  watcher.on("error", () => {
+    watcher.close();
+    sourceWatchers.delete(root);
+    each(closeDesignSystem);
+  });
+  sourceWatchers.set(root, targets);
+  return targets;
+}
 
 /** Compiler host whose resolver returns an identity or rejects instead of returning null. */
 export interface TurbopackHost extends CompilerHost {
@@ -270,18 +362,21 @@ export async function createProject(
           root: options.root,
         },
       );
-      // Files do not change during a production build, so both compilers can load the project
-      // files into one checker with the first compilation. A development server does not report
-      // file changes to loaders, so each of its compilations reads the files again.
+      // Both compilers load the project files into one checker when its project is empty. Files
+      // do not change during a production build. A development server does not report file
+      // changes to loaders, so the process watches the application directory itself. When it
+      // cannot, each compilation reads the files again.
       const release = options.mode === "release";
-      const shared = release
-        ? new SharedTypeFacts(resolveTypeFactsEnvironment(options.root, options.compiler.tsconfig))
-        : undefined;
-      const entries = release
-        ? await buildSourceEntries(
-            options.entries.map((entry) => path.resolve(options.root, entry)),
-            configuration.scope,
-          )
+      const entries = options.entries.map((entry) => path.resolve(options.root, entry));
+      const watcher = release ? undefined : watchSources(options.root);
+      const shared =
+        release || watcher
+          ? new SharedTypeFacts(
+              resolveTypeFactsEnvironment(options.root, options.compiler.tsconfig),
+            )
+          : undefined;
+      const sourceEntries = shared
+        ? await buildSourceEntries(entries, configuration.scope)
         : undefined;
       const session = (domain: string) =>
         new IntegrationSession(
@@ -291,23 +386,46 @@ export async function createProject(
           false,
           options.mode,
           loaded.plugins,
-          entries,
-          undefined,
+          release ? sourceEntries : undefined,
+          release ? undefined : sourceEntries,
           shared,
           domain,
         );
+      const value = {
+        loaded,
+        compiler: session("loader"),
+        graphCompiler: session("graph"),
+        shared,
+      };
+      watcher?.add(new WeakRef(value));
       return {
-        value: {
-          loaded,
-          compiler: session("loader"),
-          graphCompiler: session("graph"),
-          shared,
-        },
+        value,
         inputs: await recorder.finish(),
       };
     },
   );
   const { loaded, compiler, graphCompiler } = designSystem.value;
+  if (designSystem.value.unverified) {
+    designSystem.value.unverified = false;
+    // The loader filesystem can return the previous text of a file right after an edit.
+    const current = (id: string) =>
+      readFile(id, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+          return undefined;
+        }
+        throw error;
+      });
+    designSystem.value.verification = Promise.all([
+      compiler.verifySources(current),
+      graphCompiler.verifySources(current),
+    ]).then(() => {});
+  }
+  try {
+    await designSystem.value.verification;
+  } catch (error) {
+    designSystem.done();
+    throw error;
+  }
   for (const file of designSystem.inputs.files.keys()) {
     watch(file);
   }
@@ -395,6 +513,7 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
     visited.add(id);
     host.watch(id);
     const source = await host.read(id);
+    compiler.sourceRead(id, source);
     revision.update(id).update("\0").update(source).update("\0");
     const descriptor = fileModuleDescriptor(options.root, id);
     const scan = scanSource({

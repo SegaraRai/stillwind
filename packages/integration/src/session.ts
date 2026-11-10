@@ -1,6 +1,7 @@
 import type { BuildConfig } from "@stillwind/config";
 import {
   attachPlugins,
+  cleanModuleId,
   CompilationProject,
   compileModule,
   compilerOptions,
@@ -118,10 +119,12 @@ export class IntegrationSession {
   #shared?: SharedTypeFacts;
   /** Resolver domain of this environment in the shared project. */
   readonly #domain?: string;
-  /** Entries that the next compilation prepares together with its own entry. */
-  #entries: readonly string[];
+  /** Entries that a compilation prepares together with its own entry when the project is empty. */
+  readonly #entries: readonly string[];
   /** Loading of the entries, which every compilation awaits before it queries the checker. */
   #preparation?: Promise<void>;
+  /** Whether {@link #preparation} has not settled. */
+  #preparing = false;
 
   /**
    * Creates compiler state without starting the TypeScript checker.
@@ -134,12 +137,12 @@ export class IntegrationSession {
    * @param plugins - Plugin runtime of the loader's CSS graph, which resolves dynamic utilities.
    * @param fixedEntries - Present when no source file changes before the session closes. The
    * session then scans each file once and gives the checker one project for every compilation.
-   * The first compilation prepares the files that these absolute paths reach, together with its own
-   * entry, so later compilations seldom add files to the checker project.
+   * A compilation that finds the project empty prepares the files that these absolute paths reach,
+   * together with its own entry, so later compilations seldom add files to the checker project.
    * @param watchedEntries - Present when the caller reports every source file change through
    * {@link sourceChanged}. Compilations then share sources, scans, checker inputs, and facts
-   * until a change. Like `fixedEntries`, the first compilation prepares the files that these
-   * absolute paths reach. Ignored when `fixedEntries` is present.
+   * until a change. Like `fixedEntries`, a compilation that finds the project empty prepares the
+   * files that these absolute paths reach. Ignored when `fixedEntries` is present.
    * @param shared - State to share with the other environments of the project, used only with
    * `fixedEntries` or `watchedEntries`. Its TypeScript settings must equal the settings that `root`
    * and `config` select. The caller owns and closes it.
@@ -186,7 +189,6 @@ export class IntegrationSession {
     host: CompilerHost,
     transport: ModuleCompileOptions = {},
   ) {
-    const entries = this.#entries;
     try {
       return await this.#compile(code, id, { ...host, resolverDomain: this.#domain }, transport);
     } catch (error) {
@@ -197,8 +199,8 @@ export class IntegrationSession {
       // environment continues with its own project and checker.
       this.#shared = undefined;
       this.#project = new CompilationProject(true);
-      this.#entries = entries;
       this.#preparation = undefined;
+      this.#preparing = false;
       return this.#compile(code, id, host, transport);
     }
   }
@@ -218,11 +220,13 @@ export class IntegrationSession {
     // Loading every file that the entries reach lets later compilations share one checker
     // project. Adding files after a checker query would replace the checker snapshot, so
     // compilations that start while the entries load wait for them before they query the checker.
+    // The project is empty before the first compilation and after a closed checker discarded its
+    // sources, so the entries load again then.
     const entries = this.#entries;
-    this.#entries = [];
     const project = this.#project;
     const waiting = this.#preparation;
-    if (project && entries.length > 0) {
+    if (project && entries.length > 0 && !this.#preparing && project.sourceKeys().length === 0) {
+      this.#preparing = true;
       this.#preparation = (async () => {
         // The host resolver gives each path the identity spelling that its compilations use. The
         // entries only speed up later compilations, so an entry that does not resolve is skipped.
@@ -234,7 +238,9 @@ export class IntegrationSession {
           host,
           this.native,
         );
-      })();
+      })().finally(() => {
+        this.#preparing = false;
+      });
       // The compilation that loads the entries reports their failure.
       await this.#preparation;
     } else {
@@ -313,6 +319,53 @@ export class IntegrationSession {
   }
 
   /**
+   * Discards the shared sources read from a file when they hold text other than the file's current
+   * text, as {@link sourceChanged} does for a changed file. A caller that cannot learn about changes
+   * before a compilation reads a file reports the text that it read.
+   *
+   * @param file - Absolute file path.
+   * @param text - Text that the caller read from the file.
+   */
+  sourceRead(file: string, text: string): void {
+    const captured = (this.#shared?.project ?? this.#project)?.source(file);
+    if (captured && captured.document.code !== text) {
+      this.sourceChanged(file, false);
+    }
+  }
+
+  /**
+   * Compares every shared source read from a file with the file's current text, and discards the
+   * sources whose file changed or no longer exists, as {@link sourceChanged} does. A caller that
+   * missed change reports uses it before the next compilation. Files added since the sources were
+   * read are not found, and a file that only query-qualified sources read is not compared.
+   *
+   * @param read - Reads a file, or returns undefined when it does not exist.
+   * @returns Completion of the comparison.
+   */
+  async verifySources(read: (file: string) => Promise<string | undefined>): Promise<void> {
+    const project = this.#shared?.project ?? this.#project;
+    if (!project) {
+      return;
+    }
+    await Promise.all(
+      project.sourceKeys().map(async (key) => {
+        const source = project.source(key);
+        // A query-qualified source holds a part of its file. Discarding the file's own source
+        // also discards it.
+        if (!source || cleanModuleId(source.resolverId) !== source.resolverId) {
+          return;
+        }
+        const text = await read(source.resolverId).catch(() => undefined);
+        if (text === undefined) {
+          this.sourceChanged(source.resolverId, true);
+        } else if (text !== source.document.code) {
+          this.sourceChanged(source.resolverId, false);
+        }
+      }),
+    );
+  }
+
+  /**
    * Tests whether a changed file exposes the same exports to other modules as before the change.
    * When it does, compilations of the modules that import it give the same output as before,
    * except for their checker diagnostics.
@@ -338,8 +391,8 @@ export class IntegrationSession {
     if (!this.#shared) {
       this.#project?.invalidate();
     }
-    this.#entries = [];
     this.#preparation = undefined;
+    this.#preparing = false;
     this.#facts?.close();
     this.#facts = undefined;
   }

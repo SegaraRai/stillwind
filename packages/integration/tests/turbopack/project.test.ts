@@ -147,3 +147,60 @@ test("Turbopack invocations share a compiler until the CSS changes and compile o
   expect(third.compiler).not.toBe(first.compiler);
   expect(third.css).toMatch(/color:\s*blue/);
 });
+
+test("Turbopack development compilers read the current text of an edited dependency", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-development-edit-"));
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  await writeFile(
+    path.join(root, "root.css"),
+    "@utility paint{color:red} @utility wide{width:3px} @stillwind-slot utilities;",
+  );
+  await writeFile(
+    path.join(root, "entry.tsx"),
+    'import {style} from "stillwind/react"; import {base} from "./base"; export const props = style(base, "wide");',
+  );
+  const base = path.join(root, "base.ts");
+  await writeFile(
+    base,
+    'import {style} from "stillwind/react"; export const base = style("paint");',
+  );
+  const context = {
+    rootContext: root,
+    getOptions: () =>
+      ({
+        compiler: { configFile: false, css: "root.css" },
+        root: ".",
+        entries: ["entry.tsx"],
+        mode: "development",
+      }) satisfies TurbopackLoaderOptions,
+    fs,
+    addDependency: () => {},
+    addMissingDependency: () => {},
+    addContextDependency: () => {},
+    getResolve:
+      () =>
+      (directory: string, specifier: string, done: (error: Error | null, id?: string) => void) =>
+        done(
+          null,
+          specifier.startsWith(".")
+            ? `${path.resolve(directory, specifier)}.ts`
+            : fileURLToPath(import.meta.resolve(specifier)),
+        ),
+    emitWarning: () => {},
+  } as unknown as LoaderContext<TurbopackLoaderOptions>;
+  const plan = async () => {
+    const project = await createProject(context);
+    try {
+      return (await compileGraph(["entry.tsx"], project)).parts.map((part) => part.css).join("\n");
+    } finally {
+      project.release();
+    }
+  };
+
+  expect(await plan()).toMatch(/color:\s*red/);
+  await writeFile(
+    base,
+    'import {style} from "stillwind/react"; export const other = style("paint");',
+  );
+  await expect(plan()).rejects.toThrow();
+});
