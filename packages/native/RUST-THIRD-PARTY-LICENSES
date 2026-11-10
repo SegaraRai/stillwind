@@ -31,7 +31,7 @@ smallvec 1.16.5 (MIT OR Apache-2.0) https://github.com/servo/rust-smallvec
 stable_deref_trait 1.2.1 (MIT OR Apache-2.0) https://github.com/storyyeller/stable_deref_trait
 unicode-segmentation 1.13.3 (MIT OR Apache-2.0) https://github.com/unicode-rs/unicode-segmentation
 unicode-width 0.2.3 (MIT OR Apache-2.0) https://github.com/unicode-rs/unicode-width
-uuid 1.29.1 (Apache-2.0 OR MIT) https://github.com/uuid-rs/uuid
+uuid 1.29.2 (Apache-2.0 OR MIT) https://github.com/uuid-rs/uuid
 vlq 0.5.1 (Apache-2.0/MIT) https://github.com/tromey/vlq
 wasi 0.11.1+wasi-snapshot-preview1 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) https://github.com/bytecodealliance/wasi
 wasip2 1.0.4+wasi-0.2.12 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) https://github.com/bytecodealliance/wasi-rs
@@ -308,7 +308,7 @@ DEALINGS IN THE SOFTWARE.
 allocator-api2 0.2.21 (MIT OR Apache-2.0) https://github.com/zakarumych/allocator-api2
 constant_time_eq 0.4.2 (CC0-1.0 OR MIT-0 OR Apache-2.0) https://github.com/cesarb/constant_time_eq
 dtoa 1.0.11 (MIT OR Apache-2.0) https://github.com/dtolnay/dtoa
-itoa 1.0.18 (MIT OR Apache-2.0) https://github.com/dtolnay/itoa
+itoa 1.0.19 (MIT OR Apache-2.0) https://github.com/dtolnay/itoa
 libc 0.2.191 (MIT OR Apache-2.0) https://github.com/rust-lang/libc
 rustc-hash 2.1.3 (Apache-2.0 OR MIT) https://github.com/rust-lang/rustc-hash
 serde 1.0.229 (MIT OR Apache-2.0) https://github.com/serde-rs/serde
@@ -499,7 +499,7 @@ END OF TERMS AND CONDITIONS
 ================================================================================
 allocator-api2 0.2.21 (MIT OR Apache-2.0) https://github.com/zakarumych/allocator-api2
 dtoa 1.0.11 (MIT OR Apache-2.0) https://github.com/dtolnay/dtoa
-itoa 1.0.18 (MIT OR Apache-2.0) https://github.com/dtolnay/itoa
+itoa 1.0.19 (MIT OR Apache-2.0) https://github.com/dtolnay/itoa
 lazy_static 1.5.1 (MIT OR Apache-2.0) https://github.com/rust-lang-nursery/lazy-static.rs
 once_cell 1.21.4 (MIT OR Apache-2.0) https://github.com/matklad/once_cell
 pathdiff 0.2.3 (MIT/Apache-2.0) https://github.com/Manishearth/pathdiff
@@ -4279,20 +4279,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-oxc 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_allocator 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_ast 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_ast_visit 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_data_structures 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_diagnostics 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_ecmascript 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_estree 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_parser 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_regular_expression 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_semantic 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_span 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_str 0.157.0 (MIT) https://github.com/oxc-project/oxc
-oxc_syntax 0.157.0 (MIT) https://github.com/oxc-project/oxc
+oxc 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_allocator 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_ast 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_ast_visit 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_data_structures 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_diagnostics 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_ecmascript 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_estree 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_parser 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_regular_expression 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_semantic 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_span 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_str 0.158.0 (MIT) https://github.com/oxc-project/oxc
+oxc_syntax 0.158.0 (MIT) https://github.com/oxc-project/oxc
 ================================================================================
 
 MIT License
@@ -4344,7 +4344,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ================================================================================
-oxc_sourcemap 9.0.0 (BSD-3-Clause) https://github.com/oxc-project/oxc-sourcemap
+oxc_sourcemap 10.0.0 (BSD-3-Clause) https://github.com/oxc-project/oxc-sourcemap
 ================================================================================
 
 Copyright (c) 2016 by Armin Ronacher.
@@ -4380,7 +4380,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ================================================================================
-parcel_sourcemap 2.1.1 (MIT) https://github.com/parcel-bundler/source-map
+parcel_sourcemap 2.1.2 (MIT) https://github.com/parcel-bundler/source-map
 ================================================================================
 
 MIT License
@@ -6127,7 +6127,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 ================================================================================
-uuid 1.29.1 (Apache-2.0 OR MIT) https://github.com/uuid-rs/uuid
+uuid 1.29.2 (Apache-2.0 OR MIT) https://github.com/uuid-rs/uuid
 ================================================================================
 
 Copyright (c) 2014 The Rust Project Developers

@@ -30,7 +30,7 @@ pub(super) fn load<'a>(
     let sources: Vec<_> = map
         .get_sources()
         .enumerate()
-        .filter(|(_, name)| *name == source)
+        .filter(|(_, name)| *name == Some(source))
         .collect();
     let [(source_id, _)] = sources.as_slice() else {
         return Err(ProjectionError::Map(

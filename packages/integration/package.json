@@ -117,7 +117,7 @@
     "@swc/core": "^1.16.22",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.10",
-    "astro": "^7.4.7",
+    "astro": "^7.4.8",
     "css-loader": "^7.1.5",
     "next": "^16.4.5",
     "nuxt": "^4.6.4",
