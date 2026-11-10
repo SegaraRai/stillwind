@@ -14,7 +14,7 @@ processes do not compete for CPU time.
 | `vp run bench:sorting:wasm`     | The same sorting workloads through Node WASI                                        |
 | `vp run bench:sorting:profile`  | Identity lookup counts for ref and base input grouping                              |
 | `vp run bench:source-map`       | Production CSS map generation with Unicode, CRLF, and resource replacements         |
-| `vp run bench:apps`             | Generated React Router applications with and without Stillwind                      |
+| `vp run bench:apps`             | Generated framework applications with and without Stillwind                         |
 | `vp run bench:architecture`     | CSS definition and import scale, native graphs, Vite builds and watch updates       |
 | `vp run test:performance`       | Quick workloads with soft targets and hard limits                                   |
 | `vp run test:performance:full`  | Full workloads including 1000 modules and 10,000 unused utility definitions         |
@@ -104,22 +104,40 @@ investigating large graphs because their setup compiles all producers first.
 
 ## Generated applications
 
-`bench:apps` generates React Router applications in three variants and measures them
-with the same workload. The `stillwind` variant uses the Vite integration. The `plain`
-variant replaces `style()` with a local function that joins class names and emits no
-CSS, so the difference from `plain` is the cost of Stillwind. The `tailwind` variant uses
-the same local function and generates CSS with `@tailwindcss/vite`, so it shows the cost
-of the usual alternative. Tailwind CSS does not read the object form of `style()`, so its
-variant generates no CSS for the `hover:` and `disabled:` groups. The applications
-resolve their dependencies from `e2e/frameworks/vite8-react19-reactrouter8` and are
-written to its ignored `.e2e/` directory. They import the Tailwind CSS packages of this
-benchmark package by absolute path, because that fixture does not install them.
+`bench:apps` generates applications of several frameworks in up to three variants and
+measures them with the same workload. The `stillwind` variant uses the Stillwind
+integration of the framework. The `plain` variant replaces `style()` with a local
+function that joins class names and emits no CSS, so the difference from `plain` is the
+cost of Stillwind. Only React Router applications have the `tailwind` variant. It uses the
+same local function and generates CSS with `@tailwindcss/vite`, so it shows the cost of
+the usual alternative. Tailwind CSS does not read the object form of `style()`, so its
+variant generates no CSS for the `hover:` and `disabled:` groups. The React Router
+applications import the Tailwind CSS packages of this benchmark package by absolute
+path, because their fixture does not install them.
+
+Each application resolves its dependencies from an e2e fixture and is written to the
+ignored `.e2e/` directory of that fixture:
+
+| Framework      | Application                                    | Fixture                      |
+| -------------- | ---------------------------------------------- | ---------------------------- |
+| `react-router` | React Router with server rendering             | `vite8-react19-reactrouter8` |
+| `vue`          | Vite single-page application with Vue          | `vite8-vue3`                 |
+| `svelte`       | Vite single-page application with Svelte       | `vite8-svelte5`              |
+| `solid`        | Vite single-page application with Solid        | `vite8-solid1`               |
+| `astro`        | Astro pages and components without client code | `astro7-plain`               |
+| `sveltekit`    | SvelteKit with the Node adapter                | `sveltekit2-svelte5`         |
+| `next`         | Next.js App Router with Turbopack              | `next16-react19`             |
+| `next-webpack` | Next.js App Router with webpack                | `next16-react19`             |
+
+The single-page applications load the route module that matches the location. Astro
+components cannot export values, so each Astro component reads its exported style from
+a sibling `.frame.ts` module. Next.js components are server components.
 
 Each run measures:
 
 - a production build after removing the previous output and Vite's dependency cache;
-- development server startup until the first successful SSR response, also without
-  Vite's dependency cache;
+- development server startup until the first successful response, also without
+  Vite's dependency cache. Next.js compiles the page for this response;
 - the first page load and a reload until hydration, in installed Chrome;
 - three edits until the page shows them: a component that only its chain imports, the
   shared style module that every module imports, and a theme token in the CSS entrypoint.
@@ -132,13 +150,22 @@ module imports the shared styles through a barrel module, and component exports 
 the exported style of the next component in their chain. Set these variables to select
 workloads:
 
-| Variable                        | Default                    | Meaning                               |
-| ------------------------------- | -------------------------- | ------------------------------------- |
-| `STILLWIND_BENCH_APPS_SIZES`    | `small,medium`             | Comma-separated sizes                 |
-| `STILLWIND_BENCH_APPS_VARIANTS` | `plain,tailwind,stillwind` | Comma-separated variants              |
-| `STILLWIND_BENCH_APPS_RUNS`     | `3`                        | Runs for each size and variant        |
-| `STILLWIND_BENCH_APPS_KEEP`     | unset                      | `1` keeps the generated applications  |
-| `STILLWIND_BENCH_APPS_OUTPUT`   | `results/apps.json`        | Report path, relative to `benchmarks` |
+| Variable                           | Default                    | Meaning                                 |
+| ---------------------------------- | -------------------------- | --------------------------------------- |
+| `STILLWIND_BENCH_APPS_FRAMEWORKS`  | `react-router`             | Comma-separated frameworks              |
+| `STILLWIND_BENCH_APPS_SIZES`       | `small,medium`             | Comma-separated sizes                   |
+| `STILLWIND_BENCH_APPS_VARIANTS`    | `plain,tailwind,stillwind` | Comma-separated variants                |
+| `STILLWIND_BENCH_APPS_RUNS`        | `3`                        | Runs for each application               |
+| `STILLWIND_BENCH_APPS_HASH_LENGTH` | unset                      | `hashLength` of the `stillwind` variant |
+| `STILLWIND_BENCH_APPS_KEEP`        | unset                      | `1` keeps the generated applications    |
+| `STILLWIND_BENCH_APPS_OUTPUT`      | `results/apps.json`        | Report path, relative to `benchmarks`   |
+
+A failed application is recorded in the report's `failures`, and the remaining
+applications are still measured. The report is written after each application.
+
+With the default `hashLength`, the generated names of some `large` applications
+collide, and their builds fail with SW03001. Set `STILLWIND_BENCH_APPS_HASH_LENGTH`
+to measure them.
 
 Every Node process that a measured command starts loads `apps/preload.mjs`. It records
 resource usage and the phases that `@stillwind/host` publishes on the

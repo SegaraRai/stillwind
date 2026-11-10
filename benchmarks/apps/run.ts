@@ -1,11 +1,12 @@
 /**
- * Measures generated React Router applications with Stillwind, with Tailwind CSS, and without
- * generated CSS.
+ * Measures generated applications of several frameworks with Stillwind, with Tailwind CSS, and
+ * without generated CSS.
  *
  * Each run measures a production build, development server startup, the first page
  * load, and edits until the page shows them. Results go to `results/apps.json`.
  */
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -21,19 +22,97 @@ import {
   generateApp,
   type TailwindPaths,
   type AppEditName,
+  type AppFramework,
   type AppShape,
   type AppVariant,
 } from "./generate.ts";
 
 const benchmarks = fileURLToPath(new URL("../", import.meta.url));
 const repository = join(benchmarks, "..");
-/** The e2e fixture whose installed dependencies the generated applications resolve. */
-const fixture = join(repository, "e2e/frameworks/vite8-react19-reactrouter8");
 const preload = pathToFileURL(fileURLToPath(new URL("./preload.mjs", import.meta.url))).href;
-const cli = join(
-  dirname(createRequire(join(fixture, "package.json")).resolve("@react-router/dev/package.json")),
-  "bin.cjs",
-);
+const viteDriver = fileURLToPath(new URL("./vite.mjs", import.meta.url));
+
+/** How the harness builds and serves the applications of one framework. */
+interface FrameworkRunner {
+  app: AppFramework;
+  /** E2E fixture whose installed dependencies the generated applications resolve. */
+  fixture: string;
+  /** Node script and arguments of a production build. */
+  build: string[];
+  /** Node script and arguments of a development server that listens on `port`. */
+  dev(port: number): string[];
+  /** Build outputs and caches, relative to the application root, removed before each command. */
+  outputs: string[];
+}
+
+/**
+ * Locates the executable of a package installed for an e2e fixture.
+ *
+ * @param fixture - Fixture directory name under `e2e/frameworks`.
+ * @param name - Package name.
+ * @param file - Executable path in the package. Omission selects the first `bin` entry.
+ */
+function packageBin(fixture: string, name: string, file?: string) {
+  const metadata = createRequire(
+    join(repository, "e2e/frameworks", fixture, "package.json"),
+  ).resolve(`${name}/package.json`);
+  const bin: string | Record<string, string> = JSON.parse(readFileSync(metadata, "utf8")).bin;
+  return join(dirname(metadata), file ?? (typeof bin === "string" ? bin : Object.values(bin)[0]));
+}
+
+/** Returns a runner for a Vite application whose fixture provides the Vite plugins. */
+function viteRunner(app: AppFramework, fixture: string, outputs: string[]): FrameworkRunner {
+  return {
+    app,
+    fixture,
+    build: [viteDriver, "build"],
+    dev: (port) => [viteDriver, "dev", String(port)],
+    outputs,
+  };
+}
+
+/** Returns a runner for a Next.js application that uses the given bundler. */
+function nextRunner(bundler: "turbopack" | "webpack"): FrameworkRunner {
+  const next = packageBin("next16-react19", "next");
+  return {
+    app: "next",
+    fixture: "next16-react19",
+    build: [next, "build", `--${bundler}`],
+    dev: (port) => [next, "dev", `--${bundler}`, "-p", String(port)],
+    outputs: [".next"],
+  };
+}
+
+/** Runners by framework name. Each one resolves its executables when it is created. */
+const runners: Record<string, () => FrameworkRunner> = {
+  "react-router": () => {
+    const cli = packageBin("vite8-react19-reactrouter8", "@react-router/dev", "bin.cjs");
+    return {
+      app: "react-router",
+      fixture: "vite8-react19-reactrouter8",
+      build: [cli, "build"],
+      dev: (port) => [cli, "dev", "--port", String(port), "--strictPort"],
+      outputs: ["build"],
+    };
+  },
+  vue: () => viteRunner("vue", "vite8-vue3", ["dist"]),
+  svelte: () => viteRunner("svelte", "vite8-svelte5", ["dist"]),
+  solid: () => viteRunner("solid", "vite8-solid1", ["dist"]),
+  astro: () => {
+    const astro = packageBin("astro7-plain", "astro");
+    return {
+      app: "astro",
+      fixture: "astro7-plain",
+      build: [astro, "build"],
+      // Astro locks can outlive stopped servers and identify reused process IDs.
+      dev: (port) => [astro, "dev", "--port", String(port), "--host", "localhost", "--ignore-lock"],
+      outputs: ["dist", ".astro"],
+    };
+  },
+  next: () => nextRunner("turbopack"),
+  "next-webpack": () => nextRunner("webpack"),
+  sveltekit: () => viteRunner("sveltekit", "sveltekit2-svelte5", ["build", ".svelte-kit"]),
+};
 
 /** Tailwind CSS packages of this benchmark package, which the generated applications cannot resolve. */
 const tailwind: TailwindPaths = {
@@ -47,9 +126,13 @@ const shapes: Record<string, AppShape> = {
   large: { routes: 100, components: 1200, chain: 6, componentsPerRoute: 5, barrel: true },
 };
 
+const frameworks = list("STILLWIND_BENCH_APPS_FRAMEWORKS", "react-router");
 const sizes = list("STILLWIND_BENCH_APPS_SIZES", "small,medium");
 const variants = list("STILLWIND_BENCH_APPS_VARIANTS", "plain,tailwind,stillwind") as AppVariant[];
 const runs = Number(process.env.STILLWIND_BENCH_APPS_RUNS ?? 3);
+const hashLength = process.env.STILLWIND_BENCH_APPS_HASH_LENGTH
+  ? Number(process.env.STILLWIND_BENCH_APPS_HASH_LENGTH)
+  : undefined;
 const keep = process.env.STILLWIND_BENCH_APPS_KEEP === "1";
 const output = process.env.STILLWIND_BENCH_APPS_OUTPUT ?? join(benchmarks, "results/apps.json");
 
@@ -98,7 +181,19 @@ function list(name: string, fallback: string): string[] {
 async function readStats(directory: string): Promise<ProcessStats> {
   const stats: ProcessStats = { maxRssKb: 0, cpuMs: 0, phases: {} };
   for (const name of await readdir(directory)) {
-    const entry = JSON.parse(await readFile(join(directory, name), "utf8"));
+    // A running process rewrites its file periodically, so a read can see a partial write.
+    let entry;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        entry = JSON.parse(await readFile(join(directory, name), "utf8"));
+        break;
+      } catch (error) {
+        if (attempt >= 20) {
+          throw error;
+        }
+        await delay(25);
+      }
+    }
     stats.maxRssKb = Math.max(stats.maxRssKb, entry.maxRssKb);
     stats.cpuMs += entry.cpuUserMs + entry.cpuSystemMs;
     for (const [phase, value] of Object.entries(entry.phases as Record<string, PhaseTotal>)) {
@@ -138,26 +233,37 @@ async function freshDirectory(path: string) {
   return path;
 }
 
-function measuredNode(args: string[], cwd: string, traceDirectory: string) {
+function measuredNode(args: string[], cwd: string, traceDirectory: string, build: boolean) {
   return startNode(
-    [cli, ...args],
+    args,
     cwd,
     {
       // React Router's development command restarts Node without the parent's argv flags.
       NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${preload}`.trim(),
       STILLWIND_BENCH_TRACE_DIR: traceDirectory,
-      NODE_ENV: args[0] === "build" ? "production" : "development",
+      NODE_ENV: build ? "production" : "development",
+      NEXT_TELEMETRY_DISABLED: "1",
+      ASTRO_TELEMETRY_DISABLED: "1",
     },
     1_200_000,
   );
 }
 
-async function build(root: string): Promise<Pick<RunResult, "buildMs" | "build">> {
-  await rm(join(root, "build"), { recursive: true, force: true });
-  await rm(join(root, "node_modules/.vite"), { recursive: true, force: true });
+/** Removes the build outputs and caches of an application. */
+async function clean(root: string, runner: FrameworkRunner) {
+  for (const path of [...runner.outputs, "node_modules/.vite"]) {
+    await rm(join(root, path), { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+}
+
+async function build(
+  root: string,
+  runner: FrameworkRunner,
+): Promise<Pick<RunResult, "buildMs" | "build">> {
+  await clean(root, runner);
   const traces = await freshDirectory(`${root}.trace-build`);
   const start = performance.now();
-  const child = measuredNode(["build"], root, traces);
+  const child = measuredNode(runner.build, root, traces, true);
   const code = await child.done;
   const buildMs = performance.now() - start;
   if (code !== 0) {
@@ -170,7 +276,7 @@ async function build(root: string): Promise<Pick<RunResult, "buildMs" | "build">
 async function waitForPage(
   check: () => Promise<boolean>,
   describe: () => Promise<string>,
-  timeout = 60_000,
+  timeout = 300_000,
 ) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -188,13 +294,19 @@ async function waitForPage(
 
 async function hydrate(page: Page, url: string): Promise<number> {
   const start = performance.now();
-  await page.goto(url);
-  await page.waitForSelector('html[data-hydrated="yes"]', { timeout: 120_000 });
+  await page.goto(url, { timeout: 300_000 });
+  await page.waitForSelector('html[data-hydrated="yes"]', { timeout: 300_000 });
   return performance.now() - start;
 }
 
-async function edit(page: Page, root: string, variant: AppVariant, name: AppEditName) {
-  const { file, from, to, selector, property, value } = appEdits[name];
+async function edit(
+  page: Page,
+  root: string,
+  framework: AppFramework,
+  variant: AppVariant,
+  name: AppEditName,
+) {
+  const { file, from, to, selector, property, value } = appEdits(framework)[name];
   const path = join(root, file);
   const original = await readFile(path, "utf8");
   const read = () =>
@@ -239,14 +351,15 @@ async function edit(page: Page, root: string, variant: AppVariant, name: AppEdit
 
 async function develop(
   root: string,
+  runner: FrameworkRunner,
   variant: AppVariant,
 ): Promise<Omit<RunResult, "buildMs" | "build">> {
-  await rm(join(root, "node_modules/.vite"), { recursive: true, force: true });
+  await clean(root, runner);
   const traces = await freshDirectory(`${root}.trace-dev`);
   const port = await availablePort();
   const url = `http://localhost:${port}/`;
   const start = performance.now();
-  const child = measuredNode(["dev", "--port", String(port), "--strictPort"], root, traces);
+  const child = measuredNode(runner.dev(port), root, traces, false);
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   try {
     await waitForServer(url, child, 600_000);
@@ -256,14 +369,14 @@ async function develop(
     const reloadMs = await hydrate(page, url);
     const edits: RunResult["edits"] = {};
     const editPhases: RunResult["editPhases"] = {};
-    for (const name of Object.keys(appEdits) as AppEditName[]) {
+    for (const name of Object.keys(appEdits(runner.app)) as AppEditName[]) {
       if (name === "theme" && variant === "plain") {
         continue;
       }
       // Each wait covers the preload's periodic trace write.
       await delay(1000);
       const before = await readStats(traces);
-      edits[name] = await edit(page, root, variant, name);
+      edits[name] = await edit(page, root, runner.app, variant, name);
       await delay(1000);
       editPhases[name] = phaseDifference((await readStats(traces)).phases, before.phases);
     }
@@ -274,8 +387,13 @@ async function develop(
   }
 }
 
-async function writeApp(root: string, variant: AppVariant, shape: AppShape) {
-  for (const [file, contents] of generateApp(variant, shape, tailwind)) {
+async function writeApp(
+  root: string,
+  framework: AppFramework,
+  variant: AppVariant,
+  shape: AppShape,
+) {
+  for (const [file, contents] of generateApp(framework, variant, shape, tailwind, hashLength)) {
     await mkdir(dirname(join(root, file)), { recursive: true });
     await writeFile(join(root, file), contents);
   }
@@ -287,12 +405,18 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-const work = join(fixture, ".e2e");
-await mkdir(work, { recursive: true });
 const report: {
   environment: Record<string, string>;
   settings: Record<string, unknown>;
-  results: { size: string; shape: AppShape; variant: AppVariant; runs: RunResult[] }[];
+  results: {
+    framework: string;
+    size: string;
+    shape: AppShape;
+    variant: AppVariant;
+    runs: RunResult[];
+  }[];
+  /** Applications whose measurement failed. The remaining applications are still measured. */
+  failures: { framework: string; size: string; variant: AppVariant; error: string }[];
 } = {
   environment: {
     timestamp: new Date().toISOString(),
@@ -304,43 +428,75 @@ const report: {
     platform: process.platform,
     arch: process.arch,
   },
-  settings: { sizes, variants, runs },
+  settings: { frameworks, sizes, variants, runs, hashLength },
   results: [],
+  failures: [],
 };
 
-for (const size of sizes) {
+/** Measures one application and records its runs, or its failure. */
+async function measure(
+  framework: string,
+  runner: FrameworkRunner,
+  size: string,
+  variant: AppVariant,
+) {
   const shape = shapes[size];
   if (!shape) {
     throw new Error(`Unknown size ${size}; expected one of ${Object.keys(shapes).join(", ")}`);
   }
-  for (const variant of variants) {
-    const root = await mkdtemp(join(work, `bench-${size}-${variant}-`));
-    try {
-      await writeApp(root, variant, shape);
-      const results: RunResult[] = [];
-      for (let run = 0; run < runs; run++) {
-        const result = { ...(await build(root)), ...(await develop(root, variant)) };
-        results.push(result);
-        console.log(
-          `${size} ${variant} #${run + 1}: build ${result.buildMs.toFixed(0)}ms, ` +
-            `dev ${result.devReadyMs.toFixed(0)}ms, load ${result.firstLoadMs.toFixed(0)}ms, ` +
-            `edits ${JSON.stringify(Object.fromEntries(Object.entries(result.edits).map(([k, v]) => [k, Math.round(v)])))}`,
-        );
-      }
-      report.results.push({ size, shape, variant, runs: results });
-    } finally {
-      if (!keep) {
-        // Traces live beside the application so that the development watcher ignores them.
-        for (const path of [root, `${root}.trace-build`, `${root}.trace-dev`]) {
-          await rm(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-        }
+  // Generated applications resolve packages from the installed dependencies of the fixture.
+  const work = join(repository, "e2e/frameworks", runner.fixture, ".e2e");
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(join(work, `bench-${size}-${variant}-`));
+  try {
+    await writeApp(root, runner.app, variant, shape);
+    const results: RunResult[] = [];
+    for (let run = 0; run < runs; run++) {
+      const result = {
+        ...(await build(root, runner)),
+        ...(await develop(root, runner, variant)),
+      };
+      results.push(result);
+      console.log(
+        `${framework} ${size} ${variant} #${run + 1}: build ${result.buildMs.toFixed(0)}ms, ` +
+          `dev ${result.devReadyMs.toFixed(0)}ms, load ${result.firstLoadMs.toFixed(0)}ms, ` +
+          `edits ${JSON.stringify(Object.fromEntries(Object.entries(result.edits).map(([k, v]) => [k, Math.round(v)])))}`,
+      );
+    }
+    report.results.push({ framework, size, shape, variant, runs: results });
+  } catch (error) {
+    const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    console.error(`${framework} ${size} ${variant} failed: ${message.slice(0, 4000)}`);
+    report.failures.push({ framework, size, variant, error: message });
+  } finally {
+    // The report is written after each application so that a stopped run keeps its results.
+    await mkdir(dirname(output), { recursive: true });
+    await writeFile(output, JSON.stringify(report, null, 2) + "\n");
+    if (!keep) {
+      // Traces live beside the application so that the development watcher ignores them.
+      for (const path of [root, `${root}.trace-build`, `${root}.trace-dev`]) {
+        await rm(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
       }
     }
   }
 }
 
-await mkdir(dirname(output), { recursive: true });
-await writeFile(output, JSON.stringify(report, null, 2) + "\n");
+for (const framework of frameworks) {
+  const createRunner = runners[framework];
+  if (!createRunner) {
+    throw new Error(
+      `Unknown framework ${framework}; expected one of ${Object.keys(runners).join(", ")}`,
+    );
+  }
+  const runner = createRunner();
+  for (const size of sizes) {
+    for (const variant of variants) {
+      if (variant !== "tailwind" || runner.app === "react-router") {
+        await measure(framework, runner, size, variant);
+      }
+    }
+  }
+}
 
 const metrics: [string, (run: RunResult) => number | undefined][] = [
   ["build ms", (run) => run.buildMs],
@@ -353,12 +509,16 @@ const metrics: [string, (run: RunResult) => number | undefined][] = [
   ["shared edit ms", (run) => run.edits.shared],
   ["theme edit ms", (run) => run.edits.theme],
 ];
-for (const size of sizes) {
+for (const [framework, size] of frameworks.flatMap((framework) =>
+  sizes.map((size) => [framework, size] as const),
+)) {
   const rows: Record<string, Record<string, string>> = {};
   for (const [label, read] of metrics) {
     const row: Record<string, string> = {};
     const medians: Partial<Record<AppVariant, number>> = {};
-    for (const entry of report.results.filter((result) => result.size === size)) {
+    for (const entry of report.results.filter(
+      (result) => result.framework === framework && result.size === size,
+    )) {
       const values = entry.runs.map(read).filter((value) => value !== undefined);
       if (values.length > 0) {
         medians[entry.variant] = median(values);
@@ -373,10 +533,11 @@ for (const size of sizes) {
     }
     rows[label] = row;
   }
-  console.log(`\n${size} (medians of ${runs} runs)`);
+  console.log(`\n${framework} ${size} (medians of ${runs} runs)`);
   console.table(rows);
   const stillwind = report.results.find(
-    (result) => result.size === size && result.variant === "stillwind",
+    (result) =>
+      result.framework === framework && result.size === size && result.variant === "stillwind",
   );
   if (stillwind) {
     const last = stillwind.runs.at(-1)!;
@@ -385,7 +546,7 @@ for (const size of sizes) {
       ["dev", last.dev.phases],
       ...Object.entries(last.editPhases).map(([name, value]) => [`${name} edit`, value] as const),
     ] as const) {
-      console.log(`Stillwind ${label} phases (last run)`);
+      console.log(`Stillwind ${framework} ${size} ${label} phases (last run)`);
       console.table(
         Object.fromEntries(
           Object.entries(phases).map(([phase, value]) => [
@@ -401,5 +562,8 @@ for (const size of sizes) {
       );
     }
   }
+}
+for (const failure of report.failures) {
+  console.log(`Failed: ${failure.framework} ${failure.size} ${failure.variant}`);
 }
 console.log(`\nReport: ${output}`);
