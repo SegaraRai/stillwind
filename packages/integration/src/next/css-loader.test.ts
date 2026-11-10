@@ -1,5 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { expect, onTestFinished, test } from "vite-plus/test";
 import type { LoaderContext } from "webpack";
@@ -60,7 +61,9 @@ for (const change of ["add", "remove before reading", "remove after reading"] as
         addDependency: () => {},
         addContextDependency: () => {},
         addMissingDependency: () => {},
-        getResolve: () => () => expect.fail("This fixture has no imports to resolve"),
+        getResolve:
+          () => (_directory: string, specifier: string, done: (error: null, id: string) => void) =>
+            done(null, fileURLToPath(import.meta.resolve(specifier))),
         emitWarning: (error: Error) => expect.fail(error.message),
         async: () => (error: unknown, css: string) => (error ? reject(error) : resolve(css)),
       } as unknown as LoaderContext<NextLoaderOptions>;
