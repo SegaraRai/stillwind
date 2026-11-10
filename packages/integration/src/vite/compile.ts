@@ -142,6 +142,15 @@ export async function compileProducer(
   context: CompileContext,
   previous?: Readonly<ProducerInput>,
 ): Promise<ProducerCompilation | undefined> {
+  /**
+   * Selects the automatic stylesheet import of a producer.
+   * @param id - Full Vite identity of the producer.
+   * @returns The producer stylesheet module for an SFC with automatic document CSS, or undefined.
+   */
+  const stylesheetImports = (id: string) =>
+    /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id)) && config.automatic !== false
+      ? [registry.source("producer", id)]
+      : undefined;
   const sfc = /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id));
 
   /**
@@ -212,10 +221,10 @@ export async function compileProducer(
       warn: (message) => {
         context.warn(message);
       },
+      stylesheetImports,
     },
     {
-      stylesheetImports:
-        sfc && config.automatic !== false ? [registry.source("producer", id)] : undefined,
+      stylesheetImports: stylesheetImports(id),
       moduleCssImport: registry.source("value", id),
     },
   );

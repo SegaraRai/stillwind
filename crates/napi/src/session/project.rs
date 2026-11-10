@@ -13,7 +13,9 @@ use stillwind_compiler::{
     ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
-use stillwind_ir::{ModuleAnalysis, ModuleScan, SourceAnalyzer, TypeScriptFactsProvider};
+use stillwind_ir::{
+    ModuleAnalysis, ModuleScan, SourceAnalyzer, SourceInput, TypeScriptFactsProvider,
+};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{
     ProjectSession, SessionMode, StylesheetCoverage, StylesheetPlanError, StylesheetSelection,
@@ -605,13 +607,7 @@ impl NativeProjectSession {
             )));
         }
         let mut transaction = self.session.clone();
-        let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
-        let scans = Self::scan_sources(&analyzer, &mut transaction, &sources)?;
-        let facts = ProvidedTypeScriptFacts::new(&sources).update(&scans);
-        let analyses: Vec<_> = scans
-            .iter()
-            .map(|scan| analyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id)))
-            .collect();
+        let analyses = self.analyze_sources(&mut transaction, &sources)?;
         let mut modules = Vec::new();
         let mut attempted = Vec::new();
         // Modules whose stored analysis still applies, with no output built yet.
@@ -677,13 +673,13 @@ impl NativeProjectSession {
     }
 }
 
-/// Returns whether `session` holds a successful analysis that is interchangeable
-/// with `analysis`, so its artifact and published diagnostic batch still apply.
+/// Returns whether `session` holds a successful analysis that is interchangeable with
+/// `analysis`, so its artifact and published diagnostic batch still apply.
 ///
 /// The analyses match when they share the source buffer, the input revision, and the
-/// facts revision, and report the same errors and lint findings. Analysis derives
-/// the IR from these inputs, so an update would compute the same artifact key.
-/// Composition checks can change the reports without changing the inputs.
+/// facts revision, and report the same errors and lint findings. Analysis derives the IR
+/// from these inputs, so an update would compute the same artifact key. Composition
+/// checks can change the reports without changing the inputs.
 fn same_analysis(session: &ProjectSession, analysis: &ModuleAnalysis) -> bool {
     let Some(previous) = session.analyses().get(&analysis.module_id) else {
         return false;
@@ -694,7 +690,41 @@ fn same_analysis(session: &ProjectSession, analysis: &ModuleAnalysis) -> bool {
         && previous.diagnostics == analysis.diagnostics
         && previous.integration_diagnostics == analysis.integration_diagnostics
         && previous.lint_findings == analysis.lint_findings
-        && previous.input.revision() == analysis.input.revision()
+        && same_input(&previous.input, &analysis.input)
+}
+
+/// Returns whether two inputs from one source ID scope have equal revisions.
+///
+/// Buffers with equal IDs in one scope are the same buffers, and a projected input that
+/// keeps its document and parser buffer was copied with its whole projection (see
+/// [`HostPreparedSource::input_after`]). Comparing the buffers by identity therefore
+/// gives the result of comparing [`SourceInput::revision`] without formatting both
+/// inputs.
+fn same_input(previous: &SourceInput, input: &SourceInput) -> bool {
+    let same_projection = match (previous.projection(), input.projection()) {
+        (None, None) => true,
+        (Some(previous), Some(input)) => previous.analysis_id() == input.analysis_id(),
+        _ => false,
+    };
+    same_projection
+        && previous.module_id == input.module_id
+        && Arc::ptr_eq(previous.document().file(), input.document().file())
+        && Arc::ptr_eq(previous.parser_source(), input.parser_source())
+        && previous.syntax() == input.syntax()
+        && previous.document().format() == input.document().format()
+        && previous.document().upstream_map() == input.document().upstream_map()
+        && previous.framework == input.framework
+        && previous.stylesheet_imports == input.stylesheet_imports
+        && previous.module_css_import == input.module_css_import
+}
+
+/// A source of a compile transaction before its facts are applied.
+enum PendingAnalysis {
+    /// A scan of a new or changed input.
+    Scanned(Box<ModuleScan>),
+    /// The successful latest analysis of an unchanged input. It applies when the
+    /// facts of the module have its semantic revision.
+    Stored(Arc<ModuleAnalysis>),
 }
 
 impl NativeProjectSession {
@@ -723,10 +753,64 @@ impl NativeProjectSession {
             .collect()
     }
 
-    /// Scans `sources` for a compile transaction.
+    /// Analyzes `sources` for a compile transaction, in source order.
     ///
-    /// A source keeps the buffer of its module's latest analysis in `transaction` when
-    /// the document is unchanged, so an unchanged module keeps its artifact key.
+    /// A source with an unchanged input and unchanged facts receives a copy of its
+    /// module's latest analysis in `transaction`, because analysis of the same input
+    /// with the same facts gives the same result. Other sources are scanned and
+    /// finalized with the host facts.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Self::scan_sources`].
+    fn analyze_sources(
+        &self,
+        transaction: &mut ProjectSession,
+        sources: &[HostPreparedSource],
+    ) -> napi::Result<Vec<ModuleAnalysis>> {
+        let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
+        let pending = Self::scan_sources(&analyzer, transaction, sources)?;
+        let facts =
+            ProvidedTypeScriptFacts::new(sources).modules(pending.iter().map(
+                |pending| match pending {
+                    PendingAnalysis::Scanned(scan) => {
+                        (&scan.module_id, &scan.source_revision, &scan.summary)
+                    }
+                    PendingAnalysis::Stored(analysis) => (
+                        &analysis.module_id,
+                        &analysis.source_revision,
+                        &analysis.summary,
+                    ),
+                },
+            ));
+        Ok(pending
+            .into_iter()
+            .map(|pending| match pending {
+                PendingAnalysis::Scanned(scan) => {
+                    let facts = facts.get(&scan.module_id);
+                    analyzer.finalize(*scan, facts)
+                }
+                PendingAnalysis::Stored(analysis) => {
+                    let facts = facts.get(&analysis.module_id);
+                    if analysis.semantic_revision.as_ref()
+                        == facts.map(|facts| &facts.semantic_revision)
+                    {
+                        analysis.as_ref().clone()
+                    } else {
+                        analyzer.finalize(analyzer.scan_input(analysis.input.clone()), facts)
+                    }
+                }
+            })
+            .collect())
+    }
+
+    /// Prepares `sources` for a compile transaction.
+    ///
+    /// A source keeps the buffers of its module's latest analysis in `transaction` when
+    /// the document is unchanged, so an unchanged module keeps its artifact key. A
+    /// source whose input equals the input of a successful latest analysis is not
+    /// scanned, because scanning the same input gives the same scan. The caller decides
+    /// whether that analysis applies after it computes the facts of the module.
     ///
     /// # Errors
     ///
@@ -735,16 +819,24 @@ impl NativeProjectSession {
         analyzer: &impl SourceAnalyzer,
         transaction: &mut ProjectSession,
         sources: &[HostPreparedSource],
-    ) -> napi::Result<Vec<ModuleScan>> {
+    ) -> napi::Result<Vec<PendingAnalysis>> {
         sources
             .iter()
             .map(|source| {
-                let previous = transaction
-                    .analyses()
-                    .get(source.module_id())
-                    .map(|analysis| Arc::clone(&analysis.source));
-                Ok(analyzer
-                    .scan_input(source.input_after(transaction.sources_mut(), previous.as_ref())?))
+                let previous = transaction.analyses().get(source.module_id()).cloned();
+                let input = source.input_after(
+                    transaction.sources_mut(),
+                    previous.as_ref().map(|analysis| &analysis.input),
+                )?;
+                Ok(match previous {
+                    Some(previous)
+                        if transaction.current_artifact(source.module_id()).is_some()
+                            && same_input(&previous.input, &input) =>
+                    {
+                        PendingAnalysis::Stored(previous)
+                    }
+                    _ => PendingAnalysis::Scanned(Box::new(analyzer.scan_input(input))),
+                })
             })
             .collect()
     }

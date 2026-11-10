@@ -31,6 +31,16 @@ export interface CompilerHost {
    */
   supports?(id: string): boolean;
   /**
+   * Returns the stylesheet modules that the host inserts at the macro import of a source that it
+   * compiles as an entry. A dependency that imports a macro module receives the same imports, so
+   * that the session reuses one compilation of the source in both roles.
+   *
+   * @param id - Full resolver identity of the source.
+   * @returns The imports that the entry options would supply for this source, or undefined when
+   * the host inserts none. Omission inserts none into dependencies.
+   */
+  stylesheetImports?(id: string): string[] | undefined;
+  /**
    * Describes one resolved source before it is scanned or compiled.
    *
    * @param id - Full resolver identity of the source, including any query suffix.

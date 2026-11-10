@@ -4,10 +4,10 @@ use std::collections::BTreeMap;
 
 use stillwind_ir::{ModuleScan, TypeScriptFactsProvider};
 use stillwind_semantic::{
-    AssetMetadata, CheckedValue, ExportedValue, IdentityId, StoredVariantRecord, TypeFact,
-    TypeFacts, TypeFactsUpdate,
+    AssetMetadata, CheckedValue, ExportedValue, IdentityId, ModuleSummary, StoredVariantRecord,
+    TypeFact, TypeFacts, TypeFactsUpdate,
 };
-use stillwind_source::Fingerprint;
+use stillwind_source::{Fingerprint, ModuleId};
 
 use crate::source_input::HostPreparedSource;
 
@@ -26,35 +26,52 @@ impl<'a> ProvidedTypeScriptFacts<'a> {
     }
 }
 
-impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
-    fn update(&mut self, scans: &[ModuleScan]) -> TypeFactsUpdate {
-        let assets: BTreeMap<_, _> = scans
+impl ProvidedTypeScriptFacts<'_> {
+    /// Wraps the host facts of each module with the asset metadata that they mention.
+    ///
+    /// `modules` yields the identity, source revision, and summary of each source, in
+    /// the order of the sources. Asset metadata comes from the summaries of all modules.
+    pub(super) fn modules<'m>(
+        &self,
+        modules: impl IntoIterator<Item = (&'m ModuleId, &'m Fingerprint, &'m ModuleSummary)>,
+    ) -> BTreeMap<ModuleId, TypeFacts> {
+        let modules: Vec<_> = modules.into_iter().collect();
+        let assets: BTreeMap<_, _> = modules
             .iter()
-            .flat_map(|scan| scan.summary.assets.iter())
+            .flat_map(|(_, _, summary)| summary.assets.iter())
             .map(|asset| (asset.identity.clone(), asset.metadata.clone()))
             .collect();
-        let modules = scans
-            .iter()
+        modules
+            .into_iter()
             .zip(self.sources)
-            .map(|(scan, source)| {
+            .map(|((module_id, source_revision, _), source)| {
                 let assets = mentioned_assets(source.type_facts(), &assets);
                 let semantic_revision =
                     Fingerprint::of(format!("{:?}{assets:?}", source.type_facts()));
                 (
-                    scan.module_id.clone(),
+                    module_id.clone(),
                     TypeFacts {
                         schema: TypeFacts::SCHEMA,
-                        module_id: scan.module_id.clone(),
-                        source_revision: scan.source_revision.clone(),
+                        module_id: module_id.clone(),
+                        source_revision: source_revision.clone(),
                         semantic_revision,
                         facts: source.type_facts().to_vec(),
                         assets,
                     },
                 )
             })
-            .collect();
+            .collect()
+    }
+}
+
+impl TypeScriptFactsProvider for ProvidedTypeScriptFacts<'_> {
+    fn update(&mut self, scans: &[ModuleScan]) -> TypeFactsUpdate {
         TypeFactsUpdate {
-            modules,
+            modules: self.modules(
+                scans
+                    .iter()
+                    .map(|scan| (&scan.module_id, &scan.source_revision, &scan.summary)),
+            ),
             diagnostics: Vec::new(),
         }
     }

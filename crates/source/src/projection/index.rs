@@ -56,7 +56,7 @@ pub enum ProjectionError {
 /// The variant decides how offsets are read: v3 tokens are points in UTF-16
 /// coordinates, Volar entries are intervals in UTF-16 coordinates. Neither variant is
 /// normalized into the other.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",

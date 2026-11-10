@@ -148,19 +148,22 @@ impl HostPreparedSource {
 
     /// Returns the analyzer input like [`Self::input`], reusing `previous` when it fits.
     ///
-    /// `previous` must be a buffer that `sources` retains, such as the source of this
-    /// module's latest analysis. A direct input whose URI, source-map name, and text
-    /// equal `previous` keeps its file ID instead of registering a new buffer. The
-    /// equal ID keeps the artifact key equal, so the session reuses the compiled
-    /// module. Projected inputs always register new buffers.
+    /// `previous` must be an input whose buffers share the ID scope of `sources`, such
+    /// as the input of this module's latest analysis. A direct input whose URI,
+    /// source-map name, and text equal the previous parser buffer keeps that buffer. A
+    /// projected input whose document and projection equal the previous ones keeps the
+    /// previous document, parser buffer, and analysis ID. Kept buffers are retained in
+    /// `sources` instead of registering new ones. Equal IDs keep the input revision and
+    /// the artifact key equal, so the session reuses the compiled module.
     ///
     /// # Errors
     ///
-    /// Returns the errors of [`Self::input`].
+    /// Returns the errors of [`Self::input`], and an error when a kept buffer conflicts
+    /// with a buffer that `sources` retains.
     pub fn input_after(
         &self,
         sources: &mut SourceRegistry,
-        previous: Option<&Arc<SourceFile>>,
+        previous: Option<&SourceInput>,
     ) -> napi::Result<SourceInput> {
         let (
             document,
@@ -206,8 +209,21 @@ impl HostPreparedSource {
                 module_css_import,
             ),
         };
-        let code = parser_buffer(sources, document, projection, previous)?;
-        let prepared = if let Some(projection) = projection {
+        let reusable = projection
+            .zip(previous.and_then(SourceInput::projected))
+            .filter(|(projection, previous)| {
+                same_document(document, previous.document())
+                    && projection.matches(previous.projection(), previous.document().file())
+            });
+        let prepared = if let Some((_, previous)) = reusable {
+            for buffer in [previous.document().file(), previous.projection().code()] {
+                sources
+                    .retain(Arc::clone(buffer))
+                    .map_err(|error| Error::from_reason(error.to_string()))?;
+            }
+            PreparedSource::Projected(previous.clone())
+        } else if let Some(projection) = projection {
+            let code = parser_buffer(sources, document, Some(projection), None)?;
             let original = sources
                 .register(
                     Some(document.uri.clone()),
@@ -226,6 +242,10 @@ impl HostPreparedSource {
                     .map_err(|error| Error::from_reason(error.to_string()))?,
             )
         } else {
+            let previous = previous
+                .filter(|previous| previous.projected().is_none())
+                .map(SourceInput::parser_source);
+            let code = parser_buffer(sources, document, None, previous)?;
             let document = SourceDocument::new(
                 code,
                 document.format,
@@ -245,6 +265,17 @@ impl HostPreparedSource {
         input.module_css_import = module_css_import.as_deref().map(Into::into);
         Ok(input)
     }
+}
+
+/// Returns whether `previous` is an editable document with the URI, source-map name,
+/// text, format, and upstream map of `document`.
+fn same_document(document: &HostSourceDocument, previous: &SourceDocument) -> bool {
+    let file = previous.file();
+    file.uri() == Some(&document.uri)
+        && file.source_map_source() == document.source_map_source.as_deref()
+        && file.text() == document.code
+        && previous.format() == document.format
+        && previous.upstream_map() == document.upstream_map.as_deref()
 }
 
 /// Returns the parser buffer of `document`, reusing `previous` when it fits.
@@ -334,5 +365,56 @@ impl TryFrom<NativePreparedSource> for HostPreparedSource {
                 module_css_import,
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn vue_source(code: &str, template: &str) -> HostPreparedSource {
+        serde_json::from_value(serde_json::json!({
+            "kind": "projected",
+            "document": {
+                "uri": "file:///app/Card.vue",
+                "code": code,
+                "format": "vue",
+            },
+            "projection": {
+                "code": template,
+                "syntax": { "language": "ts", "moduleKind": "module" },
+                "map": {
+                    "kind": "volar",
+                    "mappings": [{ "sourceOffsets": [0], "generatedOffsets": [0], "lengths": [0] }],
+                },
+                "converter": { "name": "test", "version": "1", "optionsFingerprint": "default" },
+                "importRealms": [{ "id": 0, "start": 0, "end": 4 }],
+                "editableRegions": [],
+            },
+            "moduleId": "Card.vue",
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn unchanged_projected_inputs_keep_their_buffers_and_analysis_id() {
+        let mut sources = SourceRegistry::default();
+        let first = vue_source("<template/>", "export {};")
+            .input(&mut sources)
+            .unwrap();
+        let again = vue_source("<template/>", "export {};")
+            .input_after(&mut sources, Some(&first))
+            .unwrap();
+        assert_eq!(again.revision(), first.revision());
+        assert!(Arc::ptr_eq(again.parser_source(), first.parser_source()));
+
+        let edited = vue_source("<template/>", "export const x = 1;")
+            .input_after(&mut sources, Some(&first))
+            .unwrap();
+        assert_ne!(edited.revision(), first.revision());
+        assert_ne!(
+            edited.projection().unwrap().analysis_id(),
+            first.projection().unwrap().analysis_id()
+        );
     }
 }

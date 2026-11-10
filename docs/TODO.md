@@ -396,11 +396,9 @@ and no generated names. These couplings remain:
   declaration changes no consumer output.
 
 Each compilation still sends the semantic closure of its entry to the native
-session. The session skips a module whose analysis has the same source buffer,
-input, facts, and reports as its stored analysis, but it still scans and finalizes
-that module. In the medium application benchmark, native compilation takes about
-700ms of a build. Most of it is the first compilation of each module. Scanning and
-finalizing unchanged dependencies take about 150ms.
+session. The session reuses the stored analysis of a module whose source buffer,
+input, and facts are unchanged, without scanning or finalizing it again. Most of the
+remaining native compilation time is the first compilation of each module.
 
 A development server does not register dependencies with `addWatchFile`. Its hot
 update hook compiles the changed producer and then compares the interface of the
@@ -430,8 +428,9 @@ Planned direction:
    missing-producer checks to linking. Read the inline-style flags of bases from
    the interface of the dependency. Style-effect lints such as
    `interfering-imported-style-base` already run over published artifacts and stay
-   there. This removes only the scan and finalize work of dependencies, so measure
-   it against the cost of reporting composition errors at link time.
+   there. Unchanged dependencies already reuse their stored analyses, so measure
+   the remaining gain against the cost of reporting composition errors at link
+   time.
 
 Open decisions: whether the checker diagnostic check stays on the compilation
 path, and how development reports link-time errors.
@@ -446,19 +445,6 @@ Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
 [Vite hot updates](../packages/integration/src/vite/development.ts),
 [export interfaces](../packages/host/src/semantics/node/export-interface.ts),
 [native compile batches](../crates/napi/src/session/project.rs).
-
-## Transport options of dependencies
-
-An entry receives its stylesheet imports and module CSS import from the adapter,
-while the same module compiled as a dependency receives defaults. When the values
-differ, the native session compiles the module again each time it alternates
-between the two roles. Module CSS imports use the same default when the module
-has none, but stylesheet imports of component files still differ. Let the host
-supply the entry options for dependencies, or keep them out of the artifact key
-when they do not change the output.
-
-Sources: [entry compilation](../packages/host/src/compilation/compiler.ts),
-[prepared sources](../crates/napi/src/source_input/prepared.rs).
 
 ## Document CSS in Turbopack worker processes
 

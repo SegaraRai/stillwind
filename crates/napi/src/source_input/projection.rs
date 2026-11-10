@@ -155,10 +155,48 @@ impl HostSourceProjection {
         original: &SourceFile,
         sources: &mut SourceRegistry,
     ) -> napi::Result<SourceProjection> {
-        let original_id = original.id();
         let analysis_id = sources
             .reserve_generated_id()
             .map_err(|error| Error::from_reason(error.to_string()))?;
+        let (realms, regions) = self.metadata(original)?;
+        SourceProjection::try_new(
+            code,
+            self.syntax,
+            self.map.clone(),
+            self.converter.clone(),
+            analysis_id,
+            realms,
+            regions,
+        )
+        .map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    /// Returns whether `previous` holds this projection of `original`, so that an
+    /// input can keep the previous parser buffer and analysis ID.
+    ///
+    /// `original` must be the editable document of `previous`. The comparison covers
+    /// the generated code, parser settings, map, converter identity, realms, and
+    /// regions. Offsets that `original` cannot convert make the result false.
+    pub(super) fn matches(&self, previous: &SourceProjection, original: &SourceFile) -> bool {
+        previous.code().text() == self.code
+            && previous.syntax() == self.syntax
+            && *previous.map() == self.map
+            && *previous.converter() == self.converter
+            && self.metadata(original).is_ok_and(|(realms, regions)| {
+                previous.import_realms() == realms && previous.editable_regions() == regions
+            })
+    }
+
+    /// Converts UTF-16 realms and regions to byte spans in `original`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an offset outside `original` or inside a surrogate pair.
+    fn metadata(
+        &self,
+        original: &SourceFile,
+    ) -> napi::Result<(Vec<ImportRealm>, Vec<ProjectionRegion>)> {
+        let original_id = original.id();
         let index = CoordinateIndex::new(original);
         let span = |start, end| projection_span(&index, original_id, start, end);
         let realms = self
@@ -186,16 +224,7 @@ impl HostSourceProjection {
                 })
             })
             .collect::<napi::Result<Vec<_>>>()?;
-        SourceProjection::try_new(
-            code,
-            self.syntax,
-            self.map.clone(),
-            self.converter.clone(),
-            analysis_id,
-            realms,
-            regions,
-        )
-        .map_err(|error| Error::from_reason(error.to_string()))
+        Ok((realms, regions))
     }
 }
 

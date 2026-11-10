@@ -284,6 +284,10 @@ export class ModuleGraph {
     );
     return sources.map((source) => ({
       ...source,
+      ...(source.resolverId !== entry.resolverId &&
+        this.#summaries.get(source.moduleId)?.macroImports && {
+          stylesheetImports: this.host.stylesheetImports?.(source.resolverId),
+        }),
       moduleCssImport:
         source.resolverId === entry.resolverId ? source.moduleCssImport : "stillwind/module-css",
       typeFacts: facts.get(source.moduleId) ?? [],
