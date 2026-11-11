@@ -32,14 +32,18 @@ import {
 } from "../session.ts";
 import { buildSourceEntries } from "../source-entries.ts";
 
-/** Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport. */
+/**
+ * Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport.
+ */
 type MutableSettings<T> = T extends readonly (infer Item)[]
   ? MutableSettings<Item>[]
   : T extends object
     ? { -readonly [K in keyof T]: MutableSettings<T[K]> }
     : T;
 
-/** Serializable compiler settings and entry selection passed to Turbopack's isolated loaders. */
+/**
+ * Serializable compiler settings and entry selection passed to Turbopack's isolated loaders.
+ */
 export type TurbopackLoaderOptions = {
   /** Configuration file selection and serializable inline settings. */
   compiler: MutableSettings<SerializableInlineConfig>;
@@ -51,7 +55,9 @@ export type TurbopackLoaderOptions = {
   mode: string;
 };
 
-/** Compiler session and host operations that one Turbopack or Next loader invocation uses. */
+/**
+ * Compiler session and host operations that one Turbopack or Next loader invocation uses.
+ */
 export interface TurbopackProject {
   /** Evaluated compiler settings with an absolute project root, captured entry selection, and mode. */
   options: Omit<TurbopackLoaderOptions, "compiler"> & {
@@ -93,7 +99,9 @@ export interface TurbopackProject {
   release: () => void;
 }
 
-/** Design system and compiler shared by loader invocations with equal settings. */
+/**
+ * Design system and compiler shared by loader invocations with equal settings.
+ */
 interface SharedDesignSystem {
   loaded: LoadedCssGraph;
   compiler: IntegrationSession;
@@ -165,6 +173,7 @@ function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefine
   const targets = new Set<WeakRef<SharedDesignSystem>>();
   /**
    * Calls an operation for every registered design system that is still reachable.
+   *
    * @param operation - Operation that receives the design system.
    */
   const each = (operation: (designSystem: SharedDesignSystem) => void) => {
@@ -218,7 +227,9 @@ function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefine
   return targets;
 }
 
-/** Compiler host whose resolver returns an identity or rejects instead of returning null. */
+/**
+ * Compiler host whose resolver returns an identity or rejects instead of returning null.
+ */
 export interface TurbopackHost extends CompilerHost {
   /**
    * Resolves a script dependency or marks a Node builtin or Next boundary marker as external.
@@ -324,6 +335,7 @@ export async function createProject(
   }
   /**
    * Adapts a Turbopack resolver to imports relative to a source file.
+   *
    * @param settings - Resolution policy passed to the loader's resolver factory.
    * @returns An asynchronous resolver accepting a specifier and full importer identity. Its promise
    * rejects on resolver errors or missing results, and otherwise returns the resolved identity.
@@ -599,6 +611,7 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
   graphOutputs.set(compiler, outputs);
   /**
    * Compiles a module and records its output.
+   *
    * @param node - Visited module.
    * @returns Whether a producer compilation ran.
    */
@@ -670,7 +683,9 @@ async function reconstruct(entries: readonly string[], project: TurbopackProject
   return plan;
 }
 
-/** Local JavaScript or TypeScript module that a graph traversal visited. */
+/**
+ * Local JavaScript or TypeScript module that a graph traversal visited.
+ */
 interface GraphNode {
   /** Absolute file path. */
   id: string;
@@ -681,7 +696,9 @@ interface GraphNode {
   producer: boolean;
 }
 
-/** Result of the last graph compilation of one module. */
+/**
+ * Result of the last graph compilation of one module.
+ */
 interface GraphOutput {
   /** Source text that the result was compiled from. */
   source: string;

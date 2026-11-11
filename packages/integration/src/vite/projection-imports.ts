@@ -6,6 +6,7 @@ import { parseSync } from "rolldown/utils";
 
 /**
  * Finds literal projection imports in a source document without evaluating its code.
+ *
  * @param code - Original source, optionally in a supported component format.
  * @param id - Full source identity whose cleaned path determines the frontend and parser language.
  * @returns Distinct static and literal dynamic requests ending in ?stillwind.css, in traversal order.
@@ -42,6 +43,7 @@ export async function projectionImports(code: string, id: string) {
   const imports = new Set<string>();
   /**
    * Collects literal projection requests while traversing enumerable AST fields.
+   *
    * @param node - Parser AST node or child value. Primitive values are skipped.
    */
   const visit = (node: unknown): void => {

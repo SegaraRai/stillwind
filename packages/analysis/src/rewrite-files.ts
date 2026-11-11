@@ -8,7 +8,9 @@ import type { RewriteFileFailure, RewriteInput } from "./rewrite.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 import { writeChangedFiles } from "./write.ts";
 
-/** Selects configured source files for CLI analysis and rewriting. */
+/**
+ * Selects configured source files for CLI analysis and rewriting.
+ */
 export interface RewriteOptions {
   /** Explicit configuration path, absolute or relative to cwd. Omission searches upward from cwd. */
   config?: string;
@@ -18,7 +20,9 @@ export interface RewriteOptions {
   patterns?: string[];
 }
 
-/** A completed rewrite batch with findings kept separately for each owning project. */
+/**
+ * A completed rewrite batch with findings kept separately for each owning project.
+ */
 interface RewriteFilesResult {
   /** Absolute configuration path used by the isolated worker. */
   config: string;
@@ -32,6 +36,7 @@ interface RewriteFilesResult {
 
 /**
  * Computes all replacements before optionally saving changed files. Fixes return final findings.
+ *
  * @param options - Configuration discovery and optional filters within configured target scopes.
  * @param operation - Utility sorting or converged lint fixes.
  * @param write - Whether to verify and save changed bytes after every replacement is planned.
@@ -112,6 +117,7 @@ export async function rewriteFiles(
 
 /**
  * Resolves an explicit configuration path or searches above the chosen working directory.
+ *
  * @param options - Optional config path and cwd, defaulting to process.cwd().
  * @returns An absolute path. Explicit paths are resolved without evaluating the configuration.
  * @throws If discovery finds no configuration.

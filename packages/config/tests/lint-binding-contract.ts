@@ -8,11 +8,13 @@ import { lintPresets, lintRules, resolveLintConfig, type LintRule } from "../src
 /**
  * Registers lint configuration contracts for a process using the built binding.
  * The caller configures binding selection before the tests run.
+ *
  * @param target - Expected target exported by @stillwind/native.
  */
 export function registerLintBindingContract(target: "native" | "wasm32-wasi") {
   /**
    * Creates a standalone compilation input for comparing resolved policies across binding targets.
+   *
    * @param source - TSX source, including invalid syntax when compiler diagnostics are exercised.
    * @param moduleId - Compiler identity also used to derive document and source-map URLs.
    * @param theme - CSS design-system text loaded as the fixture's root stylesheet.

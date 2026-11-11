@@ -119,6 +119,7 @@ export function createApplication(context: ScenarioContext) {
   let built = false;
   /**
    * Builds the current fixture sources after the caller stops any running server.
+   *
    * @returns Completion after a successful build; the build process is stopped before returning.
    * @throws If the build fails or cannot be started.
    */

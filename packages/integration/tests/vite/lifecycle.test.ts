@@ -42,6 +42,7 @@ test("middleware mode releases its CSS watches when the server closes", async ()
 
 /**
  * Starts an isolated server and registers cleanup for every restart candidate.
+ *
  * @param options - Enables middleware mode or rejects the first restart during server setup.
  * @returns The server, project, temporary root, and operations for reading generated modules and CSS.
  * @throws If server configuration or startup fails.

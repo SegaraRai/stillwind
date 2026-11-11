@@ -26,6 +26,7 @@ const collection: IconifyJSON = {
 
 /**
  * Creates the context of one `@plugin` statement.
+ *
  * @param options - Declarations of the statement's options block.
  * @returns A context whose project directory contains no icon set packages.
  */
@@ -46,6 +47,7 @@ function context(options: Record<string, string> = {}): PluginContext {
 
 /**
  * Decodes the SVG of each icon asset in generated CSS.
+ *
  * @param css - CSS that `resolve` returned.
  * @returns SVG text of each asset declaration in order.
  */

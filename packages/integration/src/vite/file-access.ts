@@ -6,6 +6,7 @@ import { isFileServingAllowed, type ViteDevServer } from "vite";
 
 /**
  * Checks both the requested and canonical file before a plugin reads it.
+ *
  * @param id - Absolute filesystem identity, optionally with a query or fragment removed for access checks.
  * @param server - Optional development server whose file-serving policy applies to both paths.
  * @returns The canonical absolute path after resolving symlinks.

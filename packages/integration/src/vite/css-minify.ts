@@ -5,6 +5,7 @@ import type { ProjectSettings } from "./project.ts";
 
 /**
  * Minifies expanded CSS and reports native parser warnings through the bundler.
+ *
  * @param css - Generated CSS with valid resource URLs or resource placeholder tokens.
  * @param settings - Browser targets shared with compiler generation.
  * @param context - Bundler warning reporter.

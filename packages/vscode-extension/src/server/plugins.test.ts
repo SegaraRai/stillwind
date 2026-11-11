@@ -7,6 +7,7 @@ vi.mock("@rolldown/browser", () => import("rolldown"));
 
 /**
  * Evaluates a bundled module through a data URL, which Node accepts in place of a Blob URL.
+ *
  * @param code - ESM source.
  * @returns The module namespace.
  */

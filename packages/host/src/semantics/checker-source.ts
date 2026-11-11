@@ -490,6 +490,7 @@ export function projectionPoints(source: PreparedSource): Map<number, number | n
 
 /**
  * Encodes identity JSON as an unpadded base64url key.
+ *
  * @param text - Serialized identity text encoded as UTF-8 before base64 conversion.
  * @returns Base64 with URL-safe characters and no trailing padding.
  */
@@ -502,6 +503,7 @@ function base64url(text: string): string {
 
 /**
  * Finds the next token start after whitespace and comments.
+ *
  * @param text - Checker call text to scan.
  * @param offset - UTF-16 position at which scanning starts.
  * @returns UTF-16 start of the next token, or text.length at end of input.

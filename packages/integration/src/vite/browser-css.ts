@@ -14,7 +14,9 @@ import { browserSourceMap, type BrowserSourceMapInput } from "./browser-source-m
 import type { ProducerInput } from "./compile.ts";
 import { sourceModuleId } from "./module-ids.ts";
 
-/** Project sources used to compose CSS maps and choose source names safe to send to a browser. */
+/**
+ * Project sources used to compose CSS maps and choose source names safe to send to a browser.
+ */
 export interface BrowserCssSources {
   /** Absolute project root used to compute public source names. */
   root: string;
@@ -51,6 +53,7 @@ export function publicCssSourceMap(
 
   /**
    * Allows a known source inside the project to use a public relative name.
+   *
    * @param id - Resolver identity whose query and fragment are removed before checking its path.
    */
   const add = (id: string) => {

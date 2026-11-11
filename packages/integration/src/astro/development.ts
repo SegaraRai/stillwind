@@ -2,7 +2,9 @@ import process from "node:process";
 
 const projectsKey = Symbol.for("@stillwind/integration.astro.development-css");
 
-/** Active CSS getters keyed by bridge and server-environment identity. */
+/**
+ * Active CSS getters keyed by bridge and server-environment identity.
+ */
 type Projects = Map<string, () => Promise<string>>;
 
 // Vite module runners can evaluate another copy of this module in the same process.
@@ -13,6 +15,7 @@ const host = process as NodeJS.Process & {
 
 /**
  * Registers an in-process CSS getter, replacing any previous getter for the same identity.
+ *
  * @param id - Bridge and server-environment identity used by the generated SSR module.
  * @param getCss - Getter for the current document plan, invoked on each SSR request.
  * @returns A disposer that removes only this registration and preserves a later replacement.
@@ -33,6 +36,7 @@ export function registerDevelopmentCss(id: string, getCss: () => Promise<string>
 
 /**
  * Reads the current CSS from a registered project.
+ *
  * @param id - Identity registered by the active development bridge.
  * @returns The current document stylesheet from the registered getter.
  * @throws If the registration is absent or its getter fails.

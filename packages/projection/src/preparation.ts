@@ -75,6 +75,7 @@ export function originalRange(source: string, start?: number, end?: number) {
 
   /**
    * Checks whether an offset can delimit a range without splitting a surrogate pair.
+   *
    * @param offset - Validated integer UTF-16 offset between zero and the source length, inclusive.
    * @returns Whether the offset lies outside a high-surrogate/low-surrogate pair.
    */

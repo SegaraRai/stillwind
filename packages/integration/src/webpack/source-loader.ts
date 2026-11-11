@@ -3,6 +3,7 @@ import type { LoaderContext } from "webpack";
 
 /**
  * Returns source text as a module value so importModule never executes application code.
+ *
  * @param this - Loader context retained for compatibility with the bundler loader protocol.
  * @param source - Source produced by preceding loaders, serialized as a string literal.
  * @param map - Optional upstream map serialized as a module export. Omission exports null.

@@ -1,7 +1,9 @@
 import { isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Resolved local resource retained for CSS emission and development access checks. */
+/**
+ * Resolved local resource retained for CSS emission and development access checks.
+ */
 export interface StylesheetResource {
   /** Resolver identity, including any resource query. */
   readonly id: string;
@@ -11,6 +13,7 @@ export interface StylesheetResource {
 
 /**
  * Converts local resource placeholders to escaped Vite filesystem URLs.
+ *
  * @param resources - Placeholder records whose files have already passed access checks.
  * @returns A new map of placeholders to JSON-escaped URL contents without surrounding quotes.
  */
@@ -27,6 +30,7 @@ export function resourceReplacements(
 
 /**
  * Encodes an absolute file path as a Vite filesystem URL.
+ *
  * @param file - Canonical absolute path, using either path separator spelling.
  * @returns An /@fs/ URL with each path segment encoded for use in stylesheet resource requests.
  */
@@ -45,6 +49,7 @@ export function resourceUrl(file: string): string {
 
 /**
  * Extracts a readable identity from a bundler resolution without checking file existence or access.
+ *
  * @param result - Resolution, possibly external or a file URI. Absolute external paths remain readable.
  * @param description - Resource description included in failure messages.
  * @returns The resolved identity, converting file URIs to filesystem paths.
@@ -73,6 +78,7 @@ export function resolvedFile(
 
 /**
  * Replaces recorded CSS tokens in map order without further URL escaping.
+ *
  * @param css - Generated text containing resource placeholders.
  * @param references - Placeholders mapped to replacement contents already escaped for CSS.
  * @returns Replaced CSS. The supplied map is unchanged.

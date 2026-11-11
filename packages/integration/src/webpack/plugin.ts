@@ -49,6 +49,7 @@ export class StillwindPlugin {
     let configuration: ResolvedIntegrationConfig | undefined;
     /**
      * Evaluates current configuration before a normal or watch build run.
+     *
      * @returns Completion after the settings shared by subsequent compilations have been replaced.
      * @throws If configuration discovery, evaluation, or project selection fails.
      */
@@ -78,6 +79,7 @@ export class StillwindPlugin {
         mode: compiler.options.mode,
         /**
          * Adapts the compiler's normal resolver for document CSS reconstruction.
+         *
          * @param settings - Requested dependency conditions, extensions, and metadata fields.
          * @returns A callback resolver using the compiler's configured input filesystem.
          */
@@ -102,6 +104,7 @@ interface EmissionCompiler<Module extends EmissionModule> extends ProjectCompile
     beforeRun: {
       /**
        * Registers asynchronous work before a normal build run.
+       *
        * @param name - Plugin registration name.
        * @param callback - Configuration initializer whose rejection fails the run.
        */
@@ -111,6 +114,7 @@ interface EmissionCompiler<Module extends EmissionModule> extends ProjectCompile
     watchRun: {
       /**
        * Registers asynchronous work before a watch build run.
+       *
        * @param name - Plugin registration name.
        * @param callback - Configuration initializer whose rejection fails the run.
        */
@@ -120,6 +124,7 @@ interface EmissionCompiler<Module extends EmissionModule> extends ProjectCompile
     thisCompilation: {
       /**
        * Registers settings, dependency watches, and emission on a new compilation.
+       *
        * @param name - Plugin registration name.
        * @param callback - Operation receiving the current compilation.
        */
@@ -146,6 +151,7 @@ interface EmissionCompiler<Module extends EmissionModule> extends ProjectCompile
   resolverFactory: {
     /**
      * Obtains a bundler resolver with a selected policy.
+     *
      * @param type - Resolver category. Stillwind requests normal.
      * @param settings - Import conditions, extensions, and package fields.
      * @returns Resolver that reports completion through its callback.
@@ -156,6 +162,7 @@ interface EmissionCompiler<Module extends EmissionModule> extends ProjectCompile
     ): {
       /**
        * Resolves a request without changing compiler state.
+       *
        * @param context - Bundler request metadata. Stillwind passes an empty object.
        * @param directory - Absolute importer directory.
        * @param specifier - Authored import or resource request.

@@ -333,6 +333,7 @@ export async function loadCssGraph(
     let ready: NativeCssFileInput[] = [];
     /**
      * Stops graph advancement and rejects the pending load.
+     *
      * @param error - Resolution, reading, or native loading failure passed to the caller.
      */
     const fail = (error: unknown) => {
@@ -341,6 +342,7 @@ export async function loadCssGraph(
     };
     /**
      * Completes the graph or starts reads for requests that have not already started.
+     *
      * @param step - Native loading step. Completion stores resources and resolves the load.
      */
     const advance = (step: NativeCssLoadStep) => {
@@ -359,6 +361,7 @@ export async function loadCssGraph(
         /**
          * Resolves, watches, and reads this request, then schedules a batch of ready responses.
          * An import that the host cannot resolve or read is answered as unresolved.
+         *
          * @returns A promise that resolves after queuing the response, or after observing a stopped load.
          * @throws If a plugin fails to load. The attached rejection handler stops the load.
          */

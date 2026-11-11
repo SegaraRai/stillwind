@@ -14,6 +14,7 @@ import {
 
 /**
  * Starts document CSS reconstruction from entries captured in standalone Turbopack loader options.
+ *
  * @param this - Loader context that receives asynchronous CSS and source-map completion or an error.
  */
 export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOptions>) {
@@ -22,6 +23,7 @@ export default function turbopackCssLoader(this: LoaderContext<TurbopackLoaderOp
 
 /**
  * Reconstructs a document stylesheet and resolves its local resources through the bundler.
+ *
  * @param context - Loader context whose callback receives CSS and a decoded map, or the operation error.
  * @param entries - Callback that selects absolute or project-relative entries after configuration is evaluated.
  * Repeats reconstruction if entry discovery changes during compilation or resource resolution.

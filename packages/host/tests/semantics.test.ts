@@ -221,6 +221,7 @@ selectedStyle;`;
   const assets = summarizeSource(code, "entry.ts", "ts", "module").assets;
   /**
    * Creates equivalent original-coordinate input for the Node or browser checker.
+   *
    * @param id - Checker and resolver path in the chosen environment.
    * @returns A direct TypeScript source using the shared original URI and probes.
    */

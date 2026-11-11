@@ -8,7 +8,9 @@ import { colorReplacement, cssColor } from "../editor/colors.ts";
 import { completionSnippet } from "../editor/completion.ts";
 import type { EditorEdit, EditorRequest, EditorResult } from "../editor/request.ts";
 
-/** Answers semantic CSS queries and lint fixes from one original buffer and captured design system. */
+/**
+ * Answers semantic CSS queries and lint fixes from one original buffer and captured design system.
+ */
 export class StylesheetEditor {
   /** Resolver identity of the stylesheet. */
   readonly #id: string;
@@ -40,6 +42,7 @@ export class StylesheetEditor {
   /**
    * Captures original text, lint reports, and query settings for one stylesheet revision.
    * Callers must load the original CSS graph before using sorting or lint fixes.
+   *
    * @param id - Resolver identity of the stylesheet.
    * @param text - Complete stylesheet text that the reports were computed from.
    * @param reports - Reports whose primary location is this stylesheet. Reports and edits are copied.
@@ -310,6 +313,7 @@ export class StylesheetEditor {
 
   /**
    * Pins completion resolution to the discovery and snippet settings used for its labels.
+   *
    * @param registryDirectives - Whether the request includes registry metadata.
    * @param snippets - Whether the client supports arbitrary variant snippets.
    * @returns A fingerprint of the captured snapshot and normalized editor settings.
@@ -320,6 +324,7 @@ export class StylesheetEditor {
 
   /**
    * Returns the plugin suggestions for the candidate before a cursor.
+   *
    * @param offset - UTF-16 character boundary within the captured text.
    * @returns The finite catalog and the suggestions that {@link StylesheetEditor.prepare} loaded
    * for the candidate's input, without duplicates.
@@ -331,6 +336,7 @@ export class StylesheetEditor {
 
   /**
    * Converts a cursor in the original buffer to the native query's byte coordinates.
+   *
    * @param offset - UTF-16 character boundary within the captured text.
    * @returns The length in UTF-8 bytes of the text before the cursor.
    */
@@ -340,6 +346,7 @@ export class StylesheetEditor {
 
   /**
    * Converts a native range boundary back to the original buffer's coordinates.
+   *
    * @param offset - UTF-8 character boundary within the captured bytes, returned by the native query.
    * @returns The UTF-16 offset at that boundary.
    */
@@ -349,6 +356,7 @@ export class StylesheetEditor {
 
   /**
    * Queries and formats a hover against original text or a completed copy of that text.
+   *
    * @param text - CSS buffer to query, including any synthetic completion replacement.
    * @param offset - UTF-16 character boundary within `text`.
    * @returns CSS and documentation at UTF-16 boundaries in `text`, or undefined for unresolved input.

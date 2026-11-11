@@ -15,6 +15,7 @@ import {
 
 /**
  * Creates an isolated configuration directory and registers its removal after the test.
+ *
  * @returns The root, default TypeScript config path, and a helper for replacing its project list.
  * @throws If creating the temporary directory fails.
  */
@@ -24,6 +25,7 @@ async function fixture() {
   const configFile = path.join(root, "stillwind.config.ts");
   /**
    * Replaces the fixture's configuration with a default export of the supplied projects.
+   *
    * @param projects - Project records, including intentionally invalid records used by validation tests.
    * @returns Completion of writing the TypeScript configuration.
    * @throws If serialization or file writing fails.
@@ -39,6 +41,7 @@ async function fixture() {
 
 /**
  * Writes a configuration file with one project in a new or existing directory.
+ *
  * @param directory - Directory that receives the file.
  * @param project - Project fields added to the required CSS and file settings.
  * @returns The absolute configuration path.
@@ -202,6 +205,7 @@ test.each(["ts", "mts", "cts", "js", "mjs", "cjs", "json"])(
     const configFile = path.join(root, `stillwind.config.${extension}`);
     /**
      * Creates settings for checking configuration loading across module formats.
+     *
      * @param css - Authored stylesheet path that identifies the current fixture revision.
      * @returns One project whose scope contains TSX files in the configuration directory.
      */
@@ -714,6 +718,7 @@ test.each(["ts", "cjs", "json"])(
     const helper = path.join(root, `settings.${extension}`);
     /**
      * Creates settings for detecting edits to an imported configuration helper.
+     *
      * @param css - Authored stylesheet path that identifies the helper revision.
      * @returns One project whose scope contains TSX files in the configuration directory.
      */
@@ -727,6 +732,7 @@ test.each(["ts", "cjs", "json"])(
     });
     /**
      * Serializes the imported helper in the module format selected by the test.
+     *
      * @param css - Authored stylesheet path inserted into the helper's project settings.
      * @returns JSON text, a CommonJS assignment, or an ESM default export.
      */

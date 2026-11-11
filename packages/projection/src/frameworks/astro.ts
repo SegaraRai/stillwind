@@ -150,6 +150,7 @@ function insertClientScripts(
   const generatedLengths: number[] = [];
   /**
    * Shifts an offset in converter output past the bodies inserted at or before it.
+   *
    * @param offset - UTF-16 offset in the converter output.
    * @returns The corresponding UTF-16 offset in the returned code.
    */
@@ -200,6 +201,7 @@ function insertClientScripts(
 
 /**
  * Creates a projection failure for inconsistent converter output.
+ *
  * @param detail - Message that describes the inconsistency.
  * @param converter - Converter identity attached to the failure.
  * @returns The failure to throw.

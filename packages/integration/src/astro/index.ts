@@ -63,6 +63,7 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
     hooks: {
       /**
        * Captures Astro's root and installs middleware plus Stillwind's Vite and document plugins.
+       *
        * @param options - Astro setup operations and application configuration.
        */
       "astro:config:setup"({ config: astroConfig, updateConfig, addMiddleware }) {
@@ -120,7 +121,9 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                     server.httpServer?.once("close", dispose);
                   };
                 },
-                /** Removes the development bridge owned by the closing environment. */
+                /**
+                 * Removes the development bridge owned by the closing environment.
+                 */
                 closeBundle() {
                   if (this.environment) {
                     bridges.get(this.environment)?.();
@@ -128,6 +131,7 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                 },
                 /**
                  * Resolves stylesheet virtual modules and keeps the development bridge external on the server.
+                 *
                  * @param source - Authored module specifier.
                  * @returns A virtual identity, an external bridge, or undefined for unrelated requests.
                  * @throws If a client environment imports server-only styles or the CSS bridge.
@@ -152,6 +156,7 @@ export function stillwind(config: IntegrationConfig = {}): AstroIntegration {
                 },
                 /**
                  * Generates SSR stylesheet markup or the client listener that refreshes inline SSR CSS.
+                 *
                  * @param source - Resolved virtual module identity including its leading NUL.
                  * @returns Generated JavaScript, or undefined for unrelated modules. Production markup retains a manifest placeholder.
                  */
@@ -205,6 +210,7 @@ export async function getStyles() {
                 },
                 /**
                  * Delivers client CSS and replaces the SSR marker with stylesheet links.
+                 *
                  * @param code - Rendered server or client JavaScript.
                  * @param chunk - Chunk whose filename identifies the generated source map.
                  * @returns Changed JavaScript and its map, or nothing when no styles need delivery.

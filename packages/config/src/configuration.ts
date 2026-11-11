@@ -18,7 +18,9 @@ import {
   validate,
 } from "./validation.ts";
 
-/** One project's compiler settings, analysis scope, and source preparation operations. */
+/**
+ * One project's compiler settings, analysis scope, and source preparation operations.
+ */
 export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
   /** Nonempty design-system stylesheet path, absolute or relative to root. Authored whitespace is preserved. */
   css: string;
@@ -43,7 +45,9 @@ export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
   preview?: PreviewOptions;
 }
 
-/** Selects the comments that editor previews add after CSS values. */
+/**
+ * Selects the comments that editor previews add after CSS values.
+ */
 export interface PreviewOptions {
   /**
    * Adds the resolved value after each theme `var()` and after each `calc()` that evaluates to one
@@ -82,6 +86,7 @@ const capturedProjects = new WeakSet<object>();
 
 /**
  * Captures configuration data and callback registries without changing the caller's objects.
+ *
  * @param config - Evaluated project settings. Provider methods retain their original receivers.
  * @returns Fixed settings. A previously captured configuration is shared without copying it again.
  */
@@ -142,7 +147,9 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
   return captured;
 }
 
-/** Supplies original or prepared sources without starting a bundler. */
+/**
+ * Supplies original or prepared sources without starting a bundler.
+ */
 export type SourceProvider =
   | {
       /** Reads original files through the analysis host, including captured unsaved buffers. */
@@ -184,7 +191,9 @@ export type SourceProvider =
       ): Promise<string | null>;
     };
 
-/** Captured buffers shared by source reads, projections, and semantic queries. */
+/**
+ * Captured buffers shared by source reads, projections, and semantic queries.
+ */
 export interface SourceProviderContext {
   /** Absolute project directory used for relative compiler and checker identities. */
   root: string;
@@ -192,7 +201,9 @@ export interface SourceProviderContext {
   documents: ReadonlyMap<string, string>;
 }
 
-/** Selects framework converters or a caller-supplied preparation operation. */
+/**
+ * Selects framework converters or a caller-supplied preparation operation.
+ */
 export type ProjectionProvider =
   | {
       /** Uses the built-in converter selected by the input's framework metadata. */
@@ -211,7 +222,9 @@ export type ProjectionProvider =
       prepare(input: ProjectInput): Promise<PreparedSource>;
     };
 
-/** Configuration file settings evaluated by build integrations and analysis hosts. */
+/**
+ * Configuration file settings evaluated by build integrations and analysis hosts.
+ */
 export interface StillwindConfig {
   /**
    * Nonempty list of projects and references. Projects keep independent scopes and design systems.
@@ -223,10 +236,14 @@ export interface StillwindConfig {
   projects: (AnalysisProjectConfig | string)[];
 }
 
-/** Called without arguments during configuration evaluation. Returns settings directly or asynchronously. */
+/**
+ * Called without arguments during configuration evaluation. Returns settings directly or asynchronously.
+ */
 export type StillwindConfigFactory = () => StillwindConfig | Promise<StillwindConfig>;
 
-/** Configuration module export accepted by Node hosts and build configuration consumers. */
+/**
+ * Configuration module export accepted by Node hosts and build configuration consumers.
+ */
 export type StillwindConfigExport =
   | StillwindConfig
   | Promise<StillwindConfig>
@@ -362,6 +379,7 @@ const configurationSchema = v.pipe(
 /**
  * Validates evaluated projects and their compiler settings without running providers, resolving
  * paths, or reading referenced configuration files.
+ *
  * @param value - Evaluated settings with a nonempty list of projects and references, required CSS
  * paths and file globs, and unique names when names are supplied.
  * @returns The supplied settings with object and callback identities preserved.

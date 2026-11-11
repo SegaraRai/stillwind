@@ -19,6 +19,7 @@ test("denied stylesheet lint findings neither fail a build nor change its output
     const warnings: string[] = [];
     /**
      * Builds the library entry with every stylesheet rule at `severity`.
+     *
      * @param severity - Severity of the rules that the stylesheet violates.
      * @returns The emitted file names and contents, in output order.
      */

@@ -7,6 +7,7 @@ import { createCompilationHost, createLoaderHost, type ResolverHost } from "./ho
 
 /**
  * Creates a loader chain with framework transformation preceding Stillwind and recording host operations.
+ *
  * @returns A context whose resolver echoes requests and whose filesystem and capture mocks are configured by each test.
  */
 function loaderContext() {

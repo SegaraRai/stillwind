@@ -107,6 +107,7 @@ test("browser plugin paths complete and link without evaluating plugins", async 
 
 /**
  * Creates a plugin whose `demo-*` family sets `color` to the candidate's suffix.
+ *
  * @returns The plugin and the candidate lists that `resolve` received.
  */
 function demoPlugin() {
@@ -128,6 +129,7 @@ function demoPlugin() {
 
 /**
  * Loads a design system whose root stylesheet loads the plugin.
+ *
  * @param plugin - Configured plugin named `demo`.
  * @param statement - `@plugin` statement of the root stylesheet.
  * @returns The loaded graph.
@@ -157,6 +159,7 @@ async function load(
 
 /**
  * Compiles one module and renders its document CSS.
+ *
  * @param session - Session with attached plugins.
  * @param code - Module text.
  * @param clean - Whether the module must compile without diagnostics.

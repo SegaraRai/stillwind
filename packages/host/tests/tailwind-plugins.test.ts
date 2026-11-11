@@ -248,6 +248,7 @@ test("plugin selectors keep sibling rules and register every class", async () =>
 
 /**
  * Creates a project whose entry module uses `candidates` with the plugin `extension`.
+ *
  * @param extension - Plugin that the stylesheet loads.
  * @param candidates - Space-separated candidates for one `style()` call.
  * @param stylesheet - CSS that precedes the plugin in the stylesheet.

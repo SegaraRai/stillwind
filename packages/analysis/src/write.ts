@@ -2,7 +2,9 @@ import { readFile, writeFile } from "node:fs/promises";
 
 import type { RewriteFileFailure } from "./rewrite.ts";
 
-/** A replacement with the original bytes retained for verification before saving. */
+/**
+ * A replacement with the original bytes retained for verification before saving.
+ */
 export interface FileChange {
   /** Target path. The caller must provide at most one change per file. */
   file: string;
@@ -15,6 +17,7 @@ export interface FileChange {
 /**
  * Saves changed bytes once per file. Identical buffers perform no filesystem operations.
  * Checks each original immediately before saving and continues after a target fails.
+ *
  * @param changes - Distinct target paths and original/replacement bytes. Buffers remain unchanged.
  * @returns Saved paths and failures. A stale file is left unchanged.
  */

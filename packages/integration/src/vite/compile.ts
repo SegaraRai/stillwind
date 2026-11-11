@@ -20,7 +20,9 @@ import type { ModuleRegistry } from "./module-registry.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolveServerSource } from "./server-source-resolve.ts";
 
-/** Metadata retained in the Vite module graph to reconstruct a producer from a cached transform. */
+/**
+ * Metadata retained in the Vite module graph to reconstruct a producer from a cached transform.
+ */
 export interface ProducerMetadata {
   /** Source before Stillwind compilation, absent when a projection produces no compiled code. */
   input?: string;
@@ -78,7 +80,9 @@ export interface ProducerInput {
   sourceDependencies: ReadonlySet<string>;
 }
 
-/** Vite operations needed to compile producers and compose their upstream source maps. */
+/**
+ * Vite operations needed to compile producers and compose their upstream source maps.
+ */
 export interface CompileContext extends CssContext {
   /**
    * Reads the map produced by plugins that transformed the source before Stillwind.
@@ -91,7 +95,9 @@ export interface CompileContext extends CssContext {
   >;
 }
 
-/** A successful producer compilation, ready to record in the environment and return to Vite. */
+/**
+ * A successful producer compilation, ready to record in the environment and return to Vite.
+ */
 export interface ProducerCompilation {
   /** Input retained for document planning, CSS reloads, and framework source-map composition. */
   input: ProducerInput;
@@ -99,7 +105,9 @@ export interface ProducerCompilation {
   result: ProducerTransform;
 }
 
-/** A producer transform whose graph metadata allows recovery from cached Vite modules. */
+/**
+ * A producer transform whose graph metadata allows recovery from cached Vite modules.
+ */
 export interface ProducerTransform {
   /** Transformed source, retaining SFC syntax or JavaScript and any automatic producer import. */
   code: string;
@@ -144,6 +152,7 @@ export async function compileProducer(
 ): Promise<ProducerCompilation | undefined> {
   /**
    * Selects the automatic stylesheet import of a producer.
+   *
    * @param id - Full Vite identity of the producer.
    * @returns The producer stylesheet module for an SFC with automatic document CSS, or undefined.
    */
@@ -155,6 +164,7 @@ export async function compileProducer(
 
   /**
    * Gives a producer a document identity suitable for compiler reports and maps.
+   *
    * @param id - Full resolver identity. Queries and fragments are removed from the document name.
    * @returns An encoded `stillwind-virtual:` URI for virtual modules, or a file URL for a file.
    */

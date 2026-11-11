@@ -168,6 +168,7 @@ function mappedPoints(
   const selected = trace.sources.indexOf(map.source);
   /**
    * Builds line starts for converting map positions to text offsets.
+   *
    * @param text - Generated or original source whose LF characters delimit lines.
    * @returns Ordered UTF-16 offsets, including zero and the position after every LF.
    */

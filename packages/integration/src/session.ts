@@ -22,6 +22,7 @@ import {
 
 /**
  * Selects native settings for build and development sessions with lint disabled.
+ *
  * @param config - Shared project settings. Analysis hosts retain its lint configuration.
  * @returns Compiler settings for generating JavaScript and CSS.
  */
@@ -35,6 +36,7 @@ export function buildCompilerOptions(config: BuildConfig): NativeCompilerOptions
 /**
  * Reports each statement that loading skipped through a bundler warning channel. Build and
  * development sessions run without stylesheet lint, so these warnings report the skipped statements.
+ *
  * @param skipped - Skipped statements of a loaded graph.
  * @param warn - Receives the lint rule, reason, and one-based authored location of each statement.
  */

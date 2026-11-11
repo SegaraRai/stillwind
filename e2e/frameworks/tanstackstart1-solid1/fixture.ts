@@ -56,7 +56,7 @@ export default defineFixture({
       css: {
         marginTop: "23px",
       },
-      document: "reload",
+      document: "preserve",
       state: "reset",
     },
   },

@@ -245,6 +245,7 @@ test("lint checks the CSS entry and imported user CSS, and lint fixes edit them"
     );
     /**
      * Lists the code and document of each finding in JSON output.
+     *
      * @param stdout - JSON printed by the CLI.
      * @returns Finding codes with the file names of their primary locations.
      */
@@ -290,6 +291,7 @@ test("lint reports stylesheet definitions and fixes implicit nesting selectors",
     /**
      * Lists the code, primary document, and related documents of each finding in JSON
      * output.
+     *
      * @param stdout - JSON printed by the CLI.
      * @returns Finding codes with the file names of their locations.
      */
@@ -361,6 +363,7 @@ test("lint --fix replaces variant headers in stylesheets with @variant", async (
     );
     /**
      * Lists the code and variant of each finding in JSON output.
+     *
      * @param stdout - JSON printed by the CLI.
      * @returns Finding codes with the variant that each message names.
      */

@@ -233,7 +233,9 @@ export class CompilationProject {
   }
 
   /**
-   * Loads and scans targets together, then resolves their imports through the host.
+   * Loads and scans targets together, then resolves the imports of the sources that the targets
+   * reach through the host. Sources that the targets do not reach keep their links, and stay
+   * unlinked or unverified for this host's domain until a later call reaches them.
    * Analysis retries failed loads and scans so it can report each target's own error.
    *
    * @param ids - Full resolver IDs of the targets to prepare.
@@ -260,9 +262,20 @@ export class CompilationProject {
       return;
     }
     const domain = host.resolverDomain;
-    for (const record of this.#sources.values()) {
+    // Only sources that the targets reach are linked or verified. Another domain can hold a
+    // source that this domain cannot resolve, for example Astro middleware that imports a
+    // server-only virtual module while the client environment compiles an island.
+    const pending = ids.map(sourceKey);
+    const visited = new Set<string>();
+    for (let key = pending.pop(); key !== undefined; key = pending.pop()) {
+      const record = this.#sources.get(key);
+      if (!record || visited.has(key)) {
+        continue;
+      }
+      visited.add(key);
       const { source, summary } = record;
       if (record.linked && record.verified.has(domain)) {
+        pending.push(...record.resolutions.map((resolution) => sourceKey(resolution.id)));
         continue;
       }
       if (record.linked) {
@@ -277,6 +290,7 @@ export class CompilationProject {
           return;
         }
         record.verified.add(domain);
+        pending.push(...record.resolutions.map((resolution) => sourceKey(resolution.id)));
         continue;
       }
       const resolutions = await Promise.all(
@@ -303,6 +317,7 @@ export class CompilationProject {
         record,
         resolutions.filter((value) => value !== undefined),
       );
+      pending.push(...record.resolutions.map((resolution) => sourceKey(resolution.id)));
     }
   }
 

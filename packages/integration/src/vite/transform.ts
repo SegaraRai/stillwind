@@ -13,7 +13,9 @@ import { resolveServerSource } from "./server-source-resolve.ts";
 /** Project settings whose configured CSS entrypoint has already produced an import warning. */
 const warnedEntrypointImports = new WeakSet<ViteProject["settings"]>();
 
-/** Selects the compiler's position and source after a framework regenerates scripts. */
+/**
+ * Selects the compiler's position and source after a framework regenerates scripts.
+ */
 export interface TransformOptions {
   /** Runs before other pre transforms by default, or in plugin order with `normal`. */
   order?: "pre" | "normal";
@@ -46,6 +48,7 @@ export function transformHooks(
   return {
     /**
      * Selects cached modules that need current compiler state and records virtual modules for reloading.
+     *
      * @param module - Cached module descriptor whose id includes any source query.
      * @returns Whether to rerun transformation for Stillwind virtual modules or supported application sources.
      */
@@ -67,6 +70,7 @@ export function transformHooks(
     },
     /**
      * Invalidates changed configuration or removes deleted source state and publishes resulting CSS.
+     *
      * @param id - Watched filesystem identity.
      * @param change - Vite event. Source removal is performed only for delete events.
      * @returns Completion of removal and publication when required.
@@ -89,6 +93,7 @@ export function transformHooks(
       order: options.order === "normal" ? undefined : "pre",
       /**
        * Reserves authored CSS names, registers source projections, and compiles supported producers.
+       *
        * @param code - Source after earlier transforms in the configured order.
        * @param id - Full Vite identity, including queries that select distinct source.
        * @returns Compiler output, a reloaded virtual module, or undefined when no transformed source is needed.

@@ -15,7 +15,9 @@ export class OutputView {
   /** Output models keyed by the identifier passed to `show`. */
   readonly #models = new Map<string, monaco.editor.ITextModel>();
 
-  /** @param element - Container whose size Monaco observes. */
+  /**
+   * @param element - Container whose size Monaco observes.
+   */
   constructor(element: HTMLElement) {
     this.#editor = monaco.editor.create(element, {
       ...editorAppearance(),

@@ -7,6 +7,7 @@ export type * from "./protocol.ts";
 
 /**
  * Prepares JS/TS input while retaining its document and compiler identities.
+ *
  * @param input - Original script or JSX document, syntax, and host metadata.
  * @returns Direct parser input with sourceMapSource defaulting to the document URI.
  * @throws PreparationError for component formats, which require caller-supplied projections.
@@ -31,6 +32,7 @@ export async function prepareSource(input: ProjectInput): Promise<PreparedSource
 
 /**
  * Returns browser checker requirements without filesystem reads.
+ *
  * @param _source - Direct or caller-prepared source. Its checker globals remain on its projection.
  * @returns No additional declaration paths. Embeddings include dependency declarations in their inventory.
  */

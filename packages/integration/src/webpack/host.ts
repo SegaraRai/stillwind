@@ -8,7 +8,9 @@ import { cleanModuleId, type UpstreamSourceMap } from "@stillwind/host";
 import { nativeBindingFiles } from "../binding-files.ts";
 import type { ProducerInput } from "./emission.ts";
 
-/** Resolver policies passed to webpack or Rspack for CSS, script, and asset imports. */
+/**
+ * Resolver policies passed to webpack or Rspack for CSS, script, and asset imports.
+ */
 export interface ResolveSettings {
   /** Dependency category used to select bundler resolution behavior, such as `esm`. */
   dependencyType?: string;
@@ -37,12 +39,15 @@ export type ResolveCallback = (error?: Error | null, id?: string | false) => voi
  */
 export type Resolver = (directory: string, specifier: string, callback: ResolveCallback) => void;
 
-/** Bundler filesystem and resolver operations shared by producer loaders and CSS reconstruction. */
+/**
+ * Bundler filesystem and resolver operations shared by producer loaders and CSS reconstruction.
+ */
 export interface ResolverHost {
   /** Bundler input filesystem. Reads may return UTF-8 text or bytes through the callback. */
   fs: {
     /**
      * Reads through the bundler filesystem rather than bypassing its virtual files.
+     *
      * @param id - Filesystem identity without a resource query.
      * @param callback - Receives an error or file contents. Callers convert successful contents to text.
      */
@@ -94,7 +99,9 @@ interface LoaderHostContext extends ResolverHost {
   emitWarning(error: Error): void;
 }
 
-/** Source and map exported by the capture loader after preceding framework transforms. */
+/**
+ * Source and map exported by the capture loader after preceding framework transforms.
+ */
 export interface CapturedDependency {
   /** Transformed source text consumed by the compiler, without executing its application code. */
   source: string;
@@ -102,7 +109,9 @@ export interface CapturedDependency {
   map: UpstreamSourceMap;
 }
 
-/** Compiler operations and retained dependency captures for one producer loader invocation. */
+/**
+ * Compiler operations and retained dependency captures for one producer loader invocation.
+ */
 export interface LoaderHost {
   /**
    * Reads a resource through the bundler input filesystem.
@@ -190,6 +199,7 @@ export function createLoaderHost(context: LoaderHostContext, loaderPath: string)
   const dependencySources = new Map<string, Promise<CapturedDependency>>();
   /**
    * Reads an ordinary dependency or captures transformed text through preceding loaders.
+   *
    * @param dependency - Full resolver identity. A query or fragment requires a loader capture.
    * @returns File text or captured text. Capture promises, including failures, are retained by identity.
    * @throws If filesystem reading or the dependency's loader chain fails.
@@ -215,6 +225,7 @@ export function createLoaderHost(context: LoaderHostContext, loaderPath: string)
   };
   /**
    * Adapts loader resolution to requests relative to a source file.
+   *
    * @param settings - Resolution policy passed to the loader's resolver factory.
    * @returns An asynchronous resolver accepting a specifier and full importer identity. Resolver
    * errors reject its promise, and a missing result becomes an empty string.
@@ -236,6 +247,7 @@ export function createLoaderHost(context: LoaderHostContext, loaderPath: string)
   const resolveAsset = resolver({});
   /**
    * Registers a filesystem dependency for loader invalidation.
+   *
    * @param id - Full resolver identity whose query and fragment are removed before registration.
    */
   const watch = (id: string) => context.addDependency(cleanModuleId(id));
@@ -286,7 +298,9 @@ export function watchCompilerFiles(watch: (id: string) => void): void {
   }
 }
 
-/** File and resolver operations used after producer modules have completed compilation. */
+/**
+ * File and resolver operations used after producer modules have completed compilation.
+ */
 export interface CompilationHost {
   /**
    * Reads the underlying file through the bundler input filesystem.
@@ -342,6 +356,7 @@ export function createCompilationHost(context: ResolverHost): CompilationHost {
   const read = createReadFile(context.fs, cleanModuleId);
   /**
    * Adapts compilation resolution to requests relative to a source file.
+   *
    * @param settings - Resolution policy passed to the bundler's resolver factory.
    * @returns An asynchronous resolver accepting a specifier and full importer identity. It forwards
    * successful resolver results without checking for an absent identity, and rejects resolver errors.
@@ -359,6 +374,7 @@ export function createCompilationHost(context: ResolverHost): CompilationHost {
     read,
     /**
      * Creates a reader using source captured by the completed module graph.
+     *
      * @param producers - Producer and dependency records. Later records replace earlier text for the same identity.
      * @returns A reader that uses exact captured identities before falling back to ordinary filesystem reads.
      */

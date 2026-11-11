@@ -141,6 +141,7 @@ selected;`;
 
 /**
  * Probes expressions against ref declarations using a temporary isolated checker.
+ *
  * @param expressions - Expression text appended after the shared ref declarations, in probe order.
  * @param recognitionOnly - Whether each probe only needs asset-family recognition.
  * @returns Facts, native declaration records, and original UTF-8 probe ranges.
@@ -388,6 +389,7 @@ export const result = style({[refAlias('hover').in(scopeAlias)]: 'flex'});`,
 
 /**
  * Probes expressions against style, ref, keyframes, view-transition, and stored-variant brands.
+ *
  * @param expressions - Expression text appended after the shared declarations, in probe order.
  * @returns Strict checker facts and the declaration records used to interpret them.
  * @throws If finite declaration candidates cannot be verified.

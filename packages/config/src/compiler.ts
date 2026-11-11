@@ -14,10 +14,14 @@ import {
 import type { StillwindPlugin } from "./plugins.ts";
 import { nonemptyText, object, strictObject, validate } from "./validation.ts";
 
-/** Tailwind CSS configuration, with the keys of a file that Tailwind's `@config` loads. */
+/**
+ * Tailwind CSS configuration, with the keys of a file that Tailwind's `@config` loads.
+ */
 export type TailwindConfig = Config;
 
-/** Controls independent sorting targets in scripts and stylesheets. */
+/**
+ * Controls independent sorting targets in scripts and stylesheets.
+ */
 export type UtilitySortOptions = {
   /** Sorts utilities within each static string or template segment. Defaults to true. */
   stringLiterals?: boolean;
@@ -35,7 +39,9 @@ export type UtilitySortOptions = {
   variantBlocks?: boolean;
 };
 
-/** Controls document CSS delivery through build integrations. */
+/**
+ * Controls document CSS delivery through build integrations.
+ */
 export interface BuildOptions {
   /** Applies producer CSS to the document. Defaults to true. */
   automatic?: boolean;
@@ -156,7 +162,9 @@ export interface BaseConfig {
   rootFontSize?: number;
 }
 
-/** Compiler and document CSS delivery settings shared by build adapters. */
+/**
+ * Compiler and document CSS delivery settings shared by build adapters.
+ */
 export interface BuildConfig extends BaseConfig, BuildOptions {}
 
 const cssPath = v.pipe(
@@ -268,6 +276,7 @@ const singleImportant = v.forward(
 
 /**
  * Validates compiler fields and lint policies without resolving paths or invoking naming callbacks.
+ *
  * @param value - Compiler settings with no analysis or delivery fields. CSS is optional here.
  * @param location - Field path prepended to validation errors. Defaults to `config`.
  * @param partial - Whether incomplete overrides can defer namespace collisions and required lint
@@ -285,7 +294,9 @@ export function validateCompilerConfig(
   }
 }
 
-/** Compiler and delivery settings after defaults are applied. Authored paths remain unresolved. */
+/**
+ * Compiler and delivery settings after defaults are applied. Authored paths remain unresolved.
+ */
 export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
   /** Validated Stillwind namespace, defaulting to --sw-. */
   prefix: string;
@@ -324,6 +335,7 @@ export interface NormalizedCompilerConfig extends BaseConfig, BuildOptions {
 
 /**
  * Validates compiler fields and applies defaults without resolving paths.
+ *
  * @param config - Compiler and delivery settings. Other fields are discarded before validation.
  * @returns A new object containing compiler and delivery settings with explicit sort flags and
  * expanded lint rules. Naming callbacks and other unchanged objects can retain input references.

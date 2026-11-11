@@ -6,7 +6,9 @@ import type { LoaderContext } from "webpack";
 import type producerLoader from "./loader.ts";
 import type { TurbopackLoaderOptions } from "./project.ts";
 
-/** Settings for a compiler loader that executes in Node. */
+/**
+ * Settings for a compiler loader that executes in Node.
+ */
 export type NodeLoaderOptions = TurbopackLoaderOptions & {
   /** Absolute path to the compiled loader implementation. */
   implementation: string;
@@ -14,6 +16,7 @@ export type NodeLoaderOptions = TurbopackLoaderOptions & {
 
 /**
  * Loads the compiler in Node without exposing its dependencies to Turbopack's loader tracing.
+ *
  * @param this - Loader context with an absolute implementation path and asynchronous completion.
  * @param source - Original source text forwarded to the implementation.
  * @param inputMap - Upstream source map forwarded unchanged.

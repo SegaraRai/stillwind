@@ -80,3 +80,35 @@ test("a resolver domain shares prepared sources only while it resolves source im
     project.prepare([entry], host("edge", ".server", true), session),
   ).rejects.toBeInstanceOf(ResolutionMismatchError);
 });
+
+test("a resolver domain does not resolve the imports of sources that its targets do not reach", async () => {
+  const root = path.resolve("/project");
+  const island = path.join(root, "island.ts");
+  const middleware = path.join(root, "middleware.ts");
+  const files = new Map([
+    [island, "export const value = 1;\n"],
+    [middleware, 'import { styles } from "virtual:server-only";\nexport const value = styles;\n'],
+  ]);
+  const host = (domain: string): CompilerHost => ({
+    resolverDomain: domain,
+    describe: (id) => fileModuleDescriptor(root, id),
+    read: async (id) => files.get(id)!,
+    resolve: async (specifier) => {
+      if (domain === "client") {
+        expect.fail(`client resolved ${specifier}`);
+      }
+      return {
+        id: specifier,
+        external: true,
+      };
+    },
+    watch: () => {},
+    warn: () => {},
+  });
+  const session = { scanSource } as unknown as NativeProjectSession;
+  const project = new CompilationProject(true);
+  await project.prepare([middleware], host("ssr"), session);
+
+  await project.prepare([island], host("client"), session);
+  expect(project.source(island)).toBeDefined();
+});
